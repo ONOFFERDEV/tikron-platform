@@ -7,12 +7,14 @@
     "bindings": [
       { "name": "GameRoom", "class_name": "GameRoom" },
       { "name": "MovementRoom", "class_name": "MovementRoom" },
-      { "name": "TicTacToe", "class_name": "TicTacToe" }
+      { "name": "TicTacToe", "class_name": "TicTacToe" },
+      { "name": "AgarRoom", "class_name": "AgarRoom" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
-    { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] }
+    { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] },
+    { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] }
   ],
   "assets": { "directory": "./public" },
   "observability": { "enabled": true }

@@ -16,11 +16,13 @@ import {
 import { defineRoom } from "@playedge/server";
 import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
+import { AgarRoomImpl } from "./rooms/agar-room.js";
 
 export interface Env {
   GameRoom: DurableObjectNamespace<GameRoom>;
   MovementRoom: DurableObjectNamespace;
   TicTacToe: DurableObjectNamespace;
+  AgarRoom: DurableObjectNamespace;
 }
 
 /**
@@ -91,6 +93,9 @@ export const MovementRoom = defineRoom(MovementRoomImpl);
 
 /** Turn-based guardrail example — genre-agnostic core only, no tick. */
 export const TicTacToe = defineRoom(TicTacToeImpl);
+
+/** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
+export const AgarRoom = defineRoom(AgarRoomImpl);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

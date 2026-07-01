@@ -45,6 +45,18 @@ export interface RoomInit {
   ctx: RoomContext;
 }
 
+/** Configuration for the opt-in interest-management (AOI) module. */
+export interface AOIConfig<TState> {
+  /** View radius; entities farther than this from the viewer are filtered out. */
+  viewRadius: number;
+  /** State fields that are string-keyed entity maps to filter per viewer. */
+  mapFields: string[];
+  /** Extract an entity's world position. */
+  position: (entity: unknown) => { x: number; y: number };
+  /** The viewpoint position for a viewer (e.g. their own entity), or null if none. */
+  viewer: (state: TState, viewerId: string) => { x: number; y: number } | null;
+}
+
 // Binary state frame tags (first byte of a binary WebSocket frame).
 const STATE_FULL = 0x01;
 const STATE_DELTA = 0x02;
@@ -88,7 +100,9 @@ export abstract class Room<TState = unknown> {
   private readonly lastSeq = new Map<string, number>();
   private readonly rate = new RateLimiter();
   private readonly pendingFull = new Set<string>();
+  private readonly clientBaselines = new Map<string, TState>();
   private baseline: TState | undefined;
+  private aoi?: AOIConfig<TState>;
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
@@ -162,6 +176,16 @@ export abstract class Room<TState = unknown> {
       clearInterval(this.tickHandle);
       this.tickHandle = null;
     }
+  }
+
+  /**
+   * Opt-in interest management (AOI). Each client receives only entities within
+   * `viewRadius` of its viewpoint — a bandwidth win AND a security boundary:
+   * unseen entities never enter a client's packets, defeating map/wallhacks by
+   * construction. Requires a {@link stateCodec}.
+   */
+  protected enableAOI(config: AOIConfig<TState>): void {
+    this.aoi = config;
   }
 
   // --- internal glue (invoked by the defineRoom host; not part of the dev API) ---
@@ -247,6 +271,7 @@ export abstract class Room<TState = unknown> {
     this.clients.delete(conn.id);
     this.lastSeq.delete(conn.id);
     this.pendingFull.delete(conn.id);
+    this.clientBaselines.delete(conn.id);
     this.rate.forget(conn.id);
 
     if (client) await this.onLeave(client);
@@ -279,6 +304,11 @@ export abstract class Room<TState = unknown> {
       return;
     }
 
+    if (this.aoi) {
+      this.flushAOI(codec);
+      return;
+    }
+
     const changed = this.baseline === undefined || !codec.equals(this.baseline, this.state);
     if (!changed && this.pendingFull.size === 0) return;
 
@@ -296,5 +326,45 @@ export abstract class Room<TState = unknown> {
 
     this.pendingFull.clear();
     this.baseline = structuredClone(this.state);
+  }
+
+  /** Per-client filtered binary sync when AOI is enabled (each client differs). */
+  private flushAOI(codec: Codec<TState>): void {
+    for (const conn of this.ctx.connections()) {
+      const view = this.aoiFilter(conn.id);
+      const prev = this.clientBaselines.get(conn.id);
+      if (this.pendingFull.has(conn.id) || prev === undefined) {
+        conn.send(frame(STATE_FULL, encodeFull(codec, view)));
+      } else if (!codec.equals(prev, view)) {
+        conn.send(frame(STATE_DELTA, encodeDelta(codec, prev, view)));
+      }
+      this.clientBaselines.set(conn.id, structuredClone(view));
+    }
+    this.pendingFull.clear();
+  }
+
+  /** Build the AOI-filtered state a specific viewer is allowed to see. */
+  private aoiFilter(viewerId: string): TState {
+    const aoi = this.aoi!;
+    const state = this.state as Record<string, unknown>;
+    const out: Record<string, unknown> = { ...state };
+    const vp = aoi.viewer(this.state, viewerId);
+    const r2 = aoi.viewRadius * aoi.viewRadius;
+
+    for (const field of aoi.mapFields) {
+      const map = state[field] as Record<string, unknown> | undefined;
+      if (!map) continue;
+      const filtered: Record<string, unknown> = {};
+      if (vp) {
+        for (const [k, v] of Object.entries(map)) {
+          const p = aoi.position(v);
+          const dx = p.x - vp.x;
+          const dy = p.y - vp.y;
+          if (dx * dx + dy * dy <= r2) filtered[k] = v;
+        }
+      }
+      out[field] = filtered;
+    }
+    return out as TState;
   }
 }

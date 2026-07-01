@@ -3,6 +3,8 @@ dist/
 .turbo/
 .wrangler/
 .omc/
+apps/gateway/public/agar.js
+apps/gateway/public/agar.js.map
 coverage/
 *.log
 .dev.vars
