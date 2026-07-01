@@ -96,7 +96,7 @@ describe("GameClient / Room", () => {
     const room = await pending;
 
     room.echo("ping");
-    room.broadcast("hey");
+    room.broadcastText("hey");
     room.hello("nova");
 
     expect(h.transport().sent.map((raw) => decodeClientMessage(raw))).toEqual([
@@ -128,5 +128,48 @@ describe("GameClient / Room", () => {
     const room = await pending;
     room.leave();
     expect(h.transport().isClosed).toBe(true);
+  });
+
+  it("send() emits a developer message with an auto-incrementing seq", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("lobby");
+    h.transport().emit(h.welcome());
+    const room = await pending;
+
+    room.send("move", { x: 1 });
+    room.send("move", { x: 2 });
+
+    expect(h.transport().sent.map((raw) => decodeClientMessage(raw))).toEqual([
+      { t: "c:msg", type: "move", seq: 1, payload: { x: 1 } },
+      { t: "c:msg", type: "move", seq: 2, payload: { x: 2 } },
+    ]);
+  });
+
+  it("tracks state and fires onStateChange on s:state", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("lobby");
+    h.transport().emit(h.welcome());
+    const room = await pending;
+
+    const seen: unknown[] = [];
+    room.onStateChange((s) => seen.push(s));
+    h.transport().emit({ t: ServerMessageType.State, state: { turn: "X" } });
+
+    expect(room.state).toEqual({ turn: "X" });
+    expect(seen).toEqual([{ turn: "X" }]);
+  });
+
+  it("routes developer server messages by type via onMessage(type, cb)", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("lobby");
+    h.transport().emit(h.welcome());
+    const room = await pending;
+
+    const overs: unknown[] = [];
+    room.onMessage("gameOver", (payload) => overs.push(payload));
+    h.transport().emit({ t: ServerMessageType.Message, type: "gameOver", payload: { winner: "O" } });
+    h.transport().emit({ t: ServerMessageType.Message, type: "other", payload: { n: 1 } });
+
+    expect(overs).toEqual([{ winner: "O" }]);
   });
 });

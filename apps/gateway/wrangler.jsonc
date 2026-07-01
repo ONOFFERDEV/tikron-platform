@@ -4,9 +4,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
   "durable_objects": {
-    "bindings": [{ "name": "GameRoom", "class_name": "GameRoom" }]
+    "bindings": [
+      { "name": "GameRoom", "class_name": "GameRoom" },
+      { "name": "MovementRoom", "class_name": "MovementRoom" },
+      { "name": "TicTacToe", "class_name": "TicTacToe" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] }
+  ],
   "assets": { "directory": "./public" },
   "observability": { "enabled": true }
 }

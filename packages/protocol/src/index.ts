@@ -13,6 +13,8 @@ export const ClientMessageType = {
   Hello: "c:hello",
   Echo: "c:echo",
   Broadcast: "c:broadcast",
+  /** Developer-defined message (routed to a room's onMessage(type) handler). */
+  Message: "c:msg",
 } as const;
 export type ClientMessageType = (typeof ClientMessageType)[keyof typeof ClientMessageType];
 
@@ -23,6 +25,10 @@ export const ServerMessageType = {
   PeerJoined: "s:peer-joined",
   PeerLeft: "s:peer-left",
   Broadcast: "s:broadcast",
+  /** Authoritative room state snapshot (JSON in M1; binary delta from M2). */
+  State: "s:state",
+  /** Developer-defined server -> client message. */
+  Message: "s:msg",
   Error: "s:error",
 } as const;
 export type ServerMessageType = (typeof ServerMessageType)[keyof typeof ServerMessageType];
@@ -45,7 +51,19 @@ export interface BroadcastMessage {
   text: string;
 }
 
-export type ClientMessage = HelloMessage | EchoMessage | BroadcastMessage;
+/**
+ * A developer-defined message routed by `type` to a room's registered handler.
+ * `seq` is a monotonic per-client counter used for input ordering and, later,
+ * client-side reconciliation (M2). The payload shape is game-specific.
+ */
+export interface ClientGameMessage {
+  t: typeof ClientMessageType.Message;
+  type: string;
+  seq?: number;
+  payload?: unknown;
+}
+
+export type ClientMessage = HelloMessage | EchoMessage | BroadcastMessage | ClientGameMessage;
 
 // --- Server -> Client ---
 
@@ -86,12 +104,28 @@ export interface ErrorMessage {
   message: string;
 }
 
+/** Full authoritative state snapshot. `ackSeq` is the last input seq processed. */
+export interface StateMessage {
+  t: typeof ServerMessageType.State;
+  ackSeq?: number;
+  state: unknown;
+}
+
+/** A developer-defined server -> client message routed by `type` on the client. */
+export interface ServerGameMessage {
+  t: typeof ServerMessageType.Message;
+  type: string;
+  payload?: unknown;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | EchoReplyMessage
   | PeerJoinedMessage
   | PeerLeftMessage
   | BroadcastRelayMessage
+  | StateMessage
+  | ServerGameMessage
   | ErrorMessage;
 
 export type AnyMessage = ClientMessage | ServerMessage;

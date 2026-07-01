@@ -13,19 +13,21 @@ import {
   ProtocolError,
   type ServerMessage,
 } from "@playedge/protocol";
+import { defineRoom } from "@playedge/server";
+import { MovementRoomImpl } from "./rooms/movement-room.js";
+import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 
 export interface Env {
   GameRoom: DurableObjectNamespace<GameRoom>;
+  MovementRoom: DurableObjectNamespace;
+  TicTacToe: DurableObjectNamespace;
 }
 
 /**
- * M0 hello-room: a partyserver Durable Object that greets each connection,
- * echoes, relays broadcasts, and tracks presence. This is the seam the
- * authoritative room framework (@playedge/server) grows into during M1.
+ * M0 hello-room: a raw partyserver Durable Object (echo/broadcast/presence).
+ * Kept as a minimal reference; framework-based rooms use `@playedge/server`.
  */
 export class GameRoom extends Server<Env> {
-  // Use the Durable Object WebSocket Hibernation API (32k conns/room, no idle
-  // compute). The M1 tick loop will keep active rooms in memory intentionally.
   static override options = { hibernate: true };
 
   override onConnect(conn: Connection, _ctx: ConnectionContext): void {
@@ -79,11 +81,16 @@ export class GameRoom extends Server<Env> {
     conn.send(encode(message));
   }
 
-  /** Broadcast to everyone in the room except the originating connection. */
   private relay(message: ServerMessage, exceptId: string): void {
     this.broadcast(encode(message), [exceptId]);
   }
 }
+
+/** Realtime .io example — Simulation + MovementValidation modules. */
+export const MovementRoom = defineRoom(MovementRoomImpl);
+
+/** Turn-based guardrail example — genre-agnostic core only, no tick. */
+export const TicTacToe = defineRoom(TicTacToeImpl);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

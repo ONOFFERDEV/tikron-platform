@@ -13,10 +13,12 @@ export type { Transport, TransportFactory, TransportOptions } from "./transport.
 export { createPartySocketTransport } from "./transport.js";
 
 export type ServerMessageHandler = (message: ServerMessage) => void;
+export type PayloadHandler = (payload: unknown) => void;
+export type StateHandler = (state: unknown) => void;
 export type Unsubscribe = () => void;
 
 export interface GameClientOptions {
-  /** Party (Durable Object binding) name. Defaults to "gameroom". */
+  /** Party (Durable Object binding) name. Defaults to "game-room". */
   party?: string;
   /** API key for multi-tenant routing (wired up in M5). */
   apiKey?: string;
@@ -27,17 +29,24 @@ export interface GameClientOptions {
 }
 
 /**
- * A live connection to a single room. Wraps a {@link Transport} and decodes the
- * server-authoritative message stream. In M0 this is echo/broadcast; state sync
- * (`state.onAdd/onChange`) and prediction hooks arrive in M2.
+ * A live connection to a single room. Wraps a {@link Transport}, decodes the
+ * authoritative message stream, and tracks room state. In M0 this was
+ * echo/broadcast; M1 adds `state` sync (`onStateChange`), developer messages
+ * (`send`/`onMessage(type)`), and presence. Client-side prediction arrives in M2.
  */
 export class Room {
   connectionId: string | null = null;
   readonly name: string;
 
+  /** Latest authoritative state from the server (undefined until first sync). */
+  state: unknown = undefined;
+
   private readonly transport: Transport;
-  private readonly handlers = new Set<ServerMessageHandler>();
+  private readonly rawHandlers = new Set<ServerMessageHandler>();
+  private readonly typeHandlers = new Map<string, Set<PayloadHandler>>();
+  private readonly stateHandlers = new Set<StateHandler>();
   private readonly welcome: Promise<WelcomeMessage>;
+  private seq = 0;
 
   constructor(name: string, transport: Transport) {
     this.name = name;
@@ -53,22 +62,53 @@ export class Room {
       });
     });
 
-    transport.onMessage((raw) => {
-      let msg: ServerMessage;
-      try {
-        msg = decodeServerMessage(raw);
-      } catch {
-        return; // ignore malformed frames
-      }
-      for (const handler of this.handlers) handler(msg);
-    });
+    transport.onMessage((raw) => this.dispatch(raw));
   }
 
-  /** Subscribe to every decoded server message. Returns an unsubscribe function. */
-  onMessage(handler: ServerMessageHandler): Unsubscribe {
-    this.handlers.add(handler);
+  private dispatch(raw: Parameters<Parameters<Transport["onMessage"]>[0]>[0]): void {
+    let msg: ServerMessage;
+    try {
+      msg = decodeServerMessage(raw);
+    } catch {
+      return; // ignore malformed frames
+    }
+
+    if (msg.t === ServerMessageType.State) {
+      this.state = msg.state;
+      for (const handler of this.stateHandlers) handler(msg.state);
+    } else if (msg.t === ServerMessageType.Message) {
+      const set = this.typeHandlers.get(msg.type);
+      if (set) for (const handler of set) handler(msg.payload);
+    }
+
+    for (const handler of this.rawHandlers) handler(msg);
+  }
+
+  /** Subscribe to every decoded server message (raw). */
+  onMessage(handler: ServerMessageHandler): Unsubscribe;
+  /** Subscribe to developer-defined server messages of a given `type`. */
+  onMessage(type: string, handler: PayloadHandler): Unsubscribe;
+  onMessage(a: ServerMessageHandler | string, b?: PayloadHandler): Unsubscribe {
+    if (typeof a === "string") {
+      const handler = b as PayloadHandler;
+      const set = this.typeHandlers.get(a) ?? new Set<PayloadHandler>();
+      set.add(handler);
+      this.typeHandlers.set(a, set);
+      return () => {
+        set.delete(handler);
+      };
+    }
+    this.rawHandlers.add(a);
     return () => {
-      this.handlers.delete(handler);
+      this.rawHandlers.delete(a);
+    };
+  }
+
+  /** Subscribe to authoritative state updates. */
+  onStateChange(handler: StateHandler): Unsubscribe {
+    this.stateHandlers.add(handler);
+    return () => {
+      this.stateHandlers.delete(handler);
     };
   }
 
@@ -77,20 +117,27 @@ export class Room {
     return this.welcome;
   }
 
-  send(message: ClientMessage): void {
+  /** Send a developer-defined message (intent) with an auto-incrementing seq. */
+  send(type: string, payload?: unknown): void {
+    this.transport.send(
+      encode({ t: ClientMessageType.Message, type, seq: ++this.seq, payload }),
+    );
+  }
+
+  private sendRaw(message: ClientMessage): void {
     this.transport.send(encode(message));
   }
 
   hello(name?: string): void {
-    this.send({ t: ClientMessageType.Hello, name });
+    this.sendRaw({ t: ClientMessageType.Hello, name });
   }
 
   echo(text: string): void {
-    this.send({ t: ClientMessageType.Echo, text });
+    this.sendRaw({ t: ClientMessageType.Echo, text });
   }
 
-  broadcast(text: string): void {
-    this.send({ t: ClientMessageType.Broadcast, text });
+  broadcastText(text: string): void {
+    this.sendRaw({ t: ClientMessageType.Broadcast, text });
   }
 
   leave(): void {
@@ -111,7 +158,7 @@ export class GameClient {
   }
 
   /**
-   * Join a room by name (creating it on first join). In M0 this simply opens a
+   * Join a room by name (creating it on first join). In M0/M1 this simply opens a
    * connection to the room's Durable Object; real matchmaking arrives in M4.
    */
   async joinOrCreate(room: string, params: Record<string, string> = {}): Promise<Room> {
