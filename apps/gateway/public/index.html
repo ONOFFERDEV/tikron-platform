@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlayEdge · hello-room (M0)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      body {
+        margin: 0;
+        background: #0d1117;
+        color: #e6edf3;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      main {
+        width: min(680px, 92vw);
+        padding: 24px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 20px;
+        color: #8b949e;
+        font-size: 13px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      input,
+      button {
+        font: inherit;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background: #161b22;
+        color: #e6edf3;
+        padding: 8px 12px;
+      }
+      input {
+        flex: 1;
+        min-width: 120px;
+      }
+      button {
+        cursor: pointer;
+        background: #238636;
+        border-color: #2ea043;
+      }
+      button.secondary {
+        background: #21262d;
+        border-color: #30363d;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      #status {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid #30363d;
+      }
+      #status.on {
+        color: #3fb950;
+        border-color: #238636;
+      }
+      #status.off {
+        color: #f85149;
+        border-color: #da3633;
+      }
+      #log {
+        height: 300px;
+        overflow-y: auto;
+        background: #010409;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      .in {
+        color: #58a6ff;
+      }
+      .out {
+        color: #d29922;
+      }
+      .sys {
+        color: #8b949e;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PlayEdge · hello-room</h1>
+      <p class="sub">
+        M0 smoke test. Open this page in two tabs, join the same room, and click
+        <em>Broadcast</em>. Server-authoritative echo/broadcast over a partyserver Durable Object.
+      </p>
+
+      <div class="row">
+        <input id="room" value="lobby" placeholder="room name" />
+        <button id="connect">Connect</button>
+        <button id="disconnect" class="secondary" disabled>Disconnect</button>
+        <span id="status" class="off">offline</span>
+      </div>
+
+      <div class="row">
+        <input id="text" value="hello" placeholder="message" />
+        <button id="echo" disabled>Echo (to me)</button>
+        <button id="broadcast" disabled>Broadcast (to others)</button>
+      </div>
+
+      <div id="log"></div>
+    </main>
+
+    <script type="module">
+      const $ = (id) => document.getElementById(id);
+      const logEl = $("log");
+      let socket = null;
+
+      function log(kind, text) {
+        const line = document.createElement("div");
+        line.className = kind;
+        const ts = new Date().toISOString().slice(11, 19);
+        line.textContent = `${ts}  ${text}`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setConnected(on) {
+        $("status").textContent = on ? "online" : "offline";
+        $("status").className = on ? "on" : "off";
+        $("connect").disabled = on;
+        $("disconnect").disabled = !on;
+        $("echo").disabled = !on;
+        $("broadcast").disabled = !on;
+      }
+
+      function connect() {
+        const room = $("room").value.trim() || "lobby";
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const url = `${proto}://${location.host}/parties/game-room/${encodeURIComponent(room)}`;
+        log("sys", `connecting → ${url}`);
+        socket = new WebSocket(url);
+
+        socket.addEventListener("open", () => {
+          setConnected(true);
+          send({ t: "c:hello", name: `tab-${Math.floor(Math.random() * 1000)}` });
+        });
+        socket.addEventListener("close", () => {
+          setConnected(false);
+          log("sys", "closed");
+        });
+        socket.addEventListener("error", () => log("sys", "socket error"));
+        socket.addEventListener("message", (e) => {
+          try {
+            log("in", "◀ " + JSON.stringify(JSON.parse(e.data)));
+          } catch {
+            log("in", "◀ " + e.data);
+          }
+        });
+      }
+
+      function send(msg) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        socket.send(JSON.stringify(msg));
+        log("out", "▶ " + JSON.stringify(msg));
+      }
+
+      $("connect").addEventListener("click", connect);
+      $("disconnect").addEventListener("click", () => socket && socket.close());
+      $("echo").addEventListener("click", () => send({ t: "c:echo", text: $("text").value }));
+      $("broadcast").addEventListener("click", () =>
+        send({ t: "c:broadcast", text: $("text").value }),
+      );
+    </script>
+  </body>
+</html>
