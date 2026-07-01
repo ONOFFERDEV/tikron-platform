@@ -8,13 +8,15 @@
       { "name": "GameRoom", "class_name": "GameRoom" },
       { "name": "MovementRoom", "class_name": "MovementRoom" },
       { "name": "TicTacToe", "class_name": "TicTacToe" },
-      { "name": "AgarRoom", "class_name": "AgarRoom" }
+      { "name": "AgarRoom", "class_name": "AgarRoom" },
+      { "name": "Matchmaker", "class_name": "Matchmaker" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
     { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] },
-    { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] }
+    { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
+    { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
   ],
   "assets": { "directory": "./public" },
   "observability": { "enabled": true }

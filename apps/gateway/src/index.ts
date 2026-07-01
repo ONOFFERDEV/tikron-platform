@@ -17,12 +17,16 @@ import { defineRoom } from "@playedge/server";
 import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
+import { Matchmaker } from "./matchmaker.js";
+
+export { Matchmaker };
 
 export interface Env {
   GameRoom: DurableObjectNamespace<GameRoom>;
   MovementRoom: DurableObjectNamespace;
   TicTacToe: DurableObjectNamespace;
   AgarRoom: DurableObjectNamespace;
+  Matchmaker: DurableObjectNamespace<Matchmaker>;
 }
 
 /**
@@ -97,8 +101,37 @@ export const TicTacToe = defineRoom(TicTacToeImpl);
 /** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
 export const AgarRoom = defineRoom(AgarRoomImpl);
 
+function matchmaker(env: Env) {
+  return env.Matchmaker.get(env.Matchmaker.idFromName("global"));
+}
+
+/** REST matchmaking API: place players into rooms and browse the lobby. */
+async function handleApi(url: URL, env: Env): Promise<Response> {
+  const mm = matchmaker(env);
+
+  if (url.pathname === "/api/matchmake") {
+    const type = url.searchParams.get("type") ?? "agar-room";
+    const mode = url.searchParams.get("mode") ?? "";
+    const max = Number(url.searchParams.get("max") ?? "8");
+    const result = await mm.reserve(type, mode, Number.isFinite(max) ? max : 8);
+    return Response.json(result);
+  }
+  if (url.pathname === "/api/rooms") {
+    const type = url.searchParams.get("type") ?? undefined;
+    return Response.json(await mm.list(type));
+  }
+  if (url.pathname === "/api/release") {
+    const session = url.searchParams.get("session");
+    if (session) await mm.release(session);
+    return Response.json({ ok: true });
+  }
+  return new Response("not found", { status: 404 });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/")) return handleApi(url, env);
     return (
       (await routePartykitRequest(request, env)) ?? new Response("not found", { status: 404 })
     );

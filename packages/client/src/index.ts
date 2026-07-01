@@ -198,6 +198,24 @@ export class GameClient {
   }
 
   /**
+   * Ask the matchmaker for a room of this client's party (type), optionally
+   * filtered by `mode`. Returns the room id to join and a reserved session id.
+   * (Browser-oriented: uses a same-origin `/api/matchmake` request.)
+   */
+  async matchmake(
+    opts: { type?: string; mode?: string; maxClients?: number } = {},
+  ): Promise<{ roomId: string; sessionId: string }> {
+    const query = new URLSearchParams({
+      type: opts.type ?? this.party,
+      mode: opts.mode ?? "",
+      max: String(opts.maxClients ?? 8),
+    });
+    const res = await fetch(`/api/matchmake?${query.toString()}`);
+    if (!res.ok) throw new Error(`matchmake failed: HTTP ${res.status}`);
+    return (await res.json()) as { roomId: string; sessionId: string };
+  }
+
+  /**
    * Join a room by name (creating it on first join). In M0/M1 this simply opens a
    * connection to the room's Durable Object; real matchmaking arrives in M4.
    */
