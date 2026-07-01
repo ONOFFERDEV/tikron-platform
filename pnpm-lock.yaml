@@ -23,6 +23,9 @@ importers:
       '@playedge/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@playedge/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@playedge/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -48,6 +51,9 @@ importers:
       '@playedge/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@playedge/schema':
+        specifier: workspace:*
+        version: link:../schema
       partysocket:
         specifier: ^1.1.4
         version: 1.3.0
@@ -62,11 +68,20 @@ importers:
         specifier: ^4.1.0
         version: 4.1.9(vite@7.3.6)
 
+  packages/schema:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(vite@7.3.6)
+
   packages/server:
     dependencies:
       '@playedge/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@playedge/schema':
+        specifier: workspace:*
+        version: link:../schema
       partyserver:
         specifier: ^0.5.8
         version: 0.5.8(@cloudflare/workers-types@4.20260701.1)

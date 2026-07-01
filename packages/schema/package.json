@@ -1,5 +1,5 @@
 {
-  "name": "@playedge/server",
+  "name": "@playedge/schema",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,13 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@playedge/protocol": "workspace:*",
-    "@playedge/schema": "workspace:*",
-    "partyserver": "^0.5.8"
-  },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260701.1",
     "vitest": "^4.1.0"
   }
 }

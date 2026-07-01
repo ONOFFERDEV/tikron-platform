@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@playedge/protocol": "workspace:*",
+    "@playedge/schema": "workspace:*",
     "partysocket": "^1.1.4"
   },
   "devDependencies": {

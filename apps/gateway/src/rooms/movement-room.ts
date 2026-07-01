@@ -1,16 +1,22 @@
 import { Room, validateMovement, type Client } from "@playedge/server";
+import { schema, mapOf, type Codec } from "@playedge/schema";
 
 /**
  * Realtime .io-style room — exercises the opt-in Simulation and
- * MovementValidation modules on top of the genre-agnostic core.
+ * MovementValidation modules plus binary delta state sync (`stateCodec`).
  *
  * Clients send their predicted position ("move"); the server validates the step
  * against a per-tick budget and snaps back teleports/speed hacks. State is
- * broadcast on a fixed 20 Hz simulation tick.
+ * broadcast as binary deltas on a fixed 20 Hz simulation tick.
  */
 interface MovementState {
   players: Record<string, { x: number; y: number }>;
 }
+
+/** Shared schema — import this on the client to decode the binary state stream. */
+export const MovementSchema: Codec<MovementState> = schema({
+  players: mapOf(schema({ x: "f32", y: "f32" })),
+});
 
 const MAX_SPEED = 200; // units per second
 const STEP_MS = 50; // simulation tick + per-move validation step (20 Hz)
@@ -29,6 +35,8 @@ export class MovementRoomImpl extends Room<MovementState> {
   private readonly positions = new Map<string, { x: number; y: number }>();
 
   override onCreate(): void {
+    this.stateCodec = MovementSchema; // binary delta sync
+    this.sendAcks = true; // let clients reconcile predicted movement
     this.setState({ players: {} });
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
     // Simulation module: keep broadcasting authoritative frames at 20 Hz.

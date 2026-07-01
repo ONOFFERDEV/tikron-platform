@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@playedge/protocol": "workspace:*",
+    "@playedge/schema": "workspace:*",
     "@playedge/server": "workspace:*",
     "partyserver": "^0.5.8"
   },

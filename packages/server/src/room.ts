@@ -7,6 +7,7 @@ import {
   ProtocolError,
   type RawData,
 } from "@playedge/protocol";
+import { encodeFull, encodeDelta, type Codec } from "@playedge/schema";
 import { RateLimiter } from "./rate-limit.js";
 
 /** A connected player, as seen by developer room code. */
@@ -21,7 +22,7 @@ export interface Client {
 /** Minimal transport surface a Room needs; provided by the partyserver host. */
 export interface RoomConnection {
   readonly id: string;
-  send(data: string): void;
+  send(data: string | ArrayBuffer | ArrayBufferView): void;
   close(code?: number, reason?: string): void;
 }
 
@@ -44,6 +45,17 @@ export interface RoomInit {
   ctx: RoomContext;
 }
 
+// Binary state frame tags (first byte of a binary WebSocket frame).
+const STATE_FULL = 0x01;
+const STATE_DELTA = 0x02;
+
+function frame(tag: number, body: Uint8Array): Uint8Array {
+  const out = new Uint8Array(body.length + 1);
+  out[0] = tag;
+  out.set(body, 1);
+  return out;
+}
+
 /**
  * Genre-agnostic authoritative room core.
  *
@@ -51,13 +63,22 @@ export interface RoomInit {
  * are opt-in modules layered on top. A turn-based or card game uses only this
  * core (state broadcasts happen on mutation, never requiring a tick); a realtime
  * .io game additionally starts a simulation loop and calls movement validation.
+ *
+ * State sync uses JSON by default. Set {@link stateCodec} to a `@playedge/schema`
+ * codec to switch to binary delta sync (recommended for realtime rooms).
  */
 export abstract class Room<TState = unknown> {
   /** Authoritative room state. Mutate it, then call {@link markStateChanged}. */
   protected state: TState = undefined as TState;
 
+  /** Optional binary codec. When set, state syncs as binary deltas, not JSON. */
+  protected stateCodec?: Codec<TState>;
+
   /** Max developer messages accepted per client per second before dropping. */
   protected maxInputsPerSecond = 30;
+
+  /** When true, ack each processed input's seq (enables client reconciliation). */
+  protected sendAcks = false;
 
   readonly id: string;
 
@@ -66,6 +87,8 @@ export abstract class Room<TState = unknown> {
   private readonly clients = new Map<string, Client>();
   private readonly lastSeq = new Map<string, number>();
   private readonly rate = new RateLimiter();
+  private readonly pendingFull = new Set<string>();
+  private baseline: TState | undefined;
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
@@ -163,8 +186,16 @@ export abstract class Room<TState = unknown> {
         peers,
       }),
     );
+
     if (this.state !== undefined) {
-      conn.send(encode({ t: ServerMessageType.State, state: this.state }));
+      if (this.stateCodec) {
+        // Deliver a full binary snapshot on the next flush (avoids a mid-stream
+        // baseline mismatch for clients that join between deltas).
+        this.pendingFull.add(conn.id);
+        this.markStateChanged();
+      } else {
+        conn.send(encode({ t: ServerMessageType.State, state: this.state }));
+      }
     }
 
     await this.onJoin(client);
@@ -204,6 +235,10 @@ export abstract class Room<TState = unknown> {
 
     const handler = this.handlers.get(msg.type);
     if (handler) await handler(client, msg.payload, msg.seq);
+
+    if (this.sendAcks && typeof msg.seq === "number") {
+      conn.send(encode({ t: ServerMessageType.Ack, seq: msg.seq }));
+    }
   }
 
   /** @internal */
@@ -211,6 +246,7 @@ export abstract class Room<TState = unknown> {
     const client = this.clients.get(conn.id);
     this.clients.delete(conn.id);
     this.lastSeq.delete(conn.id);
+    this.pendingFull.delete(conn.id);
     this.rate.forget(conn.id);
 
     if (client) await this.onLeave(client);
@@ -236,6 +272,29 @@ export abstract class Room<TState = unknown> {
 
   private flushState(): void {
     if (this.state === undefined) return;
-    this.ctx.broadcastRaw(encode({ t: ServerMessageType.State, state: this.state }));
+    const codec = this.stateCodec;
+
+    if (!codec) {
+      this.ctx.broadcastRaw(encode({ t: ServerMessageType.State, state: this.state }));
+      return;
+    }
+
+    const changed = this.baseline === undefined || !codec.equals(this.baseline, this.state);
+    if (!changed && this.pendingFull.size === 0) return;
+
+    let fullFrame: Uint8Array | undefined;
+    let deltaFrame: Uint8Array | undefined;
+    for (const conn of this.ctx.connections()) {
+      if (this.pendingFull.has(conn.id)) {
+        fullFrame ??= frame(STATE_FULL, encodeFull(codec, this.state));
+        conn.send(fullFrame);
+      } else if (changed) {
+        deltaFrame ??= frame(STATE_DELTA, encodeDelta(codec, this.baseline, this.state));
+        conn.send(deltaFrame);
+      }
+    }
+
+    this.pendingFull.clear();
+    this.baseline = structuredClone(this.state);
   }
 }

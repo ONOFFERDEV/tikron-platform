@@ -29,6 +29,8 @@ export const ServerMessageType = {
   State: "s:state",
   /** Developer-defined server -> client message. */
   Message: "s:msg",
+  /** Acknowledgement of the last processed client input seq (for reconciliation). */
+  Ack: "s:ack",
   Error: "s:error",
 } as const;
 export type ServerMessageType = (typeof ServerMessageType)[keyof typeof ServerMessageType];
@@ -118,6 +120,12 @@ export interface ServerGameMessage {
   payload?: unknown;
 }
 
+/** Acknowledges the last client input seq the server processed (client reconciliation). */
+export interface AckMessage {
+  t: typeof ServerMessageType.Ack;
+  seq: number;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | EchoReplyMessage
@@ -126,6 +134,7 @@ export type ServerMessage =
   | BroadcastRelayMessage
   | StateMessage
   | ServerGameMessage
+  | AckMessage
   | ErrorMessage;
 
 export type AnyMessage = ClientMessage | ServerMessage;

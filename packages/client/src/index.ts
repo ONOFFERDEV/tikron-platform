@@ -6,11 +6,15 @@ import {
   type ClientMessage,
   type ServerMessage,
   type WelcomeMessage,
+  type RawData,
 } from "@playedge/protocol";
+import { decodeFull, applyDelta, type Codec } from "@playedge/schema";
 import { createPartySocketTransport, type Transport, type TransportFactory } from "./transport.js";
 
 export type { Transport, TransportFactory, TransportOptions } from "./transport.js";
 export { createPartySocketTransport } from "./transport.js";
+export { InputPredictor, SnapshotBuffer } from "./netcode.js";
+export type { Predictable, Snapshot } from "./netcode.js";
 
 export type ServerMessageHandler = (message: ServerMessage) => void;
 export type PayloadHandler = (payload: unknown) => void;
@@ -24,6 +28,8 @@ export interface GameClientOptions {
   apiKey?: string;
   /** WebSocket implementation for non-browser environments (e.g. the `ws` package). */
   WebSocketPolyfill?: unknown;
+  /** Binary state codec (from `@playedge/schema`) matching the room's server codec. */
+  stateCodec?: Codec<unknown>;
   /** Override the transport factory. Primarily for tests. */
   createTransport?: TransportFactory;
 }
@@ -41,16 +47,22 @@ export class Room {
   /** Latest authoritative state from the server (undefined until first sync). */
   state: unknown = undefined;
 
+  /** Last input seq the server has acknowledged (0 until the first ack). */
+  lastAckSeq = 0;
+
   private readonly transport: Transport;
   private readonly rawHandlers = new Set<ServerMessageHandler>();
   private readonly typeHandlers = new Map<string, Set<PayloadHandler>>();
   private readonly stateHandlers = new Set<StateHandler>();
+  private readonly ackHandlers = new Set<(seq: number) => void>();
   private readonly welcome: Promise<WelcomeMessage>;
+  private readonly stateCodec?: Codec<unknown>;
   private seq = 0;
 
-  constructor(name: string, transport: Transport) {
+  constructor(name: string, transport: Transport, stateCodec?: Codec<unknown>) {
     this.name = name;
     this.transport = transport;
+    this.stateCodec = stateCodec;
 
     this.welcome = new Promise<WelcomeMessage>((resolve) => {
       const off = this.onMessage((msg) => {
@@ -65,7 +77,12 @@ export class Room {
     transport.onMessage((raw) => this.dispatch(raw));
   }
 
-  private dispatch(raw: Parameters<Parameters<Transport["onMessage"]>[0]>[0]): void {
+  private dispatch(raw: RawData): void {
+    if (typeof raw !== "string") {
+      this.applyBinaryState(raw);
+      return;
+    }
+
     let msg: ServerMessage;
     try {
       msg = decodeServerMessage(raw);
@@ -79,9 +96,24 @@ export class Room {
     } else if (msg.t === ServerMessageType.Message) {
       const set = this.typeHandlers.get(msg.type);
       if (set) for (const handler of set) handler(msg.payload);
+    } else if (msg.t === ServerMessageType.Ack) {
+      this.lastAckSeq = msg.seq;
+      for (const handler of this.ackHandlers) handler(msg.seq);
     }
 
     for (const handler of this.rawHandlers) handler(msg);
+  }
+
+  private applyBinaryState(raw: ArrayBuffer | Uint8Array): void {
+    if (!this.stateCodec) return;
+    const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+    if (bytes.length === 0) return;
+    const tag = bytes[0];
+    const body = bytes.subarray(1);
+    if (tag === 0x01) this.state = decodeFull(this.stateCodec, body);
+    else if (tag === 0x02) this.state = applyDelta(this.stateCodec, this.state, body);
+    else return;
+    for (const handler of this.stateHandlers) handler(this.state);
   }
 
   /** Subscribe to every decoded server message (raw). */
@@ -109,6 +141,14 @@ export class Room {
     this.stateHandlers.add(handler);
     return () => {
       this.stateHandlers.delete(handler);
+    };
+  }
+
+  /** Subscribe to input acknowledgements (the last input seq the server processed). */
+  onAck(handler: (seq: number) => void): Unsubscribe {
+    this.ackHandlers.add(handler);
+    return () => {
+      this.ackHandlers.delete(handler);
     };
   }
 
@@ -174,7 +214,7 @@ export class GameClient {
       WebSocketPolyfill: this.options.WebSocketPolyfill,
     });
 
-    const roomHandle = new Room(room, transport);
+    const roomHandle = new Room(room, transport, this.options.stateCodec);
     await roomHandle.connected();
     return roomHandle;
   }

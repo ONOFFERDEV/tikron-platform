@@ -7,6 +7,7 @@ import {
   type RawData,
   type ServerMessage,
 } from "@playedge/protocol";
+import { schema, mapOf, encodeFull, encodeDelta } from "@playedge/schema";
 
 class FakeTransport implements Transport {
   readonly sent: string[] = [];
@@ -34,6 +35,9 @@ class FakeTransport implements Transport {
   // --- test helpers ---
   emit(message: ServerMessage): void {
     this.messageCb?.(encode(message));
+  }
+  emitRaw(raw: RawData): void {
+    this.messageCb?.(raw);
   }
   get isClosed(): boolean {
     return this.closed;
@@ -171,5 +175,49 @@ describe("GameClient / Room", () => {
     h.transport().emit({ t: ServerMessageType.Message, type: "other", payload: { n: 1 } });
 
     expect(overs).toEqual([{ winner: "O" }]);
+  });
+
+  it("decodes binary state frames when a stateCodec is provided", async () => {
+    const World = schema({ players: mapOf(schema({ x: "f32", y: "f32" })) });
+    const frame = (tag: number, body: Uint8Array) => {
+      const out = new Uint8Array(body.length + 1);
+      out[0] = tag;
+      out.set(body, 1);
+      return out;
+    };
+
+    let transport: FakeTransport | undefined;
+    const client = new GameClient("localhost:8787", {
+      stateCodec: World,
+      createTransport: (opts) => (transport = new FakeTransport(opts)),
+    });
+    const pending = client.joinOrCreate("m");
+    transport!.emit({
+      t: ServerMessageType.Welcome,
+      connectionId: "c1",
+      room: "m",
+      protocol: 1,
+      peers: [],
+    });
+    const room = await pending;
+
+    const seen: unknown[] = [];
+    room.onStateChange((s) => seen.push(s));
+
+    transport!.emitRaw(frame(1, encodeFull(World, { players: { c1: { x: 1, y: 2 } } })));
+    expect(room.state).toEqual({ players: { c1: { x: 1, y: 2 } } });
+
+    transport!.emitRaw(
+      frame(
+        2,
+        encodeDelta(
+          World,
+          { players: { c1: { x: 1, y: 2 } } },
+          { players: { c1: { x: 5, y: 2 } } },
+        ),
+      ),
+    );
+    expect(room.state).toEqual({ players: { c1: { x: 5, y: 2 } } });
+    expect(seen.length).toBe(2);
   });
 });
