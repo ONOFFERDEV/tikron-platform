@@ -1,0 +1,23 @@
+{
+  "name": "@playedge/loadtest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WebSocket load-testing harness for the PlayEdge gateway (latency/bandwidth/stability).",
+  "bin": {
+    "playedge-loadtest": "src/main.ts"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@playedge/schema": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2"
+  }
+}
