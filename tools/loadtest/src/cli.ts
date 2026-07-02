@@ -30,10 +30,10 @@ const DEFAULTS = {
   workers: "auto" as string,
 };
 
-const HELP = `PlayEdge load-test harness
+const HELP = `Tikron load-test harness
 
 Usage:
-  pnpm --filter @playedge/loadtest start -- [options]
+  pnpm --filter @tikron/loadtest start -- [options]
 
 Options:
   --scenario <name>   Scenario: ${SCENARIO_NAMES.join(" | ")}   (default: ${DEFAULTS.scenario})
@@ -49,7 +49,7 @@ Options:
   --help              Show this help
 
 Example:
-  pnpm --filter @playedge/loadtest start -- --scenario agar --rooms 4 --players 32 --duration 30
+  pnpm --filter @tikron/loadtest start -- --scenario agar --rooms 4 --players 32 --duration 30
 `;
 
 export class CliError extends Error {}

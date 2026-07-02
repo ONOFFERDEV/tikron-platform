@@ -1,6 +1,6 @@
 # Performance — measured, 2026-07-02
 
-Load-test results for the PlayEdge room engine, measured with
+Load-test results for the Tikron room engine, measured with
 [`tools/loadtest`](../tools/loadtest) (N simulated players, 20 Hz inputs,
 30 s runs). Commit under test: P1/P1b hardened core (`34829a0`).
 
@@ -11,9 +11,11 @@ Two environments:
   multi-room load**: local workerd runs every DO in one process, so parallel
   rooms contend for one CPU (see "horizontal scaling" below).
 - **Deployed** — real Cloudflare Workers + Durable Objects
-  (`playedge-gateway.workers.dev`), measured from a residential connection in
+  (`tikron-gateway.workers.dev`), measured from a residential connection in
   Korea. Absolute numbers include ~80 ms network RTT to the assigned edge/DO
   location; server-side cost is the local column.
+  (These numbers were measured before the rename, when the worker was named
+  `playedge-gateway`; the methodology and figures are unchanged.)
 
 Metrics: **ack RTT** = client input → server `s:ack` round trip (the
 "responsiveness" number a player feels on top of their base ping).

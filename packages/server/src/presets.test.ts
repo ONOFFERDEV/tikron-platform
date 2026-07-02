@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // workerd-only dependency) which the node test runner cannot load.
 import { TurnBasedRoom, CasualRealtimeRoom, IoArenaRoom } from "./presets.js";
 import { Room, type Client, type RoomConnection, type RoomContext } from "./room.js";
-import { schema, mapOf, type Codec } from "@playedge/schema";
+import { schema, mapOf, type Codec } from "@tikron/schema";
 
 // --- test doubles (trimmed from room.test.ts) ---
 

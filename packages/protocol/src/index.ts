@@ -1,8 +1,8 @@
 /**
- * @playedge/protocol — shared wire protocol between the client SDK and the edge room server.
+ * @tikron/protocol — shared wire protocol between the client SDK and the edge room server.
  *
  * M0 uses a JSON envelope with a `t` (type) discriminator. A binary delta codec
- * (`@playedge/schema`) is introduced in M2; the message tags defined here remain the
+ * (`@tikron/schema`) is introduced in M2; the message tags defined here remain the
  * stable outer framing regardless of how room state itself is encoded.
  */
 

@@ -94,7 +94,7 @@ describe("public leaderboard read (GET /api/leaderboard)", () => {
     expect((await handleLeaderboard(e, new URL("https://x/api/leaderboard"))).status).toBe(400);
     const bad = await handleLeaderboard(
       e,
-      new URL("https://x/api/leaderboard?board=x&apiKey=pe_live_nope"),
+      new URL("https://x/api/leaderboard?board=x&apiKey=tk_live_nope"),
     );
     expect(bad.status).toBe(401);
   });

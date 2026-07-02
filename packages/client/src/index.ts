@@ -7,8 +7,8 @@ import {
   type ServerMessage,
   type WelcomeMessage,
   type RawData,
-} from "@playedge/protocol";
-import { decodeFull, applyDelta, type Codec } from "@playedge/schema";
+} from "@tikron/protocol";
+import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { createPartySocketTransport, type Transport, type TransportFactory } from "./transport.js";
 
 export type { Transport, TransportFactory, TransportOptions } from "./transport.js";
@@ -30,7 +30,7 @@ export interface GameClientOptions {
   authToken?: string;
   /** WebSocket implementation for non-browser environments (e.g. the `ws` package). */
   WebSocketPolyfill?: unknown;
-  /** Binary state codec (from `@playedge/schema`) matching the room's server codec. */
+  /** Binary state codec (from `@tikron/schema`) matching the room's server codec. */
   stateCodec?: Codec<unknown>;
   /** Override the transport factory. Primarily for tests. */
   createTransport?: TransportFactory;

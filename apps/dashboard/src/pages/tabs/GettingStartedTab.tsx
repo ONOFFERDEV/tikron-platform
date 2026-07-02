@@ -8,9 +8,9 @@ export function GettingStartedTab({ projectId }: { projectId: string }) {
   const keys = useApi(() => api.listKeys(projectId), [projectId]);
 
   const activePrefix = keys.data?.find((k) => !k.revokedAt)?.prefix;
-  const apiKey = activePrefix ? `${activePrefix}...` : "pe_live_...";
+  const apiKey = activePrefix ? `${activePrefix}...` : "tk_live_...";
 
-  const snippet = `import { GameClient } from "@playedge/client";
+  const snippet = `import { GameClient } from "@tikron/client";
 
 const client = new GameClient(location.host, {
   apiKey: "${apiKey}",
@@ -20,7 +20,7 @@ const room = await client.join("lobby");
 room.onStateChange((state) => render(state));
 room.send("move", { x, y });`;
 
-  const installSnippet = "pnpm add @playedge/client";
+  const installSnippet = "pnpm add @tikron/client";
 
   return (
     <section className="section">
@@ -44,7 +44,7 @@ room.send("move", { x, y });`;
           {!activePrefix && !keys.loading && (
             <p className="muted">
               No active key yet — create one on the <strong>API keys</strong> tab, then paste it
-              below in place of <code>pe_live_…</code>.
+              below in place of <code>tk_live_…</code>.
             </p>
           )}
           <div className="snippet snippet-block">

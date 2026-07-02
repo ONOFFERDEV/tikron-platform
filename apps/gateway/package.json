@@ -1,5 +1,5 @@
 {
-  "name": "@playedge/gateway",
+  "name": "@tikron/gateway",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,14 +8,14 @@
     "deploy": "pnpm build:demo && pnpm build:dashboard && wrangler deploy",
     "build": "wrangler deploy --dry-run --outdir dist",
     "build:demo": "esbuild demo/agar-client.ts --bundle --format=esm --outfile=public/agar.js --sourcemap",
-    "build:dashboard": "pnpm --filter @playedge/dashboard build && node scripts/copy-dashboard.mjs",
+    "build:dashboard": "pnpm --filter @tikron/dashboard build && node scripts/copy-dashboard.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@playedge/protocol": "workspace:*",
-    "@playedge/schema": "workspace:*",
-    "@playedge/server": "workspace:*",
+    "@tikron/protocol": "workspace:*",
+    "@tikron/schema": "workspace:*",
+    "@tikron/server": "workspace:*",
     "partyserver": "^0.5.8"
   },
   "devDependencies": {

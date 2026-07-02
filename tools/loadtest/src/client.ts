@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { decodeFull, applyDelta } from "@playedge/schema";
+import { decodeFull, applyDelta } from "@tikron/schema";
 import type { Config } from "./cli.js";
 import type { Recorder } from "./metrics.js";
 import { getScenario, type Scenario } from "./scenarios.js";

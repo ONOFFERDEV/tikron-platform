@@ -3,7 +3,7 @@ import { b64urlDecode, b64urlEncode, hmacSign, hmacVerify } from "./crypto.js";
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-export const SESSION_COOKIE = "pe_session";
+export const SESSION_COOKIE = "tk_session";
 const MAX_AGE_S = 7 * 24 * 3600;
 
 /** Dashboard session payload (signed into the cookie; never trusted unsigned). */

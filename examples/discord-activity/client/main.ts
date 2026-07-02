@@ -1,4 +1,4 @@
-import { GameClient } from "@playedge/client";
+import { GameClient } from "@tikron/client";
 import { PALETTE } from "../src/palette.js";
 import type { CursorState } from "../src/cursor-room.js";
 import { connectDiscord, isDevFallback, proxyTransport } from "./discord.js";
@@ -7,7 +7,7 @@ import { connectDiscord, isDevFallback, proxyTransport } from "./discord.js";
  * The browser side. In Discord it runs the handshake (see discord.ts), joins the
  * room named after the voice channel, and renders every player as a colored,
  * name-labeled dot. With `?dev=1` it skips Discord entirely and behaves like the
- * plain starter so `pnpm --filter playedge-discord-activity dev` is playable in a tab.
+ * plain starter so `pnpm --filter tikron-discord-activity dev` is playable in a tab.
  */
 
 const canvas = document.getElementById("c") as HTMLCanvasElement;

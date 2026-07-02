@@ -1,5 +1,5 @@
 {
-  "name": "playedge-discord-activity",
+  "name": "tikron-discord-activity",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.5.0",
-    "@playedge/client": "workspace:*",
-    "@playedge/server": "workspace:*",
+    "@tikron/client": "workspace:*",
+    "@tikron/server": "workspace:*",
     "partyserver": "^0.5.8",
     "partysocket": "^1.3.0"
   },

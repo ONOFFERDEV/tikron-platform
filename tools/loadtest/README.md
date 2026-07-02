@@ -1,6 +1,6 @@
-# @playedge/loadtest
+# @tikron/loadtest
 
-A WebSocket load-testing harness for the PlayEdge gateway. It drives N simulated
+A WebSocket load-testing harness for the Tikron gateway. It drives N simulated
 players against a running gateway and reports latency, bandwidth, and stability
 metrics — both as a human-readable table and a JSON report for later comparison.
 
@@ -10,7 +10,7 @@ Start the gateway first (in a separate terminal), and wait for it to print
 `Ready on http://127.0.0.1:8787`:
 
 ```powershell
-pnpm --filter @playedge/gateway dev
+pnpm --filter @tikron/gateway dev
 ```
 
 > Use `127.0.0.1`, not `localhost` — the harness defaults to `ws://127.0.0.1:8787`.
@@ -18,7 +18,7 @@ pnpm --filter @playedge/gateway dev
 Then run a load:
 
 ```powershell
-pnpm --filter @playedge/loadtest start -- --scenario agar --rooms 4 --players 32 --duration 30
+pnpm --filter @tikron/loadtest start -- --scenario agar --rooms 4 --players 32 --duration 30
 ```
 
 Everything after `--` is passed to the harness.
@@ -84,7 +84,7 @@ percentiles (so merged percentiles stay exact). Force a specific shard count wit
 
 TypeScript is executed directly with [`tsx`](https://tsx.is) (no build step) —
 one approach that works the same on Windows PowerShell and POSIX shells. The tool
-depends on the `@playedge/schema` codec package and **re-declares** the Agar and
+depends on the `@tikron/schema` codec package and **re-declares** the Agar and
 Movement state schemas locally (`src/schemas.ts`) so it does not import Durable
 Object source from `apps/gateway`. Those local schemas must stay in lock-step with
 the server codecs — the binary layout is positional.
@@ -92,5 +92,5 @@ the server codecs — the binary layout is positional.
 Typecheck (also run by `pnpm typecheck` at the repo root):
 
 ```powershell
-pnpm --filter @playedge/loadtest typecheck
+pnpm --filter @tikron/loadtest typecheck
 ```

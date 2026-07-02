@@ -1,4 +1,4 @@
-import { CasualRealtimeRoom, type Client } from "@playedge/server";
+import { CasualRealtimeRoom, type Client } from "@tikron/server";
 import { colorFor } from "./palette.js";
 
 /**

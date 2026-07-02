@@ -14,7 +14,7 @@ export function App() {
     return (
       <div className="boot">
         <div className="boot-mark">◆</div>
-        <span className="boot-text">Loading PlayEdge…</span>
+        <span className="boot-text">Loading Tikron…</span>
       </div>
     );
   }

@@ -1,7 +1,7 @@
-import { CasualRealtimeRoom, type Client } from "@playedge/server";
+import { CasualRealtimeRoom, type Client } from "@tikron/server";
 
 /**
- * Your first PlayEdge room: a shared canvas where every player is a colored
+ * Your first Tikron room: a shared canvas where every player is a colored
  * cursor dot, and clicking splats paint everyone can see.
  *
  * The mental model:

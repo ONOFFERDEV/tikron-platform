@@ -6,7 +6,7 @@ import {
   abortAllDurableObjects,
 } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
-import { decodeFull, applyDelta, type Codec } from "@playedge/schema";
+import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { AgarSchema } from "../src/rooms/agar-schema.js";
 import type { Env } from "../src/index.js";
 
@@ -77,7 +77,7 @@ async function stateClient(room: string, session: string) {
 
 /** Read the room's persisted snapshot straight from DO storage. */
 function readSnapshot(roomId: string): Promise<any> {
-  return runInDurableObject(roomStub(roomId), (_inst, state) => state.storage.get("pe:room"));
+  return runInDurableObject(roomStub(roomId), (_inst, state) => state.storage.get("tk:room"));
 }
 
 /** Poll the persisted snapshot until `pred` holds. */
@@ -138,9 +138,9 @@ describe("persist + restore across Durable Object eviction", () => {
     // Backdate the persisted window so it reads as elapsed, then fire the alarm
     // on the cold-started DO (the DO alarm survived the teardown).
     await runInDurableObject(roomStub(m.roomId), async (_inst, state) => {
-      const snap = (await state.storage.get("pe:room")) as any;
+      const snap = (await state.storage.get("tk:room")) as any;
       for (const seat of snap.seats) seat.deadline = Date.now() - 1000;
-      await state.storage.put("pe:room", snap);
+      await state.storage.put("tk:room", snap);
     });
     const ran = await runDurableObjectAlarm(roomStub(m.roomId));
     expect(ran).toBe(true);

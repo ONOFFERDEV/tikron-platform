@@ -41,7 +41,7 @@ export function Login() {
       <div className="login-card">
         <div className="brand brand-lg">
           <span className="brand-mark">◆</span>
-          <span className="brand-word">PlayEdge</span>
+          <span className="brand-word">Tikron</span>
         </div>
         <p className="login-pitch">
           Server-authoritative multiplayer for web games, on the edge.

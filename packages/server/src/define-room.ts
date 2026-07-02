@@ -1,5 +1,5 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
-import { encode, ServerMessageType } from "@playedge/protocol";
+import { encode, ServerMessageType } from "@tikron/protocol";
 import {
   Room,
   CLOSE_INVALID_SESSION,

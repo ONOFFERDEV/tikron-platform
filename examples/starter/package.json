@@ -1,5 +1,5 @@
 {
-  "name": "playedge-starter",
+  "name": "tikron-starter",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit"
   },
   "dependencies": {
-    "@playedge/client": "workspace:*",
-    "@playedge/server": "workspace:*",
+    "@tikron/client": "workspace:*",
+    "@tikron/server": "workspace:*",
     "partyserver": "^0.5.8"
   },
   "devDependencies": {

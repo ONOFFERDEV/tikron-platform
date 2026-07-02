@@ -37,7 +37,7 @@ export async function exchangeGithubCode(
     headers: {
       Authorization: `Bearer ${tok.access_token}`,
       Accept: "application/vnd.github+json",
-      "User-Agent": "playedge-gateway",
+      "User-Agent": "tikron-gateway",
     },
   });
   if (!userRes.ok) return null;

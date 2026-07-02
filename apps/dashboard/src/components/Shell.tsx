@@ -22,7 +22,7 @@ export function Shell() {
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("/")}>
           <span className="brand-mark">◆</span>
-          <span className="brand-word">PlayEdge</span>
+          <span className="brand-word">Tikron</span>
         </button>
 
         <nav className="nav" aria-label="Projects">

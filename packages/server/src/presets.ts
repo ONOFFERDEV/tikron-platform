@@ -1,5 +1,5 @@
 import { Room, type Client, type AOIConfig } from "./room.js";
-import type { Codec } from "@playedge/schema";
+import type { Codec } from "@tikron/schema";
 
 /**
  * Genre presets — a one-decision surface over the {@link Room} core.
@@ -127,7 +127,7 @@ export abstract class CasualRealtimeRoom<TState = unknown> extends Room<TState> 
  */
 export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<TState> {
   /**
-   * The binary state codec (from `@playedge/schema`). Realtime rooms sync binary
+   * The binary state codec (from `@tikron/schema`). Realtime rooms sync binary
    * deltas, not JSON, so this is required — implement it as a class field:
    * `protected readonly codec = schema({...})`.
    */
@@ -151,7 +151,7 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
     if (!codec) {
       throw new Error(
         "IoArenaRoom requires a binary stateCodec. Fix: implement " +
-          "`protected readonly codec = schema({...})` from @playedge/schema " +
+          "`protected readonly codec = schema({...})` from @tikron/schema " +
           "(realtime arenas sync binary deltas, not JSON).",
       );
     }

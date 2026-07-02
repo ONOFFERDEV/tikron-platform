@@ -1,11 +1,11 @@
 #!/usr/bin/env -S npx tsx
 /**
- * create-playedge — scaffold a PlayEdge game.
+ * create-tikron — scaffold a Tikron game.
  *
- * v1 (honest): the @playedge/* packages are NOT yet on npm, so the default mode
- * shallow-clones the PlayEdge platform repo and prints the next steps. `--template
+ * v1 (honest): the @tikron/* packages are NOT yet on npm, so the default mode
+ * shallow-clones the Tikron platform repo and prints the next steps. `--template
  * starter` instead copies `examples/starter` into a new workspace directory inside
- * this monorepo (for adding another example locally). When @playedge/* is published,
+ * this monorepo (for adding another example locally). When @tikron/* is published,
  * this becomes a true standalone scaffold — see the README.
  *
  * Zero runtime dependencies (Node >= 22 built-ins only); run via tsx like tools/loadtest.
@@ -36,15 +36,15 @@ interface Options {
   help: boolean;
 }
 
-const HELP = `create-playedge — scaffold a PlayEdge game
+const HELP = `create-tikron — scaffold a Tikron game
 
 Usage:
-  npx create-playedge <project-name> [options]
+  npx create-tikron <project-name> [options]
 
 Modes:
-  (default)              Shallow-clone the PlayEdge platform repo into ./<project-name>.
+  (default)              Shallow-clone the Tikron platform repo into ./<project-name>.
                          Needs a repo URL: pass --repo, or set "repository.url" in this
-                         package's package.json (@playedge/* is not on npm yet).
+                         package's package.json (@tikron/* is not on npm yet).
   --template starter     Copy examples/starter into a new workspace dir (examples/<name>
                          inside this monorepo) with the package name rewritten.
 
@@ -55,9 +55,9 @@ Options:
   -h, --help             Show this help.
 
 Examples:
-  npx create-playedge my-game
-  npx create-playedge my-game --repo https://github.com/you/webgame-baas.git
-  npx create-playedge my-arena --template starter
+  npx create-tikron my-game
+  npx create-tikron my-game --repo https://github.com/you/webgame-baas.git
+  npx create-tikron my-arena --template starter
 `;
 
 function parseArgs(argv: string[]): Options {
@@ -167,10 +167,10 @@ function runClone(name: string, repo: string, into: string): void {
       `  cd ${name}\n` +
       `  pnpm install\n` +
       `  # edit the room: examples/starter/src/arena-room.ts (state shape + onMessage handlers)\n` +
-      `  pnpm --filter playedge-starter dev       # http://127.0.0.1:8787 (open 2 tabs)\n` +
+      `  pnpm --filter tikron-starter dev       # http://127.0.0.1:8787 (open 2 tabs)\n` +
       `  pnpm exec wrangler login                 # once\n` +
-      `  pnpm --filter playedge-starter deploy    # ship to Cloudflare's edge\n\n` +
-      `Read AGENTS.md and .claude/skills/playedge/SKILL.md in the clone before you build.\n`,
+      `  pnpm --filter tikron-starter deploy    # ship to Cloudflare's edge\n\n` +
+      `Read AGENTS.md and .claude/skills/tikron/SKILL.md in the clone before you build.\n`,
   );
 }
 
@@ -224,7 +224,7 @@ function main(): void {
       if (!repo) {
         throw new Error(
           "no repository URL. Pass --repo <git-url>, or set repository.url in " +
-            "create-playedge's package.json (the @playedge/* packages are not on npm yet — see README). " +
+            "create-tikron's package.json (the @tikron/* packages are not on npm yet — see README). " +
             'Or use "--template starter" to copy the starter inside this monorepo.',
         );
       }

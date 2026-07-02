@@ -1,6 +1,6 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { PartySocket } from "partysocket";
-import type { TransportFactory } from "@playedge/client";
+import type { TransportFactory } from "@tikron/client";
 
 /**
  * All Discord-specific code lives here, isolated from the game/render code in

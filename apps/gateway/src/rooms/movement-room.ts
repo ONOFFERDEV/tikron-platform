@@ -1,5 +1,5 @@
-import { Room, validateMovement, type Client } from "@playedge/server";
-import { schema, mapOf, type Codec } from "@playedge/schema";
+import { Room, validateMovement, type Client } from "@tikron/server";
+import { schema, mapOf, type Codec } from "@tikron/schema";
 
 /**
  * Realtime .io-style room — exercises the opt-in Simulation and

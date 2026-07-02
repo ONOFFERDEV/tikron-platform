@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 
 const ORIGIN = "https://example.com";
 
-/** Dev login → returns the `pe_session=...` cookie pair. */
+/** Dev login → returns the `tk_session=...` cookie pair. */
 async function devLogin(login: string): Promise<string> {
   const res = await SELF.fetch(`${ORIGIN}/api/platform/auth/dev`, {
     method: "POST",
@@ -56,7 +56,7 @@ describe("platform dashboard API", () => {
     const key = await (
       await api(`/api/platform/projects/${projectId}/keys`, { method: "POST" })
     ).json();
-    expect(key.key).toMatch(/^pe_live_/);
+    expect(key.key).toMatch(/^tk_live_/);
     expect(key.prefix).toBe(key.key.slice(0, 12));
 
     // Listing keys never returns the full secret, only the prefix.

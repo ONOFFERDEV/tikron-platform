@@ -1,6 +1,6 @@
-# PlayEdge
+# Tikron
 
-> PlayEdge is a realtime multiplayer **BaaS for web games** — server-authoritative game
+> Tikron is a realtime multiplayer **BaaS for web games** — server-authoritative game
 > rooms on Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK ("Supabase
 > for game netcode"). You author a `Room<TState>` subclass (state shape + `onMessage`
 > intent handlers); the platform runs one Durable Object per room at the edge, placed
@@ -13,7 +13,7 @@
 - [AGENTS.md](AGENTS.md): Read first. The operational brief — genre→preset table, the
   golden path (scaffold → run → deploy), hard rules, command reference, error-code
   table, and measured limits.
-- [.claude/skills/playedge/SKILL.md](.claude/skills/playedge/SKILL.md): Read when
+- [.claude/skills/tikron/SKILL.md](.claude/skills/tikron/SKILL.md): Read when
   building/modifying a room. Preset decision tree, room-authoring checklist, local
   smoke-test loop, deploy steps.
 
@@ -47,5 +47,5 @@
 
 ## Tooling
 
-- [tools/create-playedge/README.md](tools/create-playedge/README.md): Read for the
-  scaffolder (`npx create-playedge my-game`) and why v1 clones the repo.
+- [tools/create-tikron/README.md](tools/create-tikron/README.md): Read for the
+  scaffolder (`npx create-tikron my-game`) and why v1 clones the repo.

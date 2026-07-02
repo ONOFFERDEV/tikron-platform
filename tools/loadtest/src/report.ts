@@ -113,7 +113,7 @@ export function formatSummary(r: Report): string {
   const lines: string[] = [];
   lines.push("");
   lines.push(
-    `=== PlayEdge load test · ${r.scenario} · ${r.config.totalConnections} conns ` +
+    `=== Tikron load test · ${r.scenario} · ${r.config.totalConnections} conns ` +
       `(${r.config.rooms} rooms × ${r.config.players}) · ${r.config.workers} worker(s) ===`,
   );
   lines.push(`  ${r.url}   ${(r.config.durationMs / 1000).toFixed(0)}s @ ${r.config.hz}Hz`);

@@ -1,4 +1,4 @@
-import { schema, mapOf, type Codec } from "@playedge/schema";
+import { schema, mapOf, type Codec } from "@tikron/schema";
 
 /**
  * Local re-declarations of the room state schemas the harness needs to decode.
@@ -6,7 +6,7 @@ import { schema, mapOf, type Codec } from "@playedge/schema";
  * These mirror `apps/gateway/src/rooms/agar-schema.ts` and the `MovementSchema`
  * in `apps/gateway/src/rooms/movement-room.ts`. They are re-declared here (rather
  * than imported from the gateway app) so the tool depends only on the published
- * `@playedge/schema` codec package and not on Durable Object source. The field
+ * `@tikron/schema` codec package and not on Durable Object source. The field
  * order and primitive types MUST stay in lock-step with the server codecs — the
  * binary layout is positional and a mismatch silently corrupts decoded state.
  */

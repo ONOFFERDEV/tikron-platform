@@ -9,7 +9,7 @@ import { useApi } from "../hooks/useApi";
 import { fmtDate } from "../lib/format";
 import { useToast } from "../lib/toast";
 
-const QUICKSTART = "pnpm create playedge@latest my-game";
+const QUICKSTART = "pnpm create tikron@latest my-game";
 
 export function Projects() {
   const projects = useApi(() => api.listProjects(), []);

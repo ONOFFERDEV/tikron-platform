@@ -1,6 +1,6 @@
 // Typed D1 query helpers for the platform tables. Keeps SQL in one place.
 
-import type { ScoreMode } from "@playedge/server";
+import type { ScoreMode } from "@tikron/server";
 
 export interface UserRow {
   github_id: string;

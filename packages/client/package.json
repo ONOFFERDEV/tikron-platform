@@ -1,5 +1,5 @@
 {
-  "name": "@playedge/client",
+  "name": "@tikron/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -18,8 +18,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@playedge/protocol": "workspace:*",
-    "@playedge/schema": "workspace:*",
+    "@tikron/protocol": "workspace:*",
+    "@tikron/schema": "workspace:*",
     "partysocket": "^1.1.4"
   },
   "devDependencies": {

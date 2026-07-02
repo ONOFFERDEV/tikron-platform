@@ -6,8 +6,8 @@ import {
   ServerMessageType,
   type RawData,
   type ServerMessage,
-} from "@playedge/protocol";
-import { schema, mapOf, encodeFull, encodeDelta } from "@playedge/schema";
+} from "@tikron/protocol";
+import { schema, mapOf, encodeFull, encodeDelta } from "@tikron/schema";
 
 class FakeTransport implements Transport {
   readonly sent: string[] = [];

@@ -1,4 +1,4 @@
-import { GameClient } from "@playedge/client";
+import { GameClient } from "@tikron/client";
 import type { ArenaState } from "../src/arena-room.js";
 
 /**
@@ -17,10 +17,10 @@ const roomName = new URLSearchParams(location.search).get("room") ?? "lobby";
 
 // A per-tab session key: reconnects (tab switch, network blip, reload) with
 // the same key reclaim the same seat — the server holds it for 30 seconds.
-let session = sessionStorage.getItem("starter-session");
+let session = sessionStorage.getItem("tikron-session");
 if (!session) {
   session = crypto.randomUUID();
-  sessionStorage.setItem("starter-session", session);
+  sessionStorage.setItem("tikron-session", session);
 }
 
 const client = new GameClient(location.host, { party: "arena-room" });

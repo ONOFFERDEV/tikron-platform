@@ -21,8 +21,8 @@ export function GatewayUnreachable({ onRetry }: { onRetry?: () => void }) {
     <div className="state state-error" role="alert">
       <span className="state-title">Gateway unreachable</span>
       <span className="state-body">
-        Couldn&apos;t reach the PlayEdge gateway. Start it with{" "}
-        <code>pnpm --filter @playedge/gateway dev</code> and try again.
+        Couldn&apos;t reach the Tikron gateway. Start it with{" "}
+        <code>pnpm --filter @tikron/gateway dev</code> and try again.
       </span>
       {onRetry && (
         <button className="btn btn-ghost" onClick={onRetry}>

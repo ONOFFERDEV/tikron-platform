@@ -1,7 +1,7 @@
 import { randomToken, sha256Hex } from "./crypto.js";
 import { projectIdForKeyHash } from "./db.js";
 
-const KEY_PREFIX = "pe_live_";
+const KEY_PREFIX = "tk_live_";
 const PREFIX_DISPLAY_LEN = 12;
 const CACHE_TTL_MS = 60_000;
 
@@ -14,7 +14,7 @@ export interface GeneratedKey {
   hash: string;
 }
 
-/** Mint `pe_live_<32 random bytes base64url>` and its stored hash + display prefix. */
+/** Mint `tk_live_<32 random bytes base64url>` and its stored hash + display prefix. */
 export async function generateApiKey(): Promise<GeneratedKey> {
   const key = KEY_PREFIX + randomToken(32);
   return { key, prefix: key.slice(0, PREFIX_DISPLAY_LEN), hash: await sha256Hex(key) };

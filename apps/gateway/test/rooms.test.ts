@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
-import { decodeFull, applyDelta, type Codec } from "@playedge/schema";
+import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { MovementSchema } from "../src/rooms/movement-room.js";
 
 type Frame = Record<string, any>;
@@ -62,7 +62,7 @@ function cmsg(type: string, payload: unknown, seq: number): string {
   return JSON.stringify({ t: "c:msg", type, seq, payload });
 }
 
-// --- binary state client (realtime rooms, decodes @playedge/schema frames) ---
+// --- binary state client (realtime rooms, decodes @tikron/schema frames) ---
 
 async function stateClient(party: string, room: string, codec: Codec<any>) {
   const res = await SELF.fetch(`https://example.com/parties/${party}/${room}`, {

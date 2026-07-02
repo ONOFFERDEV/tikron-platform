@@ -1,6 +1,6 @@
-# AGENTS.md — building a game on PlayEdge
+# AGENTS.md — building a game on Tikron
 
-You are a coding agent shipping a multiplayer web game for a non-developer. PlayEdge
+You are a coding agent shipping a multiplayer web game for a non-developer. Tikron
 is a realtime multiplayer **BaaS for web games** — server-authoritative game rooms on
 Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK. You write room
 state + message handlers; the platform runs them at the edge, one Durable Object per
@@ -12,7 +12,7 @@ PERF.md — never invent latency figures.
 
 ## Pick a preset by genre
 
-Every room subclasses `Room<TState>` from `@playedge/server`. Start from the preset
+Every room subclasses `Room<TState>` from `@tikron/server`. Start from the preset
 that matches the game, then override handlers. The core is genre-agnostic (knows
 nothing about ticks/movement/AOI); presets pre-wire the opt-in modules.
 
@@ -32,8 +32,8 @@ the raw core is always possible. The [`examples/starter`](examples/starter) temp
 ## Golden path — scaffold → run → deploy → play
 
 ```bash
-# 1. Scaffold (clones this repo; @playedge/* is not on npm yet — see tools/create-playedge)
-npx create-playedge my-game
+# 1. Scaffold (clones this repo; @tikron/* is not on npm yet — see tools/create-tikron)
+npx create-tikron my-game
 cd my-game
 pnpm install            # Node >= 22, pnpm 10.x (corepack enable)
 
@@ -41,11 +41,11 @@ pnpm install            # Node >= 22, pnpm 10.x (corepack enable)
 #    (starter: examples/starter/src/arena-room.ts)
 
 # 3. Run locally (workerd via the LOCAL wrangler; open two tabs)
-pnpm --filter playedge-starter dev        # http://127.0.0.1:8787
+pnpm --filter tikron-starter dev        # http://127.0.0.1:8787
 
 # 4. Deploy to Cloudflare's edge (free tier works)
 pnpm exec wrangler login                  # once, opens a browser
-pnpm --filter playedge-starter deploy     # prints https://playedge-starter.<account>.workers.dev
+pnpm --filter tikron-starter deploy     # prints https://tikron-starter.<account>.workers.dev
 ```
 
 Rename the deploy target by editing `name` in the project's `wrangler.jsonc`. Every
@@ -62,7 +62,7 @@ this.onMessage("move", (client, payload) => {
   this.markStateChanged();               // -> synced to every client (coalesced)
 });
 
-// CLIENT (@playedge/client)
+// CLIENT (@tikron/client)
 room.send("move", { x, y });             // intent, auto-seq'd
 room.onStateChange((state) => render(state));
 ```
@@ -78,7 +78,7 @@ Lifecycle hooks to override: `onCreate` (set initial state, register handlers),
 2. **Validate every payload.** `payload` is `unknown`. Type-guard it (see `isVec2`)
    and clamp/range-check before use. Act on the *server's* view of the player, not
    the client's claim (e.g. splat where the server says the player is).
-3. **Binary frames must be `arraybuffer`.** `@playedge/client` sets
+3. **Binary frames must be `arraybuffer`.** `@tikron/client` sets
    `socket.binaryType = "arraybuffer"` for you. If you hand-roll a WebSocket client,
    set it yourself — the WS default `blob` silently breaks binary delta decode.
 4. **The party name is the kebab-case of the DO binding.** partyserver maps binding
@@ -105,7 +105,7 @@ Lifecycle hooks to override: `onCreate` (set initial state, register handlers),
 | `maxInputsPerSecond` | `30` | Per-client input rate limit; excess dropped (never acked). |
 | `syncIntervalMs` | `50` | Min interval between state broadcasts (trailing-edge coalesce). `0` = immediate microtask flush (unbounded — only if another cadence bounds mutations). |
 | `sendAcks` | `false` | Ack each input seq (enables client reconciliation for realtime). |
-| `stateCodec` | — | Set a `@playedge/schema` codec → binary delta sync instead of JSON. |
+| `stateCodec` | — | Set a `@tikron/schema` codec → binary delta sync instead of JSON. |
 | `persistIntervalMs` | `5000` | Max interval between durable state snapshots. |
 
 Realtime modules (call from `onCreate`): `setSimulationInterval(fn, ms)` (fixed tick,
@@ -119,15 +119,15 @@ the player returns within the window (needs a `?_session=` key) and rejects on t
 | Command | What it does |
 |---|---|
 | `pnpm install` | Install the workspace (Node ≥ 22, pnpm 10.x). |
-| `pnpm --filter playedge-starter dev` | Local edge server + demo, `http://127.0.0.1:8787`. |
-| `pnpm --filter playedge-starter deploy` | Deploy to Cloudflare (needs `wrangler login`). |
+| `pnpm --filter tikron-starter dev` | Local edge server + demo, `http://127.0.0.1:8787`. |
+| `pnpm --filter tikron-starter deploy` | Deploy to Cloudflare (needs `wrangler login`). |
 | `pnpm exec wrangler login` | One-time Cloudflare auth (opens a browser). |
 | `pnpm build` | Turborepo build; gateway does `wrangler deploy --dry-run`. |
 | `pnpm typecheck` | `tsc --noEmit` across all packages. |
 | `pnpm test` | vitest everywhere (incl. workerd integration). |
-| `pnpm --filter @playedge/gateway dev` | Full-stack demos: `/agar.html` (.io), `/api/rooms` (lobby). |
+| `pnpm --filter @tikron/gateway dev` | Full-stack demos: `/agar.html` (.io), `/api/rooms` (lobby). |
 
-Swap `playedge-starter` for your project's package name (the `name` in its `package.json`).
+Swap `tikron-starter` for your project's package name (the `name` in its `package.json`).
 
 ## Error codes
 
@@ -144,7 +144,7 @@ Error **frames** (`{ t: "s:error", code, message }`) — HTTP or in-band, socket
 
 | Code | Where | Fix |
 |---|---|---|
-| `bad_message` | room, in-band | Malformed wire message. Send well-formed protocol frames (use `@playedge/client`, don't hand-roll). |
+| `bad_message` | room, in-band | Malformed wire message. Send well-formed protocol frames (use `@tikron/client`, don't hand-roll). |
 | `missing_api_key` | HTTP 401 on `/parties/*` | No `apiKey` on a metered connect. Pass the project API key (`GameClient({ apiKey })`). |
 | `invalid_api_key` | HTTP 401 on `/parties/*` | API key not recognized. Use a key from the dashboard for this project. |
 | `cap_concurrent_rooms` | HTTP 403 on `/api/matchmake` | Project hit its concurrent-rooms cap. Free rooms as players leave, or upgrade the plan. |

@@ -41,7 +41,7 @@ describe("API-key enforcement (DEV_MODE off)", () => {
     const missing = await resolveProject(e, new URL("https://x/parties/agar-room/r"));
     expect(missing).toEqual({ ok: false, status: 401, code: "missing_api_key" });
 
-    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=pe_live_nope"));
+    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=tk_live_nope"));
     expect(bad).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
 
     const { projectId, apiKey } = await seedProjectWithKey();
@@ -60,7 +60,7 @@ describe("API-key enforcement (DEV_MODE off)", () => {
     expect(missing).toEqual({ ok: true, projectId: "demo" });
 
     // A key that fails validation is a client error, not demo traffic.
-    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=pe_live_no"));
+    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=tk_live_no"));
     expect(bad).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
   });
 

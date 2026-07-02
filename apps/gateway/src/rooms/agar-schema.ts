@@ -1,4 +1,4 @@
-import { schema, mapOf, type Codec } from "@playedge/schema";
+import { schema, mapOf, type Codec } from "@tikron/schema";
 
 /**
  * Shared schema + constants for the flagship .io demo. Kept free of any server

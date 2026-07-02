@@ -1,9 +1,9 @@
 ---
-name: playedge
-description: Use when building or modifying a multiplayer game or room on PlayEdge (server-authoritative realtime BaaS on Cloudflare Workers + Durable Objects; the @playedge/* SDK, Room classes, onMessage handlers, matchmaking, deploy via wrangler). Triggers on tasks that add/change a Room subclass, room state, message handlers, ticks, AOI, binary sync, reconnection, or deploying a PlayEdge game.
+name: tikron
+description: Use when building or modifying a multiplayer game or room on Tikron (server-authoritative realtime BaaS on Cloudflare Workers + Durable Objects; the @tikron/* SDK, Room classes, onMessage handlers, matchmaking, deploy via wrangler). Triggers on tasks that add/change a Room subclass, room state, message handlers, ticks, AOI, binary sync, reconnection, or deploying a Tikron game.
 ---
 
-# Building on PlayEdge
+# Building on Tikron
 
 Server-authoritative multiplayer for web games. You author a `Room<TState>` subclass;
 Cloudflare runs one Durable Object per room at the edge. Read [`AGENTS.md`](../../../AGENTS.md)
@@ -59,7 +59,7 @@ kebab-case of the DO binding (`ArenaRoom` → `arena-room`); don't lower `syncIn
 
 ```bash
 pnpm install
-pnpm --filter <project> typecheck          # e.g. playedge-starter
+pnpm --filter <project> typecheck          # e.g. tikron-starter
 pnpm --filter <project> dev                # http://127.0.0.1:8787 — open 2 tabs
 ```
 

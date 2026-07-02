@@ -6,8 +6,8 @@ import {
   decodeClientMessage,
   ProtocolError,
   type RawData,
-} from "@playedge/protocol";
-import { encodeFull, encodeDelta, type Codec } from "@playedge/schema";
+} from "@tikron/protocol";
+import { encodeFull, encodeDelta, type Codec } from "@tikron/schema";
 import { RateLimiter } from "./rate-limit.js";
 
 /** A connected player, as seen by developer room code. */
@@ -113,7 +113,7 @@ export interface RoomContext {
 const NO_SERVICES: RoomServices = Object.freeze({});
 
 /** Storage key holding a room's persisted snapshot. */
-const ROOM_STORAGE_KEY = "pe:room";
+const ROOM_STORAGE_KEY = "tk:room";
 
 /**
  * Grace window granted on restore to seats persisted while still CONNECTED
@@ -214,7 +214,7 @@ interface ClientRecord {
  * core (state broadcasts happen on mutation, never requiring a tick); a realtime
  * .io game additionally starts a simulation loop and calls movement validation.
  *
- * State sync uses JSON by default. Set {@link stateCodec} to a `@playedge/schema`
+ * State sync uses JSON by default. Set {@link stateCodec} to a `@tikron/schema`
  * codec to switch to binary delta sync (recommended for realtime rooms).
  *
  * Clients are keyed by a **session key** when the connection provides one
@@ -490,7 +490,7 @@ export abstract class Room<TState = unknown> {
     if (!this.stateCodec) {
       throw new Error(
         "enableAOI() requires a binary stateCodec. Fix: this.stateCodec = schema({...}) " +
-          "from @playedge/schema (AOI filters per-client binary deltas, so it needs the codec).",
+          "from @tikron/schema (AOI filters per-client binary deltas, so it needs the codec).",
       );
     }
     this.#aoi = config;

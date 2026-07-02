@@ -2,7 +2,7 @@
   "name": "webgame-baas",
   "private": true,
   "version": "0.0.0",
-  "description": "PlayEdge — realtime multiplayer BaaS for web games (edge, server-authoritative)",
+  "description": "Tikron — realtime multiplayer BaaS for web games (edge, server-authoritative)",
   "packageManager": "pnpm@10.19.0",
   "engines": {
     "node": ">=22"

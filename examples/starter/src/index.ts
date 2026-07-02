@@ -1,5 +1,5 @@
 import { routePartykitRequest } from "partyserver";
-import { defineRoom } from "@playedge/server";
+import { defineRoom } from "@tikron/server";
 import { ArenaRoomImpl } from "./arena-room.js";
 
 export interface Env {

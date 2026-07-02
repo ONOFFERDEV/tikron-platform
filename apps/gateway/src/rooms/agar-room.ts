@@ -1,4 +1,4 @@
-import { IoArenaRoom, validateMovement, type AOIConfig, type Client } from "@playedge/server";
+import { IoArenaRoom, validateMovement, type AOIConfig, type Client } from "@tikron/server";
 import { AgarSchema, AGAR, type AgarState, type AgarPlayer } from "./agar-schema.js";
 
 /**

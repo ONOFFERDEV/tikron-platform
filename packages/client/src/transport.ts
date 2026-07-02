@@ -1,5 +1,5 @@
 import { PartySocket } from "partysocket";
-import type { RawData } from "@playedge/protocol";
+import type { RawData } from "@tikron/protocol";
 
 /**
  * Transport abstracts the underlying bidirectional connection so the SDK is not
@@ -16,7 +16,7 @@ export interface Transport {
 }
 
 export interface TransportOptions {
-  /** Gateway host, e.g. "localhost:8787" or "api.playedge.dev" (no protocol). */
+  /** Gateway host, e.g. "localhost:8787" or "api.tikron.dev" (no protocol). */
   host: string;
   room: string;
   party: string;
@@ -39,7 +39,7 @@ export const createPartySocketTransport: TransportFactory = (opts) => {
   // Binary state frames must arrive as ArrayBuffer, not the WebSocket default Blob.
   socket.binaryType = "arraybuffer";
 
-  // 4001 = session taken over by a newer connection (see @playedge/server).
+  // 4001 = session taken over by a newer connection (see @tikron/server).
   // Stop auto-reconnecting, or the two transports would steal the seat from
   // each other in an endless loop (e.g. a duplicated tab sharing sessionStorage).
   socket.addEventListener("close", (e) => {

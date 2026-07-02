@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
-import { decodeFull, applyDelta, type Codec } from "@playedge/schema";
+import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { AgarSchema } from "../src/rooms/agar-schema.js";
 
 type Frame = Record<string, any>;

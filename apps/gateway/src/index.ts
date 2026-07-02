@@ -12,8 +12,8 @@ import {
   decodeClientMessage,
   ProtocolError,
   type ServerMessage,
-} from "@playedge/protocol";
-import { defineRoom, type DefineRoomOptions } from "@playedge/server";
+} from "@tikron/protocol";
+import { defineRoom, type DefineRoomOptions } from "@tikron/server";
 import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
@@ -52,7 +52,7 @@ export interface Env {
 
 /**
  * M0 hello-room: a raw partyserver Durable Object (echo/broadcast/presence).
- * Kept as a minimal reference; framework-based rooms use `@playedge/server`.
+ * Kept as a minimal reference; framework-based rooms use `@tikron/server`.
  */
 export class GameRoom extends Server<Env> {
   static override options = { hibernate: true };

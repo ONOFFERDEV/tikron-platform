@@ -460,7 +460,7 @@ describe("Room persistence (hibernation backstop)", () => {
     const conn = ctx.open("c1");
     await room._connect(conn, "sess-a"); // new seat → immediate persist
 
-    const snap = storage.kv.get("pe:room") as Record<string, any>;
+    const snap = storage.kv.get("tk:room") as Record<string, any>;
     expect(snap.v).toBe(1);
     expect(snap.seats).toEqual([{ id: "sess-a", data: { token: "data-sess-a" }, deadline: null }]);
     expect(snap.state.players["sess-a"]).toBe(0);
@@ -468,9 +468,9 @@ describe("Room persistence (hibernation backstop)", () => {
     // A state change coalesces: not written until persistIntervalMs elapses.
     room["setState"]({ players: { "sess-a": 42 } });
     await Promise.resolve(); // run the markStateChanged flush microtask
-    expect((storage.kv.get("pe:room") as Record<string, any>).state.players["sess-a"]).toBe(0);
+    expect((storage.kv.get("tk:room") as Record<string, any>).state.players["sess-a"]).toBe(0);
     await vi.advanceTimersByTimeAsync(room["persistIntervalMs"]);
-    expect((storage.kv.get("pe:room") as Record<string, any>).state.players["sess-a"]).toBe(42);
+    expect((storage.kv.get("tk:room") as Record<string, any>).state.players["sess-a"]).toBe(42);
   });
 
   it("restores state + seats on a cold start, and a client reclaims its seat", async () => {
@@ -481,11 +481,11 @@ describe("Room persistence (hibernation backstop)", () => {
       const conn = ctx.open("c1");
       await room._connect(conn, "sess-a");
     }
-    const snap = structuredClone(storageA.kv.get("pe:room"));
+    const snap = structuredClone(storageA.kv.get("tk:room"));
 
     // Cold start: a fresh room instance over storage seeded with the snapshot.
     const storageB = new FakeStorage();
-    storageB.kv.set("pe:room", snap);
+    storageB.kv.set("tk:room", snap);
     const { ctx: ctx2, room: room2 } = build(storageB);
     await room2._create();
 
@@ -508,11 +508,11 @@ describe("Room persistence (hibernation backstop)", () => {
     await room._create();
     const conn = ctx.open("c1");
     await room._connect(conn, "sess-a");
-    expect(storage.kv.has("pe:room")).toBe(true);
+    expect(storage.kv.has("tk:room")).toBe(true);
 
     ctx.drop("c1");
     await room._close(conn); // no window → dispose → clearPersisted
-    expect(storage.kv.has("pe:room")).toBe(false);
+    expect(storage.kv.has("tk:room")).toBe(false);
     expect(storage.alarm).toBeNull();
   });
 
@@ -528,7 +528,7 @@ describe("Room persistence (hibernation backstop)", () => {
     void room._close(conn); // onLeave opens a window → persist deadline + arm alarm
     await vi.advanceTimersByTimeAsync(1); // settle the persist/alarm microtasks
 
-    const snap = storage.kv.get("pe:room") as Record<string, any>;
+    const snap = storage.kv.get("tk:room") as Record<string, any>;
     expect(snap.seats[0].deadline).toBeTypeOf("number");
     expect(storage.alarm).toBeGreaterThan(0);
   });
@@ -544,11 +544,11 @@ describe("Room persistence (hibernation backstop)", () => {
     ctxA.drop("c1");
     void roomA._close(connA);
     await vi.advanceTimersByTimeAsync(1);
-    const snap = structuredClone(storageA.kv.get("pe:room"));
+    const snap = structuredClone(storageA.kv.get("tk:room"));
 
     // Cold start: fresh room restores the disconnected seat + its window.
     const storageB = new FakeStorage();
-    storageB.kv.set("pe:room", snap);
+    storageB.kv.set("tk:room", snap);
     const { ctx: ctxB, room: roomB } = build(storageB);
     roomB.windowSec = 5;
     await roomB._create();
@@ -564,7 +564,7 @@ describe("Room persistence (hibernation backstop)", () => {
     expect(roomB["clientCount"]).toBe(0);
     expect(roomB.events).toContain("expired:sess-a");
     expect(ctxB.reports.at(-1)).toEqual({ count: 0, sessions: [] }); // occupancy reported
-    expect(storageB.kv.has("pe:room")).toBe(false); // disposed → snapshot dropped
+    expect(storageB.kv.has("tk:room")).toBe(false); // disposed → snapshot dropped
   });
 
   it("grants restored connected seats a grace window instead of holding them forever", async () => {
@@ -576,11 +576,11 @@ describe("Room persistence (hibernation backstop)", () => {
       await room._create();
       await room._connect(ctx.open("c1"), "sess-a");
     }
-    const snap = structuredClone(storageA.kv.get("pe:room")) as Record<string, any>;
+    const snap = structuredClone(storageA.kv.get("tk:room")) as Record<string, any>;
     expect(snap.seats[0].deadline).toBeNull();
 
     const storageB = new FakeStorage();
-    storageB.kv.set("pe:room", snap);
+    storageB.kv.set("tk:room", snap);
     const { ctx: ctxB, room: roomB } = build(storageB);
     await roomB._create();
 

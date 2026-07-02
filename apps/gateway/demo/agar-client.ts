@@ -1,4 +1,4 @@
-import { GameClient, InputPredictor, SnapshotBuffer } from "@playedge/client";
+import { GameClient, InputPredictor, SnapshotBuffer } from "@tikron/client";
 import { AgarSchema, AGAR, type AgarState } from "../src/rooms/agar-schema.js";
 
 /**
@@ -6,7 +6,7 @@ import { AgarSchema, AGAR, type AgarState } from "../src/rooms/agar-schema.js";
  * client-side prediction for the local player (zero-latency movement), server
  * reconciliation, and entity interpolation for everyone else.
  *
- * Bundled to public/agar.js by `pnpm --filter @playedge/gateway build:demo`.
+ * Bundled to public/agar.js by `pnpm --filter @tikron/gateway build:demo`.
  */
 type Vec = { x: number; y: number };
 
@@ -44,7 +44,7 @@ async function main() {
   // matchmake into a room (falling back to a fixed room id if the API is absent).
   let roomId = roomName;
   let sessionId = "";
-  const stored = sessionStorage.getItem("playedge-seat");
+  const stored = sessionStorage.getItem("tikron-seat");
   if (stored) {
     ({ roomId, sessionId } = JSON.parse(stored) as { roomId: string; sessionId: string });
   } else {
@@ -56,7 +56,7 @@ async function main() {
       /* no matchmaker reachable — join a fixed room directly */
       sessionId = crypto.randomUUID();
     }
-    sessionStorage.setItem("playedge-seat", JSON.stringify({ roomId, sessionId }));
+    sessionStorage.setItem("tikron-seat", JSON.stringify({ roomId, sessionId }));
   }
 
   const room = await client.joinOrCreate(roomId, { _session: sessionId });

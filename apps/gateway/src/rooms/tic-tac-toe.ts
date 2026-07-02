@@ -1,4 +1,4 @@
-import { TurnBasedRoom, type Client } from "@playedge/server";
+import { TurnBasedRoom, type Client } from "@tikron/server";
 
 /**
  * Turn-based guardrail room — proves the {@link TurnBasedRoom} preset (the

@@ -1,11 +1,11 @@
-# PlayEdge — Discord Activity template
+# Tikron — Discord Activity template
 
 A multiplayer **Discord Activity** in ~200 lines: everyone in a voice channel is a
-colored, name-labeled cursor on a shared canvas. Built on PlayEdge (server-authoritative
+colored, name-labeled cursor on a shared canvas. Built on Tikron (server-authoritative
 rooms on Cloudflare Workers + Durable Objects). One voice channel = one room, created on
 demand at the edge.
 
-The room extends the **`CasualRealtimeRoom`** preset from `@playedge/server`: everyone
+The room extends the **`CasualRealtimeRoom`** preset from `@tikron/server`: everyone
 moves freely, state syncs on change (throttled JSON, no physics tick), and a dropped
 player's seat is held for 30 s so a blip inside Discord doesn't wipe them.
 
@@ -16,7 +16,7 @@ fallback that skips the Discord SDK and behaves like the plain starter:
 
 ```bash
 pnpm install
-pnpm --filter playedge-discord-activity dev      # http://127.0.0.1:8787
+pnpm --filter tikron-discord-activity dev      # http://127.0.0.1:8787
 # open http://127.0.0.1:8787/?dev=1 in two tabs
 ```
 
@@ -36,7 +36,7 @@ game and render code in `client/main.ts` is identical in both modes.
 
 4. Your app → **Activities** → **Settings** → toggle **Enable Activities**.
 5. **Activities → URL Mappings** → add: **PREFIX** `/` → **TARGET** your deployed host,
-   e.g. `playedge-discord-activity.<your-account>.workers.dev` (host only, no `https://`).
+   e.g. `tikron-discord-activity.<your-account>.workers.dev` (host only, no `https://`).
    This is what lets the sandboxed iframe reach your worker through the Discord proxy.
 
 ### 3. Configure the client id + secret
@@ -48,14 +48,14 @@ game and render code in `client/main.ts` is identical in both modes.
      [`wrangler.jsonc`](wrangler.jsonc) `vars`.
 7. Set the secret on the worker (never commit it):
    ```bash
-   pnpm --filter playedge-discord-activity exec wrangler secret put DISCORD_CLIENT_SECRET
+   pnpm --filter tikron-discord-activity exec wrangler secret put DISCORD_CLIENT_SECRET
    ```
 
 ### 4. Deploy
 
 ```bash
 pnpm exec wrangler login                          # once
-pnpm --filter playedge-discord-activity deploy    # -> https://<name>.<account>.workers.dev
+pnpm --filter tikron-discord-activity deploy    # -> https://<name>.<account>.workers.dev
 ```
 
 Make sure the deployed host matches the URL Mapping target from step 5. Rename the

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "playedge-gateway",
+  "name": "tikron-gateway",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
   "durable_objects": {
@@ -18,9 +18,11 @@
     { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
     { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
   ],
-  // Platform database (M5). database_id is filled in by `wrangler d1 create
-  // playedge-platform`; local dev + vitest-pool-workers use a local SQLite
-  // regardless of the id. Migrations live in ./migrations.
+  // Platform database (M5). database_id is filled in by `wrangler d1 create`;
+  // local dev + vitest-pool-workers use a local SQLite regardless of the id.
+  // Migrations live in ./migrations. NOTE: database_name intentionally keeps the
+  // legacy "playedge-platform" (and its id) through the Tikron rename — renaming
+  // it would orphan the live production data.
   "d1_databases": [
     {
       "binding": "DB",

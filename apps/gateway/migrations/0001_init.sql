@@ -1,4 +1,4 @@
--- PlayEdge platform (M5-lite) schema.
+-- Tikron platform (M5-lite) schema.
 -- Timestamps are epoch milliseconds (INTEGER). Ids are text UUIDs except
 -- users.github_id (the GitHub numeric id, stored as text).
 
