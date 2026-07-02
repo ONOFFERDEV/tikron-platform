@@ -46,4 +46,4 @@
 ## Tooling
 
 - [tools/create-tikron/README.md](tools/create-tikron/README.md): Read for the
-  scaffolder (`npx create-tikron my-game`) and why v1 clones the repo.
+  scaffolder (`npx create-tikron my-game`) — standalone project, SDK from npm.

@@ -17,7 +17,7 @@ Index/docs: llms.txt · AGENTS.md (operational brief)
     pnpm typecheck | pnpm test | pnpm build     # workspace-wide (turbo)
     pnpm --filter <pkg> dev                     # local edge server (127.0.0.1:8787)
     pnpm --filter <pkg> run deploy              # deploy (once: pnpm exec wrangler login)
-    npx create-tikron my-game                 # scaffold (clones repo; not on npm yet)
+    npx create-tikron my-game                 # scaffold a standalone game (SDK from npm)
 
 ## @tikron/server — authoring rooms
 

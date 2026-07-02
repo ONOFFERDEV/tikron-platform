@@ -278,16 +278,16 @@
         <span class="eyebrow">quickstart</span>
         <div class="quick" style="margin-top: 22px">
           <div>
-            <h3 style="font-size: 18px">Clone, install, deploy</h3>
-            <pre><code><span class="tok-com"># 1. clone + install</span>
-git clone https://github.com/ONOFFERDEV/tikron-platform
-cd tikron-platform && pnpm install
+            <h3 style="font-size: 18px">Scaffold, install, deploy</h3>
+            <pre><code><span class="tok-com"># 1. scaffold a game (SDK from npm)</span>
+npx create-tikron my-game
+cd my-game && npm install
 
 <span class="tok-com"># 2. log in to Cloudflare (free tier works)</span>
-pnpm exec wrangler login
+npx wrangler login
 
-<span class="tok-com"># 3. ship a starter game to the edge</span>
-pnpm --filter tikron-starter deploy</code></pre>
+<span class="tok-com"># 3. ship it to the edge — your account, your game</span>
+npm run deploy</code></pre>
           </div>
           <div>
             <h3 style="font-size: 18px">A whole realtime room</h3>
