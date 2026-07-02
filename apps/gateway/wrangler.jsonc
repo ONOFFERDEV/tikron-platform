@@ -37,10 +37,7 @@
       "migrations_dir": "migrations"
     }
   ],
-  // `binding` lets the worker serve /dashboard/* SPA routes (fallback to the
-  // dashboard index.html); files that exist are served by the assets layer
-  // before the worker runs.
-  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "assets": { "directory": "./public" },
   "vars": {
     // Keyless connects (the public demos) are attributed to this project so they
     // stay metered + capped in production. Row seeded via scripts/seed-demo.sql.

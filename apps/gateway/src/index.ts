@@ -35,8 +35,6 @@ export interface Env {
   TicTacToe: DurableObjectNamespace;
   AgarRoom: DurableObjectNamespace;
   Matchmaker: DurableObjectNamespace<Matchmaker>;
-  /** Static assets (public/); used for the /dashboard SPA route fallback. */
-  ASSETS: Fetcher;
   /** Platform database (M5). Absent → API-key enforcement + metering are skipped. */
   DB?: D1Database;
   /** "1" disables key enforcement and enables dev auth (local dev + tests only). */
@@ -221,12 +219,9 @@ export default {
         new Response("not found", { status: 404 })
       );
     }
-    // Dashboard SPA: files that exist under /dashboard/* are served by the
-    // assets layer before the worker runs; anything else here is a client-side
-    // route — serve the app shell and let the router take over.
-    if (url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/")) {
-      return env.ASSETS.fetch(new Request(new URL("/dashboard/index.html", url.origin)));
-    }
+    // The dashboard lives in its own (private) worker on the zone route
+    // `tikron.dev/dashboard*` — see ONOFFERDEV/tikron-dashboard. That route
+    // takes precedence over this worker's custom domain, so no handling here.
     return (
       (await routePartykitRequest(request, env)) ?? new Response("not found", { status: 404 })
     );

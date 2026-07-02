@@ -4,11 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm build:demo && pnpm build:dashboard && wrangler dev",
-    "deploy": "pnpm build:demo && pnpm build:dashboard && wrangler deploy",
+    "dev": "pnpm build:demo && wrangler dev",
+    "deploy": "pnpm build:demo && wrangler deploy",
     "build": "wrangler deploy --dry-run --outdir dist",
     "build:demo": "esbuild demo/agar-client.ts --bundle --format=esm --outfile=public/agar.js --sourcemap",
-    "build:dashboard": "pnpm --filter @tikron/dashboard build && node scripts/copy-dashboard.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
