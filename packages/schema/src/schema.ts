@@ -52,6 +52,66 @@ export function prim<P extends Prim>(type: P): Codec<PrimValue<P>> {
   };
 }
 
+/**
+ * A number snapped to a fixed grid and stored in the smallest integer that spans
+ * the range — the core bandwidth lever for continuous fields (position, velocity,
+ * health, angle). Trades a bounded amount of precision for size: a value that a
+ * `prim("f32")` spends 4 bytes on rides in 1–4 bytes here, and — because `equals`
+ * compares the quantized bucket rather than the raw float — sub-`step` jitter no
+ * longer counts as a change, so it drops out of deltas entirely.
+ *
+ * `encode(v) = round((clamp(v, min, max) − min) / step)`, `decode(q) = min + q·step`,
+ * so the round-trip error is at most `step / 2`. The wire width is fixed once from
+ * the level count `N = round((max − min) / step)`: `u8` when `N ≤ 255`, `u16` when
+ * `N ≤ 65535`, otherwise `u32`. Deltas are atomic like a `prim` (a changed field
+ * re-sends its whole quantized value; there is nothing smaller to diff).
+ *
+ * @example
+ * // Position on a 4096 m map at 1 cm precision: 100 steps per metre.
+ * // N = 409600 → u32 (4 bytes) — same width as f32 but with a hard error bound.
+ * const posX = quant(0, 4096, 0.01);
+ * @example
+ * // A 0..1 health fraction at 0.4% precision: N = 250 → u8 (1 byte, vs 4 for f32).
+ * const health = quant(0, 1, 0.004);
+ * @example
+ * // A heading in radians at ~0.1° precision: N = 62832 → u16 (2 bytes).
+ * const angle = quant(0, Math.PI * 2, 0.0001);
+ *
+ * @param min  inclusive low end of the range (smaller inputs clamp up to it)
+ * @param max  inclusive high end of the range (larger inputs clamp down to it)
+ * @param step quantization grid size; must be > 0 and no larger than `max − min`
+ */
+export function quant(min: number, max: number, step: number): Codec<number> {
+  if (!(step > 0)) {
+    throw new Error(`quant: step must be > 0, got ${step}.`);
+  }
+  if (!(max > min)) {
+    throw new Error(`quant: max (${max}) must be greater than min (${min}).`);
+  }
+  if (step > max - min) {
+    throw new Error(
+      `quant: step (${step}) is larger than the range max − min (${max - min}), ` +
+        `which collapses every value to ${min}. Pick a step no larger than the range.`,
+    );
+  }
+  const levels = Math.round((max - min) / step);
+  const io = levels <= 0xff ? PRIM_IO.u8 : levels <= 0xffff ? PRIM_IO.u16 : PRIM_IO.u32;
+  const quantize = (v: number): number => {
+    const clamped = v < min ? min : v > max ? max : v;
+    return Math.round((clamped - min) / step);
+  };
+  const write = (w: ByteWriter, v: number): void => io.write(w, quantize(v));
+  const read = (r: ByteReader): number => min + io.read(r) * step;
+  return {
+    writeFull: write,
+    readFull: read,
+    writeDelta: (w, _prev, next) => write(w, next),
+    readDelta: (r) => read(r),
+    equals: (a, b) => quantize(a) === quantize(b),
+    clone: (v) => v, // numbers are immutable
+  };
+}
+
 type Shape = Record<string, Prim | Codec<unknown>>;
 type Infer<S extends Shape> = {
   [K in keyof S]: S[K] extends Prim ? PrimValue<S[K]> : S[K] extends Codec<infer U> ? U : never;

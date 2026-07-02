@@ -12,6 +12,7 @@ export type {
   RoomStorage,
   RoomInit,
   MessageHandler,
+  InputMeta,
   AOIConfig,
   RoomServices,
   LeaderboardSubmit,

@@ -211,25 +211,39 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
   }
 
   /**
-   * The recorded world as `client` saw it — its RTT plus {@link lagInterpolationMs}
-   * in the past — for server-side hit registration. Requires {@link lagCompensation}.
+   * The recorded world as `client` saw it, for server-side hit registration.
+   * Requires {@link lagCompensation}.
+   *
+   * With no `atMs`, rewinds by the client's RTT plus {@link lagInterpolationMs} —
+   * the right estimate when the input carries no timing. When the client opts into
+   * subtick timestamps, pass the input's clamped `input.ts` (already an absolute
+   * server-timeline instant, so it is used directly): this pins the rewind to the
+   * exact moment the shooter aimed, independent of the tick rate (the CS2 model).
    *
    * ```ts
+   * // no subtick timing — RTT-based estimate
    * this.onMessage("shoot", (client, aim) => {
    *   const world = this.rewind(client);          // where targets were on the shooter's screen
    *   const hit = world.get(targetId);
    *   if (hit && near(aim, hit)) score(client);
    * });
+   *
+   * // subtick timing (client `subtickTimestamps: true`) — pin to the exact instant
+   * this.onMessage("shoot", (client, aim, _seq, input) => {
+   *   const world = this.rewind(client, input?.ts);
+   *   // ...resolve the hit against `world`
+   * });
    * ```
    */
-  protected rewind(client: Client): Map<string, Vec2> {
+  protected rewind(client: Client, atMs?: number): Map<string, Vec2> {
     if (!this.#lag) {
       throw new Error(
         "rewind() requires lag compensation. Fix: set this.lagCompensation = true in onReady() " +
           "and override lagSnapshot() to return the entities to track.",
       );
     }
-    return this.#lag.atTime(Date.now() - client.rttMs - this.lagInterpolationMs);
+    const at = typeof atMs === "number" ? atMs : Date.now() - client.rttMs - this.lagInterpolationMs;
+    return this.#lag.atTime(at);
   }
 
   /**

@@ -1,6 +1,7 @@
 export { ByteWriter, ByteReader } from "./bytes.js";
 export {
   prim,
+  quant,
   schema,
   mapOf,
   listOf,

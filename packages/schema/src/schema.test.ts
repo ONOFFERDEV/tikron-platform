@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   prim,
+  quant,
   schema,
   mapOf,
   listOf,
@@ -14,6 +15,17 @@ import {
   applyDelta,
   type Codec,
 } from "./index.js";
+
+/** Deterministic PRNG (mulberry32) so property loops are reproducible on failure. */
+function rng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const Player = schema({ x: "f32", y: "f32" });
 const World = schema({ players: mapOf(Player), tick: "u32" });
@@ -363,6 +375,178 @@ describe("encodeDeltaOrNull", () => {
     const bytes = encodeDeltaOrNull(World, undefined, next);
     expect(bytes).not.toBeNull();
     expect(applyDelta(World, undefined, bytes!)).toEqual(next);
+  });
+});
+
+describe("quant codec", () => {
+  it("validates construction (step > 0, max > min, step <= range)", () => {
+    expect(() => quant(0, 1, 0)).toThrowError(/step must be > 0/);
+    expect(() => quant(0, 1, -0.1)).toThrowError(/step must be > 0/);
+    expect(() => quant(5, 5, 0.1)).toThrowError(/greater than min/);
+    expect(() => quant(10, 0, 0.1)).toThrowError(/greater than min/);
+    // step larger than the range collapses every value to min -> reject.
+    expect(() => quant(0, 1, 2)).toThrowError(/larger than the range/);
+    expect(() => quant(0, 10, 20)).toThrowError(/larger than the range/);
+    // step exactly equal to the range is allowed (N = 1, a 2-level field).
+    expect(() => quant(0, 10, 10)).not.toThrow();
+  });
+
+  it("picks the smallest wire width from the level count", () => {
+    // N = 250 -> u8 (1 byte)
+    expect(encodeFull(quant(0, 1, 0.004), 0.5).length).toBe(1);
+    // N = 10000 -> u16 (2 bytes)
+    expect(encodeFull(quant(0, 100, 0.01), 42).length).toBe(2);
+    // N = 409600 -> u32 (4 bytes)
+    expect(encodeFull(quant(0, 4096, 0.01), 1234.56).length).toBe(4);
+    // boundary: N = 255 -> u8, N = 256 -> u16
+    expect(encodeFull(quant(0, 255, 1), 100).length).toBe(1);
+    expect(encodeFull(quant(0, 256, 1), 100).length).toBe(2);
+    // boundary: N = 65535 -> u16, N = 65536 -> u32
+    expect(encodeFull(quant(0, 65535, 1), 1).length).toBe(2);
+    expect(encodeFull(quant(0, 65536, 1), 1).length).toBe(4);
+  });
+
+  it("clamps out-of-range inputs to the endpoints", () => {
+    const c = quant(0, 10, 0.5);
+    expect(roundtripFull(c, -5)).toBeCloseTo(0, 6); // below min -> min
+    expect(roundtripFull(c, 999)).toBeCloseTo(10, 6); // above max -> max
+  });
+
+  it("property: round-trip error never exceeds step/2", () => {
+    const r = rng(0xc0ffee);
+    const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
+    for (let i = 0; i < 3000; i++) {
+      const min = (r() - 0.5) * 2000; // -1000..1000
+      const span = r() * 4096 + 0.5; // 0.5..~4096.5
+      const max = min + span;
+      const step = span / (r() * 500000 + 1); // keep the level count bounded
+      const c = quant(min, max, step);
+      const v = min - span * 0.2 + r() * span * 1.4; // sometimes outside [min,max]
+      const decoded = roundtripFull(c, v);
+      const target = clamp(v, min, max);
+      expect(Math.abs(decoded - target)).toBeLessThanOrEqual(step / 2 + 1e-6);
+    }
+  });
+
+  it("property: values in the same bucket are equal and suppressed from deltas", () => {
+    const r = rng(0x5eed);
+    for (let i = 0; i < 2000; i++) {
+      const step = r() * 0.5 + 0.01;
+      const c = quant(0, 1000, step);
+      const base = r() * 1000;
+      // jitter strictly under half a step -> same bucket after rounding around a grid point
+      const grid = Math.round(base / step) * step;
+      const a = grid + (r() - 0.5) * step * 0.49;
+      const b = grid + (r() - 0.5) * step * 0.49;
+      expect(c.equals(a, b)).toBe(true);
+      // same bucket => encodeDeltaOrNull suppresses the send entirely
+      expect(encodeDeltaOrNull(c, a, b)).toBeNull();
+    }
+  });
+
+  it("delta is atomic and shrinks a struct's continuous fields", () => {
+    // A tiny mob state: position + health as quant vs. the same in f32.
+    const Mob = schema({ x: quant(0, 4096, 0.1), y: quant(0, 4096, 0.1), hp: quant(0, 1, 0.01) });
+    const MobF32 = schema({ x: "f32", y: "f32", hp: "f32" });
+    const prev = { x: 100, y: 200, hp: 1 };
+    const next = { x: 100.02, y: 260, hp: 0.5 }; // x jitters within a bucket, y & hp move
+    // x is same-bucket (step 0.1) -> only y & hp ride in the delta.
+    const applied = applyDelta(Mob, prev, encodeDelta(Mob, prev, next));
+    expect(applied.x).toBeCloseTo(100, 2);
+    expect(applied.y).toBeCloseTo(260, 2);
+    expect(applied.hp).toBeCloseTo(0.5, 3);
+    // Full quant snapshot: x,y in u16 (2B each) + hp u8 (1B) = 5 bytes vs f32's 12.
+    expect(encodeFull(Mob, next).length).toBe(5);
+    expect(encodeFull(Mob, next).length).toBeLessThan(encodeFull(MobF32, next).length);
+  });
+
+  it("nests inside a struct and diffs field-by-field", () => {
+    const S = schema({ tick: "u32", angle: quant(0, Math.PI * 2, 0.0001) });
+    const prev = { tick: 1, angle: 0 };
+    const next = { tick: 2, angle: Math.PI };
+    const applied = roundtripDelta(S, prev, next);
+    expect(applied.tick).toBe(2);
+    expect(applied.angle).toBeCloseTo(Math.PI, 3);
+  });
+});
+
+describe("schema dirty-bit delta (per-field bitmask)", () => {
+  // 12 fields -> a 2-byte changed-field mask, exercising multi-byte masking.
+  const Wide = schema({
+    a: "u8",
+    b: "u16",
+    c: "u32",
+    d: "i32",
+    e: "f32",
+    f: "f64",
+    g: "bool",
+    h: enumOf("x", "y", "z"),
+    i: str(8),
+    j: quant(0, 1, 0.01),
+    k: quant(0, 4096, 0.01),
+    l: optionalOf(prim("u16")),
+  });
+  type WideT = ReturnType<typeof Wide.readFull>;
+
+  function randomWide(r: () => number): WideT {
+    const names = ["ann", "bob", "cara", "dan", "eve"];
+    return {
+      a: Math.floor(r() * 256),
+      b: Math.floor(r() * 65536),
+      c: Math.floor(r() * 4_000_000_000),
+      d: Math.floor((r() - 0.5) * 2_000_000_000),
+      e: (r() - 0.5) * 1000,
+      f: (r() - 0.5) * 1e6,
+      g: r() < 0.5,
+      h: (["x", "y", "z"] as const)[Math.floor(r() * 3)]!,
+      i: names[Math.floor(r() * names.length)]!,
+      j: r(),
+      k: r() * 4096,
+      l: r() < 0.5 ? null : Math.floor(r() * 65536),
+    };
+  }
+
+  it("property: an arbitrary subset of field changes round-trips exactly", () => {
+    const r = rng(0xd147b17);
+    const canon = (v: WideT): WideT => decodeFull(Wide, encodeFull(Wide, v));
+    for (let iter = 0; iter < 2000; iter++) {
+      const prev = canon(randomWide(r));
+      // Mutate a random subset by regenerating those fields from a fresh draw.
+      const fresh = randomWide(r);
+      const next = { ...prev } as WideT;
+      const keys = Object.keys(prev) as (keyof WideT)[];
+      for (const key of keys) {
+        if (r() < 0.5) (next as Record<string, unknown>)[key] = fresh[key];
+      }
+      const nextCanon = canon(next);
+      const delta = encodeDelta(Wide, prev, next);
+      const applied = applyDelta(Wide, prev, delta);
+      expect(applied).toEqual(nextCanon);
+      // Delta never larger than a full snapshot + the 2 mask bytes.
+      expect(delta.length).toBeLessThanOrEqual(encodeFull(Wide, next).length + 2);
+    }
+  });
+
+  it("a single changed field is far smaller than a full snapshot", () => {
+    const base = decodeFull(Wide, encodeFull(Wide, {
+      a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: true, h: "x", i: "ann", j: 0.5, k: 100, l: 7,
+    }));
+    const changed = { ...base, c: 999 };
+    const delta = encodeDelta(Wide, base, changed);
+    const full = encodeFull(Wide, changed);
+    // 2 mask bytes + 1 u32 (4) = 6, vs a full snapshot of every field.
+    expect(delta.length).toBe(6);
+    expect(delta.length).toBeLessThan(full.length);
+    expect(applyDelta(Wide, base, delta)).toEqual(decodeFull(Wide, full));
+  });
+
+  it("an unchanged wide struct is exactly the mask bytes", () => {
+    const v = decodeFull(Wide, encodeFull(Wide, {
+      a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: false, h: "y", i: "bob", j: 0.25, k: 50, l: null,
+    }));
+    const delta = encodeDelta(Wide, v, v);
+    expect(delta.length).toBe(2); // 12 fields -> 2 mask bytes, no payload
+    expect(applyDelta(Wide, v, delta)).toEqual(v);
   });
 });
 

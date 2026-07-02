@@ -776,3 +776,123 @@ describe("Room state versioning + migration", () => {
     warn.mockRestore();
   });
 });
+
+describe("Room input pipeline (F3: subtick ts + batching)", () => {
+  interface CaptureState {
+    n: number;
+  }
+  class CaptureRoom extends Room<CaptureState> {
+    useQueue = false;
+    readonly got: { payload: unknown; seq?: number; ts?: number }[] = [];
+    override onCreate(): void {
+      this.setState({ n: 0 });
+      if (this.useQueue) {
+        this.queueInputs = true;
+        this.setSimulationInterval(() => {}, 50); // drains the queue each tick
+      }
+      this.onMessage("move", (_client, payload, seq, input) => {
+        this.got.push({ payload, seq, ts: input?.ts });
+      });
+    }
+  }
+
+  async function seated(
+    opts: { max?: number; queue?: boolean } = {},
+  ): Promise<{ ctx: FakeCtx; room: CaptureRoom; conn: FakeConn }> {
+    const ctx = new FakeCtx();
+    const room = new CaptureRoom({ id: ctx.roomId, ctx });
+    room.useQueue = opts.queue ?? false;
+    room["syncIntervalMs"] = 0;
+    room["maxInputsPerSecond"] = opts.max ?? 30;
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "s1");
+    return { ctx, room, conn };
+  }
+
+  it("clamps a client subtick ts into [now-250, now] and hands it to the handler", async () => {
+    vi.setSystemTime(10_000);
+    const { room, conn } = await seated();
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 1, ts: 20_000 })); // future
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 2, ts: 5_000 })); // too old
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 3, ts: 9_900 })); // in range
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 4 })); // none supplied
+
+    expect(room.got.map((g) => g.ts)).toEqual([10_000, 9_750, 9_900, undefined]);
+  });
+
+  it("preserves the clamped ts through the tick-aligned input queue", async () => {
+    vi.setSystemTime(10_000);
+    const { room, conn } = await seated({ queue: true });
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 1, ts: 9_800 }));
+    expect(room.got).toHaveLength(0); // deferred until the tick drains it
+    await vi.advanceTimersByTimeAsync(50);
+    expect(room.got.map((g) => g.ts)).toEqual([9_800]); // clamped at receipt, not at drain
+  });
+
+  it("unpacks a c:mbatch and dispatches each inner message on the normal path", async () => {
+    const { room, conn } = await seated();
+    await room._message(
+      conn,
+      JSON.stringify({
+        t: "c:mbatch",
+        msgs: [
+          { t: "c:msg", type: "move", seq: 1, payload: { n: 1 } },
+          { t: "c:msg", type: "move", seq: 2, payload: { n: 2 } },
+          { t: "c:msg", type: "move", seq: 3, payload: { n: 3 } },
+        ],
+      }),
+    );
+    expect(room.got.map((g) => g.payload)).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+    expect(room.got.map((g) => g.seq)).toEqual([1, 2, 3]);
+  });
+
+  it("counts each unpacked message against the per-second rate limit", async () => {
+    const { room, conn } = await seated({ max: 2 });
+    await room._message(
+      conn,
+      JSON.stringify({
+        t: "c:mbatch",
+        msgs: [1, 2, 3, 4, 5].map((n) => ({ t: "c:msg", type: "move", seq: n, payload: { n } })),
+      }),
+    );
+    expect(room.got).toHaveLength(2); // the 3rd–5th are dropped by the limiter
+  });
+
+  it("accepts a batch at the cap of 16 but rejects an oversized one whole", async () => {
+    const { room, conn } = await seated();
+    const batch = (count: number) =>
+      JSON.stringify({
+        t: "c:mbatch",
+        msgs: Array.from({ length: count }, (_, i) => ({
+          t: "c:msg",
+          type: "move",
+          seq: i + 1,
+          payload: { n: i },
+        })),
+      });
+
+    await room._message(conn, batch(17)); // over the cap -> dropped all-or-nothing
+    expect(room.got).toHaveLength(0);
+
+    await room._message(conn, batch(16)); // exactly at the cap -> all processed
+    expect(room.got).toHaveLength(16);
+    expect(room.got.at(-1)!.seq).toBe(16);
+  });
+
+  it("applies the seq replay guard across a batch (stale inner messages dropped)", async () => {
+    const { room, conn } = await seated();
+    await room._message(conn, JSON.stringify({ t: "c:msg", type: "move", seq: 5 }));
+    await room._message(
+      conn,
+      JSON.stringify({
+        t: "c:mbatch",
+        msgs: [
+          { t: "c:msg", type: "move", seq: 3 }, // stale (<= last)
+          { t: "c:msg", type: "move", seq: 6 }, // fresh
+        ],
+      }),
+    );
+    expect(room.got.map((g) => g.seq)).toEqual([5, 6]);
+  });
+});

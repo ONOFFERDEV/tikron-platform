@@ -15,6 +15,8 @@ export const ClientMessageType = {
   Broadcast: "c:broadcast",
   /** Developer-defined message (routed to a room's onMessage(type) handler). */
   Message: "c:msg",
+  /** A coalesced batch of developer messages in one WS frame (see {@link ClientMessageBatch}). */
+  MessageBatch: "c:mbatch",
   /** Clock-sync ping (client-stamped `t0`); the server echoes it with its time. */
   Time: "c:time",
 } as const;
@@ -67,6 +69,29 @@ export interface ClientGameMessage {
   type: string;
   seq?: number;
   payload?: unknown;
+  /**
+   * Optional subtick timestamp: the client's estimate (via {@link ClockSync}) of the
+   * server-clock time (epoch ms) at which this input was produced. When present the
+   * server clamps it to a recent window and hands it to the room's handler, so hit
+   * checks can rewind lag compensation to the exact moment the shooter aimed —
+   * decoupling input timing from the tick rate (the CS2 subtick model). Absent by
+   * default (opt-in via the client's `subtickTimestamps` option); older servers
+   * simply ignore it, so it is fully backward compatible.
+   */
+  ts?: number;
+}
+
+/**
+ * A batch of {@link ClientGameMessage}s coalesced into a single WebSocket frame.
+ * The client opts in via its `inputBatchMs` option to fold a burst of inputs into
+ * one frame (cutting the server's inbound request rate); the server unpacks it and
+ * processes each inner message on the normal path (rate limit, seq/ack, dispatch).
+ * Backward compatible: a window with a single input still ships as a plain `c:msg`,
+ * and servers that don't understand `c:mbatch` reject only the batch, not `c:msg`.
+ */
+export interface ClientMessageBatch {
+  t: typeof ClientMessageType.MessageBatch;
+  msgs: ClientGameMessage[];
 }
 
 /** Clock-sync ping. `t0` is the client's send time (echoed back for RTT/offset). */
@@ -86,6 +111,7 @@ export type ClientMessage =
   | EchoMessage
   | BroadcastMessage
   | ClientGameMessage
+  | ClientMessageBatch
   | TimeRequestMessage;
 
 // --- Server -> Client ---

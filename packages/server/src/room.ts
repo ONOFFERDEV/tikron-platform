@@ -6,6 +6,7 @@ import {
   decodeClientMessage,
   ProtocolError,
   type RawData,
+  type ClientGameMessage,
 } from "@tikron/protocol";
 import { encodeFull, encodeDelta, encodeDeltaOrNull, type Codec } from "@tikron/schema";
 import { RateLimiter } from "./rate-limit.js";
@@ -153,10 +154,28 @@ interface PersistedRoom<TState> {
   occupancySeq: number;
 }
 
+/**
+ * Per-input metadata handed to a message handler alongside the payload. Currently
+ * carries the optional subtick timestamp; a fourth handler argument keeps the common
+ * `(client, payload, seq)` shape untouched for handlers that don't need it.
+ */
+export interface InputMeta {
+  /**
+   * The input's subtick timestamp on the SERVER timeline (epoch ms), already clamped
+   * to `[now - 250ms, now]` on receipt (so a client can't backdate or postdate an
+   * input to cheat lag compensation). Present only when the client opted into
+   * `subtickTimestamps`; otherwise undefined. Pair it with lag compensation to
+   * rewind hit checks to the exact instant the shooter aimed:
+   * `this.rewind(client, input.ts)`.
+   */
+  ts?: number;
+}
+
 export type MessageHandler = (
   client: Client,
   payload: unknown,
   seq?: number,
+  input?: InputMeta,
 ) => void | Promise<void>;
 
 export interface RoomInit {
@@ -208,6 +227,24 @@ const PERF_RING_CAPACITY = 1024;
  */
 const PERF_STATS_MESSAGE = "tk:stats";
 
+/**
+ * How far back a client-supplied subtick timestamp may sit behind server-receipt
+ * time before it is clamped forward. Bounds how far lag compensation can be
+ * rewound from a single input, defeating backdated-input cheats. Matches the
+ * default lag-compensation history depth (250 ms).
+ */
+const INPUT_TS_MAX_AGE_MS = 250;
+
+/**
+ * Max developer messages in one `c:mbatch` frame. A frame carrying more is rejected
+ * whole (a cheap length check) rather than partially processed, so batch semantics
+ * stay all-or-nothing. This caps per-frame *dispatch* work, not parse cost — the
+ * frame is already fully parsed by here, and its size is bounded upstream by the
+ * Cloudflare Workers incoming-message limit (~1 MiB per WebSocket frame). Each
+ * unpacked message still counts against the per-second rate limit.
+ */
+const INPUT_BATCH_MAX = 16;
+
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
 
@@ -236,6 +273,8 @@ interface QueuedInput {
   type: string;
   payload: unknown;
   seq?: number;
+  /** Clamped subtick timestamp (server timeline), if the client supplied one. */
+  ts?: number;
 }
 
 /** A client's seat in the room; survives transport reconnects (session-keyed). */
@@ -667,7 +706,9 @@ export abstract class Room<TState = unknown> {
     this.#inputQueue = [];
     for (const q of batch) {
       const handler = this.handlers.get(q.type);
-      if (handler) await handler(q.record.client, q.payload, q.seq);
+      if (handler) {
+        await handler(q.record.client, q.payload, q.seq, q.ts !== undefined ? { ts: q.ts } : undefined);
+      }
       // Ack when PROCESSED (not on receipt), addressed to the client's live conn.
       if (this.sendAcks && typeof q.seq === "number" && q.record.connId !== null) {
         this.ctx.connection(q.record.connId)?.send(encode({ t: ServerMessageType.Ack, seq: q.seq }));
@@ -903,12 +944,44 @@ export abstract class Room<TState = unknown> {
       return;
     }
 
-    if (msg.t !== ClientMessageType.Message) return; // core routes only developer messages
+    // Core routes only developer messages (single `c:msg` or a `c:mbatch` of them).
+    if (msg.t !== ClientMessageType.Message && msg.t !== ClientMessageType.MessageBatch) return;
 
     const clientId = this.connToClient.get(conn.id);
     const record = clientId ? this.records.get(clientId) : undefined;
     if (!clientId || !record || record.connId !== conn.id) return;
 
+    // Batch: unpack and run each inner message through the same per-message path
+    // (rate limit, seq/ack, dispatch). A frame over the cap is rejected whole (cheap
+    // length check) so batch handling stays all-or-nothing rather than silently
+    // truncating a client's inputs.
+    if (msg.t === ClientMessageType.MessageBatch) {
+      const inner = Array.isArray(msg.msgs) ? msg.msgs : [];
+      if (inner.length > INPUT_BATCH_MAX) return; // oversized batch dropped
+      for (let i = 0; i < inner.length; i++) {
+        const m = inner[i];
+        if (m && m.t === ClientMessageType.Message && typeof m.type === "string") {
+          await this.processGameMessage(conn, clientId, record, m);
+        }
+      }
+      return;
+    }
+
+    await this.processGameMessage(conn, clientId, record, msg);
+  }
+
+  /**
+   * Handle one developer message — the shared path for a standalone `c:msg` and for
+   * each message unpacked from a `c:mbatch`. Applies the per-second rate limit (one
+   * count per message), the core timing poll, and the seq replay guard, then either
+   * queues the input for the next tick or dispatches it immediately (with its ack).
+   */
+  private async processGameMessage(
+    conn: RoomConnection,
+    clientId: string,
+    record: ClientRecord,
+    msg: ClientGameMessage,
+  ): Promise<void> {
     if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) return; // dropped
 
     // Core-reserved timing poll: answered only AFTER the seat + rate-limit checks
@@ -930,15 +1003,26 @@ export abstract class Room<TState = unknown> {
 
     this.messagesSinceReport++; // billable inbound developer message (passed rate/seq checks)
 
+    // Subtick timestamp: clamp a client-supplied `ts` to [now-250ms, now] on the
+    // server timeline, so a client can neither backdate nor postdate an input to
+    // move lag-compensation rewind outside the recent window.
+    let ts: number | undefined;
+    if (typeof msg.ts === "number") {
+      const now = Date.now();
+      ts = Math.min(now, Math.max(now - INPUT_TS_MAX_AGE_MS, msg.ts));
+    }
+
     // Tick-aligned queue: defer dispatch (and the ack) to the next simulation tick,
     // so onTick sees a consistent batch. Otherwise dispatch + ack immediately.
     if (this.queueInputs) {
-      this.#inputQueue.push({ record, type: msg.type, payload: msg.payload, seq: msg.seq });
+      this.#inputQueue.push({ record, type: msg.type, payload: msg.payload, seq: msg.seq, ts });
       return;
     }
 
     const handler = this.handlers.get(msg.type);
-    if (handler) await handler(record.client, msg.payload, msg.seq);
+    if (handler) {
+      await handler(record.client, msg.payload, msg.seq, ts !== undefined ? { ts } : undefined);
+    }
 
     if (this.sendAcks && typeof msg.seq === "number") {
       conn.send(encode({ t: ServerMessageType.Ack, seq: msg.seq }));

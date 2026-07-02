@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { GameClient, type Transport, type TransportOptions } from "./index.js";
 import {
   encode,
@@ -262,5 +262,122 @@ describe("GameClient / Room", () => {
     expect(room.clock.offsetMs).toBeGreaterThan(4000);
     expect(room.clock.serverNow()).toBeGreaterThan(Date.now() + 4000);
     room.leave();
+  });
+});
+
+describe("GameClient input pipeline (F3: subtick + batching)", () => {
+  function connect(options: Parameters<typeof GameClient>[1] = {}): {
+    room: Promise<import("./index.js").Room>;
+    transport: () => FakeTransport;
+  } {
+    let transport: FakeTransport | undefined;
+    const client = new GameClient("localhost:8787", {
+      disableClockSync: true,
+      createTransport: (opts) => (transport = new FakeTransport(opts)),
+      ...options,
+    });
+    const pending = client.joinOrCreate("m");
+    transport!.emit({
+      t: ServerMessageType.Welcome,
+      connectionId: "c1",
+      room: "m",
+      protocol: 2,
+      peers: [],
+    });
+    return {
+      room: pending,
+      transport: () => {
+        if (!transport) throw new Error("transport not created yet");
+        return transport;
+      },
+    };
+  }
+
+  // Runs first so the module-level warn-once flag is unset here (later subtick tests
+  // then construct silently). Guards the subtick+disableClockSync dev footgun.
+  it("warns once when subtick timestamps run without clock sync", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const h = connect({ subtickTimestamps: true }); // helper leaves disableClockSync on
+    await h.room;
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/subtickTimestamps is on but clock sync is disabled/),
+    );
+    warn.mockRestore();
+  });
+
+  it("stamps send() with a subtick ts when subtickTimestamps is on", async () => {
+    const h = connect({ subtickTimestamps: true });
+    const room = await h.room;
+    room.send("move", { x: 1 });
+
+    const sent = decodeClientMessage(h.transport().sent.at(-1)!);
+    expect(sent.t).toBe("c:msg");
+    expect(typeof (sent as { ts?: unknown }).ts).toBe("number");
+  });
+
+  it("omits ts by default (backward compatible wire shape)", async () => {
+    const h = connect();
+    const room = await h.room;
+    room.send("move", { x: 1 });
+
+    expect(decodeClientMessage(h.transport().sent.at(-1)!)).toEqual({
+      t: "c:msg",
+      type: "move",
+      seq: 1,
+      payload: { x: 1 },
+    });
+  });
+
+  it("coalesces a burst within the window into one c:mbatch frame", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = connect({ inputBatchMs: 20 });
+      const room = await h.room;
+      room.send("move", { n: 1 });
+      room.send("move", { n: 2 });
+      expect(h.transport().sent).toHaveLength(0); // buffered until the window closes
+
+      vi.advanceTimersByTime(20);
+      const frames = h.transport().sent.map((raw) => decodeClientMessage(raw));
+      expect(frames).toHaveLength(1);
+      expect(frames[0]!.t).toBe("c:mbatch");
+      expect((frames[0] as { msgs: unknown[] }).msgs).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends a lone windowed input as a plain c:msg (not a batch)", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = connect({ inputBatchMs: 20 });
+      const room = await h.room;
+      room.send("move", { n: 1 });
+      vi.advanceTimersByTime(20);
+
+      const frames = h.transport().sent.map((raw) => decodeClientMessage(raw));
+      expect(frames).toHaveLength(1);
+      expect(frames[0]!.t).toBe("c:msg");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes buffered inputs immediately on leave()", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = connect({ inputBatchMs: 50 });
+      const room = await h.room;
+      room.send("move", { n: 1 });
+      room.send("move", { n: 2 });
+      room.leave(); // must not drop inputs still in the open window
+
+      const frames = h.transport().sent.map((raw) => decodeClientMessage(raw));
+      expect(frames).toHaveLength(1);
+      expect(frames[0]!.t).toBe("c:mbatch");
+      expect(h.transport().isClosed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
