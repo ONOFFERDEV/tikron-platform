@@ -113,9 +113,11 @@ pre {
 /* --- wordmark --- */
 
 .wordmark {
+  /* No flex gap here: the label is bare text nodes around the neon <span
+     class="i">, and a gap would split t·i·kron apart (each text run is its own
+     anonymous flex item). The logo↔text spacing lives on the icon instead. */
   display: inline-flex;
   align-items: center;
-  gap: 9px;
   font-family: var(--font-mono);
   font-weight: 600;
   font-size: 19px;
@@ -129,8 +131,10 @@ pre {
   color: var(--neon);
   text-shadow: var(--glow);
 }
+.wordmark img,
 .wordmark svg {
   display: block;
+  margin-right: 9px;
 }
 
 /* --- buttons --- */
