@@ -26,6 +26,7 @@ import {
   resolveProject,
 } from "./platform/api.js";
 import { getProject, submitScore } from "./platform/db.js";
+import { handleIngest } from "./platform/ingest.js";
 import { verifyJwt } from "./platform/jwt.js";
 import { isLocationHint, resolveLocationHint, LOCATION_HINTS_LIST } from "./region.js";
 
@@ -234,6 +235,9 @@ export default {
         Response.json({ error: "not_found" }, { status: 404 })
       );
     }
+    // Self-hosted usage reporting: key-authenticated occupancy ingest (needs the
+    // request for its Authorization header + body, so it takes `request` not `url`).
+    if (url.pathname === "/api/ingest/occupancy") return handleIngest(request, env);
     if (url.pathname.startsWith("/api/")) return handleApi(url, env);
     if (url.pathname.startsWith("/parties/")) {
       // Enforce API keys (unless dev-bypassed) and forward the project to the room.

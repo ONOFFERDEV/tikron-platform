@@ -33,3 +33,5 @@ export type { Vec2, MovementConfig, MovementResult } from "./movement.js";
 export { LagCompensator } from "./lag-compensation.js";
 export type { LagCompensatorOptions } from "./lag-compensation.js";
 export { TurnBasedRoom, CasualRealtimeRoom, IoArenaRoom } from "./presets.js";
+export { platformReporter } from "./platform-reporter.js";
+export type { PlatformReporterOptions } from "./platform-reporter.js";

@@ -272,6 +272,35 @@ Rules of thumb:
   server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
   InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.
 
+## Self-hosted usage reporting
+
+Your rooms run on **your** Cloudflare account, so the hosted dashboard
+(tikron.dev) can't see them the way it meters traffic through the managed
+gateway. To have a self-hosted game show up in the dashboard's usage (room-hours,
+peak CCU, messages) — metered identically to gateway-hosted rooms — wire the
+`platformReporter` occupancy hook and give the worker your project API key:
+
+```ts
+import { platformReporter } from "@tikron/server";
+
+// env carries the secret you set below (typed as your Env).
+export const ArenaRoom = defineRoom(MyRoom, {
+  reportOccupancy: platformReporter({ apiKey: (env) => (env as Env).TIKRON_API_KEY }),
+});
+```
+
+```bash
+wrangler secret put TIKRON_API_KEY   # paste a tk_live_… key from the dashboard
+```
+
+It reports over HTTPS to `https://tikron.dev/api/ingest/occupancy`, authenticated
+with the key (the project is attributed from the key, never the payload). Reporting
+is throttled (≤ 1 POST / room / 10 s, plus an immediate send on the first report
+and on the final leave) and fully best-effort — every error is swallowed, so it
+can never break a room. No key configured → it's a no-op, and the game runs
+exactly as before. Self-hosted rooms are metered but never appear in the gateway
+lobby (`/api/rooms`) or matchmaking.
+
 ## Test your room
 
 Unit-test room logic in-process with the `@tikron/server/testing` harness — no Durable
