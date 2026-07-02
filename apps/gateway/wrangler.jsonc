@@ -3,6 +3,12 @@
   "name": "tikron-gateway",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
+  // Canonical production host (Cloudflare Registrar zone on this account);
+  // the workers.dev URL keeps working as a secondary.
+  "routes": [
+    { "pattern": "tikron.dev", "custom_domain": true },
+    { "pattern": "www.tikron.dev", "custom_domain": true }
+  ],
   "durable_objects": {
     "bindings": [
       { "name": "GameRoom", "class_name": "GameRoom" },
