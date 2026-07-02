@@ -209,6 +209,17 @@ export abstract class Room<TState = unknown> {
   protected sendAcks = false;
 
   /**
+   * Minimum interval between state-sync broadcasts (trailing-edge coalescing).
+   * All mutations within a window collapse into one flush at the next boundary,
+   * so the broadcast rate is bounded (~20 Hz default) instead of tracking the
+   * input-arrival rate — the difference between a room surviving a full lobby and
+   * flooding the Durable Object's output. A turn-based room's ≤50 ms sync delay is
+   * imperceptible. Set to 0 to restore immediate microtask flushing (unbounded
+   * rate — only safe when some other cadence already bounds mutations).
+   */
+  protected syncIntervalMs = 50;
+
+  /**
    * Max interval between durable state snapshots. State writes triggered by the
    * (possibly 20–30 Hz) sync flush are coalesced to at most one write per this
    * window; seat and reconnection-window changes persist immediately regardless.
@@ -236,6 +247,7 @@ export abstract class Room<TState = unknown> {
   private occupancySeq = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(init: RoomInit) {
     this.id = init.id;
@@ -258,14 +270,29 @@ export abstract class Room<TState = unknown> {
     this.markStateChanged();
   }
 
-  /** Call after mutating `this.state` in place to sync it to clients (coalesced). */
+  /**
+   * Call after mutating `this.state` in place to sync it to clients. Flushes are
+   * coalesced to at most one per {@link syncIntervalMs} (trailing edge): the first
+   * change after an idle period is broadcast after the window, and every further
+   * change in that window folds into the same flush. Turn-based rooms incur only
+   * that ≤`syncIntervalMs` delay. With `syncIntervalMs = 0` this reverts to an
+   * immediate next-microtask flush.
+   */
   protected markStateChanged(): void {
     if (this.stateFlushScheduled) return;
     this.stateFlushScheduled = true;
-    queueMicrotask(() => {
+    if (this.syncIntervalMs <= 0) {
+      queueMicrotask(() => {
+        this.stateFlushScheduled = false;
+        this.flushState();
+      });
+      return;
+    }
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
       this.stateFlushScheduled = false;
       this.flushState();
-    });
+    }, this.syncIntervalMs);
   }
 
   /** Register a handler for a developer-defined client message `type`. */
@@ -597,6 +624,7 @@ export abstract class Room<TState = unknown> {
     if (this.records.size === 0) {
       this.clearSimulationInterval();
       this.clearHeartbeat();
+      this.clearFlushTimer(); // no recipients left — drop any pending flush
       // Room is empty and disposing: drop its durable snapshot + any pending
       // alarm so a future room reusing this id (DO) cold-starts clean.
       await this.clearPersisted();
@@ -626,6 +654,14 @@ export abstract class Room<TState = unknown> {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+  }
+
+  private clearFlushTimer(): void {
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.stateFlushScheduled = false;
   }
 
   // --- durable persistence (no-op when the host wires no storage) ---

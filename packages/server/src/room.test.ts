@@ -148,6 +148,10 @@ class TestRoom extends Room<TestState> {
 async function setup(): Promise<{ ctx: FakeCtx; room: TestRoom }> {
   const ctx = new FakeCtx();
   const room = new TestRoom({ id: ctx.roomId, ctx });
+  // These tests aren't about flush timing — use immediate (microtask) flushing so
+  // state assertions don't need to advance the sync-throttle timer. The throttle
+  // itself is covered by "Room flush throttling".
+  room["syncIntervalMs"] = 0;
   await room._create();
   return { ctx, room };
 }
@@ -445,6 +449,7 @@ describe("Room persistence (hibernation backstop)", () => {
   const build = (storage: FakeStorage) => {
     const ctx = new FakeCtx(storage);
     const room = new TestRoom({ id: "r", ctx });
+    room["syncIntervalMs"] = 0; // immediate flush — these tests exercise persistence, not throttling
     return { ctx, room };
   };
 
@@ -587,5 +592,50 @@ describe("Room persistence (hibernation backstop)", () => {
     await roomB._alarm();
     expect(roomB["clientCount"]).toBe(0);
     expect(ctxB.reports.at(-1)).toEqual({ count: 0, sessions: [] });
+  });
+});
+
+describe("Room flush throttling", () => {
+  it("coalesces many mutations in one window into a single broadcast", async () => {
+    const ctx = new FakeCtx();
+    const room = new TestRoom({ id: ctx.roomId, ctx }); // default syncIntervalMs = 50
+    await room._create(); // onCreate's setState schedules one flush (timer pending)
+
+    // Several more mutations before the window boundary — all fold into that flush.
+    room["setState"]({ players: { a: 1 } });
+    room["markStateChanged"]();
+    room["markStateChanged"]();
+    expect(ctx.broadcastsOf("s:state")).toHaveLength(0); // nothing sent mid-window
+
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ctx.broadcastsOf("s:state")).toHaveLength(1); // exactly one flush for the window
+  });
+
+  it("flushes immediately on a microtask when syncIntervalMs is 0", async () => {
+    const ctx = new FakeCtx();
+    const room = new TestRoom({ id: ctx.roomId, ctx });
+    room["syncIntervalMs"] = 0;
+    await room._create();
+    const before = ctx.broadcastsOf("s:state").length;
+
+    room["setState"]({ players: { a: 1 } });
+    await Promise.resolve(); // no timer advance — the microtask flush runs on its own
+    expect(ctx.broadcastsOf("s:state")).toHaveLength(before + 1);
+  });
+
+  it("clears the pending flush timer when the room disposes", async () => {
+    const ctx = new FakeCtx();
+    const room = new TestRoom({ id: ctx.roomId, ctx });
+    room.useReconnection = false;
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "sess-a"); // onJoin marks a change → flush timer pending
+
+    ctx.drop("c1");
+    await room._close(conn); // finalize → dispose → clearFlushTimer()
+
+    const flushes = ctx.broadcastsOf("s:state").length;
+    await vi.advanceTimersByTimeAsync(500);
+    expect(ctx.broadcastsOf("s:state")).toHaveLength(flushes); // no leaked timer fired
   });
 });

@@ -65,7 +65,7 @@ Driving 32/64/128 connections at a 20-cap agar room rejects exactly
 keep playing cleanly — the P1 room-side cap holds under connection storms,
 not just in unit tests.
 
-## Scenario: `movement` — no AOI, unthrottled flush (the failure case)
+## Scenario: `movement` — no AOI (before the flush throttle: the failure case)
 
 | players/room | env | ack RTT p50 | p95 | downlink/client | unexpected closes |
 |---|---|---|---|---|---|
@@ -81,10 +81,26 @@ Cloudflare the Durable Object's output path saturates and **58 of 64 sockets
 were force-closed mid-run**. This motivated the tick-aligned flush throttle
 (`syncIntervalMs`, default 50 ms) in the room core.
 
-### After the flush throttle
+### After the flush throttle (`syncIntervalMs = 50`, same commit)
 
-<!-- TODO(next commit): before/after re-measurement of movement 32/64 and an
-agar regression check, filled in once the syncIntervalMs change lands. -->
+| players/room | env | ack RTT p50 | p95 | downlink/client | frames/s/client | unexpected closes |
+|---|---|---|---|---|---|---|
+| 64 | local | **6.0 ms** (was 85.8) | 11.2 | 26.0 KiB/s | **16.9** (was 741) | 0 |
+| 32 | deployed | 80.2 ms | 93.3 | 14.6 KiB/s | ~21 | 0 |
+| 64 | deployed | **83.3 ms** | 102.1 | 30.0 KiB/s | **~21** (was ~741) | **0 / 64** (was 58/64) |
+
+The mechanism is the *event rate*, not raw bytes: coalescing flushes to a 50 ms
+boundary cut broadcasts per client ~44× while each delta carries the same
+information (bandwidth drops a more modest ~15–35%, since delta payloads grow
+to cover the window). With the DO no longer drowning in per-input broadcast
+work, local ack RTT at 64 players fell from 86 ms to 6 ms and the deployed
+64-player room went from dropping 91% of its sockets to fully stable.
+
+Regression check (agar, AOI): local 16-player p50 2.0 ms / 2.7 KiB/s (was
+5.6 ms / 4.2 KiB/s); deployed 20-player p50 79.9 ms / 3.7 KiB/s and deployed
+8×16 (128 CCU) p50 72.8 ms, p99 105.7, zero closes — strictly better across
+the board. State cadence now locks to the 50 ms boundary (raw inter-arrival
+p50 49.8 ms, jitter p50 ~1 ms).
 
 ## Baselines
 
