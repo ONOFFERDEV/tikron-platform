@@ -38,10 +38,23 @@
 - [packages/client/src/index.ts](packages/client/src/index.ts): Read for the browser SDK
   — `GameClient` (`matchmake`, `joinOrCreate`) and `Room` (`send`, `onStateChange`,
   `onMessage`, `onAck`).
+- [packages/schema/src/schema.ts](packages/schema/src/schema.ts): Read for the binary
+  codec builders — `schema`, `mapOf`, `listOf`, `optionalOf`, `enumOf`, `str`, and
+  `quant` (fixed-grid quantization, the bandwidth lever for continuous fields).
 - [packages/protocol/src/index.ts](packages/protocol/src/index.ts): Read for the wire
-  protocol — client/server message tags and the JSON codec.
+  protocol — client/server message tags (incl. the `c:mbatch` input batch and subtick
+  `ts`) and the JSON codec.
 - [examples/starter/src/arena-room.ts](examples/starter/src/arena-room.ts): Read for a
   minimal, correct room to copy (validate-then-mutate handlers, reconnection).
+- [apps/gateway/src/rooms/shooter-room.ts](apps/gateway/src/rooms/shooter-room.ts): Read
+  for the FPS stack in practice — subtick lag-compensation rewind, AOI priority tiers, and
+  a quantized codec on `IoArenaRoom`.
+
+## Demos (live on tikron.dev)
+
+- [.io demo](https://tikron.dev/agar.html): the flagship realtime arena (binary delta + AOI).
+- [FPS demo](https://tikron.dev/shooter.html): hitscan shooter — subtick timestamps + server-side
+  lag compensation + AOI priority tiers at up to 100 players in one room.
 
 ## Tooling
 

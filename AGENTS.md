@@ -29,7 +29,12 @@ physics every frame → `CasualRealtimeRoom`; you integrate positions/collisions
 fixed timestep → `IoArenaRoom`. A preset is a thin `Room` subclass — dropping back to
 the raw core is always possible. The [`examples/starter`](examples/starter) template
 (`ArenaRoomImpl`) extends `CasualRealtimeRoom`; the flagship `.io` demo
-(`apps/gateway`, `AgarRoom`) extends `IoArenaRoom` with AOI.
+(`apps/gateway`, `AgarRoom`) extends `IoArenaRoom` with AOI; the FPS proof-of-concept
+(`apps/gateway`, `ShooterRoom`) is the same `IoArenaRoom` with the full competitive
+stack turned on — `lagCompensation` + AOI priority `tiers` + client `subtickTimestamps`
+(see "Competitive FPS" below). A hitscan shooter still fits WebSocket transport because
+projectiles never enter the state stream — shots resolve server-side (see the roadmap
+note on transport before choosing this for a twitch shooter).
 
 ## Golden path — scaffold → run → deploy → play
 
@@ -70,7 +75,12 @@ room.onStateChange((state) => render(state));
 ```
 
 Lifecycle hooks to override: `onCreate` (set initial state, register handlers),
-`onJoin(client)`, `onLeave(client)`, `onReconnect(client)`, `onDispose`.
+`onJoin(client)`, `onLeave(client)`, `onReconnect(client)`, `onDispose`, and
+`onRestore` (a Durable Object cold-started after eviction and re-applied its persisted
+`this.state` — rebuild any *derived* in-memory index that mirrors state but isn't itself
+persisted, e.g. a spatial grid or an id→cell map seeded in setup). `onRestore` runs only
+when a snapshot was actually restored, so `onCreate`/`onReady` alone won't rebuild those
+indexes after an eviction.
 
 ## Hard rules — these prevent the classic failures
 
@@ -109,12 +119,84 @@ Lifecycle hooks to override: `onCreate` (set initial state, register handlers),
 | `sendAcks` | `false` | Ack each input seq (enables client reconciliation for realtime). |
 | `stateCodec` | — | Set a `@tikron/schema` codec → binary delta sync instead of JSON. |
 | `persistIntervalMs` | `5000` | Max interval between durable state snapshots. |
+| `queueInputs` | `false` | Buffer inputs and drain them (in arrival order) at the START of each tick, so `onTick` sees one consistent batch instead of interleaved handlers. Requires a simulation interval. `IoArenaRoom` turns this on. |
+| `stateVersion` | `1` | Persisted-state SHAPE version. Bump it on an incompatible `TState` change and override `migrateState(from, old)` so a redeploy migrates old snapshots instead of silently restoring the old shape. |
 
 Realtime modules (call from `onCreate`): `setSimulationInterval(fn, ms)` (fixed tick,
 20–30 Hz; DO alarms are unsuitable < ~1 s), `enableAOI(config)` (per-viewer interest
-management — a bandwidth win AND a security boundary; requires a `stateCodec`).
-Reconnection: inside `onLeave`, `await this.allowReconnection(client, 30)` resolves if
-the player returns within the window (needs a `?_session=` key) and rejects on timeout.
+management — a bandwidth win AND a security boundary; requires a `stateCodec`; grid-indexed,
+~O(viewers + entities) per flush). `AOIConfig.tiers` adds a Tribes/Halo priority schedule:
+concentric distance bands (ascending `radius`, integer `interval`) that refresh FAR entities
+at a fraction of the tick rate — the single biggest downlink lever at high CCU. A throttled
+far entity is never dropped (it rides through as "unchanged", so no flicker); first appearance
+and removal always fire immediately. Reconnection: inside `onLeave`,
+`await this.allowReconnection(client, 30)` resolves if the player returns within the window
+(needs a `?_session=` key) and rejects on timeout. A room can poll its own recent tick/flush
+timing at runtime by sending itself the core-reserved `tk:stats` developer message (the load
+test uses this; the reply is a `{ tick, flush, windowMs }` timing summary).
+
+## Competitive FPS: subtick timestamps + lag compensation + priority tiers
+
+Reach for this when hit registration must survive real RTT (a hitscan shooter, a fast
+racer with contact). It is `IoArenaRoom` with three opt-ins layered on; the
+`ShooterRoom` demo (`apps/gateway`) is the end-to-end reference.
+
+- **Quantize the state codec.** Snap continuous fields (position, angle, health) to a grid
+  with `quant(min, max, step)` from `@tikron/schema`: it rides in 1–4 bytes instead of an
+  `f32`'s 4, and sub-`step` jitter drops out of deltas entirely. This is the main bandwidth
+  lever for a dense arena.
+- **Server-side lag compensation.** Set `lagCompensation = true` and override `lagSnapshot()`
+  to return the entities to track (id → `{x,y}`); the preset records positions after each tick.
+  In a `shoot` handler, `this.rewind(client, input?.ts)` returns the world as that client saw it
+  and you run the hitscan against it.
+- **Subtick input timing.** The client opts in with `subtickTimestamps: true`; each `send()`
+  is stamped with the input's estimated server-clock time. The server clamps it to a recent
+  window (`[now-250ms, now]`, anti-backdate) and hands it to the handler as the 4th arg
+  (`InputMeta.ts`). Passing it to `rewind` pins the rewind to the exact instant the shooter
+  aimed, decoupled from the tick rate (the CS2 model). Requires client clock sync (on by
+  default).
+- **AOI priority tiers.** Set `aoi.tiers` so far players refresh at a fraction of the tick rate
+  (see Room knobs). The demo uses `[{radius:300,interval:1},{radius:600,interval:4}]`.
+- **Optional input batching.** The client `inputBatchMs` option (e.g. 33 ≈ one tick) coalesces
+  a burst of inputs into one `c:mbatch` WebSocket frame, cutting the DO's inbound request rate.
+  Only enable it against a matching `@tikron/server` (0.2+) — an older server that predates the
+  batch frame drops any multi-input window.
+
+```ts
+// SERVER — a hitscan shooter room
+class Shooter extends IoArenaRoom<ShooterState> {
+  protected readonly codec = schema({
+    players: mapOf(schema({ x: quant(0, 2000, 0.1), y: quant(0, 2000, 0.1),
+      aim: quant(0, Math.PI * 2, 0.001), hp: "u8", alive: "bool" })),
+  });
+  protected override lagCompensation = true;
+  protected override aoi = {
+    viewRadius: 600, mapFields: ["players"],
+    position: (e) => e as Vec2, viewer: (s, id) => s.players[id] ?? null,
+    tiers: [{ radius: 300, interval: 1 }, { radius: 600, interval: 4 }],
+  };
+  protected override lagSnapshot() {
+    return new Map(Object.entries(this.state.players)
+      .filter(([, p]) => p.alive).map(([id, p]) => [id, { x: p.x, y: p.y }]));
+  }
+  protected override onReady() {
+    this.setState({ players: {} });
+    // 4th arg carries the clamped subtick ts when the client opts in.
+    this.onMessage("shoot", (client, aim, _seq, input) => {
+      const world = this.rewind(client, input?.ts);   // world as the shooter saw it
+      // ...resolve the hitscan against `world`, apply damage...
+    });
+  }
+}
+
+// CLIENT — opt into subtick timing (needs clock sync) + input batching
+const gc = new GameClient(host, { stateCodec: ShooterSchema, subtickTimestamps: true, inputBatchMs: 33 });
+```
+
+**Wire compatibility:** client and server share `PROTOCOL_VERSION` and the binary state-frame
+layout. Ship the SAME SDK minor on both sides — 0.1.x and 0.2.x are not wire-compatible (0.2
+added the `c:mbatch` frame, the subtick `ts` field, and the state-frame `serverTime`). Upgrade
+both together.
 
 ## Test your room
 
@@ -214,6 +296,15 @@ dev with `DEV_MODE=1` skips them.)
   p50 **~82 ms** (81.9 ms), p99 134 ms, 128/128 connected. Each room is its own
   Durable Object placed independently — 128 across 8 rooms behaves like one
   16-player room.
+- **One room holds 100 players, deployed and clean:** with a 10 s join ramp, 100/100
+  connected, **0** unexpected closes, ack p50 97 ms / p99 144 ms, cadence locked at
+  ~48 ms, and server tick+flush processing **0 ms** across all `tk:stats` buckets (the
+  F1 hot-path pass keeps a single DO's per-tick cost well under the 20 ms FPS budget).
+  The full FPS stack (subtick shots + tiered AOI + per-field map deltas) also holds at
+  100 CCU on one DO with zero drops. **One caveat — connection admission:** 100 upgrades
+  crammed into 3 s to one DO fails ~20% of connects and destabilizes early sockets;
+  pace joins over ~10 s (the client's built-in reconnect backoff already spreads retries)
+  and steady-state is unaffected.
 - **AOI keeps bandwidth flat:** 1.3 → 3.8 KiB/s per client from 2 → 20 players (each
   client receives only its view).
 - **Turn-based is nearly free:** idle JSON room ~77 B/s per client (WS keepalive).
@@ -259,12 +350,14 @@ what is in progress — pick your genre and architecture accordingly.
   lobby list. What does **not** exist yet: skill/MMR rating, parties/pre-made groups, and
   reconnect-into-queue. Build ranked matching or party grouping in your own app layer on top
   of the primitives.
-- **Scale envelope.** Measured comfortable at **20 players/room** and **128 CCU across 8
-  rooms** (see the measured limits above and PERF.md). Rooms scale horizontally — each is its
-  own DO — so total CCU grows with room count. But **per-room** cost is not free: naive AOI
-  filtering is O(n²) in room size, so very large single rooms get expensive. A spatial grid
-  index is in progress; until then, keep rooms within the measured envelope and shard big
-  worlds into multiple rooms.
+- **Scale envelope.** Measured comfortable at **20 players/room**, **100 players in one room**
+  (deployed, clean — server tick+flush 0 ms), and **128 CCU across 8 rooms** (see the measured
+  limits above and PERF.md). Rooms scale horizontally — each is its own DO — so total CCU grows
+  with room count. AOI is now grid-indexed (uniform spatial hash, ~O(viewers + entities) per
+  flush, property-tested for exact parity with the naive filter), so per-room cost no longer
+  blows up quadratically with room size; priority `tiers` shed far-entity downlink on top of
+  that. The remaining per-room ceiling at very high CCU is connection admission and raw fan-out,
+  not the filter — still shard very large worlds into multiple rooms.
 
 None of these are hidden — they're the honest edges of a v1 SDK. If your game fits the
 supported genres and you size rooms within the measured envelope, you're on solid ground.

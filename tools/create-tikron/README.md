@@ -25,7 +25,7 @@ client/main.ts      browser client via @tikron/client
 public/index.html   a canvas
 wrangler.jsonc      Cloudflare config (DO binding + assets)
 tsconfig(.client).json
-package.json        @tikron/* deps at ^0.1.0, dev/deploy/build scripts (esbuild + wrangler)
+package.json        @tikron/* deps at ^0.2.0, dev/deploy/build scripts (esbuild + wrangler)
 ```
 
 ### Options

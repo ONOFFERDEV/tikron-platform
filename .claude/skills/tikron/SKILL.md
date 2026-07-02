@@ -24,8 +24,13 @@ full decision table):
   try/catch yourself).
 - **`IoArenaRoom`** — fixed-timestep simulation (`.io` arenas, shooters, racers).
   Tick (`onTick`) + binary delta `stateCodec` + input acks + optional per-viewer AOI
-  (anti-wallhack) + built-in reconnection. Implement the codec, `onTick`,
-  `onSeatExpired`.
+  (anti-wallhack, grid-indexed) + built-in reconnection. Implement the codec, `onTick`,
+  `onSeatExpired`. **Competitive FPS**: turn on `lagCompensation` (+ override
+  `lagSnapshot()`) and call `rewind(client, input?.ts)` in a shoot handler for hit
+  registration that survives RTT; add AOI `tiers` for priority updates; `quant(...)` the
+  codec fields to shrink the stream; client opts into `subtickTimestamps` (+ optional
+  `inputBatchMs`). Reference: `apps/gateway`'s `ShooterRoom`. Details in AGENTS.md →
+  "Competitive FPS".
 
 A preset is a thin `Room` subclass — dropping to the raw core is always possible. Copy
 [`examples/starter/src/arena-room.ts`](../../../examples/starter/src/arena-room.ts)
@@ -118,11 +123,14 @@ two devices to confirm. Never benchmark multi-room capacity on local `wrangler d
 (one process — see PERF.md); measure against the deploy.
 
 Deploys restart Durable Objects, but rooms recover via the durable snapshot + the 30 s
-reconnection window — players reland in the same seat/state. **Before committing a game
-to Tikron**, read AGENTS.md → "Limits & roadmap": WebSocket-only transport (not for
-twitch shooters), rooms fixed near their creator (matchmake by region), join-or-create
-matchmaking only (no MMR/parties), no automatic state-shape migration across versions
-yet, and the measured 20-players/room · 128-CCU scale envelope.
+reconnection window — players reland in the same seat/state. For an incompatible state
+shape across versions, bump `stateVersion` and override `migrateState(from, old)` so the
+redeploy migrates old snapshots (returning `null` discards them and starts fresh). **Before
+committing a game to Tikron**, read AGENTS.md → "Limits & roadmap": WebSocket-only transport
+(not for twitch shooters), rooms fixed near their creator (place with a matchmake `region`
+hint), join-or-create matchmaking only (no MMR/parties), and the measured scale envelope
+(20 players/room, 100 in one room, 128 CCU across rooms). Ship the same SDK minor on client
+and server — 0.1.x and 0.2.x are not wire-compatible.
 
 ## Failure quick-reference
 

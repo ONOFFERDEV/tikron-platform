@@ -56,7 +56,10 @@ Turn it into a Durable Object in your Worker with `defineRoom(Arena)` and bind i
 - **`CasualRealtimeRoom`** — cursors/whiteboards/party games. Throttled ~20 Hz JSON +
   built-in reconnection.
 - **`IoArenaRoom`** — `.io` arenas/shooters. Fixed-timestep `onTick`, binary delta
-  `stateCodec`, input acks, and optional per-viewer interest management (AOI, anti-wallhack).
+  `stateCodec`, input acks, and optional per-viewer interest management (AOI, grid-indexed,
+  anti-wallhack). For competitive FPS hit registration, turn on `lagCompensation` + override
+  `lagSnapshot()` and call `rewind(client, input?.ts)` in a shoot handler (rewinds the world
+  to what that client saw); add AOI `tiers` to throttle far-entity updates at high CCU.
 
 ## Test your room — `@tikron/server/testing`
 
@@ -75,12 +78,13 @@ alice.lastState();     // what this client received
 
 ## Key API
 
-`Room` (lifecycle: `onCreate` / `onJoin` / `onLeave` / `onReconnect` / `onDispose`;
-`onMessage`, `setState` / `markStateChanged`, `broadcast`, `allowReconnection`,
+`Room` (lifecycle: `onCreate` / `onJoin` / `onLeave` / `onReconnect` / `onDispose` /
+`onRestore`; `onMessage`, `setState` / `markStateChanged`, `broadcast`, `allowReconnection`,
 `setSimulationInterval`, `enableAOI`; knobs `maxClients` / `maxInputsPerSecond` /
-`syncIntervalMs` / `sendAcks` / `stateCodec`) · presets `TurnBasedRoom` /
-`CasualRealtimeRoom` / `IoArenaRoom` · `defineRoom(RoomClass, options?)` ·
-`validateMovement` · `createTestRoom` (from `@tikron/server/testing`).
+`syncIntervalMs` / `sendAcks` / `queueInputs` / `stateCodec` / `stateVersion` +
+`migrateState`) · presets `TurnBasedRoom` / `CasualRealtimeRoom` / `IoArenaRoom`
+(`lagCompensation`, `lagSnapshot`, `rewind`, `aoi.tiers`) · `defineRoom(RoomClass, options?)` ·
+`validateMovement` · `LagCompensator` · `createTestRoom` (from `@tikron/server/testing`).
 
 ## Links & license
 

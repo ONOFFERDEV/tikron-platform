@@ -52,6 +52,22 @@ import { InputPredictor, SnapshotBuffer, ClockSync } from "@tikron/client";
 - **`withNetworkConditions`** — wrap a transport with latency/jitter/packet-loss to test
   your game under bad networks locally.
 
+## `GameClient` options for FPS / high-rate games
+
+```ts
+const client = new GameClient(location.host, {
+  party: "shooter-room",
+  stateCodec: ShooterSchema,   // match the room's codec for binary sync
+  subtickTimestamps: true,     // stamp each send() with its server-clock time so the room can
+                               // rewind lag compensation to the input instant (needs clock sync)
+  inputBatchMs: 33,            // coalesce a burst of sends into one frame (~1 tick); needs a 0.2+
+                               // @tikron/server (older servers drop multi-input batches)
+});
+```
+
+`networkConditions` (dev-only bad-network simulation) and `reconnect` (backoff policy) round
+out the options — see the SDK types.
+
 ## Key API
 
 `GameClient(host, options)` → `joinOrCreate(room, params?)` · `Room`

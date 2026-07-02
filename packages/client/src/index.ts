@@ -91,9 +91,10 @@ export interface GameClientOptions {
 
 /**
  * A live connection to a single room. Wraps a {@link Transport}, decodes the
- * authoritative message stream, and tracks room state. In M0 this was
- * echo/broadcast; M1 adds `state` sync (`onStateChange`), developer messages
- * (`send`/`onMessage(type)`), and presence. Client-side prediction arrives in M2.
+ * authoritative message stream, and tracks room state: `state` sync
+ * (`onStateChange`), developer messages (`send`/`onMessage(type)`), presence, input
+ * acks (`onAck`), and clock sync. Client-side prediction and interpolation are
+ * opt-in helpers ({@link InputPredictor}, {@link SnapshotBuffer}).
  */
 export class Room {
   connectionId: string | null = null;
@@ -377,8 +378,9 @@ export class GameClient {
   }
 
   /**
-   * Join a room by name (creating it on first join). In M0/M1 this simply opens a
-   * connection to the room's Durable Object; real matchmaking arrives in M4.
+   * Join a room by name (creating it on first join) by opening a connection to the
+   * room's Durable Object. To let the platform pick and reserve a room, call
+   * {@link matchmake} first and pass its `roomId`/`sessionId` here.
    */
   async joinOrCreate(room: string, params: Record<string, string> = {}): Promise<Room> {
     const query: Record<string, string> = { ...params };

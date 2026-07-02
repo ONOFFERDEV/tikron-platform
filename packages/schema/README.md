@@ -30,11 +30,31 @@ const restored = applyDelta(World, prev, patch); // deep-equals `next` on the cl
 Deltas diff structurally: unchanged fields, map entries, and list items cost nothing on
 the wire, so a 128-entity world where two things moved sends two things.
 
+## Quantize continuous fields
+
+For positions, velocities, angles, and health, `quant(min, max, step)` snaps a number to a
+fixed grid and stores it in the smallest integer that spans the range — 1–4 bytes instead
+of an `f32`'s 4 — and because it compares the quantized bucket, sub-`step` jitter no longer
+counts as a change and drops out of deltas entirely. It's the main bandwidth lever for a
+dense realtime world.
+
+```ts
+import { schema, mapOf, quant } from "@tikron/schema";
+
+const Player = schema({
+  x: quant(0, 2000, 0.1),          // 0.1-unit grid on a 2000-unit map → u16 (2 bytes)
+  y: quant(0, 2000, 0.1),
+  aim: quant(0, Math.PI * 2, 0.001), // heading in radians → u16
+  hp: "u8",
+});
+```
+
 ## Key API
 
-Composers: `schema(shape)`, `prim(type)`, `mapOf(child)`, `listOf(child)`,
-`optionalOf(child)`, `enumOf(...values)`, `str(maxLen)` — each returns a `Codec<T>` with a
-fully inferred `T`. Wire ops: `encodeFull`, `encodeDelta`, `decodeFull`, `applyDelta`.
+Composers: `schema(shape)`, `prim(type)`, `quant(min, max, step)`, `mapOf(child)`,
+`listOf(child)`, `optionalOf(child)`, `enumOf(...values)`, `str(maxLen)` — each returns a
+`Codec<T>` with a fully inferred `T`. Wire ops: `encodeFull`, `encodeDelta`,
+`encodeDeltaOrNull` (delta, or `null` when nothing changed), `decodeFull`, `applyDelta`.
 Low-level buffers: `ByteWriter`, `ByteReader`.
 
 ## Links & license

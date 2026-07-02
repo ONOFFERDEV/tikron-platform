@@ -20,10 +20,16 @@ const msg = decodeServerMessage(rawFromSocket);                     // typed Ser
 // (encode/decode throw ProtocolError on a malformed or wrong-version message)
 ```
 
+The envelope is versioned (`PROTOCOL_VERSION`), so client and server must run the same SDK
+minor. Developer inputs are `c:msg`; a burst can be coalesced into one `c:mbatch` frame
+(the client's `inputBatchMs` option), and a `c:msg` may carry a subtick `ts` (server-clock
+input time) for lag-compensated hit registration. Older servers ignore `ts` and reject
+`c:mbatch`, so a single input always ships as a plain `c:msg`.
+
 ## Key API
 
-`PROTOCOL_VERSION` · `ClientMessageType` / `ServerMessageType` (tag enums) · the
-`ClientMessage` / `ServerMessage` interfaces · `encode` · `decodeClientMessage` /
+`PROTOCOL_VERSION` · `ClientMessageType` / `ServerMessageType` (tag enums, incl. `c:mbatch`) ·
+the `ClientMessage` / `ServerMessage` interfaces · `encode` · `decodeClientMessage` /
 `decodeServerMessage` · `ProtocolError`.
 
 ## Links & license

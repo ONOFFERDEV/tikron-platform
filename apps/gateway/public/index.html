@@ -229,8 +229,8 @@
             <div class="l">across 8 rooms — p50 82 ms</div>
           </div>
           <div class="num">
-            <div class="n">44×</div>
-            <div class="l">fewer broadcasts after flush throttling</div>
+            <div class="n">100 CCU</div>
+            <div class="l">one FPS room, deployed — zero drops</div>
           </div>
           <div class="num">
             <div class="n">≈77 B/s</div>
@@ -377,21 +377,22 @@ npm run deploy</code></pre>
           </li>
           <li>
             <b>Deploys restart rooms.</b> Players auto-reconnect into the same seat and
-            state via the durable snapshot + a 30 s window. Cross-version state-shape
-            migration isn't automatic yet.<span class="soon">in progress</span>
+            state via the durable snapshot + a 30 s window. Change the state shape across
+            versions with a <code>stateVersion</code> bump + a <code>migrateState</code> hook.
           </li>
           <li>
             <b>One room = one Durable Object,</b> placed near its creator — a cross-region
-            group sees asymmetric latency. Matchmake by region for now.<span class="soon">in progress</span>
+            group sees asymmetric latency. Place a room near a chosen region with a matchmake
+            region hint.
           </li>
           <li>
             <b>Matchmaking is join-or-create + filter.</b> No skill rating, parties, or
             reconnect-into-queue — build ranked/party logic in your own app layer.
           </li>
           <li>
-            <b>Measured comfortable</b> to 20 players/room and 128 CCU across rooms; rooms
-            scale horizontally, but per-room AOI cost grows with room size (a spatial grid
-            index is in progress).<span class="soon">in progress</span>
+            <b>Measured comfortable</b> to 20 players/room, 100 players in one room, and 128
+            CCU across rooms; rooms scale horizontally. AOI is grid-indexed, so per-room cost
+            no longer grows quadratically with room size.
           </li>
         </ul>
         <p style="color: var(--muted); font-size: 13px; margin-top: 14px">

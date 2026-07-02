@@ -10,6 +10,8 @@ extensions, `noUncheckedIndexedAccess` on.
 
 Index/docs: llms.txt · AGENTS.md (operational brief)
 · docs/PERF.md (measured numbers — never invent latency figures).
+Live demos: tikron.dev/agar.html (.io — binary delta + AOI) ·
+tikron.dev/shooter.html (FPS — subtick lag-comp + AOI priority tiers, up to 100/room).
 
 ## Commands
 
@@ -32,20 +34,33 @@ Index/docs: llms.txt · AGENTS.md (operational brief)
                                  NEVER override onLeave (the preset owns it).
     IoArenaRoom<TState>          fixed-timestep simulation (.io/shooter/racer).
                                  Binary delta sync + acks + optional AOI + reconnection.
+                                 queueInputs on (inputs drain at the tick boundary so
+                                 onTick sees one consistent batch).
                                  Implement: `protected readonly codec = schema({...})`,
                                  onReady() (setup — the preset owns onCreate),
                                  onTick(dtMs) (state auto-flushes after each tick),
                                  onSeatExpired(client). Fields: tickMs=50, aoi?.
+                                 FPS stack (competitive hit reg): lagCompensation=true +
+                                 override lagSnapshot() (id->{x,y} to track) + call
+                                 rewind(client, input?.ts) in a shoot handler to resolve
+                                 the hitscan against the world that client saw; aoi.tiers
+                                 for priority updates; client subtickTimestamps for
+                                 tick-independent rewind. Demo: apps/gateway ShooterRoom.
 
 ### Room<TState> core (packages/server/src/room.ts)
 
 Lifecycle hooks (override): onCreate() · onJoin(client) · onLeave(client) ·
-onReconnect(client) · onDispose().
+onReconnect(client) · onDispose() · onRestore() (runs after a DO cold-start re-applies
+the persisted this.state — rebuild derived in-memory indexes that mirror state but aren't
+persisted, e.g. a spatial grid; not called on a fresh/missing/discarded snapshot).
 
 Developer API (protected):
     setState(next)                    replace state + schedule sync
     markStateChanged()                after in-place mutation; coalesced per syncIntervalMs
-    onMessage(type, (client, payload, seq?) => ...)   payload is unknown — VALIDATE it
+    onMessage(type, (client, payload, seq?, input?) => ...)   payload is unknown — VALIDATE it;
+                                       input.ts = clamped subtick timestamp (server timeline)
+                                       when the client opted into subtickTimestamps; pair with
+                                       rewind(client, input.ts) for lag-compensated hit checks
     broadcast(type, payload?, exceptClientId?)        dev-defined server→client message
     client.send(type, payload?)       to one client (drops silently while disconnected)
     clientList() / clientCount        seated clients (includes reconnection windows)
@@ -54,14 +69,27 @@ Developer API (protected):
                                         ?_session=<key>; survives DO eviction (alarm)
     setSimulationInterval(fn, ms)     fixed tick (realtime only; >= ~20ms)
     clearSimulationInterval()
-    enableAOI({viewRadius, mapFields, position, viewer})  requires stateCodec;
-                                        per-viewer filtered binary sync (anti-wallhack)
+    enableAOI({viewRadius, mapFields, position, viewer, tiers?})  requires stateCodec;
+                                        per-viewer filtered binary sync (anti-wallhack);
+                                        grid-indexed (~O(viewers+entities)/flush). tiers =
+                                        [{radius,interval}...] ascending: FAR entities
+                                        refresh every `interval`th flush (throttled but
+                                        never dropped — no flicker); the top downlink lever
+                                        at high CCU.
+    currentTick                       monotonic sim-tick counter (state-frame tick)
+
+tk:stats: a client can send the core-reserved `tk:stats` developer message to read the
+room's recent tick/flush timing ({tick, flush, windowMs} of DurationStats); the load test
+uses it to report real in-DO processing cost. Not billable, never collides with onMessage.
 
 Knobs (protected fields): maxClients=Infinity (room-side hard cap → room_full/4002;
 reattach never capped) · maxInputsPerSecond=30 (excess inputs dropped) ·
 syncIntervalMs=50 (0 = immediate microtask flush — unbounded, avoid) ·
-sendAcks=false (ack input seq for client reconciliation) · stateCodec (binary delta) ·
-persistIntervalMs=5000 (durable snapshot cadence).
+sendAcks=false (ack input seq for client reconciliation) · queueInputs=false (drain inputs
+at the tick boundary; needs a sim interval; IoArenaRoom sets it) · stateCodec (binary delta) ·
+persistIntervalMs=5000 (durable snapshot cadence) · stateVersion=1 (bump on incompatible
+TState change + override migrateState(from, old) so a redeploy migrates old snapshots
+instead of silently restoring the old shape; return null = discard + start fresh).
 
 Facts: Client = { id, data (server-only scratch), send }. client.id is the session key
 when supplied, else the connection id — state keyed by client.id survives reconnects.
@@ -90,8 +118,18 @@ Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_
       apiKey?: "tk_live_...",      // metered platform key (?apiKey=)
       authToken?: "<jwt>",         // player token (?_auth=) when project requires it
       stateCodec?: MySchema,       // must match the room's codec for binary sync
+      subtickTimestamps?: true,    // stamp each send() with its server-clock time so the
+                                   // room can rewind lag comp to the input instant (needs
+                                   // clock sync, on by default); FPS hit registration
+      inputBatchMs?: 33,           // coalesce a burst of sends into one c:mbatch frame
+                                   // (~1 tick); 0 = send each immediately. Needs a 0.2+
+                                   // server (older servers drop multi-input batches)
+      networkConditions?: {...},   // DEV ONLY: simulate latency/jitter/loss to feel the
+                                   // game under a bad network (latencyMs, jitterMs,
+                                   // lossRate, seed); loss drops only binary state frames
+      reconnect?: {...},           // backoff policy (default 500ms base, doubling, 5 + jitter)
     });
-    const m = await client.matchmake({ mode?, maxClients? }); // {roomId, sessionId}
+    const m = await client.matchmake({ mode?, maxClients?, region? }); // {roomId, sessionId, region?}
     const room = await client.joinOrCreate(m.roomId, { _session: m.sessionId });
 
     room.send(type, payload)             auto-seq'd intent
@@ -107,16 +145,26 @@ frames arrive as arraybuffer (SDK sets binaryType — hand-rolled clients must t
 
 ## @tikron/schema — binary delta state sync
 
-    import { schema, mapOf, prim, type Codec } from "@tikron/schema";
+    import { schema, mapOf, quant, type Codec } from "@tikron/schema";
     const MySchema: Codec<MyState> = schema({
-      players: mapOf(schema({ x: "f32", y: "f32", score: "u32" })),  // string-keyed maps
-      round: "u16",            // prims: u8 u16 u32 i32 f32 f64 bool str
+      players: mapOf(schema({
+        x: quant(0, 2000, 0.1),  // fixed-grid quantize: 1-4 bytes vs f32's 4, and
+        y: quant(0, 2000, 0.1),  // sub-step jitter drops out of deltas. THE bandwidth
+        score: "u32",            // lever for continuous fields (pos/vel/hp/angle).
+      })),                       // string-keyed maps: per-entry delta
+      round: "u16",              // prims: u8 u16 u32 i32 f32 f64 bool str
     });
     // server: protected readonly codec = MySchema   (IoArenaRoom)
     // client: new GameClient(host, { stateCodec: MySchema })
 
+Builders (each -> Codec<T>, T inferred): schema(shape) · prim(type) ·
+quant(min,max,step) (u8/u16/u32 by level count; round-trip error <= step/2) ·
+mapOf(child) · listOf(child) · optionalOf(child) (nullable) · enumOf(...values) (u8
+index, <=256) · str(maxLen) (length-checked string). Wire ops: encodeFull, encodeDelta,
+encodeDeltaOrNull (delta or null when unchanged — the AOI hot path), decodeFull, applyDelta.
+
 Wire: first byte 0x01 full snapshot / 0x02 delta; decodeFull/applyDelta client-side
-(the SDK does this). Schema must be identical on both sides.
+(the SDK does this). Schema must be identical (and same order) on both sides.
 
 ## Platform (apps/gateway) — multi-tenancy
 
@@ -147,8 +195,12 @@ room-hours/peak CCU/messages → usage_daily (60s alarm flush).
 
 20-player AOI room: ack p50 ~85ms (≈80ms network + single-digit engine), p99 ~115ms,
 3.8 KiB/s/client. 128 CCU across 8 rooms: p50 ~82ms — rooms scale horizontally.
-Turn-based idle: ~77 B/s/client. Room cost ≈ $0.0058/room-hour (DO duration billing,
-approximate) — self-hosted rooms bill to YOUR Cloudflare account.
+100 players in ONE room (deployed, 10s join ramp): 100/100 connected, 0 closes, ack p50
+97ms/p99 144ms, server tick+flush 0ms (tk:stats) — the full FPS stack (subtick shots +
+tiered AOI + map deltas) holds too. Caveat: 100 upgrades in 3s to one DO fail ~20% —
+pace joins (~10s) / rely on client reconnect backoff. Turn-based idle: ~77 B/s/client.
+Room cost ≈ $0.0058/room-hour (DO duration billing, approximate) — self-hosted rooms
+bill to YOUR Cloudflare account.
 
 ## Limits & roadmap (v1 — full detail in AGENTS.md "Limits & roadmap")
 
@@ -156,13 +208,19 @@ approximate) — self-hosted rooms bill to YOUR Cloudflare account.
   turn-based / casual / moderate .io, NOT competitive twitch shooters. WebTransport is
   roadmap (CF Workers don't terminate it server-side yet — no date).
 - Deploys restart DOs; rooms recover via the durable snapshot + 30s session reconnection
-  (players reland in the same seat/state). Persisted state-SHAPE migration across versions
-  is NOT automatic yet (migration hook in progress, R2) — version state / drain rooms for
-  breaking changes.
-- DO placement is fixed near the room's creator; cross-region groups get asymmetric
-  latency. Region hints in progress (R2) — matchmake by region (mode/filterBy) for now.
+  (players reland in the same seat/state). State-SHAPE migration across versions: bump
+  stateVersion + override migrateState(from, old) to transform an old snapshot on restore
+  (return null = discard + start fresh, with a warning) — no longer a silent old-shape restore.
+- DO placement is fixed near the room's creator; cross-region groups get asymmetric latency.
+  Place a room's DO near a geography with a matchmake region hint (region= one of wnam/enam/
+  weur/eeur/apac/oc/afr/me, applied when the room is created); still matchmake by region so
+  members are near each other and the placement.
 - Matchmaking = joinOrCreate + reservation + filterBy + lobby list ONLY. No skill/MMR,
   parties, or reconnect-into-queue — build ranked/party logic in your app layer.
-- Scale: measured comfortable at 20 players/room and 128 CCU across rooms (PERF.md); rooms
-  scale horizontally, but naive AOI is O(n²) in room size (spatial grid index in progress)
-  — shard big worlds into multiple rooms.
+- Scale: measured comfortable at 20 players/room, 100 in one room, and 128 CCU across rooms
+  (PERF.md); rooms scale horizontally. AOI is now grid-indexed (~O(viewers+entities)/flush,
+  property-tested vs the naive filter) + priority tiers — not O(n²) — so the per-room ceiling
+  at high CCU is connection admission + fan-out, not filtering. Shard very large worlds anyway.
+- Wire compat: client and server share PROTOCOL_VERSION + the binary frame layout — ship the
+  SAME SDK minor on both sides; 0.1.x and 0.2.x are not wire-compatible (0.2 added c:mbatch,
+  subtick ts, and the state-frame serverTime). Upgrade both together.
