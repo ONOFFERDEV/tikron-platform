@@ -6,9 +6,9 @@ Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK. You write ro
 state + message handlers; the platform runs them at the edge, one Durable Object per
 room, placed near players. No servers to manage.
 
-This file is the operational brief. For architecture read [`docs/HANDOFF.md`](docs/HANDOFF.md);
-for measured performance read [`docs/PERF.md`](docs/PERF.md). Cite real numbers from
-PERF.md — never invent latency figures.
+This file is the operational brief; for measured performance read
+[`docs/PERF.md`](docs/PERF.md). Cite real numbers from PERF.md — never invent
+latency figures.
 
 ## Pick a preset by genre
 

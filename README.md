@@ -5,10 +5,9 @@ server-authoritative game rooms delivered on the edge (Cloudflare Workers + Dura
 with a drop-in TypeScript SDK. Built-in anti-cheat by construction (server authority + AOI
 information hiding), honest defense-in-depth positioning.
 
-> Status: **M0–M4 complete** (incl. state-preserving reconnection + live room counts); 69 tests green.
->
-> **Continuing on a new machine? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.**
-> Full design: [`docs/PLAN.md`](docs/PLAN.md) · Market & decisions: [`docs/RESEARCH.md`](docs/RESEARCH.md).
+> **Live at [tikron.dev](https://tikron.dev)** — landing, playable .io demo, developer dashboard.
+> Building a game with an AI agent? Start at [`AGENTS.md`](AGENTS.md).
+> Measured performance: [`docs/PERF.md`](docs/PERF.md).
 
 ## Monorepo layout
 

@@ -17,3 +17,6 @@ coverage/
 !.env.example
 .DS_Store
 *.tsbuildinfo
+
+# Internal dev notes/plans — never tracked (kept in the private tikron-internal repo)
+internal/

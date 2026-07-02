@@ -6,7 +6,7 @@ author a Room subclass (state + intent handlers); clients send intents, the serv
 owns and validates all state. pnpm + Turborepo monorepo, TypeScript strict, ESM with
 `.js` import extensions, `noUncheckedIndexedAccess` on.
 
-Index/docs: llms.txt · AGENTS.md (operational brief) · docs/HANDOFF.md (architecture)
+Index/docs: llms.txt · AGENTS.md (operational brief)
 · docs/PERF.md (measured numbers — never invent latency figures).
 
 ## Commands

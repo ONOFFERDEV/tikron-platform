@@ -7,9 +7,8 @@ description: Use when building or modifying a multiplayer game or room on Tikron
 
 Server-authoritative multiplayer for web games. You author a `Room<TState>` subclass;
 Cloudflare runs one Durable Object per room at the edge. Read [`AGENTS.md`](../../../AGENTS.md)
-first (the operational brief), [`docs/HANDOFF.md`](../../../docs/HANDOFF.md) for
-architecture, [`docs/PERF.md`](../../../docs/PERF.md) for measured limits. Do not
-duplicate their numbers — cite them.
+first (the operational brief) and [`docs/PERF.md`](../../../docs/PERF.md) for measured
+limits. Do not duplicate their numbers — cite them.
 
 ## 1. Pick a preset
 

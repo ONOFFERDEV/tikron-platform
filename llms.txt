@@ -19,9 +19,6 @@
 
 ## Docs
 
-- [docs/HANDOFF.md](docs/HANDOFF.md): Read for architecture, conventions, repo layout,
-  milestone status, and hard-won gotchas (local wrangler, kebab-case party names,
-  binary frame `arraybuffer`, reconnection semantics).
 - [docs/PERF.md](docs/PERF.md): Read before quoting any performance number. Measured
   load-test results (20-player AOI room, 128 CCU across 8 rooms, the flush-throttle
   before/after). Cite these; never invent latency figures.
