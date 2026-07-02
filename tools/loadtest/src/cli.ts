@@ -15,6 +15,18 @@ export interface Config {
   roomPrefix: string;
   /** Effective worker-thread count (1 = run in the main thread). */
   workers: number;
+  /**
+   * Optional per-connection `?maxClients=<n>` query override. The server honours
+   * it only in DEV_MODE (to raise a demo room's hard-coded seat cap for load
+   * tests). Undefined = don't send the query param (default room cap applies).
+   */
+  maxClients?: number;
+  /**
+   * Warm-up window discarded from steady-state latency/jitter aggregation, ms.
+   * Samples whose timestamp is within the first `discardMs` after steady state
+   * begins are dropped. 0 = keep everything (default; preserves prior behavior).
+   */
+  discardMs: number;
   /** Report output path (JSON). */
   out: string;
 }
@@ -28,6 +40,7 @@ const DEFAULTS = {
   hz: 20,
   rampSec: 3,
   workers: "auto" as string,
+  discardSec: 0,
 };
 
 const HELP = `Tikron load-test harness
@@ -44,6 +57,9 @@ Options:
   --hz <n>            Input rate per client (<=30, room cap)      (default: ${DEFAULTS.hz})
   --ramp <s>          Connection ramp-up window in seconds       (default: ${DEFAULTS.rampSec})
   --workers <n|auto>  worker_threads shards (auto: 1 up to 512)  (default: ${DEFAULTS.workers})
+  --max-clients <n>   Append ?maxClients=<n> to the connect URL  (default: unset; DEV_MODE-only server override)
+  --discard <s>       Warm-up seconds dropped from steady-state  (default: ${DEFAULTS.discardSec})
+                      latency/jitter aggregation
   --room-prefix <s>   Room id prefix                             (default: unique per run)
   --out <path>        JSON report path                           (default: results/<ts>-<scenario>.json)
   --help              Show this help
@@ -58,6 +74,13 @@ function num(name: string, raw: string | undefined, fallback: number): number {
   if (raw === undefined) return fallback;
   const v = Number(raw);
   if (!Number.isFinite(v) || v <= 0) throw new CliError(`--${name} must be a positive number (got "${raw}")`);
+  return v;
+}
+
+function nonNegNum(name: string, raw: string | undefined, fallback: number): number {
+  if (raw === undefined) return fallback;
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v < 0) throw new CliError(`--${name} must be a non-negative number (got "${raw}")`);
   return v;
 }
 
@@ -95,6 +118,11 @@ export function parseArgs(argv: string[]): Config | null {
   const hz = num("hz", raw.get("hz"), DEFAULTS.hz);
   const durationMs = num("duration", raw.get("duration"), DEFAULTS.durationSec) * 1000;
   const rampMs = num("ramp", raw.get("ramp"), DEFAULTS.rampSec) * 1000;
+  const discardMs = nonNegNum("discard", raw.get("discard"), DEFAULTS.discardSec) * 1000;
+
+  const maxClientsRaw = raw.get("max-clients");
+  const maxClients =
+    maxClientsRaw === undefined ? undefined : Math.floor(num("max-clients", maxClientsRaw, 0));
 
   const totalConns = rooms * players;
   const workersRaw = raw.get("workers") ?? DEFAULTS.workers;
@@ -106,7 +134,7 @@ export function parseArgs(argv: string[]): Config | null {
   const url = (raw.get("url") ?? DEFAULTS.url).replace(/\/+$/, "");
   const out = raw.get("out") ?? "";
 
-  return { scenario, url, rooms, players, durationMs, hz, rampMs, roomPrefix, workers, out };
+  return { scenario, url, rooms, players, durationMs, hz, rampMs, roomPrefix, workers, maxClients, discardMs, out };
 }
 
 function resolveWorkers(raw: string, totalConns: number): number {

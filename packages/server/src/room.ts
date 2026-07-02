@@ -7,9 +7,10 @@ import {
   ProtocolError,
   type RawData,
 } from "@tikron/protocol";
-import { encodeFull, encodeDelta, type Codec } from "@tikron/schema";
+import { encodeFull, encodeDelta, encodeDeltaOrNull, type Codec } from "@tikron/schema";
 import { RateLimiter } from "./rate-limit.js";
 import { buildGrid, queryRadius, type Grid } from "./aoi-grid.js";
+import { DurationRing, type PerfSnapshot } from "./perf.js";
 
 /** A connected player, as seen by developer room code. */
 export interface Client {
@@ -189,6 +190,23 @@ const STATE_HEADER_BYTES = 13;
 
 /** Max simulation ticks processed in one catch-up burst (spiral-of-death guard). */
 const MAX_CATCHUP_TICKS = 5;
+
+/** Trailing window the `tk:stats` timing report summarizes (ms). */
+const PERF_WINDOW_MS = 10_000;
+
+/**
+ * Ring capacity for the tick/flush timing samples — comfortably covers the
+ * {@link PERF_WINDOW_MS} window even at 60 Hz (600 samples/10 s), so no in-window
+ * sample is ever overwritten before it can be reported.
+ */
+const PERF_RING_CAPACITY = 1024;
+
+/**
+ * Core-reserved developer message type: a client sends `tk:stats` to poll this
+ * room's recent tick/flush timing. Handled by the core before game handlers (and
+ * before the input queue) so it never collides with a room's own `onMessage`.
+ */
+const PERF_STATS_MESSAGE = "tk:stats";
 
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
@@ -382,6 +400,9 @@ export abstract class Room<TState = unknown> {
   #inputQueue: QueuedInput[] = [];
   private occupancySeq = 0;
   private messagesSinceReport = 0;
+  /** Recent simulation-tick and state-flush processing times (F0 instrumentation). */
+  private readonly tickDurations = new DurationRing(PERF_RING_CAPACITY);
+  private readonly flushDurations = new DurationRing(PERF_RING_CAPACITY);
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -398,6 +419,15 @@ export abstract class Room<TState = unknown> {
   /** Called when a client reattaches within an {@link allowReconnection} window. */
   onReconnect(_client: Client): void | Promise<void> {}
   onDispose(): void | Promise<void> {}
+  /**
+   * Called on a cold start once a persisted snapshot has been restored INTO
+   * `this.state` (after any {@link migrateState}), and only when a snapshot was
+   * actually applied — not on a fresh room, a missing snapshot, or a discarded
+   * migration. Rebuild here any derived, in-memory index that mirrors `this.state`
+   * but is not itself persisted (e.g. a spatial grid seeded in `onReady`), since
+   * `onReady`/`onCreate` ran against the fresh pre-restore state. Default: no-op.
+   */
+  protected onRestore(): void | Promise<void> {}
 
   // --- core developer API ---
 
@@ -607,8 +637,11 @@ export abstract class Room<TState = unknown> {
 
       for (let i = 0; i < steps; i++) {
         this.#tick++;
+        const t0 = performance.now();
         await this.drainInputQueue(); // queued inputs process at the tick boundary
         fn(intervalMs); // always a fixed dt
+        const t1 = performance.now();
+        this.tickDurations.record(t1, t1 - t0); // F0: input-drain + onTick time
       }
     } finally {
       this.#ticking = false;
@@ -673,6 +706,26 @@ export abstract class Room<TState = unknown> {
     await this.onCreate();
     this.validateConfig();
     await this.restore();
+  }
+
+  /**
+   * @internal Raise this room's seat cap — a dev/loadtest-only escape hatch the
+   * host wires behind its own gate (see `defineRoom`, which honors `?maxClients=`
+   * only when `DEV_MODE` is on). It never LOWERS the cap room code set, so a room's
+   * production capacity is unchanged whenever the host does not call this.
+   */
+  _raiseMaxClients(cap: number): void {
+    if (Number.isFinite(cap) && cap > this.maxClients) this.maxClients = cap;
+  }
+
+  /** Recent tick/flush timing summary — the `tk:stats` reply payload. */
+  private perfSnapshot(): PerfSnapshot {
+    const now = performance.now();
+    return {
+      tick: this.tickDurations.stats(now, PERF_WINDOW_MS),
+      flush: this.flushDurations.stats(now, PERF_WINDOW_MS),
+      windowMs: PERF_WINDOW_MS,
+    };
   }
 
   /**
@@ -857,6 +910,17 @@ export abstract class Room<TState = unknown> {
     if (!clientId || !record || record.connId !== conn.id) return;
 
     if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) return; // dropped
+
+    // Core-reserved timing poll: answered only AFTER the seat + rate-limit checks
+    // (so an unseated or flooding client can't drive the perfSnapshot cost), and
+    // handled before the input queue / game handlers so it never collides with a
+    // room's own onMessage(type). Not billable and does not consume the seq.
+    if (msg.type === PERF_STATS_MESSAGE) {
+      conn.send(
+        encode({ t: ServerMessageType.Message, type: PERF_STATS_MESSAGE, payload: this.perfSnapshot() }),
+      );
+      return;
+    }
 
     if (typeof msg.seq === "number") {
       const last = this.lastSeq.get(clientId) ?? 0;
@@ -1070,6 +1134,9 @@ export abstract class Room<TState = unknown> {
     } else {
       this.state = snapshot.state;
     }
+    // State is now the restored one — let room code rebuild any derived in-memory
+    // index that mirrors it (onReady/onCreate ran against the pre-restore state).
+    await this.onRestore();
 
     this.occupancySeq = snapshot.occupancySeq;
     for (const seat of snapshot.seats) {
@@ -1167,6 +1234,17 @@ export abstract class Room<TState = unknown> {
 
   private flushState(): void {
     if (this.state === undefined) return;
+    const t0 = performance.now();
+    try {
+      this.flushStateInner();
+    } finally {
+      const t1 = performance.now();
+      this.flushDurations.record(t1, t1 - t0); // F0: state-flush processing time
+    }
+  }
+
+  /** The flush body proper; timed by {@link flushState}. */
+  private flushStateInner(): void {
     // A tick room advances its counter in the sim loop; a non-tick room advances
     // it once per flush so every state frame still carries a monotonic tick.
     if (!this.#simRunning) this.#tick++;
@@ -1203,13 +1281,29 @@ export abstract class Room<TState = unknown> {
     }
 
     this.pendingFull.clear();
-    this.baseline = structuredClone(this.state);
+    // Binary path has a codec, so snapshot the baseline with the same codec-shaped
+    // value copy the AOI path uses (cheaper than structuredClone). The JSON path
+    // above returns before here — it has no codec and never reaches this.
+    this.baseline = codec.clone(this.state);
   }
 
   /** Per-client filtered binary sync when AOI is enabled (each client differs). */
   private flushAOI(codec: Codec<TState>, tick: number, serverTime: number): void {
     const aoi = this.#aoi!;
     const state = this.state as Record<string, unknown>;
+
+    // Global change-guard (mirrors the non-AOI path): if nothing in the whole room
+    // changed since the last flush — and no client is owed a full snapshot — skip
+    // the grid build AND the entire per-viewer loop. An idle room then costs one
+    // O(entities) equals per flush instead of the full O(viewers×entities) sweep.
+    if (
+      this.baseline !== undefined &&
+      this.pendingFull.size === 0 &&
+      codec.equals(this.baseline, this.state)
+    ) {
+      return;
+    }
+
     // Build one spatial-hash grid per filtered field for THIS flush (cell side =
     // viewRadius), so each viewer's filter is a 3×3 neighborhood scan instead of
     // a full O(entities) sweep — the naive scan was O(viewers×entities).
@@ -1225,12 +1319,23 @@ export abstract class Room<TState = unknown> {
       const prev = this.clientBaselines.get(conn.id);
       if (this.pendingFull.has(conn.id) || prev === undefined) {
         conn.send(frame(STATE_FULL, tick, serverTime, encodeFull(codec, view)));
-      } else if (!codec.equals(prev, view)) {
-        conn.send(frame(STATE_DELTA, tick, serverTime, encodeDelta(codec, prev, view)));
+      } else {
+        // One pass: emit a delta, or null when this viewer's view is unchanged
+        // (skip the send) — replacing the old equals-then-encodeDelta two-pass.
+        const delta = encodeDeltaOrNull(codec, prev, view);
+        if (delta !== null) conn.send(frame(STATE_DELTA, tick, serverTime, delta));
       }
-      this.clientBaselines.set(conn.id, structuredClone(view));
+      // Snapshot the view as a codec-shaped VALUE copy, not the live entity
+      // references queryRadius shares (aoi-grid returns them straight from state):
+      // storing those refs would let the next tick's in-place mutation corrupt this
+      // baseline, making a moved entity look unchanged. codec.clone walks only the
+      // codec's own shape — far cheaper than a blanket structuredClone.
+      this.clientBaselines.set(conn.id, codec.clone(view));
     }
     this.pendingFull.clear();
+    // Maintain the global baseline for the next flush's change-guard: one clone per
+    // flush (not per viewer).
+    this.baseline = codec.clone(this.state);
   }
 
   /**

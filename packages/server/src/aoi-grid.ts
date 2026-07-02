@@ -17,15 +17,26 @@ import type { Vec2 } from "@tikron/sim";
  */
 
 /** A cell bucket holds `[id, entity]` pairs; entity is opaque (the room's shape). */
-export type Grid = Map<string, Array<[string, unknown]>>;
+export type Grid = Map<number, Array<[string, unknown]>>;
 
 /** A non-positive cell/radius falls back to this so `floor(x/size)` stays finite. */
 function cellSize(viewRadius: number): number {
   return viewRadius > 0 ? viewRadius : 1;
 }
 
-function key(cx: number, cy: number): string {
-  return `${cx},${cy}`;
+/**
+ * Pack a signed 2-D cell index into a single integer key (was a `${cx},${cy}`
+ * string — a per-entity, per-flush allocation on the hot path). `OFFSET` shifts
+ * the (possibly negative) indices non-negative and `STRIDE = 2·OFFSET` keeps the
+ * two axes from colliding, so the mapping is a bijection over the supported range
+ * (|cx|,|cy| < OFFSET ≈ 1.05M cells) and the key stays well within `MAX_SAFE_INTEGER`.
+ * Same buckets as the string key → identical query results.
+ */
+const KEY_OFFSET = 1 << 20;
+const KEY_STRIDE = 1 << 21;
+
+function key(cx: number, cy: number): number {
+  return (cx + KEY_OFFSET) * KEY_STRIDE + (cy + KEY_OFFSET);
 }
 
 /**

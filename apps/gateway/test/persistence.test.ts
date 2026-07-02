@@ -126,6 +126,37 @@ describe("persist + restore across Durable Object eviction", () => {
     b.ws.close();
   });
 
+  it("collects a restored orb after a cold start (orb grid reseeded on restore)", async () => {
+    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
+    const a = await stateClient(m.roomId, m.sessionId);
+    await a.waitMsg((x) => x.t === "s:welcome");
+    await a.waitState((s) => s.players?.[m.sessionId] !== undefined); // player 0 at spawn (100,100)
+
+    // Drop → the reconnection window persists. Then inject a known orb straight into
+    // the durable snapshot so it exists ONLY in restored state, never in the fresh
+    // grid onReady seeds — the exact desync the onRestore reseed must repair.
+    a.ws.close();
+    await waitSnapshot(m.roomId, seatWithWindow(m.sessionId));
+    await runInDurableObject(roomStub(m.roomId), async (_inst, state) => {
+      const snap = (await state.storage.get("tk:room")) as any;
+      snap.state.orbs.known = { x: 100, y: 130 }; // 30 units below the spawn
+      await state.storage.put("tk:room", snap);
+    });
+    await abortAllDurableObjects();
+
+    // Cold restart: reconnect, confirm the restored orb is visible, then move onto it.
+    const b = await stateClient(m.roomId, m.sessionId);
+    await b.waitMsg((x) => x.t === "s:welcome");
+    await b.waitState((s) => s.orbs?.known !== undefined); // restored orb is in view
+    b.send("move", { x: 100, y: 130 }, 1);
+    // With the grid reseeded from restored state, moving onto it collects it. Without
+    // the fix the grid never holds `known`, so collectOrbs would miss it forever
+    // (this wait would then time out — a failing test).
+    const after = await b.waitState((s) => s.orbs?.known === undefined);
+    expect(after.orbs.known).toBeUndefined();
+    b.ws.close();
+  });
+
   it("the durable alarm finalizes an expired window after a cold start", async () => {
     const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
     const a = await stateClient(m.roomId, m.sessionId);

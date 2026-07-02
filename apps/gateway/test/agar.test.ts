@@ -5,8 +5,8 @@ import { AgarSchema } from "../src/rooms/agar-schema.js";
 
 type Frame = Record<string, any>;
 
-async function stateClient(party: string, room: string, codec: Codec<any>) {
-  const res = await SELF.fetch(`https://example.com/parties/${party}/${room}`, {
+async function stateClient(party: string, room: string, codec: Codec<any>, query = "") {
+  const res = await SELF.fetch(`https://example.com/parties/${party}/${room}${query}`, {
     headers: { Upgrade: "websocket" },
   });
   const ws = res.webSocket;
@@ -85,6 +85,27 @@ describe("AgarRoom (.io demo: AOI security boundary + gameplay)", () => {
     a.ws.close();
     b.ws.close();
   });
+
+  it("dev maxClients override raises the agar seat cap (DEV_MODE only)", async () => {
+    // agar hardcodes maxClients = 20; ?maxClients=21 is honored only because the
+    // test env runs with DEV_MODE=1. Fill 21 seats, then the 22nd is room_full.
+    const room = "cap-test";
+    const seated: Awaited<ReturnType<typeof stateClient>>[] = [];
+    for (let i = 0; i < 21; i++) {
+      const c = await stateClient("agar-room", room, AgarSchema, "?maxClients=21");
+      const m = await c.waitMsg((f) => f.t === "s:welcome" || f.t === "s:error");
+      expect(m.t).toBe("s:welcome"); // admitted beyond the default cap of 20
+      seated.push(c);
+    }
+
+    const over = await stateClient("agar-room", room, AgarSchema, "?maxClients=21");
+    const rej = await over.waitMsg((f) => f.t === "s:welcome" || f.t === "s:error");
+    expect(rej.t).toBe("s:error");
+    expect(rej.code).toBe("room_full"); // 22nd exceeds the raised cap
+
+    for (const c of seated) c.ws.close();
+    over.ws.close();
+  }, 20000);
 
   it("gameplay: moving onto an orb increases score", async () => {
     const a = await stateClient("agar-room", "g2", AgarSchema); // player 0 @ (100,100); orb0 @ (130,100)

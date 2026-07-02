@@ -12,6 +12,15 @@ export interface Codec<T> {
   writeDelta(w: ByteWriter, prev: T | undefined, next: T): void;
   readDelta(r: ByteReader, prev: T | undefined): T;
   equals(a: T, b: T): boolean;
+  /**
+   * A structural deep copy of `value` that shares no mutable sub-objects with it,
+   * so the copy is not perturbed by later in-place mutation of `value`. Only the
+   * fields the codec knows about are copied (primitives are returned as-is). Used
+   * to snapshot an AOI baseline cheaply, where the live entities are shared
+   * references that the next tick mutates — much faster than `structuredClone`
+   * because it walks only the codec's own shape.
+   */
+  clone(value: T): T;
 }
 
 export type Prim = "u8" | "u16" | "u32" | "i32" | "f32" | "f64" | "bool" | "str";
@@ -39,6 +48,7 @@ export function prim<P extends Prim>(type: P): Codec<PrimValue<P>> {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => a === b,
+    clone: (v) => v, // primitives are immutable — no copy needed
   };
 }
 
@@ -104,6 +114,11 @@ export function schema<S extends Shape>(shape: S): Codec<Infer<S>> {
       for (const f of fields) if (!f.codec.equals(get(a, f.name), get(b, f.name))) return false;
       return true;
     },
+    clone(value) {
+      const out: Record<string, unknown> = {};
+      for (const f of fields) out[f.name] = f.codec.clone(get(value, f.name));
+      return out as Infer<S>;
+    },
   };
 }
 
@@ -162,6 +177,11 @@ export function mapOf<T>(child: Codec<T>): Codec<Record<string, T>> {
       if (ak.length !== keysOf(b).length) return false;
       for (const k of ak) if (!(k in b) || !child.equals(a[k] as T, b[k] as T)) return false;
       return true;
+    },
+    clone(value) {
+      const out: Record<string, T> = {};
+      for (const k of keysOf(value)) out[k] = child.clone(value[k] as T);
+      return out;
     },
   };
 }
@@ -222,6 +242,11 @@ export function listOf<T>(child: Codec<T>): Codec<T[]> {
       for (let i = 0; i < a.length; i++) if (!child.equals(a[i] as T, b[i] as T)) return false;
       return true;
     },
+    clone(value) {
+      const out: T[] = new Array(value.length);
+      for (let i = 0; i < value.length; i++) out[i] = child.clone(value[i] as T);
+      return out;
+    },
   };
 }
 
@@ -255,6 +280,9 @@ export function optionalOf<T>(child: Codec<T>): Codec<T | null> {
     equals(a, b) {
       if (a === null || b === null) return a === b;
       return child.equals(a, b);
+    },
+    clone(value) {
+      return value === null ? null : child.clone(value);
     },
   };
 }
@@ -294,6 +322,7 @@ export function enumOf<const V extends readonly string[]>(...values: V): Codec<V
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => values[r.u8()] as V[number],
     equals: (a, b) => a === b,
+    clone: (v) => v, // enum members are immutable strings
   };
 }
 
@@ -329,6 +358,7 @@ export function str(maxLen: number): Codec<string> {
     },
     readDelta: (r) => r.str(),
     equals: (a, b) => a === b,
+    clone: (v) => v, // strings are immutable
   };
 }
 
@@ -342,6 +372,24 @@ export function encodeDelta<T>(codec: Codec<T>, prev: T | undefined, next: T): U
   const w = new ByteWriter();
   codec.writeDelta(w, prev, next);
   return w.bytes();
+}
+
+/**
+ * Encode a delta, or return `null` when `next` equals `prev` under the codec's own
+ * `equals` — folding the "changed?" test and the encode into one call, so callers
+ * replace an explicit `equals`-then-`encodeDelta` pair. Precisely: returns `null`
+ * iff `prev !== undefined && codec.equals(prev, next)`; otherwise returns exactly
+ * what `encodeDelta(codec, prev, next)` would (a `prev === undefined` baseline
+ * always encodes). Used on the AOI hot path, where an unchanged viewer skips the
+ * send entirely (no encode) and a changed one pays only the encode.
+ */
+export function encodeDeltaOrNull<T>(
+  codec: Codec<T>,
+  prev: T | undefined,
+  next: T,
+): Uint8Array | null {
+  if (prev !== undefined && codec.equals(prev, next)) return null;
+  return encodeDelta(codec, prev, next);
 }
 
 export function decodeFull<T>(codec: Codec<T>, bytes: Uint8Array): T {

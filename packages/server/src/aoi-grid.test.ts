@@ -54,6 +54,24 @@ describe("AOI spatial grid", () => {
     }
   });
 
+  it("matches the naive scan across negative coordinates (integer-key packing)", () => {
+    const rng = makeRng(0x0fedcba9);
+    const viewRadius = 250;
+    // Span all four quadrants so cell indices go negative — the numeric key must
+    // still bucket without collisions and reproduce the naive result exactly.
+    const entities: Record<string, Vec2> = {};
+    for (let i = 0; i < 200; i++) {
+      entities[`e${i}`] = { x: rng() * 4000 - 2000, y: rng() * 4000 - 2000 };
+    }
+    const grid = buildGrid(entities, position, viewRadius);
+    for (let v = 0; v < 50; v++) {
+      const vp = { x: rng() * 4000 - 2000, y: rng() * 4000 - 2000 };
+      const fromGrid = queryRadius(grid, vp, viewRadius, position);
+      const fromNaive = naiveFilter(entities, vp, viewRadius);
+      expect(Object.keys(fromGrid).sort()).toEqual(Object.keys(fromNaive).sort());
+    }
+  });
+
   it("returns an empty set for an empty grid", () => {
     const grid = buildGrid({}, position, 100);
     expect(queryRadius(grid, { x: 0, y: 0 }, 100, position)).toEqual({});

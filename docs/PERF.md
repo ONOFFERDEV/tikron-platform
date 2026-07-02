@@ -123,6 +123,38 @@ stability numbers remain representative, but interpret ack RTT with this in mind
   parity with the naive filter. Same-room numbers at ≤20 players are unchanged;
   the benefit grows with entity count.
 
+## 100 players, one room — F1 hot-path pass (2026-07-02, local)
+
+Target: FPS-grade server processing (<20 ms per tick+flush) at 100 CCU in a
+single room. The F1 pass (shared TextEncoder/Decoder, global AOI change-guard,
+one-pass `encodeDeltaOrNull`, codec-based baseline snapshots instead of
+`structuredClone`, integer grid keys, incremental orb grid) plus a new in-room
+`tk:stats` probe that reports real tick/flush durations from inside the DO.
+
+| 100 players/room (local) | before F1 | after F1 |
+|---|---|---|
+| server tick processing p50 / max | (tick budget overrun) | **0 ms / 2 ms** |
+| server flush processing p50 / max | — | **3 ms / 11 ms** |
+| ack RTT p50 | 76.6 ms | 74.1 ms |
+| ack RTT p95 / p99 / max | 271 / 893 / 1187 ms | **120 / 171 / 232 ms** |
+| unexpected closes | 0 | 0 |
+
+Readings:
+
+- **Server processing is now 3–11 ms at 100 CCU** — the <20 ms FPS budget is
+  met with 2× headroom before any structural (cell-sharing / priority) work.
+- ack p50 barely moves because it is dominated by the *by-design* tick-queue
+  wait (up to one 50 ms tick), not CPU; the tail (p95/p99) collapsing 2–5× is
+  the CPU win.
+- The ~62 ms local state cadence (vs the 50 ms `syncIntervalMs`) is a workerd
+  timer artifact: it is identical at 20/50/100 players while flush cost is
+  1–3 ms, and the deployed cadence measured 49.8 ms (above). Validate on real
+  Cloudflare when the deployed 100-CCU gate runs.
+- Sweep hygiene: back-to-back runs against one local workerd leave the previous
+  room alive (reconnection windows + alarms), which fabricates stalls and mass
+  closes in later runs. Trust solo runs (or long cooldowns) locally; deployed
+  rooms are isolated DOs.
+
 ## Baselines
 
 - `ttt-json` (turn-based, JSON sync, no tick): 77 B/s per idle client — a

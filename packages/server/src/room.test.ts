@@ -393,6 +393,26 @@ describe("Room capacity enforcement", () => {
     expect(room.playerIds).toEqual(["sess-a"]); // no seat created for the rejected conn
   });
 
+  it("_raiseMaxClients raises the cap but never lowers it (dev-override semantics)", async () => {
+    const { ctx, room } = await setup();
+    room["maxClients"] = 1;
+
+    // A below-cap or non-finite value is ignored — production capacity is unchanged.
+    room._raiseMaxClients(0);
+    room._raiseMaxClients(1);
+    room._raiseMaxClients(Number.NaN);
+    expect(room["maxClients"]).toBe(1);
+
+    // Raising takes effect: a second new seat is now admitted instead of rejected.
+    room._raiseMaxClients(2);
+    expect(room["maxClients"]).toBe(2);
+    await room._connect(ctx.open("conn-1"), "sess-a");
+    const connB = ctx.open("conn-2");
+    await room._connect(connB, "sess-b");
+    expect(connB.closed).toBeNull();
+    expect(room.playerIds.sort()).toEqual(["sess-a", "sess-b"]);
+  });
+
   it("still allows an existing seat to reattach when the room is full", async () => {
     const { ctx, room } = await setup();
     room["maxClients"] = 1;

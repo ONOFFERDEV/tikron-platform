@@ -1,6 +1,7 @@
 import { IoArenaRoom, type AOIConfig, type Client } from "@tikron/server";
 import { validateMovement } from "@tikron/sim";
 import { AgarSchema, AGAR, type AgarState, type AgarPlayer } from "./agar-schema.js";
+import { OrbGrid } from "./orb-grid.js";
 
 /**
  * Flagship .io demo — agar-style orb collection. Built on the {@link IoArenaRoom}
@@ -37,6 +38,10 @@ export class AgarRoomImpl extends IoArenaRoom<AgarState> {
   private seed = 0x2545f491;
   private spawnCount = 0;
   private orbSeq = 0;
+  // Uniform grid over orb positions (cell side = collect radius) so collectOrbs
+  // tests the 3×3 cells around a player, not every orb. Kept in sync with
+  // `state.orbs` on spawn/collect. Seeded in onReady after the orbs exist.
+  private readonly orbGrid = new OrbGrid(AGAR.collectRadius);
 
   // Deterministic xorshift32 PRNG (no Math.random -> reproducible in tests).
   private rnd(): number {
@@ -60,7 +65,21 @@ export class AgarRoomImpl extends IoArenaRoom<AgarState> {
     this.orbSeq = AGAR.orbCount;
 
     this.setState({ players: {}, orbs });
+    this.seedOrbGrid();
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
+  }
+
+  // On a cold restore the core reapplies the persisted state.orbs AFTER onReady
+  // already seeded the grid from the fresh spawn, so the grid would be stale.
+  // Reseed it from the restored orbs (the grid itself is derived, not persisted).
+  protected override onRestore(): void {
+    this.seedOrbGrid();
+  }
+
+  /** (Re)build the orb grid to exactly mirror the current `state.orbs`. */
+  private seedOrbGrid(): void {
+    this.orbGrid.clear();
+    for (const [id, orb] of Object.entries(this.state.orbs)) this.orbGrid.add(id, orb.x, orb.y);
   }
 
   // Movement is resolved on input (below); the preset flushes an authoritative
@@ -112,14 +131,25 @@ export class AgarRoomImpl extends IoArenaRoom<AgarState> {
 
   private collectOrbs(p: AgarPlayer): void {
     const r2 = AGAR.collectRadius * AGAR.collectRadius;
-    for (const [orbId, orb] of Object.entries(this.state.orbs)) {
+    // New orbs spawned mid-scan are buffered and added to the grid AFTER the walk,
+    // so the visitor never inserts into a cell it is still iterating (and, like the
+    // old full-scan snapshot, a fresh orb is not collectible in the same move).
+    const spawned: Array<[string, { x: number; y: number }]> = [];
+    this.orbGrid.forEachNear(p.x, p.y, (orbId) => {
+      const orb = this.state.orbs[orbId];
+      if (!orb) return;
       const dx = orb.x - p.x;
       const dy = orb.y - p.y;
       if (dx * dx + dy * dy <= r2) {
         delete this.state.orbs[orbId];
+        this.orbGrid.remove(orbId, orb.x, orb.y);
         p.score += 1;
-        this.state.orbs[`orb${this.orbSeq++}`] = this.randomOrb();
+        const id = `orb${this.orbSeq++}`;
+        const next = this.randomOrb();
+        this.state.orbs[id] = next;
+        spawned.push([id, next]);
       }
-    }
+    });
+    for (const [id, orb] of spawned) this.orbGrid.add(id, orb.x, orb.y);
   }
 }

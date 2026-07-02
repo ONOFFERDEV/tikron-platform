@@ -1,5 +1,23 @@
 import type { Config } from "./cli.js";
-import { percentiles, type MetricsBundle, type Percentiles } from "./metrics.js";
+import {
+  filterByDiscard,
+  percentiles,
+  spikeHistogram,
+  type MetricsBundle,
+  type Percentiles,
+  type ServerStatBlock,
+} from "./metrics.js";
+
+/** ack>1s is treated as a latency spike (GC / warm-up suspect). */
+const SPIKE_THRESHOLD_MS = 1000;
+
+/** One room's server-side tick/flush stats as surfaced in the report. */
+export interface RoomServerProcessing {
+  roomId: string;
+  tick: ServerStatBlock | null;
+  flush: ServerStatBlock | null;
+  windowMs: number | null;
+}
 
 export interface Report {
   scenario: string;
@@ -14,9 +32,20 @@ export interface Report {
     rampMs: number;
     workers: number;
     roomPrefix: string;
+    maxClients: number | null;
+    discardMs: number;
   };
+  /** Warm-up window dropped from steady-state aggregation, and which metrics it hit. */
+  discard: { discardMs: number; appliedTo: string[] };
   latencyMs: { inputToAckRtt: Percentiles };
   jitterMs: { stateInterArrival: Percentiles; rawGaps: Percentiles };
+  /** Latency-spike (ack>1s) count and per-second distribution from steady start. */
+  spikes: { thresholdMs: number; count: number; bySecond: Record<number, number> };
+  /** Server tick/flush processing time from `tk:stats` replies (n/a on old servers). */
+  serverProcessing: {
+    rooms: RoomServerProcessing[];
+    summary: { rooms: number; tick: ServerStatBlock | null; flush: ServerStatBlock | null } | null;
+  };
   bandwidth: {
     windowMs: number;
     totalDownlinkBytes: number;
@@ -51,6 +80,13 @@ export function buildReport(
   const connected = merged.connectSuccess || merged.clients || 1;
   const down = merged.downlinkBytes / seconds;
   const up = merged.uplinkBytes / seconds;
+
+  // Steady-state latency/jitter drop the warm-up window; bandwidth does not.
+  const discardMs = config.discardMs;
+  const rtt = filterByDiscard(merged.rtt, merged.rttAt, discardMs);
+  const jitter = filterByDiscard(merged.jitter, merged.jitterAt, discardMs);
+  const gaps = filterByDiscard(merged.gaps, merged.gapsAt, discardMs);
+
   return {
     scenario: config.scenario,
     url: config.url,
@@ -64,9 +100,22 @@ export function buildReport(
       rampMs: config.rampMs,
       workers: config.workers,
       roomPrefix: config.roomPrefix,
+      maxClients: config.maxClients ?? null,
+      discardMs,
     },
-    latencyMs: { inputToAckRtt: percentiles(merged.rtt) },
-    jitterMs: { stateInterArrival: percentiles(merged.jitter), rawGaps: percentiles(merged.gaps) },
+    discard: {
+      discardMs,
+      appliedTo: ["inputToAckRtt", "stateInterArrival", "rawGaps"],
+    },
+    latencyMs: { inputToAckRtt: percentiles(rtt) },
+    jitterMs: { stateInterArrival: percentiles(jitter), rawGaps: percentiles(gaps) },
+    // Spikes are measured on the full (undiscarded) rtt stream so warm-up spikes
+    // stay visible — that is exactly the signal that tells warm-up from periodic.
+    spikes: {
+      thresholdMs: SPIKE_THRESHOLD_MS,
+      ...spikeHistogram(merged.rtt, merged.rttAt, SPIKE_THRESHOLD_MS),
+    },
+    serverProcessing: buildServerProcessing(config, merged),
     bandwidth: {
       windowMs,
       totalDownlinkBytes: merged.downlinkBytes,
@@ -91,6 +140,50 @@ export function buildReport(
   };
 }
 
+/** Assemble per-room + all-room server tick/flush stats from the merged bundle. */
+function buildServerProcessing(config: Config, merged: MetricsBundle): Report["serverProcessing"] {
+  const rooms: RoomServerProcessing[] = [];
+  for (let r = 0; r < config.rooms; r++) {
+    const roomId = `${config.roomPrefix}-r${r}`;
+    const s = merged.roomStats[roomId];
+    rooms.push({
+      roomId,
+      tick: s?.tick ?? null,
+      flush: s?.flush ?? null,
+      windowMs: s?.windowMs ?? null,
+    });
+  }
+  const reporting = rooms.filter((r) => r.tick || r.flush);
+  const summary = reporting.length
+    ? {
+        rooms: reporting.length,
+        tick: summarizeBlocks(reporting.map((r) => r.tick)),
+        flush: summarizeBlocks(reporting.map((r) => r.flush)),
+      }
+    : null;
+  return { rooms, summary };
+}
+
+/**
+ * Roll per-room blocks into one. We only have each room's percentiles (not raw
+ * samples), so this is an approximation: p50 = median of room p50s, p95/max =
+ * worst across rooms, n = total. Null when no room reported the block.
+ */
+function summarizeBlocks(blocks: (ServerStatBlock | null)[]): ServerStatBlock | null {
+  const present = blocks.filter((b): b is ServerStatBlock => b !== null);
+  if (present.length === 0) return null;
+  const median = (xs: number[]): number => {
+    const s = [...xs].sort((a, b) => a - b);
+    return s[Math.floor((s.length - 1) / 2)] as number;
+  };
+  return {
+    p50: median(present.map((b) => b.p50)),
+    p95: Math.max(...present.map((b) => b.p95)),
+    max: Math.max(...present.map((b) => b.max)),
+    n: present.reduce((a, b) => a + b.n, 0),
+  };
+}
+
 function ms(v: number): string {
   return `${v.toFixed(2)} ms`;
 }
@@ -109,6 +202,19 @@ function pctRow(p: Percentiles): string {
   return `p50 ${p.p50.toFixed(2)}  p95 ${p.p95.toFixed(2)}  p99 ${p.p99.toFixed(2)}  max ${p.max.toFixed(2)}  (n=${p.count})`;
 }
 
+function blockRow(b: ServerStatBlock | null): string {
+  if (!b) return "n/a";
+  return `p50 ${b.p50.toFixed(2)}  p95 ${b.p95.toFixed(2)}  max ${b.max.toFixed(2)}  (n=${b.n})`;
+}
+
+function spikeDistribution(bySecond: Record<number, number>): string {
+  const secs = Object.keys(bySecond)
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (secs.length === 0) return "none";
+  return secs.map((s) => `${s < 0 ? "ramp" : `${s}s`}:${bySecond[s]}`).join("  ");
+}
+
 export function formatSummary(r: Report): string {
   const lines: string[] = [];
   lines.push("");
@@ -118,12 +224,32 @@ export function formatSummary(r: Report): string {
   );
   lines.push(`  ${r.url}   ${(r.config.durationMs / 1000).toFixed(0)}s @ ${r.config.hz}Hz`);
   lines.push("");
-  lines.push("Latency — input→ack RTT (ms)");
+  const discardNote =
+    r.discard.discardMs > 0
+      ? ` · discard first ${(r.discard.discardMs / 1000).toFixed(0)}s (${r.discard.appliedTo.join(", ")})`
+      : "";
+  lines.push(`Latency — input→ack RTT (ms)${discardNote}`);
   lines.push(row("", pctRow(r.latencyMs.inputToAckRtt)));
   lines.push("");
   lines.push("Jitter — |state gap − expected| (ms)");
   lines.push(row("", pctRow(r.jitterMs.stateInterArrival)));
   lines.push(row("raw inter-arrival gaps", pctRow(r.jitterMs.rawGaps)));
+  lines.push("");
+  lines.push(`Latency spikes — ack>${(r.spikes.thresholdMs / 1000).toFixed(0)}s`);
+  lines.push(row("count", String(r.spikes.count)));
+  lines.push(row("by second (from steady start)", spikeDistribution(r.spikes.bySecond)));
+  lines.push("");
+  lines.push("Server processing — tick / flush (ms, from tk:stats)");
+  for (const room of r.serverProcessing.rooms) {
+    const win = room.windowMs !== null ? ` [${(room.windowMs / 1000).toFixed(0)}s win]` : "";
+    lines.push(row(`${room.roomId} · tick`, blockRow(room.tick)));
+    lines.push(row(`${room.roomId} · flush`, `${blockRow(room.flush)}${win}`));
+  }
+  if (r.serverProcessing.summary) {
+    const s = r.serverProcessing.summary;
+    lines.push(row(`all rooms (n=${s.rooms}) · tick`, blockRow(s.tick)));
+    lines.push(row(`all rooms (n=${s.rooms}) · flush`, blockRow(s.flush)));
+  }
   lines.push("");
   lines.push("Bandwidth (steady state)");
   lines.push(row("downlink / sec", `${bytes(r.bandwidth.downlinkBytesPerSec)}/s total`));

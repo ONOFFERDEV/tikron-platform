@@ -84,6 +84,14 @@ export const SESSION_QUERY_PARAM = "_session";
 export const PROJECT_QUERY_PARAM = "_project";
 /** The query parameter carrying a player auth token (JWT). */
 export const AUTH_QUERY_PARAM = "_auth";
+/**
+ * Dev/loadtest-only override to RAISE a room's seat cap, honored solely when the
+ * host runs with `DEV_MODE === "1"`. Ignored in production, so a room's real
+ * capacity (what its code sets) can never be lifted by a query param there.
+ */
+export const MAX_CLIENTS_QUERY_PARAM = "maxClients";
+/** Hard ceiling on the dev seat-cap override, regardless of the requested value. */
+const DEV_MAX_CLIENTS_CAP = 120;
 
 /** The subset of a partyserver host a Room needs — keeps the core decoupled. */
 interface PartyHost {
@@ -205,6 +213,17 @@ export function defineRoom<TState>(
 
       const room = await this.#ensure();
       const session = sessionFrom(ctx);
+
+      // Dev/loadtest-only seat-cap raise: `?maxClients=` is honored ONLY when the
+      // host runs in DEV_MODE, and only ever raises (never lowers) the room's own
+      // cap, clamped to DEV_MAX_CLIENTS_CAP. Production capacity is unaffected.
+      if ((this.env as { DEV_MODE?: string }).DEV_MODE === "1") {
+        const raw = queryParam(ctx, MAX_CLIENTS_QUERY_PARAM);
+        if (raw !== undefined) {
+          const n = Number(raw);
+          if (Number.isFinite(n)) room._raiseMaxClients(Math.min(Math.floor(n), DEV_MAX_CLIENTS_CAP));
+        }
+      }
 
       // Player-token auth runs first: reject before a seat or session is considered.
       if (options?.onAuth) {

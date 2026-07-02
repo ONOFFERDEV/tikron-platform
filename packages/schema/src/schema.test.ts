@@ -9,6 +9,7 @@ import {
   str,
   encodeFull,
   encodeDelta,
+  encodeDeltaOrNull,
   decodeFull,
   applyDelta,
   type Codec,
@@ -297,6 +298,71 @@ describe("bounded str codec", () => {
       score: 2,
     });
     expect(() => encodeFull(Player, { name: "way-too-long", score: 0 })).toThrow();
+  });
+});
+
+describe("codec.clone (structural deep copy)", () => {
+  it("deep-copies nested map+struct so mutating the source never touches the copy", () => {
+    const World = schema({ players: mapOf(schema({ x: "f32", y: "f32" })), tick: "u32" });
+    const src = { players: { a: { x: 1, y: 2 }, b: { x: 3, y: 4 } }, tick: 5 };
+    const copy = World.clone(src);
+    expect(copy).toEqual(src);
+    // Mutate the source's live entity in place — the copy must not follow it.
+    src.players.a.x = 999;
+    delete (src.players as Record<string, unknown>).b;
+    src.tick = 6;
+    expect(copy.players.a.x).toBe(1);
+    expect(copy.players.b).toEqual({ x: 3, y: 4 });
+    expect(copy.tick).toBe(5);
+  });
+
+  it("shares no object references with the source (map entries are fresh)", () => {
+    const codec = mapOf(schema({ x: "f32", y: "f32" }));
+    const src = { a: { x: 1, y: 1 } };
+    const copy = codec.clone(src);
+    expect(copy.a).not.toBe(src.a); // distinct object, equal value
+    expect(copy.a).toEqual(src.a);
+  });
+
+  it("covers list, optional, enum, and bounded-str children", () => {
+    const codec = schema({
+      pts: listOf(schema({ x: "f32", y: "f32" })),
+      target: optionalOf(schema({ x: "f32", y: "f32" })),
+      mode: enumOf("a", "b"),
+      name: str(8),
+    });
+    const src = { pts: [{ x: 1, y: 2 }], target: { x: 3, y: 4 }, mode: "b" as const, name: "hi" };
+    const copy = codec.clone(src);
+    expect(copy).toEqual(src);
+    src.pts[0]!.x = 99;
+    (src.target as { x: number }).x = 88;
+    expect(copy.pts[0]!.x).toBe(1); // list element was copied, not aliased
+    expect((copy.target as { x: number }).x).toBe(3);
+  });
+});
+
+describe("encodeDeltaOrNull", () => {
+  const World = schema({ players: mapOf(schema({ x: "f32", y: "f32" })), tick: "u32" });
+
+  it("returns null when next is unchanged from a defined prev", () => {
+    const v = { players: { a: { x: 1, y: 2 } }, tick: 3 };
+    expect(encodeDeltaOrNull(World, v, { players: { a: { x: 1, y: 2 } }, tick: 3 })).toBeNull();
+  });
+
+  it("returns encodeDelta bytes when something changed", () => {
+    const prev = { players: { a: { x: 1, y: 2 } }, tick: 3 };
+    const next = { players: { a: { x: 9, y: 2 } }, tick: 4 };
+    const orNull = encodeDeltaOrNull(World, prev, next);
+    expect(orNull).not.toBeNull();
+    expect([...orNull!]).toEqual([...encodeDelta(World, prev, next)]); // identical bytes
+    expect(applyDelta(World, prev, orNull!)).toEqual(next);
+  });
+
+  it("always encodes when prev is undefined (no baseline yet)", () => {
+    const next = { players: { a: { x: 1, y: 2 } }, tick: 1 };
+    const bytes = encodeDeltaOrNull(World, undefined, next);
+    expect(bytes).not.toBeNull();
+    expect(applyDelta(World, undefined, bytes!)).toEqual(next);
   });
 });
 

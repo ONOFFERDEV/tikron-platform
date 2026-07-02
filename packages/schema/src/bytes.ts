@@ -1,3 +1,9 @@
+// Module singletons: constructing a TextEncoder/TextDecoder per string was a
+// large per-flush allocation on the hot path (every entity key + str field).
+// They are stateless and safe to share across all reads/writes.
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder();
+
 /** Growable little-endian byte writer. */
 export class ByteWriter {
   private buf: Uint8Array;
@@ -62,7 +68,7 @@ export class ByteWriter {
     this.u8(x & 0x7f);
   }
   str(s: string): void {
-    const bytes = new TextEncoder().encode(s);
+    const bytes = TEXT_ENCODER.encode(s);
     this.varint(bytes.length);
     this.ensure(bytes.length);
     this.buf.set(bytes, this.pos);
@@ -136,7 +142,7 @@ export class ByteReader {
     const len = this.varint();
     const slice = this.buf.subarray(this.pos, this.pos + len);
     this.pos += len;
-    return new TextDecoder().decode(slice);
+    return TEXT_DECODER.decode(slice);
   }
 
   get remaining(): number {

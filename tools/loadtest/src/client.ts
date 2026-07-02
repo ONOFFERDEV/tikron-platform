@@ -1,13 +1,15 @@
 import WebSocket from "ws";
 import { decodeFull, applyDelta } from "@tikron/schema";
 import type { Config } from "./cli.js";
-import type { Recorder } from "./metrics.js";
+import { parseServerStats, type Recorder, type ServerStats } from "./metrics.js";
 import { getScenario, type Scenario } from "./scenarios.js";
 import { AgarSchema, MovementSchema, type AgarState, type MovementState, type Vec2 } from "./schemas.js";
 
 const STATE_FULL = 0x01;
 const STATE_DELTA = 0x02;
 const TTT_PLACE_INTERVAL_MS = 1000;
+/** Developer message type for the server tick/flush stats request + reply. */
+const STATS_TYPE = "tk:stats";
 
 /** A single simulated player: one WebSocket driven by the scenario input model. */
 export class SimClient {
@@ -22,6 +24,9 @@ export class SimClient {
 
   /** Pending input send times keyed by seq, for input→ack RTT. */
   private readonly inflight = new Map<number, number>();
+
+  /** Resolver for an in-flight `tk:stats` request, if any (see requestStats). */
+  private pendingStats: ((s: ServerStats | null) => void) | null = null;
 
   // Predicted random-walk position. Seeded from — and reconciled to — the
   // server's authoritative own-player position so every sent move stays within
@@ -50,7 +55,9 @@ export class SimClient {
   /** Open the socket. Resolves once the WebSocket is open (connect success). */
   connect(): Promise<void> {
     this.rec.client();
-    const url = `${this.config.url}/parties/${this.scenario.party}/${this.roomId}?_session=${this.sessionId}`;
+    const maxClientsQuery =
+      this.config.maxClients !== undefined ? `&maxClients=${this.config.maxClients}` : "";
+    const url = `${this.config.url}/parties/${this.scenario.party}/${this.roomId}?_session=${this.sessionId}${maxClientsQuery}`;
     return new Promise<void>((resolve) => {
       let settled = false;
       const ws = new WebSocket(url);
@@ -92,12 +99,43 @@ export class SimClient {
 
   stop(): void {
     this.stopping = true;
+    this.resolveStats(null);
     this.clearTimers();
     try {
       this.ws?.close(1000);
     } catch {
       /* already closing */
     }
+  }
+
+  /**
+   * Send a `tk:stats` developer message and resolve with the room's tick/flush
+   * stats reply, or null if the socket is closed or no reply arrives within
+   * `timeoutMs` (old servers that don't implement the handler). Never rejects.
+   */
+  requestStats(timeoutMs: number): Promise<ServerStats | null> {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.resolve(null);
+    // Only one outstanding request per client; superseded requests resolve null.
+    this.resolveStats(null);
+    return new Promise<ServerStats | null>((resolve) => {
+      const timer = setTimeout(() => this.resolveStats(null), timeoutMs);
+      this.pendingStats = (s) => {
+        clearTimeout(timer);
+        resolve(s);
+      };
+      try {
+        ws.send(`{"t":"c:msg","type":"${STATS_TYPE}"}`);
+      } catch {
+        this.resolveStats(null);
+      }
+    });
+  }
+
+  private resolveStats(s: ServerStats | null): void {
+    const cb = this.pendingStats;
+    this.pendingStats = null;
+    if (cb) cb(s);
   }
 
   private clearTimers(): void {
@@ -186,9 +224,14 @@ export class SimClient {
   }
 
   private onText(buf: Buffer): void {
-    let msg: { t?: unknown; seq?: unknown };
+    let msg: { t?: unknown; seq?: unknown; type?: unknown; payload?: unknown };
     try {
-      msg = JSON.parse(buf.toString("utf8")) as { t?: unknown; seq?: unknown };
+      msg = JSON.parse(buf.toString("utf8")) as {
+        t?: unknown;
+        seq?: unknown;
+        type?: unknown;
+        payload?: unknown;
+      };
     } catch {
       this.rec.protocolError();
       return;
@@ -203,11 +246,16 @@ export class SimClient {
         this.recordFrameGap();
         break;
       }
+      case "s:msg": {
+        // Developer server->client message; we only care about the stats reply.
+        if (msg.type === STATS_TYPE) this.resolveStats(parseServerStats(msg.payload));
+        break;
+      }
       case "s:error": {
         this.rec.protocolError();
         break;
       }
-      // s:welcome / s:msg / s:peer-joined / s:peer-left: no metric.
+      // s:welcome / s:peer-joined / s:peer-left: no metric.
       default:
         break;
     }

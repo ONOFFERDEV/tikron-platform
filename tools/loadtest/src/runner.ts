@@ -5,6 +5,8 @@ import { SimClient } from "./client.js";
 export interface ClientSpec {
   roomId: string;
   sessionId: string;
+  /** Exactly one client per room is the representative that requests `tk:stats`. */
+  representative: boolean;
 }
 
 export interface ShardResult {
@@ -17,6 +19,8 @@ export interface ShardResult {
 
 const DRAIN_MS = 250;
 const LAG_TICK_MS = 200;
+/** How long a representative client waits for its `tk:stats` reply before "n/a". */
+const STATS_TIMEOUT_MS = 3000;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
@@ -51,14 +55,20 @@ export async function runShard(
   }
   await Promise.allSettled(connects);
 
-  // Steady state: scope bandwidth to this window only.
+  // Steady state: scope bandwidth to this window only and anchor sample
+  // timestamps here so warm-up discard / spike bucketing measure from now.
   const steadyDown = rec.bundle.downlinkBytes;
   const steadyUp = rec.bundle.uplinkBytes;
+  rec.steadyStartMs = performance.now();
 
   const lag = measureLag ? new LagProbe() : null;
   lag?.start();
   await sleep(config.durationMs);
   lag?.stop();
+
+  // Collect server tick/flush stats from each room's representative before we
+  // tear the sockets down (the window covers the run we just finished).
+  await collectServerStats(rec, specs, clients);
 
   for (const c of clients) c.stop();
   await sleep(DRAIN_MS);
@@ -67,6 +77,26 @@ export async function runShard(
   rec.bundle.uplinkBytes -= steadyUp;
 
   return { bundle: rec.bundle, windowMs: config.durationMs, lagMs: lag?.maxLagMs ?? null };
+}
+
+/**
+ * Ask each room's representative client (those in this shard) for its server-side
+ * tick/flush stats and record any replies. Missing replies are simply absent from
+ * `roomStats` so the report shows "n/a" — an old server that ignores `tk:stats`
+ * never fails the run.
+ */
+async function collectServerStats(
+  rec: Recorder,
+  specs: ClientSpec[],
+  clients: SimClient[],
+): Promise<void> {
+  await Promise.all(
+    specs.map(async (spec, i) => {
+      if (!spec.representative) return;
+      const stats = await clients[i]!.requestStats(STATS_TIMEOUT_MS);
+      if (stats) rec.roomStat(spec.roomId, stats);
+    }),
+  );
 }
 
 /** Samples timer drift to detect event-loop saturation. */

@@ -9,6 +9,7 @@ export {
   str,
   encodeFull,
   encodeDelta,
+  encodeDeltaOrNull,
   decodeFull,
   applyDelta,
   type Codec,
