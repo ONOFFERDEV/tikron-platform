@@ -146,6 +146,14 @@ export async function handlePlatformApi(
   // --- auth ---
   if (path === "/api/platform/auth/github/login" && method === "GET") {
     if (!env.GITHUB_CLIENT_ID) return json({ error: "github_not_configured" }, 500);
+    // Pin the whole OAuth round-trip to the canonical host: the GitHub app's
+    // registered callback is host-exact, so a login started from an alias host
+    // (www, workers.dev) would otherwise die with a redirect_uri mismatch.
+    if (env.CANONICAL_HOST && url.hostname !== env.CANONICAL_HOST) {
+      const canonical = new URL(url.toString());
+      canonical.hostname = env.CANONICAL_HOST;
+      return Response.redirect(canonical.toString(), 302);
+    }
     const redirectUri = `${url.origin}/api/platform/auth/github/callback`;
     const state = crypto.randomUUID();
     return Response.redirect(githubAuthorizeUrl(env.GITHUB_CLIENT_ID, redirectUri, state), 302);

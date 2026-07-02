@@ -43,7 +43,10 @@
   "vars": {
     // Keyless connects (the public demos) are attributed to this project so they
     // stay metered + capped in production. Row seeded via scripts/seed-demo.sql.
-    "DEMO_PROJECT_ID": "demo"
+    "DEMO_PROJECT_ID": "demo",
+    // www -> apex 301 + pins the GitHub OAuth flow to this host (the OAuth
+    // app's registered callback is host-exact).
+    "CANONICAL_HOST": "tikron.dev"
   },
   "observability": { "enabled": true }
 }

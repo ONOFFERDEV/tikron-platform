@@ -49,6 +49,13 @@ export interface Env {
   /** GitHub OAuth app credentials for the dashboard login. */
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  /**
+   * Canonical public hostname (e.g. "tikron.dev"). When set, www.<host> gets a
+   * 301 to the apex and the GitHub OAuth flow is pinned to it, so redirect_uri
+   * always matches the OAuth app's registered callback (host-only cookies and
+   * the state check then live on one origin too).
+   */
+  CANONICAL_HOST?: string;
 }
 
 /**
@@ -217,6 +224,10 @@ async function handleApi(url: URL, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (env.CANONICAL_HOST && url.hostname === `www.${env.CANONICAL_HOST}`) {
+      url.hostname = env.CANONICAL_HOST;
+      return Response.redirect(url.toString(), 301);
+    }
     if (url.pathname.startsWith("/api/platform/")) {
       return (
         (await handlePlatformApi(request, url, env)) ??

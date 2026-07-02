@@ -82,6 +82,10 @@
         padding-left: 18px;
       }
 
+      /* The hidden attribute must beat the display rules below (UA default loses). */
+      [hidden] {
+        display: none !important;
+      }
       /* --- start screen / loading gate --- */
       #gate {
         position: fixed;
