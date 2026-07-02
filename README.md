@@ -5,7 +5,7 @@ server-authoritative game rooms delivered on the edge (Cloudflare Workers + Dura
 with a drop-in TypeScript SDK. Built-in anti-cheat by construction (server authority + AOI
 information hiding), honest defense-in-depth positioning.
 
-> Status: **M0–M4 complete** — engine + flagship .io demo + matchmaking; 54 tests green.
+> Status: **M0–M4 complete** (incl. state-preserving reconnection + live room counts); 69 tests green.
 >
 > **Continuing on a new machine? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first.**
 > Full design: [`docs/PLAN.md`](docs/PLAN.md) · Market & decisions: [`docs/RESEARCH.md`](docs/RESEARCH.md).

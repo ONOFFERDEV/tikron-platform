@@ -1,4 +1,4 @@
-export { Room } from "./room.js";
+export { Room, CLOSE_SESSION_TAKEN_OVER } from "./room.js";
 export type {
   Client,
   RoomContext,
@@ -7,7 +7,7 @@ export type {
   MessageHandler,
   AOIConfig,
 } from "./room.js";
-export { defineRoom } from "./define-room.js";
-export type { RoomClass } from "./define-room.js";
+export { defineRoom, SESSION_QUERY_PARAM } from "./define-room.js";
+export type { RoomClass, DefineRoomOptions, OccupancyReport } from "./define-room.js";
 export { validateMovement } from "./movement.js";
 export type { Vec2, MovementConfig, MovementResult } from "./movement.js";

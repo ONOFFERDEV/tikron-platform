@@ -12,6 +12,10 @@ import { RateLimiter } from "./rate-limit.js";
 
 /** A connected player, as seen by developer room code. */
 export interface Client {
+  /**
+   * Stable client id. When the connection supplied a session key this is that
+   * key (it survives reconnects); otherwise it is the transport connection id.
+   */
   readonly id: string;
   /** Send a developer-defined message to just this client. */
   send(type: string, payload?: unknown): void;
@@ -32,6 +36,14 @@ export interface RoomContext {
   connections(): Iterable<RoomConnection>;
   connection(id: string): RoomConnection | undefined;
   broadcastRaw(data: string, exceptIds?: string[]): void;
+  /**
+   * Optional occupancy reporter (wired by the host, e.g. to a matchmaker).
+   * `sessions` are the stable client ids currently holding a seat — including
+   * clients inside a reconnection window. `seq` increases monotonically per
+   * room so receivers can discard reports delivered out of order (reports are
+   * fire-and-forget RPCs with no ordering guarantee).
+   */
+  reportOccupancy?(count: number, sessions: string[], seq: number): void;
 }
 
 export type MessageHandler = (
@@ -61,11 +73,28 @@ export interface AOIConfig<TState> {
 const STATE_FULL = 0x01;
 const STATE_DELTA = 0x02;
 
+/** Close code sent to a superseded connection when its session is taken over. */
+export const CLOSE_SESSION_TAKEN_OVER = 4001;
+
 function frame(tag: number, body: Uint8Array): Uint8Array {
   const out = new Uint8Array(body.length + 1);
   out[0] = tag;
   out.set(body, 1);
   return out;
+}
+
+/** A client's seat in the room; survives transport reconnects (session-keyed). */
+interface ClientRecord {
+  client: Client;
+  /** Live transport connection id, or null while disconnected. */
+  connId: string | null;
+  /** True while an `allowReconnection` window is open for this client. */
+  awaitingReconnect: boolean;
+  /** The pending reconnection promise (settles once: reattach or timeout). */
+  reconnectPromise: Promise<void> | null;
+  reconnectResolve: (() => void) | null;
+  reconnectReject: ((err: Error) => void) | null;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -78,6 +107,13 @@ function frame(tag: number, body: Uint8Array): Uint8Array {
  *
  * State sync uses JSON by default. Set {@link stateCodec} to a `@playedge/schema`
  * codec to switch to binary delta sync (recommended for realtime rooms).
+ *
+ * Clients are keyed by a **session key** when the connection provides one
+ * (`?_session=` query param), falling back to the transport connection id.
+ * Session keying is what makes {@link allowReconnection} possible: a client
+ * that reconnects with the same session key within the window reclaims its
+ * seat — `Client.id`, `client.data`, and room state keyed by the id all
+ * survive the transport drop.
  */
 export abstract class Room<TState = unknown> {
   /** Authoritative room state. Mutate it, then call {@link markStateChanged}. */
@@ -96,7 +132,10 @@ export abstract class Room<TState = unknown> {
 
   private readonly ctx: RoomContext;
   private readonly handlers = new Map<string, MessageHandler>();
-  private readonly clients = new Map<string, Client>();
+  /** Seats, keyed by stable client id (session key or conn id). */
+  private readonly records = new Map<string, ClientRecord>();
+  /** Live transport connection id -> stable client id. */
+  private readonly connToClient = new Map<string, string>();
   private readonly lastSeq = new Map<string, number>();
   private readonly rate = new RateLimiter();
   private readonly pendingFull = new Set<string>();
@@ -106,6 +145,7 @@ export abstract class Room<TState = unknown> {
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
+  private occupancySeq = 0;
 
   constructor(init: RoomInit) {
     this.id = init.id;
@@ -116,6 +156,8 @@ export abstract class Room<TState = unknown> {
   onCreate(): void | Promise<void> {}
   onJoin(_client: Client): void | Promise<void> {}
   onLeave(_client: Client): void | Promise<void> {}
+  /** Called when a client reattaches within an {@link allowReconnection} window. */
+  onReconnect(_client: Client): void | Promise<void> {}
   onDispose(): void | Promise<void> {}
 
   // --- core developer API ---
@@ -143,18 +185,77 @@ export abstract class Room<TState = unknown> {
 
   /** Send a developer-defined message to every client (optionally excluding one). */
   protected broadcast(type: string, payload?: unknown, exceptId?: string): void {
+    const exceptConn = exceptId ? this.records.get(exceptId)?.connId : undefined;
     this.ctx.broadcastRaw(
       encode({ t: ServerMessageType.Message, type, payload }),
-      exceptId ? [exceptId] : undefined,
+      exceptConn ? [exceptConn] : undefined,
     );
   }
 
   protected clientList(): Client[] {
-    return [...this.clients.values()];
+    return [...this.records.values()].map((r) => r.client);
   }
 
+  /** Seated clients, including any inside a reconnection window. */
   protected get clientCount(): number {
-    return this.clients.size;
+    return this.records.size;
+  }
+
+  /**
+   * Hold a disconnected client's seat open for `seconds`. Call from `onLeave`:
+   *
+   * ```ts
+   * override async onLeave(client: Client) {
+   *   try {
+   *     await this.allowReconnection(client, 30); // resolves on reattach
+   *   } catch {
+   *     delete this.state.players[client.id];     // window expired — real leave
+   *   }
+   * }
+   * ```
+   *
+   * While the window is open the client keeps its record (`Client.id`,
+   * `client.data`, seat count) and peers receive no PeerLeft. On reattach the
+   * server re-sends Welcome (`reconnected: true`) plus a full state snapshot,
+   * and the promise resolves. On timeout it rejects and the leave finalizes.
+   *
+   * Requires the client to connect with a session key (`?_session=`); without
+   * one the client id is the connection id, which a new transport can't reclaim.
+   */
+  protected allowReconnection(client: Client, seconds: number): Promise<void> {
+    const record = this.records.get(client.id);
+    if (!record) return Promise.reject(new Error(`unknown client: ${client.id}`));
+    // Already back (reconnected before onLeave got here) — window is satisfied.
+    if (record.connId !== null) return Promise.resolve();
+    if (record.reconnectPromise) return record.reconnectPromise;
+
+    record.awaitingReconnect = true;
+    record.reconnectPromise = new Promise<void>((resolve, reject) => {
+      record.reconnectResolve = resolve;
+      record.reconnectReject = reject;
+      record.reconnectTimer = setTimeout(() => {
+        this.settleReconnection(record, new Error("reconnection window expired"));
+      }, seconds * 1000);
+    });
+    // Avoid an unhandled rejection when room code doesn't await the promise
+    // (the returned promise is unaffected — callers still observe rejection).
+    record.reconnectPromise.catch(() => {});
+    return record.reconnectPromise;
+  }
+
+  /** Settle a pending reconnection window (resolve on reattach, reject on timeout). */
+  private settleReconnection(record: ClientRecord, error?: Error): void {
+    if (record.reconnectTimer !== null) {
+      clearTimeout(record.reconnectTimer);
+      record.reconnectTimer = null;
+    }
+    record.awaitingReconnect = false;
+    const resolve = record.reconnectResolve;
+    const reject = record.reconnectReject;
+    record.reconnectResolve = null;
+    record.reconnectReject = null;
+    if (error) reject?.(error);
+    else resolve?.();
   }
 
   // --- opt-in Simulation module (turn-based rooms simply never call this) ---
@@ -196,36 +297,99 @@ export abstract class Room<TState = unknown> {
   }
 
   /** @internal */
-  async _connect(conn: RoomConnection): Promise<void> {
-    const client = this.makeClient(conn);
-    this.clients.set(conn.id, client);
+  async _connect(conn: RoomConnection, session?: string): Promise<void> {
+    const clientId = session && session.length > 0 ? session : conn.id;
+    const existing = this.records.get(clientId);
 
-    const peers = [...this.ctx.connections()].map((c) => c.id).filter((id) => id !== conn.id);
+    if (existing) {
+      await this.reattach(existing, clientId, conn);
+      return;
+    }
+
+    const record: ClientRecord = {
+      client: this.makeClient(clientId),
+      connId: conn.id,
+      awaitingReconnect: false,
+      reconnectPromise: null,
+      reconnectResolve: null,
+      reconnectReject: null,
+      reconnectTimer: null,
+    };
+    this.records.set(clientId, record);
+    this.connToClient.set(conn.id, clientId);
+
     conn.send(
       encode({
         t: ServerMessageType.Welcome,
-        connectionId: conn.id,
+        connectionId: clientId,
         room: this.id,
         protocol: PROTOCOL_VERSION,
-        peers,
+        peers: this.peersOf(clientId),
       }),
     );
 
-    if (this.state !== undefined) {
-      if (this.stateCodec) {
-        // Deliver a full binary snapshot on the next flush (avoids a mid-stream
-        // baseline mismatch for clients that join between deltas).
-        this.pendingFull.add(conn.id);
-        this.markStateChanged();
-      } else {
-        conn.send(encode({ t: ServerMessageType.State, state: this.state }));
-      }
-    }
+    this.sendInitialState(conn);
 
-    await this.onJoin(client);
-    this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerJoined, connectionId: conn.id }), [
+    await this.onJoin(record.client);
+    this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerJoined, connectionId: clientId }), [
       conn.id,
     ]);
+    this.reportOccupancy();
+  }
+
+  /** Attach a new transport connection to an existing seat (reconnect/takeover). */
+  private async reattach(record: ClientRecord, clientId: string, conn: RoomConnection): Promise<void> {
+    if (record.connId !== null) {
+      // Session takeover: a newer connection claims the seat (tab duplicated, or
+      // a zombie socket the server hasn't noticed dropping). Detach the old conn
+      // first so its close event can't finalize the seat, then close it.
+      const old = this.ctx.connection(record.connId);
+      this.connToClient.delete(record.connId);
+      this.pendingFull.delete(record.connId);
+      this.clientBaselines.delete(record.connId);
+      this.rate.forget(record.connId);
+      old?.close(CLOSE_SESSION_TAKEN_OVER, "session taken over by a new connection");
+    }
+
+    record.connId = conn.id;
+    this.connToClient.set(conn.id, clientId);
+    // The transport is new: its input seq counter may have restarted. Reset the
+    // replay floor rather than dropping every input after a page reload.
+    this.lastSeq.delete(clientId);
+    this.settleReconnection(record);
+    record.reconnectPromise = null;
+
+    conn.send(
+      encode({
+        t: ServerMessageType.Welcome,
+        connectionId: clientId,
+        room: this.id,
+        protocol: PROTOCOL_VERSION,
+        peers: this.peersOf(clientId),
+        reconnected: true,
+      }),
+    );
+
+    this.sendInitialState(conn);
+    await this.onReconnect(record.client);
+    // Peers never saw a PeerLeft for this client, so no PeerJoined either.
+  }
+
+  /** Send the current state to a newly attached connection (full snapshot). */
+  private sendInitialState(conn: RoomConnection): void {
+    if (this.state === undefined) return;
+    if (this.stateCodec) {
+      // Deliver a full binary snapshot on the next flush (avoids a mid-stream
+      // baseline mismatch for clients that join between deltas).
+      this.pendingFull.add(conn.id);
+      this.markStateChanged();
+    } else {
+      conn.send(encode({ t: ServerMessageType.State, state: this.state }));
+    }
+  }
+
+  private peersOf(clientId: string): string[] {
+    return [...this.records.keys()].filter((id) => id !== clientId);
   }
 
   /** @internal */
@@ -246,19 +410,20 @@ export abstract class Room<TState = unknown> {
 
     if (msg.t !== ClientMessageType.Message) return; // core routes only developer messages
 
-    const client = this.clients.get(conn.id);
-    if (!client) return;
+    const clientId = this.connToClient.get(conn.id);
+    const record = clientId ? this.records.get(clientId) : undefined;
+    if (!clientId || !record || record.connId !== conn.id) return;
 
     if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) return; // dropped
 
     if (typeof msg.seq === "number") {
-      const last = this.lastSeq.get(conn.id) ?? 0;
+      const last = this.lastSeq.get(clientId) ?? 0;
       if (msg.seq <= last) return; // stale / replayed input
-      this.lastSeq.set(conn.id, msg.seq);
+      this.lastSeq.set(clientId, msg.seq);
     }
 
     const handler = this.handlers.get(msg.type);
-    if (handler) await handler(client, msg.payload, msg.seq);
+    if (handler) await handler(record.client, msg.payload, msg.seq);
 
     if (this.sendAcks && typeof msg.seq === "number") {
       conn.send(encode({ t: ServerMessageType.Ack, seq: msg.seq }));
@@ -267,30 +432,65 @@ export abstract class Room<TState = unknown> {
 
   /** @internal */
   async _close(conn: RoomConnection): Promise<void> {
-    const client = this.clients.get(conn.id);
-    this.clients.delete(conn.id);
-    this.lastSeq.delete(conn.id);
+    const clientId = this.connToClient.get(conn.id);
+    this.connToClient.delete(conn.id);
     this.pendingFull.delete(conn.id);
     this.clientBaselines.delete(conn.id);
     this.rate.forget(conn.id);
 
-    if (client) await this.onLeave(client);
-    this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerLeft, connectionId: conn.id }), [
-      conn.id,
-    ]);
+    if (!clientId) return; // detached earlier (e.g. superseded by a takeover)
+    const record = this.records.get(clientId);
+    if (!record || record.connId !== conn.id) return;
 
-    if (this.clients.size === 0) {
+    record.connId = null;
+    try {
+      await this.onLeave(record.client); // room code may open a reconnection window
+    } catch {
+      // A throwing onLeave (e.g. an un-caught allowReconnection timeout) must
+      // not leak the seat — finalization below still runs exactly once.
+    }
+
+    // If room code opened a window without awaiting it, wait for the outcome
+    // here so there is exactly one finalization point.
+    if (record.reconnectPromise) {
+      try {
+        await record.reconnectPromise;
+      } catch {
+        // window expired — fall through to finalize
+      }
+    }
+    if (record.connId !== null) return; // client reattached — seat lives on
+
+    await this.finalizeLeave(clientId, record);
+  }
+
+  /** Remove a seat for good: PeerLeft, occupancy report, dispose-if-empty. */
+  private async finalizeLeave(clientId: string, record: ClientRecord): Promise<void> {
+    if (this.records.get(clientId) !== record) return; // already finalized
+    this.records.delete(clientId);
+    this.lastSeq.delete(clientId);
+
+    this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerLeft, connectionId: clientId }));
+    this.reportOccupancy();
+
+    if (this.records.size === 0) {
       this.clearSimulationInterval();
       await this.onDispose();
     }
   }
 
-  private makeClient(conn: RoomConnection): Client {
+  private reportOccupancy(): void {
+    this.ctx.reportOccupancy?.(this.records.size, [...this.records.keys()], ++this.occupancySeq);
+  }
+
+  private makeClient(clientId: string): Client {
     return {
-      id: conn.id,
+      id: clientId,
       data: {},
       send: (type, payload) => {
-        conn.send(encode({ t: ServerMessageType.Message, type, payload }));
+        const connId = this.records.get(clientId)?.connId;
+        if (!connId) return; // disconnected (possibly inside a reconnection window)
+        this.ctx.connection(connId)?.send(encode({ t: ServerMessageType.Message, type, payload }));
       },
     };
   }
@@ -331,7 +531,8 @@ export abstract class Room<TState = unknown> {
   /** Per-client filtered binary sync when AOI is enabled (each client differs). */
   private flushAOI(codec: Codec<TState>): void {
     for (const conn of this.ctx.connections()) {
-      const view = this.aoiFilter(conn.id);
+      const viewerId = this.connToClient.get(conn.id) ?? conn.id;
+      const view = this.aoiFilter(viewerId);
       const prev = this.clientBaselines.get(conn.id);
       if (this.pendingFull.has(conn.id) || prev === undefined) {
         conn.send(frame(STATE_FULL, encodeFull(codec, view)));

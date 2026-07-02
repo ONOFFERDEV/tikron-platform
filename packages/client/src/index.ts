@@ -90,7 +90,11 @@ export class Room {
       return; // ignore malformed frames
     }
 
-    if (msg.t === ServerMessageType.State) {
+    if (msg.t === ServerMessageType.Welcome) {
+      // Re-sent after an automatic reconnect; the id is stable when a session
+      // key was supplied, so handlers keyed on connectionId keep working.
+      this.connectionId = msg.connectionId;
+    } else if (msg.t === ServerMessageType.State) {
       this.state = msg.state;
       for (const handler of this.stateHandlers) handler(msg.state);
     } else if (msg.t === ServerMessageType.Message) {

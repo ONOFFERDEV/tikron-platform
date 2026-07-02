@@ -39,6 +39,13 @@ export const createPartySocketTransport: TransportFactory = (opts) => {
   // Binary state frames must arrive as ArrayBuffer, not the WebSocket default Blob.
   socket.binaryType = "arraybuffer";
 
+  // 4001 = session taken over by a newer connection (see @playedge/server).
+  // Stop auto-reconnecting, or the two transports would steal the seat from
+  // each other in an endless loop (e.g. a duplicated tab sharing sessionStorage).
+  socket.addEventListener("close", (e) => {
+    if ((e as CloseEvent).code === 4001) socket.close();
+  });
+
   return {
     send: (data) => socket.send(data),
     close: () => socket.close(),

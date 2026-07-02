@@ -8,6 +8,9 @@ import { AgarSchema, AGAR, type AgarState, type AgarPlayer } from "./agar-schema
  */
 const CFG = { maxSpeed: AGAR.maxSpeed, tolerance: 1.15 };
 
+/** How long a dropped player's blob (and score) survives awaiting a reconnect. */
+const RECONNECT_WINDOW_SEC = 30;
+
 function isVec2(v: unknown): v is { x: number; y: number } {
   return (
     typeof v === "object" &&
@@ -69,9 +72,14 @@ export class AgarRoomImpl extends Room<AgarState> {
     this.markStateChanged();
   }
 
-  override onLeave(client: Client): void {
-    delete this.state.players[client.id];
-    this.markStateChanged();
+  override async onLeave(client: Client): Promise<void> {
+    try {
+      // Tab switch / network blip: hold the seat so score and position survive.
+      await this.allowReconnection(client, RECONNECT_WINDOW_SEC);
+    } catch {
+      delete this.state.players[client.id];
+      this.markStateChanged();
+    }
   }
 
   private handleMove(client: Client, payload: unknown): void {

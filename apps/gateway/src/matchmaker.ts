@@ -5,18 +5,27 @@ import { DurableObject } from "cloudflare:workers";
  * rooms and seat reservations so `joinOrCreate`-style matchmaking can place
  * players into an available room of a given type + filter, or spin up a new one.
  *
- * State is in-memory (rooms are ephemeral); a reservation holds a seat for a
- * short TTL until the client actually connects (`consume`) or leaves (`release`).
+ * Occupancy is two-part:
+ *  - **pending reservations** — a `reserve()` holds a seat for a short TTL until
+ *    the client actually connects or the hold expires;
+ *  - **live counts** — rooms report their real occupancy (`report()`) on every
+ *    join and final leave. A report also consumes any pending reservations for
+ *    the sessions it lists, so a connected player is never counted twice.
+ *
+ * A room's effective occupancy is `reported + pending`; before a room's first
+ * report (nobody has connected yet) it is just `pending`.
  */
 interface RoomEntry {
   type: string;
   filter: string;
-  count: number;
   maxClients: number;
+  /** Live count reported by the room DO; null until the room first reports. */
+  reported: number | null;
+  /** Highest report seq seen; guards against out-of-order report delivery. */
+  reportSeq: number;
 }
 interface Reservation {
   roomId: string;
-  active: boolean;
   expiresAt: number;
 }
 
@@ -32,26 +41,37 @@ const RESERVATION_TTL_MS = 15_000;
 
 export class Matchmaker extends DurableObject {
   private readonly rooms = new Map<string, RoomEntry>();
+  /** Pending (not-yet-connected) seat holds, keyed by session id. */
   private readonly reservations = new Map<string, Reservation>();
 
-  private isLocked(r: RoomEntry): boolean {
-    return r.count >= r.maxClients;
+  private pendingFor(roomId: string): number {
+    let n = 0;
+    for (const res of this.reservations.values()) if (res.roomId === roomId) n++;
+    return n;
+  }
+
+  private occupancy(roomId: string, room: RoomEntry): number {
+    return (room.reported ?? 0) + this.pendingFor(roomId);
+  }
+
+  private isLocked(roomId: string, room: RoomEntry): boolean {
+    return this.occupancy(roomId, room) >= room.maxClients;
   }
 
   private prune(now: number): void {
     for (const [sid, res] of this.reservations) {
-      if (!res.active && res.expiresAt <= now) this.removeReservation(sid);
+      if (res.expiresAt <= now) {
+        this.reservations.delete(sid);
+        this.dropIfEmpty(res.roomId);
+      }
     }
   }
 
-  private removeReservation(sessionId: string): void {
-    const res = this.reservations.get(sessionId);
-    if (!res) return;
-    this.reservations.delete(sessionId);
-    const room = this.rooms.get(res.roomId);
-    if (room) {
-      room.count = Math.max(0, room.count - 1);
-      if (room.count === 0) this.rooms.delete(res.roomId);
+  /** Forget a room once it has neither live occupants nor pending holds. */
+  private dropIfEmpty(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (room && (room.reported ?? 0) === 0 && this.pendingFor(roomId) === 0) {
+      this.rooms.delete(roomId);
     }
   }
 
@@ -62,36 +82,54 @@ export class Matchmaker extends DurableObject {
 
     let target: string | undefined;
     for (const [id, room] of this.rooms) {
-      if (room.type === type && room.filter === filter && !this.isLocked(room)) {
+      if (room.type === type && room.filter === filter && !this.isLocked(id, room)) {
         target = id;
         break;
       }
     }
     if (target === undefined) {
       target = crypto.randomUUID();
-      this.rooms.set(target, { type, filter, count: 0, maxClients: Math.max(1, maxClients) });
+      this.rooms.set(target, {
+        type,
+        filter,
+        maxClients: Math.max(1, maxClients),
+        reported: null,
+        reportSeq: 0,
+      });
     }
 
-    const room = this.rooms.get(target)!;
-    room.count += 1;
     const sessionId = crypto.randomUUID();
-    this.reservations.set(sessionId, {
-      roomId: target,
-      active: false,
-      expiresAt: now + RESERVATION_TTL_MS,
-    });
+    this.reservations.set(sessionId, { roomId: target, expiresAt: now + RESERVATION_TTL_MS });
     return { roomId: target, sessionId };
   }
 
-  /** Mark a reservation as consumed (client connected) so it won't expire. */
-  consume(sessionId: string): void {
-    const res = this.reservations.get(sessionId);
-    if (res) res.active = true;
+  /**
+   * Live occupancy report from a room DO (on every join and final leave).
+   * `sessions` are the client ids currently seated; their reservations (if any)
+   * are consumed here since the live count now covers them. Reports are
+   * fire-and-forget RPCs, so `seq` (monotonic per room) discards any that
+   * arrive out of order — a stale count must never overwrite a newer one.
+   */
+  report(roomId: string, count: number, sessions: string[], seq: number): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return; // room wasn't created through matchmaking — nothing to track
+    if (seq <= room.reportSeq) return; // late delivery of an older report
+    room.reportSeq = seq;
+
+    for (const sid of sessions) {
+      const res = this.reservations.get(sid);
+      if (res && res.roomId === roomId) this.reservations.delete(sid);
+    }
+    room.reported = Math.max(0, count);
+    this.dropIfEmpty(roomId);
   }
 
-  /** Release a seat (client left or reservation abandoned). */
+  /** Release a pending seat hold (reservation abandoned before connecting). */
   release(sessionId: string): void {
-    this.removeReservation(sessionId);
+    const res = this.reservations.get(sessionId);
+    if (!res) return;
+    this.reservations.delete(sessionId);
+    this.dropIfEmpty(res.roomId);
   }
 
   /** List rooms (optionally filtered by type) for a lobby browser. */
@@ -103,9 +141,9 @@ export class Matchmaker extends DurableObject {
       out.push({
         roomId: id,
         type: room.type,
-        count: room.count,
+        count: this.occupancy(id, room),
         maxClients: room.maxClients,
-        locked: this.isLocked(room),
+        locked: this.isLocked(id, room),
       });
     }
     return out;

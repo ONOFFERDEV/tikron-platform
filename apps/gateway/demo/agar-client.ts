@@ -40,20 +40,34 @@ function lerpState(a: AgarState, b: AgarState, t: number): AgarState {
 }
 
 async function main() {
-  // Matchmake into a room (falls back to a fixed room id if the API is absent).
+  // Reuse this tab's seat after a reload (the server holds it for 30s); else
+  // matchmake into a room (falling back to a fixed room id if the API is absent).
   let roomId = roomName;
   let sessionId = "";
-  try {
-    const m = await client.matchmake({ mode: "ffa", maxClients: 20 });
-    roomId = m.roomId;
-    sessionId = m.sessionId;
-  } catch {
-    /* no matchmaker reachable — join a fixed room directly */
+  const stored = sessionStorage.getItem("playedge-seat");
+  if (stored) {
+    ({ roomId, sessionId } = JSON.parse(stored) as { roomId: string; sessionId: string });
+  } else {
+    try {
+      const m = await client.matchmake({ mode: "ffa", maxClients: 20 });
+      roomId = m.roomId;
+      sessionId = m.sessionId;
+    } catch {
+      /* no matchmaker reachable — join a fixed room directly */
+      sessionId = crypto.randomUUID();
+    }
+    sessionStorage.setItem("playedge-seat", JSON.stringify({ roomId, sessionId }));
   }
 
-  const room = await client.joinOrCreate(roomId, sessionId ? { _session: sessionId } : {});
+  const room = await client.joinOrCreate(roomId, { _session: sessionId });
   myId = room.connectionId ?? "";
   statusEl.textContent = `connected as ${myId.slice(0, 6)} · move with the mouse`;
+
+  room.onMessage((msg) => {
+    if (msg.t === "s:welcome" && (msg as { reconnected?: boolean }).reconnected) {
+      statusEl.textContent = `reconnected as ${myId.slice(0, 6)} · seat preserved`;
+    }
+  });
 
   room.onStateChange((s) => {
     const st = s as AgarState;

@@ -13,7 +13,7 @@ import {
   ProtocolError,
   type ServerMessage,
 } from "@playedge/protocol";
-import { defineRoom } from "@playedge/server";
+import { defineRoom, type DefineRoomOptions } from "@playedge/server";
 import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
@@ -92,18 +92,24 @@ export class GameRoom extends Server<Env> {
   }
 }
 
-/** Realtime .io example — Simulation + MovementValidation modules. */
-export const MovementRoom = defineRoom(MovementRoomImpl);
-
-/** Turn-based guardrail example — genre-agnostic core only, no tick. */
-export const TicTacToe = defineRoom(TicTacToeImpl);
-
-/** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
-export const AgarRoom = defineRoom(AgarRoomImpl);
-
 function matchmaker(env: Env) {
   return env.Matchmaker.get(env.Matchmaker.idFromName("global"));
 }
+
+/** Rooms report live occupancy to the matchmaker on every join / final leave. */
+const roomOptions: DefineRoomOptions = {
+  reportOccupancy: (env, { roomId, count, sessions, seq }) =>
+    matchmaker(env as Env).report(roomId, count, sessions, seq),
+};
+
+/** Realtime .io example — Simulation + MovementValidation modules. */
+export const MovementRoom = defineRoom(MovementRoomImpl, roomOptions);
+
+/** Turn-based guardrail example — genre-agnostic core only, no tick. */
+export const TicTacToe = defineRoom(TicTacToeImpl, roomOptions);
+
+/** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
+export const AgarRoom = defineRoom(AgarRoomImpl, roomOptions);
 
 /** REST matchmaking API: place players into rooms and browse the lobby. */
 async function handleApi(url: URL, env: Env): Promise<Response> {

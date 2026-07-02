@@ -71,11 +71,18 @@ export type ClientMessage = HelloMessage | EchoMessage | BroadcastMessage | Clie
 
 export interface WelcomeMessage {
   t: typeof ServerMessageType.Welcome;
+  /**
+   * The stable id this client is known by in the room. When the client supplied
+   * a session key (`?_session=`), this is that key and survives reconnects;
+   * otherwise it is the transport connection id.
+   */
   connectionId: string;
   room: string;
   protocol: number;
-  /** Connection ids already present in the room when this client joined. */
+  /** Client ids already present in the room when this client joined. */
   peers: string[];
+  /** True when this Welcome reattaches a previous session (state was preserved). */
+  reconnected?: boolean;
 }
 
 export interface EchoReplyMessage {
