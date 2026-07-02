@@ -5,6 +5,7 @@ dist/
 .omc/
 apps/gateway/public/agar.js
 apps/gateway/public/agar.js.map
+apps/gateway/public/dashboard/
 examples/starter/public/client.js
 examples/starter/public/client.js.map
 coverage/

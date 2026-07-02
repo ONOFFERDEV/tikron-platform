@@ -57,9 +57,10 @@ export interface RoomContext {
    * `sessions` are the stable client ids currently holding a seat — including
    * clients inside a reconnection window. `seq` increases monotonically per
    * room so receivers can discard reports delivered out of order (reports are
-   * fire-and-forget RPCs with no ordering guarantee).
+   * fire-and-forget RPCs with no ordering guarantee). `messages` is the count of
+   * developer messages processed since the previous report (usage metering).
    */
-  reportOccupancy?(count: number, sessions: string[], seq: number): void;
+  reportOccupancy?(count: number, sessions: string[], seq: number, messages?: number): void;
   /**
    * Optional durable storage (the room's DO storage). When present the room
    * persists its state + seats so it can be restored after eviction, and uses
@@ -131,6 +132,9 @@ export const CLOSE_ROOM_FULL = 4002;
 
 /** Close code sent to a connection whose supplied session key failed validation. */
 export const CLOSE_INVALID_SESSION = 4003;
+
+/** Close code sent to a connection that failed player-token authentication. */
+export const CLOSE_UNAUTHORIZED = 4004;
 
 function frame(tag: number, body: Uint8Array): Uint8Array {
   const out = new Uint8Array(body.length + 1);
@@ -245,6 +249,7 @@ export abstract class Room<TState = unknown> {
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
   private occupancySeq = 0;
+  private messagesSinceReport = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -570,6 +575,7 @@ export abstract class Room<TState = unknown> {
       this.lastSeq.set(clientId, msg.seq);
     }
 
+    this.messagesSinceReport++; // billable inbound developer message (passed rate/seq checks)
     const handler = this.handlers.get(msg.type);
     if (handler) await handler(record.client, msg.payload, msg.seq);
 
@@ -635,7 +641,13 @@ export abstract class Room<TState = unknown> {
   }
 
   private reportOccupancy(): void {
-    this.ctx.reportOccupancy?.(this.records.size, [...this.records.keys()], ++this.occupancySeq);
+    this.ctx.reportOccupancy?.(
+      this.records.size,
+      [...this.records.keys()],
+      ++this.occupancySeq,
+      this.messagesSinceReport,
+    );
+    this.messagesSinceReport = 0;
     this.syncHeartbeat();
   }
 

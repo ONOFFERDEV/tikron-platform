@@ -3,6 +3,7 @@ import { encode, ServerMessageType } from "@playedge/protocol";
 import {
   Room,
   CLOSE_INVALID_SESSION,
+  CLOSE_UNAUTHORIZED,
   type RoomConnection,
   type RoomContext,
   type RoomStorage,
@@ -25,6 +26,10 @@ export interface OccupancyReport {
   sessions: string[];
   /** Monotonic per-room counter; receivers must discard reports arriving out of order. */
   seq: number;
+  /** Owning project (from the `_project` query param), for usage attribution. */
+  projectId?: string | null;
+  /** Developer messages processed since the previous report (usage metering). */
+  messages?: number;
 }
 
 export interface DefineRoomOptions {
@@ -45,10 +50,24 @@ export interface DefineRoomOptions {
     env: unknown,
     info: { roomId: string; session: string },
   ) => boolean | Promise<boolean>;
+  /**
+   * Optional player-token auth, invoked BEFORE {@link validateSession}. Receives
+   * the `_auth` query token (or null) and the `_session` key (or null); returning
+   * false rejects the connection with an `unauthorized` error. Wire this to verify
+   * a per-project player JWT. Absent → no player-token enforcement.
+   */
+  onAuth?: (
+    env: unknown,
+    info: { roomId: string; projectId: string | null; token: string | null; session: string | null },
+  ) => boolean | Promise<boolean>;
 }
 
 /** The query parameter carrying a client's stable session key. */
 export const SESSION_QUERY_PARAM = "_session";
+/** The query parameter carrying the owning project id (added by the host on enforced connects). */
+export const PROJECT_QUERY_PARAM = "_project";
+/** The query parameter carrying a player auth token (JWT). */
+export const AUTH_QUERY_PARAM = "_auth";
 
 /** The subset of a partyserver host a Room needs — keeps the core decoupled. */
 interface PartyHost {
@@ -61,6 +80,7 @@ interface PartyHost {
 function makeContext(
   host: PartyHost,
   getEnv: () => unknown,
+  getProjectId: () => string | null,
   storage: RoomStorage | undefined,
   options?: DefineRoomOptions,
 ): RoomContext {
@@ -71,9 +91,16 @@ function makeContext(
     connection: (id) => host.getConnection(id),
     broadcastRaw: (data, exceptIds) => host.broadcast(data, exceptIds),
     reportOccupancy: report
-      ? (count, sessions, seq) => {
+      ? (count, sessions, seq, messages) => {
           void Promise.resolve(
-            report(getEnv(), { roomId: host.name, count, sessions, seq }),
+            report(getEnv(), {
+              roomId: host.name,
+              count,
+              sessions,
+              seq,
+              projectId: getProjectId(),
+              messages,
+            }),
           ).catch(() => {});
         }
       : undefined,
@@ -81,12 +108,16 @@ function makeContext(
   };
 }
 
-function sessionFrom(ctx: ConnectionContext): string | undefined {
+function queryParam(ctx: ConnectionContext, name: string): string | undefined {
   try {
-    return new URL(ctx.request.url).searchParams.get(SESSION_QUERY_PARAM) ?? undefined;
+    return new URL(ctx.request.url).searchParams.get(name) ?? undefined;
   } catch {
     return undefined;
   }
+}
+
+function sessionFrom(ctx: ConnectionContext): string | undefined {
+  return queryParam(ctx, SESSION_QUERY_PARAM);
 }
 
 /**
@@ -117,6 +148,8 @@ export function defineRoom<TState>(
     static override options = { hibernate: false };
 
     #room: Room<TState> | null = null;
+    /** Owning project (from `_project`), captured from the first connection. */
+    #projectId: string | null = null;
 
     async #ensure(): Promise<Room<TState>> {
       if (!this.#room) {
@@ -124,7 +157,7 @@ export function defineRoom<TState>(
           id: this.name,
           // `this.ctx.storage` is the DO's durable storage (structurally a
           // RoomStorage); it lets the room persist state + reconnection windows.
-          ctx: makeContext(this, () => this.env, this.ctx.storage, options),
+          ctx: makeContext(this, () => this.env, () => this.#projectId, this.ctx.storage, options),
         });
         // _create() restores any persisted snapshot, so the room is whole before
         // the first _connect / _alarm below runs against it.
@@ -137,8 +170,32 @@ export function defineRoom<TState>(
     // reliably set that early in some runtimes (e.g. `wrangler dev`). The room is
     // created lazily on the first connection, where the name is guaranteed.
     override async onConnect(conn: Connection, ctx: ConnectionContext): Promise<void> {
+      // Capture the owning project (host adds `_project` on enforced connects) so
+      // occupancy reports carry it for usage attribution.
+      const project = queryParam(ctx, PROJECT_QUERY_PARAM);
+      if (project && !this.#projectId) this.#projectId = project;
+
       const room = await this.#ensure();
       const session = sessionFrom(ctx);
+
+      // Player-token auth runs first: reject before a seat or session is considered.
+      if (options?.onAuth) {
+        const token = queryParam(ctx, AUTH_QUERY_PARAM) ?? null;
+        const ok = await options.onAuth(this.env, {
+          roomId: this.name,
+          projectId: this.#projectId,
+          token,
+          session: session ?? null,
+        });
+        if (!ok) {
+          conn.send(
+            encode({ t: ServerMessageType.Error, code: "unauthorized", message: "player auth failed" }),
+          );
+          conn.close(CLOSE_UNAUTHORIZED, "unauthorized");
+          return;
+        }
+      }
+
       // A self-supplied session key is validated before it can claim a seat; a
       // no-session connection uses its (unguessable) conn id and is exempt.
       if (session && options?.validateSession) {

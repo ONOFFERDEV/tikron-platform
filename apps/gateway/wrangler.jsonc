@@ -18,6 +18,20 @@
     { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
     { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
   ],
-  "assets": { "directory": "./public" },
+  // Platform database (M5). database_id is filled in by `wrangler d1 create
+  // playedge-platform`; local dev + vitest-pool-workers use a local SQLite
+  // regardless of the id. Migrations live in ./migrations.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "playedge-platform",
+      "database_id": "f8fcf3e3-8df9-400c-811d-a6eb959ba884",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // `binding` lets the worker serve /dashboard/* SPA routes (fallback to the
+  // dashboard index.html); files that exist are served by the assets layer
+  // before the worker runs.
+  "assets": { "directory": "./public", "binding": "ASSETS" },
   "observability": { "enabled": true }
 }

@@ -24,8 +24,10 @@ export type Unsubscribe = () => void;
 export interface GameClientOptions {
   /** Party (Durable Object binding) name. Defaults to "game-room". */
   party?: string;
-  /** API key for multi-tenant routing (wired up in M5). */
+  /** API key for multi-tenant routing (forwarded as `?apiKey=`). */
   apiKey?: string;
+  /** Player auth token (JWT); forwarded as `?_auth=` for the room's onAuth hook. */
+  authToken?: string;
   /** WebSocket implementation for non-browser environments (e.g. the `ws` package). */
   WebSocketPolyfill?: unknown;
   /** Binary state codec (from `@playedge/schema`) matching the room's server codec. */
@@ -226,6 +228,7 @@ export class GameClient {
   async joinOrCreate(room: string, params: Record<string, string> = {}): Promise<Room> {
     const query: Record<string, string> = { ...params };
     if (this.options.apiKey) query.apiKey = this.options.apiKey;
+    if (this.options.authToken) query._auth = this.options.authToken;
 
     const factory = this.options.createTransport ?? createPartySocketTransport;
     const transport = factory({
