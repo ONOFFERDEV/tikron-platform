@@ -1,5 +1,7 @@
 import { Room, type Client, type AOIConfig } from "./room.js";
+import { LagCompensator } from "./lag-compensation.js";
 import type { Codec } from "@tikron/schema";
+import type { Vec2 } from "@tikron/sim";
 
 /**
  * Genre presets — a one-decision surface over the {@link Room} core.
@@ -143,6 +145,27 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
   protected aoi?: AOIConfig<TState>;
 
   /**
+   * Enable server-side lag compensation. When true, the preset records the
+   * positions from {@link lagSnapshot} after every tick, and {@link rewind}
+   * returns the world as a given client saw it (RTT + interpolation delay ago) so
+   * hit checks resolve against what the shooter aimed at. Override `lagSnapshot`
+   * to declare which entities to track. Default: off.
+   */
+  protected lagCompensation = false;
+
+  /** How far back (ms) rewind history is kept. See {@link LagCompensatorOptions}. */
+  protected lagCompensationDepthMs = 250;
+
+  /**
+   * Extra ms subtracted on {@link rewind}, on top of the client's RTT, to account
+   * for the client's own interpolation delay (it renders the world this far in the
+   * past). Match your client interpolation buffer; default 100 (~2 ticks at 20 Hz).
+   */
+  protected lagInterpolationMs = 100;
+
+  #lag: LagCompensator | null = null;
+
+  /**
    * Wires the realtime stack (codec, acks, AOI, tick) then runs your {@link onReady}.
    * The preset owns `onCreate`; put your one-time setup in `onReady` instead.
    */
@@ -160,11 +183,53 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
     this.queueInputs = true; // inputs drain at each tick so onTick sees a consistent world
     await this.onReady();
     if (this.aoi) this.enableAOI(this.aoi); // guarded: throws if the codec is missing
+    if (this.lagCompensation) {
+      this.#lag = new LagCompensator({ depthMs: this.lagCompensationDepthMs });
+    }
     // Start the loop only after onReady has seeded state, so onTick never runs first.
     this.setSimulationInterval((dtMs) => {
       this.onTick(dtMs);
+      // Record post-tick positions for rewind (only when lag compensation is on).
+      this.#lag?.record(this.currentTick, Date.now(), this.lagSnapshot());
       this.markStateChanged(); // periodic authoritative frame (delta is a no-op if unchanged)
     }, this.tickMs);
+  }
+
+  /**
+   * The entity positions to record for {@link rewind}, called after each tick when
+   * {@link lagCompensation} is on. Override to return your tracked entities (e.g.
+   * players), keyed by id. Default: empty (rewind returns nothing until overridden).
+   *
+   * ```ts
+   * protected override lagSnapshot() {
+   *   return new Map(Object.entries(this.state.players).map(([id, p]) => [id, { x: p.x, y: p.y }]));
+   * }
+   * ```
+   */
+  protected lagSnapshot(): Map<string, Vec2> {
+    return new Map();
+  }
+
+  /**
+   * The recorded world as `client` saw it — its RTT plus {@link lagInterpolationMs}
+   * in the past — for server-side hit registration. Requires {@link lagCompensation}.
+   *
+   * ```ts
+   * this.onMessage("shoot", (client, aim) => {
+   *   const world = this.rewind(client);          // where targets were on the shooter's screen
+   *   const hit = world.get(targetId);
+   *   if (hit && near(aim, hit)) score(client);
+   * });
+   * ```
+   */
+  protected rewind(client: Client): Map<string, Vec2> {
+    if (!this.#lag) {
+      throw new Error(
+        "rewind() requires lag compensation. Fix: set this.lagCompensation = true in onReady() " +
+          "and override lagSnapshot() to return the entities to track.",
+      );
+    }
+    return this.#lag.atTime(Date.now() - client.rttMs - this.lagInterpolationMs);
   }
 
   /**

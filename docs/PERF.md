@@ -107,6 +107,22 @@ Regression check (agar, AOI): local 16-player p50 2.0 ms / 2.7 KiB/s (was
 the board. State cadence now locks to the 50 ms boundary (raw inter-arrival
 p50 49.8 ms, jitter p50 ~1 ms).
 
+### Protocol v2 / netcode-hardening addendum (2026-07-02, later same day)
+
+Two semantics changed after the tables above were measured; the bandwidth and
+stability numbers remain representative, but interpret ack RTT with this in mind:
+
+- **Tick-aligned input queue** (IoArenaRoom): inputs now wait for the next
+  simulation tick before being processed and acked, so input→ack includes up to
+  one tick (50 ms) of queue wait *by design* — measured local agar 16-player ack
+  p50 ~64 ms (was 5.6 ms with immediate dispatch). Client prediction masks this;
+  the win is a consistent world per tick. Wall-clock responsiveness for players
+  is governed by prediction, not ack RTT.
+- **AOI is now grid-indexed** (uniform spatial hash, ~O(viewers + entities) per
+  flush instead of O(viewers × entities)), with property tests asserting exact
+  parity with the naive filter. Same-room numbers at ≤20 players are unchanged;
+  the benefit grows with entity count.
+
 ## Baselines
 
 - `ttt-json` (turn-based, JSON sync, no tick): 77 B/s per idle client — a

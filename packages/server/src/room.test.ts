@@ -639,3 +639,120 @@ describe("Room flush throttling", () => {
     expect(ctx.broadcastsOf("s:state")).toHaveLength(flushes); // no leaked timer fired
   });
 });
+
+// --- state-shape versioning + migration ---
+
+interface V2State {
+  members: Record<string, number>;
+}
+
+/** Current-shape room (stateVersion 2) with a v1→v2 migration. */
+class MigratedRoom extends Room<V2State> {
+  protected override stateVersion = 2;
+  migrateCalled = false;
+  override onCreate(): void {
+    this.setState({ members: {} });
+  }
+  override onJoin(client: Client): void {
+    this.state.members[client.id] = 1;
+  }
+  protected override migrateState(from: number, old: unknown): V2State | null {
+    this.migrateCalled = true;
+    if (from !== 1) return null;
+    // v1 had `players: Record<id, number>`; v2 renames it to `members`.
+    const players = (old as { players?: Record<string, number> }).players ?? {};
+    return { members: { ...players } };
+  }
+  get memberIds(): string[] {
+    return Object.keys(this.state.members);
+  }
+}
+
+/** Current-shape room with NO migration override → default discards on mismatch. */
+class DiscardRoom extends Room<V2State> {
+  protected override stateVersion = 2;
+  override onCreate(): void {
+    this.setState({ members: {} });
+  }
+  get memberIds(): string[] {
+    return Object.keys(this.state.members);
+  }
+}
+
+describe("Room state versioning + migration", () => {
+  /** Persist a v1 snapshot (via the default-version TestRoom) and return it. */
+  async function persistV1(): Promise<unknown> {
+    const storage = new FakeStorage();
+    const ctx = new FakeCtx(storage);
+    const room = new TestRoom({ id: "r", ctx });
+    room["syncIntervalMs"] = 0;
+    await room._create();
+    await room._connect(ctx.open("c1"), "sess-a"); // player sess-a = 0, snapshot v1
+    const snap = storage.kv.get("tk:room") as Record<string, unknown>;
+    expect(snap.stateVersion).toBe(1);
+    return structuredClone(snap);
+  }
+
+  it("stamps the state version into the snapshot", async () => {
+    const storage = new FakeStorage();
+    const ctx = new FakeCtx(storage);
+    const room = new MigratedRoom({ id: "r", ctx });
+    room["syncIntervalMs"] = 0;
+    await room._create();
+    await room._connect(ctx.open("c1"), "sess-a");
+    expect((storage.kv.get("tk:room") as Record<string, unknown>).stateVersion).toBe(2);
+  });
+
+  it("migrates an older snapshot through migrateState and restores its seats", async () => {
+    const snap = await persistV1();
+    const storage = new FakeStorage();
+    storage.kv.set("tk:room", snap);
+
+    const ctx = new FakeCtx(storage);
+    const room = new MigratedRoom({ id: "r", ctx });
+    room["syncIntervalMs"] = 0;
+    await room._create();
+
+    expect(room.migrateCalled).toBe(true);
+    expect(room.memberIds).toEqual(["sess-a"]); // v1 players → v2 members
+    expect(room["clientCount"]).toBe(1); // seats survived the migration
+  });
+
+  it("does not migrate when the versions already match", async () => {
+    // Persist a v2 snapshot, then cold-start another v2 room over it.
+    const storageA = new FakeStorage();
+    const ctxA = new FakeCtx(storageA);
+    const roomA = new MigratedRoom({ id: "r", ctx: ctxA });
+    roomA["syncIntervalMs"] = 0;
+    await roomA._create();
+    await roomA._connect(ctxA.open("c1"), "sess-a");
+    const snap = structuredClone(storageA.kv.get("tk:room"));
+
+    const storageB = new FakeStorage();
+    storageB.kv.set("tk:room", snap);
+    const ctxB = new FakeCtx(storageB);
+    const roomB = new MigratedRoom({ id: "r", ctx: ctxB });
+    roomB["syncIntervalMs"] = 0;
+    await roomB._create();
+
+    expect(roomB.migrateCalled).toBe(false); // same version → migrate skipped
+    expect(roomB.memberIds).toEqual(["sess-a"]);
+  });
+
+  it("discards a mismatched snapshot (and its seats) cleanly when no hook transforms it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const snap = await persistV1();
+    const storage = new FakeStorage();
+    storage.kv.set("tk:room", snap);
+
+    const ctx = new FakeCtx(storage);
+    const room = new DiscardRoom({ id: "r", ctx });
+    room["syncIntervalMs"] = 0;
+    await room._create(); // must not throw
+
+    expect(room.memberIds).toEqual([]); // fresh onCreate state
+    expect(room["clientCount"]).toBe(0); // seats dropped with the discarded state
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/Discarded a persisted snapshot/));
+    warn.mockRestore();
+  });
+});

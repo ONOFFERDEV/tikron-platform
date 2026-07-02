@@ -70,6 +70,26 @@ packet forgery simply isn't a thing you have to bolt on later.
 - **Matchmaking, prediction, interpolation:** see the flagship .io demo in
   `apps/gateway` (`/agar.html`) which uses the full stack.
 
+## Test it
+
+Unit-test your room in-process (no server, no network) with the
+`@tikron/server/testing` harness — connect fake clients, send intents, assert on state:
+
+```ts
+import { createTestRoom } from "@tikron/server/testing";
+import { ArenaRoomImpl } from "./src/arena-room.js";
+
+const h = await createTestRoom(ArenaRoomImpl);
+const p = await h.connect("player-1");
+await p.send("move", { x: 0.3, y: 0.7 });
+await h.flush();
+expect(h.snapshot().players["player-1"]).toMatchObject({ x: 0.3, y: 0.7 });
+```
+
+To feel it under a bad network, add `networkConditions` to the client:
+`new GameClient(host, { networkConditions: { latencyMs: 120, jitterMs: 30, lossRate: 0.05 } })`.
+See AGENTS.md → "Test your room" for the full API.
+
 ## Reconnection, for free
 
 Close the tab mid-game and reopen it: your dot (and everything about your

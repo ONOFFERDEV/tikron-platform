@@ -9,6 +9,7 @@ import {
 } from "@tikron/protocol";
 import { encodeFull, encodeDelta, type Codec } from "@tikron/schema";
 import { RateLimiter } from "./rate-limit.js";
+import { buildGrid, queryRadius, type Grid } from "./aoi-grid.js";
 
 /** A connected player, as seen by developer room code. */
 export interface Client {
@@ -21,6 +22,12 @@ export interface Client {
   send(type: string, payload?: unknown): void;
   /** Scratch space for per-connection server-side data (never synced to clients). */
   readonly data: Record<string, unknown>;
+  /**
+   * The client's latest round-trip time in ms, as reported on its clock-sync
+   * pings (0 until the first RTT-bearing ping arrives). Used by server-side lag
+   * compensation to rewind hit checks to what this client saw.
+   */
+  readonly rttMs: number;
 }
 
 /** Minimal transport surface a Room needs; provided by the partyserver host. */
@@ -132,7 +139,14 @@ interface PersistedSeat {
 
 /** A room's durable snapshot. Restored on the next cold start after eviction. */
 interface PersistedRoom<TState> {
+  /** Snapshot-envelope format version (structural; unrelated to game state). */
   v: 1;
+  /**
+   * The game's state-shape version ({@link Room.stateVersion}) at persist time.
+   * On restore, a mismatch routes `state` through {@link Room.migrateState}.
+   * Absent in pre-versioning snapshots → treated as version 1.
+   */
+  stateVersion?: number;
   state: TState;
   seats: PersistedSeat[];
   occupancySeq: number;
@@ -220,6 +234,8 @@ interface ClientRecord {
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   /** Reconnection-window deadline (epoch ms) while disconnected; persisted. */
   reconnectDeadline: number | null;
+  /** Latest client-reported round-trip time (ms), from its clock-sync pings. */
+  lastRttMs: number;
   /**
    * Set true only on the durable alarm-expiry path (window elapsed while the DO
    * was evicted) so a re-invoked `onLeave` sees `allowReconnection` reject at
@@ -304,6 +320,36 @@ export abstract class Room<TState = unknown> {
    * Overridable so tests can shorten it.
    */
   protected persistIntervalMs = 5_000;
+
+  /**
+   * Version of this room's persisted state SHAPE. Bump it whenever `TState`
+   * changes incompatibly. On a cold start, if a snapshot's recorded version
+   * differs from this one, {@link migrateState} is consulted before the snapshot
+   * is applied — so a redeploy that changes the state shape doesn't silently
+   * restore the old shape (the pre-R2 behavior). Snapshots written before
+   * versioning are treated as version 1.
+   */
+  protected stateVersion = 1;
+
+  /**
+   * Migrate a persisted snapshot whose {@link stateVersion} differs from the
+   * current one. Return the state transformed into the current shape, or `null`
+   * to DISCARD the snapshot — the room then starts fresh from `onCreate`'s state
+   * and the persisted seats are dropped too (a discarded state can't seat players
+   * that referenced it). The default returns `null` (discard); override it to
+   * carry old rooms forward:
+   *
+   * ```ts
+   * protected override stateVersion = 2;
+   * protected override migrateState(from: number, old: unknown): MyState | null {
+   *   if (from === 1) return { ...(old as V1), addedField: 0 }; // v1 → v2
+   *   return null; // unknown version — start fresh
+   * }
+   * ```
+   */
+  protected migrateState(_fromVersion: number, _oldState: unknown): TState | null {
+    return null;
+  }
 
   readonly id: string;
 
@@ -688,6 +734,7 @@ export abstract class Room<TState = unknown> {
       reconnectReject: null,
       reconnectTimer: null,
       reconnectDeadline: null,
+      lastRttMs: 0,
       windowExpired: false,
     };
     this.records.set(clientId, record);
@@ -794,6 +841,12 @@ export abstract class Room<TState = unknown> {
     // Clock-sync ping: answer immediately with the server's time (cheap, unseated).
     if (msg.t === ClientMessageType.Time) {
       conn.send(encode({ t: ServerMessageType.Time, t0: msg.t0, serverTime: Date.now() }));
+      // Track the client's reported RTT (if any) for server-side lag compensation.
+      if (typeof msg.rtt === "number" && msg.rtt >= 0) {
+        const cid = this.connToClient.get(conn.id);
+        const rec = cid ? this.records.get(cid) : undefined;
+        if (rec) rec.lastRttMs = msg.rtt;
+      }
       return;
     }
 
@@ -946,6 +999,7 @@ export abstract class Room<TState = unknown> {
     if (!storage || this.state === undefined) return;
     const snapshot: PersistedRoom<TState> = {
       v: 1,
+      stateVersion: this.stateVersion,
       state: this.state,
       seats: [...this.records.values()].map((r) => ({
         id: r.client.id,
@@ -996,7 +1050,27 @@ export abstract class Room<TState = unknown> {
     }
     if (!snapshot || snapshot.v !== 1) return;
 
-    this.state = snapshot.state;
+    // Route a shape-version mismatch through migrateState before applying it.
+    // Pre-versioning snapshots have no stateVersion → treat as version 1.
+    const persistedVersion = snapshot.stateVersion ?? 1;
+    if (persistedVersion !== this.stateVersion) {
+      const migrated = this.migrateState(persistedVersion, snapshot.state);
+      if (migrated === null) {
+        // Discard: keep the fresh onCreate-seeded state and drop the persisted
+        // seats too (they referenced a state shape that no longer exists).
+        console.warn(
+          `Discarded a persisted snapshot: state version ${persistedVersion} != current ` +
+            `${this.stateVersion} and migrateState returned null. The room starts fresh and its ` +
+            "persisted seats are dropped. Fix: override migrateState(fromVersion, oldState) to " +
+            "transform the old shape, or accept the reset.",
+        );
+        return;
+      }
+      this.state = migrated;
+    } else {
+      this.state = snapshot.state;
+    }
+
     this.occupancySeq = snapshot.occupancySeq;
     for (const seat of snapshot.seats) {
       // Every restored seat is disconnected and must eventually expire: seats
@@ -1012,6 +1086,7 @@ export abstract class Room<TState = unknown> {
         reconnectReject: null,
         reconnectTimer: null,
         reconnectDeadline: deadline,
+        lastRttMs: 0,
         windowExpired: false,
       });
     }
@@ -1075,9 +1150,13 @@ export abstract class Room<TState = unknown> {
   }
 
   private makeClient(clientId: string, data: Record<string, unknown> = {}): Client {
+    const room = this;
     return {
       id: clientId,
       data,
+      get rttMs(): number {
+        return room.records.get(clientId)?.lastRttMs ?? 0;
+      },
       send: (type, payload) => {
         const connId = this.records.get(clientId)?.connId;
         if (!connId) return; // disconnected (possibly inside a reconnection window)
@@ -1129,9 +1208,20 @@ export abstract class Room<TState = unknown> {
 
   /** Per-client filtered binary sync when AOI is enabled (each client differs). */
   private flushAOI(codec: Codec<TState>, tick: number, serverTime: number): void {
+    const aoi = this.#aoi!;
+    const state = this.state as Record<string, unknown>;
+    // Build one spatial-hash grid per filtered field for THIS flush (cell side =
+    // viewRadius), so each viewer's filter is a 3×3 neighborhood scan instead of
+    // a full O(entities) sweep — the naive scan was O(viewers×entities).
+    const grids = new Map<string, Grid>();
+    for (const field of aoi.mapFields) {
+      const map = state[field] as Record<string, unknown> | undefined;
+      if (map) grids.set(field, buildGrid(map, aoi.position, aoi.viewRadius));
+    }
+
     for (const conn of this.ctx.connections()) {
       const viewerId = this.connToClient.get(conn.id) ?? conn.id;
-      const view = this.aoiFilter(viewerId);
+      const view = this.aoiView(viewerId, grids);
       const prev = this.clientBaselines.get(conn.id);
       if (this.pendingFull.has(conn.id) || prev === undefined) {
         conn.send(frame(STATE_FULL, tick, serverTime, encodeFull(codec, view)));
@@ -1143,27 +1233,20 @@ export abstract class Room<TState = unknown> {
     this.pendingFull.clear();
   }
 
-  /** Build the AOI-filtered state a specific viewer is allowed to see. */
-  private aoiFilter(viewerId: string): TState {
+  /**
+   * The AOI-filtered state a specific viewer is allowed to see, using the
+   * per-flush grids. Identical result to a naive circle scan: each filtered field
+   * becomes the entities within `viewRadius` of the viewpoint (empty if the viewer
+   * has no viewpoint), non-map fields pass through unchanged.
+   */
+  private aoiView(viewerId: string, grids: Map<string, Grid>): TState {
     const aoi = this.#aoi!;
-    const state = this.state as Record<string, unknown>;
-    const out: Record<string, unknown> = { ...state };
+    const out: Record<string, unknown> = { ...(this.state as Record<string, unknown>) };
     const vp = aoi.viewer(this.state, viewerId);
-    const r2 = aoi.viewRadius * aoi.viewRadius;
-
     for (const field of aoi.mapFields) {
-      const map = state[field] as Record<string, unknown> | undefined;
-      if (!map) continue;
-      const filtered: Record<string, unknown> = {};
-      if (vp) {
-        for (const [k, v] of Object.entries(map)) {
-          const p = aoi.position(v);
-          const dx = p.x - vp.x;
-          const dy = p.y - vp.y;
-          if (dx * dx + dy * dy <= r2) filtered[k] = v;
-        }
-      }
-      out[field] = filtered;
+      const grid = grids.get(field);
+      out[field] =
+        vp && grid ? queryRadius(grid, vp, aoi.viewRadius, aoi.position) : {};
     }
     return out as TState;
   }

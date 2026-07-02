@@ -63,8 +63,28 @@ pnpm --filter <project> typecheck          # e.g. tikron-starter
 pnpm --filter <project> dev                # http://127.0.0.1:8787 — open 2 tabs
 ```
 
-Smoke-test a room over WebSocket without a browser (Node 22+ has a global `WebSocket`;
-no deps). Adjust the party (kebab-case binding) and intent type:
+**Prefer the harness for logic tests.** Unit-test room logic in-process with
+`@tikron/server/testing` — no Durable Object, no WebSocket, no network. It's faster and
+more precise than a WS script for asserting game rules:
+
+```ts
+import { createTestRoom } from "@tikron/server/testing";
+import { MyRoom } from "./my-room.js";
+
+const h = await createTestRoom(MyRoom);
+const a = await h.connect("a");
+await a.send("move", { x: 1, y: 2 });
+await h.flush();
+expect(h.snapshot().players.a).toEqual({ x: 1, y: 2 });
+// binary rooms: createTestRoom(MyRoom, { codec }) + a.binaryFrames() / a.lastState()
+// time-based (reconnection windows/heartbeats): vi.useFakeTimers() + await h.advance(ms)
+```
+
+Full harness + network-simulator API: AGENTS.md → "Test your room".
+
+**As the integration check**, smoke-test a room over a real WebSocket without a browser
+(Node 22+ has a global `WebSocket`; no deps). Adjust the party (kebab-case binding) and
+intent type:
 
 ```js
 // smoke.mjs — node smoke.mjs   (run `dev` first)

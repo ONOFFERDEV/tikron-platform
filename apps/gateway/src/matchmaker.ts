@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { accrueUsage, loadCaps, monthRoomHours, type Caps } from "./platform/db.js";
+import { isLocationHint } from "./region.js";
 
 /**
  * A single global matchmaking registry (one well-known Durable Object). Tracks
@@ -30,6 +31,12 @@ interface RoomEntry {
   maxClients: number;
   /** Owning project (M5), or null for unmetered/dev rooms. */
   projectId: string | null;
+  /**
+   * Cloudflare placement hint recorded at reservation, echoed to the client to
+   * forward on connect (applied to the DO on first contact). Null = default
+   * placement (near the first client).
+   */
+  locationHint: string | null;
   /** Live count reported by the room DO; null until the room first reports. */
   reported: number | null;
   /** Highest report seq seen; guards against out-of-order report delivery. */
@@ -173,11 +180,15 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     filter: string,
     maxClients: number,
     projectId?: string,
-  ): { roomId: string; sessionId: string } {
+    region?: string,
+  ): { roomId: string; sessionId: string; region?: string } {
     const now = Date.now();
     this.prune(now);
 
     const pid = projectId ?? null;
+    // Defensive: an unknown hint reserves a default-placed room rather than
+    // failing (the /api/matchmake boundary already returns a 400 for bad input).
+    const hint = region && isLocationHint(region) ? region : null;
     let target: string | undefined;
     for (const [id, room] of this.rooms) {
       if (
@@ -197,6 +208,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
         filter,
         maxClients: Math.max(1, maxClients),
         projectId: pid,
+        locationHint: hint,
         reported: null,
         reportSeq: 0,
         lastReportAt: now,
@@ -206,7 +218,10 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     const sessionId = crypto.randomUUID();
     this.reservations.set(sessionId, { roomId: target, expiresAt: now + RESERVATION_TTL_MS });
     this.rememberIssued(sessionId, target, now);
-    return { roomId: target, sessionId };
+    // Echo the room's recorded hint (a reused room keeps its original placement)
+    // so the client forwards it on connect.
+    const roomHint = this.rooms.get(target)?.locationHint ?? undefined;
+    return roomHint ? { roomId: target, sessionId, region: roomHint } : { roomId: target, sessionId };
   }
 
   /** Record an issued session, evicting the oldest when at capacity. */

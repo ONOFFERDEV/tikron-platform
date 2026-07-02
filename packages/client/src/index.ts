@@ -11,6 +11,7 @@ import {
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { createPartySocketTransport, type Transport, type TransportFactory } from "./transport.js";
 import { ClockSync } from "./clock.js";
+import { withNetworkConditions, type NetworkConditions } from "./net-conditions.js";
 
 export type { Transport, TransportFactory, TransportOptions } from "./transport.js";
 export { createPartySocketTransport } from "./transport.js";
@@ -18,6 +19,11 @@ export { InputPredictor, SnapshotBuffer } from "./netcode.js";
 export type { Predictable, Snapshot } from "./netcode.js";
 export { ClockSync } from "./clock.js";
 export type { ClockSyncOptions } from "./clock.js";
+export { withNetworkConditions } from "./net-conditions.js";
+export type { NetworkConditions } from "./net-conditions.js";
+
+/** Warn once (not per room) when the dev network simulator is active. */
+let networkConditionsWarned = false;
 
 export type ServerMessageHandler = (message: ServerMessage) => void;
 export type PayloadHandler = (payload: unknown) => void;
@@ -37,6 +43,11 @@ export interface GameClientOptions {
   stateCodec?: Codec<unknown>;
   /** Disable automatic clock synchronization (`room.clock` stays at offset 0). */
   disableClockSync?: boolean;
+  /**
+   * Dev-only: wrap the transport in a simulated bad network (latency/jitter/loss) to
+   * test how the game feels under adverse conditions. Leave unset in production.
+   */
+  networkConditions?: NetworkConditions;
   /** Override the transport factory. Primarily for tests. */
   createTransport?: TransportFactory;
 }
@@ -91,7 +102,16 @@ export class Room {
     this.stateCodec = stateCodec;
     this.clockEnabled = !opts.disableClockSync;
     this.clock = new ClockSync({
-      send: (t0) => this.transport.send(encode({ t: ClientMessageType.Time, t0 })),
+      // Include the current RTT estimate so the server can populate
+      // `client.rttMs` (used by lag compensation / rewind on the room side).
+      send: (t0) =>
+        this.transport.send(
+          encode({
+            t: ClientMessageType.Time,
+            t0,
+            ...(this.clock && this.clock.rttMs > 0 ? { rtt: Math.round(this.clock.rttMs) } : {}),
+          }),
+        ),
     });
 
     this.welcome = new Promise<WelcomeMessage>((resolve) => {
@@ -245,20 +265,26 @@ export class GameClient {
 
   /**
    * Ask the matchmaker for a room of this client's party (type), optionally
-   * filtered by `mode`. Returns the room id to join and a reserved session id.
+   * filtered by `mode` and placed near a `region` (Cloudflare location hint:
+   * wnam, enam, weur, eeur, apac, oc, afr, me — applies only when a NEW room is
+   * created). Returns the room id, a reserved session id, and the room's region
+   * (echoed back). Pass the region into `joinOrCreate` params so first contact
+   * carries the placement hint:
+   * `client.joinOrCreate(m.roomId, { _session: m.sessionId, ...(m.region ? { region: m.region } : {}) })`
    * (Browser-oriented: uses a same-origin `/api/matchmake` request.)
    */
   async matchmake(
-    opts: { type?: string; mode?: string; maxClients?: number } = {},
-  ): Promise<{ roomId: string; sessionId: string }> {
+    opts: { type?: string; mode?: string; maxClients?: number; region?: string } = {},
+  ): Promise<{ roomId: string; sessionId: string; region?: string }> {
     const query = new URLSearchParams({
       type: opts.type ?? this.party,
       mode: opts.mode ?? "",
       max: String(opts.maxClients ?? 8),
     });
+    if (opts.region) query.set("region", opts.region);
     const res = await fetch(`/api/matchmake?${query.toString()}`);
     if (!res.ok) throw new Error(`matchmake failed: HTTP ${res.status}`);
-    return (await res.json()) as { roomId: string; sessionId: string };
+    return (await res.json()) as { roomId: string; sessionId: string; region?: string };
   }
 
   /**
@@ -271,13 +297,25 @@ export class GameClient {
     if (this.options.authToken) query._auth = this.options.authToken;
 
     const factory = this.options.createTransport ?? createPartySocketTransport;
-    const transport = factory({
+    let transport = factory({
       host: this.host,
       room,
       party: this.party,
       query,
       WebSocketPolyfill: this.options.WebSocketPolyfill,
     });
+
+    if (this.options.networkConditions) {
+      transport = withNetworkConditions(transport, this.options.networkConditions);
+      if (!networkConditionsWarned) {
+        networkConditionsWarned = true;
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[@tikron/client] networkConditions is active — simulating a degraded network. " +
+            "Remove it for production.",
+        );
+      }
+    }
 
     const roomHandle = new Room(room, transport, this.options.stateCodec, {
       disableClockSync: this.options.disableClockSync,

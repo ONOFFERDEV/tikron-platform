@@ -235,3 +235,74 @@ describe("agent-friendly config errors", () => {
     warn.mockRestore();
   });
 });
+
+describe("IoArenaRoom lag compensation", () => {
+  // A target sweeping +50 units/tick; the shooter's RTT is reported via c:time.
+  class LagArena extends IoArenaRoom<ArenaState> {
+    protected readonly codec = ArenaSchema;
+    protected override tickMs = 50;
+    protected override lagCompensation = true;
+    protected override lagInterpolationMs = 0; // isolate the RTT rewind
+    protected override lagCompensationDepthMs = 1000;
+    override onReady(): void {
+      this.setState({ players: { target: { x: 0, y: 0 } } });
+    }
+    protected override onTick(): void {
+      const t = this.state.players.target;
+      if (t) t.x += 50;
+    }
+    protected override lagSnapshot(): Map<string, { x: number; y: number }> {
+      return new Map(Object.entries(this.state.players).map(([id, p]) => [id, { x: p.x, y: p.y }]));
+    }
+    peekRewind(client: Client): Map<string, { x: number; y: number }> {
+      return this["rewind"](client);
+    }
+    get targetX(): number {
+      return this.state.players.target?.x ?? 0;
+    }
+  }
+
+  it("rewinds to what the shooter saw (RTT ago), where a current-state check would miss", async () => {
+    const ctx = new FakeCtx();
+    const room = new LagArena({ id: "r", ctx });
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "shooter");
+
+    await vi.advanceTimersByTimeAsync(500); // 10 ticks → target at x = 500
+
+    // The client reports a 100ms round-trip on a clock-sync ping.
+    await room._message(conn, JSON.stringify({ t: "c:time", t0: 1, rtt: 100 }));
+    const client = room["clientList"]().find((c) => c.id === "shooter")!;
+    expect(client.rttMs).toBe(100);
+
+    const rewound = room.peekRewind(client).get("target")!;
+    expect(room.targetX).toBe(500);
+    expect(rewound.x).toBe(400); // 100ms = 2 ticks back
+
+    // Hitscan aimed where the shooter saw the target: hits when rewound, misses vs current.
+    const aim = rewound.x;
+    const hitRadius = 25;
+    expect(Math.abs(aim - rewound.x) <= hitRadius).toBe(true);
+    expect(Math.abs(aim - room.targetX) <= hitRadius).toBe(false);
+  });
+
+  it("throws an agent-legible error if rewind() is used without lag compensation", async () => {
+    class NoLag extends IoArenaRoom<ArenaState> {
+      protected readonly codec = ArenaSchema;
+      override onReady(): void {
+        this.setState({ players: {} });
+      }
+      protected override onTick(): void {}
+      poke(client: Client): unknown {
+        return this["rewind"](client);
+      }
+    }
+    const ctx = new FakeCtx();
+    const room = new NoLag({ id: "r", ctx });
+    await room._create();
+    await room._connect(ctx.open("c1"), "sess-a");
+    const client = room["clientList"]()[0]!;
+    expect(() => room.poke(client)).toThrow(/rewind\(\) requires lag compensation/);
+  });
+});

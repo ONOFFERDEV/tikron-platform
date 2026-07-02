@@ -73,6 +73,12 @@ export interface ClientGameMessage {
 export interface TimeRequestMessage {
   t: typeof ClientMessageType.Time;
   t0: number;
+  /**
+   * The client's own latest round-trip estimate (ms), if it has one. Sent so the
+   * server can track per-connection RTT for server-side lag compensation
+   * (rewinding hit checks to what the shooter saw). Absent on the first ping.
+   */
+  rtt?: number;
 }
 
 export type ClientMessage =

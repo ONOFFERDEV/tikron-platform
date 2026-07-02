@@ -26,6 +26,7 @@ import {
 } from "./platform/api.js";
 import { getProject, submitScore } from "./platform/db.js";
 import { verifyJwt } from "./platform/jwt.js";
+import { isLocationHint, resolveLocationHint, LOCATION_HINTS_LIST } from "./region.js";
 
 export { Matchmaker };
 
@@ -173,6 +174,13 @@ async function handleApi(url: URL, env: Env): Promise<Response> {
     const type = url.searchParams.get("type") ?? "agar-room";
     const mode = url.searchParams.get("mode") ?? "";
     const max = Number(url.searchParams.get("max") ?? "8");
+    const region = url.searchParams.get("region") ?? undefined;
+    if (region && !isLocationHint(region)) {
+      return Response.json(
+        { error: "invalid_region", message: `region must be one of: ${LOCATION_HINTS_LIST}` },
+        { status: 400 },
+      );
+    }
     if (resolved.projectId) {
       const cap = await mm.checkCaps(resolved.projectId, true);
       if (cap) return Response.json({ error: cap }, { status: 403 });
@@ -182,6 +190,7 @@ async function handleApi(url: URL, env: Env): Promise<Response> {
       mode,
       Number.isFinite(max) ? max : 8,
       resolved.projectId ?? undefined,
+      region,
     );
     return Response.json(result);
   }
@@ -214,8 +223,12 @@ export default {
       // Enforce API keys (unless dev-bypassed) and forward the project to the room.
       const gate = await enforceConnection(env, request, url);
       if (!gate.ok) return Response.json({ error: gate.code }, { status: gate.status });
+      // Apply a placement hint (client-forwarded `?region=`) on the DO get. It only
+      // affects the instance that creates the room, so passing it on every connect
+      // is harmless — later connects to a placed room are ignored by the platform.
+      const hint = resolveLocationHint(url);
       return (
-        (await routePartykitRequest(gate.request, env)) ??
+        (await routePartykitRequest(gate.request, env, hint ? { locationHint: hint } : undefined)) ??
         new Response("not found", { status: 404 })
       );
     }

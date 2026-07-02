@@ -116,6 +116,56 @@ management — a bandwidth win AND a security boundary; requires a `stateCodec`)
 Reconnection: inside `onLeave`, `await this.allowReconnection(client, 30)` resolves if
 the player returns within the window (needs a `?_session=` key) and rejects on timeout.
 
+## Test your room
+
+Unit-test room logic in-process with the `@tikron/server/testing` harness — no Durable
+Object, no WebSocket, no network. Connect fake clients, send intents, advance time, assert.
+
+```ts
+import { createTestRoom } from "@tikron/server/testing";
+import { MyRoom } from "./my-room.js";
+
+const h = await createTestRoom(MyRoom);   // "immediate" flush mode — no timers needed
+const alice = await h.connect("alice");    // a session-keyed fake client
+const bob = await h.connect("bob");
+await alice.send("move", { x: 1, y: 2 });  // a developer intent (auto-seq'd)
+await h.flush();                           // drain the coalesced state flush, then assert
+
+h.snapshot();            // deep copy of the authoritative state
+alice.lastState();       // the last state THIS client received (AOI-filtered if enabled)
+alice.frames();          // JSON frames this client got; h.broadcastsOf("s:msg") for broadcasts
+h.reports;               // occupancy reports (join / final leave / heartbeat)
+```
+
+Time-dependent behavior (reconnection windows, heartbeats, throttled flush) needs the
+runner's fake timers:
+
+```ts
+vi.useFakeTimers();
+const drop = alice.close();   // runs onLeave — a preset opens a 30s reconnection window
+await h.advance(30_000);      // elapse it; then `await drop` — the seat is finalized
+```
+
+- **Binary rooms:** pass `{ codec }` to `createTestRoom`, then read `alice.binaryFrames()`
+  (decoded) and `alice.lastState()`.
+- **Real throttling:** `createTestRoom(MyRoom, { sync: "throttled" })` + `h.advance(50)`.
+- **Persistence:** assert on `h.storage.kv` and `h.storage.alarm`.
+
+### Feel the game under a bad network
+
+Wrap the client transport to simulate latency/jitter/loss (dev only):
+
+```ts
+const client = new GameClient(host, {
+  networkConditions: { latencyMs: 120, jitterMs: 30, lossRate: 0.05, seed: 1 },
+});
+```
+
+Loss drops only binary **state frames** by default (the netcode recovers from a lost
+delta); outbound intents/acks are never dropped, and a fixed `seed` makes runs
+reproducible. Remove it for production. For an end-to-end check against real workerd,
+keep a WebSocket smoke test (see the skill).
+
 ## Command reference
 
 | Command | What it does |
@@ -191,16 +241,20 @@ what is in progress — pick your genre and architecture accordingly.
   WebTransport server-side today, so there is no date — don't design around it yet.
 - **Deploys & live rooms.** `wrangler deploy` restarts your Durable Objects. Tikron rooms
   survive it: the durable snapshot (`this.state` + seats) plus the 30 s session-reconnection
-  window mean players reconnect into the same seat and state. **Caveat:** a change to your
-  persisted **state shape** between versions is not auto-migrated — a room restored from an
-  old snapshot keeps the old shape. A migration hook is in progress (R2); until then, make
-  breaking state-shape changes when rooms are drained, or version your state and handle old
-  shapes in `onCreate`.
+  window mean players reconnect into the same seat and state. **State-shape changes across
+  versions:** bump `stateVersion` and override `migrateState(fromVersion, oldState)` to
+  transform an old snapshot into the new shape on restore. Returning `null` (the default)
+  discards the snapshot — the room starts fresh and its persisted seats are dropped — with a
+  dev-visible warning, so a redeploy that changes the shape never silently restores the old
+  one. Snapshots written before versioning are treated as version 1.
 - **Room placement.** A Durable Object is created near whoever opens the room and **stays
   there** for its life. A group spread across regions sees asymmetric latency (players far
-  from the creator pay the distance). Region hints are in progress (R2). For now, **matchmake
-  by region** — bucket players with the matchmaker `mode`/`filterBy` so a room's members are
-  near each other.
+  from the creator pay the distance). Pass a `region` hint to matchmaking
+  (`/api/matchmake?...&region=weur`; one of `wnam, enam, weur, eeur, apac, oc, afr, me`) to
+  place the room's Durable Object near a chosen geography on first contact — the hint is
+  recorded at reservation and applied when the first client connects. Still **matchmake by
+  region** (bucket players with the matchmaker `mode`/`filterBy`) so a room's members are near
+  each other and near its placement.
 - **Matchmaking scope.** What exists: `joinOrCreate` + reservation + `filterBy` + a live
   lobby list. What does **not** exist yet: skill/MMR rating, parties/pre-made groups, and
   reconnect-into-queue. Build ranked matching or party grouping in your own app layer on top
