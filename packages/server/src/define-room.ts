@@ -48,10 +48,9 @@ export function defineRoom<TState>(RoomImpl: RoomClass<TState>): DefinedRoomClas
       return this.#room;
     }
 
-    override async onStart(): Promise<void> {
-      await this.#ensure();
-    }
-
+    // NOTE: do not create the room in onStart — partyserver's `this.name` is not
+    // reliably set that early in some runtimes (e.g. `wrangler dev`). The room is
+    // created lazily on the first connection, where the name is guaranteed.
     override async onConnect(conn: Connection): Promise<void> {
       const room = await this.#ensure();
       await room._connect(conn);

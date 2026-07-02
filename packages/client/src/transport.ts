@@ -36,6 +36,8 @@ export const createPartySocketTransport: TransportFactory = (opts) => {
     query: opts.query,
     WebSocket: opts.WebSocketPolyfill as never,
   });
+  // Binary state frames must arrive as ArrayBuffer, not the WebSocket default Blob.
+  socket.binaryType = "arraybuffer";
 
   return {
     send: (data) => socket.send(data),
