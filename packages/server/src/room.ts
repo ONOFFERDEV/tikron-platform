@@ -76,6 +76,12 @@ const STATE_DELTA = 0x02;
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
 
+/** Close code sent to a new connection rejected because the room is at capacity. */
+export const CLOSE_ROOM_FULL = 4002;
+
+/** Close code sent to a connection whose supplied session key failed validation. */
+export const CLOSE_INVALID_SESSION = 4003;
+
 function frame(tag: number, body: Uint8Array): Uint8Array {
   const out = new Uint8Array(body.length + 1);
   out[0] = tag;
@@ -125,6 +131,22 @@ export abstract class Room<TState = unknown> {
   /** Max developer messages accepted per client per second before dropping. */
   protected maxInputsPerSecond = 30;
 
+  /**
+   * Hard seat cap enforced by the room itself (not just the matchmaker, which is
+   * advisory — a client connecting directly to the room URL bypasses it). A new
+   * seat that would exceed this is rejected with a `room_full` error and closed;
+   * reattaching/taking over an existing seat is always allowed. Default: no cap.
+   */
+  protected maxClients = Infinity;
+
+  /**
+   * Interval for periodic occupancy heartbeats while the room holds any seats.
+   * The matchmaker uses these to prune phantom rooms (a room DO that dies without
+   * a clean final leave). No timer runs while the room is empty. Overridable so
+   * tests can shorten it; set to 0 or below to disable heartbeats entirely.
+   */
+  protected occupancyHeartbeatMs = 30_000;
+
   /** When true, ack each processed input's seq (enables client reconciliation). */
   protected sendAcks = false;
 
@@ -146,6 +168,7 @@ export abstract class Room<TState = unknown> {
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
   private occupancySeq = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(init: RoomInit) {
     this.id = init.id;
@@ -303,6 +326,20 @@ export abstract class Room<TState = unknown> {
 
     if (existing) {
       await this.reattach(existing, clientId, conn);
+      return;
+    }
+
+    // A NEW seat is subject to the capacity cap; reattach/takeover (handled
+    // above) never counts as new, so a reconnecting player is never locked out.
+    if (this.records.size >= this.maxClients) {
+      conn.send(
+        encode({
+          t: ServerMessageType.Error,
+          code: "room_full",
+          message: "room is at capacity",
+        }),
+      );
+      conn.close(CLOSE_ROOM_FULL, "room is at capacity");
       return;
     }
 
@@ -475,12 +512,31 @@ export abstract class Room<TState = unknown> {
 
     if (this.records.size === 0) {
       this.clearSimulationInterval();
+      this.clearHeartbeat();
       await this.onDispose();
     }
   }
 
   private reportOccupancy(): void {
     this.ctx.reportOccupancy?.(this.records.size, [...this.records.keys()], ++this.occupancySeq);
+    this.syncHeartbeat();
+  }
+
+  /** Run the occupancy heartbeat iff the room is occupied; idempotent. */
+  private syncHeartbeat(): void {
+    const shouldRun = this.records.size > 0 && this.occupancyHeartbeatMs > 0;
+    if (shouldRun && this.heartbeatTimer === null) {
+      this.heartbeatTimer = setInterval(() => this.reportOccupancy(), this.occupancyHeartbeatMs);
+    } else if (!shouldRun) {
+      this.clearHeartbeat();
+    }
+  }
+
+  private clearHeartbeat(): void {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 
   private makeClient(clientId: string): Client {

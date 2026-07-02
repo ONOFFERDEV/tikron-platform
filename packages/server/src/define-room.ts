@@ -1,5 +1,12 @@
 import { Server, type Connection, type ConnectionContext } from "partyserver";
-import { Room, type RoomConnection, type RoomContext, type RoomInit } from "./room.js";
+import { encode, ServerMessageType } from "@playedge/protocol";
+import {
+  Room,
+  CLOSE_INVALID_SESSION,
+  type RoomConnection,
+  type RoomContext,
+  type RoomInit,
+} from "./room.js";
 
 export type RoomClass<TState> = new (init: RoomInit) => Room<TState>;
 
@@ -26,6 +33,17 @@ export interface DefineRoomOptions {
    * reservation guesses. Errors are swallowed (reporting is best-effort).
    */
   reportOccupancy?: (env: unknown, report: OccupancyReport) => void | Promise<void>;
+  /**
+   * Optional guard for self-supplied session keys. When configured and a
+   * connection carries a session key (`?_session=`), it is awaited BEFORE the
+   * room accepts the connection; returning false rejects it with an
+   * `invalid_session` error and closes the socket. Connections without a session
+   * key (which fall back to the transport connection id) skip validation.
+   */
+  validateSession?: (
+    env: unknown,
+    info: { roomId: string; session: string },
+  ) => boolean | Promise<boolean>;
 }
 
 /** The query parameter carrying a client's stable session key. */
@@ -102,7 +120,24 @@ export function defineRoom<TState>(
     // created lazily on the first connection, where the name is guaranteed.
     override async onConnect(conn: Connection, ctx: ConnectionContext): Promise<void> {
       const room = await this.#ensure();
-      await room._connect(conn, sessionFrom(ctx));
+      const session = sessionFrom(ctx);
+      // A self-supplied session key is validated before it can claim a seat; a
+      // no-session connection uses its (unguessable) conn id and is exempt.
+      if (session && options?.validateSession) {
+        const ok = await options.validateSession(this.env, { roomId: this.name, session });
+        if (!ok) {
+          conn.send(
+            encode({
+              t: ServerMessageType.Error,
+              code: "invalid_session",
+              message: "session not recognized",
+            }),
+          );
+          conn.close(CLOSE_INVALID_SESSION, "invalid session");
+          return;
+        }
+      }
+      await room._connect(conn, session);
     }
 
     override async onMessage(conn: Connection, message: string | ArrayBuffer): Promise<void> {

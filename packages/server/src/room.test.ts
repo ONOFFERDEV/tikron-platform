@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   Room,
   CLOSE_SESSION_TAKEN_OVER,
+  CLOSE_ROOM_FULL,
   type Client,
   type RoomConnection,
   type RoomContext,
@@ -319,5 +320,95 @@ describe("Room occupancy reporting", () => {
     await vi.advanceTimersByTimeAsync(room.windowSec * 1000);
     await closing;
     expect(ctx.reports.at(-1)).toEqual({ count: 0, sessions: [] });
+  });
+
+  it("emits periodic occupancy heartbeats while seated, and stops when empty", async () => {
+    const { ctx, room } = await setup();
+    room["occupancyHeartbeatMs"] = 1000;
+    const connA = ctx.open("conn-1");
+    await room._connect(connA, "sess-a");
+    const afterJoin = ctx.reports.length;
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.reports.length).toBe(afterJoin + 1);
+    expect(ctx.reports.at(-1)).toEqual({ count: 1, sessions: ["sess-a"] });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ctx.reports.length).toBe(afterJoin + 2); // still ticking while seated
+
+    room.useReconnection = false;
+    ctx.drop("conn-1");
+    await room._close(connA);
+    const afterLeave = ctx.reports.length;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(ctx.reports.length).toBe(afterLeave); // heartbeat cleared once empty
+  });
+});
+
+describe("Room capacity enforcement", () => {
+  it("rejects a new seat when the room is at capacity", async () => {
+    const { ctx, room } = await setup();
+    room["maxClients"] = 1;
+    const connA = ctx.open("conn-1");
+    await room._connect(connA, "sess-a");
+
+    const connB = ctx.open("conn-2");
+    await room._connect(connB, "sess-b");
+
+    const err = connB.frames().find((f) => f.t === "s:error");
+    expect(err?.code).toBe("room_full");
+    expect(connB.closed?.code).toBe(CLOSE_ROOM_FULL);
+    expect(room.playerIds).toEqual(["sess-a"]); // no seat created for the rejected conn
+  });
+
+  it("still allows an existing seat to reattach when the room is full", async () => {
+    const { ctx, room } = await setup();
+    room["maxClients"] = 1;
+    const connA = ctx.open("conn-1");
+    await room._connect(connA, "sess-a");
+
+    // Drop then reconnect the same session while the room is at capacity (1/1).
+    ctx.drop("conn-1");
+    const closing = room._close(connA);
+    await vi.advanceTimersByTimeAsync(1000);
+    const connB = ctx.open("conn-2");
+    await room._connect(connB, "sess-a"); // reattach — not a new seat
+    await closing;
+
+    const welcome = connB.frames().find((f) => f.t === "s:welcome");
+    expect(welcome?.reconnected).toBe(true);
+    expect(connB.closed).toBeNull();
+    expect(room.playerIds).toEqual(["sess-a"]);
+  });
+
+  it("allows a takeover of an existing seat even at capacity", async () => {
+    const { ctx, room } = await setup();
+    room["maxClients"] = 1;
+    const connA = ctx.open("conn-1");
+    await room._connect(connA, "sess-a");
+
+    const connB = ctx.open("conn-2");
+    await room._connect(connB, "sess-a"); // same session, conn-1 still open
+
+    expect(connA.closed?.code).toBe(CLOSE_SESSION_TAKEN_OVER);
+    expect(connB.closed).toBeNull();
+    expect(room.playerIds).toEqual(["sess-a"]);
+  });
+
+  it("accepts a new seat again after a full room's seat is finalized", async () => {
+    const { ctx, room } = await setup();
+    room["maxClients"] = 1;
+    room.useReconnection = false;
+    const connA = ctx.open("conn-1");
+    await room._connect(connA, "sess-a");
+
+    ctx.drop("conn-1");
+    await room._close(connA); // no window — finalizes immediately, freeing the seat
+    expect(room.playerIds).toEqual([]);
+
+    const connB = ctx.open("conn-2");
+    await room._connect(connB, "sess-b");
+    expect(connB.closed).toBeNull();
+    expect(room.playerIds).toEqual(["sess-b"]);
   });
 });

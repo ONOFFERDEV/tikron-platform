@@ -96,10 +96,16 @@ function matchmaker(env: Env) {
   return env.Matchmaker.get(env.Matchmaker.idFromName("global"));
 }
 
-/** Rooms report live occupancy to the matchmaker on every join / final leave. */
+/**
+ * Rooms report live occupancy to the matchmaker on every join / final leave (and
+ * on a periodic heartbeat), and validate self-supplied session keys against the
+ * ones the matchmaker issued for the room.
+ */
 const roomOptions: DefineRoomOptions = {
   reportOccupancy: (env, { roomId, count, sessions, seq }) =>
     matchmaker(env as Env).report(roomId, count, sessions, seq),
+  validateSession: (env, { roomId, session }) =>
+    matchmaker(env as Env).validateSession(roomId, session),
 };
 
 /** Realtime .io example — Simulation + MovementValidation modules. */

@@ -1,4 +1,9 @@
-export { Room, CLOSE_SESSION_TAKEN_OVER } from "./room.js";
+export {
+  Room,
+  CLOSE_SESSION_TAKEN_OVER,
+  CLOSE_ROOM_FULL,
+  CLOSE_INVALID_SESSION,
+} from "./room.js";
 export type {
   Client,
   RoomContext,

@@ -45,6 +45,7 @@ export class AgarRoomImpl extends Room<AgarState> {
   override onCreate(): void {
     this.stateCodec = AgarSchema;
     this.sendAcks = true;
+    this.maxClients = 20; // room-enforced cap; matches the demo's matchmake max
     this.enableAOI({
       viewRadius: AGAR.viewRadius,
       mapFields: ["players", "orbs"],
