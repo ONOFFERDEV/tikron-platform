@@ -1,0 +1,45 @@
+# GitHub Actions CI — parked here to keep it out of git history.
+#
+# It was moved out of `.github/workflows/` so the repo could be pushed with a
+# GitHub token that lacks the `workflow` OAuth scope. To ENABLE CI:
+#
+#   1. Give your token the scope:   gh auth refresh -h github.com -s workflow
+#   2. Move this file into place:    mkdir -p .github/workflows && \
+#                                    git mv docs/github-actions-ci.yml .github/workflows/ci.yml
+#   3. Commit & push.
+#
+# --- workflow below ---
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
