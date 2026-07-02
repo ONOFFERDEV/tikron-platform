@@ -2104,6 +2104,7 @@ var keys = /* @__PURE__ */ new Set();
 var tracers = [];
 var effects = [];
 var hitFlash = /* @__PURE__ */ new Map();
+var lastDrawn = /* @__PURE__ */ new Map();
 var prevAlive = /* @__PURE__ */ new Map();
 var sampleServerNow = () => performance.now();
 var nickname = "";
@@ -2236,15 +2237,16 @@ function startGame(room) {
   room.onMessage("shot", (payload) => {
     const p = payload;
     const now = performance.now();
+    const anchor = p.from && lastDrawn.get(p.from) || { x: p.ox, y: p.oy };
     tracers.push({
-      ox: p.ox,
-      oy: p.oy,
-      tx: p.ox + Math.cos(p.dir) * SHOOTER.shotRange,
-      ty: p.oy + Math.sin(p.dir) * SHOOTER.shotRange,
+      ox: anchor.x,
+      oy: anchor.y,
+      tx: anchor.x + Math.cos(p.dir) * SHOOTER.shotRange,
+      ty: anchor.y + Math.sin(p.dir) * SHOOTER.shotRange,
       hit: p.hitId !== void 0,
       until: now + 120
     });
-    effects.push({ kind: "muzzle", x: p.ox, y: p.oy, dir: p.dir, until: now + 80 });
+    effects.push({ kind: "muzzle", x: anchor.x, y: anchor.y, dir: p.dir, until: now + 80 });
     playSound("shot");
     if (p.hitId !== void 0) {
       hitFlash.set(p.hitId, now + 140);
@@ -2344,6 +2346,7 @@ function render() {
   lastRenderMs = now;
   const dir = moveDir();
   const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
+  lastDrawn.set(myId, { x: renderX, y: renderY });
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -2373,6 +2376,7 @@ function render() {
       const pl = view.players[id];
       seen.add(id);
       const sm = smoother.update(id, { x: pl.x, y: pl.y, angle: pl.aim }, dtMs);
+      lastDrawn.set(id, { x: sm.x, y: sm.y });
       drawPlayer(
         { aim: sm.angle, hp: pl.hp, score: pl.score, alive: pl.alive },
         sm.x - camX,
@@ -2384,6 +2388,9 @@ function render() {
     }
   }
   smoother.prune(seen);
+  for (const id of [...lastDrawn.keys()]) {
+    if (id !== myId && !seen.has(id)) lastDrawn.delete(id);
+  }
   const meState = view?.players[myId];
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(

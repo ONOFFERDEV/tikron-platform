@@ -265,6 +265,8 @@ type Effect = { kind: "muzzle"; x: number; y: number; dir: number; until: number
 const effects: Effect[] = [];
 /** Per-player red hit-flash expiry (server clock–independent, wall-clock ms). */
 const hitFlash = new Map<string, number>();
+/** Where each player was DRAWN this frame (self = render pos, remotes = smoothed) — anchors shot visuals to sprites instead of trailing server positions. */
+const lastDrawn = new Map<string, { x: number; y: number }>();
 /** Previous liveness per player, to detect death/respawn transitions. */
 const prevAlive = new Map<string, boolean>();
 /** Sample the interpolation buffer on the server's clock (set once connected). */
@@ -437,17 +439,23 @@ function startGame(room: Room): void {
 
   // Server-broadcast shots — tracer + muzzle flash + sfx; hit implies a connect.
   room.onMessage("shot", (payload) => {
-    const p = payload as { ox: number; oy: number; dir: number; hitId?: string };
+    const p = payload as { from?: string; ox: number; oy: number; dir: number; hitId?: string };
     const now = performance.now();
+    // The server's ox/oy is the shooter's AUTHORITATIVE position, which trails the
+    // local render (half an RTT + a tick) and leads remote interpolation — so a
+    // moving shooter's tracer would spawn visibly behind (or ahead of) their sprite.
+    // Anchor the visual to wherever the shooter is actually DRAWN this frame; the
+    // server origin stays the fallback for shooters outside the view.
+    const anchor = (p.from && lastDrawn.get(p.from)) || { x: p.ox, y: p.oy };
     tracers.push({
-      ox: p.ox,
-      oy: p.oy,
-      tx: p.ox + Math.cos(p.dir) * SHOOTER.shotRange,
-      ty: p.oy + Math.sin(p.dir) * SHOOTER.shotRange,
+      ox: anchor.x,
+      oy: anchor.y,
+      tx: anchor.x + Math.cos(p.dir) * SHOOTER.shotRange,
+      ty: anchor.y + Math.sin(p.dir) * SHOOTER.shotRange,
       hit: p.hitId !== undefined,
       until: now + 120,
     });
-    effects.push({ kind: "muzzle", x: p.ox, y: p.oy, dir: p.dir, until: now + 80 });
+    effects.push({ kind: "muzzle", x: anchor.x, y: anchor.y, dir: p.dir, until: now + 80 });
     playSound("shot");
     if (p.hitId !== undefined) {
       hitFlash.set(p.hitId, now + 140);
@@ -605,6 +613,7 @@ function render(): void {
   // sub-pixel boundaries.
   const dir = moveDir();
   const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
+  lastDrawn.set(myId, { x: renderX, y: renderY });
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -640,6 +649,7 @@ function render(): void {
       seen.add(id);
       // Ease each remote's buffered position/facing so low-rate tier updates don't pop.
       const sm = smoother.update(id, { x: pl.x, y: pl.y, angle: pl.aim }, dtMs);
+      lastDrawn.set(id, { x: sm.x, y: sm.y });
       drawPlayer(
         { aim: sm.angle, hp: pl.hp, score: pl.score, alive: pl.alive },
         sm.x - camX,
@@ -652,6 +662,9 @@ function render(): void {
   }
   // Forget entities that left the AOI view so a re-entry snaps in rather than glides.
   smoother.prune(seen);
+  for (const id of [...lastDrawn.keys()]) {
+    if (id !== myId && !seen.has(id)) lastDrawn.delete(id);
+  }
 
   // Local player: drawn at the continuous render position (= camera centre) so it moves
   // uniformly with the world every frame and stays locked to screen centre.
