@@ -36,6 +36,8 @@ export interface Env {
   DB?: D1Database;
   /** "1" disables key enforcement and enables dev auth (local dev + tests only). */
   DEV_MODE?: string;
+  /** Keyless /parties connects fall back to this project (metered demo) when set. */
+  DEMO_PROJECT_ID?: string;
   /** HMAC secret for dashboard session cookies. */
   SESSION_SECRET?: string;
   /** GitHub OAuth app credentials for the dashboard login. */

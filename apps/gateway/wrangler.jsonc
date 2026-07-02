@@ -33,5 +33,10 @@
   // dashboard index.html); files that exist are served by the assets layer
   // before the worker runs.
   "assets": { "directory": "./public", "binding": "ASSETS" },
+  "vars": {
+    // Keyless connects (the public demos) are attributed to this project so they
+    // stay metered + capped in production. Row seeded via scripts/seed-demo.sql.
+    "DEMO_PROJECT_ID": "demo"
+  },
   "observability": { "enabled": true }
 }

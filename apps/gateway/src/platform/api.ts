@@ -43,11 +43,19 @@ export type ProjectResolution =
   | { ok: true; projectId: string | null }
   | { ok: false; status: number; code: string };
 
-/** Resolve the calling project from `?apiKey=`. Dev bypass → { projectId: null }. */
+/**
+ * Resolve the calling project from `?apiKey=`. Dev bypass → { projectId: null }.
+ * A MISSING key falls back to `env.DEMO_PROJECT_ID` when configured — that keeps
+ * the public demos alive in production while still metering and capping them
+ * under a real (demo) project. An INVALID key never falls back.
+ */
 export async function resolveProject(env: Env, url: URL): Promise<ProjectResolution> {
   if (devBypass(env)) return { ok: true, projectId: null };
   const apiKey = url.searchParams.get("apiKey");
-  if (!apiKey) return { ok: false, status: 401, code: "missing_api_key" };
+  if (!apiKey) {
+    if (env.DEMO_PROJECT_ID) return { ok: true, projectId: env.DEMO_PROJECT_ID };
+    return { ok: false, status: 401, code: "missing_api_key" };
+  }
   const projectId = await resolveProjectId(env.DB!, apiKey);
   if (!projectId) return { ok: false, status: 401, code: "invalid_api_key" };
   return { ok: true, projectId };

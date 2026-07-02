@@ -52,6 +52,18 @@ describe("API-key enforcement (DEV_MODE off)", () => {
     expect(ok).toEqual({ ok: true, projectId });
   });
 
+  it("falls back to DEMO_PROJECT_ID for a missing key, but never for a bad key", async () => {
+    const e = { ...enforcedEnv(), DEMO_PROJECT_ID: "demo" } as Env;
+
+    // Missing key → attributed to the metered demo project (public demos).
+    const missing = await resolveProject(e, new URL("https://x/parties/agar-room/r"));
+    expect(missing).toEqual({ ok: true, projectId: "demo" });
+
+    // A key that fails validation is a client error, not demo traffic.
+    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=pe_live_no"));
+    expect(bad).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
+  });
+
   it("forwards the resolved project to the room via _project on connect", async () => {
     const { projectId, apiKey } = await seedProjectWithKey();
     const url = new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(apiKey)}`);
