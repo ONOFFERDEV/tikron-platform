@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { GameClient, type Transport, type TransportOptions } from "./index.js";
+import {
+  GameClient,
+  RoomJoinError,
+  shouldReconnectAfterClose,
+  type Transport,
+  type TransportOptions,
+} from "./index.js";
 import {
   encode,
   decodeClientMessage,
@@ -13,6 +19,8 @@ class FakeTransport implements Transport {
   readonly sent: string[] = [];
   readonly options: TransportOptions;
   private messageCb: ((raw: RawData) => void) | undefined;
+  private closeCb: (() => void) | undefined;
+  private errorCb: ((err: unknown) => void) | undefined;
   private closed = false;
 
   constructor(options: TransportOptions) {
@@ -29,8 +37,12 @@ class FakeTransport implements Transport {
     this.messageCb = cb;
   }
   onOpen(): void {}
-  onClose(): void {}
-  onError(): void {}
+  onClose(cb: () => void): void {
+    this.closeCb = cb;
+  }
+  onError(cb: (err: unknown) => void): void {
+    this.errorCb = cb;
+  }
 
   // --- test helpers ---
   emit(message: ServerMessage): void {
@@ -38,6 +50,15 @@ class FakeTransport implements Transport {
   }
   emitRaw(raw: RawData): void {
     this.messageCb?.(raw);
+  }
+  /** Simulate the socket closing (an unsolicited server-side close before Welcome). */
+  emitClose(): void {
+    this.closed = true;
+    this.closeCb?.();
+  }
+  /** Simulate a transport error. */
+  emitError(err: unknown = new Error("socket error")): void {
+    this.errorCb?.(err);
   }
   get isClosed(): boolean {
     return this.closed;
@@ -379,5 +400,52 @@ describe("GameClient input pipeline (F3: subtick + batching)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("joinOrCreate rejection (pre-Welcome close/error)", () => {
+  it("rejects with the Error-frame code (room_full) when the socket closes pre-Welcome, and tears down without reconnecting", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("full-room");
+    // The room is at maxClients: the server sends an Error frame then closes the
+    // socket with 4002 — no Welcome ever arrives.
+    h.transport().emit({ t: ServerMessageType.Error, code: "room_full", message: "room is full" });
+    h.transport().emitClose();
+
+    await expect(pending).rejects.toBeInstanceOf(RoomJoinError);
+    await expect(pending).rejects.toHaveProperty("code", "room_full");
+    // (C) the underlying transport was torn down on rejection …
+    expect(h.transport().isClosed).toBe(true);
+    // … and 4002 is a terminal close code, so the transport layer never reconnects.
+    expect(shouldReconnectAfterClose(4002)).toBe(false);
+  });
+
+  it("rejects with connection-closed when no Error frame preceded the close", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("gone");
+    h.transport().emitClose(); // socket dropped before Welcome, no Error frame
+
+    await expect(pending).rejects.toBeInstanceOf(RoomJoinError);
+    await expect(pending).rejects.toHaveProperty("code", "connection-closed");
+    expect(h.transport().isClosed).toBe(true);
+  });
+
+  it("rejects on a pre-Welcome transport error as well", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("boom");
+    h.transport().emitError(new Error("ECONNREFUSED"));
+
+    await expect(pending).rejects.toBeInstanceOf(RoomJoinError);
+    await expect(pending).rejects.toHaveProperty("code", "connection-closed");
+  });
+
+  it("still resolves the normal Welcome path and ignores a later close (regression)", async () => {
+    const h = harness();
+    const pending = h.client.joinOrCreate("lobby");
+    h.transport().emit(h.welcome());
+    const room = await pending;
+    expect(room.connectionId).toBe("c1");
+    // A close AFTER connecting is ordinary teardown — it must not throw or reject.
+    expect(() => h.transport().emitClose()).not.toThrow();
   });
 });

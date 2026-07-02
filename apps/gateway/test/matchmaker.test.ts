@@ -1,9 +1,16 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env, runInDurableObject, abortAllDurableObjects } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
+import type { Env } from "../src/index.js";
 
 async function api(path: string): Promise<any> {
   const res = await SELF.fetch(`https://example.com${path}`);
   return res.json();
+}
+
+/** The single well-known Matchmaker DO stub (mirrors `matchmaker()` in index.ts). */
+function mmStub() {
+  const ns = (env as unknown as Env).Matchmaker;
+  return ns.get(ns.idFromName("global"));
 }
 
 describe("Matchmaker REST", () => {
@@ -56,5 +63,53 @@ describe("Matchmaker REST", () => {
 
     const c = await api("/api/matchmake?type=t-release&mode=&max=2");
     expect(c.roomId).toBe(a.roomId); // seat freed -> same room reused, not a new one
+  });
+});
+
+// The DO's ledger (rooms/reservations/issued) is in-memory; without persistence it
+// evaporates on idle eviction, so a room created for one player is gone before the
+// next arrives — every user lands in a fresh room. These drive the RPC surface
+// directly, then hard-reset every DO instance with abortAllDurableObjects() (resets
+// in-memory state, preserves durable storage) to force the cold start the
+// persistence layer must survive. See persistence.test.ts for the same pattern.
+describe("Matchmaker persistence across Durable Object eviction", () => {
+  it("reuses a live room after eviction instead of spinning up a new one", async () => {
+    const stub = mmStub();
+    const r1 = await runInDurableObject(stub, (mm) => mm.reserve("t-evict", "", 4));
+    // Room goes live: the report consumes the reservation and sets reported=1.
+    await runInDurableObject(stub, (mm) => mm.report(r1.roomId, 1, [r1.sessionId], 1));
+    // The ledger entry must be durable before the hard teardown.
+    await runInDurableObject(stub, (_mm, state) =>
+      expect(state.storage.get(`r:${r1.roomId}`)).resolves.toBeTruthy(),
+    );
+    await abortAllDurableObjects();
+
+    // Cold start rehydrates the ledger, so the next player joins the same room.
+    const r2 = await runInDurableObject(mmStub(), (mm) => mm.reserve("t-evict", "", 4));
+    expect(r2.roomId).toBe(r1.roomId);
+  });
+
+  it("keeps a pending (not-yet-connected) reservation's room across eviction", async () => {
+    const stub = mmStub();
+    const r1 = await runInDurableObject(stub, (mm) => mm.reserve("t-evict-res", "", 4));
+    await runInDurableObject(stub, (_mm, state) =>
+      expect(state.storage.get(`v:${r1.sessionId}`)).resolves.toBeTruthy(),
+    );
+    await abortAllDurableObjects();
+
+    const r2 = await runInDurableObject(mmStub(), (mm) => mm.reserve("t-evict-res", "", 4));
+    expect(r2.roomId).toBe(r1.roomId); // held seat survived -> same room, not a new one
+  });
+
+  it("still validates an issued session after eviction", async () => {
+    const stub = mmStub();
+    const r1 = await runInDurableObject(stub, (mm) => mm.reserve("t-evict-iss", "", 4));
+    await runInDurableObject(stub, (_mm, state) =>
+      expect(state.storage.get(`i:${r1.sessionId}`)).resolves.toBeTruthy(),
+    );
+    await abortAllDurableObjects();
+
+    const ok = await runInDurableObject(mmStub(), (mm) => mm.isIssued(r1.roomId, r1.sessionId));
+    expect(ok).toBe(true);
   });
 });

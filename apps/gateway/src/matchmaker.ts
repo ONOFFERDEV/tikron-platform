@@ -127,6 +127,77 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
   private cachedCapsAt = 0;
   private flushScheduled = false;
 
+  /**
+   * Persistence: the whole ledger (rooms/reservations/issued) and the metering
+   * accumulators (metered/usage) live in DO storage, one key per entry under a
+   * short prefix — `r:` rooms, `v:` reservations, `i:` issued, `m:` metered,
+   * `u:` usage. Per-key (not one big snapshot) bounds each write to the few
+   * entries a hot-path call actually touches; multiple puts within one RPC turn
+   * coalesce into a single storage transaction (~1 write per reserve/report).
+   * Without this the DO's in-memory maps evaporate on idle eviction, so a room
+   * created for one player is gone before the next player arrives — every user
+   * lands in a fresh room. Writes are fire-and-forget: the DO output gate holds
+   * the RPC response until they are durable (same pattern as the room snapshot).
+   */
+  constructor(ctx: DurableObjectState, env: MatchmakerEnv) {
+    super(ctx, env);
+    ctx.blockConcurrencyWhile(async () => {
+      const issuedEntries: [string, IssuedSession][] = [];
+      for (const [key, val] of await ctx.storage.list()) {
+        const id = key.slice(2);
+        switch (key[0]) {
+          case "r": this.rooms.set(id, val as RoomEntry); break;
+          case "v": this.reservations.set(id, val as Reservation); break;
+          case "i": issuedEntries.push([id, val as IssuedSession]); break;
+          case "m": this.metered.set(id, val as MeteredRoom); break;
+          case "u": this.usage.set(id, val as ProjectUsage); break;
+        }
+      }
+      // Reinsert issued in expiry order: expiresAt == insertion time + a fixed
+      // TTL, so this restores insertion order, keeping the MAX_ISSUED "evict the
+      // oldest" bound honest across a cold start (Map iteration is insertion-ordered).
+      issuedEntries.sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+      for (const [id, s] of issuedEntries) this.issued.set(id, s);
+    });
+  }
+
+  private saveRoom(id: string): void {
+    const v = this.rooms.get(id);
+    if (v) void this.ctx.storage.put(`r:${id}`, v);
+  }
+  private forgetRoom(id: string): void {
+    this.rooms.delete(id);
+    void this.ctx.storage.delete(`r:${id}`);
+  }
+  private saveRes(sid: string): void {
+    const v = this.reservations.get(sid);
+    if (v) void this.ctx.storage.put(`v:${sid}`, v);
+  }
+  private forgetRes(sid: string): void {
+    this.reservations.delete(sid);
+    void this.ctx.storage.delete(`v:${sid}`);
+  }
+  private saveIssued(sid: string): void {
+    const v = this.issued.get(sid);
+    if (v) void this.ctx.storage.put(`i:${sid}`, v);
+  }
+  private forgetIssued(sid: string): void {
+    this.issued.delete(sid);
+    void this.ctx.storage.delete(`i:${sid}`);
+  }
+  private saveMetered(id: string): void {
+    const v = this.metered.get(id);
+    if (v) void this.ctx.storage.put(`m:${id}`, v);
+  }
+  private forgetMetered(id: string): void {
+    this.metered.delete(id);
+    void this.ctx.storage.delete(`m:${id}`);
+  }
+  private saveUsage(pid: string): void {
+    const v = this.usage.get(pid);
+    if (v) void this.ctx.storage.put(`u:${pid}`, v);
+  }
+
   private pendingFor(roomId: string): number {
     let n = 0;
     for (const res of this.reservations.values()) if (res.roomId === roomId) n++;
@@ -144,7 +215,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
   private prune(now: number): void {
     for (const [sid, res] of this.reservations) {
       if (res.expiresAt <= now) {
-        this.reservations.delete(sid);
+        this.forgetRes(sid);
         this.dropIfEmpty(res.roomId);
       }
     }
@@ -154,11 +225,11 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     // their reservations' TTL above, not by staleness.
     for (const [id, room] of this.rooms) {
       if (room.reported !== null && now - room.lastReportAt >= STALE_MS) {
-        this.rooms.delete(id);
+        this.forgetRoom(id);
       }
     }
     for (const [sid, sess] of this.issued) {
-      if (sess.expiresAt <= now) this.issued.delete(sid);
+      if (sess.expiresAt <= now) this.forgetIssued(sid);
     }
   }
 
@@ -166,7 +237,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
   private dropIfEmpty(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (room && (room.reported ?? 0) === 0 && this.pendingFor(roomId) === 0) {
-      this.rooms.delete(roomId);
+      this.forgetRoom(roomId);
     }
   }
 
@@ -213,10 +284,12 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
         reportSeq: 0,
         lastReportAt: now,
       });
+      this.saveRoom(target);
     }
 
     const sessionId = crypto.randomUUID();
     this.reservations.set(sessionId, { roomId: target, expiresAt: now + RESERVATION_TTL_MS });
+    this.saveRes(sessionId);
     this.rememberIssued(sessionId, target, now);
     // Echo the room's recorded hint (a reused room keeps its original placement)
     // so the client forwards it on connect.
@@ -228,9 +301,10 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
   private rememberIssued(sessionId: string, roomId: string, now: number): void {
     if (this.issued.size >= MAX_ISSUED) {
       const oldest = this.issued.keys().next().value; // Map preserves insertion order
-      if (oldest !== undefined) this.issued.delete(oldest);
+      if (oldest !== undefined) this.forgetIssued(oldest);
     }
     this.issued.set(sessionId, { roomId, expiresAt: now + ISSUED_TTL_MS });
+    this.saveIssued(sessionId);
   }
 
   /**
@@ -242,7 +316,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     const sess = this.issued.get(sessionId);
     if (!sess) return false;
     if (sess.expiresAt <= Date.now()) {
-      this.issued.delete(sessionId);
+      this.forgetIssued(sessionId);
       return false;
     }
     return sess.roomId === roomId;
@@ -287,9 +361,10 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
 
     for (const sid of sessions) {
       const res = this.reservations.get(sid);
-      if (res && res.roomId === roomId) this.reservations.delete(sid);
+      if (res && res.roomId === roomId) this.forgetRes(sid);
     }
     room.reported = Math.max(0, count);
+    this.saveRoom(roomId);
     this.dropIfEmpty(roomId);
   }
 
@@ -297,7 +372,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
   release(sessionId: string): void {
     const res = this.reservations.get(sessionId);
     if (!res) return;
-    this.reservations.delete(sessionId);
+    this.forgetRes(sessionId);
     this.dropIfEmpty(res.roomId);
   }
 
@@ -390,6 +465,8 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     m.reported = Math.max(0, count);
     u.messages += Math.max(0, messages);
     u.peakCcu = Math.max(u.peakCcu, this.projectCcu(projectId));
+    this.saveMetered(roomId);
+    this.saveUsage(projectId);
     this.scheduleFlush();
   }
 
@@ -417,9 +494,10 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     if (!db) return;
     const now = Date.now();
     // Accrue ongoing occupancy up to now for still-live rooms.
-    for (const m of this.metered.values()) {
+    for (const [id, m] of this.metered) {
       if (m.reported > 0) this.usageFor(m.projectId).roomSeconds += (now - m.accrualAt) / 1000;
       m.accrualAt = now;
+      this.saveMetered(id);
     }
     const day = this.utcDay(now);
     const month = this.utcMonth(now);
@@ -441,9 +519,10 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
       u.roomSeconds = 0;
       u.messages = 0;
       u.peakCcu = this.projectCcu(pid); // reset peak baseline to current occupancy
+      this.saveUsage(pid);
     }
     // Drop empty metered rooms (already accrued).
-    for (const [id, m] of this.metered) if (m.reported === 0) this.metered.delete(id);
+    for (const [id, m] of this.metered) if (m.reported === 0) this.forgetMetered(id);
   }
 
   private async getCaps(): Promise<Caps> {

@@ -7,6 +7,7 @@ import {
   type ClientGameMessage,
   type ServerMessage,
   type WelcomeMessage,
+  type ErrorMessage,
   type RawData,
 } from "@tikron/protocol";
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
@@ -43,6 +44,24 @@ export type ServerMessageHandler = (message: ServerMessage) => void;
 export type PayloadHandler = (payload: unknown) => void;
 export type StateHandler = (state: unknown) => void;
 export type Unsubscribe = () => void;
+
+/**
+ * Rejection thrown by {@link GameClient.joinOrCreate} (and anything awaiting
+ * {@link Room.connected}) when the socket closes or errors BEFORE the server sends
+ * its Welcome frame — the join failed rather than the room going live. `code` is the
+ * server Error frame's code when one arrived before the close (e.g. `"room_full"`
+ * ahead of a 4002 close), otherwise `"connection-closed"`. Catch it to route the
+ * player to another room or surface a message instead of hanging on `joinOrCreate`.
+ */
+export class RoomJoinError extends Error {
+  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  readonly code: string;
+  constructor(code: string, message?: string) {
+    super(message ?? `room join failed: ${code}`);
+    this.name = "RoomJoinError";
+    this.code = code;
+  }
+}
 
 export interface GameClientOptions {
   /** Party (Durable Object binding) name. Defaults to "game-room". */
@@ -125,6 +144,12 @@ export class Room {
   private readonly stateHandlers = new Set<StateHandler>();
   private readonly ackHandlers = new Set<(seq: number) => void>();
   private readonly welcome: Promise<WelcomeMessage>;
+  /** True once the welcome promise has settled (resolved on Welcome or rejected). */
+  private welcomeSettled = false;
+  /** A server Error frame seen BEFORE Welcome, surfaced in a join rejection. */
+  private preWelcomeError: ErrorMessage | null = null;
+  /** Reject side of {@link welcome}; wired in the constructor. */
+  private failWelcome: (err: RoomJoinError) => void = () => {};
   private readonly stateCodec?: Codec<unknown>;
   private readonly clockEnabled: boolean;
   private readonly subtickTimestamps: boolean;
@@ -173,9 +198,17 @@ export class Room {
         ),
     });
 
-    this.welcome = new Promise<WelcomeMessage>((resolve) => {
+    this.welcome = new Promise<WelcomeMessage>((resolve, reject) => {
+      this.failWelcome = reject;
       const off = this.onMessage((msg) => {
-        if (msg.t === ServerMessageType.Welcome) {
+        if (this.welcomeSettled) return;
+        if (msg.t === ServerMessageType.Error) {
+          // A server Error frame arriving BEFORE Welcome (e.g. `room_full` sent just
+          // ahead of a 4002 close) — capture it so the following close/error surfaces
+          // its code ("room_full") in the join rejection instead of a generic one.
+          this.preWelcomeError = msg;
+        } else if (msg.t === ServerMessageType.Welcome) {
+          this.welcomeSettled = true;
           this.connectionId = msg.connectionId;
           off();
           if (this.clockEnabled) this.clock.start(); // begin syncing once connected
@@ -183,8 +216,38 @@ export class Room {
         }
       });
     });
+    // joinOrCreate always awaits connected() (a single promise chain), so a
+    // pre-Welcome rejection propagates cleanly. This guard keeps a Room built without
+    // that await from ever surfacing an unhandled rejection.
+    void this.welcome.catch(() => {});
 
     transport.onMessage((raw) => this.dispatch(raw));
+    // A socket close or error BEFORE Welcome means the join failed (e.g. room_full →
+    // 4002 close): reject connected() so joinOrCreate rejects instead of hanging.
+    transport.onClose(() => this.failJoinIfPending());
+    transport.onError((err) => this.failJoinIfPending(err));
+  }
+
+  /**
+   * Reject the welcome/connected promise when the socket closes or errors before the
+   * server's Welcome frame — otherwise joinOrCreate awaits connected() forever. The
+   * rejection carries the code of any Error frame seen pre-Welcome (e.g. "room_full"),
+   * else "connection-closed". No-op once the room has connected (a later close is
+   * ordinary teardown, not a failed join).
+   */
+  private failJoinIfPending(err?: unknown): void {
+    if (this.welcomeSettled) return; // already connected — or already failed
+    this.welcomeSettled = true;
+    const code = this.preWelcomeError?.code ?? "connection-closed";
+    const message =
+      this.preWelcomeError?.message ??
+      (err instanceof Error ? err.message : "connection closed before welcome");
+    this.failWelcome(new RoomJoinError(code, message));
+    // Tear down the underlying PartySocket so a rejected join leaks nothing and never
+    // reconnects: close() trips PartySocket's _closeCalled guard, and the settled
+    // latch above neutralizes our own message/close/error handlers.
+    this.clock.stop();
+    this.transport.close();
   }
 
   private dispatch(raw: RawData): void {

@@ -2,6 +2,7 @@ import { GameClient, InputPredictor, SnapshotBuffer, type Room } from "@tikron/c
 import { stepToward } from "@tikron/sim";
 import { ShooterSchema, SHOOTER, type ShooterState } from "../src/rooms/shooter-schema.js";
 import { LoadingFlow, type LoadingView } from "./loading.js";
+import { followCamera, type Cam } from "./camera.js";
 
 /**
  * FPS proof-of-concept client. Shows the full FPS-grade SDK usage: **subtick input
@@ -221,6 +222,22 @@ let crateSeed: number | null = null;
 // ---------------------------------------------------------------------------
 const predictor = new InputPredictor<Vec, Vec>({ x: 1000, y: 1000 }, { apply: (_s, i) => ({ ...i }) });
 const buffer = new SnapshotBuffer<ShooterState>({ delayMs: 100, lerp: lerpState });
+
+/**
+ * Smoothed camera center in world units. It eases toward `predictor.predicted`
+ * each frame instead of tracking it directly, so the per-frame nudges from server
+ * reconciliation don't translate the whole world (the "map shakes" symptom). Seeded
+ * to the predictor's initial center so the first frame doesn't glide in from origin.
+ */
+const cam: Cam = { x: 1000, y: 1000 };
+/** Wall-clock ms of the previous render, for a frame-rate-independent camera step. */
+let lastRenderMs = 0;
+/** Camera easing time constant (ms): larger = smoother but laggier. ~60 ms low-passes
+ *  the ~20 Hz reconcile nudges while keeping the follow responsive for aiming. */
+const CAM_SMOOTH_MS = 60;
+/** A camera gap this large (world units) teleports instead of easing. Normal per-tick
+ *  motion is ≤ maxSpeed·stepMs ≈ 25 u, so only respawns / big corrections snap. */
+const CAM_SNAP_DIST = 300;
 
 let myId = "";
 let seq = 0;
@@ -444,8 +461,13 @@ function startGame(room: Room): void {
     };
     const stepped = vx === 0 && vy === 0 ? predictor.predicted : stepToward(predictor.predicted, desired, SHOOTER.maxSpeed, SHOOTER.stepMs);
     const next: Vec = { x: clamp(stepped.x, 0, SHOOTER.world), y: clamp(stepped.y, 0, SHOOTER.world) };
-    // Aim points from the (screen-centered) local player toward the mouse.
-    aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+    // Aim points from the player's on-screen position toward the mouse. The smoothed
+    // camera lets the body trail the world center by a few px, so offset the origin by
+    // (predicted − cam) to keep the reticle consistent with the rendered player.
+    aim = Math.atan2(
+      mouse.y - canvas.height / 2 - (predictor.predicted.y - cam.y),
+      mouse.x - canvas.width / 2 - (predictor.predicted.x - cam.x),
+    );
     seq += 1;
     room.send("move", { x: next.x, y: next.y, aim });
     predictor.predict(seq, next);
@@ -533,9 +555,17 @@ const PLAYER_SIZE = 30;
 function render(): void {
   if (!running) return;
   const me = predictor.predicted;
-  const camX = me.x - canvas.width / 2;
-  const camY = me.y - canvas.height / 2;
   const now = performance.now();
+  // Ease the camera center toward the predicted player so reconciliation nudges don't
+  // shake the world, then derive a pixel offset rounded to integers so the tiled
+  // ground doesn't shimmer as the camera crosses sub-pixel boundaries.
+  const dtMs = lastRenderMs === 0 ? 16 : now - lastRenderMs;
+  lastRenderMs = now;
+  const eased = followCamera(cam, me.x, me.y, dtMs, CAM_SMOOTH_MS, CAM_SNAP_DIST);
+  cam.x = eased.x;
+  cam.y = eased.y;
+  const camX = Math.round(cam.x - canvas.width / 2);
+  const camY = Math.round(cam.y - canvas.height / 2);
 
   drawGround(camX, camY);
   drawWorldBounds(camX, camY);

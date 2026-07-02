@@ -1182,6 +1182,15 @@ var SnapshotBuffer = class {
 // ../../packages/client/dist/index.js
 var networkConditionsWarned = false;
 var subtickClockWarned = false;
+var RoomJoinError = class extends Error {
+  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  code;
+  constructor(code, message) {
+    super(message ?? `room join failed: ${code}`);
+    this.name = "RoomJoinError";
+    this.code = code;
+  }
+};
 var Room = class {
   connectionId = null;
   name;
@@ -1205,6 +1214,13 @@ var Room = class {
   stateHandlers = /* @__PURE__ */ new Set();
   ackHandlers = /* @__PURE__ */ new Set();
   welcome;
+  /** True once the welcome promise has settled (resolved on Welcome or rejected). */
+  welcomeSettled = false;
+  /** A server Error frame seen BEFORE Welcome, surfaced in a join rejection. */
+  preWelcomeError = null;
+  /** Reject side of {@link welcome}; wired in the constructor. */
+  failWelcome = () => {
+  };
   stateCodec;
   clockEnabled;
   subtickTimestamps;
@@ -1233,9 +1249,15 @@ var Room = class {
         ...this.clock && this.clock.rttMs > 0 ? { rtt: Math.round(this.clock.rttMs) } : {}
       }))
     });
-    this.welcome = new Promise((resolve) => {
+    this.welcome = new Promise((resolve, reject) => {
+      this.failWelcome = reject;
       const off = this.onMessage((msg) => {
-        if (msg.t === ServerMessageType.Welcome) {
+        if (this.welcomeSettled)
+          return;
+        if (msg.t === ServerMessageType.Error) {
+          this.preWelcomeError = msg;
+        } else if (msg.t === ServerMessageType.Welcome) {
+          this.welcomeSettled = true;
           this.connectionId = msg.connectionId;
           off();
           if (this.clockEnabled)
@@ -1244,7 +1266,28 @@ var Room = class {
         }
       });
     });
+    void this.welcome.catch(() => {
+    });
     transport.onMessage((raw) => this.dispatch(raw));
+    transport.onClose(() => this.failJoinIfPending());
+    transport.onError((err) => this.failJoinIfPending(err));
+  }
+  /**
+   * Reject the welcome/connected promise when the socket closes or errors before the
+   * server's Welcome frame — otherwise joinOrCreate awaits connected() forever. The
+   * rejection carries the code of any Error frame seen pre-Welcome (e.g. "room_full"),
+   * else "connection-closed". No-op once the room has connected (a later close is
+   * ordinary teardown, not a failed join).
+   */
+  failJoinIfPending(err) {
+    if (this.welcomeSettled)
+      return;
+    this.welcomeSettled = true;
+    const code = this.preWelcomeError?.code ?? "connection-closed";
+    const message = this.preWelcomeError?.message ?? (err instanceof Error ? err.message : "connection closed before welcome");
+    this.failWelcome(new RoomJoinError(code, message));
+    this.clock.stop();
+    this.transport.close();
   }
   dispatch(raw) {
     if (typeof raw !== "string") {
@@ -1613,6 +1656,21 @@ var LoadingFlow = class {
   }
 };
 
+// demo/camera.ts
+function smoothAxis(current, target, dtMs, smoothTimeMs, snap) {
+  const gap = target - current;
+  if (Math.abs(gap) >= snap) return target;
+  if (dtMs <= 0 || smoothTimeMs <= 0) return target;
+  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
+  return current + gap * alpha;
+}
+function followCamera(cam2, tx, ty, dtMs, smoothTimeMs, snap) {
+  return {
+    x: smoothAxis(cam2.x, tx, dtMs, smoothTimeMs, snap),
+    y: smoothAxis(cam2.y, ty, dtMs, smoothTimeMs, snap)
+  };
+}
+
 // demo/shooter-client.ts
 var MAX_PLAYERS = 64;
 var ASSET_BASE = "/assets/shooter/";
@@ -1762,6 +1820,10 @@ var crates = [];
 var crateSeed = null;
 var predictor = new InputPredictor({ x: 1e3, y: 1e3 }, { apply: (_s, i) => ({ ...i }) });
 var buffer = new SnapshotBuffer({ delayMs: 100, lerp: lerpState });
+var cam = { x: 1e3, y: 1e3 };
+var lastRenderMs = 0;
+var CAM_SMOOTH_MS = 60;
+var CAM_SNAP_DIST = 300;
 var myId = "";
 var seq = 0;
 var aim = 0;
@@ -1940,7 +2002,10 @@ function startGame(room) {
     };
     const stepped = vx === 0 && vy === 0 ? predictor.predicted : stepToward(predictor.predicted, desired, SHOOTER.maxSpeed, SHOOTER.stepMs);
     const next = { x: clamp(stepped.x, 0, SHOOTER.world), y: clamp(stepped.y, 0, SHOOTER.world) };
-    aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+    aim = Math.atan2(
+      mouse.y - canvas.height / 2 - (predictor.predicted.y - cam.y),
+      mouse.x - canvas.width / 2 - (predictor.predicted.x - cam.x)
+    );
     seq += 1;
     room.send("move", { x: next.x, y: next.y, aim });
     predictor.predict(seq, next);
@@ -2004,9 +2069,14 @@ var PLAYER_SIZE = 30;
 function render() {
   if (!running) return;
   const me = predictor.predicted;
-  const camX = me.x - canvas.width / 2;
-  const camY = me.y - canvas.height / 2;
   const now = performance.now();
+  const dtMs = lastRenderMs === 0 ? 16 : now - lastRenderMs;
+  lastRenderMs = now;
+  const eased = followCamera(cam, me.x, me.y, dtMs, CAM_SMOOTH_MS, CAM_SNAP_DIST);
+  cam.x = eased.x;
+  cam.y = eased.y;
+  const camX = Math.round(cam.x - canvas.width / 2);
+  const camY = Math.round(cam.y - canvas.height / 2);
   drawGround(camX, camY);
   drawWorldBounds(camX, camY);
   drawCrates(camX, camY);
