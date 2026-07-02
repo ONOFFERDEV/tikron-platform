@@ -17,6 +17,7 @@ import { defineRoom, type DefineRoomOptions } from "@tikron/server";
 import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
+import { ShooterRoomImpl } from "./rooms/shooter-room.js";
 import { Matchmaker } from "./matchmaker.js";
 import {
   enforceConnection,
@@ -35,6 +36,7 @@ export interface Env {
   MovementRoom: DurableObjectNamespace;
   TicTacToe: DurableObjectNamespace;
   AgarRoom: DurableObjectNamespace;
+  ShooterRoom: DurableObjectNamespace;
   Matchmaker: DurableObjectNamespace<Matchmaker>;
   /** Platform database (M5). Absent → API-key enforcement + metering are skipped. */
   DB?: D1Database;
@@ -163,6 +165,9 @@ export const TicTacToe = defineRoom(TicTacToeImpl, roomOptions);
 
 /** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
 export const AgarRoom = defineRoom(AgarRoomImpl, roomOptions);
+
+/** FPS proof-of-concept — hitscan shooter with subtick timestamps + lag compensation. */
+export const ShooterRoom = defineRoom(ShooterRoomImpl, roomOptions);
 
 /** REST matchmaking API: place players into rooms and browse the lobby. */
 async function handleApi(url: URL, env: Env): Promise<Response> {

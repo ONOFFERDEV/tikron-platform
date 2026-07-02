@@ -30,6 +30,7 @@ Everything after `--` is passed to the harness.
 | `agar` (default) | `agar-room` | binary delta + AOI + acks | the flagship realtime target: input→ack RTT, 50 ms frame jitter, per-client bandwidth, decode + own-player sanity |
 | `movement` | `movement-room` | binary delta, no AOI | same shape without interest management |
 | `ttt-json` | `tic-tac-toe` | JSON state on mutation | turn-based baseline: JSON state fan-out (no fixed cadence, no acks) |
+| `fps` | `shooter-room` | binary delta + AOI + acks | FPS demo: `agar`'s random walk plus ~1 `shoot`/sec carrying a subtick `ts` (exercises lag-compensation rewind); counts server-broadcast `shot` events |
 
 For `agar`/`movement`, each player runs a random walk. Per-input displacement is
 capped under the room's speed budget (`maxSpeed × stepMs / 1000`, ×0.9 headroom)
@@ -39,7 +40,7 @@ so the server's `validateMovement` does not reject and snap the player back.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--scenario <name>` | `agar` | `agar` \| `movement` \| `ttt-json` |
+| `--scenario <name>` | `agar` | `agar` \| `movement` \| `ttt-json` \| `fps` |
 | `--url <base>` | `ws://127.0.0.1:8787` | gateway base URL (no path) |
 | `--rooms <n>` | `1` | parallel rooms |
 | `--players <n>` | `8` | players per room |

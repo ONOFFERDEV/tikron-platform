@@ -1,8 +1,8 @@
-import { AGAR, MOVEMENT } from "./schemas.js";
+import { AGAR, MOVEMENT, SHOOTER } from "./schemas.js";
 
-export type ScenarioName = "agar" | "movement" | "ttt-json";
+export type ScenarioName = "agar" | "movement" | "ttt-json" | "fps";
 
-export const SCENARIO_NAMES: ScenarioName[] = ["agar", "movement", "ttt-json"];
+export const SCENARIO_NAMES: ScenarioName[] = ["agar", "movement", "ttt-json", "fps"];
 
 export function isScenarioName(v: string): v is ScenarioName {
   return (SCENARIO_NAMES as string[]).includes(v);
@@ -29,6 +29,12 @@ export interface Scenario {
   maxStep: number;
   /** True when the driver sends {x,y} "move" inputs each tick. */
   moves: boolean;
+  /**
+   * True when the driver also fires ~1 "shoot" per second carrying a subtick `ts`
+   * (the FPS scenario). Exercises subtick timestamps + server lag-compensation
+   * rewind, and the resulting `shot` broadcast is counted per client.
+   */
+  shoots: boolean;
 }
 
 const SPEED_HEADROOM = 0.9;
@@ -45,6 +51,19 @@ export function getScenario(name: ScenarioName): Scenario {
         world: AGAR.world,
         maxStep: (AGAR.maxSpeed * AGAR.stepMs) / 1000 * SPEED_HEADROOM,
         moves: true,
+        shoots: false,
+      };
+    case "fps":
+      return {
+        name,
+        party: "shooter-room",
+        binary: true,
+        sendsAcks: true,
+        expectedCadenceMs: SHOOTER.stepMs,
+        world: SHOOTER.world,
+        maxStep: (SHOOTER.maxSpeed * SHOOTER.stepMs) / 1000 * SPEED_HEADROOM,
+        moves: true,
+        shoots: true,
       };
     case "movement":
       return {
@@ -56,6 +75,7 @@ export function getScenario(name: ScenarioName): Scenario {
         world: MOVEMENT.world,
         maxStep: (MOVEMENT.maxSpeed * MOVEMENT.stepMs) / 1000 * SPEED_HEADROOM,
         moves: true,
+        shoots: false,
       };
     case "ttt-json":
       return {
@@ -67,6 +87,7 @@ export function getScenario(name: ScenarioName): Scenario {
         world: 0,
         maxStep: 0,
         moves: false,
+        shoots: false,
       };
   }
 }

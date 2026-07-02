@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // Import room.js directly — index.js pulls in partyserver (workerd-only).
-import { Room, type RoomConnection, type RoomContext } from "./room.js";
+import { Room, aoiPhase, type RoomConnection, type RoomContext } from "./room.js";
 import { ClientMessageType, ServerMessageType, encode } from "@tikron/protocol";
 import { schema, mapOf, decodeFull, applyDelta, type Codec } from "@tikron/schema";
 
@@ -252,5 +252,175 @@ describe("tk:stats timing report", () => {
       encode({ t: ClientMessageType.Message, type: "tk:stats", seq: 1, payload: undefined }),
     );
     expect(gameHandlerCalls).toBe(0); // core intercepted it before any game handler
+  });
+});
+
+// --- AOI priority tiers (differential update rate) ---
+
+/** A wide-radius AOI room with NO tiers (parity reference). */
+class WideRoom extends AoiRoom {
+  override onCreate(): void {
+    this.stateCodec = StSchema;
+    this.syncIntervalMs = 0;
+    this.setState({ players: {} });
+    this.enableAOI({
+      viewRadius: 1000,
+      mapFields: ["players"],
+      position: (e) => e as { x: number; y: number },
+      viewer: (s, id) => s.players[id] ?? null,
+    });
+  }
+}
+
+/** Near band (≤100) refreshes every flush; far band (100–1000) every 4th flush. */
+class TieredRoom extends AoiRoom {
+  override onCreate(): void {
+    this.stateCodec = StSchema;
+    this.syncIntervalMs = 0;
+    this.setState({ players: {} });
+    this.enableAOI({
+      viewRadius: 1000,
+      mapFields: ["players"],
+      position: (e) => e as { x: number; y: number },
+      viewer: (s, id) => s.players[id] ?? null,
+      tiers: [
+        { radius: 100, interval: 1 },
+        { radius: 1000, interval: 4 },
+      ],
+    });
+  }
+}
+
+/** Seat a viewer whose own entity is its viewpoint, then drain the initial full. */
+async function seat(ctx: FakeCtx, room: AoiRoom, id: string, x: number, y: number): Promise<FakeConn> {
+  const conn = ctx.open(`conn:${id}`);
+  await room._connect(conn, id);
+  room.join(id, x, y);
+  return conn;
+}
+
+describe("AOI tiers — parity when unset", () => {
+  it("refreshes a far in-view entity every flush when no tiers are configured", async () => {
+    const ctx = new FakeCtx();
+    const room = new WideRoom({ id: "r", ctx });
+    await room._create();
+    const a = await seat(ctx, room, "a", 0, 0);
+    room.join("f", 500, 0); // far but inside the 1000 view radius
+    await flush();
+    const before = binaryCount(a);
+
+    // Without tiers, every move of the far entity produces a delta to A.
+    for (let i = 1; i <= 8; i++) {
+      room.mutateInPlace("f", 500 + i, 0);
+      await flush();
+    }
+    expect(binaryCount(a) - before).toBe(8); // one frame per flush — no throttling
+  });
+});
+
+describe("AOI tiers — far entity throttled, stale but present", () => {
+  it("refreshes a far entity only on its interval and never drops it between", async () => {
+    const ctx = new FakeCtx();
+    const room = new TieredRoom({ id: "r", ctx });
+    await room._create();
+    const a = await seat(ctx, room, "a", 0, 0);
+    room.join("f", 500, 0); // far band (interval 4)
+    await flush();
+    const before = binaryCount(a);
+
+    for (let i = 1; i <= 8; i++) {
+      room.mutateInPlace("f", 500 + i, 0);
+      await flush();
+      // Present on every flush — throttling must not flicker it out of the view.
+      expect(decodeStates(a).at(-1)!.players.f).toBeDefined();
+    }
+    // 8 consecutive flushes contain exactly 2 refresh slots at interval 4 (phase-independent).
+    expect(binaryCount(a) - before).toBe(2);
+
+    // Staleness: F passed through 9 distinct positions (500..508) but A only ever
+    // saw 3 of them (the initial full + 2 throttled refreshes) — it held stale
+    // values for the 6 flushes in between.
+    const delivered = new Set(
+      decodeStates(a)
+        .map((s) => s.players.f?.x)
+        .filter((v): v is number => v !== undefined),
+    );
+    expect(delivered.size).toBe(3);
+  });
+});
+
+describe("AOI tiers — first appearance is immediate", () => {
+  it("delivers a newly-entered far entity on the very next flush", async () => {
+    const ctx = new FakeCtx();
+    const room = new TieredRoom({ id: "r", ctx });
+    await room._create();
+    const a = await seat(ctx, room, "a", 0, 0);
+    await flush(); // baseline: A sees only itself
+    expect(decodeStates(a).at(-1)!.players.g).toBeUndefined();
+
+    room.join("g", 700, 0); // new far entity (interval 4 band) — but never seen before
+    await flush();
+    // Not in A's baseline → tier throttle does not apply → appears at once.
+    expect(decodeStates(a).at(-1)!.players.g).toEqual({ x: 700, y: 0 });
+  });
+});
+
+describe("AOI tiers — leaving the view is immediate", () => {
+  it("removes a far entity the flush it exits the radius, not on its interval", async () => {
+    const ctx = new FakeCtx();
+    const room = new TieredRoom({ id: "r", ctx });
+    await room._create();
+    const a = await seat(ctx, room, "a", 0, 0);
+    room.join("f", 500, 0);
+    await flush();
+    expect(decodeStates(a).at(-1)!.players.f).toBeDefined();
+
+    room.mutateInPlace("f", 5000, 0); // now outside the 1000 view radius
+    await flush();
+    expect(decodeStates(a).at(-1)!.players.f).toBeUndefined(); // removed at once
+  });
+});
+
+describe("AOI tiers — per-viewer phase staggering", () => {
+  it("refreshes the same far entity on different flushes for different viewers", async () => {
+    const interval = 4;
+    // Pick two viewer ids whose tier phase differs mod the interval, so their far
+    // refreshes fall on different flushes rather than bunching together.
+    const candidates = ["v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"];
+    let idA = candidates[0]!;
+    let idB = candidates[1]!;
+    outer: for (const x of candidates) {
+      for (const y of candidates) {
+        if (x !== y && aoiPhase(x) % interval !== aoiPhase(y) % interval) {
+          idA = x;
+          idB = y;
+          break outer;
+        }
+      }
+    }
+    expect(aoiPhase(idA) % interval).not.toBe(aoiPhase(idB) % interval);
+
+    const ctx = new FakeCtx();
+    const room = new TieredRoom({ id: "r", ctx });
+    await room._create();
+    const a = await seat(ctx, room, idA, 0, 0);
+    const b = await seat(ctx, room, idB, 20, 0);
+    room.join("far", 500, 0); // in both viewers' far band (interval 4)
+    await flush();
+
+    const aUpdates: number[] = [];
+    const bUpdates: number[] = [];
+    for (let i = 1; i <= 8; i++) {
+      const aBefore = binaryCount(a);
+      const bBefore = binaryCount(b);
+      room.mutateInPlace("far", 500 + i, 0);
+      await flush();
+      if (binaryCount(a) > aBefore) aUpdates.push(i);
+      if (binaryCount(b) > bBefore) bUpdates.push(i);
+    }
+    // Both throttled to the same rate, but landing on different flushes.
+    expect(aUpdates.length).toBe(2);
+    expect(bUpdates.length).toBe(2);
+    expect(aUpdates).not.toEqual(bUpdates);
   });
 });

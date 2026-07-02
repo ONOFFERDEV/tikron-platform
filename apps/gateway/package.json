@@ -8,7 +8,7 @@
     "dev": "pnpm build:demo && wrangler dev",
     "deploy": "pnpm build:demo && wrangler deploy",
     "build": "wrangler deploy --dry-run --outdir dist",
-    "build:demo": "esbuild demo/agar-client.ts --bundle --format=esm --outfile=public/agar.js --sourcemap",
+    "build:demo": "esbuild demo/agar-client.ts --bundle --format=esm --outfile=public/agar.js --sourcemap && esbuild demo/shooter-client.ts --bundle --format=esm --outfile=public/shooter.js --sourcemap",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

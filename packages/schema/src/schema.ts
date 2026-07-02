@@ -183,8 +183,20 @@ export function schema<S extends Shape>(shape: S): Codec<Infer<S>> {
 }
 
 /**
- * A string-keyed map codec. Deltas carry removed keys plus added/changed entries
- * (children are sent in full on change — compact for small entries like {x,y}).
+ * A string-keyed map codec — the dominant shape of room state (e.g. a player map).
+ *
+ * Delta design: the wire carries the removed keys, then the added/changed entries.
+ * Each changed entry is a `[key, payload]` pair, and the payload is the child's own
+ * *delta* when the key already existed in the baseline (so a `schema` child ships
+ * only its changed fields via its dirty-bit mask) and the child's *full* encoding
+ * when the key is new (there is no prior value to diff against). No per-entry
+ * new-vs-existing tag is written: the reader is handed the same `prev` baseline the
+ * writer diffed against — the standing contract of every delta codec here — so it
+ * re-derives `key in prev` identically and picks `readDelta`/`readFull` to match.
+ * That keeps an atomic child (where `writeDelta === writeFull`, e.g. `prim`/`quant`/
+ * `str`/`enumOf`) byte-for-byte the size of the old whole-entry format, while a
+ * `schema` (or nested `mapOf`/`listOf`) child collapses a one-field edit from a full
+ * re-encode to a mask plus that one field.
  */
 export function mapOf<T>(child: Codec<T>): Codec<Record<string, T>> {
   const keysOf = (o: Record<string, T>): string[] => Object.keys(o);
@@ -218,17 +230,21 @@ export function mapOf<T>(child: Codec<T>): Codec<Record<string, T>> {
       w.varint(changed.length);
       for (const k of changed) {
         w.str(k);
-        child.writeFull(w, next[k] as T);
+        // Existing key -> field-level delta against its baseline; new key -> full.
+        if (k in prevObj) child.writeDelta(w, prevObj[k] as T, next[k] as T);
+        else child.writeFull(w, next[k] as T);
       }
     },
     readDelta(r, prev) {
-      const out: Record<string, T> = { ...(prev ?? {}) };
+      const prevObj = prev ?? {};
+      const out: Record<string, T> = { ...prevObj };
       const removedN = r.varint();
       for (let i = 0; i < removedN; i++) delete out[r.str()];
       const changedN = r.varint();
       for (let i = 0; i < changedN; i++) {
         const k = r.str();
-        out[k] = child.readFull(r);
+        // Mirror the writer: a key present in the baseline was delta-encoded.
+        out[k] = k in prevObj ? child.readDelta(r, prevObj[k] as T) : child.readFull(r);
       }
       return out;
     },

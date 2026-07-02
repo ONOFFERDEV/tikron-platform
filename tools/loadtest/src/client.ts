@@ -3,11 +3,21 @@ import { decodeFull, applyDelta } from "@tikron/schema";
 import type { Config } from "./cli.js";
 import { parseServerStats, type Recorder, type ServerStats } from "./metrics.js";
 import { getScenario, type Scenario } from "./scenarios.js";
-import { AgarSchema, MovementSchema, type AgarState, type MovementState, type Vec2 } from "./schemas.js";
+import {
+  AgarSchema,
+  MovementSchema,
+  ShooterSchema,
+  type AgarState,
+  type MovementState,
+  type ShooterState,
+  type Vec2,
+} from "./schemas.js";
 
 const STATE_FULL = 0x01;
 const STATE_DELTA = 0x02;
 const TTT_PLACE_INTERVAL_MS = 1000;
+/** FPS scenario shoot cadence — ~1 shot per second per client. */
+const SHOOT_INTERVAL_MS = 1000;
 /** Developer message type for the server tick/flush stats request + reply. */
 const STATS_TYPE = "tk:stats";
 
@@ -17,6 +27,7 @@ export class SimClient {
   private readonly scenario: Scenario;
   private inputTimer?: ReturnType<typeof setInterval>;
   private placeTimer?: ReturnType<typeof setInterval>;
+  private shootTimer?: ReturnType<typeof setInterval>;
 
   private seq = 0;
   private stopping = false;
@@ -36,9 +47,16 @@ export class SimClient {
   private target: Vec2 = { x: 0, y: 0 };
   private hasServerPos = false;
 
-  // Decoded-state tracking (agar/movement binary scenarios).
+  // EWMA estimate of (serverClock − localClock) in ms, learned from the
+  // `serverTimeMs` in each binary frame header. Lets the fps scenario stamp shoot
+  // inputs with a *server-timeline* ts so lag-comp rewind lands correctly even when
+  // the driver's wall clock is skewed from the server's (deployed measurement).
+  private serverClockOffset: number | null = null;
+
+  // Decoded-state tracking (agar/movement/fps binary scenarios).
   private agarState: AgarState = { players: {}, orbs: {} };
   private movementState: MovementState = { players: {} };
+  private shooterState: ShooterState = { players: {} };
   private sawOwn = false;
   private lastFrameAt = 0;
 
@@ -95,6 +113,11 @@ export class SimClient {
     } else {
       this.placeTimer = setInterval(() => this.sendPlace(), TTT_PLACE_INTERVAL_MS);
     }
+
+    // FPS scenario: fire ~1 shot/sec carrying a subtick ts (exercises lag-comp rewind).
+    if (this.scenario.shoots) {
+      this.shootTimer = setInterval(() => this.sendShoot(), SHOOT_INTERVAL_MS);
+    }
   }
 
   stop(): void {
@@ -141,8 +164,10 @@ export class SimClient {
   private clearTimers(): void {
     if (this.inputTimer) clearInterval(this.inputTimer);
     if (this.placeTimer) clearInterval(this.placeTimer);
+    if (this.shootTimer) clearInterval(this.shootTimer);
     this.inputTimer = undefined;
     this.placeTimer = undefined;
+    this.shootTimer = undefined;
   }
 
   private pickTarget(): Vec2 {
@@ -187,6 +212,22 @@ export class SimClient {
     ws.send(msg);
   }
 
+  private sendShoot(): void {
+    const ws = this.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Only shoot once the server has spawned us (a dead/unspawned player can't fire).
+    if (!this.hasServerPos) return;
+    this.seq += 1;
+    const dir = Math.round(this.rng() * Math.PI * 2 * 1000) / 1000;
+    // Stamp the input with the estimated *server* clock (the subtick `ts`); the room
+    // clamps it and rewinds lag compensation to this instant. Using the server
+    // timeline (not the raw local clock) keeps rewind correct under clock skew.
+    const ts = Math.round(Date.now() + (this.serverClockOffset ?? 0));
+    const msg = `{"t":"c:msg","type":"shoot","seq":${this.seq},"ts":${ts},"payload":{"dir":${dir}}}`;
+    this.rec.uplink(Buffer.byteLength(msg));
+    ws.send(msg);
+  }
+
   private onMessage(data: WebSocket.RawData, isBinary: boolean): void {
     const buf = toBuffer(data);
     this.rec.downlink(buf.length);
@@ -198,6 +239,12 @@ export class SimClient {
     // Binary state header: [tag(u8), tick(u32 LE), serverTimeMs(f64 LE)] then body.
     if (buf.length < 13) return;
     this.recordFrameGap();
+    // Learn the server-clock offset from the frame's serverTimeMs (EWMA). The frame
+    // is ~one-way latency stale, so this slightly under-estimates the offset — good
+    // enough to place a subtick ts on the server timeline instead of the local one.
+    const sample = buf.readDoubleLE(5) - Date.now();
+    this.serverClockOffset =
+      this.serverClockOffset === null ? sample : this.serverClockOffset * 0.9 + sample * 0.1;
     const tag = buf[0];
     const body = buf.subarray(13);
     try {
@@ -217,6 +264,15 @@ export class SimClient {
               ? applyDelta(MovementSchema, this.movementState, body)
               : this.movementState;
         this.syncOwn(this.movementState.players[this.sessionId]);
+      } else if (this.scenario.name === "fps") {
+        this.shooterState =
+          tag === STATE_FULL
+            ? decodeFull(ShooterSchema, body)
+            : tag === STATE_DELTA
+              ? applyDelta(ShooterSchema, this.shooterState, body)
+              : this.shooterState;
+        // ShooterPlayer leads with x,y, so it reconciles through the shared path.
+        this.syncOwn(this.shooterState.players[this.sessionId]);
       }
     } catch {
       this.rec.decodeError();
@@ -247,8 +303,9 @@ export class SimClient {
         break;
       }
       case "s:msg": {
-        // Developer server->client message; we only care about the stats reply.
+        // Developer server->client message: the stats reply, or an fps `shot` event.
         if (msg.type === STATS_TYPE) this.resolveStats(parseServerStats(msg.payload));
+        else if (msg.type === "shot") this.rec.shot();
         break;
       }
       case "s:error": {

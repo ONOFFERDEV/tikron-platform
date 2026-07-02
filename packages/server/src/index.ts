@@ -14,6 +14,7 @@ export type {
   MessageHandler,
   InputMeta,
   AOIConfig,
+  AOITier,
   RoomServices,
   LeaderboardSubmit,
   ScoreMode,

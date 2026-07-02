@@ -84,6 +84,8 @@ export interface MetricsBundle {
   ownPresentFrames: number;
   /** Frames (after the first own-present frame) where the own player was missing. */
   ownAbsentFrames: number;
+  /** Server-broadcast `shot` events received (fps scenario). */
+  shotEvents: number;
   clients: number;
 }
 
@@ -106,6 +108,7 @@ export function emptyBundle(): MetricsBundle {
     decodeErrors: 0,
     ownPresentFrames: 0,
     ownAbsentFrames: 0,
+    shotEvents: 0,
     clients: 0,
   };
 }
@@ -171,6 +174,9 @@ export class Recorder {
   ownAbsent(): void {
     this.bundle.ownAbsentFrames += 1;
   }
+  shot(): void {
+    this.bundle.shotEvents += 1;
+  }
   client(): void {
     this.bundle.clients += 1;
   }
@@ -196,6 +202,7 @@ export function mergeBundles(bundles: MetricsBundle[]): MetricsBundle {
     out.decodeErrors += b.decodeErrors;
     out.ownPresentFrames += b.ownPresentFrames;
     out.ownAbsentFrames += b.ownAbsentFrames;
+    out.shotEvents += b.shotEvents;
     out.clients += b.clients;
   }
   return out;

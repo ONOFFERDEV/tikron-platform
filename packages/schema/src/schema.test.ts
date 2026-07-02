@@ -550,6 +550,115 @@ describe("schema dirty-bit delta (per-field bitmask)", () => {
   });
 });
 
+describe("mapOf per-entry field delta", () => {
+  const Player = schema({ x: "f32", y: "f32", score: "u32" });
+  const Players = mapOf(Player);
+
+  it("a one-field entry change ships a child delta, smaller than a full entry", () => {
+    const prev = { p1: { x: 10, y: 20, score: 3 }, p2: { x: 30, y: 40, score: 7 } };
+    const next = { p1: { x: 10, y: 20, score: 3 }, p2: { x: 99, y: 40, score: 7 } }; // p2.x only
+    const delta = encodeDelta(Players, prev, next);
+    expect(applyDelta(Players, prev, delta)).toEqual(next);
+    // Old format re-sent the whole p2 entry (3 fields full = 12 bytes of payload).
+    // New format sends p2's child delta: 1 mask byte + 1 f32 (4) = 5 bytes of payload.
+    const wholeEntry = encodeFull(Player, next.p2).length; // 12
+    const childDelta = encodeDelta(Player, prev.p2, next.p2).length; // 5
+    expect(childDelta).toBeLessThan(wholeEntry);
+    // The saving (7 bytes here) shows up directly in the map delta size.
+    expect(delta.length).toBe(
+      encodeDelta(Players, prev, { ...prev }).length + // removed(0)+changed(0) framing
+        new TextEncoder().encode("p2").length + 1 + // key varint-len + "p2"
+        childDelta,
+    );
+  });
+
+  it("a new key is sent in full; an existing changed key is sent as a delta", () => {
+    const prev = { a: { x: 1, y: 1, score: 1 } };
+    const next = {
+      a: { x: 1, y: 2, score: 1 }, // a: y changed -> child delta
+      b: { x: 5, y: 6, score: 7 }, // b: new key -> child full
+    };
+    expect(roundtripDelta(Players, prev, next)).toEqual(next);
+  });
+
+  it("atomic children stay the same size as a whole-entry encode", () => {
+    // For prim/quant/str/enum children writeDelta === writeFull, so an updated
+    // entry costs exactly what the old whole-entry format cost.
+    const Scores = mapOf(prim("u32"));
+    const prev = { a: 1, b: 2, c: 3 };
+    const next = { a: 1, b: 999, d: 4 }; // b changed, c removed, d added
+    const delta = encodeDelta(Scores, prev, next);
+    expect(applyDelta(Scores, prev, delta)).toEqual(next);
+    // b (updated, u32=4) + d (new, u32=4) each cost 4 payload bytes, same as full.
+    expect(encodeDelta(prim("u32"), prev.b, next.b)).toEqual(encodeFull(prim("u32"), next.b));
+  });
+
+  it("nested mapOf(mapOf(schema)) diffs the innermost entry field-by-field", () => {
+    const Rooms = mapOf(mapOf(Player));
+    const prev = {
+      r1: { p1: { x: 1, y: 2, score: 3 }, p2: { x: 4, y: 5, score: 6 } },
+      r2: { q1: { x: 7, y: 8, score: 9 } },
+    };
+    const next = {
+      r1: { p1: { x: 1, y: 2, score: 3 }, p2: { x: 4, y: 999, score: 6 } }, // r1.p2.y only
+      r2: { q1: { x: 7, y: 8, score: 9 } },
+    };
+    const delta = encodeDelta(Rooms, prev, next);
+    expect(applyDelta(Rooms, prev, delta)).toEqual(next);
+    // Only r1 rides in the outer delta, only p2 in r1's inner delta, only y in p2.
+    const full = encodeFull(Rooms, next);
+    expect(delta.length).toBeLessThan(full.length / 2);
+  });
+
+  it("property: random mutate sequences match a full resync and shrink with delta", () => {
+    const r = rng(0x9a2b3c);
+    const canonEntry = (v: { x: number; y: number; score: number }) =>
+      decodeFull(Player, encodeFull(Player, v));
+    const randomEntry = () => ({
+      x: (r() - 0.5) * 1000,
+      y: (r() - 0.5) * 1000,
+      score: Math.floor(r() * 4_000_000_000),
+    });
+
+    for (let iter = 0; iter < 500; iter++) {
+      // Start from a random baseline map.
+      let live: Record<string, { x: number; y: number; score: number }> = {};
+      const n = 1 + Math.floor(r() * 8);
+      for (let i = 0; i < n; i++) live[`p${Math.floor(r() * 12)}`] = canonEntry(randomEntry());
+      // A shadow copy the "server" would keep and diff against each tick.
+      let baseline = Players.clone(live);
+
+      for (let tick = 0; tick < 6; tick++) {
+        const next: typeof live = {};
+        // Carry keys forward, sometimes mutating one field, sometimes dropping.
+        for (const k of Object.keys(baseline)) {
+          if (r() < 0.15) continue; // remove
+          const e = { ...baseline[k]! };
+          if (r() < 0.6) {
+            const field = (["x", "y", "score"] as const)[Math.floor(r() * 3)]!;
+            (e as Record<string, number>)[field] = field === "score"
+              ? Math.floor(r() * 4_000_000_000)
+              : (r() - 0.5) * 1000;
+          }
+          next[k] = canonEntry(e);
+        }
+        // Occasionally add a fresh key.
+        if (r() < 0.5) next[`p${Math.floor(r() * 12)}`] = canonEntry(randomEntry());
+
+        const delta = encodeDelta(Players, baseline, next);
+        const applied = applyDelta(Players, baseline, delta);
+        // Delta application must match the authoritative next map exactly...
+        expect(applied).toEqual(next);
+        // ...and match a from-scratch full resync of the same map.
+        expect(applied).toEqual(decodeFull(Players, encodeFull(Players, next)));
+
+        baseline = Players.clone(next);
+        live = next;
+      }
+    }
+  });
+});
+
 describe("combined composition + type inference", () => {
   it("infers and round-trips the flagship example shape", () => {
     const Lobby = schema({

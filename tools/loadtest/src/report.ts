@@ -63,6 +63,8 @@ export interface Report {
     protocolErrors: number;
     decodeErrors: number;
     stateFrames: number;
+    /** Server-broadcast `shot` events received across all clients (fps scenario). */
+    shotEvents: number;
   };
   sanity: { ownPresentFrames: number; ownAbsentFrames: number };
   eventLoopLagMs: number | null;
@@ -133,6 +135,7 @@ export function buildReport(
       protocolErrors: merged.protocolErrors,
       decodeErrors: merged.decodeErrors,
       stateFrames: merged.stateFrames,
+      shotEvents: merged.shotEvents,
     },
     sanity: { ownPresentFrames: merged.ownPresentFrames, ownAbsentFrames: merged.ownAbsentFrames },
     eventLoopLagMs: lagMs,
@@ -265,6 +268,7 @@ export function formatSummary(r: Report): string {
   lines.push(row("protocol errors", String(r.stability.protocolErrors)));
   lines.push(row("decode errors", String(r.stability.decodeErrors)));
   lines.push(row("state frames received", String(r.stability.stateFrames)));
+  if (r.stability.shotEvents > 0) lines.push(row("shot events received", String(r.stability.shotEvents)));
   lines.push(row("own-player present frames", String(r.sanity.ownPresentFrames)));
   lines.push(row("own-player absent frames", String(r.sanity.ownAbsentFrames)));
   if (r.eventLoopLagMs !== null) lines.push(row("max event-loop lag", ms(r.eventLoopLagMs)));

@@ -183,6 +183,20 @@ export interface RoomInit {
   ctx: RoomContext;
 }
 
+/**
+ * One distance band of the optional AOI priority-tier schedule. Entities within a
+ * band's `radius` of the viewer refresh at most once every `interval` flushes.
+ */
+export interface AOITier {
+  /** Inclusive outer edge of the band (world units), measured from the viewpoint. */
+  radius: number;
+  /**
+   * Refresh cadence for entities in this band: `1` = every flush (full rate), `2`
+   * = every other flush, `4` = quarter rate, etc. Must be a positive integer.
+   */
+  interval: number;
+}
+
 /** Configuration for the opt-in interest-management (AOI) module. */
 export interface AOIConfig<TState> {
   /** View radius; entities farther than this from the viewer are filtered out. */
@@ -193,6 +207,97 @@ export interface AOIConfig<TState> {
   position: (entity: unknown) => { x: number; y: number };
   /** The viewpoint position for a viewer (e.g. their own entity), or null if none. */
   viewer: (state: TState, viewerId: string) => { x: number; y: number } | null;
+  /**
+   * Optional priority-tier schedule (Tribes/Halo-style differential update rates):
+   * concentric distance bands, ordered by **strictly ascending `radius`**, that
+   * throttle how often FAR entities refresh in each viewer's delta. A near band
+   * with `interval: 1` refreshes every flush; outer bands refresh less often, so a
+   * 100-player fan-out sends far movement at a fraction of the tick rate — the
+   * single biggest downlink lever at high CCU.
+   *
+   * Semantics (no visible flicker): a throttled far entity is never dropped from
+   * the view — off its refresh flush the viewer simply keeps the value it already
+   * has (it rides through the delta as "unchanged"), so it is always present, only
+   * stale. Two events always bypass throttling and fire immediately: an entity's
+   * FIRST appearance in a viewer's view (nothing to be stale from) and its removal
+   * when it leaves the view radius. Per-viewer phase offsets stagger the far
+   * refreshes so they do not all land on the same flush across the room.
+   *
+   * Leaving this unset preserves the exact byte-for-byte pre-tier behavior (every
+   * in-view entity refreshes every flush).
+   *
+   * @example
+   * // FPS preset: full rate within 250 u, quarter rate out to the 500 u view edge.
+   * // Sheds ~3/4 of far-entity downlink; a mid-far player's position lags at most
+   * // interval × syncIntervalMs (4 × 50 ms = 200 ms) before it catches up.
+   * tiers: [
+   *   { radius: 250, interval: 1 },
+   *   { radius: 500, interval: 4 },
+   * ]
+   *
+   * Trade-off: a throttled entity's position (and every other synced field) can be
+   * up to `interval × syncIntervalMs` stale on the client. Keep the near band at
+   * `interval: 1` so anything a player can fight is always live, and reserve the
+   * throttled bands for entities far enough that a fraction-of-a-second lag is
+   * imperceptible. Client-side interpolation/extrapolation hides the rest.
+   */
+  tiers?: AOITier[];
+}
+
+/** A precompiled AOI tier: squared radius (for distance²-only comparison) + cadence. */
+interface CompiledTier {
+  r2: number;
+  interval: number;
+}
+
+/**
+ * Validate and precompile an {@link AOIConfig.tiers} schedule into squared radii so
+ * the hot path compares distance² only. Returns undefined when tiers are unset or
+ * empty (the pre-tier code path is then taken verbatim). Throws with a one-line fix
+ * on a non-ascending radius or a non-positive-integer interval.
+ */
+function compileTiers(tiers: AOITier[] | undefined): CompiledTier[] | undefined {
+  if (!tiers || tiers.length === 0) return undefined;
+  const compiled: CompiledTier[] = [];
+  let prevRadius = -Infinity;
+  for (const t of tiers) {
+    if (!(t.radius > 0)) {
+      throw new Error(
+        `AOI tiers: radius must be > 0 (got ${t.radius}). Fix: give each band a positive outer ` +
+          "radius, ordered ascending, e.g. [{ radius: 250, interval: 1 }, { radius: 500, interval: 4 }].",
+      );
+    }
+    if (t.radius <= prevRadius) {
+      throw new Error(
+        `AOI tiers: radius must strictly ascend (got ${t.radius} after ${prevRadius}). Fix: order ` +
+          "the bands from nearest to farthest, e.g. [{ radius: 250, interval: 1 }, { radius: 500, interval: 4 }].",
+      );
+    }
+    if (!Number.isInteger(t.interval) || t.interval < 1) {
+      throw new Error(
+        `AOI tiers: interval must be a positive integer (got ${t.interval}). Fix: use 1 for every ` +
+          "flush, 2 for half rate, 4 for quarter rate, etc.",
+      );
+    }
+    prevRadius = t.radius;
+    compiled.push({ r2: t.radius * t.radius, interval: t.interval });
+  }
+  return compiled;
+}
+
+/**
+ * Stable per-viewer phase offset (FNV-1a hash of the viewer id), used to stagger
+ * tiered far-entity refreshes so they do not all bunch onto the same flush across
+ * the room's fan-out. Deterministic and allocation-free on the hot path.
+ * @internal exported for tests to reproduce a viewer's refresh schedule.
+ */
+export function aoiPhase(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
 }
 
 // Binary state frame tags (first byte of a binary WebSocket frame).
@@ -422,6 +527,10 @@ export abstract class Room<TState = unknown> {
   private readonly clientBaselines = new Map<string, TState>();
   private baseline: TState | undefined;
   #aoi?: AOIConfig<TState>;
+  /** Precompiled priority tiers (ascending r²), or undefined when tiers are unset. */
+  #aoiTiers?: CompiledTier[];
+  /** Monotonic per-working-flush counter driving the tier refresh schedule. */
+  #aoiFlushSeq = 0;
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
@@ -738,6 +847,7 @@ export abstract class Room<TState = unknown> {
       );
     }
     this.#aoi = config;
+    this.#aoiTiers = compileTiers(config.tiers);
   }
 
   // --- internal glue (invoked by the defineRoom host; not part of the dev API) ---
@@ -1388,6 +1498,11 @@ export abstract class Room<TState = unknown> {
       return;
     }
 
+    // Per-working-flush counter driving the tier schedule (advanced only past the
+    // change-guard, so idle flushes never consume a schedule slot). Stays 0 — and
+    // the whole tier path inert — when no tiers are configured (byte-for-byte parity).
+    const flushSeq = this.#aoiTiers ? this.#aoiFlushSeq++ : 0;
+
     // Build one spatial-hash grid per filtered field for THIS flush (cell side =
     // viewRadius), so each viewer's filter is a 3×3 neighborhood scan instead of
     // a full O(entities) sweep — the naive scan was O(viewers×entities).
@@ -1399,8 +1514,8 @@ export abstract class Room<TState = unknown> {
 
     for (const conn of this.ctx.connections()) {
       const viewerId = this.connToClient.get(conn.id) ?? conn.id;
-      const view = this.aoiView(viewerId, grids);
       const prev = this.clientBaselines.get(conn.id);
+      const view = this.aoiView(viewerId, grids, prev, flushSeq);
       if (this.pendingFull.has(conn.id) || prev === undefined) {
         conn.send(frame(STATE_FULL, tick, serverTime, encodeFull(codec, view)));
       } else {
@@ -1424,19 +1539,78 @@ export abstract class Room<TState = unknown> {
 
   /**
    * The AOI-filtered state a specific viewer is allowed to see, using the
-   * per-flush grids. Identical result to a naive circle scan: each filtered field
+   * per-flush grids. Without tiers this is a naive circle scan: each filtered field
    * becomes the entities within `viewRadius` of the viewpoint (empty if the viewer
    * has no viewpoint), non-map fields pass through unchanged.
+   *
+   * With tiers configured (and a prior baseline `prev` for this viewer), far
+   * off-schedule entities are rewritten back to their baseline value so they drop
+   * out of the delta — see {@link applyTiers}. `prev === undefined` (a viewer's
+   * first frame, which is sent in full) always yields the untouched fresh view.
    */
-  private aoiView(viewerId: string, grids: Map<string, Grid>): TState {
+  private aoiView(
+    viewerId: string,
+    grids: Map<string, Grid>,
+    prev: TState | undefined,
+    flushSeq: number,
+  ): TState {
     const aoi = this.#aoi!;
     const out: Record<string, unknown> = { ...(this.state as Record<string, unknown>) };
     const vp = aoi.viewer(this.state, viewerId);
+    const tiers = this.#aoiTiers;
+    // One id hash per viewer per flush; only needed when a tier throttle can apply.
+    const phase = tiers && vp && prev !== undefined ? aoiPhase(viewerId) : 0;
+    const prevState = prev as Record<string, unknown> | undefined;
     for (const field of aoi.mapFields) {
       const grid = grids.get(field);
-      out[field] =
-        vp && grid ? queryRadius(grid, vp, aoi.viewRadius, aoi.position) : {};
+      const fresh = vp && grid ? queryRadius(grid, vp, aoi.viewRadius, aoi.position) : {};
+      if (tiers && vp && prevState !== undefined) {
+        const prevField = prevState[field] as Record<string, unknown> | undefined;
+        this.applyTiers(fresh, prevField, vp, phase, flushSeq, tiers);
+      }
+      out[field] = fresh;
     }
     return out as TState;
+  }
+
+  /**
+   * Apply the priority-tier throttle to one viewer's freshly filtered field, in
+   * place. An entity already in the viewer's baseline (`prevField`) that sits in a
+   * throttled band and is NOT due this flush has its value replaced by that baseline
+   * value, so the map codec sees it as unchanged and omits it from the delta —
+   * "stale but present", no add/remove flicker. Entities new to this viewer (absent
+   * from `prevField`) and near-band entities are left fresh, so first appearances
+   * and close-range motion are never delayed. Distance uses squared radii only.
+   */
+  private applyTiers(
+    fresh: Record<string, unknown>,
+    prevField: Record<string, unknown> | undefined,
+    vp: { x: number; y: number },
+    phase: number,
+    flushSeq: number,
+    tiers: CompiledTier[],
+  ): void {
+    if (prevField === undefined) return;
+    const position = this.#aoi!.position;
+    const farInterval = tiers[tiers.length - 1]!.interval;
+    for (const id in fresh) {
+      if (!(id in prevField)) continue; // new to this viewer — appear immediately
+      const p = position(fresh[id]);
+      const dx = p.x - vp.x;
+      const dy = p.y - vp.y;
+      const d2 = dx * dx + dy * dy;
+      // Innermost band whose radius still contains the entity; beyond the last
+      // band (but within viewRadius) falls to the farthest band's cadence.
+      let interval = farInterval;
+      for (let i = 0; i < tiers.length; i++) {
+        if (d2 <= tiers[i]!.r2) {
+          interval = tiers[i]!.interval;
+          break;
+        }
+      }
+      if (interval <= 1) continue; // full-rate band — always fresh
+      if ((flushSeq + phase) % interval === 0) continue; // due this flush — refresh
+      fresh[id] = prevField[id]!; // off schedule — hold the baseline value (stale)
+    }
   }
 }
