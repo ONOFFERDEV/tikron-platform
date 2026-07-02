@@ -10,6 +10,7 @@ part — everything else runs on your account.
 > **Live at [tikron.dev](https://tikron.dev)** — landing, playable [.io demo](https://tikron.dev/agar.html),
 > [FPS demo](https://tikron.dev/shooter.html) (subtick lag compensation + AOI priority tiers),
 > developer dashboard. Building a game with an AI agent? Start at [`AGENTS.md`](AGENTS.md).
+> Questions, showcase, help: **[join the Discord](https://discord.gg/uXnK7Czq7G)**.
 > Measured: a single room holds **100 concurrent players cleanly on deployed Cloudflare**
 > (0 drops, server tick+flush 0 ms) — see [`docs/PERF.md`](docs/PERF.md); never invent latency figures.
 
