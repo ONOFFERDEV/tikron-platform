@@ -14,8 +14,9 @@ describe("load-test mirror codec stays in lock-step with the server codec", () =
     const state = {
       players: {
         a1b2: { x: 1234.5, y: 678.9, aim: 1.234, hp: 73, score: 9001, alive: true },
-        c3d4: { x: 0, y: 2000, aim: 6.28, hp: 0, score: 0, alive: false },
+        c3d4: { x: 0, y: 2999, aim: 6.28, hp: 0, score: 0, alive: false },
       },
+      seed: 0xdeadbeef,
     };
 
     const serverBytes = encodeFull(ServerShooterSchema, state);

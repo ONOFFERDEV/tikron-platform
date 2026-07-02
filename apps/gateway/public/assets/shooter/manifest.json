@@ -1,0 +1,23 @@
+{
+  "sprites": {
+    "playerBody": "player.png",
+    "enemyBody": "enemy.png",
+    "groundTile": "ground.png",
+    "crate": "crate.png",
+    "muzzleFlash": "muzzle.png"
+  },
+  "audio": {
+    "shot": "shot.ogg",
+    "hit": "hit.ogg",
+    "death": "death.ogg"
+  },
+  "license": {
+    "name": "CC0-1.0",
+    "source": [
+      "https://www.kenney.nl/assets/top-down-shooter",
+      "https://kenney.nl/assets/particle-pack",
+      "https://kenney.nl/assets/sci-fi-sounds"
+    ],
+    "attribution": "Not required (CC0 public domain). Optional credit: Kenney (www.kenney.nl)."
+  }
+}

@@ -73,23 +73,28 @@ export interface ShooterPlayer {
 
 export interface ShooterState {
   players: Record<string, ShooterPlayer>;
+  /** Per-room PRNG seed for visual-only client obstacle rendering (see the server
+   *  schema). Optional here so the harness's empty initial state stays valid; the
+   *  codec always decodes it. */
+  seed?: number;
 }
 
 export const ShooterSchema: Codec<ShooterState> = schema({
   players: mapOf(
     schema({
-      x: quant(0, 2000, 0.1),
-      y: quant(0, 2000, 0.1),
+      x: quant(0, 3000, 0.1),
+      y: quant(0, 3000, 0.1),
       aim: quant(0, Math.PI * 2, 0.001),
       hp: "u8",
       score: "u32",
       alive: "bool",
     }),
   ),
+  seed: "u32",
 });
 
 export const SHOOTER = {
-  world: 2000,
+  world: 3000,
   viewRadius: 600,
   maxSpeed: 500,
   stepMs: 50,

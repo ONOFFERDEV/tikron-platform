@@ -1472,17 +1472,22 @@ function stepToward(pos, target, maxSpeed, dtMs) {
 var ShooterSchema = schema({
   players: mapOf(
     schema({
-      x: quant(0, 2e3, 0.1),
-      y: quant(0, 2e3, 0.1),
+      x: quant(0, 3e3, 0.1),
+      y: quant(0, 3e3, 0.1),
       aim: quant(0, Math.PI * 2, 1e-3),
       hp: "u8",
       score: "u32",
       alive: "bool"
     })
-  )
+  ),
+  seed: "u32"
 });
 var SHOOTER = {
-  world: 2e3,
+  // A 3000² map (up from 2000²) so 64 players spread out: at the spawn min-
+  // separation (300u) a 2000² map is right at its packing limit for 64 points,
+  // while 3000² leaves comfortable headroom. Keep the quant position range above
+  // in lock-step with this.
+  world: 3e3,
   /** AOI view radius — well under the map so interest management actually bites. */
   viewRadius: 600,
   maxSpeed: 500,
@@ -1495,15 +1500,136 @@ var SHOOTER = {
   // < viewRadius (600) so every hit resolves within the shooter's view
   hitRadius: 40,
   // perpendicular distance to the ray that still counts as a hit
-  respawnTicks: 30
+  respawnTicks: 30,
   // 30 × 50 ms = 1.5 s downed before respawn
+  // Spread-spawn tuning (see pickSpawn in shooter-spawn.ts).
+  spawnMinSep: 300,
+  // a spawn keeps ≥ this from every living player
+  spawnRingMin: 400,
+  // ring band around a random survivor a candidate is drawn from
+  spawnRingMax: 700,
+  spawnCenterJitter: 300
+  // half-extent of the center box used when nobody is alive
+};
+
+// demo/loading.ts
+function clamp01(v) {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+var LoadingFlow = class {
+  stages;
+  totalWeight;
+  status = "idle";
+  error;
+  failedStage;
+  listeners = /* @__PURE__ */ new Set();
+  constructor(defs) {
+    if (defs.length === 0) throw new Error("LoadingFlow needs at least one stage");
+    this.stages = defs.map((d) => ({ ...d, status: "pending", progress: 0 }));
+    this.totalWeight = defs.reduce((sum, d) => sum + Math.max(0, d.weight), 0) || 1;
+  }
+  /** Subscribe to snapshots (fired on every state change). Returns an unsubscribe. */
+  onChange(fn) {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+  /** Enter the loading state and activate the first stage. */
+  start() {
+    this.reset();
+    this.status = "loading";
+    const first = this.stages[0];
+    first.status = "active";
+    this.emit();
+  }
+  /** Update the fraction (0..1) of a stage; only meaningful while it is active. */
+  setProgress(id, fraction) {
+    const stage = this.stages.find((s) => s.id === id);
+    if (!stage || stage.status === "done" || stage.status === "error") return;
+    stage.status = "active";
+    stage.progress = clamp01(fraction);
+    this.emit();
+  }
+  /** Mark a stage done and activate the next pending stage (or finish). */
+  complete(id) {
+    const idx = this.stages.findIndex((s) => s.id === id);
+    if (idx < 0) return;
+    const stage = this.stages[idx];
+    stage.status = "done";
+    stage.progress = 1;
+    const next = this.stages.find((s) => s.status === "pending");
+    if (next) {
+      next.status = "active";
+    } else {
+      this.status = "done";
+    }
+    this.emit();
+  }
+  /** Fail a stage — moves the whole flow into the error state with a message. */
+  fail(id, message) {
+    const stage = this.stages.find((s) => s.id === id);
+    if (stage) stage.status = "error";
+    this.status = "error";
+    this.error = message;
+    this.failedStage = id;
+    this.emit();
+  }
+  /** Reset every stage to pending and clear any error (used before a retry). */
+  reset() {
+    for (const s of this.stages) {
+      s.status = "pending";
+      s.progress = 0;
+    }
+    this.status = "idle";
+    this.error = void 0;
+    this.failedStage = void 0;
+    this.emit();
+  }
+  /** Current immutable snapshot. */
+  view() {
+    let acc = 0;
+    for (const s of this.stages) {
+      const frac = s.status === "done" ? 1 : s.status === "active" ? s.progress : 0;
+      acc += frac * Math.max(0, s.weight);
+    }
+    const progress = clamp01(acc / this.totalWeight);
+    let label2;
+    if (this.status === "error") label2 = this.error ?? "Something went wrong";
+    else if (this.status === "done") label2 = "Ready";
+    else label2 = this.stages.find((s) => s.status === "active")?.label ?? this.stages[0].label;
+    return {
+      status: this.status,
+      progress,
+      label: label2,
+      failedStage: this.failedStage,
+      error: this.error,
+      stages: this.stages.map((s) => ({ ...s }))
+    };
+  }
+  emit() {
+    const v = this.view();
+    for (const fn of this.listeners) fn(v);
+  }
 };
 
 // demo/shooter-client.ts
+var MAX_PLAYERS = 64;
+var ASSET_BASE = "/assets/shooter/";
 var canvas = document.getElementById("c");
 var ctx = canvas.getContext("2d");
 var statusEl = document.getElementById("status");
-var roomName = new URLSearchParams(location.search).get("room") ?? "demo";
+var lbEl = document.getElementById("lb");
+var gateEl = document.getElementById("gate");
+var playBtn = document.getElementById("play");
+var nickInput = document.getElementById("nick");
+var startPanel = document.getElementById("start-panel");
+var loadingPanel = document.getElementById("loading-panel");
+var barFill = document.getElementById("bar-fill");
+var barPct = document.getElementById("bar-pct");
+var stageLabelEl = document.getElementById("stage-label");
+var stageListEl = document.getElementById("stage-list");
+var retryBtn = document.getElementById("retry");
 var client = new GameClient(location.host, {
   party: "shooter-room",
   stateCodec: ShooterSchema,
@@ -1512,15 +1638,142 @@ var client = new GameClient(location.host, {
   subtickTimestamps: true,
   inputBatchMs: 33
 });
+var sprites = {};
+var sounds = {};
+var assetsReady = false;
+var audioUnlocked = false;
+function resolveAsset(name) {
+  if (/^(https?:)?\/\//.test(name) || name.startsWith("/")) return name;
+  return ASSET_BASE + name;
+}
+function loadImage(url, onSettled) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      onSettled();
+      resolve(img);
+    };
+    img.onerror = () => {
+      onSettled();
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+function loadAudio(url, onSettled) {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      onSettled();
+      resolve(ok ? audio : null);
+    };
+    audio.addEventListener("canplaythrough", () => finish(true), { once: true });
+    audio.addEventListener("error", () => finish(false), { once: true });
+    setTimeout(() => finish(true), 4e3);
+    audio.preload = "auto";
+    audio.volume = 0.25;
+    audio.src = url;
+    audio.load();
+  });
+}
+async function preloadAssets(onProgress) {
+  if (assetsReady) {
+    onProgress(1);
+    return;
+  }
+  let manifest = null;
+  try {
+    const res = await fetch(`${ASSET_BASE}manifest.json`, { cache: "no-cache" });
+    if (res.ok) manifest = await res.json();
+  } catch {
+    manifest = null;
+  }
+  const spriteEntries = Object.entries(manifest?.sprites ?? {});
+  const audioEntries = Object.entries(manifest?.audio ?? {});
+  const total = spriteEntries.length + audioEntries.length;
+  if (total === 0) {
+    assetsReady = true;
+    onProgress(1);
+    return;
+  }
+  let settled = 0;
+  const bump = () => {
+    settled += 1;
+    onProgress(settled / total);
+  };
+  await Promise.all([
+    ...spriteEntries.map(async ([key, file]) => {
+      const img = await loadImage(resolveAsset(file), bump);
+      if (img) sprites[key] = img;
+    }),
+    ...audioEntries.map(async ([key, file]) => {
+      const audio = await loadAudio(resolveAsset(file), bump);
+      if (audio) sounds[key] = audio;
+    })
+  ]);
+  assetsReady = true;
+  onProgress(1);
+}
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  for (const audio of Object.values(sounds)) {
+    audio.play().then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }).catch(() => {
+    });
+  }
+}
+function playSound(key) {
+  const base = sounds[key];
+  if (!base || !audioUnlocked) return;
+  const clip = base.cloneNode(true);
+  clip.volume = base.volume;
+  void clip.play().catch(() => {
+  });
+}
+function xorshift32(seed) {
+  let s = seed >>> 0 || 2654435769;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s >>> 0;
+  };
+}
+function makeCrates(seed) {
+  const rng = xorshift32(seed);
+  const unit = () => rng() / 4294967295;
+  const margin = 80;
+  const span = SHOOTER.world - margin * 2;
+  const crates2 = [];
+  for (let i = 0; i < 44; i++) {
+    crates2.push({ x: margin + unit() * span, y: margin + unit() * span, size: 26 + unit() * 28 });
+  }
+  return crates2;
+}
+var crates = [];
+var crateSeed = null;
 var predictor = new InputPredictor({ x: 1e3, y: 1e3 }, { apply: (_s, i) => ({ ...i }) });
 var buffer = new SnapshotBuffer({ delayMs: 100, lerp: lerpState });
 var myId = "";
 var seq = 0;
 var aim = 0;
-var mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+var mouse = { x: 0, y: 0 };
 var keys = /* @__PURE__ */ new Set();
 var tracers = [];
+var effects = [];
+var hitFlash = /* @__PURE__ */ new Map();
+var prevAlive = /* @__PURE__ */ new Map();
 var sampleServerNow = () => performance.now();
+var nickname = "";
+var running = false;
 function lerpState(a, b, t) {
   const players = {};
   for (const id of Object.keys(b.players)) {
@@ -1528,49 +1781,140 @@ function lerpState(a, b, t) {
     const pa = a.players[id];
     players[id] = pa ? { x: pa.x + (pb.x - pa.x) * t, y: pa.y + (pb.y - pa.y) * t, aim: pb.aim, hp: pb.hp, score: pb.score, alive: pb.alive } : pb;
   }
-  return { players };
+  return { players, seed: b.seed };
 }
-async function main() {
-  let roomId = roomName;
-  let sessionId = "";
-  const stored = sessionStorage.getItem("tikron-shooter-seat");
-  if (stored) {
-    ({ roomId, sessionId } = JSON.parse(stored));
-  } else {
-    try {
-      const m = await client.matchmake({ mode: "ffa", maxClients: 20 });
-      roomId = m.roomId;
-      sessionId = m.sessionId;
-    } catch {
-      sessionId = crypto.randomUUID();
+var flow = new LoadingFlow([
+  { id: "assets", label: "Loading assets", weight: 3 },
+  { id: "matchmake", label: "Finding a match", weight: 1 },
+  { id: "connect", label: "Joining the arena", weight: 1 },
+  { id: "spawn", label: "Spawning in", weight: 1 }
+]);
+flow.onChange(renderLoading);
+function renderLoading(v) {
+  const pct = Math.round(v.progress * 100);
+  barFill.style.width = `${pct}%`;
+  barFill.classList.toggle("is-error", v.status === "error");
+  barPct.textContent = `${pct}%`;
+  stageLabelEl.textContent = v.label;
+  stageLabelEl.classList.toggle("is-error", v.status === "error");
+  retryBtn.hidden = v.status !== "error";
+  stageListEl.innerHTML = v.stages.map((s) => {
+    const mark = s.status === "done" ? "\u2713" : s.status === "error" ? "\u2715" : s.status === "active" ? "\u2026" : "\xB7";
+    return `<li class="stage stage-${s.status}"><span class="stage-mark">${mark}</span>${escapeHtml(s.label)}</li>`;
+  }).join("");
+}
+function withTimeout(p, ms, message) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    );
+  });
+}
+function firstFrame(room, ms) {
+  return new Promise((resolve, reject) => {
+    if (room.state !== void 0) {
+      resolve();
+      return;
     }
-    sessionStorage.setItem("tikron-shooter-seat", JSON.stringify({ roomId, sessionId }));
+    const t = setTimeout(() => {
+      off();
+      reject(new Error("no state received from the room"));
+    }, ms);
+    const off = room.onStateChange(() => {
+      clearTimeout(t);
+      off();
+      resolve();
+    });
+  });
+}
+var inFlight = false;
+async function play() {
+  if (inFlight) return;
+  inFlight = true;
+  unlockAudio();
+  nickname = nickInput.value.trim().slice(0, 24);
+  startPanel.hidden = true;
+  loadingPanel.hidden = false;
+  flow.start();
+  let stage = "assets";
+  let room;
+  let aborted = false;
+  try {
+    stage = "assets";
+    await preloadAssets((f) => flow.setProgress("assets", f));
+    flow.complete("assets");
+    stage = "matchmake";
+    const m = await withTimeout(
+      client.matchmake({ type: "shooter-room", maxClients: MAX_PLAYERS }),
+      8e3,
+      "matchmaking timed out"
+    );
+    flow.complete("matchmake");
+    stage = "connect";
+    const joinPromise = client.joinOrCreate(m.roomId, {
+      _session: m.sessionId,
+      ...m.region ? { region: m.region } : {}
+    });
+    void joinPromise.then(
+      (r) => {
+        if (aborted) r.leave();
+      },
+      () => {
+      }
+    );
+    const roomHandle = await withTimeout(joinPromise, 8e3, "could not join the room");
+    room = roomHandle;
+    flow.complete("connect");
+    stage = "spawn";
+    await withTimeout(firstFrame(roomHandle, 8e3), 8500, "timed out waiting for the first state");
+    flow.complete("spawn");
+    startGame(roomHandle);
+    gateEl.hidden = true;
+  } catch (err) {
+    aborted = true;
+    room?.leave();
+    flow.fail(stage, err instanceof Error ? err.message : String(err));
+  } finally {
+    inFlight = false;
   }
-  const room = await client.joinOrCreate(roomId, { _session: sessionId });
+}
+function startGame(room) {
   myId = room.connectionId ?? "";
-  statusEl.textContent = `connected as ${myId.slice(0, 6)} \xB7 WASD move \xB7 mouse aim \xB7 click shoot`;
   sampleServerNow = () => room.clock.serverNow();
+  statusEl.textContent = `${nickname || myId.slice(0, 6)} \xB7 WASD move \xB7 mouse aim \xB7 click shoot`;
+  if (nickname) room.send("nick", nickname);
   room.onMessage((msg) => {
     if (msg.t === "s:welcome" && msg.reconnected) {
-      statusEl.textContent = `reconnected as ${myId.slice(0, 6)} \xB7 seat preserved`;
+      statusEl.textContent = `reconnected as ${nickname || myId.slice(0, 6)} \xB7 seat preserved`;
     }
   });
-  room.onStateChange((s) => {
-    const st = s;
-    buffer.push(room.lastStateServerTime ?? performance.now(), st);
-    const me = st.players[myId];
-    if (me) predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
-  });
+  room.onStateChange((s) => ingestState(s, room));
+  if (room.state !== void 0) ingestState(room.state, room);
   room.onMessage("shot", (payload) => {
     const p = payload;
+    const now = performance.now();
     tracers.push({
       ox: p.ox,
       oy: p.oy,
       tx: p.ox + Math.cos(p.dir) * SHOOTER.shotRange,
       ty: p.oy + Math.sin(p.dir) * SHOOTER.shotRange,
       hit: p.hitId !== void 0,
-      until: performance.now() + 120
+      until: now + 120
     });
+    effects.push({ kind: "muzzle", x: p.ox, y: p.oy, dir: p.dir, until: now + 80 });
+    playSound("shot");
+    if (p.hitId !== void 0) {
+      hitFlash.set(p.hitId, now + 140);
+      playSound("hit");
+    }
   });
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -1601,15 +1945,43 @@ async function main() {
     room.send("move", { x: next.x, y: next.y, aim });
     predictor.predict(seq, next);
   }, SHOOTER.stepMs);
+  running = true;
+  resizeCanvas();
+  addEventListener("resize", resizeCanvas);
   requestAnimationFrame(render);
   void refreshLeaderboard();
   setInterval(() => void refreshLeaderboard(), 5e3);
 }
-var lbEl = document.getElementById("lb");
+function ingestState(st, room) {
+  buffer.push(room.lastStateServerTime ?? performance.now(), st);
+  const me = st.players[myId];
+  if (me) predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
+  if (crateSeed === null && typeof st.seed === "number") {
+    crateSeed = st.seed;
+    crates = makeCrates(st.seed);
+  }
+  const now = performance.now();
+  const seenNow = /* @__PURE__ */ new Set();
+  for (const id of Object.keys(st.players)) {
+    const p = st.players[id];
+    seenNow.add(id);
+    const was = prevAlive.get(id);
+    if (was === true && !p.alive) {
+      effects.push({ kind: "death", x: p.x, y: p.y, until: now + 500 });
+      playSound("death");
+    } else if (was === false && p.alive) {
+      effects.push({ kind: "respawn", x: p.x, y: p.y, until: now + 450 });
+    }
+    prevAlive.set(id, p.alive);
+  }
+  for (const id of [...prevAlive.keys()]) {
+    if (!seenNow.has(id)) prevAlive.delete(id);
+  }
+}
 async function refreshLeaderboard() {
   if (!lbEl) return;
   try {
-    const res = await fetch("/api/leaderboard?board=shooter-top&limit=10");
+    const res = await fetch("/api/leaderboard?board=shooter-top&limit=5");
     if (!res.ok) return;
     const rows = await res.json();
     const items = rows.map((r) => `<li>${escapeHtml(r.displayName ?? r.playerId.slice(0, 6))} \u2014 ${r.score}</li>`).join("");
@@ -1623,13 +1995,21 @@ function escapeHtml(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
 }
+function resizeCanvas() {
+  const top = 72;
+  canvas.width = Math.max(320, Math.floor(window.innerWidth));
+  canvas.height = Math.max(240, Math.floor(window.innerHeight - top));
+}
+var PLAYER_SIZE = 30;
 function render() {
+  if (!running) return;
   const me = predictor.predicted;
-  ctx.fillStyle = "#0a0e14";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
   const camX = me.x - canvas.width / 2;
   const camY = me.y - canvas.height / 2;
   const now = performance.now();
+  drawGround(camX, camY);
+  drawWorldBounds(camX, camY);
+  drawCrates(camX, camY);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const tr = tracers[i];
     if (tr.until <= now) {
@@ -1643,43 +2023,201 @@ function render() {
     ctx.lineTo(tr.tx - camX, tr.ty - camY);
     ctx.stroke();
   }
+  drawEffects(camX, camY, now);
   const view = buffer.sample(sampleServerNow());
   if (view) {
     for (const id of Object.keys(view.players)) {
       if (id === myId) continue;
       const pl = view.players[id];
-      drawPlayer(pl, pl.x - camX, pl.y - camY, "#58a6ff");
+      drawPlayer(pl, pl.x - camX, pl.y - camY, false, hitFlash.get(id), now);
     }
   }
   const meState = view?.players[myId];
+  const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meState?.alive ?? true },
     me.x - camX,
     me.y - camY,
-    "#00e5a0"
+    true,
+    hitFlash.get(myId),
+    now
   );
+  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, visible);
   requestAnimationFrame(render);
 }
-function drawPlayer(p, x, y, color) {
+function drawGround(camX, camY) {
+  ctx.fillStyle = "#0a0e14";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const tile = 64;
+  const startX = -((camX % tile + tile) % tile);
+  const startY = -((camY % tile + tile) % tile);
+  const ground = sprites.groundTile;
+  if (ground) {
+    for (let x = startX; x < canvas.width; x += tile) {
+      for (let y = startY; y < canvas.height; y += tile) {
+        ctx.drawImage(ground, x, y, tile, tile);
+      }
+    }
+    return;
+  }
+  ctx.strokeStyle = "rgba(35,43,54,0.6)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = startX; x < canvas.width; x += tile) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+  }
+  for (let y = startY; y < canvas.height; y += tile) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+  }
+  ctx.stroke();
+}
+function drawWorldBounds(camX, camY) {
+  ctx.strokeStyle = "rgba(0,229,160,0.35)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-camX, -camY, SHOOTER.world, SHOOTER.world);
+}
+function drawCrates(camX, camY) {
+  if (crates.length === 0) return;
+  const sprite = sprites.crate;
+  for (const cr of crates) {
+    const x = cr.x - camX;
+    const y = cr.y - camY;
+    if (x < -cr.size || y < -cr.size || x > canvas.width + cr.size || y > canvas.height + cr.size) continue;
+    if (sprite) {
+      ctx.drawImage(sprite, x - cr.size / 2, y - cr.size / 2, cr.size, cr.size);
+    } else {
+      ctx.fillStyle = "#161d27";
+      ctx.strokeStyle = "#33404f";
+      ctx.lineWidth = 2;
+      ctx.fillRect(x - cr.size / 2, y - cr.size / 2, cr.size, cr.size);
+      ctx.strokeRect(x - cr.size / 2, y - cr.size / 2, cr.size, cr.size);
+    }
+  }
+}
+function drawEffects(camX, camY, now) {
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const fx = effects[i];
+    if (fx.until <= now) {
+      effects.splice(i, 1);
+      continue;
+    }
+    const x = fx.x - camX;
+    const y = fx.y - camY;
+    if (fx.kind === "muzzle") {
+      const life = (fx.until - now) / 80;
+      const flash = sprites.muzzleFlash;
+      if (flash) {
+        const s = 26 * (0.7 + life * 0.6);
+        ctx.save();
+        ctx.globalAlpha = life;
+        ctx.translate(x + Math.cos(fx.dir) * 16, y + Math.sin(fx.dir) * 16);
+        ctx.rotate(fx.dir + Math.PI / 2);
+        ctx.drawImage(flash, -s / 2, -s / 2, s, s);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = life;
+        ctx.fillStyle = "#f2cc60";
+        const mx = x + Math.cos(fx.dir) * 18;
+        const my = y + Math.sin(fx.dir) * 18;
+        ctx.beginPath();
+        ctx.arc(mx, my, 5 * (0.6 + life), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else {
+      const total = fx.kind === "death" ? 500 : 450;
+      const life = (fx.until - now) / total;
+      const r = (1 - life) * (fx.kind === "death" ? 34 : 26) + 8;
+      ctx.save();
+      ctx.globalAlpha = life;
+      ctx.strokeStyle = fx.kind === "death" ? "#ff6b6b" : "#00e5a0";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+function drawPlayer(p, x, y, isSelf, flashUntil, now) {
   if (!p.alive) {
     ctx.strokeStyle = "rgba(230,237,243,0.25)";
     circle(x, y, 12, false);
     return;
   }
-  ctx.fillStyle = color;
-  circle(x, y, 12, true);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + Math.cos(p.aim) * 20, y + Math.sin(p.aim) * 20);
-  ctx.stroke();
-  const w = 26;
+  const sprite = isSelf ? sprites.playerBody : sprites.enemyBody;
+  const flashing = flashUntil !== void 0 && flashUntil > now;
+  if (sprite) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(p.aim);
+    ctx.drawImage(sprite, -PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+    if (flashing) {
+      ctx.globalAlpha = 0.5;
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = "#ff6b6b";
+      ctx.fillRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
+    }
+    ctx.restore();
+  } else {
+    ctx.fillStyle = flashing ? "#ff6b6b" : isSelf ? "#00e5a0" : "#58a6ff";
+    circle(x, y, 12, true);
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(p.aim) * 20, y + Math.sin(p.aim) * 20);
+    ctx.stroke();
+  }
+  const w = 30;
   ctx.fillStyle = "rgba(16,21,29,0.9)";
-  ctx.fillRect(x - w / 2, y - 22, w, 4);
-  ctx.fillStyle = "#00e5a0";
-  ctx.fillRect(x - w / 2, y - 22, w * Math.max(0, p.hp) / SHOOTER.maxHp, 4);
-  label(`${p.score}`, x, y + 26);
+  ctx.fillRect(x - w / 2, y - 26, w, 4);
+  ctx.fillStyle = isSelf ? "#00e5a0" : "#58a6ff";
+  ctx.fillRect(x - w / 2, y - 26, w * Math.max(0, p.hp) / SHOOTER.maxHp, 4);
+  label(`${p.score}`, x, y + 30);
+}
+function drawHud(hp, score, count) {
+  const pad = 14;
+  const w = 190;
+  const h = 76;
+  const x = pad;
+  const y = canvas.height - h - pad;
+  ctx.fillStyle = "rgba(16,21,29,0.85)";
+  ctx.strokeStyle = "#232b36";
+  ctx.lineWidth = 1;
+  roundRect(x, y, w, h, 10);
+  ctx.fill();
+  ctx.stroke();
+  const bx = x + 14;
+  const by = y + 16;
+  const bw = w - 28;
+  ctx.fillStyle = "#0a0e14";
+  ctx.fillRect(bx, by, bw, 10);
+  const frac = clamp(hp / SHOOTER.maxHp, 0, 1);
+  ctx.fillStyle = frac > 0.5 ? "#00e5a0" : frac > 0.25 ? "#f2cc60" : "#ff6b6b";
+  ctx.fillRect(bx, by, bw * frac, 10);
+  ctx.fillStyle = "#e6edf3";
+  ctx.font = "11px ui-monospace, monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(`HP ${Math.max(0, Math.round(hp))}`, bx, by + 26);
+  ctx.textAlign = "right";
+  ctx.fillText(`SCORE ${score}`, bx + bw, by + 26);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#8b98a8";
+  ctx.fillText(`${count}/${MAX_PLAYERS} in view`, bx, by + 42);
+  ctx.textAlign = "start";
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 function circle(x, y, r, fill) {
   ctx.beginPath();
@@ -1692,9 +2230,17 @@ function label(text, x, y) {
   ctx.font = "12px ui-monospace, monospace";
   ctx.textAlign = "center";
   ctx.fillText(text, x, y);
+  ctx.textAlign = "start";
 }
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
 }
-void main();
+playBtn.addEventListener("click", () => void play());
+nickInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") void play();
+});
+retryBtn.addEventListener("click", () => {
+  loadingPanel.hidden = true;
+  startPanel.hidden = false;
+});
 //# sourceMappingURL=shooter.js.map

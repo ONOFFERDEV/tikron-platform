@@ -1,6 +1,8 @@
 import { IoArenaRoom, type AOIConfig, type Client } from "@tikron/server";
 import { validateMovement, type Vec2 } from "@tikron/sim";
 import { ShooterSchema, SHOOTER, type ShooterState } from "./shooter-schema.js";
+import { pickSpawn, makeRng, type SpawnConfig } from "./shooter-spawn.js";
+import { sanitizeNick } from "./shooter-nick.js";
 
 /**
  * FPS proof-of-concept — a top-down hitscan shooter on the {@link IoArenaRoom}
@@ -57,18 +59,36 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     ],
   };
 
-  private spawnCount = 0;
-  private readonly spawnIndex = new Map<string, number>();
   // playerId -> simulation tick at which a downed player respawns.
   private readonly respawnAt = new Map<string, number>();
+  // Deterministic PRNG for spread-spawn placement, seeded per room from `seed`.
+  private rng: () => number = makeRng(0);
+  private readonly spawnCfg: SpawnConfig = {
+    world: SHOOTER.world,
+    minSeparation: SHOOTER.spawnMinSep,
+    ringMin: SHOOTER.spawnRingMin,
+    ringMax: SHOOTER.spawnRingMax,
+    centerJitter: SHOOTER.spawnCenterJitter,
+  };
 
   protected override onReady(): void {
-    this.maxClients = 20; // room-enforced cap; DEV_MODE ?maxClients= override still applies
-    this.setState({ players: {} });
+    this.maxClients = 64; // room-enforced cap; matches the demo's matchmake max=64
+    // A per-room seed clients mirror for deterministic, visual-only obstacle
+    // rendering; it also drives spread-spawn so placement is reproducible per room.
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
+    this.rng = makeRng(seed);
+    this.setState({ players: {}, seed });
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
     this.onMessage("shoot", (client, payload, _seq, input) =>
       this.handleShoot(client, payload, input),
     );
+    // Nickname: sanitized and stored on the seat (client.data survives a
+    // reconnect), then used as the leaderboard display name. Invalid or empty
+    // payloads are ignored so a bad message never clears a good nick.
+    this.onMessage("nick", (client, payload) => {
+      const nick = sanitizeNick(payload);
+      if (nick) client.data.nick = nick;
+    });
   }
 
   // Respawn downed players whose timer has elapsed. Movement is resolved on input,
@@ -80,7 +100,9 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
       this.respawnAt.delete(id);
       const p = this.state.players[id];
       if (!p) continue;
-      const pos = this.spawnPos(this.spawnIndex.get(id) ?? 0);
+      // Respawn away from the firefight: the downed player is alive === false, so
+      // spawnPoint() naturally excludes it from the survivor set it separates from.
+      const pos = this.spawnPoint();
       p.x = pos.x;
       p.y = pos.y;
       p.hp = SHOOTER.maxHp;
@@ -98,9 +120,9 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
   }
 
   override onJoin(client: Client): void {
-    const i = this.spawnCount++;
-    this.spawnIndex.set(client.id, i);
-    const pos = this.spawnPos(i);
+    // The joining player is not in state yet, so it is not among the survivors
+    // spawnPoint() separates the new position from.
+    const pos = this.spawnPoint();
     this.state.players[client.id] = {
       x: pos.x,
       y: pos.y,
@@ -114,17 +136,23 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
 
   protected override onSeatExpired(client: Client): void {
     delete this.state.players[client.id];
-    this.spawnIndex.delete(client.id);
     this.respawnAt.delete(client.id);
     this.markStateChanged();
   }
 
-  // Deterministic spawns: players 0/1 sit on a north–south line (a clean hitscan
-  // geometry for the rewind test); the rest fan out across the map.
-  private spawnPos(i: number): Vec2 {
-    if (i === 0) return { x: 1000, y: 1000 };
-    if (i === 1) return { x: 1000, y: 900 };
-    return { x: (i * 337 + 200) % SHOOTER.world, y: (i * 613 + 300) % SHOOTER.world };
+  /** Living players' positions — the set a spawn keeps its distance from. */
+  private survivors(): Vec2[] {
+    const out: Vec2[] = [];
+    for (const p of Object.values(this.state.players)) {
+      if (p.alive) out.push({ x: p.x, y: p.y });
+    }
+    return out;
+  }
+
+  /** A spread spawn: random near center when nobody is alive, otherwise placed
+   *  away from every survivor (see {@link pickSpawn}). */
+  private spawnPoint(): Vec2 {
+    return pickSpawn(this.survivors(), this.rng, this.spawnCfg);
   }
 
   private handleMove(client: Client, payload: unknown): void {
@@ -165,12 +193,14 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
           victim.alive = false;
           this.respawnAt.set(hitId, this.currentTick + SHOOTER.respawnTicks);
           shooter.score += 1;
-          // Dogfood the leaderboard: publish the shooter's frag count to "shooter-top".
+          // Dogfood the leaderboard: publish the shooter's frag count to "shooter-top",
+          // under their chosen nickname when set (else a short player-id stub).
+          const nick = typeof client.data.nick === "string" ? client.data.nick : undefined;
           this.services.leaderboard?.submit({
             board: "shooter-top",
             playerId: client.id,
             score: shooter.score,
-            displayName: client.id.slice(0, 6),
+            displayName: nick ?? client.id.slice(0, 6),
             mode: "max",
           });
         }
