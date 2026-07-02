@@ -141,6 +141,20 @@ export async function revokeApiKey(
   return (res.meta.changes ?? 0) > 0;
 }
 
+/**
+ * Delete a project and every one of its API keys in a single D1 batch (an
+ * implicit, atomic transaction). Because key validation is a `key_hash` row
+ * lookup ({@link projectIdForKeyHash}), removing the api_keys rows blocks new
+ * connections the instant this returns. `usage_daily` rows are deliberately
+ * KEPT — they are the billing / history record and must outlive the project.
+ */
+export async function deleteProject(db: D1Database, projectId: string): Promise<void> {
+  await db.batch([
+    db.prepare(`DELETE FROM api_keys WHERE project_id = ?`).bind(projectId),
+    db.prepare(`DELETE FROM projects WHERE id = ?`).bind(projectId),
+  ]);
+}
+
 export async function usageForProject(
   db: D1Database,
   projectId: string,

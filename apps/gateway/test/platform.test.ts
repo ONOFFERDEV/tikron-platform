@@ -1,7 +1,15 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
+import type { Env } from "../src/index.js";
+import { resolveProject } from "../src/platform/api.js";
+import { _clearKeyCache } from "../src/platform/apikeys.js";
+import { createProject } from "../src/platform/db.js";
 
 const ORIGIN = "https://example.com";
+
+const testEnv = () => env as unknown as Env;
+/** An env with API-key enforcement ON (DEV_MODE unset) but the real test D1. */
+const enforcedEnv = (): Env => ({ DB: testEnv().DB } as Env);
 
 /** Dev login → returns the `tk_session=...` cookie pair. */
 async function devLogin(login: string): Promise<string> {
@@ -123,6 +131,109 @@ describe("platform dashboard API", () => {
     // The intruder's own project list does not include the owner's project.
     const list = await (await intruder("/api/platform/projects")).json();
     expect(list.some((p: any) => p.id === project.id)).toBe(false);
+  });
+
+  it("deletes an owned project: it vanishes from the list and its key stops connecting", async () => {
+    const cookie = await devLogin("del-owner");
+    const api = client(cookie);
+    const project = await (
+      await api("/api/platform/projects", { method: "POST", body: JSON.stringify({ name: "Doomed" }) })
+    ).json();
+    const projectId = project.id as string;
+
+    // Mint a key so we can prove it stops resolving after the delete.
+    const key = await (
+      await api(`/api/platform/projects/${projectId}/keys`, { method: "POST" })
+    ).json();
+
+    // While it's live, the key resolves to the project (enforcement path).
+    _clearKeyCache();
+    const before = await resolveProject(
+      enforcedEnv(),
+      new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(key.key)}`),
+    );
+    expect(before).toEqual({ ok: true, projectId });
+
+    const del = await api(`/api/platform/projects/${projectId}`, { method: "DELETE" });
+    expect(del.status).toBe(200);
+    expect(await del.json()).toEqual({ ok: true });
+
+    // Gone from the owner's list.
+    const list = await (await api("/api/platform/projects")).json();
+    expect(list.some((p: any) => p.id === projectId)).toBe(false);
+
+    // The key rows are gone, so a new /parties connect is rejected as invalid.
+    _clearKeyCache();
+    const after = await resolveProject(
+      enforcedEnv(),
+      new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(key.key)}`),
+    );
+    expect(after).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
+  });
+
+  it("returns 404 (not 403) when deleting a project owned by someone else", async () => {
+    const ownerCookie = await devLogin("del-victim");
+    const project = await (
+      await client(ownerCookie)("/api/platform/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: "NotYours" }),
+      })
+    ).json();
+
+    const intruder = client(await devLogin("del-intruder"));
+    const res = await intruder(`/api/platform/projects/${project.id}`, { method: "DELETE" });
+    expect(res.status).toBe(404); // existence is not revealed to non-owners
+    expect(await res.json()).toEqual({ error: "not_found" });
+  });
+
+  it("refuses to delete the protected demo project (DEMO_PROJECT_ID) with 403", async () => {
+    // DEMO_PROJECT_ID is "demo" in the test env; seed a matching project owned
+    // by our dev user so the guard (not ownership) is what rejects the delete.
+    const demoId = testEnv().DEMO_PROJECT_ID!;
+    expect(demoId).toBe("demo");
+    await createProject(testEnv().DB!, {
+      id: demoId,
+      ownerGithubId: "dev-demo-owner",
+      name: "Public Demo",
+      playerJwtSecret: "s",
+    });
+
+    const api = client(await devLogin("demo-owner"));
+    const res = await api(`/api/platform/projects/${demoId}`, { method: "DELETE" });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "protected_project" });
+  });
+
+  it("preserves usage_daily rows when a project is deleted (billing history)", async () => {
+    const cookie = await devLogin("usage-owner");
+    const api = client(cookie);
+    const project = await (
+      await api("/api/platform/projects", { method: "POST", body: JSON.stringify({ name: "Metered" }) })
+    ).json();
+    const projectId = project.id as string;
+
+    await testEnv()
+      .DB!.prepare(
+        `INSERT INTO usage_daily (project_id, day, room_hours, peak_ccu, messages) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .bind(projectId, "2026-07-01", 12.5, 8, 100)
+      .run();
+
+    const del = await api(`/api/platform/projects/${projectId}`, { method: "DELETE" });
+    expect(del.status).toBe(200);
+
+    const row = await testEnv()
+      .DB!.prepare(`SELECT room_hours FROM usage_daily WHERE project_id = ?`)
+      .bind(projectId)
+      .first<{ room_hours: number }>();
+    expect(row).not.toBeNull();
+    expect(row!.room_hours).toBe(12.5);
+  });
+
+  it("rejects an unauthenticated delete with 401", async () => {
+    const res = await SELF.fetch(`${ORIGIN}/api/platform/projects/some-id`, { method: "DELETE" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthenticated" });
   });
 
   it("has the dev-auth endpoint enabled in the test env (DEV_MODE=1)", async () => {

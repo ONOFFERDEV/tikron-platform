@@ -3,6 +3,7 @@ import type { Matchmaker } from "../matchmaker.js";
 import {
   createApiKey,
   createProject,
+  deleteProject,
   getProject,
   listApiKeys,
   listProjects,
@@ -257,10 +258,32 @@ async function handleProjects(
   // /:id[/...]
   const parts = rest.split("/").filter(Boolean); // [id, sub?, subid?]
   const projectId = parts[0]!;
+  const sub = parts[1];
+
+  // DELETE /api/platform/projects/:id — remove a project and its keys.
+  // Handled before the shared ownedProject() check (which 403s non-owners),
+  // because the delete contract hides existence: a non-owner or an unknown id
+  // both get 404, never 403.
+  if (sub === undefined && method === "DELETE") {
+    const target = await getProject(db, projectId);
+    if (!target || target.owner_github_id !== session.githubId) {
+      return json({ error: "not_found" }, 404);
+    }
+    // Guard the public demo-metering project against accidental deletion.
+    if (env.DEMO_PROJECT_ID && projectId === env.DEMO_PROJECT_ID) {
+      return json({ error: "protected_project" }, 403);
+    }
+    // Atomically delete the project + its API keys (usage_daily is kept for
+    // billing/history). Live rooms are NOT force-closed: existing sockets
+    // expire naturally, while new connects fail key validation (the key rows
+    // are gone). Matchmaker bookkeeping self-prunes via heartbeat/prune.
+    await deleteProject(db, projectId);
+    return json({ ok: true });
+  }
+
   const owned = await ownedProject(env, session, projectId);
   if (!owned.ok) return owned.res;
   const project = owned.project;
-  const sub = parts[1];
 
   if (sub === undefined) {
     if (method === "GET") return json(projectView(project));
