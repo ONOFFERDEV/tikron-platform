@@ -56,7 +56,7 @@ Options:
 
 Examples:
   npx create-tikron my-game
-  npx create-tikron my-game --repo https://github.com/DGO0/tikron-platform.git
+  npx create-tikron my-game --repo https://github.com/ONOFFERDEV/tikron-platform.git
   npx create-tikron my-arena --template starter
 `;
 
