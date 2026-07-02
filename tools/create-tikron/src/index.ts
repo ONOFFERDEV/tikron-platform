@@ -1,91 +1,73 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 /**
- * create-tikron — scaffold a Tikron game.
+ * create-tikron — scaffold a Tikron multiplayer game.
  *
- * v1 (honest): the @tikron/* packages are NOT yet on npm, so the default mode
- * shallow-clones the Tikron platform repo and prints the next steps. `--template
- * starter` instead copies `examples/starter` into a new workspace directory inside
- * this monorepo (for adding another example locally). When @tikron/* is published,
- * this becomes a true standalone scaffold — see the README.
+ * Default (standalone): `npx create-tikron my-game` generates a self-contained project
+ * whose `@tikron/*` dependencies install from npm — no monorepo, no clone. The project
+ * files are shipped inside this package's `templates/` dir (see `files` in package.json),
+ * so the scaffolder works from a published tarball with zero network beyond `npm install`.
  *
- * Zero runtime dependencies (Node >= 22 built-ins only); run via tsx like tools/loadtest.
+ * Secondary (`--clone`): shallow-clone the whole platform repo (SDK + demos) instead —
+ * useful for exploring the internals or contributing.
+ *
+ * Zero runtime dependencies: Node >= 22 built-ins only.
  */
 import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+/** Project templates live next to the compiled entry: <package>/dist/index.js → <package>/templates. */
+const TEMPLATES_DIR = join(__dirname, "..", "templates");
 
-/** Directory/file basenames never copied from a template (build output, deps). */
-const TEMPLATE_EXCLUDE = new Set(["node_modules", "dist", ".turbo", ".wrangler"]);
+/** Published @tikron/* version range the generated project depends on. */
+const TIKRON_VERSION = "^0.1.0";
 
 interface Options {
   name: string;
-  template: string | null;
+  clone: boolean;
   repo: string | null;
   into: string | null;
   help: boolean;
 }
 
-const HELP = `create-tikron — scaffold a Tikron game
+const HELP = `create-tikron — scaffold a Tikron multiplayer game
 
 Usage:
   npx create-tikron <project-name> [options]
 
-Modes:
-  (default)              Shallow-clone the Tikron platform repo into ./<project-name>.
-                         Needs a repo URL: pass --repo, or set "repository.url" in this
-                         package's package.json (@tikron/* is not on npm yet).
-  --template starter     Copy examples/starter into a new workspace dir (examples/<name>
-                         inside this monorepo) with the package name rewritten.
+By default this generates a STANDALONE project in ./<project-name> whose @tikron/*
+dependencies install from npm. No monorepo, no clone.
 
 Options:
-  --repo <git-url>       Repo URL for clone mode (overrides package.json repository.url).
-  --into <dir>           Base directory for the new project (default: cwd in clone mode,
-                         <repo-root>/examples in --template mode).
+  --clone                Instead, shallow-clone the whole Tikron platform repo (SDK +
+                         demos). Needs a repo URL: --repo, or repository.url in this
+                         package's package.json.
+  --repo <git-url>       Repo URL for --clone mode (overrides package.json repository.url).
+  --into <dir>           Parent directory for the new project (default: current dir).
   -h, --help             Show this help.
 
 Examples:
   npx create-tikron my-game
-  npx create-tikron my-game --repo https://github.com/ONOFFERDEV/tikron-platform.git
-  npx create-tikron my-arena --template starter
+  npx create-tikron my-game --into ./games
+  npx create-tikron my-game --clone
 `;
 
 function parseArgs(argv: string[]): Options {
-  const opts: Options = { name: "", template: null, repo: null, into: null, help: false };
+  const opts: Options = { name: "", clone: false, repo: null, into: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === undefined) continue;
-    if (arg === "-h" || arg === "--help") {
-      opts.help = true;
-    } else if (arg === "--template") {
-      opts.template = argv[++i] ?? null;
-    } else if (arg === "--repo") {
-      opts.repo = argv[++i] ?? null;
-    } else if (arg === "--into") {
-      opts.into = argv[++i] ?? null;
-    } else if (arg.startsWith("--template=")) {
-      opts.template = arg.slice("--template=".length);
-    } else if (arg.startsWith("--repo=")) {
-      opts.repo = arg.slice("--repo=".length);
-    } else if (arg.startsWith("--into=")) {
-      opts.into = arg.slice("--into=".length);
-    } else if (arg.startsWith("-")) {
-      throw new Error(`unknown option: ${arg}`);
-    } else if (!opts.name) {
-      opts.name = arg;
-    } else {
-      throw new Error(`unexpected argument: ${arg}`);
-    }
+    if (arg === "-h" || arg === "--help") opts.help = true;
+    else if (arg === "--clone") opts.clone = true;
+    else if (arg === "--repo") opts.repo = argv[++i] ?? null;
+    else if (arg === "--into") opts.into = argv[++i] ?? null;
+    else if (arg.startsWith("--repo=")) opts.repo = arg.slice("--repo=".length);
+    else if (arg.startsWith("--into=")) opts.into = arg.slice("--into=".length);
+    else if (arg.startsWith("-")) throw new Error(`unknown option: ${arg}`);
+    else if (!opts.name) opts.name = arg;
+    else throw new Error(`unexpected argument: ${arg}`);
   }
   return opts;
 }
@@ -101,15 +83,77 @@ function sanitizeName(raw: string): string {
   return name;
 }
 
-/** Walk up from a directory to the monorepo root (the dir holding pnpm-workspace.yaml). */
-function findRepoRoot(start: string): string {
-  let dir = start;
-  for (;;) {
-    if (existsSync(join(dir, "pnpm-workspace.yaml"))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) throw new Error("could not locate the monorepo root (pnpm-workspace.yaml)");
-    dir = parent;
+/** The generated project's package.json (deps resolve from npm). */
+function packageJson(name: string): string {
+  const pkg = {
+    name,
+    version: "0.0.0",
+    private: true,
+    type: "module",
+    scripts: {
+      // esbuild is inlined (not `pnpm build:client`) so the project works with any
+      // package manager — npm, pnpm, yarn, or bun.
+      dev: "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler dev",
+      deploy:
+        "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler deploy",
+      build:
+        "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler deploy --dry-run --outdir dist",
+      "build:client": "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap",
+      typecheck: "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    },
+    dependencies: {
+      "@tikron/client": TIKRON_VERSION,
+      "@tikron/schema": TIKRON_VERSION,
+      "@tikron/server": TIKRON_VERSION,
+      "@tikron/sim": TIKRON_VERSION,
+      partyserver: "^0.5.8",
+    },
+    devDependencies: {
+      "@cloudflare/workers-types": "^4.20260701.1",
+      esbuild: "^0.28.1",
+      typescript: "^5.7.3",
+      wrangler: "^4.106.0",
+    },
+  };
+  return `${JSON.stringify(pkg, null, 2)}\n`;
+}
+
+/** Copy the templates tree into `dest`, substituting the project name in wrangler.jsonc. */
+function copyTemplates(srcDir: string, destDir: string, name: string): void {
+  mkdirSync(destDir, { recursive: true });
+  for (const entry of readdirSync(srcDir)) {
+    const from = join(srcDir, entry);
+    const to = join(destDir, entry);
+    if (statSync(from).isDirectory()) {
+      copyTemplates(from, to, name);
+    } else if (entry === "wrangler.jsonc") {
+      writeFileSync(to, readFileSync(from, "utf8").replace(/__PROJECT_NAME__/g, name));
+    } else {
+      cpSync(from, to);
+    }
   }
+}
+
+function scaffoldStandalone(name: string, into: string): void {
+  const dest = resolve(into, name);
+  if (existsSync(dest)) throw new Error(`destination already exists: ${dest}`);
+  if (!existsSync(TEMPLATES_DIR)) {
+    throw new Error(`templates not found at ${TEMPLATES_DIR} (is the package built and packed correctly?)`);
+  }
+  copyTemplates(TEMPLATES_DIR, dest, name);
+  writeFileSync(join(dest, "package.json"), packageJson(name));
+
+  process.stdout.write(
+    `Created ./${name} — a standalone Tikron game.\n\n` +
+      `Next steps:\n` +
+      `  cd ${name}\n` +
+      `  npm install                  # or pnpm / yarn / bun\n` +
+      `  # edit your game: src/arena-room.ts (state shape + onMessage handlers)\n` +
+      `  npm run dev                  # http://127.0.0.1:8787 (open 2 tabs)\n` +
+      `  npx wrangler login           # once\n` +
+      `  npm run deploy               # ship to YOUR Cloudflare account\n\n` +
+      `Docs: https://tikron.dev · the room API is in AGENTS.md.\n`,
+  );
 }
 
 /** Read this package's own repository.url, if set. */
@@ -125,39 +169,7 @@ function ownRepoUrl(): string | null {
   }
 }
 
-/** Skip generated build artifacts (gitignored): sourcemaps + bundled JS under public/. */
-function isGeneratedArtifact(parentIsPublic: boolean, name: string): boolean {
-  return name.endsWith(".map") || (parentIsPublic && name.endsWith(".js"));
-}
-
-/** Recursively copy a directory, skipping build/dep dirs and generated artifacts. */
-function copyTemplate(src: string, dest: string, parentIsPublic = false): void {
-  mkdirSync(dest, { recursive: true });
-  for (const entry of readdirSync(src)) {
-    if (TEMPLATE_EXCLUDE.has(entry)) continue;
-    const from = join(src, entry);
-    const to = join(dest, entry);
-    if (statSync(from).isDirectory()) copyTemplate(from, to, entry === "public");
-    else if (!isGeneratedArtifact(parentIsPublic, entry)) cpSync(from, to);
-  }
-}
-
-/** Rewrite the "name" field of a JSON package.json in place. */
-function rewritePackageName(pkgPath: string, name: string): void {
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as Record<string, unknown>;
-  pkg.name = name;
-  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-}
-
-/** Rewrite the wrangler `name` (jsonc, comment-preserving regex). */
-function rewriteWranglerName(dir: string, name: string): void {
-  const path = join(dir, "wrangler.jsonc");
-  if (!existsSync(path)) return;
-  const text = readFileSync(path, "utf8");
-  writeFileSync(path, text.replace(/("name"\s*:\s*")[^"]*(")/, `$1${name}$2`));
-}
-
-function runClone(name: string, repo: string, into: string): void {
+function scaffoldClone(name: string, repo: string, into: string): void {
   const dest = resolve(into, name);
   if (existsSync(dest)) throw new Error(`destination already exists: ${dest}`);
   process.stdout.write(`Cloning ${repo} -> ${dest}\n`);
@@ -166,37 +178,9 @@ function runClone(name: string, repo: string, into: string): void {
     `\nDone. Next steps:\n` +
       `  cd ${name}\n` +
       `  pnpm install\n` +
-      `  # edit the room: examples/starter/src/arena-room.ts (state shape + onMessage handlers)\n` +
-      `  pnpm --filter tikron-starter dev       # http://127.0.0.1:8787 (open 2 tabs)\n` +
-      `  pnpm exec wrangler login                 # once\n` +
-      `  pnpm --filter tikron-starter deploy    # ship to Cloudflare's edge\n\n` +
+      `  pnpm --filter tikron-starter dev       # http://127.0.0.1:8787\n` +
+      `  pnpm --filter tikron-starter deploy    # after: pnpm exec wrangler login\n\n` +
       `Read AGENTS.md and .claude/skills/tikron/SKILL.md in the clone before you build.\n`,
-  );
-}
-
-function runTemplate(name: string, template: string, into: string | null): void {
-  if (template !== "starter") {
-    throw new Error(`unknown template: "${template}" (only "starter" is available)`);
-  }
-  const repoRoot = findRepoRoot(__dirname);
-  const src = join(repoRoot, "examples", "starter");
-  if (!existsSync(src)) throw new Error(`starter template not found at ${src}`);
-  const baseDir = into ? resolve(into) : join(repoRoot, "examples");
-  const dest = join(baseDir, name);
-  if (existsSync(dest)) throw new Error(`destination already exists: ${dest}`);
-
-  copyTemplate(src, dest);
-  rewritePackageName(join(dest, "package.json"), name);
-  rewriteWranglerName(dest, name);
-
-  process.stdout.write(
-    `Created workspace from the starter template:\n  ${dest}\n\n` +
-      `This is a NEW workspace member (package "${name}"). Next steps:\n` +
-      `  pnpm install                       # link it into the workspace\n` +
-      `  pnpm --filter ${name} typecheck\n` +
-      `  pnpm --filter ${name} dev          # http://127.0.0.1:8787\n` +
-      `  pnpm --filter ${name} deploy       # after: pnpm exec wrangler login\n\n` +
-      `Edit src/arena-room.ts to make it your game.\n`,
   );
 }
 
@@ -215,20 +199,20 @@ function main(): void {
   }
 
   const name = sanitizeName(opts.name);
+  const into = resolve(opts.into ?? process.cwd());
 
   try {
-    if (opts.template) {
-      runTemplate(name, opts.template, opts.into);
-    } else {
+    if (opts.clone) {
       const repo = opts.repo?.trim() || ownRepoUrl();
       if (!repo) {
         throw new Error(
-          "no repository URL. Pass --repo <git-url>, or set repository.url in " +
-            "create-tikron's package.json (the @tikron/* packages are not on npm yet — see README). " +
-            'Or use "--template starter" to copy the starter inside this monorepo.',
+          "--clone needs a repository URL: pass --repo <git-url>, or set repository.url in " +
+            "create-tikron's package.json.",
         );
       }
-      runClone(name, repo, resolve(opts.into ?? process.cwd()));
+      scaffoldClone(name, repo, into);
+    } else {
+      scaffoldStandalone(name, into);
     }
   } catch (err) {
     process.stderr.write(`error: ${(err as Error).message}\n`);

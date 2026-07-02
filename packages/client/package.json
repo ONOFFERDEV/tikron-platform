@@ -1,9 +1,20 @@
 {
   "name": "@tikron/client",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Browser SDK for Tikron — GameClient (matchmake/joinOrCreate) and Room (send, onStateChange, prediction, clock sync) over PartySocket.",
   "license": "FSL-1.1-ALv2",
   "type": "module",
+  "keywords": ["tikron", "multiplayer", "realtime", "game", "websocket", "client", "sdk", "netcode"],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/client"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

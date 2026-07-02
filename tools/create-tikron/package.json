@@ -1,23 +1,30 @@
 {
   "name": "create-tikron",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "FSL-1.1-ALv2",
   "type": "module",
-  "description": "Scaffolder for Tikron games — clone the platform repo (or copy the starter template) and print the next steps.",
+  "description": "Scaffold a standalone Tikron multiplayer game (Cloudflare Workers + Durable Objects).",
   "bin": {
-    "create-tikron": "src/index.ts"
+    "create-tikron": "dist/index.js"
+  },
+  "files": ["dist", "templates"],
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/ONOFFERDEV/tikron-platform.git"
   },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": ["tikron", "multiplayer", "cloudflare", "durable-objects", "game", "websocket", "create"],
   "scripts": {
-    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "tsx": "^4.19.2"
+    "typescript": "^5.7.3"
   }
 }

@@ -34,20 +34,20 @@ the raw core is always possible. The [`examples/starter`](examples/starter) temp
 ## Golden path — scaffold → run → deploy → play
 
 ```bash
-# 1. Scaffold (clones this repo; @tikron/* is not on npm yet — see tools/create-tikron)
+# 1. Scaffold a standalone game (@tikron/* installs from npm; no monorepo)
 npx create-tikron my-game
 cd my-game
-pnpm install            # Node >= 22, pnpm 10.x (corepack enable)
+npm install             # Node >= 22 (pnpm / yarn / bun also fine)
 
 # 2. Write your game: edit ONE file — the room's state shape + onMessage handlers.
-#    (starter: examples/starter/src/arena-room.ts)
+#    (src/arena-room.ts)
 
-# 3. Run locally (workerd via the LOCAL wrangler; open two tabs)
-pnpm --filter tikron-starter dev        # http://127.0.0.1:8787
+# 3. Run locally (workerd via the local wrangler; open two tabs)
+npm run dev             # http://127.0.0.1:8787
 
-# 4. Deploy to Cloudflare's edge (free tier works)
-pnpm exec wrangler login                  # once, opens a browser
-pnpm --filter tikron-starter deploy     # prints https://tikron-starter.<account>.workers.dev
+# 4. Deploy to YOUR Cloudflare account (free tier works)
+npx wrangler login      # once, opens a browser
+npm run deploy          # prints https://my-game.<account>.workers.dev
 ```
 
 Rename the deploy target by editing `name` in the project's `wrangler.jsonc`. Every

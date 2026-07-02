@@ -1,9 +1,20 @@
 {
   "name": "@tikron/protocol",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Shared wire protocol for Tikron — message tags and the JSON envelope codec between the client SDK and the room server.",
   "license": "FSL-1.1-ALv2",
   "type": "module",
+  "keywords": ["tikron", "multiplayer", "realtime", "websocket", "protocol", "game", "netcode"],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/protocol"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

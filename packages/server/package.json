@@ -1,9 +1,20 @@
 {
   "name": "@tikron/server",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Authoritative room framework for Tikron — Room base class, genre presets, ticks, AOI, binary sync, reconnection, and lag compensation on Cloudflare Durable Objects.",
   "license": "FSL-1.1-ALv2",
   "type": "module",
+  "keywords": ["tikron", "multiplayer", "realtime", "game", "server", "durable-objects", "cloudflare", "workers", "netcode"],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/server"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -1,9 +1,20 @@
 {
   "name": "@tikron/sim",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Isomorphic movement math for Tikron — the deterministic step/validate model shared by the server room and the client predictor. Zero dependencies.",
   "license": "FSL-1.1-ALv2",
   "type": "module",
+  "keywords": ["tikron", "multiplayer", "game", "movement", "simulation", "deterministic", "netcode", "prediction"],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/sim"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
