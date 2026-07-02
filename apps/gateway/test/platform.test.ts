@@ -43,6 +43,10 @@ describe("platform dashboard API", () => {
       await api("/api/platform/projects", { method: "POST", body: JSON.stringify({ name: "Arena" }) })
     ).json();
     expect(created.name).toBe("Arena");
+    // Dashboard contract: wire timestamps are ISO-8601 STRINGS (its runtime
+    // guards reject epoch numbers — this exact drift broke the deployed UI once).
+    expect(typeof created.createdAt).toBe("string");
+    expect(new Date(created.createdAt).getTime()).toBeGreaterThan(0);
     const projectId = created.id as string;
 
     const list = await (await api("/api/platform/projects")).json();

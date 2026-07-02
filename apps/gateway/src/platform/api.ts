@@ -196,7 +196,12 @@ export async function handlePlatformApi(
   if (path === "/api/platform/me" && method === "GET") {
     const session = await requireSession(env, request);
     if (!session) return json({ error: "unauthenticated" }, 401);
-    return json({ githubId: session.githubId, login: session.login, avatarUrl: session.avatarUrl });
+    // avatarUrl is a string in the dashboard contract; dev-login sessions have none.
+    return json({
+      githubId: session.githubId,
+      login: session.login,
+      avatarUrl: session.avatarUrl ?? "",
+    });
   }
 
   // --- everything below requires a session ---
@@ -262,8 +267,8 @@ async function handleProjects(
         keys.map((k) => ({
           id: k.id,
           prefix: k.key_prefix,
-          createdAt: k.created_at,
-          revokedAt: k.revoked_at,
+          createdAt: new Date(k.created_at).toISOString(),
+          revokedAt: isoOrNull(k.revoked_at),
         })),
       );
     }
@@ -276,7 +281,10 @@ async function handleProjects(
         keyPrefix: gen.prefix,
       });
       // The full key is returned exactly once — it is never stored in the clear.
-      return json({ id: row.id, key: gen.key, prefix: gen.prefix, createdAt: row.created_at }, 201);
+      return json(
+        { id: row.id, key: gen.key, prefix: gen.prefix, createdAt: new Date(row.created_at).toISOString() },
+        201,
+      );
     }
     if (keyId !== undefined && method === "DELETE") {
       const ok = await revokeApiKey(db, projectId, keyId);
@@ -334,12 +342,18 @@ async function handleProjects(
   return json({ error: "not_found" }, 404);
 }
 
+// Wire shape follows the dashboard contract: timestamps are ISO-8601 STRINGS
+// (D1 stores epoch ms). The dashboard's runtime guards reject numbers.
+function isoOrNull(epochMs: number | null): string | null {
+  return epochMs === null ? null : new Date(epochMs).toISOString();
+}
+
 function projectView(p: ProjectRow) {
   return {
     id: p.id,
     name: p.name,
     ownerGithubId: p.owner_github_id,
     requirePlayerAuth: p.require_player_auth === 1,
-    createdAt: p.created_at,
+    createdAt: new Date(p.created_at).toISOString(),
   };
 }
