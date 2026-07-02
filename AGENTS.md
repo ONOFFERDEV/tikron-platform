@@ -1,7 +1,7 @@
 # AGENTS.md — building a game on Tikron
 
 You are a coding agent shipping a multiplayer web game for a non-developer. Tikron
-is an **open-source, server-authoritative multiplayer SDK for web games**. You write
+is a **source-available (FSL-1.1), server-authoritative multiplayer SDK for web games**. You write
 room state + message handlers and deploy them to **your own Cloudflare account**
 (Workers + Durable Objects) — each room is one Durable Object at the edge, placed near
 players. Serverless (no VMs to run) and no lock-in: it's your account, your bill. The

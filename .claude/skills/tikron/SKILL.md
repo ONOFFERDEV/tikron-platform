@@ -5,7 +5,7 @@ description: Use when building or modifying a multiplayer game or room on Tikron
 
 # Building on Tikron
 
-Server-authoritative multiplayer for web games — open source, self-hosted on **your own
+Server-authoritative multiplayer for web games — source-available (FSL-1.1), self-hosted on **your own
 Cloudflare account** (one Durable Object per room at the edge, no lock-in). You author a
 `Room<TState>` subclass. Read [`AGENTS.md`](../../../AGENTS.md) first (the operational
 brief; includes a **Limits & roadmap** section) and [`docs/PERF.md`](../../../docs/PERF.md)

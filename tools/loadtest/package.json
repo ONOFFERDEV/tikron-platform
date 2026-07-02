@@ -2,6 +2,7 @@
   "name": "@tikron/loadtest",
   "version": "0.0.0",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "description": "WebSocket load-testing harness for the Tikron gateway (latency/bandwidth/stability).",
   "bin": {

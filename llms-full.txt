@@ -1,6 +1,6 @@
 # Tikron — full agent reference
 
-Open-source, server-authoritative multiplayer SDK for web games — you self-host rooms
+Source-available (FSL-1.1), server-authoritative multiplayer SDK for web games — you self-host rooms
 on your OWN Cloudflare account (Workers + Durable Objects); no lock-in. One Durable
 Object per room, placed at the edge near players. Optional hosted services (leaderboards
 + a usage dashboard, keyed by API key) are the only managed part. You author a Room

@@ -2,6 +2,7 @@
   "name": "create-tikron",
   "version": "0.0.0",
   "private": true,
+  "license": "FSL-1.1-ALv2",
   "type": "module",
   "description": "Scaffolder for Tikron games — clone the platform repo (or copy the starter template) and print the next steps.",
   "bin": {
