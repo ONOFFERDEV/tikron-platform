@@ -8,7 +8,33 @@ import {
   type Client,
   type RoomConnection,
   type RoomContext,
+  type RoomStorage,
 } from "./room.js";
+
+/** In-memory RoomStorage double (structured-clone on put, like real DO storage). */
+class FakeStorage implements RoomStorage {
+  readonly kv = new Map<string, unknown>();
+  alarm: number | null = null;
+
+  async get<T>(key: string): Promise<T | undefined> {
+    return this.kv.get(key) as T | undefined;
+  }
+  async put(key: string, value: unknown): Promise<void> {
+    this.kv.set(key, structuredClone(value));
+  }
+  async delete(key: string): Promise<boolean> {
+    return this.kv.delete(key);
+  }
+  async setAlarm(scheduledTime: number): Promise<void> {
+    this.alarm = scheduledTime;
+  }
+  async getAlarm(): Promise<number | null> {
+    return this.alarm;
+  }
+  async deleteAlarm(): Promise<void> {
+    this.alarm = null;
+  }
+}
 
 class FakeConn implements RoomConnection {
   readonly sent: (string | ArrayBuffer | ArrayBufferView)[] = [];
@@ -36,6 +62,8 @@ class FakeCtx implements RoomContext {
   readonly conns = new Map<string, FakeConn>();
   readonly broadcasts: { data: Record<string, unknown>; except?: string[] }[] = [];
   readonly reports: { count: number; sessions: string[] }[] = [];
+
+  constructor(readonly storage?: FakeStorage) {}
 
   connections(): Iterable<RoomConnection> {
     return this.conns.values();
@@ -410,5 +438,154 @@ describe("Room capacity enforcement", () => {
     await room._connect(connB, "sess-b");
     expect(connB.closed).toBeNull();
     expect(room.playerIds).toEqual(["sess-b"]);
+  });
+});
+
+describe("Room persistence (hibernation backstop)", () => {
+  const build = (storage: FakeStorage) => {
+    const ctx = new FakeCtx(storage);
+    const room = new TestRoom({ id: "r", ctx });
+    return { ctx, room };
+  };
+
+  it("persists a snapshot promptly on join and coalesces state changes", async () => {
+    const storage = new FakeStorage();
+    const { ctx, room } = build(storage);
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "sess-a"); // new seat → immediate persist
+
+    const snap = storage.kv.get("pe:room") as Record<string, any>;
+    expect(snap.v).toBe(1);
+    expect(snap.seats).toEqual([{ id: "sess-a", data: { token: "data-sess-a" }, deadline: null }]);
+    expect(snap.state.players["sess-a"]).toBe(0);
+
+    // A state change coalesces: not written until persistIntervalMs elapses.
+    room["setState"]({ players: { "sess-a": 42 } });
+    await Promise.resolve(); // run the markStateChanged flush microtask
+    expect((storage.kv.get("pe:room") as Record<string, any>).state.players["sess-a"]).toBe(0);
+    await vi.advanceTimersByTimeAsync(room["persistIntervalMs"]);
+    expect((storage.kv.get("pe:room") as Record<string, any>).state.players["sess-a"]).toBe(42);
+  });
+
+  it("restores state + seats on a cold start, and a client reclaims its seat", async () => {
+    const storageA = new FakeStorage();
+    {
+      const { ctx, room } = build(storageA);
+      await room._create();
+      const conn = ctx.open("c1");
+      await room._connect(conn, "sess-a");
+    }
+    const snap = structuredClone(storageA.kv.get("pe:room"));
+
+    // Cold start: a fresh room instance over storage seeded with the snapshot.
+    const storageB = new FakeStorage();
+    storageB.kv.set("pe:room", snap);
+    const { ctx: ctx2, room: room2 } = build(storageB);
+    await room2._create();
+
+    expect(room2.playerIds).toEqual(["sess-a"]);
+    expect(room2["clientCount"]).toBe(1);
+    expect(room2["clientList"]()[0].data.token).toBe("data-sess-a"); // client.data survived
+
+    // The restored seat is disconnected; a reconnect reclaims it (reattach).
+    const conn2 = ctx2.open("c2");
+    await room2._connect(conn2, "sess-a");
+    const welcome = conn2.frames().find((f) => f.t === "s:welcome");
+    expect(welcome?.reconnected).toBe(true);
+    expect(room2["clientCount"]).toBe(1);
+  });
+
+  it("drops the snapshot and alarm when the room empties", async () => {
+    const storage = new FakeStorage();
+    const { ctx, room } = build(storage);
+    room.useReconnection = false;
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "sess-a");
+    expect(storage.kv.has("pe:room")).toBe(true);
+
+    ctx.drop("c1");
+    await room._close(conn); // no window → dispose → clearPersisted
+    expect(storage.kv.has("pe:room")).toBe(false);
+    expect(storage.alarm).toBeNull();
+  });
+
+  it("persists an open reconnection window and arms the alarm", async () => {
+    const storage = new FakeStorage();
+    const { ctx, room } = build(storage);
+    room.windowSec = 5;
+    await room._create();
+    const conn = ctx.open("c1");
+    await room._connect(conn, "sess-a");
+
+    ctx.drop("c1");
+    void room._close(conn); // onLeave opens a window → persist deadline + arm alarm
+    await vi.advanceTimersByTimeAsync(1); // settle the persist/alarm microtasks
+
+    const snap = storage.kv.get("pe:room") as Record<string, any>;
+    expect(snap.seats[0].deadline).toBeTypeOf("number");
+    expect(storage.alarm).toBeGreaterThan(0);
+  });
+
+  it("finalizes an elapsed reconnection window from the alarm after a cold start", async () => {
+    // Room A opens a window and persists its deadline.
+    const storageA = new FakeStorage();
+    const { ctx: ctxA, room: roomA } = build(storageA);
+    roomA.windowSec = 5;
+    await roomA._create();
+    const connA = ctxA.open("c1");
+    await roomA._connect(connA, "sess-a");
+    ctxA.drop("c1");
+    void roomA._close(connA);
+    await vi.advanceTimersByTimeAsync(1);
+    const snap = structuredClone(storageA.kv.get("pe:room"));
+
+    // Cold start: fresh room restores the disconnected seat + its window.
+    const storageB = new FakeStorage();
+    storageB.kv.set("pe:room", snap);
+    const { ctx: ctxB, room: roomB } = build(storageB);
+    roomB.windowSec = 5;
+    await roomB._create();
+    expect(roomB["clientCount"]).toBe(1);
+
+    // The window elapsed while evicted; the alarm fires and finalizes the seat.
+    const seat = (roomB as unknown as { records: Map<string, { reconnectDeadline: number }> })
+      .records;
+    seat.get("sess-a")!.reconnectDeadline = Date.now() - 1;
+    await roomB._alarm();
+
+    expect(roomB.playerIds).toEqual([]); // room code's expiry cleanup ran
+    expect(roomB["clientCount"]).toBe(0);
+    expect(roomB.events).toContain("expired:sess-a");
+    expect(ctxB.reports.at(-1)).toEqual({ count: 0, sessions: [] }); // occupancy reported
+    expect(storageB.kv.has("pe:room")).toBe(false); // disposed → snapshot dropped
+  });
+
+  it("grants restored connected seats a grace window instead of holding them forever", async () => {
+    // Persist while the client is still CONNECTED (deadline null — the DO died
+    // under them; no reconnection window was ever opened).
+    const storageA = new FakeStorage();
+    {
+      const { ctx, room } = build(storageA);
+      await room._create();
+      await room._connect(ctx.open("c1"), "sess-a");
+    }
+    const snap = structuredClone(storageA.kv.get("pe:room")) as Record<string, any>;
+    expect(snap.seats[0].deadline).toBeNull();
+
+    const storageB = new FakeStorage();
+    storageB.kv.set("pe:room", snap);
+    const { ctx: ctxB, room: roomB } = build(storageB);
+    await roomB._create();
+
+    // The seat must carry an expiry now, and the alarm must be armed for it.
+    expect(storageB.alarm).toBeGreaterThan(0);
+
+    // Player never returns: past the grace window the alarm finalizes the seat.
+    await vi.advanceTimersByTimeAsync(61_000);
+    await roomB._alarm();
+    expect(roomB["clientCount"]).toBe(0);
+    expect(ctxB.reports.at(-1)).toEqual({ count: 0, sessions: [] });
   });
 });

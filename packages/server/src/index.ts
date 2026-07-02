@@ -8,6 +8,7 @@ export type {
   Client,
   RoomContext,
   RoomConnection,
+  RoomStorage,
   RoomInit,
   MessageHandler,
   AOIConfig,

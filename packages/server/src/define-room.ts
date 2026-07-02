@@ -5,6 +5,7 @@ import {
   CLOSE_INVALID_SESSION,
   type RoomConnection,
   type RoomContext,
+  type RoomStorage,
   type RoomInit,
 } from "./room.js";
 
@@ -60,6 +61,7 @@ interface PartyHost {
 function makeContext(
   host: PartyHost,
   getEnv: () => unknown,
+  storage: RoomStorage | undefined,
   options?: DefineRoomOptions,
 ): RoomContext {
   const report = options?.reportOccupancy;
@@ -75,6 +77,7 @@ function makeContext(
           ).catch(() => {});
         }
       : undefined,
+    storage,
   };
 }
 
@@ -100,6 +103,17 @@ export function defineRoom<TState>(
   options?: DefineRoomOptions,
 ): DefinedRoomClass {
   return class extends Server<Cloudflare.Env> {
+    // Design decision (Phase 1b): keep hibernate:false and make idle rooms cheap
+    // via persistence + a DO alarm, rather than switching to hibernatable
+    // WebSockets. Rationale: realtime rooms run a `setInterval` tick that keeps
+    // the DO awake regardless of this flag (an active timer is pending work), so
+    // hibernate:true buys nothing while such a room is occupied — while it WOULD
+    // force rebuilding the in-memory seat/connection map from socket attachments
+    // on every wake (a large, risky change to the hot path). The wins we actually
+    // want — surviving eviction inside a reconnection window, and restoring state
+    // on cold start — are delivered here by persisting {state, seats, windows} to
+    // `ctx.storage` and using `ctx.storage.setAlarm` as the durable window
+    // backstop. An empty room drops its snapshot and can then be evicted freely.
     static override options = { hibernate: false };
 
     #room: Room<TState> | null = null;
@@ -108,8 +122,12 @@ export function defineRoom<TState>(
       if (!this.#room) {
         this.#room = new RoomImpl({
           id: this.name,
-          ctx: makeContext(this, () => this.env, options),
+          // `this.ctx.storage` is the DO's durable storage (structurally a
+          // RoomStorage); it lets the room persist state + reconnection windows.
+          ctx: makeContext(this, () => this.env, this.ctx.storage, options),
         });
+        // _create() restores any persisted snapshot, so the room is whole before
+        // the first _connect / _alarm below runs against it.
         await this.#room._create();
       }
       return this.#room;
@@ -148,6 +166,14 @@ export function defineRoom<TState>(
     override async onClose(conn: Connection): Promise<void> {
       const room = await this.#ensure();
       await room._close(conn);
+    }
+
+    // The DO alarm is the durable backstop for reconnection windows: it fires
+    // even on a cold-started instance after eviction, so #ensure() first restores
+    // the room from storage, then _alarm() finalizes any elapsed windows.
+    override async onAlarm(): Promise<void> {
+      const room = await this.#ensure();
+      await room._alarm();
     }
   };
 }

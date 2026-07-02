@@ -30,6 +30,22 @@ export interface RoomConnection {
   close(code?: number, reason?: string): void;
 }
 
+/**
+ * Narrow durable-storage surface a Room needs to survive Durable Object
+ * eviction — a key/value store plus a single DO alarm. Wired by `defineRoom`
+ * from `ctx.storage`; kept minimal so the core stays transport-agnostic and
+ * testable with an in-memory fake. All values must be structured-clone-able
+ * (the DO storage serialization contract).
+ */
+export interface RoomStorage {
+  get<T>(key: string): Promise<T | undefined>;
+  put(key: string, value: unknown): Promise<void>;
+  delete(key: string): Promise<boolean>;
+  setAlarm(scheduledTime: number): Promise<void>;
+  getAlarm(): Promise<number | null>;
+  deleteAlarm(): Promise<void>;
+}
+
 /** The transport context a Room is constructed with (implemented by `defineRoom`). */
 export interface RoomContext {
   readonly roomId: string;
@@ -44,6 +60,40 @@ export interface RoomContext {
    * fire-and-forget RPCs with no ordering guarantee).
    */
   reportOccupancy?(count: number, sessions: string[], seq: number): void;
+  /**
+   * Optional durable storage (the room's DO storage). When present the room
+   * persists its state + seats so it can be restored after eviction, and uses
+   * the DO alarm as a durable backstop that finalizes reconnection windows even
+   * if the DO is evicted mid-window. Absent (e.g. in unit tests) → in-memory
+   * only, exactly as before.
+   */
+  storage?: RoomStorage;
+}
+
+/** Storage key holding a room's persisted snapshot. */
+const ROOM_STORAGE_KEY = "pe:room";
+
+/**
+ * Grace window granted on restore to seats persisted while still CONNECTED
+ * (deadline null — the DO died under them, so no reconnection window was ever
+ * opened). Without one, a player who never returns would hold the seat forever.
+ */
+const RESTORE_GRACE_MS = 60_000;
+
+/** A single seat as persisted (transport-independent, structured-clone-able). */
+interface PersistedSeat {
+  id: string;
+  data: Record<string, unknown>;
+  /** Reconnection-window deadline (epoch ms) while disconnected, else null. */
+  deadline: number | null;
+}
+
+/** A room's durable snapshot. Restored on the next cold start after eviction. */
+interface PersistedRoom<TState> {
+  v: 1;
+  state: TState;
+  seats: PersistedSeat[];
+  occupancySeq: number;
 }
 
 export type MessageHandler = (
@@ -101,6 +151,14 @@ interface ClientRecord {
   reconnectResolve: (() => void) | null;
   reconnectReject: ((err: Error) => void) | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
+  /** Reconnection-window deadline (epoch ms) while disconnected; persisted. */
+  reconnectDeadline: number | null;
+  /**
+   * Set true only on the durable alarm-expiry path (window elapsed while the DO
+   * was evicted) so a re-invoked `onLeave` sees `allowReconnection` reject at
+   * once and runs its cleanup, instead of opening a fresh in-memory window.
+   */
+  windowExpired: boolean;
 }
 
 /**
@@ -150,6 +208,14 @@ export abstract class Room<TState = unknown> {
   /** When true, ack each processed input's seq (enables client reconciliation). */
   protected sendAcks = false;
 
+  /**
+   * Max interval between durable state snapshots. State writes triggered by the
+   * (possibly 20–30 Hz) sync flush are coalesced to at most one write per this
+   * window; seat and reconnection-window changes persist immediately regardless.
+   * Overridable so tests can shorten it.
+   */
+  protected persistIntervalMs = 5_000;
+
   readonly id: string;
 
   private readonly ctx: RoomContext;
@@ -169,6 +235,7 @@ export abstract class Room<TState = unknown> {
   private lastTickAt = 0;
   private occupancySeq = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(init: RoomInit) {
     this.id = init.id;
@@ -248,11 +315,15 @@ export abstract class Room<TState = unknown> {
   protected allowReconnection(client: Client, seconds: number): Promise<void> {
     const record = this.records.get(client.id);
     if (!record) return Promise.reject(new Error(`unknown client: ${client.id}`));
+    // Durable backstop re-invoked onLeave after the window already elapsed while
+    // the DO was evicted: reject at once so room code runs its expiry cleanup.
+    if (record.windowExpired) return Promise.reject(new Error("reconnection window expired"));
     // Already back (reconnected before onLeave got here) — window is satisfied.
     if (record.connId !== null) return Promise.resolve();
     if (record.reconnectPromise) return record.reconnectPromise;
 
     record.awaitingReconnect = true;
+    record.reconnectDeadline = Date.now() + seconds * 1000;
     record.reconnectPromise = new Promise<void>((resolve, reject) => {
       record.reconnectResolve = resolve;
       record.reconnectReject = reject;
@@ -263,6 +334,10 @@ export abstract class Room<TState = unknown> {
     // Avoid an unhandled rejection when room code doesn't await the promise
     // (the returned promise is unaffected — callers still observe rejection).
     record.reconnectPromise.catch(() => {});
+    // Persist the open window + arm the DO alarm so an eviction mid-window still
+    // finalizes the seat when the alarm fires on a cold-started instance.
+    void this.persistNow();
+    void this.syncReconnectAlarm();
     return record.reconnectPromise;
   }
 
@@ -273,12 +348,17 @@ export abstract class Room<TState = unknown> {
       record.reconnectTimer = null;
     }
     record.awaitingReconnect = false;
+    record.reconnectDeadline = null;
     const resolve = record.reconnectResolve;
     const reject = record.reconnectReject;
     record.reconnectResolve = null;
     record.reconnectReject = null;
     if (error) reject?.(error);
     else resolve?.();
+    // The window closed (reattach or timeout): update the durable snapshot and
+    // re-point the alarm at the next-earliest pending window (or clear it).
+    void this.persistNow();
+    void this.syncReconnectAlarm();
   }
 
   // --- opt-in Simulation module (turn-based rooms simply never call this) ---
@@ -317,6 +397,7 @@ export abstract class Room<TState = unknown> {
   /** @internal */
   async _create(): Promise<void> {
     await this.onCreate();
+    await this.restore();
   }
 
   /** @internal */
@@ -351,6 +432,8 @@ export abstract class Room<TState = unknown> {
       reconnectResolve: null,
       reconnectReject: null,
       reconnectTimer: null,
+      reconnectDeadline: null,
+      windowExpired: false,
     };
     this.records.set(clientId, record);
     this.connToClient.set(conn.id, clientId);
@@ -372,6 +455,7 @@ export abstract class Room<TState = unknown> {
       conn.id,
     ]);
     this.reportOccupancy();
+    void this.persistNow(); // new seat — persist promptly, not on the coalesced timer
   }
 
   /** Attach a new transport connection to an existing seat (reconnect/takeover). */
@@ -513,7 +597,12 @@ export abstract class Room<TState = unknown> {
     if (this.records.size === 0) {
       this.clearSimulationInterval();
       this.clearHeartbeat();
+      // Room is empty and disposing: drop its durable snapshot + any pending
+      // alarm so a future room reusing this id (DO) cold-starts clean.
+      await this.clearPersisted();
       await this.onDispose();
+    } else {
+      void this.persistNow(); // seat removed — keep the snapshot current
     }
   }
 
@@ -539,10 +628,159 @@ export abstract class Room<TState = unknown> {
     }
   }
 
-  private makeClient(clientId: string): Client {
+  // --- durable persistence (no-op when the host wires no storage) ---
+
+  /** Coalesce a state snapshot to at most one write per {@link persistIntervalMs}. */
+  private schedulePersist(): void {
+    if (!this.ctx.storage || this.persistTimer !== null) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      void this.persistNow();
+    }, this.persistIntervalMs);
+  }
+
+  /** Write the current state + seats snapshot now, cancelling any coalesced write. */
+  private async persistNow(): Promise<void> {
+    const storage = this.ctx.storage;
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    if (!storage || this.state === undefined) return;
+    const snapshot: PersistedRoom<TState> = {
+      v: 1,
+      state: this.state,
+      seats: [...this.records.values()].map((r) => ({
+        id: r.client.id,
+        data: r.client.data,
+        deadline: r.reconnectDeadline,
+      })),
+      occupancySeq: this.occupancySeq,
+    };
+    try {
+      await storage.put(ROOM_STORAGE_KEY, snapshot);
+    } catch {
+      // Best-effort: a failed persist just means a cold start restores an older
+      // snapshot (or none). The live in-memory room is unaffected.
+    }
+  }
+
+  /** Drop the durable snapshot + pending alarm when the room disposes (empty). */
+  private async clearPersisted(): Promise<void> {
+    const storage = this.ctx.storage;
+    if (this.persistTimer !== null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    if (!storage) return;
+    try {
+      await storage.delete(ROOM_STORAGE_KEY);
+      await storage.deleteAlarm();
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Restore a snapshot after a cold start (DO eviction). Seats come back as
+   * disconnected records — a reconnecting client reclaims one via {@link reattach},
+   * and any whose window already elapsed is finalized by {@link _alarm}. Only
+   * `this.state` and each `client.data` survive; ad-hoc room-instance fields do
+   * not (persist anything durable through `this.state`).
+   */
+  private async restore(): Promise<void> {
+    const storage = this.ctx.storage;
+    if (!storage) return;
+    let snapshot: PersistedRoom<TState> | undefined;
+    try {
+      snapshot = await storage.get<PersistedRoom<TState>>(ROOM_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (!snapshot || snapshot.v !== 1) return;
+
+    this.state = snapshot.state;
+    this.occupancySeq = snapshot.occupancySeq;
+    for (const seat of snapshot.seats) {
+      // Every restored seat is disconnected and must eventually expire: seats
+      // persisted mid-window keep their deadline; seats persisted while still
+      // connected get a fresh grace window instead of lingering forever.
+      const deadline = seat.deadline ?? Date.now() + RESTORE_GRACE_MS;
+      this.records.set(seat.id, {
+        client: this.makeClient(seat.id, seat.data),
+        connId: null,
+        awaitingReconnect: true,
+        reconnectPromise: null,
+        reconnectResolve: null,
+        reconnectReject: null,
+        reconnectTimer: null,
+        reconnectDeadline: deadline,
+        windowExpired: false,
+      });
+    }
+    // Resume heartbeats for a restored-but-occupied room, and make sure the alarm
+    // matches the restored windows (defensive — the DO alarm persists on its own).
+    this.syncHeartbeat();
+    await this.syncReconnectAlarm();
+  }
+
+  /** Point the single DO alarm at the earliest pending reconnection deadline. */
+  private async syncReconnectAlarm(): Promise<void> {
+    const storage = this.ctx.storage;
+    if (!storage) return;
+    let earliest: number | null = null;
+    for (const r of this.records.values()) {
+      if (r.connId === null && r.reconnectDeadline !== null) {
+        earliest = earliest === null ? r.reconnectDeadline : Math.min(earliest, r.reconnectDeadline);
+      }
+    }
+    try {
+      if (earliest === null) {
+        await storage.deleteAlarm();
+      } else {
+        const current = await storage.getAlarm();
+        if (current === null || current > earliest) await storage.setAlarm(earliest);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * @internal Durable reconnection-window backstop. Fires from the DO alarm (even
+   * on a cold-started instance after eviction): finalizes every seat whose window
+   * has elapsed — running the room's expiry cleanup via `onLeave` — then re-points
+   * the alarm at the next pending window.
+   */
+  async _alarm(): Promise<void> {
+    const now = Date.now();
+    for (const [id, record] of [...this.records]) {
+      if (record.connId !== null || record.reconnectDeadline === null) continue;
+      if (record.reconnectDeadline > now) continue;
+      record.windowExpired = true;
+      try {
+        await this.onLeave(record.client); // expiry branch runs (allowReconnection rejects)
+      } catch {
+        // finalize regardless
+      }
+      if (record.reconnectPromise) {
+        try {
+          await record.reconnectPromise;
+        } catch {
+          // window expired — fall through
+        }
+      }
+      if (this.records.get(id) === record && record.connId === null) {
+        await this.finalizeLeave(id, record);
+      }
+    }
+    await this.syncReconnectAlarm();
+  }
+
+  private makeClient(clientId: string, data: Record<string, unknown> = {}): Client {
     return {
       id: clientId,
-      data: {},
+      data,
       send: (type, payload) => {
         const connId = this.records.get(clientId)?.connId;
         if (!connId) return; // disconnected (possibly inside a reconnection window)
@@ -553,6 +791,7 @@ export abstract class Room<TState = unknown> {
 
   private flushState(): void {
     if (this.state === undefined) return;
+    this.schedulePersist(); // coalesced durable snapshot (state changed)
     const codec = this.stateCodec;
 
     if (!codec) {
