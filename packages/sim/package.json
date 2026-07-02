@@ -1,6 +1,6 @@
 {
   "name": "@tikron/sim",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Isomorphic movement math for Tikron — the deterministic step/validate model shared by the server room and the client predictor. Zero dependencies.",
   "license": "FSL-1.1-ALv2",
   "type": "module",

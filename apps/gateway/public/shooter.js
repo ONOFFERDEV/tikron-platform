@@ -1420,8 +1420,9 @@ var GameClient = class {
     return await res.json();
   }
   /**
-   * Join a room by name (creating it on first join). In M0/M1 this simply opens a
-   * connection to the room's Durable Object; real matchmaking arrives in M4.
+   * Join a room by name (creating it on first join) by opening a connection to the
+   * room's Durable Object. To let the platform pick and reserve a room, call
+   * {@link matchmake} first and pass its `roomId`/`sessionId` here.
    */
   async joinOrCreate(room, params = {}) {
     const query = { ...params };
