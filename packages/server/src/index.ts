@@ -23,3 +23,4 @@ export {
 export type { RoomClass, DefineRoomOptions, OccupancyReport } from "./define-room.js";
 export { validateMovement } from "./movement.js";
 export type { Vec2, MovementConfig, MovementResult } from "./movement.js";
+export { TurnBasedRoom, CasualRealtimeRoom, IoArenaRoom } from "./presets.js";

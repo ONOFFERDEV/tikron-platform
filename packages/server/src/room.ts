@@ -244,7 +244,7 @@ export abstract class Room<TState = unknown> {
   private readonly pendingFull = new Set<string>();
   private readonly clientBaselines = new Map<string, TState>();
   private baseline: TState | undefined;
-  private aoi?: AOIConfig<TState>;
+  #aoi?: AOIConfig<TState>;
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
@@ -345,6 +345,12 @@ export abstract class Room<TState = unknown> {
    * one the client id is the connection id, which a new transport can't reclaim.
    */
   protected allowReconnection(client: Client, seconds: number): Promise<void> {
+    if (!(seconds > 0)) {
+      throw new Error(
+        `allowReconnection(seconds) requires seconds > 0 (got ${seconds}). Fix: pass a positive ` +
+          "hold time, e.g. this.allowReconnection(client, 30), or skip it to drop the seat at once.",
+      );
+    }
     const record = this.records.get(client.id);
     if (!record) return Promise.reject(new Error(`unknown client: ${client.id}`));
     // Durable backstop re-invoked onLeave after the window already elapsed while
@@ -397,6 +403,15 @@ export abstract class Room<TState = unknown> {
 
   /** Start a fixed-timestep authoritative loop. Realtime games only. */
   protected setSimulationInterval(fn: (deltaMs: number) => void, intervalMs: number): void {
+    if (intervalMs < 10) {
+      // Not fatal — but sub-10ms ticks pin the Durable Object's CPU and cannot be
+      // backed by DO alarms (which are unsuitable below ~1s). 20–30 Hz (33–50ms)
+      // is the sweet spot for realtime rooms.
+      console.warn(
+        `setSimulationInterval(${intervalMs}ms) is very fast: sub-10ms ticks pin the ` +
+          "Durable Object CPU and can't be alarm-backed. Fix: use ~33–50ms (20–30 Hz).",
+      );
+    }
     this.clearSimulationInterval();
     this.lastTickAt = Date.now();
     this.tickHandle = setInterval(() => {
@@ -421,7 +436,13 @@ export abstract class Room<TState = unknown> {
    * construction. Requires a {@link stateCodec}.
    */
   protected enableAOI(config: AOIConfig<TState>): void {
-    this.aoi = config;
+    if (!this.stateCodec) {
+      throw new Error(
+        "enableAOI() requires a binary stateCodec. Fix: this.stateCodec = schema({...}) " +
+          "from @playedge/schema (AOI filters per-client binary deltas, so it needs the codec).",
+      );
+    }
+    this.#aoi = config;
   }
 
   // --- internal glue (invoked by the defineRoom host; not part of the dev API) ---
@@ -429,7 +450,27 @@ export abstract class Room<TState = unknown> {
   /** @internal */
   async _create(): Promise<void> {
     await this.onCreate();
+    this.validateConfig();
     await this.restore();
+  }
+
+  /**
+   * Fail fast on misconfigured knobs once `onCreate` has run (so a subclass's
+   * settings are in place). Each message names what is wrong and the one-line fix.
+   */
+  private validateConfig(): void {
+    if (!(this.maxClients >= 1)) {
+      throw new Error(
+        `maxClients must be >= 1 (got ${this.maxClients}). Fix: set this.maxClients to a ` +
+          "positive integer in onCreate(), or leave it unset for no cap.",
+      );
+    }
+    if (this.syncIntervalMs < 0) {
+      throw new Error(
+        `syncIntervalMs must be >= 0 (got ${this.syncIntervalMs}). Fix: use 50 for the default ` +
+          "~20 Hz throttle, or 0 for immediate (per-mutation) flushing.",
+      );
+    }
   }
 
   /** @internal */
@@ -847,7 +888,7 @@ export abstract class Room<TState = unknown> {
       return;
     }
 
-    if (this.aoi) {
+    if (this.#aoi) {
       this.flushAOI(codec);
       return;
     }
@@ -889,7 +930,7 @@ export abstract class Room<TState = unknown> {
 
   /** Build the AOI-filtered state a specific viewer is allowed to see. */
   private aoiFilter(viewerId: string): TState {
-    const aoi = this.aoi!;
+    const aoi = this.#aoi!;
     const state = this.state as Record<string, unknown>;
     const out: Record<string, unknown> = { ...state };
     const vp = aoi.viewer(this.state, viewerId);

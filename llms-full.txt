@@ -1,0 +1,148 @@
+# PlayEdge — full agent reference
+
+Server-authoritative realtime multiplayer BaaS for web games on Cloudflare Workers +
+Durable Objects. One Durable Object per room, placed at the edge near players. You
+author a Room subclass (state + intent handlers); clients send intents, the server
+owns and validates all state. pnpm + Turborepo monorepo, TypeScript strict, ESM with
+`.js` import extensions, `noUncheckedIndexedAccess` on.
+
+Index/docs: llms.txt · AGENTS.md (operational brief) · docs/HANDOFF.md (architecture)
+· docs/PERF.md (measured numbers — never invent latency figures).
+
+## Commands
+
+    pnpm install                                # Node >= 22, pnpm 10.x
+    pnpm typecheck | pnpm test | pnpm build     # workspace-wide (turbo)
+    pnpm --filter <pkg> dev                     # local edge server (127.0.0.1:8787)
+    pnpm --filter <pkg> run deploy              # deploy (once: pnpm exec wrangler login)
+    npx create-playedge my-game                 # scaffold (clones repo; not on npm yet)
+
+## @playedge/server — authoring rooms
+
+### Genre presets (packages/server/src/presets.ts) — pick ONE by genre
+
+    TurnBasedRoom<TState>        turns alternate; JSON sync on mutation; no tick.
+                                 Implement: onCreate, onJoin, onLeave.
+    CasualRealtimeRoom<TState>   free movement, NO physics tick (cursors/whiteboard/
+                                 party). Throttled ~20Hz JSON sync + built-in 30s
+                                 reconnection (field: reconnectWindowSec).
+                                 Implement: onCreate, onJoin, onSeatExpired(client).
+                                 NEVER override onLeave (the preset owns it).
+    IoArenaRoom<TState>          fixed-timestep simulation (.io/shooter/racer).
+                                 Binary delta sync + acks + optional AOI + reconnection.
+                                 Implement: `protected readonly codec = schema({...})`,
+                                 onReady() (setup — the preset owns onCreate),
+                                 onTick(dtMs) (state auto-flushes after each tick),
+                                 onSeatExpired(client). Fields: tickMs=50, aoi?.
+
+### Room<TState> core (packages/server/src/room.ts)
+
+Lifecycle hooks (override): onCreate() · onJoin(client) · onLeave(client) ·
+onReconnect(client) · onDispose().
+
+Developer API (protected):
+    setState(next)                    replace state + schedule sync
+    markStateChanged()                after in-place mutation; coalesced per syncIntervalMs
+    onMessage(type, (client, payload, seq?) => ...)   payload is unknown — VALIDATE it
+    broadcast(type, payload?, exceptClientId?)        dev-defined server→client message
+    client.send(type, payload?)       to one client (drops silently while disconnected)
+    clientList() / clientCount        seated clients (includes reconnection windows)
+    allowReconnection(client, seconds)  inside onLeave; resolves on reattach, rejects on
+                                        timeout; requires the client to connect with
+                                        ?_session=<key>; survives DO eviction (alarm)
+    setSimulationInterval(fn, ms)     fixed tick (realtime only; >= ~20ms)
+    clearSimulationInterval()
+    enableAOI({viewRadius, mapFields, position, viewer})  requires stateCodec;
+                                        per-viewer filtered binary sync (anti-wallhack)
+
+Knobs (protected fields): maxClients=Infinity (room-side hard cap → room_full/4002;
+reattach never capped) · maxInputsPerSecond=30 (excess inputs dropped) ·
+syncIntervalMs=50 (0 = immediate microtask flush — unbounded, avoid) ·
+sendAcks=false (ack input seq for client reconciliation) · stateCodec (binary delta) ·
+persistIntervalMs=5000 (durable snapshot cadence).
+
+Facts: Client = { id, data (server-only scratch), send }. client.id is the session key
+when supplied, else the connection id — state keyed by client.id survives reconnects.
+Only this.state and client.data survive DO eviction (persisted snapshot); ad-hoc
+instance fields do not. State must be structured-clone-able. Duplicate session connect
+= takeover (old socket closed 4001). Input seq replay-floor resets on reattach.
+
+### defineRoom (packages/server/src/define-room.ts)
+
+    export const MyRoom = defineRoom(MyRoomImpl, options?)
+    // wrangler.jsonc: durable_objects.bindings [{ name: "MyRoom", class_name: "MyRoom" }]
+    // URL party = kebab-case of the binding: MyRoom -> /parties/my-room/<room-id>
+
+DefineRoomOptions (all optional):
+    reportOccupancy(env, {roomId, count, sessions, seq, projectId?, messages?})
+    validateSession(env, {roomId, session}) -> boolean     gate self-supplied ?_session=
+    onAuth(env, {roomId, projectId?, token, session}) -> boolean   player JWT gate (?_auth=)
+
+Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_FULL ·
+4003 CLOSE_INVALID_SESSION · 4004 CLOSE_UNAUTHORIZED.
+
+## @playedge/client — browser SDK
+
+    const client = new GameClient(location.host, {
+      party: "my-room",            // kebab-case binding name
+      apiKey?: "pe_live_...",      // metered platform key (?apiKey=)
+      authToken?: "<jwt>",         // player token (?_auth=) when project requires it
+      stateCodec?: MySchema,       // must match the room's codec for binary sync
+    });
+    const m = await client.matchmake({ mode?, maxClients? }); // {roomId, sessionId}
+    const room = await client.joinOrCreate(m.roomId, { _session: m.sessionId });
+
+    room.send(type, payload)             auto-seq'd intent
+    room.onStateChange(state => ...)     authoritative state (JSON or decoded binary)
+    room.onMessage(type, payload => ...) dev-defined server messages
+    room.onAck(seq => ...) / room.lastAckSeq   for reconciliation (sendAcks rooms)
+    room.connectionId                    stable id (== session key when supplied)
+    room.leave()
+
+Netcode helpers: InputPredictor (predict/reconcile) · SnapshotBuffer (interpolation,
+delayMs ~100). Transport auto-reconnects (PartySocket); it stops on close 4001. Binary
+frames arrive as arraybuffer (SDK sets binaryType — hand-rolled clients must too).
+
+## @playedge/schema — binary delta state sync
+
+    import { schema, mapOf, prim, type Codec } from "@playedge/schema";
+    const MySchema: Codec<MyState> = schema({
+      players: mapOf(schema({ x: "f32", y: "f32", score: "u32" })),  // string-keyed maps
+      round: "u16",            // prims: u8 u16 u32 i32 f32 f64 bool str
+    });
+    // server: protected readonly codec = MySchema   (IoArenaRoom)
+    // client: new GameClient(host, { stateCodec: MySchema })
+
+Wire: first byte 0x01 full snapshot / 0x02 delta; decodeFull/applyDelta client-side
+(the SDK does this). Schema must be identical on both sides.
+
+## Platform (apps/gateway) — multi-tenancy
+
+REST: GET /api/matchmake?type=<party>&mode=&max= → {roomId, sessionId} (403
+cap_room_hours | cap_concurrent_rooms when capped) · GET /api/rooms → lobby ·
+Dashboard API under /api/platform/* (session-cookie auth; see dashboard).
+
+Keys: pe_live_* (SHA-256 stored; shown once). /parties/* connects require ?apiKey=
+when the platform DB is bound; missing key falls back to the metered demo project
+(DEMO_PROJECT_ID) if configured; invalid key → 401. Local dev: DEV_MODE=1 bypasses.
+Caps (D1 config, defaults): 5,000 room-hours/month · 50 concurrent rooms · 20
+players/room. Usage: rooms report occupancy + 30s heartbeats; matchmaker accrues
+room-hours/peak CCU/messages → usage_daily (60s alarm flush).
+
+## Hard rules (failures these prevent — details in AGENTS.md)
+
+1. Server owns state; clients send intents. Validate every payload (type-guard +
+   clamp); act on the server's view, never the client's claim.
+2. Party name = kebab-case of the DO binding, everywhere.
+3. Local wrangler only (pnpm scripts); old global wrangler breaks partyserver.
+4. Never benchmark multi-room on local workerd (single process): 8×16 rooms local
+   p50 645ms vs deployed 82ms (PERF.md).
+5. Don't lower syncIntervalMs casually: event RATE, not bytes, kills rooms — the
+   50ms coalesce took a 64-player room from 58/64 dropped sockets to 0 (PERF.md).
+6. Turn-based guardrail: core/TurnBasedRoom rooms must never need a tick.
+
+## Measured (docs/PERF.md, deployed on real Cloudflare, client in Korea)
+
+20-player AOI room: ack p50 ~85ms (≈80ms network + single-digit engine), p99 ~115ms,
+3.8 KiB/s/client. 128 CCU across 8 rooms: p50 ~82ms — rooms scale horizontally.
+Turn-based idle: ~77 B/s/client. Room cost ≈ $0.0058/room-hour (DO duration billing).

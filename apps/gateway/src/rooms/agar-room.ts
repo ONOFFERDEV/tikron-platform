@@ -1,15 +1,14 @@
-import { Room, validateMovement, type Client } from "@playedge/server";
+import { IoArenaRoom, validateMovement, type AOIConfig, type Client } from "@playedge/server";
 import { AgarSchema, AGAR, type AgarState, type AgarPlayer } from "./agar-schema.js";
 
 /**
- * Flagship .io demo — agar-style orb collection. Exercises the whole M0–M3 stack:
- * genre-agnostic core + Simulation + MovementValidation + binary delta sync +
- * input acks + **AOI** (each client only receives players/orbs within its view).
+ * Flagship .io demo — agar-style orb collection. Built on the {@link IoArenaRoom}
+ * preset, which wires the whole realtime stack for us: binary delta sync (the
+ * `codec`), a fixed simulation tick, input acks, and **AOI** (each client only
+ * receives players/orbs within its view). Game code is just `onReady` (spawn +
+ * move handler), the AOI config, and `onSeatExpired`.
  */
 const CFG = { maxSpeed: AGAR.maxSpeed, tolerance: 1.15 };
-
-/** How long a dropped player's blob (and score) survives awaiting a reconnect. */
-const RECONNECT_WINDOW_SEC = 30;
 
 function isVec2(v: unknown): v is { x: number; y: number } {
   return (
@@ -24,7 +23,16 @@ function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
 }
 
-export class AgarRoomImpl extends Room<AgarState> {
+export class AgarRoomImpl extends IoArenaRoom<AgarState> {
+  protected readonly codec = AgarSchema;
+  protected override tickMs = AGAR.stepMs;
+  protected override aoi: AOIConfig<AgarState> = {
+    viewRadius: AGAR.viewRadius,
+    mapFields: ["players", "orbs"],
+    position: (e) => e as { x: number; y: number },
+    viewer: (s, id) => s.players[id] ?? null,
+  };
+
   private seed = 0x2545f491;
   private spawnCount = 0;
   private orbSeq = 0;
@@ -42,16 +50,8 @@ export class AgarRoomImpl extends Room<AgarState> {
     return { x: this.rnd() * AGAR.world, y: this.rnd() * AGAR.world };
   }
 
-  override onCreate(): void {
-    this.stateCodec = AgarSchema;
-    this.sendAcks = true;
+  protected override onReady(): void {
     this.maxClients = 20; // room-enforced cap; matches the demo's matchmake max
-    this.enableAOI({
-      viewRadius: AGAR.viewRadius,
-      mapFields: ["players", "orbs"],
-      position: (e) => e as { x: number; y: number },
-      viewer: (s, id) => s.players[id] ?? null,
-    });
 
     const orbs: Record<string, { x: number; y: number }> = {};
     orbs.orb0 = { x: 130, y: 100 }; // deterministic anchor near player 0's spawn
@@ -60,8 +60,11 @@ export class AgarRoomImpl extends Room<AgarState> {
 
     this.setState({ players: {}, orbs });
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
-    this.setSimulationInterval(() => this.markStateChanged(), AGAR.stepMs);
   }
+
+  // Movement is resolved on input (below); the preset flushes an authoritative
+  // frame every tick on its own, so there is no per-tick simulation to run here.
+  protected override onTick(): void {}
 
   override onJoin(client: Client): void {
     const i = this.spawnCount++;
@@ -73,14 +76,11 @@ export class AgarRoomImpl extends Room<AgarState> {
     this.markStateChanged();
   }
 
-  override async onLeave(client: Client): Promise<void> {
-    try {
-      // Tab switch / network blip: hold the seat so score and position survive.
-      await this.allowReconnection(client, RECONNECT_WINDOW_SEC);
-    } catch {
-      delete this.state.players[client.id];
-      this.markStateChanged();
-    }
+  // The preset holds a dropped player's blob (and score) for its reconnection
+  // window; this runs only once the window really lapses.
+  protected override onSeatExpired(client: Client): void {
+    delete this.state.players[client.id];
+    this.markStateChanged();
   }
 
   private handleMove(client: Client, payload: unknown): void {

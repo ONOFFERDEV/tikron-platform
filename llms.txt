@@ -1,0 +1,51 @@
+# PlayEdge
+
+> PlayEdge is a realtime multiplayer **BaaS for web games** — server-authoritative game
+> rooms on Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK ("Supabase
+> for game netcode"). You author a `Room<TState>` subclass (state shape + `onMessage`
+> intent handlers); the platform runs one Durable Object per room at the edge, placed
+> near players. Clients send intents, the server owns state, every payload is validated.
+> A pnpm + Turborepo monorepo; the primary user is a coding agent building a game for a
+> non-developer.
+
+## Start here
+
+- [AGENTS.md](AGENTS.md): Read first. The operational brief — genre→preset table, the
+  golden path (scaffold → run → deploy), hard rules, command reference, error-code
+  table, and measured limits.
+- [.claude/skills/playedge/SKILL.md](.claude/skills/playedge/SKILL.md): Read when
+  building/modifying a room. Preset decision tree, room-authoring checklist, local
+  smoke-test loop, deploy steps.
+
+## Docs
+
+- [docs/HANDOFF.md](docs/HANDOFF.md): Read for architecture, conventions, repo layout,
+  milestone status, and hard-won gotchas (local wrangler, kebab-case party names,
+  binary frame `arraybuffer`, reconnection semantics).
+- [docs/PERF.md](docs/PERF.md): Read before quoting any performance number. Measured
+  load-test results (20-player AOI room, 128 CCU across 8 rooms, the flush-throttle
+  before/after). Cite these; never invent latency figures.
+- [examples/starter/README.md](examples/starter/README.md): Read to see a complete
+  game in ~150 lines (deploy-in-5-minutes cursor arena) and how to reshape it.
+
+## Key sources
+
+- [packages/server/src/room.ts](packages/server/src/room.ts): Read for the room API —
+  `onMessage`, `markStateChanged`/`setState`, lifecycle hooks, `allowReconnection`,
+  `setSimulationInterval`, `enableAOI`, and the `maxClients`/`syncIntervalMs`/`sendAcks`
+  knobs.
+- [packages/server/src/define-room.ts](packages/server/src/define-room.ts): Read for how
+  a `Room` becomes a Durable Object (`defineRoom`), occupancy reporting, `validateSession`,
+  and `onAuth`.
+- [packages/client/src/index.ts](packages/client/src/index.ts): Read for the browser SDK
+  — `GameClient` (`matchmake`, `joinOrCreate`) and `Room` (`send`, `onStateChange`,
+  `onMessage`, `onAck`).
+- [packages/protocol/src/index.ts](packages/protocol/src/index.ts): Read for the wire
+  protocol — client/server message tags and the JSON codec.
+- [examples/starter/src/arena-room.ts](examples/starter/src/arena-room.ts): Read for a
+  minimal, correct room to copy (validate-then-mutate handlers, reconnection).
+
+## Tooling
+
+- [tools/create-playedge/README.md](tools/create-playedge/README.md): Read for the
+  scaffolder (`npx create-playedge my-game`) and why v1 clones the repo.

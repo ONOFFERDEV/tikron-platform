@@ -149,6 +149,15 @@ importers:
         specifier: ^4.1.0
         version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
 
+  tools/create-playedge:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+
   tools/loadtest:
     dependencies:
       '@playedge/schema':

@@ -1,0 +1,22 @@
+{
+  "name": "create-playedge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scaffolder for PlayEdge games — clone the platform repo (or copy the starter template) and print the next steps.",
+  "bin": {
+    "create-playedge": "src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.2"
+  }
+}

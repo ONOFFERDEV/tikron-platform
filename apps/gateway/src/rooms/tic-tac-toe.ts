@@ -1,8 +1,9 @@
-import { Room, type Client } from "@playedge/server";
+import { TurnBasedRoom, type Client } from "@playedge/server";
 
 /**
- * Turn-based guardrail room — proves the genre-agnostic core works with **no
- * simulation tick** and no movement/AOI modules. State syncs purely on mutation.
+ * Turn-based guardrail room — proves the {@link TurnBasedRoom} preset (the
+ * genre-agnostic core) works with **no simulation tick** and no movement/AOI
+ * modules. State syncs purely on mutation.
  */
 type Mark = "X" | "O";
 type Cell = Mark | null;
@@ -25,7 +26,7 @@ const LINES: ReadonlyArray<readonly [number, number, number]> = [
   [2, 4, 6],
 ];
 
-export class TicTacToeImpl extends Room<TicTacToeState> {
+export class TicTacToeImpl extends TurnBasedRoom<TicTacToeState> {
   override onCreate(): void {
     this.setState({
       board: Array<Cell>(9).fill(null),

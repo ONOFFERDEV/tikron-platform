@@ -1,4 +1,4 @@
-import { Room, type Client } from "@playedge/server";
+import { CasualRealtimeRoom, type Client } from "@playedge/server";
 
 /**
  * Your first PlayEdge room: a shared canvas where every player is a colored
@@ -10,11 +10,11 @@ import { Room, type Client } from "@playedge/server";
  *  - You mutate `this.state` in a message handler, call `markStateChanged()`,
  *    and every connected client receives the update. That's the whole loop.
  *
- * This room uses only the genre-agnostic core (JSON sync, no tick). When you
- * outgrow it, the same Room class scales up with opt-in modules — a fixed
- * timestep (`setSimulationInterval`), binary delta sync (`stateCodec`), and
- * per-player interest management (`enableAOI`). See `apps/gateway` for a
- * full .io game using all three.
+ * This extends the `CasualRealtimeRoom` preset: throttled JSON sync plus a
+ * built-in 30s reconnection window (a dropped cursor is held, and cleaned up in
+ * `onSeatExpired` only if the player never returns — no hand-written try/catch).
+ * When you outgrow it, `IoArenaRoom` adds a simulation tick, binary delta sync,
+ * and per-player interest management. See `apps/gateway` for a full .io game.
  */
 
 interface Player {
@@ -57,7 +57,7 @@ function hueOf(id: string): number {
   return h % 360;
 }
 
-export class ArenaRoomImpl extends Room<ArenaState> {
+export class ArenaRoomImpl extends CasualRealtimeRoom<ArenaState> {
   override onCreate(): void {
     this.setState({ players: {}, splats: [] });
 
@@ -87,14 +87,10 @@ export class ArenaRoomImpl extends Room<ArenaState> {
     this.markStateChanged();
   }
 
-  override async onLeave(client: Client): Promise<void> {
-    try {
-      // Tab switch or network blip? Hold the seat for 30s — if the client
-      // comes back with the same session key, their dot never disappears.
-      await this.allowReconnection(client, 30);
-    } catch {
-      delete this.state.players[client.id];
-      this.markStateChanged();
-    }
+  // The preset holds a dropped player's seat for 30s (a tab switch or network
+  // blip leaves their dot in place). This runs only if they never come back.
+  protected override onSeatExpired(client: Client): void {
+    delete this.state.players[client.id];
+    this.markStateChanged();
   }
 }
