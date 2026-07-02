@@ -1,4 +1,19 @@
-# Tikron
+<div align="center">
+
+<img src=".github/assets/tikron-banner.svg" alt="tikron — server-authoritative multiplayer for web games, on the edge" width="100%" />
+
+<br/>
+
+[![npm](https://img.shields.io/npm/v/%40tikron%2Fserver?style=flat-square&labelColor=0a0e14&color=00e5a0&label=%40tikron%2Fserver)](https://www.npmjs.com/package/@tikron/server)
+[![license](https://img.shields.io/badge/license-FSL--1.1-00e5a0?style=flat-square&labelColor=0a0e14)](LICENSE.md)
+[![live](https://img.shields.io/badge/live-tikron.dev-00e5a0?style=flat-square&labelColor=0a0e14)](https://tikron.dev)
+[![discord](https://img.shields.io/badge/chat-discord-58a6ff?style=flat-square&labelColor=0a0e14&logo=discord&logoColor=58a6ff)](https://discord.gg/uXnK7Czq7G)
+
+**[🎮 Play the FPS demo](https://tikron.dev/shooter.html)** · [Dashboard](https://tikron.dev/dashboard/) · [Agent docs (AGENTS.md)](AGENTS.md) · [Measured numbers](docs/PERF.md)
+
+</div>
+
+---
 
 **Source-available, server-authoritative multiplayer SDK for web games** (FSL-1.1 — free for any use except competing with Tikron, converts to Apache-2.0 after one year) — the "Supabase for
 game netcode", but you self-host. You deploy game rooms to **your own Cloudflare account**
@@ -14,7 +29,7 @@ part — everything else runs on your account.
 > Measured: a single room holds **100 concurrent players cleanly on deployed Cloudflare**
 > (0 drops, server tick+flush 0 ms) — see [`docs/PERF.md`](docs/PERF.md); never invent latency figures.
 
-## Install (SDK v0.2.0)
+## Install
 
 ```bash
 npx create-tikron my-game        # scaffold a standalone game (recommended)
@@ -22,7 +37,7 @@ npx create-tikron my-game        # scaffold a standalone game (recommended)
 npm i @tikron/client @tikron/server @tikron/schema partyserver
 ```
 
-The published `@tikron/*` packages are at **0.2.0**. Client and server share the wire
+The published `@tikron/*` packages are at **0.3.0**. Client and server share the wire
 protocol — run the **same minor** on both sides (0.1.x and 0.2.x are not wire-compatible).
 
 ## Monorepo layout

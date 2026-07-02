@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Tikron — server-authoritative multiplayer for web games">
+  <defs>
+    <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#00e5a0" stop-opacity="0.10"/>
+      <stop offset="0.55" stop-color="#00e5a0" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#00e5a0" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.2" cy="1.2" r="1.2" fill="#1b2430"/>
+    </pattern>
+  </defs>
+
+  <!-- panel -->
+  <rect width="1200" height="300" rx="18" fill="#0a0e14"/>
+  <rect x="1" y="1" width="1198" height="298" rx="17" fill="none" stroke="#232b36" stroke-width="2"/>
+  <rect x="2" y="2" width="1196" height="150" rx="16" fill="url(#haze)"/>
+  <rect x="2" y="2" width="1196" height="296" rx="16" fill="url(#dots)" opacity="0.55"/>
+
+  <!-- the tick-pulse, drawing itself like an oscilloscope sweep -->
+  <g filter="url(#glow)">
+    <path d="M80 172 H210 L262 92 L336 236 L392 138 H520" fill="none" stroke="#00e5a0"
+          stroke-width="9" stroke-linecap="round" stroke-linejoin="round"
+          stroke-dasharray="640 640">
+      <animate attributeName="stroke-dashoffset" values="640;0;0;-640" keyTimes="0;0.45;0.72;1" dur="3.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <!-- faint resting baseline under the sweep -->
+  <path d="M80 172 H520" fill="none" stroke="#00e5a0" stroke-width="2" opacity="0.14" stroke-linecap="round"/>
+
+  <!-- wordmark -->
+  <g font-family="ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, Consolas, monospace" font-weight="600">
+    <text x="596" y="150" font-size="86" letter-spacing="2" fill="#e6edf3">t<tspan fill="#00e5a0" filter="url(#glow)">i<animate attributeName="opacity" values="1;1;0.25;1;1" keyTimes="0;0.62;0.68;0.78;1" dur="1.6s" repeatCount="indefinite"/></tspan>kron</text>
+    <text x="600" y="196" font-size="23" fill="#8b98a9" letter-spacing="0.4">Server-authoritative multiplayer for web games</text>
+    <text x="600" y="228" font-size="23" fill="#8b98a9" letter-spacing="0.4">— on the edge, in minutes.</text>
+  </g>
+
+  <!-- measured, not marketing -->
+  <g font-family="ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, Consolas, monospace" font-size="16">
+    <text x="600" y="266" fill="#00e5a0" opacity="0.9">100 CCU · one FPS room · deployed · zero drops</text>
+  </g>
+</svg>
