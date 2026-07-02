@@ -179,6 +179,32 @@ measured from the same Korean residential connection:
   joins over 10 s is fully clean. Mitigation (join pacing / client backoff)
   is an F3 work item — steady-state operation is not affected.
 
+## 100 players, one room — F3 FPS stack (2026-07-02, deployed)
+
+`fps` loadtest scenario against the deployed ShooterRoom (hitscan shooter:
+20 Hz moves + 1 Hz subtick-timestamped shots resolved via lag-comp rewinds,
+quant-coded state, AOI 600 with priority tiers `[{300,1},{600,4}]`,
+AOI-filtered shot tracers). 100 players, one room, 45 s, 10 s ramp:
+
+| metric | value |
+|---|---|
+| connect success / unexpected closes / spikes | **100/100 · 0 · 0** |
+| server tick+flush (tk:stats) | 0 ms (all buckets) |
+| ack RTT p50 / p99 / max | 136 / 213 / 483 ms |
+| shot events delivered | ~3,200/s total (129,794 over the run) |
+| downlink/client | 12.8 KiB/s (state + ~32 tracer events/s) |
+| state frame gap p50 | 62 ms |
+
+- **The full FPS feature stack holds at 100 CCU on one DO**: state fan-out +
+  tiered AOI + per-field map deltas + subtick shot resolution, zero drops.
+- The 62 ms frame gap (vs agar's 48.4 ms on the same infra) is the priority
+  tiers working: viewers whose visible entities are all far-tier get their
+  flush suppressed entirely that round (null delta → no send), so gaps mix
+  50/100 ms. Near-tier updates stay at cadence.
+- ack p50 136 ms (vs ~90 ms agar) includes shot/tick processing semantics of
+  the shooter room; the tail (p99 213 ms, no spikes) is what matters for
+  prediction-masked play.
+
 ## Baselines
 
 - `ttt-json` (turn-based, JSON sync, no tick): 77 B/s per idle client — a
