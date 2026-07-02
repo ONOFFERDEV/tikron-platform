@@ -30,6 +30,132 @@ export interface MovementResult {
 }
 
 /**
+ * The movement contract shared by the server's validation and the client's render
+ * prediction — one budget, two sides. A structural subtype of {@link MovementConfig},
+ * so a profile passes straight into {@link validateMovement} /
+ * {@link resolveMovement} as `(prev, req, profile, deltaMs)`.
+ *
+ * Define it ONCE in a module imported by both the room and the client bundle; a
+ * hand-copied duplicate is exactly the drift this type exists to prevent.
+ */
+export interface MotionProfile extends MovementConfig {
+  /**
+   * Simulation tick in ms — the server's per-move default budget window, the
+   * client's send interval, and the recommended render-frame dt clamp.
+   */
+  stepMs: number;
+  /**
+   * Square world edge length (units). MUST equal the state codec's `quant` position
+   * range — a value outside the quant range clamps to the edge, so a mismatch would
+   * silently pin players to a wall. Omit for an unbounded plane.
+   */
+  world?: number;
+  /**
+   * Client-side send-clamp budget scale relative to `maxSpeed` (default 1.1). Keep it
+   * strictly between 1 and `tolerance`: below the server's tolerance so a clamped
+   * send fits the budget the server measures for the same inter-move delta, and above
+   * 1 so a backlog left by an earlier clamp drains during sustained movement (at
+   * exactly 1 the wire could only match — never recover — the render position). The
+   * gap up to `tolerance` stays a pure server margin the client never consumes.
+   */
+  sendHeadroom?: number;
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+/**
+ * Integrate one render frame of local movement and return the new position. Moves
+ * `pos` along the signed input direction `(dirX, dirY)` at `maxSpeed` u/s for `dtMs`,
+ * clamped to `[0, world]` on each axis (pass `Infinity` for an unbounded plane).
+ * `dtMs` is clamped to `[0, maxDtMs]` so a tab-out or GC hitch can't fling the player
+ * across the map. Diagonal input is normalized so speed is identical in every
+ * direction.
+ *
+ * Frame-rate-uniform by construction: with a fixed `dtMs` and a held direction, each
+ * frame advances by exactly `maxSpeed · dtMs/1000` until a wall. Any composition of
+ * frame steps whose dts sum to one `stepMs` covers at most the one-step budget, so a
+ * position integrated this way and sent through {@link clampToBudget} is always
+ * accepted by {@link validateMovement} at the same profile.
+ */
+export function integrateMove(
+  pos: Vec2,
+  dirX: number,
+  dirY: number,
+  dtMs: number,
+  maxSpeed: number,
+  world: number,
+  maxDtMs: number,
+): Vec2 {
+  const dt = Math.min(Math.max(dtMs, 0), maxDtMs) / 1000;
+  const len = Math.hypot(dirX, dirY);
+  if (len === 0 || dt === 0) return { x: pos.x, y: pos.y };
+  const step = maxSpeed * dt;
+  return {
+    x: clamp(pos.x + (dirX / len) * step, 0, world),
+    y: clamp(pos.y + (dirY / len) * step, 0, world),
+  };
+}
+
+/**
+ * Clamp an outgoing move snapshot to the server's per-move speed budget, measured
+ * from the last position actually *sent* (not the continuously-integrated render
+ * position) — the single choke point that makes a rejection structurally impossible
+ * for an honest client.
+ *
+ * The budget covers the **measured elapsed time** since the previous send
+ * (`elapsedMs`, clamped to `[0, 2·stepMs]` — mirroring a server that budgets each
+ * move by the measured inter-move delta capped at two ticks). It must NOT be a fixed
+ * one-tick budget: the continuous integrator advances by real elapsed time, so under
+ * sustained full-speed movement a fixed budget below the real per-send displacement
+ * would leak distance on every send and the wire position would fall behind the
+ * render position without bound. The speed scale is `maxSpeed · sendHeadroom` (see
+ * {@link MotionProfile.sendHeadroom}); `tolerance` is never consumed — it stays the
+ * server's margin for float error and dropped moves. Residual distance from a
+ * genuinely clamped send simply rides along on the next send. On the first send
+ * (`lastSent === null`) the target passes through unchanged. Pure.
+ */
+export function clampToBudget(
+  lastSent: Vec2 | null,
+  next: Vec2,
+  profile: MotionProfile,
+  elapsedMs: number,
+): Vec2 {
+  if (!lastSent) return { x: next.x, y: next.y };
+  const dt = clamp(elapsedMs, 0, profile.stepMs * 2);
+  // The headroom must stay below the server's tolerance, or a drained backlog would
+  // overshoot the budget the server measures (one spurious reject per drain).
+  const headroom = Math.min(profile.sendHeadroom ?? 1.1, profile.tolerance ?? 1.15);
+  return stepToward(lastSent, next, profile.maxSpeed * headroom, dt);
+}
+
+/**
+ * The non-freezing counterpart of {@link validateMovement}. Within budget it returns
+ * the identical acceptance; over budget it advances `prev` toward `requested` by the
+ * full un-toleranced budget (`stepToward` at `maxSpeed`) instead of snapping back,
+ * and reports `rejected: true`.
+ *
+ * Use this in a room's move handler. A frozen authoritative position turns one
+ * rejection into an RTT-long cascade — every in-flight move gets measured against the
+ * stale position and rejected too, and each correction yanks the client's render back
+ * again (the rubber-band burst). Partial advance removes that amplifier while a speed
+ * hack still cannot exceed `maxSpeed` (no tolerance on the clamped path); it is
+ * merely capped, the standard treatment. {@link validateMovement} keeps its exact
+ * freeze-on-reject semantics for backward compatibility.
+ */
+export function resolveMovement(
+  prev: Vec2,
+  requested: Vec2,
+  config: MovementConfig,
+  deltaMs: number,
+): MovementResult {
+  const res = validateMovement(prev, requested, config, deltaMs);
+  if (!res.rejected) return res;
+  return { position: stepToward(prev, requested, config.maxSpeed, deltaMs), rejected: true };
+}
+
+/**
  * Integrate one step toward `target`, capped at the per-step distance budget
  * (`maxSpeed * dtMs / 1000`). Returns `target` when it is already within budget,
  * otherwise a point exactly on the budget circle in `target`'s direction. This is

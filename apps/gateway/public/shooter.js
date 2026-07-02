@@ -1030,8 +1030,8 @@ var ClockSync = class {
   accept(t0, serverTime) {
     const t1 = this.now();
     const rtt = Math.max(0, t1 - t0);
-    const offset2 = serverTime + rtt / 2 - t1;
-    this.samples.push({ offset: offset2, rtt });
+    const offset = serverTime + rtt / 2 - t1;
+    this.samples.push({ offset, rtt });
     while (this.samples.length > this.maxSamples)
       this.samples.shift();
     this.rttMs = median(this.samples.map((s) => s.rtt));
@@ -1176,6 +1176,288 @@ var SnapshotBuffer = class {
       }
     }
     return last.state;
+  }
+};
+
+// ../../packages/sim/dist/index.js
+function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+function integrateMove(pos, dirX, dirY, dtMs, maxSpeed, world, maxDtMs) {
+  const dt = Math.min(Math.max(dtMs, 0), maxDtMs) / 1e3;
+  const len = Math.hypot(dirX, dirY);
+  if (len === 0 || dt === 0)
+    return { x: pos.x, y: pos.y };
+  const step = maxSpeed * dt;
+  return {
+    x: clamp(pos.x + dirX / len * step, 0, world),
+    y: clamp(pos.y + dirY / len * step, 0, world)
+  };
+}
+function clampToBudget(lastSent, next, profile, elapsedMs) {
+  if (!lastSent)
+    return { x: next.x, y: next.y };
+  const dt = clamp(elapsedMs, 0, profile.stepMs * 2);
+  const headroom = Math.min(profile.sendHeadroom ?? 1.1, profile.tolerance ?? 1.15);
+  return stepToward(lastSent, next, profile.maxSpeed * headroom, dt);
+}
+function stepToward(pos, target, maxSpeed, dtMs) {
+  const maxDist = Math.max(0, maxSpeed * dtMs / 1e3);
+  const dx = target.x - pos.x;
+  const dy = target.y - pos.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist <= maxDist || dist === 0)
+    return { x: target.x, y: target.y };
+  const scale = maxDist / dist;
+  return { x: pos.x + dx * scale, y: pos.y + dy * scale };
+}
+
+// ../../packages/client/dist/render.js
+function decayOffset(offset, dtMs, tauMs) {
+  if (tauMs <= 0 || dtMs <= 0)
+    return { x: 0, y: 0 };
+  const k = Math.exp(-dtMs / tauMs);
+  return { x: offset.x * k, y: offset.y * k };
+}
+function applyCorrection(continuous, offset, authoritative, snap) {
+  const ex = authoritative.x - continuous.x;
+  const ey = authoritative.y - continuous.y;
+  if (Math.hypot(ex, ey) >= snap) {
+    return { continuous: { x: authoritative.x, y: authoritative.y }, offset: { x: 0, y: 0 } };
+  }
+  return {
+    continuous: { x: authoritative.x, y: authoritative.y },
+    offset: {
+      x: continuous.x + offset.x - authoritative.x,
+      y: continuous.y + offset.y - authoritative.y
+    }
+  };
+}
+function smoothAxis(current, target, dtMs, smoothTimeMs, snap) {
+  const gap = target - current;
+  if (Math.abs(gap) >= snap)
+    return target;
+  if (dtMs <= 0 || smoothTimeMs <= 0)
+    return target;
+  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
+  return current + gap * alpha;
+}
+function smoothAngle(current, target, dtMs, smoothTimeMs, snap) {
+  const twoPi = Math.PI * 2;
+  let delta = (target - current) % twoPi;
+  if (delta > Math.PI)
+    delta -= twoPi;
+  else if (delta < -Math.PI)
+    delta += twoPi;
+  if (Math.abs(delta) >= snap)
+    return target;
+  if (dtMs <= 0 || smoothTimeMs <= 0)
+    return target;
+  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
+  return current + delta * alpha;
+}
+var RenderPredictor = class _RenderPredictor {
+  continuous;
+  offset = { x: 0, y: 0 };
+  lastRender;
+  /** The last snapshot actually sent; `null` forces the next send to pass through
+   *  unclamped (first send, or right after a teleport/respawn snap). */
+  lastSent = null;
+  /** Clock ms of the last send — the elapsed-time reference for the next send's budget. */
+  lastSentAtMs = null;
+  /** False until the first {@link reconcile}: the constructor position is only a
+   *  placeholder and the first authoritative frame must be adopted unconditionally. */
+  seeded = false;
+  /** Set by the `alive` setter on a dead→alive transition; the next {@link reconcile}
+   *  snaps (respawn may land within `snapDistance` of the corpse). */
+  respawnSnapPending = false;
+  aliveFlag = true;
+  maxSpeed;
+  stepMs;
+  world;
+  maxFrameMs;
+  correctionTauMs;
+  snapDistance;
+  sendProfile;
+  constructor(initial, opts) {
+    this.continuous = { x: initial.x, y: initial.y };
+    this.lastRender = { x: initial.x, y: initial.y };
+    this.maxSpeed = opts.maxSpeed;
+    this.stepMs = opts.stepMs;
+    this.world = opts.world ?? Infinity;
+    this.maxFrameMs = opts.maxFrameMs ?? opts.stepMs;
+    this.correctionTauMs = opts.correctionTauMs ?? 100;
+    this.snapDistance = opts.snapDistance ?? 300;
+    this.sendProfile = {
+      maxSpeed: opts.maxSpeed,
+      stepMs: opts.stepMs,
+      ...opts.world !== void 0 ? { world: opts.world } : {},
+      ...opts.sendHeadroom !== void 0 ? { sendHeadroom: opts.sendHeadroom } : {}
+    };
+  }
+  /**
+   * Build a predictor from the {@link MotionProfile} the room validates with — the
+   * recommended entry point, because it makes "one budget, two sides" structural:
+   * pass the SAME shared profile constant to the server's `resolveMovement` and here.
+   */
+  static fromProfile(initial, profile, opts = {}) {
+    return new _RenderPredictor(initial, {
+      maxSpeed: profile.maxSpeed,
+      stepMs: profile.stepMs,
+      ...profile.world !== void 0 ? { world: profile.world } : {},
+      ...profile.sendHeadroom !== void 0 ? { sendHeadroom: profile.sendHeadroom } : {},
+      ...opts
+    });
+  }
+  /**
+   * Authoritative liveness gate. While `false`, {@link frame} skips integration so a
+   * dead player holding a key doesn't dead-reckon away from the server's position.
+   * Setting it back to `true` (a respawn) arms the next {@link reconcile} to snap to
+   * the spawn point unconditionally — a respawn may land within `snapDistance` of the
+   * corpse, and without the snap the send loop would keep transmitting the corpse
+   * position and drag the fresh spawn back toward the firefight.
+   */
+  get alive() {
+    return this.aliveFlag;
+  }
+  set alive(v) {
+    if (v && !this.aliveFlag)
+      this.respawnSnapPending = true;
+    this.aliveFlag = v;
+  }
+  /**
+   * Advance one render frame: integrate the held direction (when {@link alive}) and
+   * decay the correction offset, then return the render position
+   * (`continuous + offset`). Call once per frame with the real frame dt; the dt is
+   * clamped to `maxFrameMs` internally. Bind the camera to the returned position 1:1
+   * — extra camera easing on top only adds a trail and input lag (the position is
+   * already smooth by construction).
+   */
+  frame(dirX, dirY, dtMs) {
+    if (this.aliveFlag) {
+      this.continuous = integrateMove(this.continuous, dirX, dirY, dtMs, this.maxSpeed, this.world, this.maxFrameMs);
+    }
+    this.offset = decayOffset(this.offset, dtMs, this.correctionTauMs);
+    this.lastRender = {
+      x: this.continuous.x + this.offset.x,
+      y: this.continuous.y + this.offset.y
+    };
+    return { x: this.lastRender.x, y: this.lastRender.y };
+  }
+  /**
+   * Fold an explicit server correction (e.g. a `rejected` reply) into the view: the
+   * error is absorbed by the decaying offset so the render eases onto the
+   * authoritative path (a gap ≥ `snapDistance` cuts straight instead), AND `lastSent`
+   * is rebased onto the authoritative position — the server's truth is now the
+   * reference the next send is budgeted from, so one correction can never cascade
+   * into a rejection storm.
+   */
+  correct(authoritative) {
+    const applied = applyCorrection(this.continuous, this.offset, authoritative, this.snapDistance);
+    this.continuous = applied.continuous;
+    this.offset = applied.offset;
+    this.lastSent = { x: authoritative.x, y: authoritative.y };
+  }
+  /**
+   * Observe the local player's echo in an authoritative state frame. Movement is
+   * client-authoritative here (the server echoes the clamped sent position), so a
+   * small gap is just send/RTT lag and is deliberately ignored. It snaps — adopting
+   * the position, clearing the offset, and resetting the send reference so the next
+   * send passes through — only when `continuous` is known-stale: the first frame ever
+   * (the constructor position is a placeholder), a respawn (armed by the
+   * {@link alive} setter), or a gap ≥ `snapDistance` (a genuine teleport).
+   */
+  reconcile(authoritative) {
+    const gap = Math.hypot(authoritative.x - this.continuous.x, authoritative.y - this.continuous.y);
+    if (!this.seeded || this.respawnSnapPending || gap >= this.snapDistance) {
+      this.seeded = true;
+      this.respawnSnapPending = false;
+      this.continuous = { x: authoritative.x, y: authoritative.y };
+      this.offset = { x: 0, y: 0 };
+      this.lastSent = null;
+      this.lastRender = { x: this.continuous.x, y: this.continuous.y };
+    }
+  }
+  /**
+   * Produce the position snapshot for the send loop — the SINGLE point every outgoing
+   * position must pass through. Clamps `continuous` to the server's speed budget
+   * measured from the last sent position over the real elapsed time since the last
+   * send (`nowMs − lastSendNowMs`, capped at two ticks), then records the result as
+   * the new reference. Send exactly this value (and feed it to any
+   * {@link InputPredictor}) — sending anything else reopens the rubber-band path.
+   *
+   * `nowMs` must be a consistent clock across calls; use `room.clock.serverNow()`,
+   * the same clock the SDK stamps into the input `ts`, so the client's budget and the
+   * server's measured inter-move delta agree.
+   */
+  sendPosition(nowMs) {
+    const elapsedMs = this.lastSentAtMs === null ? this.stepMs : nowMs - this.lastSentAtMs;
+    const sent = clampToBudget(this.lastSent, { x: this.continuous.x, y: this.continuous.y }, this.sendProfile, elapsedMs);
+    this.lastSent = sent;
+    this.lastSentAtMs = nowMs;
+    return { x: sent.x, y: sent.y };
+  }
+  /**
+   * Force-place the predictor (an explicit, client-initiated teleport/respawn):
+   * adopts `pos`, clears the correction offset, and resets the send reference so the
+   * next send passes through unclamped.
+   */
+  reset(pos) {
+    this.continuous = { x: pos.x, y: pos.y };
+    this.offset = { x: 0, y: 0 };
+    this.lastRender = { x: pos.x, y: pos.y };
+    this.lastSent = null;
+    this.lastSentAtMs = null;
+    this.seeded = true;
+    this.respawnSnapPending = false;
+  }
+  /** The render position computed by the most recent {@link frame} (or snap). */
+  get renderPosition() {
+    return { x: this.lastRender.x, y: this.lastRender.y };
+  }
+};
+var EntitySmoother = class {
+  entities = /* @__PURE__ */ new Map();
+  smoothTimeMs;
+  snapDistance;
+  angleSnap;
+  constructor(opts = {}) {
+    this.smoothTimeMs = opts.smoothTimeMs ?? 100;
+    this.snapDistance = opts.snapDistance ?? 300;
+    this.angleSnap = opts.angleSnap ?? Math.PI;
+  }
+  /**
+   * Ease entity `id` toward its buffered `target` for this frame and return the
+   * smoothed render pose. Call once per entity per frame with the frame dt. A
+   * first-seen id adopts the target exactly; a missing `target.angle` holds the last
+   * smoothed angle (0 when never seen).
+   */
+  update(id, target, dtMs) {
+    const prev = this.entities.get(id);
+    const targetAngle = target.angle ?? prev?.angle ?? 0;
+    const next = prev ? {
+      x: smoothAxis(prev.x, target.x, dtMs, this.smoothTimeMs, this.snapDistance),
+      y: smoothAxis(prev.y, target.y, dtMs, this.smoothTimeMs, this.snapDistance),
+      angle: smoothAngle(prev.angle, targetAngle, dtMs, this.smoothTimeMs, this.angleSnap)
+    } : { x: target.x, y: target.y, angle: targetAngle };
+    this.entities.set(id, next);
+    return { x: next.x, y: next.y, angle: next.angle };
+  }
+  /** Forget every entity NOT in `seen` (the ids updated this frame) — so an AOI
+   *  re-entry snaps in fresh instead of gliding from a stale position. */
+  prune(seen) {
+    for (const id of [...this.entities.keys()]) {
+      if (!seen.has(id))
+        this.entities.delete(id);
+    }
+  }
+  /** Forget one entity (it will snap on its next update). */
+  delete(id) {
+    this.entities.delete(id);
+  }
+  /** Forget everything (e.g. on leaving a room). */
+  clear() {
+    this.entities.clear();
   }
 };
 
@@ -1531,6 +1813,10 @@ var SHOOTER = {
   // < viewRadius (600) so every hit resolves within the shooter's view
   hitRadius: 40,
   // perpendicular distance to the ray that still counts as a hit
+  // Server-enforced minimum ms between shots (receipt clock). 100 ms ≈ 10 shots/s —
+  // above any human click rate, but it caps a scripted client at 340 dmg/s instead of
+  // the ~2000 dmg/s the shared input rate limit alone would allow.
+  shotCooldownMs: 100,
   respawnTicks: 30,
   // 30 × 50 ms = 1.5 s downed before respawn
   // Spread-spawn tuning (see pickSpawn in shooter-spawn.ts).
@@ -1541,6 +1827,15 @@ var SHOOTER = {
   spawnRingMax: 700,
   spawnCenterJitter: 300
   // half-extent of the center box used when nobody is alive
+};
+var SHOOTER_PROFILE = {
+  maxSpeed: SHOOTER.maxSpeed,
+  tolerance: 1.15,
+  stepMs: SHOOTER.stepMs,
+  world: SHOOTER.world,
+  // Send-clamp scale: > 1 so a clamped-send backlog drains during sustained movement,
+  // < tolerance so a clamped send always fits the server budget for the same delta.
+  sendHeadroom: 1.1
 };
 
 // demo/loading.ts
@@ -1643,59 +1938,6 @@ var LoadingFlow = class {
     for (const fn of this.listeners) fn(v);
   }
 };
-
-// demo/camera.ts
-function smoothAxis(current, target, dtMs, smoothTimeMs, snap) {
-  const gap = target - current;
-  if (Math.abs(gap) >= snap) return target;
-  if (dtMs <= 0 || smoothTimeMs <= 0) return target;
-  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
-  return current + gap * alpha;
-}
-function smoothAngle(current, target, dtMs, smoothTimeMs, snap) {
-  const twoPi = Math.PI * 2;
-  let delta = (target - current) % twoPi;
-  if (delta > Math.PI) delta -= twoPi;
-  else if (delta < -Math.PI) delta += twoPi;
-  if (Math.abs(delta) >= snap) return target;
-  if (dtMs <= 0 || smoothTimeMs <= 0) return target;
-  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
-  return current + delta * alpha;
-}
-
-// demo/movement.ts
-function clamp(v, lo, hi) {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-function integrateMove(pos, dirX, dirY, dtMs, maxSpeed, world, maxDtMs) {
-  const dt = Math.min(Math.max(dtMs, 0), maxDtMs) / 1e3;
-  const len = Math.hypot(dirX, dirY);
-  if (len === 0 || dt === 0) return { x: pos.x, y: pos.y };
-  const step = maxSpeed * dt;
-  return {
-    x: clamp(pos.x + dirX / len * step, 0, world),
-    y: clamp(pos.y + dirY / len * step, 0, world)
-  };
-}
-function decayOffset(offset2, dtMs, tauMs) {
-  if (tauMs <= 0 || dtMs <= 0) return { x: 0, y: 0 };
-  const k = Math.exp(-dtMs / tauMs);
-  return { x: offset2.x * k, y: offset2.y * k };
-}
-function applyCorrection(continuous2, offset2, authoritative, snap) {
-  const ex = authoritative.x - continuous2.x;
-  const ey = authoritative.y - continuous2.y;
-  if (Math.hypot(ex, ey) >= snap) {
-    return { continuous: { x: authoritative.x, y: authoritative.y }, offset: { x: 0, y: 0 } };
-  }
-  return {
-    continuous: { x: authoritative.x, y: authoritative.y },
-    offset: {
-      x: continuous2.x + offset2.x - authoritative.x,
-      y: continuous2.y + offset2.y - authoritative.y
-    }
-  };
-}
 
 // demo/shooter-client.ts
 var MAX_PLAYERS = 64;
@@ -1844,19 +2086,16 @@ function makeCrates(seed) {
 }
 var crates = [];
 var crateSeed = null;
-var predictor = new InputPredictor({ x: 1e3, y: 1e3 }, { apply: (_s, i) => ({ ...i }) });
+var WORLD_CENTER = SHOOTER.world / 2;
+var predictor = new InputPredictor(
+  { x: WORLD_CENTER, y: WORLD_CENTER },
+  { apply: (_s, i) => ({ ...i }) }
+);
 var buffer = new SnapshotBuffer({ delayMs: 100, lerp: lerpState });
-var continuous = { x: 1e3, y: 1e3 };
-var offset = { x: 0, y: 0 };
-var selfAlive = true;
-var cam = { x: 1e3, y: 1e3 };
+var motion = RenderPredictor.fromProfile({ x: WORLD_CENTER, y: WORLD_CENTER }, SHOOTER_PROFILE);
+var smoother = new EntitySmoother();
+var cam = { x: WORLD_CENTER, y: WORLD_CENTER };
 var lastRenderMs = 0;
-var MAX_FRAME_MS = SHOOTER.stepMs;
-var OFFSET_TAU_MS = 100;
-var CORRECTION_SNAP = 300;
-var entityRender = /* @__PURE__ */ new Map();
-var ENTITY_SMOOTH_MS = 100;
-var ENTITY_SNAP_DIST = 300;
 var myId = "";
 var seq = 0;
 var aim = 0;
@@ -1993,12 +2232,7 @@ function startGame(room) {
   });
   room.onStateChange((s) => ingestState(s, room));
   if (room.state !== void 0) ingestState(room.state, room);
-  room.onMessage("rejected", (payload) => {
-    const p = payload;
-    const applied = applyCorrection(continuous, offset, { x: p.x, y: p.y }, CORRECTION_SNAP);
-    continuous = applied.continuous;
-    offset = applied.offset;
-  });
+  room.onMessage("rejected", (payload) => motion.correct(payload));
   room.onMessage("shot", (payload) => {
     const p = payload;
     const now = performance.now();
@@ -2030,9 +2264,9 @@ function startGame(room) {
   setInterval(() => {
     aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
     seq += 1;
-    const snapshot = { x: continuous.x, y: continuous.y };
-    room.send("move", { x: snapshot.x, y: snapshot.y, aim });
-    predictor.predict(seq, snapshot);
+    const sent = motion.sendPosition(room.clock.serverNow());
+    room.send("move", { x: sent.x, y: sent.y, aim });
+    predictor.predict(seq, sent);
   }, SHOOTER.stepMs);
   running = true;
   resizeCanvas();
@@ -2046,11 +2280,8 @@ function ingestState(st, room) {
   const me = st.players[myId];
   if (me) {
     predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
-    selfAlive = me.alive;
-    if (Math.hypot(me.x - continuous.x, me.y - continuous.y) >= CORRECTION_SNAP) {
-      continuous = { x: me.x, y: me.y };
-      offset = { x: 0, y: 0 };
-    }
+    motion.alive = me.alive;
+    motion.reconcile({ x: me.x, y: me.y });
   }
   if (crateSeed === null && typeof st.seed === "number") {
     crateSeed = st.seed;
@@ -2111,13 +2342,8 @@ function render() {
   const now = performance.now();
   const dtMs = lastRenderMs === 0 ? 16 : now - lastRenderMs;
   lastRenderMs = now;
-  if (selfAlive) {
-    const dir = moveDir();
-    continuous = integrateMove(continuous, dir.x, dir.y, dtMs, SHOOTER.maxSpeed, SHOOTER.world, MAX_FRAME_MS);
-  }
-  offset = decayOffset(offset, dtMs, OFFSET_TAU_MS);
-  const renderX = continuous.x + offset.x;
-  const renderY = continuous.y + offset.y;
+  const dir = moveDir();
+  const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -2146,15 +2372,9 @@ function render() {
       if (id === myId) continue;
       const pl = view.players[id];
       seen.add(id);
-      const prev = entityRender.get(id);
-      const sm = prev ? {
-        x: smoothAxis(prev.x, pl.x, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
-        y: smoothAxis(prev.y, pl.y, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
-        aim: smoothAngle(prev.aim, pl.aim, dtMs, ENTITY_SMOOTH_MS, Math.PI)
-      } : { x: pl.x, y: pl.y, aim: pl.aim };
-      entityRender.set(id, sm);
+      const sm = smoother.update(id, { x: pl.x, y: pl.y, angle: pl.aim }, dtMs);
       drawPlayer(
-        { aim: sm.aim, hp: pl.hp, score: pl.score, alive: pl.alive },
+        { aim: sm.angle, hp: pl.hp, score: pl.score, alive: pl.alive },
         sm.x - camX,
         sm.y - camY,
         false,
@@ -2163,9 +2383,7 @@ function render() {
       );
     }
   }
-  for (const id of [...entityRender.keys()]) {
-    if (!seen.has(id)) entityRender.delete(id);
-  }
+  smoother.prune(seen);
   const meState = view?.players[myId];
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(

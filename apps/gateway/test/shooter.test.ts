@@ -74,8 +74,12 @@ async function stateClient(party: string, room: string, codec: Codec<any>, query
         await waitOn(() => stateNotify, (v) => (stateNotify = v), Math.max(1, deadline - Date.now()));
       }
     },
-    move(payload: unknown, seq: number) {
-      ws.send(JSON.stringify({ t: "c:msg", type: "move", seq, payload }));
+    /** Non-consuming scan of every message received so far (waitMsg splices matches out). */
+    sawMsg(pred: (m: Frame) => boolean): boolean {
+      return msgs.some(pred);
+    },
+    move(payload: unknown, seq: number, ts?: number) {
+      ws.send(JSON.stringify({ t: "c:msg", type: "move", seq, ...(ts !== undefined ? { ts } : {}), payload }));
     },
     shoot(dir: number, seq: number, ts: number) {
       ws.send(JSON.stringify({ t: "c:msg", type: "shoot", seq, ts, payload: { dir } }));
@@ -134,13 +138,99 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     a.move({ x: spawn.x + 20, y: spawn.y }, 1);
     await a.waitState((s) => s.players[id].x >= spawn.x + 15);
 
-    // A huge jump exceeds maxSpeed×step and is rejected; the server snaps it back.
+    // A huge jump exceeds the speed budget and is rejected; the server clamps the
+    // player onto the budget circle toward the request (it advances at most
+    // maxSpeed × Δt — never near the requested teleport) and reports that
+    // authoritative position in the `rejected` reply.
     a.move({ x: spawn.x + 1500, y: spawn.y + 1500 }, 2);
     const rej = await a.waitMsg((m) => m.t === "s:msg" && m.type === "rejected");
     expect(rej.type).toBe("rejected");
+    const rejPos = rej.payload as { x: number; y: number };
     const after = await a.waitState((s) => s.players?.[id] !== undefined);
     expect(after.players[id].x).toBeLessThan(spawn.x + 100); // nowhere near the requested jump
     expect(after.players[id].y).toBeLessThan(spawn.y + 100);
+
+    // No rejection cascade: the next speed-legal move, based on the authoritative
+    // position the rejection reported, is accepted normally (no second `rejected`).
+    await sleep(SHOOTER.stepMs + 20);
+    a.move({ x: rejPos.x + 20, y: rejPos.y }, 3);
+    await a.waitState((s) => s.players[id].x >= rejPos.x + 15);
+    expect(a.sawMsg((m) => m.t === "s:msg" && m.type === "rejected")).toBe(false);
+
+    a.ws.close();
+  });
+
+  it("timer jitter: full-speed moves arriving ~70 ms apart are all accepted", async () => {
+    // Reproduces the rubber-band trigger: a browser send timer firing late delivers
+    // moves carrying MORE than one 50 ms tick of distance (30u > the fixed-step budget
+    // of 28.75u). The elapsed-time-aware budget must accept them without a single
+    // rejection because the measured spacing (~70 ms) covers the distance.
+    const a = await stateClient("shooter-room", "jitter", ShooterSchema);
+    const id = (await a.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    const spawn = await posOf(a, id);
+
+    // Head toward the map centre so the walk cannot clip the world clamp.
+    const dir = spawn.x < SHOOTER.world / 2 ? 1 : -1;
+    let x = spawn.x;
+    // Prime the elapsed-time reference: the very first move has no previous move to
+    // measure from and gets the default one-tick budget, so it must stay in-place.
+    a.move({ x, y: spawn.y }, 1);
+    for (let i = 2; i <= 6; i++) {
+      await sleep(SHOOTER.stepMs + 20); // late timer: ~70 ms between sends
+      x += 30 * dir;
+      a.move({ x, y: spawn.y }, i);
+    }
+    // All five moves accepted: the player covered the full 150u with zero rejections.
+    await a.waitState((s) => Math.abs((s.players?.[id]?.x ?? spawn.x) - spawn.x) >= 145, 5000);
+    expect(a.sawMsg((m) => m.t === "s:msg" && m.type === "rejected")).toBe(false);
+
+    a.ws.close();
+  });
+
+  it("speed hack: sustained 2× speed is rejected and capped at maxSpeed", async () => {
+    // Four moves whose subtick timestamps claim 50 ms spacing but whose positions
+    // advance 50u each — 1000 u/s, twice maxSpeed. Every move must be rejected and the
+    // authoritative advance capped at maxSpeed × claimed time (≈ 25u per move), i.e.
+    // about HALF the requested 200u — never the full distance, and never frozen at the
+    // spawn either (the clamp advances, it does not snap back).
+    const a = await stateClient("shooter-room", "hack", ShooterSchema);
+    const id = (await a.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    const spawn = await posOf(a, id);
+
+    const st = a.serverTime(); // fresh: a state frame just delivered the spawn
+    for (let i = 1; i <= 4; i++) {
+      a.move({ x: spawn.x + 50 * i, y: spawn.y }, i, st - 200 + 50 * i);
+    }
+    await a.waitMsg((m) => m.t === "s:msg" && m.type === "rejected");
+
+    // Let the last move flush, then measure the capped displacement.
+    await sleep(SHOOTER.stepMs * 3);
+    const s = await a.waitState((st2) => st2.players?.[id] !== undefined);
+    const advanced = s.players[id].x - spawn.x;
+    expect(advanced).toBeGreaterThanOrEqual(40); // clamped forward, not frozen at spawn
+    expect(advanced).toBeLessThanOrEqual(120); // ≈ maxSpeed-capped — far short of the 200u ask
+
+    a.ws.close();
+  });
+
+  it("fire-rate cap: a second shot inside the cooldown window is ignored", async () => {
+    // The shared 60 msg/s input limit exists for the move stream; without a per-type
+    // cooldown a scripted client could fire ~40 shots/s. Two back-to-back shots must
+    // produce exactly one `shot` broadcast.
+    const a = await stateClient("shooter-room", "cooldown", ShooterSchema);
+    const id = (await a.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    await posOf(a, id); // wait for a state frame so serverTime() is populated
+
+    a.shoot(NORTH, 1, a.serverTime());
+    a.shoot(NORTH, 2, a.serverTime());
+    await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot"); // the first lands
+    // Give a (wrongly) accepted second shot ample time to surface, then assert silence.
+    await sleep(SHOOTER.shotCooldownMs + 50);
+    expect(a.sawMsg((m) => m.t === "s:msg" && m.type === "shot")).toBe(false);
+
+    // Past the cooldown the next shot is accepted again.
+    a.shoot(NORTH, 3, a.serverTime());
+    await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
 
     a.ws.close();
   });
@@ -168,10 +258,13 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     });
     await sleep(300);
 
-    // Slide the target off the ray (east), in budget-sized steps, just now.
-    target.move({ x: rayX + 25, y: rayY }, seq.n++);
-    target.move({ x: rayX + 50, y: rayY }, seq.n++);
-    target.move({ x: rayX + 75, y: rayY }, seq.n++);
+    // Slide the target off the ray (east), just now — in tick-paced, budget-sized
+    // steps. (The speed budget is now measured against each client's real inter-move
+    // elapsed time, so a zero-delay burst would be over-speed and clamped short.)
+    target.move({ x: rayX + 30, y: rayY }, seq.n++);
+    await sleep(SHOOTER.stepMs + 20);
+    target.move({ x: rayX + 60, y: rayY }, seq.n++);
+    await sleep(SHOOTER.stepMs + 20);
     target.move({ x: rayX + 85, y: rayY }, seq.n++);
     await shooter.waitState((s) => (s.players?.[idT]?.x ?? 0) >= rayX + 75);
 
@@ -184,6 +277,7 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     expect(hitShot.payload.hitId).toBe(idT); // rewind found the target where the shooter aimed
 
     // The same aim against the *current* world (ts=now, target now off the ray) → MISS.
+    await sleep(SHOOTER.shotCooldownMs + 20); // clear the server fire-rate cooldown
     shooter.shoot(NORTH, seq.n++, shooter.serverTime());
     const missShot = await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     expect(missShot.payload.from).toBe(idS);
@@ -213,8 +307,10 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     await sleep(150);
 
     // The target stays put on the ray; ts=server-now rewinds to the present.
-    // 34 dmg × 3 downs it. Re-read serverTime() each shot so it tracks the frames.
+    // 34 dmg × 3 downs it. Re-read serverTime() each shot so it tracks the frames,
+    // and space the shots past the server's fire-rate cooldown.
     for (let i = 0; i < 3; i++) {
+      if (i > 0) await sleep(SHOOTER.shotCooldownMs + 20);
       shooter.shoot(NORTH, seq.n++, shooter.serverTime());
       await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     }
@@ -262,6 +358,7 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     });
     await sleep(150);
     for (let i = 0; i < 3; i++) {
+      if (i > 0) await sleep(SHOOTER.shotCooldownMs + 20); // clear the fire-rate cooldown
       shooter.shoot(NORTH, seq.n++, shooter.serverTime());
       await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     }

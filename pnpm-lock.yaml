@@ -110,6 +110,9 @@ importers:
       '@tikron/schema':
         specifier: workspace:*
         version: link:../schema
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../sim
       partysocket:
         specifier: ^1.1.4
         version: 1.3.0(react@19.2.7)

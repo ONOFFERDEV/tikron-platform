@@ -52,6 +52,52 @@ import { InputPredictor, SnapshotBuffer, ClockSync } from "@tikron/client";
 - **`withNetworkConditions`** — wrap a transport with latency/jitter/packet-loss to test
   your game under bad networks locally.
 
+## Smooth rendering for client-authoritative movement
+
+When the client sends its *position* and the server validates the speed (the shooter
+model), use `RenderPredictor` for the local player and `EntitySmoother` for everyone
+else. They encode the anti-rubber-band contract: every outgoing position passes through
+one speed-budget clamp measured over the real elapsed time between sends (an honest
+client is never rejected), and a server correction rebases the clamp so one rejection
+can never cascade into a snapback burst.
+
+```ts
+import { RenderPredictor, EntitySmoother } from "@tikron/client";
+// The SAME MotionProfile constant the room validates with — defined once, imported by both sides.
+import { PROFILE } from "./shared/profile.js";
+
+const motion = RenderPredictor.fromProfile(spawnPlaceholder, PROFILE);
+const smoother = new EntitySmoother();
+
+room.onMessage("rejected", (p) => motion.correct(p as { x: number; y: number }));
+room.onStateChange((s) => {
+  const me = (s as MyState).players[room.connectionId!];
+  if (me) { motion.alive = me.alive; motion.reconcile(me); }
+});
+
+setInterval(() => {
+  // Budget-clamped — the ONLY value that may go on the wire. Server clock in, so both
+  // sides measure the same inter-move delta.
+  room.send("move", motion.sendPosition(room.clock.serverNow()));
+}, PROFILE.stepMs);
+
+function render(dtMs: number): void {
+  const pos = motion.frame(dir.x, dir.y, dtMs); // camera = pos, 1:1, no extra easing
+  const seen = new Set<string>();
+  for (const [id, p] of remotePlayers) {
+    seen.add(id);
+    const sm = smoother.update(id, { x: p.x, y: p.y, angle: p.aim }, dtMs);
+    // draw sm.x / sm.y / sm.angle
+  }
+  smoother.prune(seen); // AOI re-entries snap in fresh instead of gliding
+}
+```
+
+On the server, resolve moves with `resolveMovement` from `@tikron/sim` (partial advance
+on an over-budget move — never freeze) and reply `client.send("rejected", { x, y })`.
+The pure primitives (`integrateMove`, `clampToBudget`, `decayOffset`, `applyCorrection`,
+`smoothAxis`, `smoothAngle`, `followCamera`) are exported too.
+
 ## `GameClient` options for FPS / high-rate games
 
 ```ts
@@ -73,7 +119,10 @@ out the options — see the SDK types.
 `GameClient(host, options)` → `joinOrCreate(room, params?)` · `Room`
 (`send(type, payload?)`, `onStateChange`, `onMessage(type?, handler)`, `onAck`,
 `connectionId`, `connected()`, `leave()`) · `InputPredictor` · `SnapshotBuffer` ·
-`ClockSync` · `withNetworkConditions` · `createPartySocketTransport`.
+`RenderPredictor` · `EntitySmoother` · `ClockSync` · `withNetworkConditions` ·
+`createPartySocketTransport` · pure render/motion helpers (`decayOffset`,
+`applyCorrection`, `smoothAxis`, `smoothAngle`, `followCamera`, and `integrateMove` /
+`clampToBudget` re-exported from `@tikron/sim`).
 
 ## Links & license
 

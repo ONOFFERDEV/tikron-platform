@@ -1,8 +1,13 @@
-import { GameClient, InputPredictor, SnapshotBuffer, type Room } from "@tikron/client";
-import { ShooterSchema, SHOOTER, type ShooterState } from "../src/rooms/shooter-schema.js";
+import {
+  GameClient,
+  InputPredictor,
+  SnapshotBuffer,
+  RenderPredictor,
+  EntitySmoother,
+  type Room,
+} from "@tikron/client";
+import { ShooterSchema, SHOOTER, SHOOTER_PROFILE, type ShooterState } from "../src/rooms/shooter-schema.js";
 import { LoadingFlow, type LoadingView } from "./loading.js";
-import { smoothAxis, smoothAngle } from "./camera.js";
-import { integrateMove, decayOffset, applyCorrection } from "./movement.js";
 
 /**
  * FPS proof-of-concept client. Shows the full FPS-grade SDK usage: **subtick input
@@ -220,51 +225,33 @@ let crateSeed: number | null = null;
 // ---------------------------------------------------------------------------
 // Netcode + view state
 // ---------------------------------------------------------------------------
-const predictor = new InputPredictor<Vec, Vec>({ x: 1000, y: 1000 }, { apply: (_s, i) => ({ ...i }) });
+/** Pre-spawn placeholder position — the map centre, so the distance to any real spawn
+ *  (the empty-room spawn box is centre ± spawnCenterJitter) stays well inside the
+ *  first-frame snap; the old {1000,1000} seed was a leftover from the 2000² map. The
+ *  first authoritative frame always snaps `continuous` to the real spawn regardless. */
+const WORLD_CENTER = SHOOTER.world / 2;
+const predictor = new InputPredictor<Vec, Vec>(
+  { x: WORLD_CENTER, y: WORLD_CENTER },
+  { apply: (_s, i) => ({ ...i }) },
+);
 const buffer = new SnapshotBuffer<ShooterState>({ delayMs: 100, lerp: lerpState });
 
 /**
- * Local player position, integrated *continuously* every render frame (see
- * {@link render}) rather than stepped in the 20 Hz send loop. This — not
- * `predictor.predicted` — is the camera/render reference, so on-screen motion is
- * uniform at frame rate instead of pulsing with the tick. Seeded to the predictor's
- * initial center; the first server frame snaps it to the real spawn.
+ * Local-player render predictor — the SDK's continuous-integration model. It owns the
+ * continuously integrated position (this — not `predictor.predicted` — is the
+ * camera/render reference, so on-screen motion is uniform at frame rate instead of
+ * pulsing with the 20 Hz tick), the decaying server-correction offset, and the
+ * budget-clamped send bookkeeping. Built from the SAME {@link SHOOTER_PROFILE} the
+ * room validates with — one budget, two sides.
  */
-let continuous: Vec = { x: 1000, y: 1000 };
-/** Decaying server-correction offset: render position = `continuous + offset`. A
- *  rejected move or teleport folds its error here so the view eases onto the
- *  authoritative path; it melts to zero within ~OFFSET_TAU_MS. */
-let offset: Vec = { x: 0, y: 0 };
-/** Authoritative liveness of the local player; gates continuous integration so a dead
- *  player holding a key doesn't dead-reckon away from the server's frozen position. */
-let selfAlive = true;
+const motion = RenderPredictor.fromProfile({ x: WORLD_CENTER, y: WORLD_CENTER }, SHOOTER_PROFILE);
+/** Remote-entity easing on top of the interpolation buffer: rounds off the coarse
+ *  steps that AOI priority tiers deliver for far players. */
+const smoother = new EntitySmoother();
 /** Camera center in world units — tracks the (already smooth) render position 1:1. */
-const cam: Vec = { x: 1000, y: 1000 };
+const cam: Vec = { x: WORLD_CENTER, y: WORLD_CENTER };
 /** Wall-clock ms of the previous render, for a frame-rate-independent integration dt. */
 let lastRenderMs = 0;
-/** Per-frame integration dt is clamped to one tick so a tab-out / GC hitch can't fling
- *  the player across the map on the first frame back. */
-const MAX_FRAME_MS = SHOOTER.stepMs;
-/** Correction offset decay time constant (ms): a snapback eases in over ~this long. */
-const OFFSET_TAU_MS = 100;
-/** An authoritative gap this large (world units) is a teleport (respawn / hard reject)
- *  and cuts straight to truth; smaller gaps are absorbed by the decaying offset. */
-const CORRECTION_SNAP = 300;
-
-/**
- * Per-remote-entity smoothed render state (position + facing), eased on top of the
- * interpolation buffer each frame. AOI priority tiers refresh far players at a lower
- * rate, so their buffered position/aim arrive in coarse steps that pop; the extra
- * exponential pass rounds those corners. Cleared when an entity leaves the AOI view
- * so a re-entry snaps in fresh rather than gliding from its stale last position.
- */
-const entityRender = new Map<string, { x: number; y: number; aim: number }>();
-/** Entity easing time constant (ms) — a touch softer than the camera's since far
- *  players update least often. */
-const ENTITY_SMOOTH_MS = 100;
-/** Entity teleport threshold (world units): a jump this large snaps (respawn / warp)
- *  rather than sliding across the map, matching the camera's rule. */
-const ENTITY_SNAP_DIST = 300;
 
 let myId = "";
 let seq = 0;
@@ -440,15 +427,13 @@ function startGame(room: Room): void {
   // Fold in the frame that unblocked the loading gate (it predates this handler).
   if (room.state !== undefined) ingestState(room.state as ShooterState, room);
 
-  // The server refused an over-speed move and pinned us to its authoritative position.
-  // Fold the snapback into the decaying offset so the view eases back rather than
-  // teleporting (a large enough gap still cuts straight — see applyCorrection).
-  room.onMessage("rejected", (payload) => {
-    const p = payload as { x: number; y: number };
-    const applied = applyCorrection(continuous, offset, { x: p.x, y: p.y }, CORRECTION_SNAP);
-    continuous = applied.continuous;
-    offset = applied.offset;
-  });
+  // The server refused an over-speed move and clamped us onto its speed-budget circle
+  // (it advances toward the request, never freezes — see ShooterRoomImpl.handleMove).
+  // correct() folds the error into the decaying offset so the view eases back rather
+  // than teleporting (a large enough gap still cuts straight) AND rebases the send
+  // clamp on the authoritative position so the very next send is in budget — one
+  // rejection can never cascade.
+  room.onMessage("rejected", (payload) => motion.correct(payload as Vec));
 
   // Server-broadcast shots — tracer + muzzle flash + sfx; hit implies a connect.
   room.onMessage("shot", (payload) => {
@@ -486,13 +471,23 @@ function startGame(room: Room): void {
   // the render loop; here we only snapshot that position, stamp the aim, and emit one
   // authoritative `move`. The wire/server contract is unchanged — the client just
   // decouples "how often I render" from "how often I send".
+  //
+  // sendPosition() is the single choke point every outgoing position passes through:
+  // it clamps the snapshot to the server's per-move speed budget measured from the
+  // last SENT position over the elapsed time since the last send (setInterval ticks
+  // jitter late, so an unclamped snapshot could be over-budget despite legal speed —
+  // the FPS rubber-banding bug). It takes the server clock — the same clock the SDK
+  // stamps into this input's `ts` — so the client's budget and the delta the server
+  // measures for this move agree (see ShooterRoomImpl.handleMove). Send exactly this
+  // value and record exactly this value in the predictor; anything else reopens the
+  // rubber-band path.
   setInterval(() => {
     // The self sprite sits at the screen centre, so the aim origin is screen centre.
     aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
     seq += 1;
-    const snapshot: Vec = { x: continuous.x, y: continuous.y };
-    room.send("move", { x: snapshot.x, y: snapshot.y, aim });
-    predictor.predict(seq, snapshot);
+    const sent = motion.sendPosition(room.clock.serverNow());
+    room.send("move", { x: sent.x, y: sent.y, aim });
+    predictor.predict(seq, sent);
   }, SHOOTER.stepMs);
 
   running = true;
@@ -509,15 +504,14 @@ function ingestState(st: ShooterState, room: Room): void {
   const me = st.players[myId];
   if (me) {
     predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
-    selfAlive = me.alive;
-    // Movement is client-authoritative here (the server echoes our clamped position),
-    // so a small server↔continuous gap is just send/RTT lag and is left to dead-
-    // reckoning. A large gap is a respawn/teleport — cut straight to the authoritative
-    // position and clear any pending offset.
-    if (Math.hypot(me.x - continuous.x, me.y - continuous.y) >= CORRECTION_SNAP) {
-      continuous = { x: me.x, y: me.y };
-      offset = { x: 0, y: 0 };
-    }
+    // Feed the authoritative echo to the render predictor: `alive` gates integration
+    // (a dead player holding a key must not dead-reckon away) and arms the respawn
+    // snap; reconcile() ignores small gaps (just send/RTT lag under this client-
+    // authoritative model) and snaps only when `continuous` is known-stale — the
+    // first frame ever (the WORLD_CENTER placeholder), a respawn, or a ≥ snap-
+    // distance teleport — resetting the send clamp so the next send passes through.
+    motion.alive = me.alive;
+    motion.reconcile({ x: me.x, y: me.y });
   }
 
   if (crateSeed === null && typeof st.seed === "number") {
@@ -604,17 +598,13 @@ function render(): void {
 
   // Integrate the local player continuously at frame rate (decoupled from the 20 Hz
   // send loop) so screen motion is uniform every frame instead of stepping ~25 u per
-  // tick. Then melt any server-correction offset so a snapback eases in. The camera
-  // tracks this already-smooth render position 1:1 — no easing, which would only add a
-  // trail / input lag — with integer pixel snap to keep the tiled ground from
-  // shimmering as the offset crosses sub-pixel boundaries.
-  if (selfAlive) {
-    const dir = moveDir();
-    continuous = integrateMove(continuous, dir.x, dir.y, dtMs, SHOOTER.maxSpeed, SHOOTER.world, MAX_FRAME_MS);
-  }
-  offset = decayOffset(offset, dtMs, OFFSET_TAU_MS);
-  const renderX = continuous.x + offset.x;
-  const renderY = continuous.y + offset.y;
+  // tick; frame() also melts any server-correction offset so a snapback eases in
+  // (and skips integration while dead). The camera tracks this already-smooth render
+  // position 1:1 — no easing, which would only add a trail / input lag — with integer
+  // pixel snap to keep the tiled ground from shimmering as the offset crosses
+  // sub-pixel boundaries.
+  const dir = moveDir();
+  const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -649,17 +639,9 @@ function render(): void {
       const pl = view.players[id]!;
       seen.add(id);
       // Ease each remote's buffered position/facing so low-rate tier updates don't pop.
-      const prev = entityRender.get(id);
-      const sm = prev
-        ? {
-            x: smoothAxis(prev.x, pl.x, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
-            y: smoothAxis(prev.y, pl.y, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
-            aim: smoothAngle(prev.aim, pl.aim, dtMs, ENTITY_SMOOTH_MS, Math.PI),
-          }
-        : { x: pl.x, y: pl.y, aim: pl.aim };
-      entityRender.set(id, sm);
+      const sm = smoother.update(id, { x: pl.x, y: pl.y, angle: pl.aim }, dtMs);
       drawPlayer(
-        { aim: sm.aim, hp: pl.hp, score: pl.score, alive: pl.alive },
+        { aim: sm.angle, hp: pl.hp, score: pl.score, alive: pl.alive },
         sm.x - camX,
         sm.y - camY,
         false,
@@ -669,9 +651,7 @@ function render(): void {
     }
   }
   // Forget entities that left the AOI view so a re-entry snaps in rather than glides.
-  for (const id of [...entityRender.keys()]) {
-    if (!seen.has(id)) entityRender.delete(id);
-  }
+  smoother.prune(seen);
 
   // Local player: drawn at the continuous render position (= camera centre) so it moves
   // uniformly with the world every frame and stays locked to screen centre.

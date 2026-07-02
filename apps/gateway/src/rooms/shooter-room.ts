@@ -1,6 +1,6 @@
 import { IoArenaRoom, type AOIConfig, type Client } from "@tikron/server";
-import { validateMovement, type Vec2 } from "@tikron/sim";
-import { ShooterSchema, SHOOTER, type ShooterState } from "./shooter-schema.js";
+import { resolveMovement, type Vec2 } from "@tikron/sim";
+import { ShooterSchema, SHOOTER, SHOOTER_PROFILE, type ShooterState } from "./shooter-schema.js";
 import { pickSpawn, makeRng, type SpawnConfig } from "./shooter-spawn.js";
 import { sanitizeNick } from "./shooter-nick.js";
 
@@ -18,9 +18,33 @@ import { sanitizeNick } from "./shooter-nick.js";
  * - **AOI** so each client only receives players in view (bandwidth + anti-wallhack).
  *
  * Game code is just movement validation, the hitscan, respawn timing, and the
- * `shot` broadcast; the preset owns the realtime stack.
+ * `shot` broadcast; the preset owns the realtime stack. The speed budget itself is
+ * {@link SHOOTER_PROFILE} — the ONE constant the client's send clamp shares.
  */
-const MOVE_CFG = { maxSpeed: SHOOTER.maxSpeed, tolerance: 1.15 };
+
+/**
+ * Elapsed-time clamp bounds for the per-move speed budget (see {@link ShooterRoomImpl}'s
+ * `handleMove`). A fixed `stepMs` budget assumes the client's send timer is perfectly
+ * periodic — but browser `setInterval` fires late and the rate limiter can drop a move,
+ * so a legal move can arrive carrying more than one tick's worth of distance and get
+ * rejected (the rubber-banding bug). Budgeting by the *measured* elapsed time since the
+ * client's previous move absorbs that jitter; the clamp keeps it cheat-safe:
+ *
+ * - Lower bound (½ tick): a burst of moves can't each claim a near-zero delta and stall,
+ *   nor can it be gamed downward — the budget only shrinks.
+ * - Upper bound (2 ticks): a forged/backdated `ts` buys at most two ticks of distance
+ *   per move — and only once, since the reference below is monotonic and the core
+ *   clamps `ts` to `[now-250ms, now]` server-side.
+ *
+ * Note the long-run speed ceiling is NOT set by the `ts` clamp but by the product
+ * `rate limit × lower bound`: at 60 moves/s each move is granted at least the ½-tick
+ * minimum budget, i.e. 60 × 25 ms = 1.5 s of budget per second, so a spamming client
+ * can sustain up to 1.5 × maxSpeed × tolerance (≈ 862 u/s) — the same ceiling the
+ * previous 30 moves/s × 1-tick config allowed, and ~1.7× walking speed. Acceptable
+ * for this demo; a tighter cap would need a per-window distance budget.
+ */
+const MOVE_DELTA_MIN_MS = SHOOTER.stepMs * 0.5;
+const MOVE_DELTA_MAX_MS = SHOOTER.stepMs * 2;
 
 function isVec2(v: unknown): v is { x: number; y: number } {
   return (
@@ -62,6 +86,11 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
 
   // playerId -> simulation tick at which a downed player respawns.
   private readonly respawnAt = new Map<string, number>();
+  // playerId -> server-timeline ms of the last processed move (the input's clamped
+  // subtick `ts` when supplied, else receipt time). Drives the elapsed-time budget.
+  private readonly lastMoveAt = new Map<string, number>();
+  // playerId -> receipt ms (server clock, unforgeable) of the last accepted shot.
+  private readonly lastShotAt = new Map<string, number>();
   // Deterministic PRNG for spread-spawn placement, seeded per room from `seed`.
   private rng: () => number = makeRng(0);
   private readonly spawnCfg: SpawnConfig = {
@@ -74,12 +103,19 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
 
   protected override onReady(): void {
     this.maxClients = 64; // room-enforced cap; matches the demo's matchmake max=64
+    // The core default (30 msg/s) leaves only 10 msg/s beyond the 20 Hz move stream, so
+    // rapid `shoot` clicks silently drop moves — and a dropped move used to double the
+    // next move's distance and trip the speed check. The elapsed-time budget below now
+    // absorbs that, but keep enough headroom that moves aren't dropped in the first place.
+    this.maxInputsPerSecond = 60;
     // A per-room seed clients mirror for deterministic, visual-only obstacle
     // rendering; it also drives spread-spawn so placement is reproducible per room.
     const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
     this.rng = makeRng(seed);
     this.setState({ players: {}, seed });
-    this.onMessage("move", (client, payload) => this.handleMove(client, payload));
+    this.onMessage("move", (client, payload, _seq, input) =>
+      this.handleMove(client, payload, input),
+    );
     this.onMessage("shoot", (client, payload, _seq, input) =>
       this.handleShoot(client, payload, input),
     );
@@ -103,6 +139,12 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
       if (!p) continue;
       // Respawn away from the firefight: the downed player is alive === false, so
       // spawnPoint() naturally excludes it from the survivor set it separates from.
+      // Also drop the move-budget reference: stale corpse-position moves still in
+      // flight would otherwise be measured with a (possibly 2-tick) accumulated
+      // budget and drag the fresh spawn further toward the firefight per move; a
+      // reset caps each such move at the default one-tick budget until the client
+      // snaps onto the spawn and rebases.
+      this.lastMoveAt.delete(id);
       const pos = this.spawnPoint();
       p.x = pos.x;
       p.y = pos.y;
@@ -138,6 +180,8 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
   protected override onSeatExpired(client: Client): void {
     delete this.state.players[client.id];
     this.respawnAt.delete(client.id);
+    this.lastMoveAt.delete(client.id);
+    this.lastShotAt.delete(client.id);
     this.markStateChanged();
   }
 
@@ -156,24 +200,55 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     return pickSpawn(this.survivors(), this.rng, this.spawnCfg);
   }
 
-  private handleMove(client: Client, payload: unknown): void {
+  private handleMove(client: Client, payload: unknown, input?: { ts?: number }): void {
     const p = this.state.players[client.id];
     if (!p || !p.alive || !isVec2(payload)) return;
 
+    // Elapsed-time-aware speed budget: measure the real time since this client's
+    // previous move — the core-clamped subtick `ts` when the client stamps one (the
+    // client's own send-timer spacing, jitter included), else server receipt time —
+    // clamped to [½ tick, 2 ticks] (see MOVE_DELTA_MIN/MAX_MS). A late setInterval
+    // fire or a rate-limit drop then yields a proportionally larger budget instead of
+    // a rejection. The reference is kept monotonic so a backdated `ts` can't rewind it.
+    const now = input?.ts ?? Date.now();
+    const last = this.lastMoveAt.get(client.id);
+    const deltaMs =
+      last === undefined
+        ? SHOOTER.stepMs
+        : clamp(now - last, MOVE_DELTA_MIN_MS, MOVE_DELTA_MAX_MS);
+    this.lastMoveAt.set(client.id, last === undefined ? now : Math.max(last, now));
+
     const target = { x: clamp(payload.x, 0, SHOOTER.world), y: clamp(payload.y, 0, SHOOTER.world) };
-    const res = validateMovement({ x: p.x, y: p.y }, target, MOVE_CFG, SHOOTER.stepMs);
+    // resolveMovement clamps instead of freezing on an over-budget request: it
+    // advances the full (un-toleranced) budget toward the target rather than snapping
+    // back to `prev`. A frozen authoritative position turns one rejection into an
+    // RTT-long cascade — every in-flight move is measured against the stale position
+    // and rejected too, and each `rejected` yanks the client's render back again (the
+    // rubber-band burst). A speed hack still cannot exceed `maxSpeed`; it is merely
+    // capped. The `rejected` reply carries the clamped (partially advanced)
+    // authoritative position, which the client folds in via RenderPredictor.correct.
+    const res = resolveMovement({ x: p.x, y: p.y }, target, SHOOTER_PROFILE, deltaMs);
     p.x = res.position.x;
     p.y = res.position.y;
+    if (res.rejected) client.send("rejected", { x: p.x, y: p.y });
     // Aim rides along with movement so others can render this player's facing.
     const aim = readNum(payload, "aim");
     if (aim !== undefined) p.aim = aim;
-    if (res.rejected) client.send("rejected", { x: p.x, y: p.y });
     this.markStateChanged();
   }
 
   private handleShoot(client: Client, payload: unknown, input?: { ts?: number }): void {
     const shooter = this.state.players[client.id];
     if (!shooter || !shooter.alive) return;
+
+    // Fire-rate cap. The shared 60 msg/s input limit exists to keep the 20 Hz move
+    // stream flowing, so on its own it would let a scripted client fire ~40 shots/s
+    // (2000+ dmg/s). Enforce a per-type cooldown on the server *receipt* clock — a
+    // forged subtick `ts` can't bypass it. Shots inside the window are ignored.
+    const nowMs = Date.now();
+    const lastShot = this.lastShotAt.get(client.id);
+    if (lastShot !== undefined && nowMs - lastShot < SHOOTER.shotCooldownMs) return;
+    this.lastShotAt.set(client.id, nowMs);
 
     const dir = readNum(payload, "dir") ?? shooter.aim;
     shooter.aim = dir;

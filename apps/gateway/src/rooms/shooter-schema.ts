@@ -1,4 +1,5 @@
 import { schema, mapOf, quant, type Codec } from "@tikron/schema";
+import type { MotionProfile } from "@tikron/sim";
 
 /**
  * Shared schema + constants for the FPS proof-of-concept demo (top-down hitscan
@@ -65,6 +66,10 @@ export const SHOOTER = {
   shotDamage: 34, // three hits to down a full-hp player
   shotRange: 550, // < viewRadius (600) so every hit resolves within the shooter's view
   hitRadius: 40, // perpendicular distance to the ray that still counts as a hit
+  // Server-enforced minimum ms between shots (receipt clock). 100 ms ≈ 10 shots/s —
+  // above any human click rate, but it caps a scripted client at 340 dmg/s instead of
+  // the ~2000 dmg/s the shared input rate limit alone would allow.
+  shotCooldownMs: 100,
   respawnTicks: 30, // 30 × 50 ms = 1.5 s downed before respawn
   // Spread-spawn tuning (see pickSpawn in shooter-spawn.ts).
   spawnMinSep: 300, // a spawn keeps ≥ this from every living player
@@ -72,3 +77,20 @@ export const SHOOTER = {
   spawnRingMax: 700,
   spawnCenterJitter: 300, // half-extent of the center box used when nobody is alive
 } as const;
+
+/**
+ * The single movement contract shared by BOTH sides — the room's `resolveMovement`
+ * budget and the client's `RenderPredictor` send clamp. One constant, imported by the
+ * server room and the browser bundle alike, so the budgets can never drift apart (the
+ * old hand-copied `MOVE_CFG` is exactly the duplication this replaces). `world` must
+ * stay in lock-step with the quant position range above (see the codec note).
+ */
+export const SHOOTER_PROFILE: MotionProfile = {
+  maxSpeed: SHOOTER.maxSpeed,
+  tolerance: 1.15,
+  stepMs: SHOOTER.stepMs,
+  world: SHOOTER.world,
+  // Send-clamp scale: > 1 so a clamped-send backlog drains during sustained movement,
+  // < tolerance so a clamped send always fits the server budget for the same delta.
+  sendHeadroom: 1.1,
+};

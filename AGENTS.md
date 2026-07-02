@@ -198,6 +198,80 @@ layout. Ship the SAME SDK minor on both sides — 0.1.x and 0.2.x are not wire-c
 added the `c:mbatch` frame, the subtick `ts` field, and the state-frame `serverTime`). Upgrade
 both together.
 
+## Smooth rendering: RenderPredictor + EntitySmoother
+
+For client-authoritative movement ("the client sends its position, the server validates the
+speed" — the shooter model), use the `@tikron/client` render helpers instead of hand-rolling
+the integration/correction/clamp plumbing. They exist to make rubber-banding structurally
+impossible: every outgoing position passes through ONE budget clamp measured over the real
+elapsed time between sends, so an honest client is never speed-rejected; if the server still
+corrects (a rate-limit drop left it behind), the correction rebases the clamp so a rejection
+can never cascade; and the server resolves an over-budget move by partial advance
+(`resolveMovement`), never by freezing — the freeze is what used to amplify one rejection
+into an RTT-long snapback burst.
+
+```ts
+// Shared module (imported by BOTH the room and the client bundle) — one budget, two sides.
+export const PROFILE: MotionProfile =
+  { maxSpeed: 500, tolerance: 1.15, stepMs: 50, world: 3000, sendHeadroom: 1.1 };
+
+// CLIENT
+const motion = RenderPredictor.fromProfile(spawnPlaceholder, PROFILE);
+const smoother = new EntitySmoother();
+
+room.onMessage("rejected", (p) => motion.correct(p as Vec2)); // one reject max: lastSent rebases
+const ingest = (s: unknown) => { const me = (s as MyState).players[room.connectionId!];
+  if (me) { motion.alive = me.alive; motion.reconcile(me); } };
+room.onStateChange(ingest);
+if (room.state !== undefined) ingest(room.state); // fold the frame that predates the handler
+
+setInterval(() => {
+  const sent = motion.sendPosition(room.clock.serverNow()); // budget-clamped: never over-speed
+  room.send("move", sent);                                  // send EXACTLY this value
+}, PROFILE.stepMs);
+
+function render(dtMs: number) {
+  const pos = motion.frame(dir.x, dir.y, dtMs);  // camera = pos, 1:1, NO extra easing
+  const seen = new Set<string>();
+  for (const [id, p] of others) { seen.add(id);
+    const sm = smoother.update(id, { x: p.x, y: p.y, angle: p.aim }, dtMs); /* draw sm */ }
+  smoother.prune(seen); // so an AOI re-entry snaps in fresh instead of gliding
+}
+
+// SERVER — in the move handler. Measure the SAME budget window the client clamps
+// to ("one budget, two sides"): per-client inter-move delta from the clamped
+// subtick ts, bounded to [stepMs/2, stepMs*2], reference kept monotonic:
+//   const now = input?.ts ?? Date.now();
+//   const last = lastMoveAt.get(client.id);
+//   const deltaMs = last === undefined ? PROFILE.stepMs
+//     : Math.min(Math.max(now - last, PROFILE.stepMs / 2), PROFILE.stepMs * 2);
+//   lastMoveAt.set(client.id, last === undefined ? now : Math.max(last, now));
+//   const res = resolveMovement(prev, target, PROFILE, deltaMs);
+//   p.x = res.position.x; p.y = res.position.y;               // partial advance, no freeze
+//   if (res.rejected) client.send("rejected", { x: p.x, y: p.y });
+```
+
+Rules of thumb:
+- Render = continuous integration + a decaying correction offset. Bind the local camera to
+  `frame()`'s output 1:1 — extra easing only adds a trail and input lag.
+- `sendPosition(room.clock.serverNow())` is the single choke point: never send any other
+  position value (that reopens the rubber-band path). Pass the server clock — the same clock
+  the SDK stamps into the input `ts` — so both sides measure the same inter-move delta.
+- `correct()` is for an explicit server correction message; `reconcile()` is for the state
+  echo of the local player (small gaps are RTT lag and are ignored; only the first frame,
+  a respawn — set `motion.alive` from authoritative liveness — and ≥ `snapDistance` snap).
+  `snapDistance` tuning: below the game's minimum respawn displacement, above
+  `maxSpeed × (RTT + stepMs) / 1000`.
+- Share ONE `MotionProfile` constant between room and client (a structural subtype of
+  `MovementConfig` — pass it straight to `resolveMovement`). Keep `sendHeadroom` strictly
+  between 1 and `tolerance`.
+- Message budget: keep `1000/stepMs × message-types-per-tick` under the room's
+  `maxInputsPerSecond` (default 30), or moves get silently dropped — the shooter room raises
+  it to 60 for a 20 Hz move stream plus shots.
+- `RenderPredictor` is a different model from `InputPredictor` (input replay for
+  server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
+  InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.
+
 ## Test your room
 
 Unit-test room logic in-process with the `@tikron/server/testing` harness — no Durable

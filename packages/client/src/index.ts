@@ -29,6 +29,20 @@ export {
 } from "./transport.js";
 export { InputPredictor, SnapshotBuffer } from "./netcode.js";
 export type { Predictable, Snapshot } from "./netcode.js";
+export {
+  RenderPredictor,
+  EntitySmoother,
+  decayOffset,
+  applyCorrection,
+  smoothAxis,
+  smoothAngle,
+  followCamera,
+} from "./render.js";
+export type { Cam, RenderPredictorOptions, EntitySmootherOptions } from "./render.js";
+// Shared motion math (same package the server validates with) so a client bundle can
+// consume the one movement contract without a second import root.
+export { integrateMove, clampToBudget } from "@tikron/sim";
+export type { Vec2, MotionProfile, MovementConfig } from "@tikron/sim";
 export { ClockSync } from "./clock.js";
 export type { ClockSyncOptions } from "./clock.js";
 export { withNetworkConditions } from "./net-conditions.js";
@@ -112,8 +126,9 @@ export interface GameClientOptions {
  * A live connection to a single room. Wraps a {@link Transport}, decodes the
  * authoritative message stream, and tracks room state: `state` sync
  * (`onStateChange`), developer messages (`send`/`onMessage(type)`), presence, input
- * acks (`onAck`), and clock sync. Client-side prediction and interpolation are
- * opt-in helpers ({@link InputPredictor}, {@link SnapshotBuffer}).
+ * acks (`onAck`), and clock sync. Client-side prediction, interpolation, and render
+ * smoothing are opt-in helpers ({@link InputPredictor}, {@link SnapshotBuffer},
+ * {@link RenderPredictor}, {@link EntitySmoother}).
  */
 export class Room {
   connectionId: string | null = null;
