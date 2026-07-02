@@ -46,6 +46,38 @@ export interface RoomStorage {
   deleteAlarm(): Promise<void>;
 }
 
+/** How a submitted score combines with a player's existing score on a board. */
+export type ScoreMode = "max" | "sum" | "last";
+
+/** A single server-authoritative leaderboard submission from room code. */
+export interface LeaderboardSubmit {
+  /** Board name (a namespace within the project); created on first submit. */
+  board: string;
+  /** Stable player id to attribute the score to (usually `client.id`). */
+  playerId: string;
+  /** The score to record. */
+  score: number;
+  /** Optional display name shown on the board. */
+  displayName?: string;
+  /** How to combine with any existing score for this player (default "max"). */
+  mode?: ScoreMode;
+}
+
+/**
+ * Optional platform services the host wires into a room. Kept narrow and optional
+ * (like {@link RoomContext.storage} and reportOccupancy) so the core stays
+ * platform-agnostic: a service is simply absent when unavailable — unit tests and
+ * local dev without a database — and room code calls it optionally, e.g.
+ * `this.services.leaderboard?.submit({ board: "weekly", playerId: client.id, score })`.
+ */
+export interface RoomServices {
+  /** Per-project leaderboards backed by the platform database (write-only here). */
+  leaderboard?: {
+    /** Record a score (server-authoritative, fire-and-forget). */
+    submit(entry: LeaderboardSubmit): void;
+  };
+}
+
 /** The transport context a Room is constructed with (implemented by `defineRoom`). */
 export interface RoomContext {
   readonly roomId: string;
@@ -69,7 +101,16 @@ export interface RoomContext {
    * only, exactly as before.
    */
   storage?: RoomStorage;
+  /**
+   * Optional platform services (leaderboards, etc.) wired by the host. Absent in
+   * unit tests / local dev without a database — room code accesses them via the
+   * always-present {@link Room.services} accessor and calls each optionally.
+   */
+  services?: RoomServices;
 }
+
+/** Shared empty services object so {@link Room.services} is never undefined. */
+const NO_SERVICES: RoomServices = Object.freeze({});
 
 /** Storage key holding a room's persisted snapshot. */
 const ROOM_STORAGE_KEY = "pe:room";
@@ -316,6 +357,16 @@ export abstract class Room<TState = unknown> {
 
   protected clientList(): Client[] {
     return [...this.records.values()].map((r) => r.client);
+  }
+
+  /**
+   * Optional platform services wired by the host (e.g. leaderboards). Always an
+   * object, so a service that is unavailable (unit tests, local dev without a
+   * database) is a no-op when called optionally:
+   * `this.services.leaderboard?.submit({ board, playerId: client.id, score })`.
+   */
+  protected get services(): RoomServices {
+    return this.ctx.services ?? NO_SERVICES;
   }
 
   /** Seated clients, including any inside a reconnection window. */

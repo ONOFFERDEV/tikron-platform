@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlayEdge — Discord Activity</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #1e1f22;
+      }
+      canvas {
+        display: block;
+        cursor: crosshair;
+      }
+      #status {
+        position: fixed;
+        top: 10px;
+        left: 12px;
+        color: #b5bac1;
+        font: 13px "gg sans", ui-sans-serif, system-ui, sans-serif;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="status">connecting…</div>
+    <!-- Relative paths so they resolve both at the local dev root and behind the
+         Discord proxy (the Activity document loads from the discordsays.com origin). -->
+    <script src="./config.js"></script>
+    <script type="module" src="./client.js"></script>
+  </body>
+</html>

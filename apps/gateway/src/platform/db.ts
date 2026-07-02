@@ -1,5 +1,7 @@
 // Typed D1 query helpers for the platform tables. Keeps SQL in one place.
 
+import type { ScoreMode } from "@playedge/server";
+
 export interface UserRow {
   github_id: string;
   login: string;
@@ -183,6 +185,77 @@ export async function accrueUsage(
     )
     .bind(u.projectId, u.day, u.roomHours, u.peakCcu, u.messages)
     .run();
+}
+
+// --- leaderboards (P5) ---
+
+export interface LeaderboardEntry {
+  player_id: string;
+  display_name: string | null;
+  score: number;
+}
+
+/**
+ * Per-mode SET expression for the upsert. Keyed by the (typed, validated)
+ * {@link ScoreMode}, never by raw input, so interpolating it into the SQL is safe.
+ * `score` is the existing row's value, `excluded.score` the submitted one.
+ */
+const SCORE_SET: Record<ScoreMode, string> = {
+  max: "MAX(score, excluded.score)",
+  sum: "score + excluded.score",
+  last: "excluded.score",
+};
+
+/**
+ * Record a score for a player on a project's board. The board is created
+ * implicitly on first submit; the row is upserted per {@link ScoreMode} (keep the
+ * max, add, or overwrite). `display_name` is refreshed to the latest submitted.
+ */
+export async function submitScore(
+  db: D1Database,
+  s: {
+    projectId: string;
+    board: string;
+    playerId: string;
+    displayName: string | null;
+    score: number;
+    mode: ScoreMode;
+  },
+): Promise<void> {
+  const setScore = SCORE_SET[s.mode] ?? SCORE_SET.max;
+  await db
+    .prepare(
+      `INSERT INTO leaderboards (project_id, board, player_id, display_name, score, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(project_id, board, player_id) DO UPDATE SET
+         score = ${setScore},
+         display_name = excluded.display_name,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(s.projectId, s.board, s.playerId, s.displayName, s.score, Date.now())
+    .run();
+}
+
+/**
+ * Top-N entries for a project's board, highest score first (ties break to the
+ * earlier achiever). `limit` is clamped to 1..100.
+ */
+export async function topScores(
+  db: D1Database,
+  projectId: string,
+  board: string,
+  limit: number,
+): Promise<LeaderboardEntry[]> {
+  const n = Math.max(1, Math.min(100, Math.floor(limit)));
+  const res = await db
+    .prepare(
+      `SELECT player_id, display_name, score FROM leaderboards
+       WHERE project_id = ? AND board = ?
+       ORDER BY score DESC, updated_at ASC LIMIT ?`,
+    )
+    .bind(projectId, board, n)
+    .all<LeaderboardEntry>();
+  return res.results ?? [];
 }
 
 export async function loadCaps(db: D1Database): Promise<Caps> {

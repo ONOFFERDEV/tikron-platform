@@ -18,8 +18,13 @@ import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
 import { Matchmaker } from "./matchmaker.js";
-import { enforceConnection, handlePlatformApi, resolveProject } from "./platform/api.js";
-import { getProject } from "./platform/db.js";
+import {
+  enforceConnection,
+  handleLeaderboard,
+  handlePlatformApi,
+  resolveProject,
+} from "./platform/api.js";
+import { getProject, submitScore } from "./platform/db.js";
 import { verifyJwt } from "./platform/jwt.js";
 
 export { Matchmaker };
@@ -131,6 +136,24 @@ const roomOptions: DefineRoomOptions = {
     if (!token) return false;
     return (await verifyJwt(project.player_jwt_secret, token)) !== null;
   },
+  // Server-authoritative leaderboard writes. Fire-and-forget upserts to D1 (no
+  // ordering seq needed: "max"/"sum" are order-independent and "last" reflects
+  // the write that lands last). A null project (dev-mode) writes to the shared
+  // "dev" scope so dev reads see the same rows; no DB → a no-op.
+  services: {
+    submitScore: (env, { projectId, board, playerId, score, displayName, mode }) => {
+      const e = env as Env;
+      if (!e.DB) return;
+      return submitScore(e.DB, {
+        projectId: projectId ?? "dev",
+        board,
+        playerId,
+        score,
+        displayName: displayName ?? null,
+        mode: mode ?? "max",
+      });
+    },
+  },
 };
 
 /** Realtime .io example — Simulation + MovementValidation modules. */
@@ -163,6 +186,9 @@ async function handleApi(url: URL, env: Env): Promise<Response> {
       resolved.projectId ?? undefined,
     );
     return Response.json(result);
+  }
+  if (url.pathname === "/api/leaderboard") {
+    return handleLeaderboard(env, url);
   }
   if (url.pathname === "/api/rooms") {
     const type = url.searchParams.get("type") ?? undefined;

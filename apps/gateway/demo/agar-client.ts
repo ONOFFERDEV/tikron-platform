@@ -100,6 +100,42 @@ async function main() {
   }, AGAR.stepMs);
 
   requestAnimationFrame(render);
+
+  // Poll the public leaderboard (board "agar-top") and render the top 10. Keyless
+  // read → the demo project in production, the "dev" scope locally.
+  void refreshLeaderboard();
+  setInterval(() => void refreshLeaderboard(), 5000);
+}
+
+interface LeaderRow {
+  rank: number;
+  playerId: string;
+  displayName: string | null;
+  score: number;
+}
+
+const lbEl = document.getElementById("lb");
+
+async function refreshLeaderboard() {
+  if (!lbEl) return;
+  try {
+    const res = await fetch("/api/leaderboard?board=agar-top&limit=10");
+    if (!res.ok) return;
+    const rows = (await res.json()) as LeaderRow[];
+    const items = rows
+      .map((r) => `<li>${escapeHtml(r.displayName ?? r.playerId.slice(0, 6))} — ${r.score}</li>`)
+      .join("");
+    lbEl.innerHTML = `<b>agar-top</b><ol>${items}</ol>`;
+  } catch {
+    /* leaderboard is best-effort; ignore transient fetch errors */
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 
 function render() {

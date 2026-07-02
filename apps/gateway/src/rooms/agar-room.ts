@@ -93,7 +93,19 @@ export class AgarRoomImpl extends IoArenaRoom<AgarState> {
     p.y = res.position.y;
     if (res.rejected) client.send("rejected", { x: p.x, y: p.y });
 
+    const before = p.score;
     this.collectOrbs(p);
+    if (p.score !== before) {
+      // Dogfood the leaderboard: publish the running best to board "agar-top".
+      // mode "max" keeps the high score, so each submit is idempotent-safe.
+      this.services.leaderboard?.submit({
+        board: "agar-top",
+        playerId: client.id,
+        score: p.score,
+        displayName: client.id.slice(0, 6),
+        mode: "max",
+      });
+    }
     this.markStateChanged();
   }
 

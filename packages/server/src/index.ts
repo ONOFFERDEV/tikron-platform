@@ -13,6 +13,9 @@ export type {
   RoomInit,
   MessageHandler,
   AOIConfig,
+  RoomServices,
+  LeaderboardSubmit,
+  ScoreMode,
 } from "./room.js";
 export {
   defineRoom,

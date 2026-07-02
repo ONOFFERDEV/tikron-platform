@@ -6,8 +6,10 @@ import {
   CLOSE_UNAUTHORIZED,
   type RoomConnection,
   type RoomContext,
+  type RoomServices,
   type RoomStorage,
   type RoomInit,
+  type LeaderboardSubmit,
 } from "./room.js";
 
 export type RoomClass<TState> = new (init: RoomInit) => Room<TState>;
@@ -60,6 +62,20 @@ export interface DefineRoomOptions {
     env: unknown,
     info: { roomId: string; projectId: string | null; token: string | null; session: string | null },
   ) => boolean | Promise<boolean>;
+  /**
+   * Optional platform services the host exposes to room code (see
+   * {@link RoomServices}). Each is invoked with the host env plus the room's
+   * owning project id (null when unmetered / dev). Absent → the service is simply
+   * unavailable to rooms. Wired here so the platform-agnostic core never imports
+   * the database.
+   */
+  services?: {
+    /** Persist a leaderboard score to the platform DB (fire-and-forget). */
+    submitScore?: (
+      env: unknown,
+      entry: { projectId: string | null } & LeaderboardSubmit,
+    ) => void | Promise<void>;
+  };
 }
 
 /** The query parameter carrying a client's stable session key. */
@@ -85,6 +101,7 @@ function makeContext(
   options?: DefineRoomOptions,
 ): RoomContext {
   const report = options?.reportOccupancy;
+  const submitScore = options?.services?.submitScore;
   return {
     roomId: host.name,
     connections: () => host.getConnections(),
@@ -105,6 +122,17 @@ function makeContext(
         }
       : undefined,
     storage,
+    services: submitScore
+      ? {
+          leaderboard: {
+            submit: (entry) => {
+              void Promise.resolve(
+                submitScore(getEnv(), { projectId: getProjectId(), ...entry }),
+              ).catch(() => {});
+            },
+          },
+        }
+      : undefined,
   };
 }
 

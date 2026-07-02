@@ -1,0 +1,17 @@
+{
+  "$schema": "../../apps/gateway/node_modules/wrangler/config-schema.json",
+  // Rename this to name your deployment: https://<name>.<account>.workers.dev
+  "name": "playedge-discord-activity",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "durable_objects": {
+    "bindings": [{ "name": "CursorRoom", "class_name": "CursorRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CursorRoom"] }],
+  "assets": { "directory": "./public" },
+  "observability": { "enabled": true },
+  // Discord application (client) id, used server-side for the OAuth2 token exchange.
+  // Must match public/config.js. The client SECRET is NOT here — set it with:
+  //   pnpm exec wrangler secret put DISCORD_CLIENT_SECRET
+  "vars": { "DISCORD_CLIENT_ID": "" }
+}
