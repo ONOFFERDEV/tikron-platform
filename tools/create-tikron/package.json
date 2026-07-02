@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/DGO0/tikron-platform.git"
   },
   "scripts": {
     "start": "tsx src/index.ts",

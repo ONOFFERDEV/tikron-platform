@@ -266,8 +266,8 @@ export async function loadCaps(db: D1Database): Promise<Caps> {
     return Number.isFinite(v) && v > 0 ? v : d;
   };
   return {
-    roomHoursPerMonth: num("free_room_hours_per_month", 5000),
-    concurrentRooms: num("free_concurrent_rooms", 50),
+    roomHoursPerMonth: num("free_room_hours_per_month", 1000),
+    concurrentRooms: num("free_concurrent_rooms", 20),
     playersPerRoom: num("free_players_per_room", 20),
   };
 }

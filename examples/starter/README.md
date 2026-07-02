@@ -9,7 +9,7 @@ rooms spin up on demand in ~275 cities.
 
 ```bash
 # 1. clone + install (~2 min)
-git clone <this-repo> && cd webgame-baas
+git clone <this-repo> && cd tikron-platform
 pnpm install
 
 # 2. log in to Cloudflare (free tier works; opens a browser)

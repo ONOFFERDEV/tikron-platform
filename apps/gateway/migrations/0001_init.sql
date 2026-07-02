@@ -48,6 +48,6 @@ CREATE TABLE config (
 
 -- Default free-tier caps (adjustable in D1). Room-hours are per calendar month.
 INSERT INTO config (k, v) VALUES
-  ('free_room_hours_per_month', '5000'),
-  ('free_concurrent_rooms', '50'),
+  ('free_room_hours_per_month', '1000'),
+  ('free_concurrent_rooms', '20'),
   ('free_players_per_room', '20');

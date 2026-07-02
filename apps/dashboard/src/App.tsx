@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { Shell } from "./components/Shell";
+import { Wordmark } from "./components/Wordmark";
 import { useSession } from "./hooks/useSession";
 import { Login } from "./pages/Login";
 import { ProjectDetail } from "./pages/ProjectDetail";
@@ -13,8 +14,8 @@ export function App() {
   if (status === "loading") {
     return (
       <div className="boot">
-        <div className="boot-mark">◆</div>
-        <span className="boot-text">Loading Tikron…</span>
+        <Wordmark size="lg" />
+        <span className="boot-text">Loading…</span>
       </div>
     );
   }

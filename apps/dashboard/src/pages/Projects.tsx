@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "../api/client";
-import { CopyButton } from "../components/CopyButton";
 import { Modal } from "../components/Modal";
 import { SkeletonRows } from "../components/Skeleton";
-import { EmptyState, ErrorState, GatewayUnreachable } from "../components/states";
+import { ErrorState, GatewayUnreachable } from "../components/states";
 import { useApi } from "../hooks/useApi";
 import { fmtDate } from "../lib/format";
 import { useToast } from "../lib/toast";
-
-const QUICKSTART = "pnpm create tikron@latest my-game";
 
 export function Projects() {
   const projects = useApi(() => api.listProjects(), []);
@@ -42,26 +39,7 @@ export function Projects() {
       )}
 
       {!projects.loading && !projects.error && projects.data?.length === 0 && (
-        <EmptyState
-          title="Create your first project"
-          action={
-            <button className="btn btn-primary" onClick={() => setCreating(true)}>
-              New project
-            </button>
-          }
-        >
-          <p>Spin up a server-authoritative multiplayer backend in about five minutes.</p>
-          <div className="snippet">
-            <code>{QUICKSTART}</code>
-            <CopyButton value={QUICKSTART} />
-          </div>
-          <p className="muted">
-            Prefer to see it first?{" "}
-            <a href="/agar.html" target="_blank" rel="noreferrer">
-              Open the agar.io demo ↗
-            </a>
-          </p>
-        </EmptyState>
+        <Onboarding onCreate={() => setCreating(true)} />
       )}
 
       {!projects.loading && !projects.error && projects.data && projects.data.length > 0 && (
@@ -81,6 +59,53 @@ export function Projects() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Zero-projects onboarding: the create → key → connect path, with one CTA. */
+function Onboarding({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="onboard">
+      <div>
+        <h2 className="onboard-title">Create your first project</h2>
+        <p className="onboard-lead">
+          A project is a multiplayer backend — its own API keys, usage, and live rooms. Three steps
+          to your first connected player:
+        </p>
+      </div>
+      <ol className="onboard-steps">
+        <li className="onboard-step">
+          <span className="step-num">1</span>
+          <div className="step-body">
+            <span className="step-title">Create a project</span>
+            <span className="step-note">Give it a name — you can add more anytime.</span>
+          </div>
+        </li>
+        <li className="onboard-step">
+          <span className="step-num">2</span>
+          <div className="step-body">
+            <span className="step-title">Grab an API key</span>
+            <span className="step-note">
+              Issue a key on the <strong>API keys</strong> tab. It authenticates your game client.
+            </span>
+          </div>
+        </li>
+        <li className="onboard-step">
+          <span className="step-num">3</span>
+          <div className="step-body">
+            <span className="step-title">Connect your game</span>
+            <span className="step-note">
+              <code>new GameClient(host, {"{ apiKey }"})</code> — you&apos;re live on the edge.
+            </span>
+          </div>
+        </li>
+      </ol>
+      <div>
+        <button className="btn btn-primary" onClick={onCreate}>
+          Create your first project
+        </button>
+      </div>
     </div>
   );
 }

@@ -16,9 +16,10 @@ import { ErrorState, GatewayUnreachable } from "../../components/states";
 import { useApi } from "../../hooks/useApi";
 import { fmtCompact, fmtDayShort, fmtNumber } from "../../lib/format";
 
-const GREEN = "#3fb950";
-const BLUE = "#58a6ff";
-const AXIS = "#8b949e";
+const NEON = "#00e5a0"; // room-hours bars
+const BLUE = "#58a6ff"; // peak CCU line
+const AXIS = "#8b98a8";
+const GRID = "#232b36";
 
 export function UsageTab({ projectId }: { projectId: string }) {
   const usage = useApi(() => api.usage(projectId, 30), [projectId]);
@@ -66,6 +67,7 @@ export function UsageTab({ projectId }: { projectId: string }) {
           value={lim ? fmtCompact(lim.monthRoomHours) : "-"}
           sub={lim ? `of ${fmtCompact(lim.caps.monthRoomHours)} cap` : undefined}
           progress={lim ? { value: lim.monthRoomHours, cap: lim.caps.monthRoomHours } : undefined}
+          primary
         />
         <StatTile
           label="Live rooms"
@@ -81,7 +83,7 @@ export function UsageTab({ projectId }: { projectId: string }) {
           <h3 className="chart-title">Last 30 days</h3>
           <div className="legend">
             <span className="legend-item">
-              <span className="legend-swatch" style={{ background: GREEN, opacity: 0.7 }} />
+              <span className="legend-swatch" style={{ background: NEON, opacity: 0.7 }} />
               room-hours
             </span>
             <span className="legend-item">
@@ -91,7 +93,12 @@ export function UsageTab({ projectId }: { projectId: string }) {
           </div>
         </div>
         {days.length === 0 ? (
-          <div className="chart-empty">No usage recorded yet for this project.</div>
+          <div className="chart-empty">
+            <span>No usage yet — ship your game and traffic shows up here.</span>
+            <a href="/agar.html" target="_blank" rel="noreferrer">
+              See a live game ↗
+            </a>
+          </div>
         ) : (
           <UsageChart days={days} />
         )}
@@ -104,7 +111,7 @@ function UsageChart({ days }: { days: UsageDay[] }) {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <ComposedChart data={days} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
-        <CartesianGrid stroke="#21262d" vertical={false} />
+        <CartesianGrid stroke={GRID} vertical={false} />
         <XAxis
           dataKey="day"
           tickFormatter={fmtDayShort}
@@ -133,9 +140,10 @@ function UsageChart({ days }: { days: UsageDay[] }) {
           label={{ value: "peak CCU", angle: 90, position: "insideRight", fill: AXIS, fontSize: 11 }}
         />
         <Tooltip
+          cursor={{ fill: "rgba(0, 229, 160, 0.06)" }}
           contentStyle={{
-            background: "#161b22",
-            border: "1px solid #30363d",
+            background: "#10151d",
+            border: "1px solid #232b36",
             borderRadius: 8,
             color: "#e6edf3",
             fontSize: 12,
@@ -147,7 +155,7 @@ function UsageChart({ days }: { days: UsageDay[] }) {
           yAxisId="left"
           dataKey="roomHours"
           name="room-hours"
-          fill={GREEN}
+          fill={NEON}
           fillOpacity={0.7}
           radius={[2, 2, 0, 0]}
           maxBarSize={18}

@@ -85,8 +85,8 @@ describe("platform dashboard API", () => {
     expect(limits.monthRoomHours).toBe(0);
     expect(limits.liveRooms).toBe(0);
     // Wire shape follows the dashboard contract (caps.monthRoomHours).
-    expect(limits.caps.monthRoomHours).toBe(5000);
-    expect(limits.caps.concurrentRooms).toBe(50);
+    expect(limits.caps.monthRoomHours).toBe(1000);
+    expect(limits.caps.concurrentRooms).toBe(20);
     expect(limits.caps.playersPerRoom).toBe(20);
   });
 

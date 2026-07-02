@@ -1,0 +1,287 @@
+/* Tikron brand system — shared tokens + components for every public page.
+   Dark, neon engineering aesthetic ("infrastructure for games"). No build step,
+   no external fonts or CDNs. */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0a0e14;
+  --panel: #10151d;
+  --raised: #161d27;
+  --border: #232b36;
+
+  /* text */
+  --text: #e6edf3;
+  --muted: #8b98a8;
+
+  /* accents */
+  --neon: #00e5a0; /* primary — CTAs, key numbers, logo accent (used sparingly) */
+  --neon-dim: #00b37e;
+  --secondary: #58a6ff;
+  --warn: #f2cc60;
+  --danger: #ff6b6b;
+
+  /* type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* layout */
+  --maxw: 1080px;
+  --radius: 10px;
+  --glow: 0 0 0.6em rgba(0, 229, 160, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--secondary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5em;
+}
+
+/* Numbers, ids, code — monospace, per the brand. */
+.mono,
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--neon);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- layout helpers --- */
+
+.container {
+  width: min(var(--maxw), 92vw);
+  margin: 0 auto;
+}
+
+.section {
+  padding: 72px 0;
+  border-top: 1px solid var(--border);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--neon);
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+}
+@media (min-width: 760px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* --- wordmark --- */
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.wordmark:hover {
+  text-decoration: none;
+}
+.wordmark .i {
+  color: var(--neon);
+  text-shadow: var(--glow);
+}
+.wordmark svg {
+  display: block;
+}
+
+/* --- buttons --- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    transform 0.08s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.btn:hover {
+  text-decoration: none;
+  border-color: #33404f;
+  transform: translateY(-1px);
+}
+.btn-primary {
+  background: var(--neon);
+  border-color: var(--neon);
+  color: #04120c;
+  box-shadow: 0 0 0 1px rgba(0, 229, 160, 0.15), 0 6px 22px -8px rgba(0, 229, 160, 0.5);
+}
+.btn-primary:hover {
+  background: #16f2b0;
+  border-color: #16f2b0;
+}
+.btn-ghost {
+  background: transparent;
+}
+
+/* --- cards / panels --- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+}
+.card h3 {
+  font-size: 17px;
+}
+.card p {
+  color: var(--muted);
+  margin: 0;
+  font-size: 15px;
+}
+
+/* --- badges --- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.badge-neon {
+  border-color: rgba(0, 229, 160, 0.4);
+  color: var(--neon);
+}
+.badge-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--neon);
+  box-shadow: var(--glow);
+}
+
+/* --- code blocks --- */
+
+pre {
+  margin: 0;
+  padding: 16px 18px;
+  background: #070a0f;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+pre code {
+  color: var(--text);
+}
+:not(pre) > code {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.88em;
+}
+.tok-key {
+  color: var(--secondary);
+}
+.tok-fn {
+  color: var(--neon);
+}
+.tok-str {
+  color: var(--warn);
+}
+.tok-com {
+  color: var(--muted);
+}
+
+/* --- top bar (shared by landing + demo frame) --- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+}
+.topbar nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 14px;
+}
+.topbar nav a {
+  color: var(--muted);
+}
+.topbar nav a:hover {
+  color: var(--text);
+}
+
+/* --- reduced motion --- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

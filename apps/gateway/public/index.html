@@ -3,185 +3,399 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tikron · hello-room (M0)</title>
+    <title>Tikron — multiplayer for web games</title>
+    <meta
+      name="description"
+      content="Tikron is server-authoritative multiplayer for web games, running on the edge — one Durable Object per room, in ~275 cities. Ship a multiplayer game in minutes; built so AI coding agents can do it in one session."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Tikron — multiplayer for web games" />
+    <meta
+      property="og:description"
+      content="Server-authoritative multiplayer for web games, on the edge, in minutes. Built so AI coding agents ship multiplayer games in one session."
+    />
+    <meta name="theme-color" content="#0a0e14" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/brand.css" />
     <style>
-      :root {
-        color-scheme: dark;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      /* page-specific layout (shared tokens/components live in brand.css) */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-top: none;
       }
-      body {
-        margin: 0;
-        background: #0d1117;
-        color: #e6edf3;
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
+      #bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
       }
-      main {
-        width: min(680px, 92vw);
-        padding: 24px;
+      .hero .container {
+        position: relative;
+        z-index: 1;
+        padding: 96px 0 88px;
       }
-      h1 {
-        font-size: 18px;
-        margin: 0 0 4px;
+      .hero h1 {
+        font-size: clamp(34px, 6vw, 60px);
+        max-width: 15ch;
+        margin-top: 18px;
       }
-      p.sub {
-        margin: 0 0 20px;
-        color: #8b949e;
-        font-size: 13px;
+      .hero .lead {
+        font-size: clamp(16px, 2.2vw, 20px);
+        color: var(--muted);
+        max-width: 52ch;
       }
-      .row {
+      .hero .ai {
+        margin-top: 6px;
+        color: var(--text);
+      }
+      .hero .ai b {
+        color: var(--neon);
+        font-weight: 600;
+      }
+      .cta-row {
         display: flex;
-        gap: 8px;
-        margin-bottom: 10px;
         flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
       }
-      input,
-      button {
-        font: inherit;
-        border-radius: 8px;
-        border: 1px solid #30363d;
-        background: #161b22;
-        color: #e6edf3;
-        padding: 8px 12px;
+      .numbers {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(2, 1fr);
       }
-      input {
-        flex: 1;
-        min-width: 120px;
+      @media (min-width: 760px) {
+        .numbers {
+          grid-template-columns: repeat(4, 1fr);
+        }
       }
-      button {
-        cursor: pointer;
-        background: #238636;
-        border-color: #2ea043;
+      .num .n {
+        font-family: var(--font-mono);
+        font-size: clamp(24px, 3.4vw, 34px);
+        font-weight: 600;
+        color: var(--neon);
+        text-shadow: var(--glow);
       }
-      button.secondary {
-        background: #21262d;
-        border-color: #30363d;
+      .num .l {
+        color: var(--muted);
+        font-size: 13.5px;
+        margin-top: 4px;
       }
-      button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+      .quick {
+        display: grid;
+        gap: 20px;
       }
-      #status {
-        font-size: 12px;
-        padding: 4px 8px;
-        border-radius: 999px;
-        border: 1px solid #30363d;
+      @media (min-width: 860px) {
+        .quick {
+          grid-template-columns: 1fr 1fr;
+          align-items: start;
+        }
       }
-      #status.on {
-        color: #3fb950;
-        border-color: #238636;
+      .price {
+        display: grid;
+        gap: 18px;
       }
-      #status.off {
-        color: #f85149;
-        border-color: #da3633;
+      @media (min-width: 760px) {
+        .price {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
-      #log {
-        height: 300px;
-        overflow-y: auto;
-        background: #010409;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 12.5px;
-        line-height: 1.5;
-        white-space: pre-wrap;
+      .plan {
+        display: flex;
+        flex-direction: column;
       }
-      .in {
-        color: #58a6ff;
+      .plan.featured {
+        border-color: rgba(0, 229, 160, 0.4);
       }
-      .out {
-        color: #d29922;
+      .plan .amt {
+        font-family: var(--font-mono);
+        font-size: 28px;
+        font-weight: 600;
+        margin: 6px 0 2px;
       }
-      .sys {
-        color: #8b949e;
+      .plan ul {
+        list-style: none;
+        margin: 14px 0 0;
+        padding: 0;
+        color: var(--muted);
+        font-size: 14.5px;
+      }
+      .plan li {
+        padding: 5px 0;
+        border-top: 1px solid var(--border);
+      }
+      .plan li .mono {
+        color: var(--text);
+      }
+      footer {
+        color: var(--muted);
+        font-size: 14px;
+        padding: 34px 0 56px;
+        border-top: 1px solid var(--border);
+      }
+      footer .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 8px;
       }
     </style>
   </head>
   <body>
-    <main>
-      <h1>Tikron · hello-room</h1>
-      <p class="sub">
-        M0 smoke test. Open this page in two tabs, join the same room, and click
-        <em>Broadcast</em>. Server-authoritative echo/broadcast over a partyserver Durable Object.
-      </p>
+    <!-- top bar -->
+    <div class="container">
+      <header class="topbar">
+        <a class="wordmark" href="/" aria-label="Tikron home">
+          <img src="/favicon.svg" width="26" height="26" alt="" />
+          t<span class="i">i</span>kron
+        </a>
+        <nav>
+          <a href="/agar.html">Demo</a>
+          <a href="/dashboard/">Dashboard</a>
+          <a href="https://github.com/DGO0/tikron-platform">GitHub</a>
+          <a class="btn btn-primary" href="/dashboard/">Get started</a>
+        </nav>
+      </header>
+    </div>
 
-      <div class="row">
-        <input id="room" value="lobby" placeholder="room name" />
-        <button id="connect">Connect</button>
-        <button id="disconnect" class="secondary" disabled>Disconnect</button>
-        <span id="status" class="off">offline</span>
+    <!-- hero -->
+    <section class="hero section">
+      <canvas id="bg" aria-hidden="true"></canvas>
+      <div class="container">
+        <span class="eyebrow">infrastructure for games</span>
+        <h1>Server-authoritative multiplayer for web games — on the edge, in minutes.</h1>
+        <p class="lead">
+          One Durable Object per room, placed near your players in ~275 cities. State
+          lives on the server, clients send intents, reconnection is built in.
+        </p>
+        <p class="lead ai">Built so <b>AI coding agents ship multiplayer games in one session</b>.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="/agar.html">Live demo</a>
+          <a class="btn" href="/dashboard/">Dashboard</a>
+          <a class="btn btn-ghost" href="https://github.com/DGO0/tikron-platform">GitHub</a>
+        </div>
       </div>
+    </section>
 
-      <div class="row">
-        <input id="text" value="hello" placeholder="message" />
-        <button id="echo" disabled>Echo (to me)</button>
-        <button id="broadcast" disabled>Broadcast (to others)</button>
+    <!-- measured numbers (docs/PERF.md) -->
+    <section class="section">
+      <div class="container">
+        <span class="eyebrow">measured, not marketing</span>
+        <div class="numbers" style="margin-top: 22px">
+          <div class="num">
+            <div class="n">85 ms</div>
+            <div class="l">p50 — full 20-player AOI room, deployed</div>
+          </div>
+          <div class="num">
+            <div class="n">128 CCU</div>
+            <div class="l">across 8 rooms — p50 82 ms</div>
+          </div>
+          <div class="num">
+            <div class="n">44×</div>
+            <div class="l">fewer broadcasts after flush throttling</div>
+          </div>
+          <div class="num">
+            <div class="n">≈77 B/s</div>
+            <div class="l">idle turn-based room per client</div>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div id="log"></div>
-    </main>
+    <!-- pillars -->
+    <section class="section">
+      <div class="container">
+        <span class="eyebrow">why Tikron</span>
+        <div class="grid grid-3" style="margin-top: 22px">
+          <article class="card">
+            <h3>Server authority</h3>
+            <p>
+              The server owns state and validates every payload, so cheating by packet
+              forgery isn't a thing you bolt on later. Interest management (AOI) sends
+              each client only what it can see — anti-wallhack by construction.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Edge rooms</h3>
+            <p>
+              Each room is its own Durable Object, spun up on demand across ~275 cities
+              and placed near its players. Rooms scale horizontally, and state-preserving
+              reconnection is built into the core.
+            </p>
+          </article>
+          <article class="card">
+            <h3>AI-first DX</h3>
+            <p>
+              Genre presets pick your netcode in one decision. An in-repo
+              <code>AGENTS.md</code> and <code>llms.txt</code> make a coding agent
+              productive in one context window — <code>npx create-tikron</code> and go.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
 
-    <script type="module">
-      const $ = (id) => document.getElementById(id);
-      const logEl = $("log");
-      let socket = null;
+    <!-- quickstart -->
+    <section class="section">
+      <div class="container">
+        <span class="eyebrow">quickstart</span>
+        <div class="quick" style="margin-top: 22px">
+          <div>
+            <h3 style="font-size: 18px">Clone, install, deploy</h3>
+            <pre><code><span class="tok-com"># 1. clone + install</span>
+git clone https://github.com/DGO0/tikron-platform
+cd tikron-platform && pnpm install
 
-      function log(kind, text) {
-        const line = document.createElement("div");
-        line.className = kind;
-        const ts = new Date().toISOString().slice(11, 19);
-        line.textContent = `${ts}  ${text}`;
-        logEl.appendChild(line);
-        logEl.scrollTop = logEl.scrollHeight;
-      }
+<span class="tok-com"># 2. log in to Cloudflare (free tier works)</span>
+pnpm exec wrangler login
 
-      function setConnected(on) {
-        $("status").textContent = on ? "online" : "offline";
-        $("status").className = on ? "on" : "off";
-        $("connect").disabled = on;
-        $("disconnect").disabled = !on;
-        $("echo").disabled = !on;
-        $("broadcast").disabled = !on;
-      }
+<span class="tok-com"># 3. ship a starter game to the edge</span>
+pnpm --filter tikron-starter deploy</code></pre>
+          </div>
+          <div>
+            <h3 style="font-size: 18px">A whole realtime room</h3>
+            <pre><code><span class="tok-key">import</span> { CasualRealtimeRoom, <span class="tok-key">type</span> Client } <span class="tok-key">from</span> <span class="tok-str">"@tikron/server"</span>;
 
-      function connect() {
-        const room = $("room").value.trim() || "lobby";
-        const proto = location.protocol === "https:" ? "wss" : "ws";
-        const url = `${proto}://${location.host}/parties/game-room/${encodeURIComponent(room)}`;
-        log("sys", `connecting → ${url}`);
-        socket = new WebSocket(url);
+<span class="tok-key">interface</span> State { cursors: Record&lt;string, { x: number; y: number }&gt; }
 
-        socket.addEventListener("open", () => {
-          setConnected(true);
-          send({ t: "c:hello", name: `tab-${Math.floor(Math.random() * 1000)}` });
-        });
-        socket.addEventListener("close", () => {
-          setConnected(false);
-          log("sys", "closed");
-        });
-        socket.addEventListener("error", () => log("sys", "socket error"));
-        socket.addEventListener("message", (e) => {
-          try {
-            log("in", "◀ " + JSON.stringify(JSON.parse(e.data)));
-          } catch {
-            log("in", "◀ " + e.data);
+<span class="tok-key">export class</span> Board <span class="tok-key">extends</span> CasualRealtimeRoom&lt;State&gt; {
+  <span class="tok-fn">onCreate</span>() {
+    <span class="tok-key">this</span>.setState({ cursors: {} });
+    <span class="tok-key">this</span>.<span class="tok-fn">onMessage</span>(<span class="tok-str">"move"</span>, (c, p) =&gt; {
+      <span class="tok-key">const</span> me = <span class="tok-key">this</span>.state.cursors[c.id];
+      <span class="tok-key">if</span> (!me || <span class="tok-key">typeof</span> p?.x !== <span class="tok-str">"number"</span>) <span class="tok-key">return</span>;
+      me.x = p.x; me.y = p.y;
+      <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>();   <span class="tok-com">// synced to everyone</span>
+    });
+  }
+  <span class="tok-fn">onJoin</span>(c: Client) { <span class="tok-key">this</span>.state.cursors[c.id] = { x: 0, y: 0 }; <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>(); }
+  <span class="tok-fn">onSeatExpired</span>(c: Client) { <span class="tok-key">delete this</span>.state.cursors[c.id]; <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>(); }
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- pricing -->
+    <section class="section">
+      <div class="container">
+        <span class="eyebrow">pricing</span>
+        <div class="price" style="margin-top: 22px">
+          <div class="card plan">
+            <div class="badge">Free</div>
+            <div class="amt">$0</div>
+            <ul>
+              <li><span class="mono">1,000</span> room-hours / mo</li>
+              <li><span class="mono">20</span> concurrent rooms</li>
+              <li><span class="mono">20</span> players / room</li>
+            </ul>
+          </div>
+          <div class="card plan featured">
+            <div class="badge badge-neon">Pro · coming soon — contact</div>
+            <div class="amt">$25<span style="font-size: 15px; color: var(--muted)">/mo</span></div>
+            <ul>
+              <li><span class="mono">20,000</span> room-hours / mo</li>
+              <li><span class="mono">200</span> concurrent rooms</li>
+              <li><span class="mono">50</span> players / room</li>
+            </ul>
+          </div>
+          <div class="card plan">
+            <div class="badge">Scale</div>
+            <div class="amt">Custom</div>
+            <ul>
+              <li>Higher caps &amp; dedicated placement</li>
+              <li>Priority support</li>
+              <li><a href="https://github.com/DGO0/tikron-platform">Contact us</a></li>
+            </ul>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+          A room-hour = one live room for one hour. Idle rooms are free.
+        </p>
+      </div>
+    </section>
+
+    <!-- footer -->
+    <footer>
+      <div class="container">
+        <a class="wordmark" href="/" style="font-size: 16px">
+          t<span class="i">i</span>kron
+        </a>
+        <div class="links">
+          <a href="https://github.com/DGO0/tikron-platform">GitHub</a>
+          <a href="https://github.com/DGO0/tikron-platform/blob/main/AGENTS.md">Docs (AGENTS.md)</a>
+          <a href="/agar.html">Live demo</a>
+          <a href="/dashboard/">Dashboard</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // Hero background: a self-contained fake sim of drifting neon "cursor" dots.
+      // Purely decorative (aria-hidden), no network. Honors prefers-reduced-motion.
+      (function () {
+        const canvas = document.getElementById("bg");
+        const ctx = canvas.getContext("2d");
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const COLORS = ["#00e5a0", "#58a6ff"];
+        let w, h, dots, raf;
+
+        function resize() {
+          const r = canvas.getBoundingClientRect();
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          w = canvas.width = Math.max(1, r.width * dpr);
+          h = canvas.height = Math.max(1, r.height * dpr);
+          const n = Math.min(46, Math.round((r.width * r.height) / 26000));
+          dots = Array.from({ length: n }, () => ({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.28 * dpr,
+            vy: (Math.random() - 0.5) * 0.28 * dpr,
+            r: (1.4 + Math.random() * 2.2) * dpr,
+            c: COLORS[Math.random() < 0.7 ? 0 : 1],
+          }));
+        }
+
+        function frame() {
+          ctx.clearRect(0, 0, w, h);
+          for (const d of dots) {
+            d.x += d.vx;
+            d.y += d.vy;
+            if (d.x < 0) d.x += w;
+            else if (d.x > w) d.x -= w;
+            if (d.y < 0) d.y += h;
+            else if (d.y > h) d.y -= h;
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+            ctx.fillStyle = d.c;
+            ctx.globalAlpha = 0.5;
+            ctx.fill();
           }
-        });
-      }
+          ctx.globalAlpha = 1;
+          raf = requestAnimationFrame(frame);
+        }
 
-      function send(msg) {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        socket.send(JSON.stringify(msg));
-        log("out", "▶ " + JSON.stringify(msg));
-      }
-
-      $("connect").addEventListener("click", connect);
-      $("disconnect").addEventListener("click", () => socket && socket.close());
-      $("echo").addEventListener("click", () => send({ t: "c:echo", text: $("text").value }));
-      $("broadcast").addEventListener("click", () =>
-        send({ t: "c:broadcast", text: $("text").value }),
-      );
+        resize();
+        window.addEventListener("resize", resize);
+        if (reduce) {
+          // Draw a single static frame; do not animate.
+          for (const d of dots) {
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+            ctx.fillStyle = d.c;
+            ctx.globalAlpha = 0.4;
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        } else {
+          raf = requestAnimationFrame(frame);
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) cancelAnimationFrame(raf);
+            else raf = requestAnimationFrame(frame);
+          });
+        }
+      })();
     </script>
   </body>
 </html>

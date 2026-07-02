@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router";
 import { api, UNAUTHORIZED_EVENT } from "../api/client";
 import { useApi } from "../hooks/useApi";
 import { useSession } from "../hooks/useSession";
+import { Wordmark } from "./Wordmark";
 
 const DOCS_HREF = "/agar.html";
 
@@ -20,9 +21,8 @@ export function Shell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => navigate("/")}>
-          <span className="brand-mark">◆</span>
-          <span className="brand-word">Tikron</span>
+        <button className="brand" onClick={() => navigate("/")} aria-label="Tikron home">
+          <Wordmark size="sm" />
         </button>
 
         <nav className="nav" aria-label="Projects">

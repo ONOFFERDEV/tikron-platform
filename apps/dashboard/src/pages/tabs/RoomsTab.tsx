@@ -18,8 +18,8 @@ export function RoomsTab({ projectId }: { projectId: string }) {
             Active game rooms across the edge. Auto-refreshes every 10 seconds.
           </p>
         </div>
-        <span className="live-dot" title="auto-refreshing">
-          ● live
+        <span className="live-dot" title="auto-refreshing every 10s">
+          live
         </span>
       </div>
 
@@ -35,8 +35,14 @@ export function RoomsTab({ projectId }: { projectId: string }) {
       )}
 
       {!rooms.loading && !rooms.error && rooms.data?.length === 0 && (
-        <EmptyState title="No live rooms">
-          <p>No live rooms — open your game to see it here.</p>
+        <EmptyState title="No live rooms right now">
+          <p>Open your game — active rooms appear here within seconds as players connect.</p>
+          <p className="muted">
+            Want to see it in motion?{" "}
+            <a href="/agar.html" target="_blank" rel="noreferrer">
+              Open the agar.io demo ↗
+            </a>
+          </p>
         </EmptyState>
       )}
 

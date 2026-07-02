@@ -437,7 +437,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     const db = this.db();
     this.cachedCaps = db
       ? await loadCaps(db)
-      : { roomHoursPerMonth: 5000, concurrentRooms: 50, playersPerRoom: 20 };
+      : { roomHoursPerMonth: 1000, concurrentRooms: 20, playersPerRoom: 20 };
     this.cachedCapsAt = now;
     return this.cachedCaps;
   }

@@ -121,18 +121,39 @@ export function KeysTab({ projectId }: { projectId: string }) {
 }
 
 function NewKeyDialog({ created, onClose }: { created: CreatedApiKey; onClose: () => void }) {
+  const snippet = `const client = new GameClient(location.host, {
+  apiKey: "${created.key}",
+});`;
   return (
     <Modal title="Your new API key" onClose={onClose}>
-      <p className="warn">
-        Store this now — for your security, we can&apos;t show it again.
-      </p>
-      <div className="key-reveal">
-        <code className="key-value mono">{created.key}</code>
-        <CopyButton value={created.key} label="Copy key" />
+      <div className="key-ceremony">
+        <p className="warn">
+          <span aria-hidden="true">⚠</span>
+          <span>
+            Copy it now — this is the only time the full key is shown. We store only a hash and
+            can&apos;t recover it.
+          </span>
+        </p>
+
+        <div className="key-block">
+          <code className="key-value">{created.key}</code>
+          <div className="key-copy-row">
+            <CopyButton value={created.key} label="Copy key" />
+          </div>
+        </div>
+
+        <div className="key-next">
+          <span className="key-next-label">Next step — drop it into your client:</span>
+          <div className="snippet snippet-block">
+            <pre className="mono">{snippet}</pre>
+            <CopyButton value={snippet} label="Copy snippet" />
+          </div>
+        </div>
       </div>
+
       <div className="modal-actions">
         <button className="btn btn-primary" onClick={onClose}>
-          Done
+          Done — I&apos;ve saved it
         </button>
       </div>
     </Modal>

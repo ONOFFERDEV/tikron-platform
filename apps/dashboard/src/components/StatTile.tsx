@@ -6,16 +6,19 @@ export function StatTile({
   value,
   sub,
   progress,
+  primary = false,
 }: {
   label: string;
   value: string;
   sub?: string;
-  /** { value, cap } renders a green progress meter under the number. */
+  /** { value, cap } renders a neon progress meter under the number. */
   progress?: { value: number; cap: number };
+  /** Highlight as the headline metric (neon number + glow). */
+  primary?: boolean;
 }) {
   const pct = progress ? fraction(progress.value, progress.cap) : null;
   return (
-    <div className="stat-tile">
+    <div className={primary ? "stat-tile primary" : "stat-tile"}>
       <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
       {sub && <span className="stat-sub">{sub}</span>}

@@ -125,7 +125,7 @@ Dashboard API under /api/platform/* (session-cookie auth; see dashboard).
 Keys: tk_live_* (SHA-256 stored; shown once). /parties/* connects require ?apiKey=
 when the platform DB is bound; missing key falls back to the metered demo project
 (DEMO_PROJECT_ID) if configured; invalid key → 401. Local dev: DEV_MODE=1 bypasses.
-Caps (D1 config, defaults): 5,000 room-hours/month · 50 concurrent rooms · 20
+Caps (D1 config, defaults): 1,000 room-hours/month · 20 concurrent rooms · 20
 players/room. Usage: rooms report occupancy + 30s heartbeats; matchmaker accrues
 room-hours/peak CCU/messages → usage_daily (60s alarm flush).
 

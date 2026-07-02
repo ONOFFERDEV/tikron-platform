@@ -1,5 +1,5 @@
 {
-  "name": "webgame-baas",
+  "name": "tikron-platform",
   "private": true,
   "version": "0.0.0",
   "description": "Tikron — realtime multiplayer BaaS for web games (edge, server-authoritative)",
