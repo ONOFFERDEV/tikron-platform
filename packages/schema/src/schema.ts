@@ -166,6 +166,172 @@ export function mapOf<T>(child: Codec<T>): Codec<Record<string, T>> {
   };
 }
 
+/**
+ * Use for ordered arrays whose elements share a codec (e.g. a scoreboard, a
+ * projectile pool, an inventory). Length-prefixed on the wire.
+ *
+ * @example const board = listOf(schema({ name: str(16), score: "u32" }));
+ *
+ * Delta design: index-based per-entry diff, mirroring {@link mapOf} with numeric
+ * keys. The wire carries the new length (which also encodes truncation/removals),
+ * then the count of changed indices, then `[index, full-element]` pairs for every
+ * index that is new or whose element changed. Trade-off: changed/appended elements
+ * are sent in FULL rather than recursively delta-encoded — compact for small
+ * elements (the common case) and consistent with `mapOf`, at the cost of not
+ * shrinking large per-element edits. An unchanged list costs ~2 bytes (length +
+ * zero changed-count), never a re-encode of every element.
+ */
+export function listOf<T>(child: Codec<T>): Codec<T[]> {
+  return {
+    writeFull(w, value) {
+      w.varint(value.length);
+      for (const el of value) child.writeFull(w, el);
+    },
+    readFull(r) {
+      const n = r.varint();
+      const out: T[] = new Array(n);
+      for (let i = 0; i < n; i++) out[i] = child.readFull(r);
+      return out;
+    },
+    writeDelta(w, prev, next) {
+      const prevArr = prev ?? [];
+      w.varint(next.length);
+      const changed: number[] = [];
+      for (let i = 0; i < next.length; i++) {
+        if (i >= prevArr.length || !child.equals(prevArr[i] as T, next[i] as T)) changed.push(i);
+      }
+      w.varint(changed.length);
+      for (const i of changed) {
+        w.varint(i);
+        child.writeFull(w, next[i] as T);
+      }
+    },
+    readDelta(r, prev) {
+      const prevArr = prev ?? [];
+      const nextLen = r.varint();
+      const out = prevArr.slice(0, nextLen);
+      const changedN = r.varint();
+      for (let j = 0; j < changedN; j++) {
+        const i = r.varint();
+        out[i] = child.readFull(r);
+      }
+      return out;
+    },
+    equals(a, b) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!child.equals(a[i] as T, b[i] as T)) return false;
+      return true;
+    },
+  };
+}
+
+/**
+ * Use for a value that may be absent (e.g. an optional target, a nullable rank).
+ * A presence byte precedes the value; `null` writes only that byte.
+ *
+ * @example const target = optionalOf(schema({ x: "f32", y: "f32" }));
+ *
+ * Deltas correctly cover every transition: null→value writes presence + full
+ * value, value→null writes just the presence byte, and value→value delegates to
+ * the child's own delta (so nested structs still diff field-by-field).
+ */
+export function optionalOf<T>(child: Codec<T>): Codec<T | null> {
+  const inner = (v: T | null | undefined): T | undefined => (v == null ? undefined : v);
+  return {
+    writeFull(w, value) {
+      w.bool(value !== null);
+      if (value !== null) child.writeFull(w, value);
+    },
+    readFull(r) {
+      return r.bool() ? child.readFull(r) : null;
+    },
+    writeDelta(w, prev, next) {
+      w.bool(next !== null);
+      if (next !== null) child.writeDelta(w, inner(prev), next);
+    },
+    readDelta(r, prev) {
+      return r.bool() ? child.readDelta(r, inner(prev)) : null;
+    },
+    equals(a, b) {
+      if (a === null || b === null) return a === b;
+      return child.equals(a, b);
+    },
+  };
+}
+
+/**
+ * Use for a fixed string union (e.g. a game mode, a team color). Encoded as a
+ * single u8 index into the given values, so it is atomic in deltas like a prim.
+ *
+ * @example const mode = enumOf("ffa", "duo", "squad"); // Codec<"ffa"|"duo"|"squad">
+ *
+ * Throws at construction if given more than 256 members (a u8 index holds
+ * 0–255), and at encode time if handed a string outside the set (the error
+ * lists the allowed values so an agent can correct the call immediately).
+ */
+export function enumOf<const V extends readonly string[]>(...values: V): Codec<V[number]> {
+  if (values.length > 256) {
+    throw new Error(
+      `enumOf: ${values.length} values given but a u8 index holds at most 256. ` +
+        `Split the union or encode it as a bounded str() instead.`,
+    );
+  }
+  const index = new Map<string, number>();
+  values.forEach((v, i) => index.set(v, i));
+  const write = (w: ByteWriter, value: V[number]): void => {
+    const i = index.get(value);
+    if (i === undefined) {
+      throw new Error(
+        `enumOf: cannot encode ${JSON.stringify(value)} — not a member. ` +
+          `Allowed values: ${values.join(", ")}.`,
+      );
+    }
+    w.u8(i);
+  };
+  return {
+    writeFull: write,
+    readFull: (r) => values[r.u8()] as V[number],
+    writeDelta: (w, _prev, next) => write(w, next),
+    readDelta: (r) => values[r.u8()] as V[number],
+    equals: (a, b) => a === b,
+  };
+}
+
+/**
+ * Use instead of `prim("str")` when a string is client-influenced and must not
+ * blow up snapshots (e.g. a player name, a chat line). Same wire format as
+ * `prim("str")`; the only difference is a length check on write.
+ *
+ * @example const name = str(24); // rejects names longer than 24 characters
+ *
+ * Validates the character count (`value.length`) on every write and throws an
+ * error naming the offending length, the limit, and the one-line fix so an
+ * agent can slice the value before assigning it.
+ */
+export function str(maxLen: number): Codec<string> {
+  const check = (value: string): void => {
+    if (value.length > maxLen) {
+      throw new Error(
+        `str(${maxLen}): value is ${value.length} characters, over the ${maxLen}-character limit. ` +
+          `Truncate before assigning, e.g. value.slice(0, ${maxLen}).`,
+      );
+    }
+  };
+  return {
+    writeFull: (w, value) => {
+      check(value);
+      w.str(value);
+    },
+    readFull: (r) => r.str(),
+    writeDelta: (w, _prev, next) => {
+      check(next);
+      w.str(next);
+    },
+    readDelta: (r) => r.str(),
+    equals: (a, b) => a === b,
+  };
+}
+
 export function encodeFull<T>(codec: Codec<T>, value: T): Uint8Array {
   const w = new ByteWriter();
   codec.writeFull(w, value);

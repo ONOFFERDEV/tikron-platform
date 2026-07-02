@@ -27,7 +27,7 @@ async function stateClient(party: string, room: string, codec: Codec<any>, sessi
       n.forEach((f) => f());
     } else {
       const bytes = new Uint8Array(e.data as ArrayBuffer);
-      state = bytes[0] === 1 ? decodeFull(codec, bytes.subarray(1)) : applyDelta(codec, state, bytes.subarray(1));
+      state = bytes[0] === 1 ? decodeFull(codec, bytes.subarray(13)) : applyDelta(codec, state, bytes.subarray(13));
       const n = stateNotify;
       stateNotify = [];
       n.forEach((f) => f());

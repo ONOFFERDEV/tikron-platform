@@ -157,6 +157,7 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
     }
     this.stateCodec = codec;
     this.sendAcks = true; // clients reconcile predicted movement against acked input
+    this.queueInputs = true; // inputs drain at each tick so onTick sees a consistent world
     await this.onReady();
     if (this.aoi) this.enableAOI(this.aoi); // guarded: throws if the codec is missing
     // Start the loop only after onReady has seeded state, so onTick never runs first.

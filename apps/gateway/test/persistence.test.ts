@@ -40,7 +40,7 @@ async function stateClient(room: string, session: string) {
       msgNotify.splice(0).forEach((f) => f());
     } else {
       const bytes = new Uint8Array(e.data as ArrayBuffer);
-      state = bytes[0] === 1 ? decodeFull(codec, bytes.subarray(1)) : applyDelta(codec, state, bytes.subarray(1));
+      state = bytes[0] === 1 ? decodeFull(codec, bytes.subarray(13)) : applyDelta(codec, state, bytes.subarray(13));
       stateNotify.splice(0).forEach((f) => f());
     }
   });

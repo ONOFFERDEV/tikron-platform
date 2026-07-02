@@ -165,6 +165,17 @@ export interface AOIConfig<TState> {
 const STATE_FULL = 0x01;
 const STATE_DELTA = 0x02;
 
+/**
+ * Binary state-frame header, little-endian: `[tag(u8), tick(u32), serverTimeMs(f64)]`
+ * (13 bytes) followed by the codec body. `tick` is the room's monotonic simulation
+ * tick and `serverTimeMs` its wall clock when the frame was produced, so a client
+ * interpolates on authoritative time rather than jittery receive time.
+ */
+const STATE_HEADER_BYTES = 13;
+
+/** Max simulation ticks processed in one catch-up burst (spiral-of-death guard). */
+const MAX_CATCHUP_TICKS = 5;
+
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
 
@@ -177,11 +188,22 @@ export const CLOSE_INVALID_SESSION = 4003;
 /** Close code sent to a connection that failed player-token authentication. */
 export const CLOSE_UNAUTHORIZED = 4004;
 
-function frame(tag: number, body: Uint8Array): Uint8Array {
-  const out = new Uint8Array(body.length + 1);
+function frame(tag: number, tick: number, serverTimeMs: number, body: Uint8Array): Uint8Array {
+  const out = new Uint8Array(STATE_HEADER_BYTES + body.length);
+  const view = new DataView(out.buffer);
   out[0] = tag;
-  out.set(body, 1);
+  view.setUint32(1, tick >>> 0, true);
+  view.setFloat64(5, serverTimeMs, true);
+  out.set(body, STATE_HEADER_BYTES);
   return out;
+}
+
+/** A developer message captured for tick-aligned processing (opt-in input queue). */
+interface QueuedInput {
+  record: ClientRecord;
+  type: string;
+  payload: unknown;
+  seq?: number;
 }
 
 /** A client's seat in the room; survives transport reconnects (session-keyed). */
@@ -254,6 +276,17 @@ export abstract class Room<TState = unknown> {
   protected sendAcks = false;
 
   /**
+   * When true, developer messages are not dispatched on arrival but queued and
+   * drained — in arrival order — at the START of each simulation tick, before the
+   * tick function runs. This gives `onTick` a single, consistent batch of inputs
+   * per tick instead of interleaving handlers between ticks. Acks (if enabled) are
+   * sent when a queued input is PROCESSED, not when received. Requires a simulation
+   * interval (a non-tick room has nothing to drain the queue) — enforced at create.
+   * The {@link IoArenaRoom} preset enables this.
+   */
+  protected queueInputs = false;
+
+  /**
    * Minimum interval between state-sync broadcasts (trailing-edge coalescing).
    * All mutations within a window collapse into one flush at the next boundary,
    * so the broadcast rate is bounded (~20 Hz default) instead of tracking the
@@ -289,6 +322,18 @@ export abstract class Room<TState = unknown> {
   private stateFlushScheduled = false;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private lastTickAt = 0;
+  /** Monotonic simulation-tick counter (carried on every state frame). */
+  #tick = 0;
+  /** True while a simulation interval is active (affects how `tick` advances). */
+  #simRunning = false;
+  /** Leftover time carried between fixed-step catch-up bursts. */
+  #accumulatorMs = 0;
+  /** Reentrancy guard so a slow tick can't overlap the next interval fire. */
+  #ticking = false;
+  /** One-shot flag so the spiral-of-death warning logs at most once per room. */
+  #laggedWarned = false;
+  /** Tick-aligned input queue (populated only when {@link queueInputs}). */
+  #inputQueue: QueuedInput[] = [];
   private occupancySeq = 0;
   private messagesSinceReport = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -375,6 +420,23 @@ export abstract class Room<TState = unknown> {
   }
 
   /**
+   * The room's current simulation tick — monotonic, carried on every state frame.
+   * Advances once per fixed step when a simulation interval runs, otherwise once
+   * per state flush. Useful for tick-stamping game events.
+   */
+  protected get currentTick(): number {
+    return this.#tick;
+  }
+
+  /**
+   * Called once when the simulation falls far enough behind that catch-up is
+   * capped and the backlog is dropped (a spiral-of-death guard tripped). Override
+   * to record it; the default logs a single warning. Not called again for the
+   * lifetime of the room.
+   */
+  protected onSimulationLag(): void {}
+
+  /**
    * Hold a disconnected client's seat open for `seconds`. Call from `onLeave`:
    *
    * ```ts
@@ -452,7 +514,15 @@ export abstract class Room<TState = unknown> {
 
   // --- opt-in Simulation module (turn-based rooms simply never call this) ---
 
-  /** Start a fixed-timestep authoritative loop. Realtime games only. */
+  /**
+   * Start a fixed-timestep authoritative loop (realtime games only). The interval
+   * fires roughly every `intervalMs`, but `fn` is always called with a FIXED
+   * `intervalMs` delta, zero-to-N times per fire, so the simulation advances
+   * deterministically regardless of timer jitter: elapsed time accumulates and is
+   * consumed in whole steps, carrying the remainder. A slow/backgrounded room can
+   * fall behind; catch-up is capped at {@link MAX_CATCHUP_TICKS} steps and the
+   * backlog dropped (a spiral-of-death guard), so a hitch never stalls the room.
+   */
   protected setSimulationInterval(fn: (deltaMs: number) => void, intervalMs: number): void {
     if (intervalMs < 10) {
       // Not fatal — but sub-10ms ticks pin the Durable Object's CPU and cannot be
@@ -464,13 +534,66 @@ export abstract class Room<TState = unknown> {
       );
     }
     this.clearSimulationInterval();
+    this.#simRunning = true;
+    this.#accumulatorMs = 0;
     this.lastTickAt = Date.now();
-    this.tickHandle = setInterval(() => {
+    this.tickHandle = setInterval(() => void this.advanceSimulation(fn, intervalMs), intervalMs);
+  }
+
+  /** Consume accumulated time in fixed steps, draining queued inputs before each. */
+  private async advanceSimulation(fn: (deltaMs: number) => void, intervalMs: number): Promise<void> {
+    if (this.#ticking) return; // a previous (async) tick is still running — try next fire
+    this.#ticking = true;
+    try {
       const now = Date.now();
-      const dt = now - this.lastTickAt;
+      this.#accumulatorMs += now - this.lastTickAt;
       this.lastTickAt = now;
-      fn(dt);
-    }, intervalMs);
+
+      let steps = Math.floor(this.#accumulatorMs / intervalMs);
+      if (steps <= 0) return;
+      if (steps > MAX_CATCHUP_TICKS) {
+        steps = MAX_CATCHUP_TICKS;
+        this.#accumulatorMs = 0; // drop the backlog rather than spiral
+        this.simulationLag();
+      } else {
+        this.#accumulatorMs -= steps * intervalMs;
+      }
+
+      for (let i = 0; i < steps; i++) {
+        this.#tick++;
+        await this.drainInputQueue(); // queued inputs process at the tick boundary
+        fn(intervalMs); // always a fixed dt
+      }
+    } finally {
+      this.#ticking = false;
+    }
+  }
+
+  /** Warn once, then hand off to the overridable hook. */
+  private simulationLag(): void {
+    if (!this.#laggedWarned) {
+      this.#laggedWarned = true;
+      console.warn(
+        `simulation fell behind > ${MAX_CATCHUP_TICKS} ticks; dropping the backlog to avoid a ` +
+          "spiral of death. Fix: lighten onTick, raise the tick interval, or reduce room load.",
+      );
+    }
+    this.onSimulationLag();
+  }
+
+  /** Process every queued developer input in arrival order (tick-aligned inputs). */
+  private async drainInputQueue(): Promise<void> {
+    if (this.#inputQueue.length === 0) return;
+    const batch = this.#inputQueue;
+    this.#inputQueue = [];
+    for (const q of batch) {
+      const handler = this.handlers.get(q.type);
+      if (handler) await handler(q.record.client, q.payload, q.seq);
+      // Ack when PROCESSED (not on receipt), addressed to the client's live conn.
+      if (this.sendAcks && typeof q.seq === "number" && q.record.connId !== null) {
+        this.ctx.connection(q.record.connId)?.send(encode({ t: ServerMessageType.Ack, seq: q.seq }));
+      }
+    }
   }
 
   protected clearSimulationInterval(): void {
@@ -478,6 +601,7 @@ export abstract class Room<TState = unknown> {
       clearInterval(this.tickHandle);
       this.tickHandle = null;
     }
+    this.#simRunning = false;
   }
 
   /**
@@ -520,6 +644,13 @@ export abstract class Room<TState = unknown> {
       throw new Error(
         `syncIntervalMs must be >= 0 (got ${this.syncIntervalMs}). Fix: use 50 for the default ` +
           "~20 Hz throttle, or 0 for immediate (per-mutation) flushing.",
+      );
+    }
+    if (this.queueInputs && !this.#simRunning) {
+      throw new Error(
+        "queueInputs requires a simulation interval to drain the queue (otherwise queued " +
+          "inputs never process). Fix: call this.setSimulationInterval(fn, ms) in onCreate " +
+          "(or use the IoArenaRoom preset), or leave queueInputs = false.",
       );
     }
   }
@@ -629,7 +760,14 @@ export abstract class Room<TState = unknown> {
       this.pendingFull.add(conn.id);
       this.markStateChanged();
     } else {
-      conn.send(encode({ t: ServerMessageType.State, state: this.state }));
+      conn.send(
+        encode({
+          t: ServerMessageType.State,
+          state: this.state,
+          tick: this.#tick,
+          serverTime: Date.now(),
+        }),
+      );
     }
   }
 
@@ -653,6 +791,12 @@ export abstract class Room<TState = unknown> {
       return;
     }
 
+    // Clock-sync ping: answer immediately with the server's time (cheap, unseated).
+    if (msg.t === ClientMessageType.Time) {
+      conn.send(encode({ t: ServerMessageType.Time, t0: msg.t0, serverTime: Date.now() }));
+      return;
+    }
+
     if (msg.t !== ClientMessageType.Message) return; // core routes only developer messages
 
     const clientId = this.connToClient.get(conn.id);
@@ -668,6 +812,14 @@ export abstract class Room<TState = unknown> {
     }
 
     this.messagesSinceReport++; // billable inbound developer message (passed rate/seq checks)
+
+    // Tick-aligned queue: defer dispatch (and the ack) to the next simulation tick,
+    // so onTick sees a consistent batch. Otherwise dispatch + ack immediately.
+    if (this.queueInputs) {
+      this.#inputQueue.push({ record, type: msg.type, payload: msg.payload, seq: msg.seq });
+      return;
+    }
+
     const handler = this.handlers.get(msg.type);
     if (handler) await handler(record.client, msg.payload, msg.seq);
 
@@ -715,11 +867,16 @@ export abstract class Room<TState = unknown> {
     if (this.records.get(clientId) !== record) return; // already finalized
     this.records.delete(clientId);
     this.lastSeq.delete(clientId);
+    // Drop any not-yet-drained queued inputs from this now-departed client.
+    if (this.#inputQueue.length > 0) {
+      this.#inputQueue = this.#inputQueue.filter((q) => q.record !== record);
+    }
 
     this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerLeft, connectionId: clientId }));
     this.reportOccupancy();
 
     if (this.records.size === 0) {
+      this.#inputQueue = [];
       this.clearSimulationInterval();
       this.clearHeartbeat();
       this.clearFlushTimer(); // no recipients left — drop any pending flush
@@ -931,16 +1088,23 @@ export abstract class Room<TState = unknown> {
 
   private flushState(): void {
     if (this.state === undefined) return;
+    // A tick room advances its counter in the sim loop; a non-tick room advances
+    // it once per flush so every state frame still carries a monotonic tick.
+    if (!this.#simRunning) this.#tick++;
+    const tick = this.#tick;
+    const serverTime = Date.now();
     this.schedulePersist(); // coalesced durable snapshot (state changed)
     const codec = this.stateCodec;
 
     if (!codec) {
-      this.ctx.broadcastRaw(encode({ t: ServerMessageType.State, state: this.state }));
+      this.ctx.broadcastRaw(
+        encode({ t: ServerMessageType.State, state: this.state, tick, serverTime }),
+      );
       return;
     }
 
     if (this.#aoi) {
-      this.flushAOI(codec);
+      this.flushAOI(codec, tick, serverTime);
       return;
     }
 
@@ -951,10 +1115,10 @@ export abstract class Room<TState = unknown> {
     let deltaFrame: Uint8Array | undefined;
     for (const conn of this.ctx.connections()) {
       if (this.pendingFull.has(conn.id)) {
-        fullFrame ??= frame(STATE_FULL, encodeFull(codec, this.state));
+        fullFrame ??= frame(STATE_FULL, tick, serverTime, encodeFull(codec, this.state));
         conn.send(fullFrame);
       } else if (changed) {
-        deltaFrame ??= frame(STATE_DELTA, encodeDelta(codec, this.baseline, this.state));
+        deltaFrame ??= frame(STATE_DELTA, tick, serverTime, encodeDelta(codec, this.baseline, this.state));
         conn.send(deltaFrame);
       }
     }
@@ -964,15 +1128,15 @@ export abstract class Room<TState = unknown> {
   }
 
   /** Per-client filtered binary sync when AOI is enabled (each client differs). */
-  private flushAOI(codec: Codec<TState>): void {
+  private flushAOI(codec: Codec<TState>, tick: number, serverTime: number): void {
     for (const conn of this.ctx.connections()) {
       const viewerId = this.connToClient.get(conn.id) ?? conn.id;
       const view = this.aoiFilter(viewerId);
       const prev = this.clientBaselines.get(conn.id);
       if (this.pendingFull.has(conn.id) || prev === undefined) {
-        conn.send(frame(STATE_FULL, encodeFull(codec, view)));
+        conn.send(frame(STATE_FULL, tick, serverTime, encodeFull(codec, view)));
       } else if (!codec.equals(prev, view)) {
-        conn.send(frame(STATE_DELTA, encodeDelta(codec, prev, view)));
+        conn.send(frame(STATE_DELTA, tick, serverTime, encodeDelta(codec, prev, view)));
       }
       this.clientBaselines.set(conn.id, structuredClone(view));
     }

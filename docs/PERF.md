@@ -4,6 +4,9 @@ Load-test results for the Tikron room engine, measured with
 [`tools/loadtest`](../tools/loadtest) (N simulated players, 20 Hz inputs,
 30 s runs). Commit under test: P1/P1b hardened core (`34829a0`).
 
+> These are raw measurements. For what they mean for production decisions — the scale
+> envelope, room placement, and transport trade-offs — see AGENTS.md → "Limits & roadmap".
+
 Two environments:
 
 - **Local** — `wrangler dev` (workerd) on the dev machine. Useful for *relative*

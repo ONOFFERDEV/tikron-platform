@@ -85,7 +85,7 @@ async function stateClient(party: string, room: string, codec: Codec<any>) {
     } else {
       const bytes = new Uint8Array(e.data as ArrayBuffer);
       const tag = bytes[0];
-      const body = bytes.subarray(1);
+      const body = bytes.subarray(13);
       state = tag === 1 ? decodeFull(codec, body) : applyDelta(codec, state, body);
       const n = stateNotify;
       stateNotify = [];

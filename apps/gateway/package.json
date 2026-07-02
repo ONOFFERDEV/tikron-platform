@@ -15,6 +15,7 @@
     "@tikron/protocol": "workspace:*",
     "@tikron/schema": "workspace:*",
     "@tikron/server": "workspace:*",
+    "@tikron/sim": "workspace:*",
     "partyserver": "^0.5.8"
   },
   "devDependencies": {

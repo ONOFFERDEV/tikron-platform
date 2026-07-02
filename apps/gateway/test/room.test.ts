@@ -48,7 +48,7 @@ describe("GameRoom (hello-room)", () => {
     expect(welcome).toMatchObject({
       t: "s:welcome",
       room: "welcome",
-      protocol: 1,
+      protocol: 2,
       peers: [],
     });
     expect(typeof welcome.connectionId).toBe("string");

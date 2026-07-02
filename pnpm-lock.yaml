@@ -29,6 +29,9 @@ importers:
       '@tikron/server':
         specifier: workspace:*
         version: link:../../packages/server
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
       partyserver:
         specifier: ^0.5.8
         version: 0.5.8(@cloudflare/workers-types@4.20260701.1)
@@ -135,6 +138,9 @@ importers:
       '@tikron/schema':
         specifier: workspace:*
         version: link:../schema
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../sim
       partyserver:
         specifier: ^0.5.8
         version: 0.5.8(@cloudflare/workers-types@4.20260701.1)
@@ -142,6 +148,12 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20260701.1
         version: 4.20260701.1
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
+
+  packages/sim:
+    devDependencies:
       vitest:
         specifier: ^4.1.0
         version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))

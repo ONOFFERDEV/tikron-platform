@@ -140,6 +140,40 @@
         gap: 18px;
         margin-top: 8px;
       }
+      .limits {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .limits li {
+        position: relative;
+        max-width: 80ch;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 14.5px;
+      }
+      .limits li::before {
+        content: "–";
+        position: absolute;
+        left: 0;
+        color: var(--neon);
+      }
+      .limits b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .soon {
+        display: inline-block;
+        margin-left: 4px;
+        padding: 0 7px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--warn);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
     </style>
   </head>
   <body>
@@ -166,8 +200,10 @@
         <span class="eyebrow">infrastructure for games</span>
         <h1>Server-authoritative multiplayer for web games — on the edge, in minutes.</h1>
         <p class="lead">
-          One Durable Object per room, placed near your players in ~275 cities. State
-          lives on the server, clients send intents, reconnection is built in.
+          An open-source SDK you deploy to <b>your own Cloudflare account</b> in minutes —
+          the free tier works, no lock-in. One Durable Object per room, placed near your
+          players in ~275 cities. State lives on the server, clients send intents,
+          reconnection is built in.
         </p>
         <p class="lead ai">Built so <b>AI coding agents ship multiplayer games in one session</b>.</p>
         <div class="cta-row">
@@ -281,37 +317,85 @@ pnpm --filter tikron-starter deploy</code></pre>
     <section class="section">
       <div class="container">
         <span class="eyebrow">pricing</span>
-        <div class="price" style="margin-top: 22px">
+        <p style="color: var(--muted); max-width: 60ch; margin: 6px 0 22px">
+          Tikron is <b style="color: var(--text)">open core</b>: the SDK runs on your own
+          Cloudflare account (you self-host the rooms). Optional hosted services add
+          leaderboards and a usage dashboard, keyed by API key.
+        </p>
+        <div class="price">
           <div class="card plan">
-            <div class="badge">Free</div>
+            <div class="badge">Open source</div>
             <div class="amt">$0</div>
             <ul>
-              <li><span class="mono">1,000</span> room-hours / mo</li>
-              <li><span class="mono">20</span> concurrent rooms</li>
-              <li><span class="mono">20</span> players / room</li>
+              <li>The SDK + templates, <span class="mono">MIT</span></li>
+              <li>Self-hosted on <span class="mono">your</span> Cloudflare account</li>
+              <li>Unlimited rooms &amp; players — your infra, your bill</li>
+              <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Get the repo</a></li>
             </ul>
           </div>
           <div class="card plan featured">
-            <div class="badge badge-neon">Pro · coming soon — contact</div>
-            <div class="amt">$25<span style="font-size: 15px; color: var(--muted)">/mo</span></div>
+            <div class="badge badge-neon">Hosted services · free beta</div>
+            <div class="amt">$0<span style="font-size: 15px; color: var(--muted)"> · beta</span></div>
             <ul>
-              <li><span class="mono">20,000</span> room-hours / mo</li>
-              <li><span class="mono">200</span> concurrent rooms</li>
-              <li><span class="mono">50</span> players / room</li>
+              <li>Leaderboards API + dashboard usage view</li>
+              <li>Keyed by API key (add to your self-hosted worker)</li>
+              <li>Beta caps: <span class="mono">1,000</span> room-hours-equiv metering, <span class="mono">20</span> concurrent rooms</li>
+              <li>Paid tiers when it graduates</li>
             </ul>
           </div>
           <div class="card plan">
             <div class="badge">Scale</div>
             <div class="amt">Custom</div>
             <ul>
-              <li>Higher caps &amp; dedicated placement</li>
+              <li>Higher hosted-service caps</li>
               <li>Priority support</li>
               <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Contact us</a></li>
             </ul>
           </div>
         </div>
         <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
-          A room-hour = one live room for one hour. Idle rooms are free.
+          A room-hour = one live room for one hour; idle rooms cost nothing. Self-hosted
+          rooms bill to your Cloudflare account — roughly <span class="mono">~$0.006</span>
+          per room-hour at Cloudflare's own Durable Object pricing (approximate).
+        </p>
+      </div>
+    </section>
+
+    <!-- limits & roadmap -->
+    <section class="section">
+      <div class="container">
+        <span class="eyebrow">limits &amp; roadmap</span>
+        <p style="color: var(--muted); max-width: 62ch; margin: 6px 0 18px">
+          What Tikron does and doesn't do today — so you can decide before you commit.
+        </p>
+        <ul class="limits">
+          <li>
+            <b>WebSocket transport (TCP).</b> Great for turn-based, casual, and most
+            <code>.io</code> games; not for competitive twitch shooters (head-of-line
+            blocking under packet loss). WebTransport is on the roadmap.<span class="soon">roadmap</span>
+          </li>
+          <li>
+            <b>Deploys restart rooms.</b> Players auto-reconnect into the same seat and
+            state via the durable snapshot + a 30 s window. Cross-version state-shape
+            migration isn't automatic yet.<span class="soon">in progress</span>
+          </li>
+          <li>
+            <b>One room = one Durable Object,</b> placed near its creator — a cross-region
+            group sees asymmetric latency. Matchmake by region for now.<span class="soon">in progress</span>
+          </li>
+          <li>
+            <b>Matchmaking is join-or-create + filter.</b> No skill rating, parties, or
+            reconnect-into-queue — build ranked/party logic in your own app layer.
+          </li>
+          <li>
+            <b>Measured comfortable</b> to 20 players/room and 128 CCU across rooms; rooms
+            scale horizontally, but per-room AOI cost grows with room size (a spatial grid
+            index is in progress).<span class="soon">in progress</span>
+          </li>
+        </ul>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+          Full detail:
+          <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md">AGENTS.md → Limits &amp; roadmap</a>.
         </p>
       </div>
     </section>

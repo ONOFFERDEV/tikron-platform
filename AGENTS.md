@@ -1,10 +1,12 @@
 # AGENTS.md — building a game on Tikron
 
 You are a coding agent shipping a multiplayer web game for a non-developer. Tikron
-is a realtime multiplayer **BaaS for web games** — server-authoritative game rooms on
-Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK. You write room
-state + message handlers; the platform runs them at the edge, one Durable Object per
-room, placed near players. No servers to manage.
+is an **open-source, server-authoritative multiplayer SDK for web games**. You write
+room state + message handlers and deploy them to **your own Cloudflare account**
+(Workers + Durable Objects) — each room is one Durable Object at the edge, placed near
+players. Serverless (no VMs to run) and no lock-in: it's your account, your bill. The
+only managed part is optional hosted services (leaderboards + a usage dashboard, keyed
+by API key); the rooms themselves always run on your infrastructure.
 
 This file is the operational brief; for measured performance read
 [`docs/PERF.md`](docs/PERF.md). Cite real numbers from PERF.md — never invent
@@ -175,3 +177,40 @@ dev with `DEV_MODE=1` skips them.)
 
 Deployed numbers include ~80 ms network RTT from the test client; players nearer their
 room's DO see less. Treat deltas < 20% as noise (single runs).
+
+## Limits & roadmap (read this before you commit)
+
+Tikron states its envelope up front. Here is what it does and doesn't do today, and
+what is in progress — pick your genre and architecture accordingly.
+
+- **Transport: WebSocket only (TCP).** Every connection is a WebSocket, so lost packets
+  cause head-of-line blocking (a dropped frame stalls everything behind it). That's fine
+  for the supported genres — turn-based, cursors/casual, and moderate `.io` — but it is
+  **not** a fit for competitive twitch shooters that need unreliable/unordered datagrams.
+  WebTransport (UDP-like) is on the roadmap, but Cloudflare Workers do **not** terminate
+  WebTransport server-side today, so there is no date — don't design around it yet.
+- **Deploys & live rooms.** `wrangler deploy` restarts your Durable Objects. Tikron rooms
+  survive it: the durable snapshot (`this.state` + seats) plus the 30 s session-reconnection
+  window mean players reconnect into the same seat and state. **Caveat:** a change to your
+  persisted **state shape** between versions is not auto-migrated — a room restored from an
+  old snapshot keeps the old shape. A migration hook is in progress (R2); until then, make
+  breaking state-shape changes when rooms are drained, or version your state and handle old
+  shapes in `onCreate`.
+- **Room placement.** A Durable Object is created near whoever opens the room and **stays
+  there** for its life. A group spread across regions sees asymmetric latency (players far
+  from the creator pay the distance). Region hints are in progress (R2). For now, **matchmake
+  by region** — bucket players with the matchmaker `mode`/`filterBy` so a room's members are
+  near each other.
+- **Matchmaking scope.** What exists: `joinOrCreate` + reservation + `filterBy` + a live
+  lobby list. What does **not** exist yet: skill/MMR rating, parties/pre-made groups, and
+  reconnect-into-queue. Build ranked matching or party grouping in your own app layer on top
+  of the primitives.
+- **Scale envelope.** Measured comfortable at **20 players/room** and **128 CCU across 8
+  rooms** (see the measured limits above and PERF.md). Rooms scale horizontally — each is its
+  own DO — so total CCU grows with room count. But **per-room** cost is not free: naive AOI
+  filtering is O(n²) in room size, so very large single rooms get expensive. A spatial grid
+  index is in progress; until then, keep rooms within the measured envelope and shard big
+  worlds into multiple rooms.
+
+None of these are hidden — they're the honest edges of a v1 SDK. If your game fits the
+supported genres and you size rooms within the measured envelope, you're on solid ground.

@@ -1,4 +1,5 @@
 import { GameClient, InputPredictor, SnapshotBuffer } from "@tikron/client";
+import { stepToward } from "@tikron/sim";
 import { AgarSchema, AGAR, type AgarState } from "../src/rooms/agar-schema.js";
 
 /**
@@ -25,7 +26,8 @@ const buffer = new SnapshotBuffer<AgarState>({ delayMs: 100, lerp: lerpState });
 let myId = "";
 let seq = 0;
 const mouse: Vec = { x: 0, y: 0 };
-const perTick = (AGAR.maxSpeed * AGAR.stepMs) / 1000; // max distance per input
+/** Sample the interpolation buffer on the server's clock (set once connected). */
+let sampleServerNow: () => number = () => performance.now();
 
 function lerpState(a: AgarState, b: AgarState, t: number): AgarState {
   const players: AgarState["players"] = {};
@@ -62,6 +64,8 @@ async function main() {
   const room = await client.joinOrCreate(roomId, { _session: sessionId });
   myId = room.connectionId ?? "";
   statusEl.textContent = `connected as ${myId.slice(0, 6)} · move with the mouse`;
+  // Interpolate on the server's timeline (jitter-free) once the clock has synced.
+  sampleServerNow = () => room.clock.serverNow();
 
   room.onMessage((msg) => {
     if (msg.t === "s:welcome" && (msg as { reconnected?: boolean }).reconnected) {
@@ -71,7 +75,9 @@ async function main() {
 
   room.onStateChange((s) => {
     const st = s as AgarState;
-    buffer.push(performance.now(), st);
+    // Stamp each snapshot with the server's authoritative time (fallback: receive
+    // time) so interpolation is smooth regardless of network jitter.
+    buffer.push(room.lastStateServerTime ?? performance.now(), st);
     const me = st.players[myId];
     if (me) predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
   });
@@ -83,19 +89,17 @@ async function main() {
     mouse.y = predictor.predicted.y + (e.clientY - rect.top - canvas.height / 2);
   });
 
-  // Send inputs at the tick rate; predict locally for instant feedback.
+  // Send inputs at the tick rate; predict locally for instant feedback. The step
+  // math is shared with the server (@tikron/sim), so prediction matches exactly
+  // what the server validates.
   setInterval(() => {
-    const p = predictor.predicted;
-    const dx = mouse.x - p.x;
-    const dy = mouse.y - p.y;
-    const dist = Math.hypot(dx, dy);
-    const step = Math.min(dist, perTick);
-    const next: Vec =
-      dist > 0.001
-        ? { x: clamp(p.x + (dx / dist) * step, 0, AGAR.world), y: clamp(p.y + (dy / dist) * step, 0, AGAR.world) }
-        : p;
+    const stepped = stepToward(predictor.predicted, mouse, AGAR.maxSpeed, AGAR.stepMs);
+    const next: Vec = {
+      x: clamp(stepped.x, 0, AGAR.world),
+      y: clamp(stepped.y, 0, AGAR.world),
+    };
     seq += 1;
-    room.send("move", next, seq);
+    room.send("move", next);
     predictor.predict(seq, next);
   }, AGAR.stepMs);
 
@@ -146,7 +150,7 @@ function render() {
   const camX = me.x - canvas.width / 2;
   const camY = me.y - canvas.height / 2;
 
-  const view = buffer.sample(performance.now());
+  const view = buffer.sample(sampleServerNow());
   if (view) {
     ctx.fillStyle = "#f2cc60";
     for (const id of Object.keys(view.orbs)) {

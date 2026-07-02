@@ -1,10 +1,12 @@
 # Tikron — full agent reference
 
-Server-authoritative realtime multiplayer BaaS for web games on Cloudflare Workers +
-Durable Objects. One Durable Object per room, placed at the edge near players. You
-author a Room subclass (state + intent handlers); clients send intents, the server
-owns and validates all state. pnpm + Turborepo monorepo, TypeScript strict, ESM with
-`.js` import extensions, `noUncheckedIndexedAccess` on.
+Open-source, server-authoritative multiplayer SDK for web games — you self-host rooms
+on your OWN Cloudflare account (Workers + Durable Objects); no lock-in. One Durable
+Object per room, placed at the edge near players. Optional hosted services (leaderboards
++ a usage dashboard, keyed by API key) are the only managed part. You author a Room
+subclass (state + intent handlers); clients send intents, the server owns and validates
+all state. pnpm + Turborepo monorepo, TypeScript strict, ESM with `.js` import
+extensions, `noUncheckedIndexedAccess` on.
 
 Index/docs: llms.txt · AGENTS.md (operational brief)
 · docs/PERF.md (measured numbers — never invent latency figures).
@@ -145,4 +147,22 @@ room-hours/peak CCU/messages → usage_daily (60s alarm flush).
 
 20-player AOI room: ack p50 ~85ms (≈80ms network + single-digit engine), p99 ~115ms,
 3.8 KiB/s/client. 128 CCU across 8 rooms: p50 ~82ms — rooms scale horizontally.
-Turn-based idle: ~77 B/s/client. Room cost ≈ $0.0058/room-hour (DO duration billing).
+Turn-based idle: ~77 B/s/client. Room cost ≈ $0.0058/room-hour (DO duration billing,
+approximate) — self-hosted rooms bill to YOUR Cloudflare account.
+
+## Limits & roadmap (v1 — full detail in AGENTS.md "Limits & roadmap")
+
+- Transport: WebSocket only (TCP) — head-of-line blocking under packet loss; fine for
+  turn-based / casual / moderate .io, NOT competitive twitch shooters. WebTransport is
+  roadmap (CF Workers don't terminate it server-side yet — no date).
+- Deploys restart DOs; rooms recover via the durable snapshot + 30s session reconnection
+  (players reland in the same seat/state). Persisted state-SHAPE migration across versions
+  is NOT automatic yet (migration hook in progress, R2) — version state / drain rooms for
+  breaking changes.
+- DO placement is fixed near the room's creator; cross-region groups get asymmetric
+  latency. Region hints in progress (R2) — matchmake by region (mode/filterBy) for now.
+- Matchmaking = joinOrCreate + reservation + filterBy + lobby list ONLY. No skill/MMR,
+  parties, or reconnect-into-queue — build ranked/party logic in your app layer.
+- Scale: measured comfortable at 20 players/room and 128 CCU across rooms (PERF.md); rooms
+  scale horizontally, but naive AOI is O(n²) in room size (spatial grid index in progress)
+  — shard big worlds into multiple rooms.

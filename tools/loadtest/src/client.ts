@@ -157,10 +157,11 @@ export class SimClient {
   }
 
   private onBinary(buf: Buffer): void {
-    if (buf.length === 0) return;
+    // Binary state header: [tag(u8), tick(u32 LE), serverTimeMs(f64 LE)] then body.
+    if (buf.length < 13) return;
     this.recordFrameGap();
     const tag = buf[0];
-    const body = buf.subarray(1);
+    const body = buf.subarray(13);
     try {
       if (this.scenario.name === "agar") {
         this.agarState =

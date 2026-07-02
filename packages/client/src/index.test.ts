@@ -48,6 +48,7 @@ function harness() {
   let transport: FakeTransport | undefined;
   const client = new GameClient("localhost:8787", {
     apiKey: "k_test",
+    disableClockSync: true, // keep `sent` assertions free of clock-sync pings
     createTransport: (opts) => (transport = new FakeTransport(opts)),
   });
   const welcome = (): ServerMessage => ({
@@ -179,16 +180,21 @@ describe("GameClient / Room", () => {
 
   it("decodes binary state frames when a stateCodec is provided", async () => {
     const World = schema({ players: mapOf(schema({ x: "f32", y: "f32" })) });
-    const frame = (tag: number, body: Uint8Array) => {
-      const out = new Uint8Array(body.length + 1);
+    // Frame header: [tag(u8), tick(u32 LE), serverTimeMs(f64 LE)] then the body.
+    const frame = (tag: number, body: Uint8Array, tick = 0, serverTime = 0) => {
+      const out = new Uint8Array(body.length + 13);
+      const view = new DataView(out.buffer);
       out[0] = tag;
-      out.set(body, 1);
+      view.setUint32(1, tick, true);
+      view.setFloat64(5, serverTime, true);
+      out.set(body, 13);
       return out;
     };
 
     let transport: FakeTransport | undefined;
     const client = new GameClient("localhost:8787", {
       stateCodec: World,
+      disableClockSync: true,
       createTransport: (opts) => (transport = new FakeTransport(opts)),
     });
     const pending = client.joinOrCreate("m");
@@ -204,8 +210,13 @@ describe("GameClient / Room", () => {
     const seen: unknown[] = [];
     room.onStateChange((s) => seen.push(s));
 
-    transport!.emitRaw(frame(1, encodeFull(World, { players: { c1: { x: 1, y: 2 } } })));
+    transport!.emitRaw(
+      frame(1, encodeFull(World, { players: { c1: { x: 1, y: 2 } } }), 7, 1_700_000_000_000),
+    );
     expect(room.state).toEqual({ players: { c1: { x: 1, y: 2 } } });
+    // The frame header carries the room's tick + server time.
+    expect(room.lastStateTick).toBe(7);
+    expect(room.lastStateServerTime).toBe(1_700_000_000_000);
 
     transport!.emitRaw(
       frame(
@@ -215,9 +226,41 @@ describe("GameClient / Room", () => {
           { players: { c1: { x: 1, y: 2 } } },
           { players: { c1: { x: 5, y: 2 } } },
         ),
+        8,
+        1_700_000_000_050,
       ),
     );
     expect(room.state).toEqual({ players: { c1: { x: 5, y: 2 } } });
+    expect(room.lastStateTick).toBe(8);
     expect(seen.length).toBe(2);
+  });
+
+  it("syncs the clock: pings on connect and updates room.clock from s:time", async () => {
+    let transport: FakeTransport | undefined;
+    const client = new GameClient("localhost:8787", {
+      createTransport: (opts) => (transport = new FakeTransport(opts)),
+    });
+    const pending = client.joinOrCreate("m");
+    transport!.emit({
+      t: ServerMessageType.Welcome,
+      connectionId: "c1",
+      room: "m",
+      protocol: 2,
+      peers: [],
+    });
+    const room = await pending;
+
+    // The clock starts on connect; drive one ping/reply by hand.
+    room.clock.stop(); // cancel the auto burst timers so we control the exchange
+    const t0 = Date.now();
+    room.clock.ping();
+    const ping = transport!.sent.map((raw) => decodeClientMessage(raw)).find((m) => m.t === "c:time");
+    expect(ping).toBeDefined();
+
+    transport!.emit({ t: ServerMessageType.Time, t0, serverTime: t0 + 5000 });
+    // Offset ≈ +5000ms (server ahead); serverNow() reflects it.
+    expect(room.clock.offsetMs).toBeGreaterThan(4000);
+    expect(room.clock.serverNow()).toBeGreaterThan(Date.now() + 4000);
+    room.leave();
   });
 });

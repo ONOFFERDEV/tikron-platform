@@ -1,5 +1,5 @@
 {
-  "name": "@tikron/server",
+  "name": "@tikron/sim",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -17,14 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@tikron/protocol": "workspace:*",
-    "@tikron/schema": "workspace:*",
-    "@tikron/sim": "workspace:*",
-    "partyserver": "^0.5.8"
-  },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260701.1",
     "vitest": "^4.1.0"
   }
 }

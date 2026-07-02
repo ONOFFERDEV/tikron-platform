@@ -1,12 +1,13 @@
 # Tikron
 
-> Tikron is a realtime multiplayer **BaaS for web games** — server-authoritative game
-> rooms on Cloudflare Workers + Durable Objects with a drop-in TypeScript SDK ("Supabase
-> for game netcode"). You author a `Room<TState>` subclass (state shape + `onMessage`
-> intent handlers); the platform runs one Durable Object per room at the edge, placed
-> near players. Clients send intents, the server owns state, every payload is validated.
-> A pnpm + Turborepo monorepo; the primary user is a coding agent building a game for a
-> non-developer.
+> Tikron is an **open-source, server-authoritative multiplayer SDK for web games**
+> ("Supabase for game netcode", but self-hosted). You author a `Room<TState>` subclass
+> (state shape + `onMessage` intent handlers) and deploy it to **your own Cloudflare
+> account** — one Durable Object per room at the edge, placed near players, no lock-in.
+> Clients send intents, the server owns state, every payload is validated. Optional
+> hosted services (leaderboards + a usage dashboard, keyed by API key) are the only
+> managed part. A pnpm + Turborepo monorepo; the primary user is a coding agent building
+> a game for a non-developer. See AGENTS.md → "Limits & roadmap" before committing.
 
 ## Start here
 

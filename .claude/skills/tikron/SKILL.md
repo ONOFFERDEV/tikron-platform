@@ -5,10 +5,11 @@ description: Use when building or modifying a multiplayer game or room on Tikron
 
 # Building on Tikron
 
-Server-authoritative multiplayer for web games. You author a `Room<TState>` subclass;
-Cloudflare runs one Durable Object per room at the edge. Read [`AGENTS.md`](../../../AGENTS.md)
-first (the operational brief) and [`docs/PERF.md`](../../../docs/PERF.md) for measured
-limits. Do not duplicate their numbers — cite them.
+Server-authoritative multiplayer for web games — open source, self-hosted on **your own
+Cloudflare account** (one Durable Object per room at the edge, no lock-in). You author a
+`Room<TState>` subclass. Read [`AGENTS.md`](../../../AGENTS.md) first (the operational
+brief; includes a **Limits & roadmap** section) and [`docs/PERF.md`](../../../docs/PERF.md)
+for measured limits. Do not duplicate their numbers — cite them.
 
 ## 1. Pick a preset
 
@@ -95,6 +96,13 @@ pnpm --filter <project> deploy              # prints https://<name>.<account>.wo
 Rename the deploy target via `name` in the project's `wrangler.jsonc`. Open the URL on
 two devices to confirm. Never benchmark multi-room capacity on local `wrangler dev`
 (one process — see PERF.md); measure against the deploy.
+
+Deploys restart Durable Objects, but rooms recover via the durable snapshot + the 30 s
+reconnection window — players reland in the same seat/state. **Before committing a game
+to Tikron**, read AGENTS.md → "Limits & roadmap": WebSocket-only transport (not for
+twitch shooters), rooms fixed near their creator (matchmake by region), join-or-create
+matchmaking only (no MMR/parties), no automatic state-shape migration across versions
+yet, and the measured 20-players/room · 128-CCU scale envelope.
 
 ## Failure quick-reference
 

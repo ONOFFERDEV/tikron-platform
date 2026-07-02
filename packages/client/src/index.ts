@@ -10,11 +10,14 @@ import {
 } from "@tikron/protocol";
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { createPartySocketTransport, type Transport, type TransportFactory } from "./transport.js";
+import { ClockSync } from "./clock.js";
 
 export type { Transport, TransportFactory, TransportOptions } from "./transport.js";
 export { createPartySocketTransport } from "./transport.js";
 export { InputPredictor, SnapshotBuffer } from "./netcode.js";
 export type { Predictable, Snapshot } from "./netcode.js";
+export { ClockSync } from "./clock.js";
+export type { ClockSyncOptions } from "./clock.js";
 
 export type ServerMessageHandler = (message: ServerMessage) => void;
 export type PayloadHandler = (payload: unknown) => void;
@@ -32,6 +35,8 @@ export interface GameClientOptions {
   WebSocketPolyfill?: unknown;
   /** Binary state codec (from `@tikron/schema`) matching the room's server codec. */
   stateCodec?: Codec<unknown>;
+  /** Disable automatic clock synchronization (`room.clock` stays at offset 0). */
+  disableClockSync?: boolean;
   /** Override the transport factory. Primarily for tests. */
   createTransport?: TransportFactory;
 }
@@ -52,6 +57,19 @@ export class Room {
   /** Last input seq the server has acknowledged (0 until the first ack). */
   lastAckSeq = 0;
 
+  /** Simulation tick of the most recent authoritative state (0 until first sync). */
+  lastStateTick = 0;
+
+  /** Server time (epoch ms) stamped on the most recent state, or null if absent. */
+  lastStateServerTime: number | null = null;
+
+  /**
+   * Clock synchronization against the server. `clock.serverNow()` places snapshots
+   * on the server's timeline for jitter-free interpolation; `clock.offsetMs` /
+   * `clock.rttMs` expose the estimates. Runs automatically unless disabled.
+   */
+  readonly clock: ClockSync;
+
   private readonly transport: Transport;
   private readonly rawHandlers = new Set<ServerMessageHandler>();
   private readonly typeHandlers = new Map<string, Set<PayloadHandler>>();
@@ -59,18 +77,29 @@ export class Room {
   private readonly ackHandlers = new Set<(seq: number) => void>();
   private readonly welcome: Promise<WelcomeMessage>;
   private readonly stateCodec?: Codec<unknown>;
+  private readonly clockEnabled: boolean;
   private seq = 0;
 
-  constructor(name: string, transport: Transport, stateCodec?: Codec<unknown>) {
+  constructor(
+    name: string,
+    transport: Transport,
+    stateCodec?: Codec<unknown>,
+    opts: { disableClockSync?: boolean } = {},
+  ) {
     this.name = name;
     this.transport = transport;
     this.stateCodec = stateCodec;
+    this.clockEnabled = !opts.disableClockSync;
+    this.clock = new ClockSync({
+      send: (t0) => this.transport.send(encode({ t: ClientMessageType.Time, t0 })),
+    });
 
     this.welcome = new Promise<WelcomeMessage>((resolve) => {
       const off = this.onMessage((msg) => {
         if (msg.t === ServerMessageType.Welcome) {
           this.connectionId = msg.connectionId;
           off();
+          if (this.clockEnabled) this.clock.start(); // begin syncing once connected
           resolve(msg);
         }
       });
@@ -98,6 +127,8 @@ export class Room {
       this.connectionId = msg.connectionId;
     } else if (msg.t === ServerMessageType.State) {
       this.state = msg.state;
+      if (typeof msg.tick === "number") this.lastStateTick = msg.tick;
+      this.lastStateServerTime = typeof msg.serverTime === "number" ? msg.serverTime : null;
       for (const handler of this.stateHandlers) handler(msg.state);
     } else if (msg.t === ServerMessageType.Message) {
       const set = this.typeHandlers.get(msg.type);
@@ -105,6 +136,8 @@ export class Room {
     } else if (msg.t === ServerMessageType.Ack) {
       this.lastAckSeq = msg.seq;
       for (const handler of this.ackHandlers) handler(msg.seq);
+    } else if (msg.t === ServerMessageType.Time) {
+      this.clock.accept(msg.t0, msg.serverTime);
     }
 
     for (const handler of this.rawHandlers) handler(msg);
@@ -113,12 +146,18 @@ export class Room {
   private applyBinaryState(raw: ArrayBuffer | Uint8Array): void {
     if (!this.stateCodec) return;
     const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
-    if (bytes.length === 0) return;
+    // Header: [tag(u8), tick(u32 LE), serverTimeMs(f64 LE)] then the codec body.
+    if (bytes.length < 13) return;
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const tag = bytes[0];
-    const body = bytes.subarray(1);
+    const tick = view.getUint32(1, true);
+    const serverTime = view.getFloat64(5, true);
+    const body = bytes.subarray(13);
     if (tag === 0x01) this.state = decodeFull(this.stateCodec, body);
     else if (tag === 0x02) this.state = applyDelta(this.stateCodec, this.state, body);
     else return;
+    this.lastStateTick = tick;
+    this.lastStateServerTime = serverTime;
     for (const handler of this.stateHandlers) handler(this.state);
   }
 
@@ -187,6 +226,7 @@ export class Room {
   }
 
   leave(): void {
+    this.clock.stop();
     this.transport.close();
   }
 }
@@ -239,7 +279,9 @@ export class GameClient {
       WebSocketPolyfill: this.options.WebSocketPolyfill,
     });
 
-    const roomHandle = new Room(room, transport, this.options.stateCodec);
+    const roomHandle = new Room(room, transport, this.options.stateCodec, {
+      disableClockSync: this.options.disableClockSync,
+    });
     await roomHandle.connected();
     return roomHandle;
   }

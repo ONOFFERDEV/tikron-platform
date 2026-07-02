@@ -1,9 +1,11 @@
 # Tikron
 
-Realtime multiplayer **BaaS for web games** — the "Supabase for game netcode". Web-first,
-server-authoritative game rooms delivered on the edge (Cloudflare Workers + Durable Objects),
-with a drop-in TypeScript SDK. Built-in anti-cheat by construction (server authority + AOI
-information hiding), honest defense-in-depth positioning.
+**Open-source, server-authoritative multiplayer SDK for web games** — the "Supabase for
+game netcode", but you self-host. You deploy game rooms to **your own Cloudflare account**
+(Workers + Durable Objects) with a drop-in TypeScript SDK — your infrastructure, your bill,
+no lock-in. Anti-cheat by construction (server authority + AOI information hiding). Optional
+hosted services (leaderboards + a usage dashboard, keyed by API key) are the only managed
+part — everything else runs on your account.
 
 > **Live at [tikron.dev](https://tikron.dev)** — landing, playable .io demo, developer dashboard.
 > Building a game with an AI agent? Start at [`AGENTS.md`](AGENTS.md).

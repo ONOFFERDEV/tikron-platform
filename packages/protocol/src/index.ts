@@ -6,7 +6,7 @@
  * stable outer framing regardless of how room state itself is encoded.
  */
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Client -> Server message tags. */
 export const ClientMessageType = {
@@ -15,6 +15,8 @@ export const ClientMessageType = {
   Broadcast: "c:broadcast",
   /** Developer-defined message (routed to a room's onMessage(type) handler). */
   Message: "c:msg",
+  /** Clock-sync ping (client-stamped `t0`); the server echoes it with its time. */
+  Time: "c:time",
 } as const;
 export type ClientMessageType = (typeof ClientMessageType)[keyof typeof ClientMessageType];
 
@@ -31,6 +33,8 @@ export const ServerMessageType = {
   Message: "s:msg",
   /** Acknowledgement of the last processed client input seq (for reconciliation). */
   Ack: "s:ack",
+  /** Clock-sync reply: echoes the ping `t0` plus the server's time at receipt. */
+  Time: "s:time",
   Error: "s:error",
 } as const;
 export type ServerMessageType = (typeof ServerMessageType)[keyof typeof ServerMessageType];
@@ -65,7 +69,18 @@ export interface ClientGameMessage {
   payload?: unknown;
 }
 
-export type ClientMessage = HelloMessage | EchoMessage | BroadcastMessage | ClientGameMessage;
+/** Clock-sync ping. `t0` is the client's send time (echoed back for RTT/offset). */
+export interface TimeRequestMessage {
+  t: typeof ClientMessageType.Time;
+  t0: number;
+}
+
+export type ClientMessage =
+  | HelloMessage
+  | EchoMessage
+  | BroadcastMessage
+  | ClientGameMessage
+  | TimeRequestMessage;
 
 // --- Server -> Client ---
 
@@ -113,10 +128,17 @@ export interface ErrorMessage {
   message: string;
 }
 
-/** Full authoritative state snapshot. `ackSeq` is the last input seq processed. */
+/**
+ * Full authoritative state snapshot. `ackSeq` is the last input seq processed.
+ * `tick` is the room's simulation-tick counter and `serverTime` its wall-clock
+ * time (epoch ms) at the moment the snapshot was produced — clients interpolate on
+ * `serverTime` (via {@link ClockSync}) so network jitter is not interpolation jitter.
+ */
 export interface StateMessage {
   t: typeof ServerMessageType.State;
   ackSeq?: number;
+  tick?: number;
+  serverTime?: number;
   state: unknown;
 }
 
@@ -133,6 +155,13 @@ export interface AckMessage {
   seq: number;
 }
 
+/** Clock-sync reply: the ping's `t0` plus the server's time (epoch ms) at receipt. */
+export interface TimeReplyMessage {
+  t: typeof ServerMessageType.Time;
+  t0: number;
+  serverTime: number;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | EchoReplyMessage
@@ -142,6 +171,7 @@ export type ServerMessage =
   | StateMessage
   | ServerGameMessage
   | AckMessage
+  | TimeReplyMessage
   | ErrorMessage;
 
 export type AnyMessage = ClientMessage | ServerMessage;
