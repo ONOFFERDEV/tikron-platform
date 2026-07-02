@@ -52,10 +52,11 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     position: (e) => e as Vec2,
     viewer: (s, id) => s.players[id] ?? null,
     // Priority tiers (Tribes/Halo): players inside 300u refresh every flush; the
-    // 300–600u band drops to 1/4 rate. Cuts far-player sends ~4× at no visible cost.
+    // 300–600u band drops to 1/2 rate (10 Hz). Halves far-player sends while keeping
+    // the update rate high enough that client-side entity smoothing hides the steps.
     tiers: [
       { radius: 300, interval: 1 },
-      { radius: 600, interval: 4 },
+      { radius: 600, interval: 2 },
     ],
   };
 

@@ -40,6 +40,30 @@ export function smoothAxis(
   return current + gap * alpha;
 }
 
+/**
+ * Exponential angle smoothing along the shortest arc (radians). Same frame-rate-
+ * independent factor as {@link smoothAxis}, but the gap is wrapped to (−π, π] so the
+ * value always rotates the short way and never spins the long way round the circle
+ * (a plain lerp of raw angles would). A gap of at least `snap` radians jumps instead.
+ * Used to de-pop remote players' facing when priority tiers deliver it at a low rate.
+ */
+export function smoothAngle(
+  current: number,
+  target: number,
+  dtMs: number,
+  smoothTimeMs: number,
+  snap: number,
+): number {
+  const twoPi = Math.PI * 2;
+  let delta = (target - current) % twoPi;
+  if (delta > Math.PI) delta -= twoPi;
+  else if (delta < -Math.PI) delta += twoPi;
+  if (Math.abs(delta) >= snap) return target;
+  if (dtMs <= 0 || smoothTimeMs <= 0) return target;
+  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
+  return current + delta * alpha;
+}
+
 /** Ease a 2D camera toward `(tx, ty)`, returning the new position (input untouched). */
 export function followCamera(
   cam: Cam,

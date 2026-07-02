@@ -2,7 +2,7 @@ import { GameClient, InputPredictor, SnapshotBuffer, type Room } from "@tikron/c
 import { stepToward } from "@tikron/sim";
 import { ShooterSchema, SHOOTER, type ShooterState } from "../src/rooms/shooter-schema.js";
 import { LoadingFlow, type LoadingView } from "./loading.js";
-import { followCamera, type Cam } from "./camera.js";
+import { followCamera, smoothAxis, smoothAngle, type Cam } from "./camera.js";
 
 /**
  * FPS proof-of-concept client. Shows the full FPS-grade SDK usage: **subtick input
@@ -239,6 +239,21 @@ const CAM_SMOOTH_MS = 60;
  *  motion is ≤ maxSpeed·stepMs ≈ 25 u, so only respawns / big corrections snap. */
 const CAM_SNAP_DIST = 300;
 
+/**
+ * Per-remote-entity smoothed render state (position + facing), eased on top of the
+ * interpolation buffer each frame. AOI priority tiers refresh far players at a lower
+ * rate, so their buffered position/aim arrive in coarse steps that pop; the extra
+ * exponential pass rounds those corners. Cleared when an entity leaves the AOI view
+ * so a re-entry snaps in fresh rather than gliding from its stale last position.
+ */
+const entityRender = new Map<string, { x: number; y: number; aim: number }>();
+/** Entity easing time constant (ms) — a touch softer than the camera's since far
+ *  players update least often. */
+const ENTITY_SMOOTH_MS = 100;
+/** Entity teleport threshold (world units): a jump this large snaps (respawn / warp)
+ *  rather than sliding across the map, matching the camera's rule. */
+const ENTITY_SNAP_DIST = 300;
+
 let myId = "";
 let seq = 0;
 let aim = 0; // radians, player -> mouse
@@ -461,13 +476,9 @@ function startGame(room: Room): void {
     };
     const stepped = vx === 0 && vy === 0 ? predictor.predicted : stepToward(predictor.predicted, desired, SHOOTER.maxSpeed, SHOOTER.stepMs);
     const next: Vec = { x: clamp(stepped.x, 0, SHOOTER.world), y: clamp(stepped.y, 0, SHOOTER.world) };
-    // Aim points from the player's on-screen position toward the mouse. The smoothed
-    // camera lets the body trail the world center by a few px, so offset the origin by
-    // (predicted − cam) to keep the reticle consistent with the rendered player.
-    aim = Math.atan2(
-      mouse.y - canvas.height / 2 - (predictor.predicted.y - cam.y),
-      mouse.x - canvas.width / 2 - (predictor.predicted.x - cam.x),
-    );
+    // The self sprite is locked to the smoothed camera anchor (screen centre), so the
+    // aim origin is simply screen centre — keeps the reticle consistent with the body.
+    aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
     seq += 1;
     room.send("move", { x: next.x, y: next.y, aim });
     predictor.predict(seq, next);
@@ -589,22 +600,47 @@ function render(): void {
   drawEffects(camX, camY, now);
 
   const view = buffer.sample(sampleServerNow());
+  const seen = new Set<string>();
   if (view) {
     for (const id of Object.keys(view.players)) {
       if (id === myId) continue;
       const pl = view.players[id]!;
-      drawPlayer(pl, pl.x - camX, pl.y - camY, false, hitFlash.get(id), now);
+      seen.add(id);
+      // Ease each remote's buffered position/facing so low-rate tier updates don't pop.
+      const prev = entityRender.get(id);
+      const sm = prev
+        ? {
+            x: smoothAxis(prev.x, pl.x, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
+            y: smoothAxis(prev.y, pl.y, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
+            aim: smoothAngle(prev.aim, pl.aim, dtMs, ENTITY_SMOOTH_MS, Math.PI),
+          }
+        : { x: pl.x, y: pl.y, aim: pl.aim };
+      entityRender.set(id, sm);
+      drawPlayer(
+        { aim: sm.aim, hp: pl.hp, score: pl.score, alive: pl.alive },
+        sm.x - camX,
+        sm.y - camY,
+        false,
+        hitFlash.get(id),
+        now,
+      );
     }
   }
+  // Forget entities that left the AOI view so a re-entry snaps in rather than glides.
+  for (const id of [...entityRender.keys()]) {
+    if (!seen.has(id)) entityRender.delete(id);
+  }
 
-  // Local player (predicted -> zero latency).
+  // Local player: drawn at the smoothed camera anchor (not raw predicted) so its own
+  // reconcile jitter doesn't wobble the sprite on screen — self and world share one
+  // smoothed frame, keeping it locked to centre.
   const meState = view?.players[myId];
   // AOI delivers only players in view; the count always includes the local player.
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meState?.alive ?? true },
-    me.x - camX,
-    me.y - camY,
+    cam.x - camX,
+    cam.y - camY,
     true,
     hitFlash.get(myId),
     now,

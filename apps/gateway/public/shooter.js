@@ -1664,6 +1664,16 @@ function smoothAxis(current, target, dtMs, smoothTimeMs, snap) {
   const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
   return current + gap * alpha;
 }
+function smoothAngle(current, target, dtMs, smoothTimeMs, snap) {
+  const twoPi = Math.PI * 2;
+  let delta = (target - current) % twoPi;
+  if (delta > Math.PI) delta -= twoPi;
+  else if (delta < -Math.PI) delta += twoPi;
+  if (Math.abs(delta) >= snap) return target;
+  if (dtMs <= 0 || smoothTimeMs <= 0) return target;
+  const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
+  return current + delta * alpha;
+}
 function followCamera(cam2, tx, ty, dtMs, smoothTimeMs, snap) {
   return {
     x: smoothAxis(cam2.x, tx, dtMs, smoothTimeMs, snap),
@@ -1824,6 +1834,9 @@ var cam = { x: 1e3, y: 1e3 };
 var lastRenderMs = 0;
 var CAM_SMOOTH_MS = 60;
 var CAM_SNAP_DIST = 300;
+var entityRender = /* @__PURE__ */ new Map();
+var ENTITY_SMOOTH_MS = 100;
+var ENTITY_SNAP_DIST = 300;
 var myId = "";
 var seq = 0;
 var aim = 0;
@@ -2002,10 +2015,7 @@ function startGame(room) {
     };
     const stepped = vx === 0 && vy === 0 ? predictor.predicted : stepToward(predictor.predicted, desired, SHOOTER.maxSpeed, SHOOTER.stepMs);
     const next = { x: clamp(stepped.x, 0, SHOOTER.world), y: clamp(stepped.y, 0, SHOOTER.world) };
-    aim = Math.atan2(
-      mouse.y - canvas.height / 2 - (predictor.predicted.y - cam.y),
-      mouse.x - canvas.width / 2 - (predictor.predicted.x - cam.x)
-    );
+    aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
     seq += 1;
     room.send("move", { x: next.x, y: next.y, aim });
     predictor.predict(seq, next);
@@ -2095,19 +2105,38 @@ function render() {
   }
   drawEffects(camX, camY, now);
   const view = buffer.sample(sampleServerNow());
+  const seen = /* @__PURE__ */ new Set();
   if (view) {
     for (const id of Object.keys(view.players)) {
       if (id === myId) continue;
       const pl = view.players[id];
-      drawPlayer(pl, pl.x - camX, pl.y - camY, false, hitFlash.get(id), now);
+      seen.add(id);
+      const prev = entityRender.get(id);
+      const sm = prev ? {
+        x: smoothAxis(prev.x, pl.x, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
+        y: smoothAxis(prev.y, pl.y, dtMs, ENTITY_SMOOTH_MS, ENTITY_SNAP_DIST),
+        aim: smoothAngle(prev.aim, pl.aim, dtMs, ENTITY_SMOOTH_MS, Math.PI)
+      } : { x: pl.x, y: pl.y, aim: pl.aim };
+      entityRender.set(id, sm);
+      drawPlayer(
+        { aim: sm.aim, hp: pl.hp, score: pl.score, alive: pl.alive },
+        sm.x - camX,
+        sm.y - camY,
+        false,
+        hitFlash.get(id),
+        now
+      );
     }
+  }
+  for (const id of [...entityRender.keys()]) {
+    if (!seen.has(id)) entityRender.delete(id);
   }
   const meState = view?.players[myId];
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meState?.alive ?? true },
-    me.x - camX,
-    me.y - camY,
+    cam.x - camX,
+    cam.y - camY,
     true,
     hitFlash.get(myId),
     now

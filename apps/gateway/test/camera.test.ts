@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { smoothAxis, followCamera } from "../demo/camera.js";
+import { smoothAxis, smoothAngle, followCamera } from "../demo/camera.js";
 
 describe("camera smoothing (shooter demo follow easing)", () => {
   it("eases toward the target without overshooting", () => {
@@ -27,6 +27,22 @@ describe("camera smoothing (shooter demo follow easing)", () => {
   it("teleports when the gap reaches the snap distance (respawn / big correction)", () => {
     expect(smoothAxis(0, 300, 16, 60, 300)).toBe(300);
     expect(smoothAxis(0, 5000, 16, 60, 300)).toBe(5000);
+  });
+
+  it("smoothAngle rotates the short way across the ±π wrap", () => {
+    // From +170° toward −170° is a +20° short arc (crossing π), not −340° the long way.
+    const from = (170 * Math.PI) / 180;
+    const to = (-170 * Math.PI) / 180;
+    const next = smoothAngle(from, to, 16, 100, Math.PI);
+    // A short-arc step nudges the angle *up* past +π (wrapping), never down toward 0.
+    expect(next).toBeGreaterThan(from);
+  });
+
+  it("smoothAngle eases along the shortest arc without overshoot", () => {
+    const next = smoothAngle(0, 1, 16, 100, Math.PI);
+    expect(next).toBeGreaterThan(0);
+    expect(next).toBeLessThan(1);
+    expect(next).toBeCloseTo(1 * (1 - Math.exp(-16 / 100)), 6);
   });
 
   it("followCamera eases both axes and leaves the input untouched", () => {
