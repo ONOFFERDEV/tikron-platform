@@ -6,7 +6,7 @@
     <title>Tikron — multiplayer for web games</title>
     <meta
       name="description"
-      content="Tikron is server-authoritative multiplayer for web games, running on the edge — one Durable Object per room, in ~275 cities. Ship a multiplayer game in minutes; built so AI coding agents can do it in one session."
+      content="Tikron is server-authoritative multiplayer for web games, running on the edge — one Durable Object per room, placed close to its players on Cloudflare's global network. Ship a multiplayer game in minutes; built so AI coding agents can do it in one session."
     />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Tikron — multiplayer for web games" />
@@ -201,8 +201,9 @@
         <h1>Server-authoritative multiplayer for web games — on the edge, in minutes.</h1>
         <p class="lead">
           A source-available SDK (FSL-1.1) you deploy to <b>your own Cloudflare account</b> in minutes —
-          the free tier works, no lock-in. One Durable Object per room, placed near your
-          players in ~275 cities. State lives on the server, clients send intents,
+          the free tier works, no lock-in. One Durable Object per room, placed near the
+          player who creates it — or a region you choose — on Cloudflare's global network
+          (330+ cities). State lives on the server, clients send intents,
           reconnection is built in.
         </p>
         <p class="lead ai">Built so <b>AI coding agents ship multiplayer games in one session</b>.</p>
@@ -237,6 +238,12 @@
             <div class="l">idle turn-based room per client</div>
           </div>
         </div>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+          Latency measured end-to-end from a residential connection in Korea — includes
+          ~80 ms of network RTT to the assigned edge; the engine itself adds single-digit
+          milliseconds. Full methodology in
+          <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/docs/PERF.md">docs/PERF.md</a>.
+        </p>
       </div>
     </section>
 
@@ -256,9 +263,9 @@
           <article class="card">
             <h3>Edge rooms</h3>
             <p>
-              Each room is its own Durable Object, spun up on demand across ~275 cities
-              and placed near its players. Rooms scale horizontally, and state-preserving
-              reconnection is built into the core.
+              Each room is its own Durable Object, spun up on demand near the player who
+              creates it — or pinned to a region with a matchmake hint. Rooms scale
+              horizontally, and state-preserving reconnection is built into the core.
             </p>
           </article>
           <article class="card">
@@ -301,7 +308,7 @@ npm run deploy</code></pre>
     <span class="tok-key">this</span>.setState({ cursors: {} });
     <span class="tok-key">this</span>.<span class="tok-fn">onMessage</span>(<span class="tok-str">"move"</span>, (c, p) =&gt; {
       <span class="tok-key">const</span> me = <span class="tok-key">this</span>.state.cursors[c.id];
-      <span class="tok-key">if</span> (!me || <span class="tok-key">typeof</span> p?.x !== <span class="tok-str">"number"</span>) <span class="tok-key">return</span>;
+      <span class="tok-key">if</span> (!me || <span class="tok-key">typeof</span> p?.x !== <span class="tok-str">"number"</span> || <span class="tok-key">typeof</span> p?.y !== <span class="tok-str">"number"</span>) <span class="tok-key">return</span>;
       me.x = p.x; me.y = p.y;
       <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>();   <span class="tok-com">// synced to everyone</span>
     });
@@ -355,7 +362,7 @@ npm run deploy</code></pre>
           </div>
         </div>
         <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
-          A room-hour = one live room for one hour; idle rooms cost nothing. Self-hosted
+          A room-hour = one live room for one hour; rooms with no players cost nothing. Self-hosted
           rooms bill to your Cloudflare account — roughly <span class="mono">~$0.006</span>
           per room-hour at Cloudflare's own Durable Object pricing (approximate).
         </p>
