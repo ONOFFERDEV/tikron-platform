@@ -1,0 +1,13 @@
+{
+  "$schema": "../../apps/gateway/node_modules/wrangler/config-schema.json",
+  // Rename this to name your deployment: https://<name>.<account>.workers.dev
+  "name": "playedge-starter",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ArenaRoom", "class_name": "ArenaRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ArenaRoom"] }],
+  "assets": { "directory": "./public" },
+  "observability": { "enabled": true }
+}

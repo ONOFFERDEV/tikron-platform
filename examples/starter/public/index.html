@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlayEdge starter — arena</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0d1117;
+      }
+      canvas {
+        display: block;
+        cursor: crosshair;
+      }
+      #status {
+        position: fixed;
+        top: 10px;
+        left: 12px;
+        color: #8b949e;
+        font: 13px ui-monospace, monospace;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="status">connecting…</div>
+    <script type="module" src="/client.js"></script>
+  </body>
+</html>

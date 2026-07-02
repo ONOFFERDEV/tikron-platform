@@ -23,7 +23,8 @@ packages/
 apps/
   gateway/    Cloudflare Worker + GameRoom Durable Object (partyserver)
   demos/      reference games (flagship: realtime .io) (M3+)
-examples/     "clone -> deploy in 5 min" starter templates (M6+)
+examples/
+  starter/    "clone -> deploy in 5 min" template (see its README)
 ```
 
 ## Foundation
