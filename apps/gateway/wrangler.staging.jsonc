@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Throwaway load-test staging: workers.dev only, no custom domain, no D1
+  // (platform enforcement/metering off), DEV_MODE so loadtests may raise
+  // ?maxClients= (capped at 120). Deploy with:
+  //   wrangler deploy -c wrangler.staging.jsonc
+  // Delete with:
+  //   wrangler delete -c wrangler.staging.jsonc
+  "name": "tikron-gateway-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      { "name": "GameRoom", "class_name": "GameRoom" },
+      { "name": "MovementRoom", "class_name": "MovementRoom" },
+      { "name": "TicTacToe", "class_name": "TicTacToe" },
+      { "name": "AgarRoom", "class_name": "AgarRoom" },
+      { "name": "Matchmaker", "class_name": "Matchmaker" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] },
+    { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
+    { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] }
+  ],
+  "assets": { "directory": "./public" },
+  "vars": {
+    "DEV_MODE": "1"
+  },
+  "observability": { "enabled": true }
+}

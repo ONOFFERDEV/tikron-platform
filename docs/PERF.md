@@ -155,6 +155,30 @@ Readings:
   closes in later runs. Trust solo runs (or long cooldowns) locally; deployed
   rooms are isolated DOs.
 
+### Deployed 100 CCU, one room (same day, real Cloudflare DO)
+
+Staging worker (`wrangler.staging.jsonc`: workers.dev, DEV_MODE, no D1),
+measured from the same Korean residential connection:
+
+| 100 players/room (deployed) | 3 s ramp | 10 s ramp |
+|---|---|---|
+| connect success / unexpected closes | 80/100 · 21 | **100/100 · 0** |
+| ack RTT p50 / p99 / max | 90 / 137 / 296 ms | 97 / 144 / 319 ms |
+| state cadence (raw gap p50) / jitter p50 | 48.8 ms / 3.5 ms | **48.4 ms / 6.0 ms** |
+| server tick+flush (tk:stats) | 0 ms (all buckets) | 0 ms (all buckets) |
+| ack spikes >1 s | 0 | 0 |
+
+- **A single Durable Object holds 100 concurrent players cleanly**: 2,000
+  incoming input msg/s + 2,000 outgoing state frames/s, sustained, with zero
+  drops and the cadence locked at 50 ms. Production DO hardware is far faster
+  than local workerd (tick+flush under the 1 ms measurement resolution).
+- The 62 ms local cadence is confirmed as a workerd artifact (deployed locks
+  at ~48.5 ms).
+- The one real limit found: **connection admission**. 100 upgrades inside 3 s
+  to one DO fails ~20% of connects and destabilizes early sockets; pacing
+  joins over 10 s is fully clean. Mitigation (join pacing / client backoff)
+  is an F3 work item — steady-state operation is not affected.
+
 ## Baselines
 
 - `ttt-json` (turn-based, JSON sync, no tick): 77 B/s per idle client — a
