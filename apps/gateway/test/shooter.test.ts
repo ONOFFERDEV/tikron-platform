@@ -238,4 +238,48 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     shooter.ws.close();
     target.ws.close();
   }, 25000);
+
+  it("nickname is sanitized and used as the leaderboard display name", async () => {
+    const shooter = await stateClient("shooter-room", "nick", ShooterSchema);
+    const idS = (await shooter.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    const sp = await posOf(shooter, idS);
+    const target = await stateClient("shooter-room", "nick", ShooterSchema);
+    const idT = (await target.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+
+    // Surrounding spaces are trimmed and the embedded control char is stripped,
+    // so "  Zoe␇Q  " is stored as "ZoeQ".
+    shooter.nick("  Zoe" + String.fromCharCode(7) + "Q  ", 1);
+
+    // Down the target on the shooter's ray (same setup as the kill test) so the
+    // frag is credited and a leaderboard row is written.
+    const rayX = sp.x;
+    const rayY = sp.y - 100;
+    const seq = { n: 2 };
+    await driveTo(target, seq, idT, rayX, rayY);
+    await shooter.waitState((s) => {
+      const t = s.players?.[idT];
+      return t !== undefined && Math.abs(t.x - rayX) < 3 && Math.abs(t.y - rayY) < 3;
+    });
+    await sleep(150);
+    for (let i = 0; i < 3; i++) {
+      shooter.shoot(NORTH, seq.n++, shooter.serverTime());
+      await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
+    }
+    await target.waitState((s) => s.players?.[idT]?.alive === false, 5000);
+
+    // Leaderboard writes are fire-and-forget to D1 (the "dev" scope in DEV_MODE), so
+    // poll until the shooter's row lands, then assert it carries the sanitized nick.
+    const db = (env as unknown as Env).DB!;
+    let entry: { player_id: string; display_name: string | null } | undefined;
+    for (let i = 0; i < 40 && !entry; i++) {
+      const rows = await topScores(db, "dev", "shooter-top", 1000);
+      entry = rows.find((r) => r.player_id === idS);
+      if (!entry) await sleep(50);
+    }
+    expect(entry).toBeDefined();
+    expect(entry!.display_name).toBe("ZoeQ");
+
+    shooter.ws.close();
+    target.ws.close();
+  }, 25000);
 });
