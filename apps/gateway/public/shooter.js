@@ -1030,8 +1030,8 @@ var ClockSync = class {
   accept(t0, serverTime) {
     const t1 = this.now();
     const rtt = Math.max(0, t1 - t0);
-    const offset = serverTime + rtt / 2 - t1;
-    this.samples.push({ offset, rtt });
+    const offset2 = serverTime + rtt / 2 - t1;
+    this.samples.push({ offset: offset2, rtt });
     while (this.samples.length > this.maxSamples)
       this.samples.shift();
     this.rttMs = median(this.samples.map((s) => s.rtt));
@@ -1499,18 +1499,6 @@ var GameClient = class {
   }
 };
 
-// ../../packages/sim/dist/index.js
-function stepToward(pos, target, maxSpeed, dtMs) {
-  const maxDist = Math.max(0, maxSpeed * dtMs / 1e3);
-  const dx = target.x - pos.x;
-  const dy = target.y - pos.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist <= maxDist || dist === 0)
-    return { x: target.x, y: target.y };
-  const scale = maxDist / dist;
-  return { x: pos.x + dx * scale, y: pos.y + dy * scale };
-}
-
 // src/rooms/shooter-schema.ts
 var ShooterSchema = schema({
   players: mapOf(
@@ -1674,10 +1662,38 @@ function smoothAngle(current, target, dtMs, smoothTimeMs, snap) {
   const alpha = 1 - Math.exp(-dtMs / smoothTimeMs);
   return current + delta * alpha;
 }
-function followCamera(cam2, tx, ty, dtMs, smoothTimeMs, snap) {
+
+// demo/movement.ts
+function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+function integrateMove(pos, dirX, dirY, dtMs, maxSpeed, world, maxDtMs) {
+  const dt = Math.min(Math.max(dtMs, 0), maxDtMs) / 1e3;
+  const len = Math.hypot(dirX, dirY);
+  if (len === 0 || dt === 0) return { x: pos.x, y: pos.y };
+  const step = maxSpeed * dt;
   return {
-    x: smoothAxis(cam2.x, tx, dtMs, smoothTimeMs, snap),
-    y: smoothAxis(cam2.y, ty, dtMs, smoothTimeMs, snap)
+    x: clamp(pos.x + dirX / len * step, 0, world),
+    y: clamp(pos.y + dirY / len * step, 0, world)
+  };
+}
+function decayOffset(offset2, dtMs, tauMs) {
+  if (tauMs <= 0 || dtMs <= 0) return { x: 0, y: 0 };
+  const k = Math.exp(-dtMs / tauMs);
+  return { x: offset2.x * k, y: offset2.y * k };
+}
+function applyCorrection(continuous2, offset2, authoritative, snap) {
+  const ex = authoritative.x - continuous2.x;
+  const ey = authoritative.y - continuous2.y;
+  if (Math.hypot(ex, ey) >= snap) {
+    return { continuous: { x: authoritative.x, y: authoritative.y }, offset: { x: 0, y: 0 } };
+  }
+  return {
+    continuous: { x: authoritative.x, y: authoritative.y },
+    offset: {
+      x: continuous2.x + offset2.x - authoritative.x,
+      y: continuous2.y + offset2.y - authoritative.y
+    }
   };
 }
 
@@ -1830,10 +1846,14 @@ var crates = [];
 var crateSeed = null;
 var predictor = new InputPredictor({ x: 1e3, y: 1e3 }, { apply: (_s, i) => ({ ...i }) });
 var buffer = new SnapshotBuffer({ delayMs: 100, lerp: lerpState });
+var continuous = { x: 1e3, y: 1e3 };
+var offset = { x: 0, y: 0 };
+var selfAlive = true;
 var cam = { x: 1e3, y: 1e3 };
 var lastRenderMs = 0;
-var CAM_SMOOTH_MS = 60;
-var CAM_SNAP_DIST = 300;
+var MAX_FRAME_MS = SHOOTER.stepMs;
+var OFFSET_TAU_MS = 100;
+var CORRECTION_SNAP = 300;
 var entityRender = /* @__PURE__ */ new Map();
 var ENTITY_SMOOTH_MS = 100;
 var ENTITY_SNAP_DIST = 300;
@@ -1973,6 +1993,12 @@ function startGame(room) {
   });
   room.onStateChange((s) => ingestState(s, room));
   if (room.state !== void 0) ingestState(room.state, room);
+  room.onMessage("rejected", (payload) => {
+    const p = payload;
+    const applied = applyCorrection(continuous, offset, { x: p.x, y: p.y }, CORRECTION_SNAP);
+    continuous = applied.continuous;
+    offset = applied.offset;
+  });
   room.onMessage("shot", (payload) => {
     const p = payload;
     const now = performance.now();
@@ -2002,23 +2028,11 @@ function startGame(room) {
   addEventListener("keydown", (e) => keys.add(e.key.toLowerCase()));
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
   setInterval(() => {
-    let vx = 0;
-    let vy = 0;
-    if (keys.has("w")) vy -= 1;
-    if (keys.has("s")) vy += 1;
-    if (keys.has("a")) vx -= 1;
-    if (keys.has("d")) vx += 1;
-    const len = Math.hypot(vx, vy) || 1;
-    const desired = {
-      x: predictor.predicted.x + vx / len * SHOOTER.maxSpeed * (SHOOTER.stepMs / 1e3),
-      y: predictor.predicted.y + vy / len * SHOOTER.maxSpeed * (SHOOTER.stepMs / 1e3)
-    };
-    const stepped = vx === 0 && vy === 0 ? predictor.predicted : stepToward(predictor.predicted, desired, SHOOTER.maxSpeed, SHOOTER.stepMs);
-    const next = { x: clamp(stepped.x, 0, SHOOTER.world), y: clamp(stepped.y, 0, SHOOTER.world) };
     aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
     seq += 1;
-    room.send("move", { x: next.x, y: next.y, aim });
-    predictor.predict(seq, next);
+    const snapshot = { x: continuous.x, y: continuous.y };
+    room.send("move", { x: snapshot.x, y: snapshot.y, aim });
+    predictor.predict(seq, snapshot);
   }, SHOOTER.stepMs);
   running = true;
   resizeCanvas();
@@ -2030,7 +2044,14 @@ function startGame(room) {
 function ingestState(st, room) {
   buffer.push(room.lastStateServerTime ?? performance.now(), st);
   const me = st.players[myId];
-  if (me) predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
+  if (me) {
+    predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
+    selfAlive = me.alive;
+    if (Math.hypot(me.x - continuous.x, me.y - continuous.y) >= CORRECTION_SNAP) {
+      continuous = { x: me.x, y: me.y };
+      offset = { x: 0, y: 0 };
+    }
+  }
   if (crateSeed === null && typeof st.seed === "number") {
     crateSeed = st.seed;
     crates = makeCrates(st.seed);
@@ -2076,15 +2097,29 @@ function resizeCanvas() {
   canvas.height = Math.max(240, Math.floor(window.innerHeight - top));
 }
 var PLAYER_SIZE = 30;
+function moveDir() {
+  let x = 0;
+  let y = 0;
+  if (keys.has("w")) y -= 1;
+  if (keys.has("s")) y += 1;
+  if (keys.has("a")) x -= 1;
+  if (keys.has("d")) x += 1;
+  return { x, y };
+}
 function render() {
   if (!running) return;
-  const me = predictor.predicted;
   const now = performance.now();
   const dtMs = lastRenderMs === 0 ? 16 : now - lastRenderMs;
   lastRenderMs = now;
-  const eased = followCamera(cam, me.x, me.y, dtMs, CAM_SMOOTH_MS, CAM_SNAP_DIST);
-  cam.x = eased.x;
-  cam.y = eased.y;
+  if (selfAlive) {
+    const dir = moveDir();
+    continuous = integrateMove(continuous, dir.x, dir.y, dtMs, SHOOTER.maxSpeed, SHOOTER.world, MAX_FRAME_MS);
+  }
+  offset = decayOffset(offset, dtMs, OFFSET_TAU_MS);
+  const renderX = continuous.x + offset.x;
+  const renderY = continuous.y + offset.y;
+  cam.x = renderX;
+  cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
   const camY = Math.round(cam.y - canvas.height / 2);
   drawGround(camX, camY);
@@ -2135,8 +2170,8 @@ function render() {
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meState?.alive ?? true },
-    cam.x - camX,
-    cam.y - camY,
+    renderX - camX,
+    renderY - camY,
     true,
     hitFlash.get(myId),
     now
@@ -2295,7 +2330,7 @@ function drawHud(hp, score, count) {
   const bw = w - 28;
   ctx.fillStyle = "#0a0e14";
   ctx.fillRect(bx, by, bw, 10);
-  const frac = clamp(hp / SHOOTER.maxHp, 0, 1);
+  const frac = clamp2(hp / SHOOTER.maxHp, 0, 1);
   ctx.fillStyle = frac > 0.5 ? "#00e5a0" : frac > 0.25 ? "#f2cc60" : "#ff6b6b";
   ctx.fillRect(bx, by, bw * frac, 10);
   ctx.fillStyle = "#e6edf3";
@@ -2331,7 +2366,7 @@ function label(text, x, y) {
   ctx.fillText(text, x, y);
   ctx.textAlign = "start";
 }
-function clamp(v, lo, hi) {
+function clamp2(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
 }
 playBtn.addEventListener("click", () => void play());
