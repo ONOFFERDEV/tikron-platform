@@ -36,5 +36,5 @@ the `ClientMessage` / `ServerMessage` interfaces · `encode` · `decodeClientMes
 
 [tikron.dev](https://tikron.dev) ·
 [AGENTS.md](https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md).
-Licensed **FSL-1.1-ALv2** — converts to **Apache-2.0** two years after each release.
+Licensed **FSL-1.1-ALv2** — converts to **Apache-2.0** one year after each release.
 See LICENSE.

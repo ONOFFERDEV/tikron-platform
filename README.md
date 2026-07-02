@@ -1,6 +1,6 @@
 # Tikron
 
-**Source-available, server-authoritative multiplayer SDK for web games** (FSL-1.1 — free for any use except competing with Tikron, converts to Apache-2.0 after two years) — the "Supabase for
+**Source-available, server-authoritative multiplayer SDK for web games** (FSL-1.1 — free for any use except competing with Tikron, converts to Apache-2.0 after one year) — the "Supabase for
 game netcode", but you self-host. You deploy game rooms to **your own Cloudflare account**
 (Workers + Durable Objects) with a drop-in TypeScript SDK — your infrastructure, your bill,
 no lock-in. Anti-cheat by construction (server authority + AOI information hiding). Optional
@@ -69,5 +69,5 @@ Node >= 22, pnpm 10.x, wrangler 4.x. See `.nvmrc`.
 
 Licensed under the [Functional Source License 1.1](LICENSE.md) — free for any
 purpose except offering a competing multiplayer-SDK/BaaS; each release converts to
-Apache-2.0 after two years. Different terms (competing use, earlier Apache rights)?
+Apache-2.0 after one year. Different terms (competing use, earlier Apache rights)?
 Open an issue or contact the maintainers.

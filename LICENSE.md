@@ -87,7 +87,7 @@ trademarks, trade names, service marks or product names.
 ## Grant of Future License
 
 We hereby irrevocably grant you an additional license to use the Software under
-the Apache License, Version 2.0 that is effective on the second anniversary of
+the Apache License, Version 2.0 that is effective on the first anniversary of
 the date we make the Software available. On or after that date, you may use the
 Software under the Apache License, Version 2.0, in which case the following
 will apply:
