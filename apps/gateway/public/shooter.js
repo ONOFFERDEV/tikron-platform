@@ -1982,9 +1982,12 @@ var ShooterSchema = schema({
   roundEndMs: "f64"
 });
 var WEAPONS = [
-  { name: "RIFLE", damage: 34, range: 850, cooldownMs: 100, rays: 1, spread: 0 },
-  { name: "SHOTGUN", damage: 16, range: 380, cooldownMs: 600, rays: 3, spread: 0.24 },
-  { name: "SMG", damage: 14, range: 650, cooldownMs: 55, rays: 1, spread: 0 }
+  // RIFLE: 20-round mag, ~1.5 s reload. SHOTGUN: 4× damage (16→64/ray), unlimited
+  // (no mag — its long 600 ms cooldown is the limiter). SMG: 40-round mag, faster
+  // fire (55→40 ms cooldown), ~2 s reload.
+  { name: "RIFLE", damage: 34, range: 850, cooldownMs: 100, rays: 1, spread: 0, mag: 20, reloadMs: 1500 },
+  { name: "SHOTGUN", damage: 64, range: 380, cooldownMs: 600, rays: 3, spread: 0.24, mag: 0, reloadMs: 0 },
+  { name: "SMG", damage: 14, range: 650, cooldownMs: 40, rays: 1, spread: 0, mag: 40, reloadMs: 2e3 }
 ];
 var SHOOTER = {
   // A 3000² map (up from 2000²) so 64 players spread out: at the spawn min-
@@ -2411,6 +2414,9 @@ var streakBannerUntil = 0;
 var roundTop = [];
 var roundOverUntil = 0;
 var myWeapon = 0;
+var ammo = WEAPONS.map((w) => w.mag);
+var reloadUntil = 0;
+var mouseHeld = false;
 var hitFlash = /* @__PURE__ */ new Map();
 var lastDrawn = /* @__PURE__ */ new Map();
 var prevAlive = /* @__PURE__ */ new Map();
@@ -2606,6 +2612,14 @@ function startGame(room) {
     roundTop = p.top ?? [];
     roundOverUntil = performance.now() + 5e3;
   });
+  room.onMessage("ammo", (payload) => {
+    const p = payload;
+    if (typeof p.w !== "number" || typeof p.n !== "number") return;
+    if (p.w >= 0 && p.w < ammo.length) ammo[p.w] = p.n;
+    if (p.w === myWeapon && typeof p.rl === "number" && p.rl > 0) {
+      reloadUntil = performance.now() + p.rl;
+    }
+  });
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
@@ -2616,6 +2630,19 @@ function startGame(room) {
     const nowW = performance.now();
     const spec = WEAPONS[myWeapon] ?? WEAPONS[0];
     if (nowW - lastLocalShotAt < spec.cooldownMs) return;
+    if (spec.mag > 0) {
+      if (reloadUntil > 0) {
+        if (nowW < reloadUntil) return;
+        ammo[myWeapon] = spec.mag;
+        reloadUntil = 0;
+      }
+      if (ammo[myWeapon] <= 0) {
+        reloadUntil = nowW + spec.reloadMs;
+        return;
+      }
+      ammo[myWeapon] -= 1;
+      if (ammo[myWeapon] <= 0) reloadUntil = nowW + spec.reloadMs;
+    }
     lastLocalShotAt = nowW;
     room.send("shoot", { dir: aim });
     const me = lastDrawn.get(myId) ?? motion.renderPosition;
@@ -2638,8 +2665,13 @@ function startGame(room) {
   };
   canvas.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
+    mouseHeld = true;
     tryFire();
   });
+  addEventListener("mouseup", (e) => {
+    if (e.button === 0) mouseHeld = false;
+  });
+  addEventListener("blur", () => mouseHeld = false);
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   if (isTouch) {
     const localPoint = (e) => {
@@ -2653,6 +2685,7 @@ function startGame(room) {
       if (hit) {
         if (hit.w !== myWeapon) {
           myWeapon = hit.w;
+          reloadUntil = 0;
           room.send("weapon", { w: hit.w });
         }
         return;
@@ -2720,7 +2753,15 @@ function startGame(room) {
     const w = e.code === "Digit1" || e.key === "1" ? 0 : e.code === "Digit2" || e.key === "2" ? 1 : e.code === "Digit3" || e.key === "3" ? 2 : -1;
     if (w >= 0 && w !== myWeapon) {
       myWeapon = w;
+      reloadUntil = 0;
       room.send("weapon", { w });
+    }
+    if (e.code === "KeyR" || e.key.toLowerCase() === "r") {
+      const spec = WEAPONS[myWeapon] ?? WEAPONS[0];
+      if (spec.mag > 0 && reloadUntil === 0 && ammo[myWeapon] < spec.mag) {
+        reloadUntil = performance.now() + spec.reloadMs;
+        room.send("reload", {});
+      }
     }
   });
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
@@ -2768,6 +2809,10 @@ function ingestState(st, room) {
       if (id === myId) killStreak = 0;
     } else if (was === false && p.alive) {
       effects.push({ kind: "respawn", x: p.x, y: p.y, until: now + 450 });
+      if (id === myId) {
+        for (let i = 0; i < ammo.length; i++) ammo[i] = WEAPONS[i].mag;
+        reloadUntil = 0;
+      }
     }
     prevAlive.set(id, p.alive);
   }
@@ -2815,7 +2860,11 @@ function render() {
   const dir = isTouch ? stickMove : moveDir();
   const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
   lastDrawn.set(myId, { x: renderX, y: renderY });
-  if (isTouch && stickAim.fire) tryFire();
+  if (isTouch ? stickAim.fire : mouseHeld) tryFire();
+  if (reloadUntil > 0 && now >= reloadUntil) {
+    ammo[myWeapon] = (WEAPONS[myWeapon] ?? WEAPONS[0]).mag;
+    reloadUntil = 0;
+  }
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -3182,12 +3231,25 @@ function drawHud(hp, score, count, weapon, db) {
   const spec = WEAPONS[weapon] ?? WEAPONS[0];
   ctx.fillStyle = "#e6edf3";
   ctx.fillText(`WEAPON ${spec.name}`, bx, by + 60);
+  ctx.textAlign = "right";
+  if (spec.mag <= 0) {
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText("\u221E", bx + bw, by + 60);
+  } else if (reloadUntil > 0 && performance.now() < reloadUntil) {
+    ctx.fillStyle = "#f2cc60";
+    ctx.fillText("RELOAD\u2026", bx + bw, by + 60);
+  } else {
+    const n = ammo[weapon] ?? 0;
+    ctx.fillStyle = n <= spec.mag * 0.25 ? "#ff6b6b" : "#e6edf3";
+    ctx.fillText(`${n}/${spec.mag}`, bx + bw, by + 60);
+  }
+  ctx.textAlign = "left";
   if (db) {
     ctx.fillStyle = "#ff9f43";
     ctx.fillText("DMG \xD72", bx, by + 76);
   }
   ctx.fillStyle = "#8b98a8";
-  ctx.fillText(isTouch ? "sticks: move / aim \xB7 tap 1-3" : "1/2/3 swap weapons", bx, by + 92);
+  ctx.fillText(isTouch ? "sticks: move / aim \xB7 tap 1-3" : "hold fire \xB7 1/2/3 swap \xB7 R reload", bx, by + 92);
   ctx.textAlign = "start";
 }
 function drawSpawnRing(x, y, now) {

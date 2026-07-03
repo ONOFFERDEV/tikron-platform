@@ -118,6 +118,11 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
   private readonly moveBudget = new Map<string, MoveBudget>();
   // playerId -> receipt ms (server clock, unforgeable) of the last accepted shot.
   private readonly lastShotAt = new Map<string, number>();
+  // playerId -> per-weapon rounds left (index = WEAPONS index; 0-mag weapons unused).
+  private readonly ammo = new Map<string, number[]>();
+  // playerId -> Date.now() ms when the in-progress reload completes (absent = idle).
+  // A reload always pertains to the CURRENT weapon (switching cancels it).
+  private readonly reloadUntil = new Map<string, number>();
   // playerId -> loop tick when spawn protection / damage boost expires.
   private readonly protUntil = new Map<string, number>();
   private readonly boostUntil = new Map<string, number>();
@@ -179,7 +184,20 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
       if (!p || w === undefined || !Number.isInteger(w) || w < 0 || w >= WEAPONS.length) return;
       if (p.w === w) return;
       p.w = w;
+      this.reloadUntil.delete(client.id); // switching cancels an in-progress reload
       this.markStateChanged();
+    });
+    // Manual reload (client 'R' / mobile button): top the current weapon back up.
+    this.onMessage("reload", (client) => {
+      const p = this.state.players[client.id];
+      if (!p || !p.alive) return;
+      const spec = WEAPONS[p.w] ?? WEAPONS[0]!;
+      if (spec.mag <= 0) return; // unlimited weapon — nothing to reload
+      if (this.reloadUntil.has(client.id)) return; // already reloading
+      const a = this.ammoFor(client.id);
+      if (a[p.w]! >= spec.mag) return; // already full
+      this.reloadUntil.set(client.id, Date.now() + spec.reloadMs);
+      client.send("ammo", { w: p.w, n: a[p.w]!, rl: spec.reloadMs });
     });
     // Nickname: sanitized and stored on the seat (client.data survives a
     // reconnect), then used as the leaderboard display name + kill feed.
@@ -289,6 +307,8 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     this.lastMoveAt.delete(client.id);
     this.moveBudget.delete(client.id);
     this.lastShotAt.delete(client.id);
+    this.ammo.delete(client.id);
+    this.reloadUntil.delete(client.id);
     this.protUntil.delete(client.id);
     this.boostUntil.delete(client.id);
     this.markStateChanged();
@@ -329,6 +349,11 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     p.db = false;
     this.boostUntil.delete(id);
     this.protUntil.set(id, this.currentTick + SPAWN_PROT_LOOPS);
+    // Fresh spawn = full mags, no pending reload (the client mirrors this on its
+    // own respawn transition, so no reconcile event is needed here).
+    this.reloadUntil.delete(id);
+    const a = this.ammoFor(id);
+    for (let i = 0; i < a.length; i++) a[i] = WEAPONS[i]!.mag;
   }
 
   // --- movement ---------------------------------------------------------------
@@ -384,6 +409,30 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     const nowMs = Date.now();
     const lastShot = this.lastShotAt.get(client.id);
     if (lastShot !== undefined && nowMs - lastShot < spec.cooldownMs) return;
+
+    // Magazine + reload (server-authoritative; `mag === 0` weapons are unlimited).
+    // A forged input can't dodge this — ammo lives on the server, never the client.
+    if (spec.mag > 0) {
+      const a = this.ammoFor(client.id);
+      const reloadDone = this.reloadUntil.get(client.id);
+      if (reloadDone !== undefined) {
+        if (nowMs < reloadDone) return; // still reloading — reject
+        a[shooter.w] = spec.mag; // reload finished: refill the current weapon
+        this.reloadUntil.delete(client.id);
+      }
+      if (a[shooter.w]! <= 0) {
+        // Empty: kick off a reload (if not already) and drop this shot.
+        if (!this.reloadUntil.has(client.id)) {
+          this.reloadUntil.set(client.id, nowMs + spec.reloadMs);
+          client.send("ammo", { w: shooter.w, n: 0, rl: spec.reloadMs });
+        }
+        return;
+      }
+      const left = --a[shooter.w]!;
+      if (left <= 0) this.reloadUntil.set(client.id, nowMs + spec.reloadMs);
+      // Owner-only reconcile so the HUD count can't drift from the authority.
+      client.send("ammo", { w: shooter.w, n: left, ...(left <= 0 ? { rl: spec.reloadMs } : {}) });
+    }
     this.lastShotAt.set(client.id, nowMs);
 
     // Firing ends spawn protection early (you can't shoot from behind the shield).
@@ -443,6 +492,16 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
       );
     }
     this.markStateChanged();
+  }
+
+  /** Per-weapon ammo array for a player, lazily initialized to the mag sizes. */
+  private ammoFor(id: string): number[] {
+    let a = this.ammo.get(id);
+    if (!a) {
+      a = WEAPONS.map((w) => w.mag);
+      this.ammo.set(id, a);
+    }
+    return a;
   }
 
   // --- damage / kills ---------------------------------------------------------

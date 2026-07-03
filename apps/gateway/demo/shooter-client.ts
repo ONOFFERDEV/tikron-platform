@@ -337,6 +337,13 @@ let roundTop: { id: string; nick?: string; score: number }[] = [];
 let roundOverUntil = 0;
 /** Locally equipped weapon (optimistic; the state echo confirms via own player `w`). */
 let myWeapon = 0;
+/** Predicted per-weapon rounds left (index = weapon), for instant HUD + fire gating.
+ *  The server is authoritative and reconciles via the owner-only `ammo` event. */
+const ammo: number[] = WEAPONS.map((w) => w.mag);
+/** performance.now() ms when the local reload completes (0 = not reloading). */
+let reloadUntil = 0;
+/** Desktop hold-to-fire: true while the left mouse button is held over the canvas. */
+let mouseHeld = false;
 /** Per-player red hit-flash expiry (server clock–independent, wall-clock ms). */
 const hitFlash = new Map<string, number>();
 /** Where each player was DRAWN this frame (self = render pos, remotes = smoothed) — anchors shot visuals to sprites instead of trailing server positions. */
@@ -605,6 +612,18 @@ function startGame(room: Room): void {
     roundOverUntil = performance.now() + 5000;
   });
 
+  // Owner-only ammo reconcile: the server's authoritative round count after a shot
+  // (and reload duration `rl` when one just started). Snaps the predicted count to
+  // the authority so client/server can't drift over a long burst.
+  room.onMessage("ammo", (payload) => {
+    const p = payload as { w: number; n: number; rl?: number };
+    if (typeof p.w !== "number" || typeof p.n !== "number") return;
+    if (p.w >= 0 && p.w < ammo.length) ammo[p.w] = p.n;
+    if (p.w === myWeapon && typeof p.rl === "number" && p.rl > 0) {
+      reloadUntil = performance.now() + p.rl;
+    }
+  });
+
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
@@ -623,6 +642,20 @@ function startGame(room: Room): void {
     const spec = WEAPONS[myWeapon] ?? WEAPONS[0]!;
     // Client-side mirror of the equipped weapon's fire-rate cap.
     if (nowW - lastLocalShotAt < spec.cooldownMs) return;
+    // Predicted magazine + reload gate (server re-checks; 0-mag weapons unlimited).
+    if (spec.mag > 0) {
+      if (reloadUntil > 0) {
+        if (nowW < reloadUntil) return; // mid-reload — can't fire
+        ammo[myWeapon] = spec.mag; // reload finished
+        reloadUntil = 0;
+      }
+      if (ammo[myWeapon]! <= 0) {
+        reloadUntil = nowW + spec.reloadMs; // empty → start reloading
+        return;
+      }
+      ammo[myWeapon]! -= 1;
+      if (ammo[myWeapon]! <= 0) reloadUntil = nowW + spec.reloadMs; // last round drained
+    }
     lastLocalShotAt = nowW;
     // Client stamps the subtick ts automatically (subtickTimestamps: true).
     room.send("shoot", { dir: aim });
@@ -653,8 +686,14 @@ function startGame(room: Room): void {
   };
   canvas.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return; // left-click fires
-    tryFire();
+    mouseHeld = true; // hold-to-fire: the render loop keeps firing (cooldown-gated)
+    tryFire(); // first shot NOW, don't wait a frame
   });
+  // Release anywhere (incl. off-canvas) and on tab blur stops the auto-fire.
+  addEventListener("mouseup", (e) => {
+    if (e.button === 0) mouseHeld = false;
+  });
+  addEventListener("blur", () => (mouseHeld = false));
   // Suppress the browser context menu over the canvas (right-click mid-game).
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -673,6 +712,7 @@ function startGame(room: Room): void {
       if (hit) {
         if (hit.w !== myWeapon) {
           myWeapon = hit.w;
+          reloadUntil = 0; // switching cancels an in-progress reload (mirrors the server)
           room.send("weapon", { w: hit.w }); // same optimistic echo as the Digit keys
         }
         return;
@@ -743,7 +783,16 @@ function startGame(room: Room): void {
       e.code === "Digit1" || e.key === "1" ? 0 : e.code === "Digit2" || e.key === "2" ? 1 : e.code === "Digit3" || e.key === "3" ? 2 : -1;
     if (w >= 0 && w !== myWeapon) {
       myWeapon = w;
+      reloadUntil = 0; // switching cancels an in-progress reload (mirrors the server)
       room.send("weapon", { w });
+    }
+    // Manual reload (R): only if the weapon has a mag, isn't already reloading, and isn't full.
+    if (e.code === "KeyR" || e.key.toLowerCase() === "r") {
+      const spec = WEAPONS[myWeapon] ?? WEAPONS[0]!;
+      if (spec.mag > 0 && reloadUntil === 0 && ammo[myWeapon]! < spec.mag) {
+        reloadUntil = performance.now() + spec.reloadMs;
+        room.send("reload", {});
+      }
     }
   });
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
@@ -823,6 +872,11 @@ function ingestState(st: ShooterState, room: Room): void {
       if (id === myId) killStreak = 0; // a death breaks our streak
     } else if (was === false && p.alive) {
       effects.push({ kind: "respawn", x: p.x, y: p.y, until: now + 450 });
+      if (id === myId) {
+        // Fresh spawn = full mags, no reload (mirrors the server's spawnInto).
+        for (let i = 0; i < ammo.length; i++) ammo[i] = WEAPONS[i]!.mag;
+        reloadUntil = 0;
+      }
     }
     prevAlive.set(id, p.alive);
   }
@@ -899,9 +953,14 @@ function render(): void {
   const dir = isTouch ? stickMove : moveDir();
   const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
   lastDrawn.set(myId, { x: renderX, y: renderY });
-  // Touch auto-fire: hold the right stick past the threshold to keep shooting; the
-  // per-weapon cooldown mirror inside tryFire() rate-limits the per-frame calls.
-  if (isTouch && stickAim.fire) tryFire();
+  // Hold-to-fire: mouse held (desktop) or the right stick past its threshold (touch).
+  // The per-weapon cooldown + ammo gate inside tryFire() rate-limits the per-frame calls.
+  if (isTouch ? stickAim.fire : mouseHeld) tryFire();
+  // Finish a reload whose timer elapsed while not firing, so the HUD refills on time.
+  if (reloadUntil > 0 && now >= reloadUntil) {
+    ammo[myWeapon] = (WEAPONS[myWeapon] ?? WEAPONS[0]!).mag;
+    reloadUntil = 0;
+  }
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -1350,10 +1409,23 @@ function drawHud(
   ctx.fillStyle = "#8b98a8";
   ctx.fillText(`${count}/${MAX_PLAYERS} in view`, bx, by + 42);
 
-  // Equipped weapon.
+  // Equipped weapon + ammo/reload (ammo right-aligned on the same line).
   const spec = WEAPONS[weapon] ?? WEAPONS[0]!;
   ctx.fillStyle = "#e6edf3";
   ctx.fillText(`WEAPON ${spec.name}`, bx, by + 60);
+  ctx.textAlign = "right";
+  if (spec.mag <= 0) {
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText("∞", bx + bw, by + 60);
+  } else if (reloadUntil > 0 && performance.now() < reloadUntil) {
+    ctx.fillStyle = "#f2cc60";
+    ctx.fillText("RELOAD…", bx + bw, by + 60);
+  } else {
+    const n = ammo[weapon] ?? 0;
+    ctx.fillStyle = n <= spec.mag * 0.25 ? "#ff6b6b" : "#e6edf3";
+    ctx.fillText(`${n}/${spec.mag}`, bx + bw, by + 60);
+  }
+  ctx.textAlign = "left";
   // Damage-boost indicator (only while active).
   if (db) {
     ctx.fillStyle = "#ff9f43";
@@ -1361,7 +1433,7 @@ function drawHud(
   }
   // Controls hint (touch swaps the keyboard line for the stick legend).
   ctx.fillStyle = "#8b98a8";
-  ctx.fillText(isTouch ? "sticks: move / aim · tap 1-3" : "1/2/3 swap weapons", bx, by + 92);
+  ctx.fillText(isTouch ? "sticks: move / aim · tap 1-3" : "hold fire · 1/2/3 swap · R reload", bx, by + 92);
   ctx.textAlign = "start";
 }
 

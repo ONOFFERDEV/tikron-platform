@@ -106,5 +106,53 @@ describe("ShooterRoom fun pass (weapons / protection / zone / round)", () => {
     a.ws.close();
   });
 
+  it("locks the weapon tuning: rifle 20-mag, shotgun 4× dmg & unlimited, smg 40-mag & faster", () => {
+    expect(WEAPONS[0]!.mag).toBe(20);
+    expect(WEAPONS[1]!.damage).toBe(64); // 16 → ×4
+    expect(WEAPONS[1]!.mag).toBe(0); // unlimited (no reload)
+    expect(WEAPONS[2]!.mag).toBe(40);
+    expect(WEAPONS[2]!.cooldownMs).toBe(40); // 55 → faster
+  });
 
+  it("drains the rifle's 20-round mag, then forces a reload", async () => {
+    const a = await stateClient("fun-ammo");
+    const id = await a.myId();
+    await a.waitState((s) => s.players?.[id] !== undefined);
+    // Drain the mag. Space shots past the 100 ms cooldown so none are cooldown-
+    // rejected before the ammo logic; each accepted shot echoes an owner-only `ammo`.
+    let last: any;
+    for (let i = 0; i < 20; i++) {
+      a.send("shoot", { dir: 0 }, 10 + i, Date.now());
+      last = await a.waitMsg((m) => m.t === "s:msg" && m.type === "ammo");
+      await sleep(110);
+    }
+    expect(last.payload.n).toBe(0); // the 20th shot emptied it
+    expect(last.payload.rl).toBeGreaterThan(0); // and kicked off a reload
+    // Clear the self-delivered `shot` events buffered during the drain (the shooter
+    // is in its own AOI), so the next assertion only sees a fresh shot (or none).
+    for (;;) {
+      try {
+        await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot", 50);
+      } catch {
+        break;
+      }
+    }
+    // Firing while reloading is rejected: no new `shot` event lands.
+    a.send("shoot", { dir: 0 }, 200, Date.now());
+    await expect(a.waitMsg((m) => m.t === "s:msg" && m.type === "shot", 300)).rejects.toThrow();
+    a.ws.close();
+  });
+
+  it("never gates the unlimited shotgun with a reload (no ammo echo)", async () => {
+    const a = await stateClient("fun-sg-ammo");
+    const id = await a.myId();
+    await a.waitState((s) => s.players?.[id] !== undefined);
+    a.send("weapon", { w: 1 }, 2);
+    await a.waitState((s) => s.players?.[id]?.w === 1);
+    // A shotgun shot lands (a `shot` event) but never an `ammo` echo — mag 0 = unlimited.
+    a.send("shoot", { dir: 0 }, 3, Date.now());
+    await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
+    await expect(a.waitMsg((m) => m.t === "s:msg" && m.type === "ammo", 300)).rejects.toThrow();
+    a.ws.close();
+  });
 });
