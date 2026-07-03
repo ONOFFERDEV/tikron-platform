@@ -272,6 +272,155 @@ export async function topScores(
   return res.results ?? [];
 }
 
+// --- showcase (P6): the public "Made with Tikron" game gallery ---
+
+export type ShowcaseStatus = "pending" | "approved" | "rejected";
+
+export interface ShowcaseRow {
+  id: string;
+  project_id: string | null;
+  owner_github_id: string;
+  slug: string;
+  title: string;
+  tagline: string;
+  thumbnail_url: string;
+  play_url: string;
+  genres: string; // csv
+  author: string;
+  status: ShowcaseStatus;
+  featured: number; // 0 | 1
+  created_at: number;
+  updated_at: number;
+}
+
+/** Insert a submitted game (defaults to `pending` moderation). */
+export async function submitShowcaseGame(
+  db: D1Database,
+  g: {
+    id: string;
+    projectId: string | null;
+    ownerGithubId: string;
+    slug: string;
+    title: string;
+    tagline: string;
+    thumbnailUrl: string;
+    playUrl: string;
+    genres: string;
+    author: string;
+  },
+): Promise<ShowcaseRow> {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO showcase_games
+         (id, project_id, owner_github_id, slug, title, tagline, thumbnail_url, play_url,
+          genres, author, status, featured, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?, ?)`,
+    )
+    .bind(
+      g.id,
+      g.projectId,
+      g.ownerGithubId,
+      g.slug,
+      g.title,
+      g.tagline,
+      g.thumbnailUrl,
+      g.playUrl,
+      g.genres,
+      g.author,
+      now,
+      now,
+    )
+    .run();
+  return {
+    id: g.id,
+    project_id: g.projectId,
+    owner_github_id: g.ownerGithubId,
+    slug: g.slug,
+    title: g.title,
+    tagline: g.tagline,
+    thumbnail_url: g.thumbnailUrl,
+    play_url: g.playUrl,
+    genres: g.genres,
+    author: g.author,
+    status: "pending",
+    featured: 0,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+/** Public gallery: approved games, featured first, newest next. */
+export async function listApprovedShowcase(db: D1Database): Promise<ShowcaseRow[]> {
+  const res = await db
+    .prepare(
+      `SELECT * FROM showcase_games WHERE status = 'approved'
+       ORDER BY featured DESC, created_at DESC`,
+    )
+    .all<ShowcaseRow>();
+  return res.results ?? [];
+}
+
+/** A submitter's own games, any status (dashboard "my submissions"). */
+export async function listShowcaseByOwner(
+  db: D1Database,
+  ownerGithubId: string,
+): Promise<ShowcaseRow[]> {
+  const res = await db
+    .prepare(`SELECT * FROM showcase_games WHERE owner_github_id = ? ORDER BY created_at DESC`)
+    .bind(ownerGithubId)
+    .all<ShowcaseRow>();
+  return res.results ?? [];
+}
+
+/** Moderation queue: everything awaiting review, oldest first (FIFO). */
+export async function listPendingShowcase(db: D1Database): Promise<ShowcaseRow[]> {
+  const res = await db
+    .prepare(`SELECT * FROM showcase_games WHERE status = 'pending' ORDER BY created_at ASC`)
+    .all<ShowcaseRow>();
+  return res.results ?? [];
+}
+
+export async function getShowcaseGame(db: D1Database, id: string): Promise<ShowcaseRow | null> {
+  return db.prepare(`SELECT * FROM showcase_games WHERE id = ?`).bind(id).first<ShowcaseRow>();
+}
+
+/** Admin: set approval status and optionally the featured flag. */
+export async function setShowcaseStatus(
+  db: D1Database,
+  id: string,
+  status: ShowcaseStatus,
+  featured?: boolean,
+): Promise<boolean> {
+  const res =
+    featured === undefined
+      ? await db
+          .prepare(`UPDATE showcase_games SET status = ?, updated_at = ? WHERE id = ?`)
+          .bind(status, Date.now(), id)
+          .run()
+      : await db
+          .prepare(`UPDATE showcase_games SET status = ?, featured = ?, updated_at = ? WHERE id = ?`)
+          .bind(status, featured ? 1 : 0, Date.now(), id)
+          .run();
+  return (res.meta.changes ?? 0) > 0;
+}
+
+/** Delete a game. Scoped to `ownerGithubId` unless `asAdmin` (any row). */
+export async function deleteShowcaseGame(
+  db: D1Database,
+  id: string,
+  ownerGithubId: string,
+  asAdmin: boolean,
+): Promise<boolean> {
+  const res = asAdmin
+    ? await db.prepare(`DELETE FROM showcase_games WHERE id = ?`).bind(id).run()
+    : await db
+        .prepare(`DELETE FROM showcase_games WHERE id = ? AND owner_github_id = ?`)
+        .bind(id, ownerGithubId)
+        .run();
+  return (res.meta.changes ?? 0) > 0;
+}
+
 export async function loadCaps(db: D1Database): Promise<Caps> {
   const res = await db.prepare(`SELECT k, v FROM config`).all<{ k: string; v: string }>();
   const map = new Map((res.results ?? []).map((r) => [r.k, r.v]));

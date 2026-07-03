@@ -575,6 +575,21 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     };
   }
 
+  /**
+   * Showcase: live room + player counts for many projects in one RPC (no D1).
+   * Used by the public gallery to badge "N playing now" per game.
+   */
+  liveCountsForProjects(
+    projectIds: string[],
+  ): Record<string, { rooms: number; players: number }> {
+    this.prune(Date.now());
+    const out: Record<string, { rooms: number; players: number }> = {};
+    for (const pid of projectIds) {
+      out[pid] = { rooms: this.liveRoomsForProject(pid), players: this.projectCcu(pid) };
+    }
+    return out;
+  }
+
   /** Dashboard: live matchmaking rooms belonging to a project. */
   roomsForProject(projectId: string): RoomInfo[] {
     this.prune(Date.now());

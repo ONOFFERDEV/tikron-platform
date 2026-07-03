@@ -57,6 +57,12 @@ export interface Env {
    * the state check then live on one origin too).
    */
   CANONICAL_HOST?: string;
+  /**
+   * Comma-separated GitHub user ids allowed to moderate the public showcase
+   * (approve/reject/feature/delete any submission). Exposed to the dashboard as
+   * `isAdmin` on the session, never as the id list itself.
+   */
+  ADMIN_GITHUB_IDS?: string;
 }
 
 /**

@@ -46,7 +46,9 @@
     "DEMO_PROJECT_ID": "demo",
     // www -> apex 301 + pins the GitHub OAuth flow to this host (the OAuth
     // app's registered callback is host-exact).
-    "CANONICAL_HOST": "tikron.dev"
+    "CANONICAL_HOST": "tikron.dev",
+    // GitHub user ids allowed to moderate the public showcase (comma-separated).
+    "ADMIN_GITHUB_IDS": "144263374"
   },
   "observability": { "enabled": true }
 }

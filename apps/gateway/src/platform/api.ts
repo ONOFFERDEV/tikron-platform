@@ -4,14 +4,22 @@ import {
   createApiKey,
   createProject,
   deleteProject,
+  deleteShowcaseGame,
   getProject,
+  getShowcaseGame,
   listApiKeys,
+  listApprovedShowcase,
+  listPendingShowcase,
   listProjects,
+  listShowcaseByOwner,
   revokeApiKey,
+  setShowcaseStatus,
+  submitShowcaseGame,
   topScores,
   upsertUser,
   usageForProject,
   type ProjectRow,
+  type ShowcaseRow,
 } from "./db.js";
 import { generateApiKey, resolveProjectId } from "./apikeys.js";
 import { exchangeGithubCode, githubAuthorizeUrl } from "./github.js";
@@ -37,6 +45,61 @@ function devBypass(env: Env): boolean {
 
 function matchmaker(env: Env): DurableObjectStub<Matchmaker> {
   return env.Matchmaker.get(env.Matchmaker.idFromName("global"));
+}
+
+// --- showcase helpers ---
+
+const SHOWCASE_GENRES = new Set(["io", "fps", "casual", "board", "racing", "action", "other"]);
+
+/** Session is a showcase moderator (env allow-list of GitHub ids). */
+function isAdmin(env: Env, session: Session | null): boolean {
+  if (!session || !env.ADMIN_GITHUB_IDS) return false;
+  return env.ADMIN_GITHUB_IDS.split(",")
+    .map((s) => s.trim())
+    .includes(session.githubId);
+}
+
+/** Accept a same-origin path ("/x") or an absolute http(s) URL; reject the rest
+ *  (notably `javascript:` / `data:` — this feeds <img src> and a link target). */
+function isSafeUrl(v: unknown): v is string {
+  if (typeof v !== "string" || v.length === 0 || v.length > 2048) return false;
+  if (v.startsWith("/")) return true;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function kebab(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "game"
+  );
+}
+
+/** Wire shape for a showcase game. `live` merges the matchmaker's current
+ *  room/player counts (only for games linked to a project). */
+function showcaseView(r: ShowcaseRow, live?: { rooms: number; players: number }) {
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    tagline: r.tagline,
+    thumbnailUrl: r.thumbnail_url,
+    playUrl: r.play_url,
+    genres: r.genres ? r.genres.split(",").filter(Boolean) : [],
+    author: r.author,
+    status: r.status,
+    featured: r.featured === 1,
+    projectId: r.project_id,
+    livePlayers: live?.players ?? 0,
+    liveRooms: live?.rooms ?? 0,
+    createdAt: new Date(r.created_at).toISOString(),
+  };
 }
 
 // --- API-key resolution / connection enforcement (used by /parties/* + matchmake) ---
@@ -210,7 +273,13 @@ export async function handlePlatformApi(
       githubId: session.githubId,
       login: session.login,
       avatarUrl: session.avatarUrl ?? "",
+      isAdmin: isAdmin(env, session),
     });
+  }
+
+  // --- public showcase read + authed submit/moderation ---
+  if (path === "/api/platform/showcase" || path.startsWith("/api/platform/showcase/")) {
+    return handleShowcase(request, url, env);
   }
 
   // --- everything below requires a session ---
@@ -222,6 +291,127 @@ export async function handlePlatformApi(
   }
 
   return null;
+}
+
+/**
+ * Showcase router (`/api/platform/showcase*`). The list read is PUBLIC (no
+ * session); submit / "my games" / moderation all require a session, and the
+ * moderation routes additionally require admin (env allow-list).
+ */
+async function handleShowcase(request: Request, url: URL, env: Env): Promise<Response> {
+  const method = request.method;
+  const rest = url.pathname.slice("/api/platform/showcase".length); // "" | "/mine" | "/pending" | "/:id[/status]"
+
+  // Public gallery read — approved games, with live counts merged in.
+  if ((rest === "" || rest === "/") && method === "GET") {
+    if (!env.DB) return json([]);
+    const rows = await listApprovedShowcase(env.DB);
+    const pids = [...new Set(rows.map((r) => r.project_id).filter((p): p is string => !!p))];
+    let live: Record<string, { rooms: number; players: number }> = {};
+    if (pids.length > 0) {
+      try {
+        live = await matchmaker(env).liveCountsForProjects(pids);
+      } catch {
+        live = {}; // live counts are best-effort — never fail the gallery on them
+      }
+    }
+    const body = rows.map((r) => showcaseView(r, r.project_id ? live[r.project_id] : undefined));
+    return json(body, 200, { "Cache-Control": "public, max-age=10" });
+  }
+
+  // --- everything below requires a session ---
+  const session = await requireSession(env, request);
+  if (!session) return json({ error: "unauthenticated" }, 401);
+  if (!env.DB) return json({ error: "not_configured" }, 500);
+  const db = env.DB;
+  const admin = isAdmin(env, session);
+
+  // POST /api/platform/showcase — submit a game (defaults to pending).
+  if ((rest === "" || rest === "/") && method === "POST") {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    if (!title || title.length > 64) return json({ error: "invalid_title" }, 400);
+    if (!isSafeUrl(body.thumbnailUrl)) return json({ error: "invalid_thumbnail" }, 400);
+    if (!isSafeUrl(body.playUrl)) return json({ error: "invalid_play_url" }, 400);
+    const tagline = typeof body.tagline === "string" ? body.tagline.trim().slice(0, 140) : "";
+    const author = typeof body.author === "string" ? body.author.trim().slice(0, 64) : "";
+    const genresIn = Array.isArray(body.genres) ? body.genres : [];
+    const genres = [
+      ...new Set(
+        genresIn.filter((g): g is string => typeof g === "string" && SHOWCASE_GENRES.has(g)),
+      ),
+    ];
+    // Optional project link — must be owned by the submitter (drives live counts).
+    let projectId: string | null = null;
+    if (typeof body.projectId === "string" && body.projectId) {
+      const owned = await ownedProject(env, session, body.projectId);
+      if (!owned.ok) return owned.res;
+      projectId = body.projectId;
+    }
+    const id = crypto.randomUUID();
+    const slug = `${kebab(title).slice(0, 48)}-${id.slice(0, 6)}`;
+    const row = await submitShowcaseGame(db, {
+      id,
+      projectId,
+      ownerGithubId: session.githubId,
+      slug,
+      title,
+      tagline,
+      thumbnailUrl: body.thumbnailUrl as string,
+      playUrl: body.playUrl as string,
+      genres: genres.join(","),
+      author,
+    });
+    return json(showcaseView(row), 201);
+  }
+
+  // GET /api/platform/showcase/mine — the session's own submissions, any status.
+  if (rest === "/mine" && method === "GET") {
+    const rows = await listShowcaseByOwner(db, session.githubId);
+    return json(rows.map((r) => showcaseView(r)));
+  }
+
+  // GET /api/platform/showcase/pending — moderation queue (admin only).
+  if (rest === "/pending" && method === "GET") {
+    if (!admin) return json({ error: "forbidden" }, 403);
+    const rows = await listPendingShowcase(db);
+    return json(rows.map((r) => showcaseView(r)));
+  }
+
+  // /:id[/status]
+  const parts = rest.split("/").filter(Boolean); // [id] | [id, "status"]
+  const id = parts[0];
+  const sub = parts[1];
+
+  // POST /api/platform/showcase/:id/status — approve | reject | pending (+featured).
+  if (id && sub === "status" && method === "POST") {
+    if (!admin) return json({ error: "forbidden" }, 403);
+    const body = (await request.json().catch(() => ({}))) as { status?: string; featured?: boolean };
+    const status = body.status;
+    if (status !== "approved" && status !== "rejected" && status !== "pending") {
+      return json({ error: "invalid_status" }, 400);
+    }
+    const ok = await setShowcaseStatus(
+      db,
+      id,
+      status,
+      typeof body.featured === "boolean" ? body.featured : undefined,
+    );
+    return ok ? json({ ok: true }) : json({ error: "not_found" }, 404);
+  }
+
+  // DELETE /api/platform/showcase/:id — owner or admin. Non-owners get 404
+  // (existence is hidden), mirroring the project-delete contract.
+  if (id && sub === undefined && method === "DELETE") {
+    if (!admin) {
+      const row = await getShowcaseGame(db, id);
+      if (!row || row.owner_github_id !== session.githubId) return json({ error: "not_found" }, 404);
+    }
+    const ok = await deleteShowcaseGame(db, id, session.githubId, admin);
+    return ok ? json({ ok: true }) : json({ error: "not_found" }, 404);
+  }
+
+  return json({ error: "method_not_allowed" }, 405);
 }
 
 async function handleProjects(

@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Games built on Tikron — the showcase</title>
+    <meta
+      name="description"
+      content="A gallery of multiplayer web games built on Tikron — server-authoritative, edge-hosted, and live right now. Submit your own game to the Made-with-Tikron showcase."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Games built on Tikron" />
+    <meta
+      property="og:description"
+      content="Multiplayer web games built on Tikron — server-authoritative, edge-hosted, live now."
+    />
+    <meta name="theme-color" content="#0a0e14" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/brand.css" />
+    <style>
+      /* page-specific layout (shared tokens/components live in brand.css) */
+      .head {
+        padding: 56px 0 8px;
+      }
+      .head h1 {
+        font-size: clamp(30px, 5vw, 46px);
+        margin-top: 14px;
+      }
+      .head .lead {
+        color: var(--muted);
+        max-width: 56ch;
+        font-size: clamp(15px, 2vw, 18px);
+      }
+      .head-cta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px;
+        margin-top: 22px;
+      }
+      .livecount {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--neon);
+      }
+      .livecount::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--neon);
+        box-shadow: var(--glow);
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* filter chips */
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 26px 0 6px;
+      }
+      .chip {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--raised);
+        color: var(--muted);
+        cursor: pointer;
+        transition:
+          border-color 0.12s ease,
+          color 0.12s ease,
+          background 0.12s ease;
+      }
+      .chip:hover {
+        color: var(--text);
+        border-color: #33404f;
+      }
+      .chip[aria-pressed="true"] {
+        color: #04120c;
+        background: var(--neon);
+        border-color: var(--neon);
+      }
+
+      /* grid */
+      .grid-games {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        padding: 8px 0 8px;
+      }
+      .gcard {
+        display: flex;
+        flex-direction: column;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        color: var(--text);
+        text-decoration: none;
+        transition:
+          border-color 0.12s ease,
+          transform 0.12s ease,
+          box-shadow 0.12s ease;
+      }
+      .gcard:hover {
+        text-decoration: none;
+        border-color: rgba(0, 229, 160, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.4);
+      }
+      .gthumb {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        background: #070a0f;
+      }
+      .gthumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .glive {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: rgba(4, 18, 12, 0.82);
+        border: 1px solid rgba(0, 229, 160, 0.5);
+        color: var(--neon);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        backdrop-filter: blur(4px);
+      }
+      .glive::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--neon);
+        box-shadow: var(--glow);
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      .gfeatured {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(10, 14, 20, 0.82);
+        border: 1px solid var(--border);
+        color: var(--warn);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        backdrop-filter: blur(4px);
+      }
+      .gbody {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px 16px;
+        flex: 1;
+      }
+      .gtitle {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .gtag {
+        color: var(--muted);
+        font-size: 13.5px;
+        line-height: 1.5;
+        flex: 1;
+      }
+      .gmeta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .gpill {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .gpill.multi {
+        color: var(--secondary);
+        border-color: rgba(88, 166, 255, 0.4);
+      }
+      .gauthor {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+      .gauthor b {
+        color: var(--neon);
+        font-weight: 600;
+      }
+
+      /* states */
+      .state {
+        text-align: center;
+        color: var(--muted);
+        padding: 64px 20px;
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+      }
+      .state h3 {
+        color: var(--text);
+        font-size: 18px;
+      }
+      .sk {
+        border-radius: 14px;
+        background: linear-gradient(90deg, var(--panel), var(--raised), var(--panel));
+        background-size: 200% 100%;
+        animation: sk 1.3s ease-in-out infinite;
+        aspect-ratio: 16 / 10.5;
+      }
+      @keyframes sk {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .glive::before,
+        .livecount::before,
+        .sk {
+          animation: none;
+        }
+      }
+
+      footer {
+        color: var(--muted);
+        font-size: 14px;
+        padding: 34px 0 56px;
+        border-top: 1px solid var(--border);
+        margin-top: 40px;
+      }
+      footer .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- top bar -->
+    <div class="container">
+      <header class="topbar">
+        <a class="wordmark" href="/" aria-label="Tikron home">
+          <img src="/favicon.svg" width="26" height="26" alt="" />
+          t<span class="i">i</span>kron
+        </a>
+        <nav>
+          <a href="/games.html" style="color: var(--text)">Games</a>
+          <a href="/shooter.html">Demo</a>
+          <a href="/dashboard/">Dashboard</a>
+          <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
+          <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
+          <a class="btn btn-primary" href="/dashboard/showcase">Submit your game</a>
+        </nav>
+      </header>
+    </div>
+
+    <!-- header -->
+    <section class="section head">
+      <div class="container">
+        <span class="eyebrow">made with tikron</span>
+        <h1>Games built on Tikron</h1>
+        <p class="lead">
+          Multiplayer web games running on Tikron — server-authoritative, edge-hosted, and
+          many of them live right now. Built one? Put it in front of every developer who
+          lands here.
+        </p>
+        <div class="head-cta">
+          <a class="btn btn-primary" href="/dashboard/showcase">Submit your game</a>
+          <span id="livecount" class="livecount" hidden></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- filters + grid -->
+    <section class="section" style="border-top: none; padding-top: 0">
+      <div class="container">
+        <div id="filters" class="filters" role="group" aria-label="Filter by genre" hidden></div>
+        <div id="content"></div>
+      </div>
+    </section>
+
+    <!-- footer -->
+    <footer>
+      <div class="container">
+        <a class="wordmark" href="/" style="font-size: 16px">
+          t<span class="i">i</span>kron
+        </a>
+        <div class="links">
+          <a href="/">Home</a>
+          <a href="/shooter.html">FPS demo</a>
+          <a href="/dashboard/">Dashboard</a>
+          <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
+          <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // Public "Made with Tikron" gallery. Reads GET /api/platform/showcase
+      // (approved games + live room/player counts merged in), renders a filterable
+      // card grid, and refreshes live counts every 15s. No dependencies.
+      (function () {
+        const GENRE_ORDER = ["io", "fps", "casual", "board", "racing", "action", "other"];
+        const GENRE_LABEL = {
+          io: ".io",
+          fps: "FPS",
+          casual: "Casual",
+          board: "Board",
+          racing: "Racing",
+          action: "Action",
+          other: "Other",
+        };
+        const contentEl = document.getElementById("content");
+        const filtersEl = document.getElementById("filters");
+        const liveEl = document.getElementById("livecount");
+        let games = [];
+        let active = "all";
+        let loaded = false;
+
+        const esc = (s) =>
+          String(s == null ? "" : s).replace(
+            /[&<>"']/g,
+            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+          );
+
+        // Only same-origin paths and http(s) URLs are ever rendered as hrefs.
+        function safeHref(u) {
+          if (typeof u !== "string") return "#";
+          if (u.startsWith("/")) return u;
+          try {
+            const p = new URL(u).protocol;
+            return p === "https:" || p === "http:" ? u : "#";
+          } catch {
+            return "#";
+          }
+        }
+        const isInternal = (u) => typeof u === "string" && u.startsWith("/");
+
+        function skeletons() {
+          contentEl.innerHTML =
+            '<div class="grid-games">' +
+            Array.from({ length: 6 }, () => '<div class="sk"></div>').join("") +
+            "</div>";
+        }
+
+        function renderFilters() {
+          const present = new Set();
+          for (const g of games) (g.genres || []).forEach((x) => present.add(x));
+          const genres = GENRE_ORDER.filter((x) => present.has(x));
+          if (genres.length === 0) {
+            filtersEl.hidden = true;
+            return;
+          }
+          const chips = [["all", "All"]].concat(genres.map((g) => [g, GENRE_LABEL[g] || g]));
+          filtersEl.innerHTML = chips
+            .map(
+              ([key, label]) =>
+                '<button class="chip" data-genre="' +
+                esc(key) +
+                '" aria-pressed="' +
+                (active === key) +
+                '">' +
+                esc(label) +
+                "</button>",
+            )
+            .join("");
+          filtersEl.hidden = false;
+          filtersEl.querySelectorAll(".chip").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              active = btn.dataset.genre;
+              filtersEl
+                .querySelectorAll(".chip")
+                .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.genre === active)));
+              renderGrid();
+            });
+          });
+        }
+
+        function card(g) {
+          const href = safeHref(g.playUrl);
+          const target = isInternal(g.playUrl) ? "" : ' target="_blank" rel="noopener"';
+          const live =
+            g.livePlayers > 0
+              ? '<span class="glive">' +
+                g.livePlayers +
+                " playing" +
+                (g.liveRooms > 1 ? " · " + g.liveRooms + " rooms" : "") +
+                "</span>"
+              : "";
+          const featured = g.featured ? '<span class="gfeatured">★ featured</span>' : "";
+          const pills = (g.genres || [])
+            .map((x) => '<span class="gpill">' + esc(GENRE_LABEL[x] || x) + "</span>")
+            .join("");
+          const author = g.author
+            ? '<div class="gauthor">by ' + esc(g.author) + " · <b>Made with Tikron</b></div>"
+            : '<div class="gauthor"><b>Made with Tikron</b></div>';
+          const thumb = safeHref(g.thumbnailUrl);
+          return (
+            '<a class="gcard" href="' +
+            esc(href) +
+            '"' +
+            target +
+            ">" +
+            '<div class="gthumb">' +
+            '<img loading="lazy" src="' +
+            esc(thumb) +
+            '" alt="' +
+            esc(g.title) +
+            '" />' +
+            live +
+            featured +
+            "</div>" +
+            '<div class="gbody">' +
+            '<div class="gtitle">' +
+            esc(g.title) +
+            "</div>" +
+            '<div class="gtag">' +
+            esc(g.tagline) +
+            "</div>" +
+            '<div class="gmeta"><span class="gpill multi">Multiplayer</span>' +
+            pills +
+            "</div>" +
+            author +
+            "</div>" +
+            "</a>"
+          );
+        }
+
+        function renderGrid() {
+          const rows = active === "all" ? games : games.filter((g) => (g.genres || []).includes(active));
+          if (rows.length === 0) {
+            contentEl.innerHTML =
+              '<div class="state"><h3>No games in this category yet</h3><p>Be the first — ' +
+              '<a href="/dashboard/showcase">submit your game</a>.</p></div>';
+            return;
+          }
+          contentEl.innerHTML = '<div class="grid-games">' + rows.map(card).join("") + "</div>";
+        }
+
+        function renderLiveTotal() {
+          const total = games.reduce((s, g) => s + (g.livePlayers || 0), 0);
+          if (total > 0) {
+            liveEl.textContent = total + " playing across all games right now";
+            liveEl.hidden = false;
+          } else {
+            liveEl.hidden = true;
+          }
+        }
+
+        function renderEmpty() {
+          filtersEl.hidden = true;
+          contentEl.innerHTML =
+            '<div class="state"><h3>The showcase is just getting started</h3>' +
+            "<p>Ship a multiplayer game on Tikron and it can live here — with a live " +
+            '“players now” badge pulled straight from your rooms. <a href="/dashboard/showcase">' +
+            "Submit your game</a>.</p></div>";
+        }
+
+        async function load() {
+          try {
+            const res = await fetch("/api/platform/showcase", { credentials: "include" });
+            if (!res.ok) throw new Error("http " + res.status);
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error("bad payload");
+            games = data;
+            loaded = true;
+            if (games.length === 0) {
+              renderEmpty();
+              renderLiveTotal();
+              return;
+            }
+            renderFilters();
+            renderGrid();
+            renderLiveTotal();
+          } catch (e) {
+            if (loaded) return; // a failed poll keeps the last good render
+            contentEl.innerHTML =
+              '<div class="state"><h3>Couldn’t load the showcase</h3>' +
+              '<p>Please retry in a moment.</p></div>';
+          }
+        }
+
+        skeletons();
+        load();
+        // Refresh live counts periodically; pause when the tab is hidden.
+        let timer = window.setInterval(load, 15000);
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            window.clearInterval(timer);
+          } else {
+            load();
+            timer = window.setInterval(load, 15000);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

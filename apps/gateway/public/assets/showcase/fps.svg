@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Tikron FPS Arena">
+  <defs>
+    <linearGradient id="fps-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1420"/>
+      <stop offset="1" stop-color="#0a0e14"/>
+    </linearGradient>
+    <radialGradient id="fps-glow" cx="0.72" cy="0.32" r="0.6">
+      <stop offset="0" stop-color="#00e5a0" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#00e5a0" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="fps-grid" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="skewX(-18)">
+      <path d="M40 0H0V40" fill="none" stroke="#1b2634" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="640" height="360" fill="url(#fps-bg)"/>
+  <rect width="640" height="360" fill="url(#fps-grid)" opacity="0.7"/>
+  <rect width="640" height="360" fill="url(#fps-glow)"/>
+  <!-- reticle -->
+  <g transform="translate(452 150)" stroke="#00e5a0" stroke-width="3" fill="none" opacity="0.9">
+    <circle r="34" opacity="0.55"/>
+    <path d="M0 -48V-20 M0 20V48 M-48 0H-20 M20 0H48" stroke-linecap="round"/>
+    <circle r="3.5" fill="#00e5a0" stroke="none"/>
+  </g>
+  <text x="40" y="250" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="40" font-weight="700" fill="#e6edf3">FPS Arena</text>
+  <text x="42" y="284" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="16" fill="#8b98a8">64-player · server-authoritative · edge</text>
+  <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" font-weight="600">
+    <rect x="40" y="40" width="132" height="26" rx="13" fill="none" stroke="#00e5a0" stroke-opacity="0.5"/>
+    <text x="56" y="57" fill="#00e5a0">MADE WITH TIKRON</text>
+  </g>
+</svg>
