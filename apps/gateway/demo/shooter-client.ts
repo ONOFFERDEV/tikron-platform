@@ -1119,12 +1119,12 @@ function drawGround(camX: number, camY: number): void {
   // frame re-rasterized a busy texture — genuinely eye-straining); a flat brand
   // ground + a sparse, low-contrast dot grid gives the camera the same motion
   // cue with none of the noise.
-  ctx.fillStyle = "#0b0f15";
+  ctx.fillStyle = "#3b4049";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const grid = 56;
   const startX = -(((camX % grid) + grid) % grid);
   const startY = -(((camY % grid) + grid) % grid);
-  ctx.fillStyle = "rgba(35,45,58,0.55)";
+  ctx.fillStyle = "rgba(90,98,110,0.5)";
   for (let x = startX; x < canvas.width; x += grid) {
     for (let y = startY; y < canvas.height; y += grid) {
       ctx.fillRect(x, y, 2, 2);
