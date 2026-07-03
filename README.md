@@ -37,8 +37,9 @@ npx create-tikron my-game        # scaffold a standalone game (recommended)
 npm i @tikron/client @tikron/server @tikron/schema partyserver
 ```
 
-The published `@tikron/*` packages are at **0.3.0**. Client and server share the wire
-protocol — run the **same minor** on both sides (0.1.x and 0.2.x are not wire-compatible).
+The published `@tikron/*` packages are at **0.4.0**. Client and server share the wire
+protocol — keep both sides on a wire-compatible line: **0.3.x and 0.4.x interoperate**
+(0.4 adds client/server APIs only); 0.1.x and 0.2.x are not wire-compatible with them.
 
 ## Monorepo layout
 
@@ -65,7 +66,9 @@ tools/
 
 - **Runtime:** Cloudflare Workers + Durable Objects via [`partyserver`](https://github.com/cloudflare/partykit) (ISC).
 - **Language:** TypeScript everywhere. **Package manager:** pnpm workspaces + Turborepo.
-- **Tick model:** 20–30 Hz `setInterval` authoritative loop; 20 Hz state broadcast.
+- **Tick model:** fixed-timestep `setInterval` authoritative loop; the loop drains
+  inputs, records lag-comp history and flushes state each tick, so `tickMs` IS the
+  network update rate (presets default to 20 Hz; the FPS demo runs its room at 60 Hz).
 
 ## Development
 

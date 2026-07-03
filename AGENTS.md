@@ -267,7 +267,12 @@ Rules of thumb:
   between 1 and `tolerance`.
 - Message budget: keep `1000/stepMs × message-types-per-tick` under the room's
   `maxInputsPerSecond` (default 30), or moves get silently dropped — the shooter room raises
-  it to 60 for a 20 Hz move stream plus shots.
+  it to 90 for a 30 Hz move stream plus SMG fire.
+- Raising the network rate = lower `tickMs` (the loop drains inputs + flushes state per
+  tick; `syncIntervalMs` alone cannot raise it — set it ≤ `tickMs` so the coalesce window
+  doesn't throttle the flushes back down). Keep `queueInputs` ON: per-input immediate
+  dispatch sends every ack as its own write and measurably regresses latency at scale
+  (drain-batched acks coalesce; measured in docs/PERF.md "LAT-2").
 - `RenderPredictor` is a different model from `InputPredictor` (input replay for
   server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
   InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.

@@ -205,6 +205,63 @@ AOI-filtered shot tracers). 100 players, one room, 45 s, 10 s ramp:
   the shooter room; the tail (p99 213 ms, no spikes) is what matters for
   prediction-masked play.
 
+## 100 players, one room — track-A netcode pass (2026-07-03, deployed)
+
+Same `fps` scenario after the latency/feel pass (PLAN-LATENCY-UDP track A):
+**30 Hz room loop** (input drain + lag snapshots + flush; `tickMs = 33` — the
+IoArena preset ties all three to the tick, so `syncIntervalMs` alone cannot
+raise the send rate), aggregate `MoveBudget` token bucket, rewind depth capped
+at 200 ms, `receivedAt`-based move timing (drain-time `Date.now()` quantized
+real arrival spacing onto the tick grid and mis-rejected legal moves — fixed
+in the core by stamping receipt time on every input). 100 players, one room,
+30 s, 10 s ramp (`results/trackA-100p-fps-30hz-v2.json`):
+
+| metric | 20 Hz loop (before) | 30 Hz loop (after) |
+|---|---|---|
+| connect success / closes / spikes | 100/100 · 0 · 0 | **100/100 · 0 · 0** |
+| server tick+flush (tk:stats) | 0 ms | **0 ms** (all buckets) |
+| raw state-frame gap p50 / p95 | 49.6 / 62.2 ms | **35.4 / 72.4 ms** |
+| ack RTT p50 / p95 / p99 | 112.2 / 132.4 / 148.6 ms | **70.6 / 95.2 / 112.0 ms** |
+| downlink/client | 7.85 KiB/s | 8.32 KiB/s |
+
+- **Ack p50 −37%** (112 → 71 ms): inputs drain every 33 ms instead of 50 (mean
+  queue wait ~25 → ~17 ms) and the acked flush leaves sooner.
+- **+20% state frames for +6% bandwidth** — deltas per frame shrink when frames
+  come more often, so the rate hike is nearly free on the wire.
+- Server processing stays at 0 ms with 1.5× flush/lag-snapshot cadence — the
+  <20 ms budget has enormous headroom at 100 CCU.
+- Client side (shipped with the same pass): adaptive interpolation delay
+  (`SnapshotBuffer` starvation-feedback controller, 60–200 ms band), ~50 ms
+  capped velocity extrapolation across a late/lost frame, min-RTT clock-sync
+  offset filter, and instant local fire feedback (muzzle/tracer/sound at
+  mousedown; the server's rewound hitscan stays authoritative).
+
+## 100 players, one room — LAT-2 pass: 60 Hz loop (2026-07-03, deployed)
+
+Second latency pass: room loop 30 → **60 Hz** (`tickMs = 16`), client sends
+20 → 30 Hz (`stepMs = 33`), adaptive interpolation floor 60 → 30 ms. The one
+NEGATIVE result matters most: `queueInputs = false` (per-input immediate
+dispatch) was tried first and REGRESSED ack p50 70.6 → 90.7 ms with 152 >1 s
+stalls — every input's ack became its own write on top of the 60 Hz flush
+fan-out (~8k sends/s at 100p). With the queue kept ON, drain-batched acks
+coalesce those writes AND the 60 Hz drain only costs a mean 8 ms of wait
+(`results/lat2-100p-fps.json` vs `results/lat2b-100p-fps.json`):
+
+| metric | 30 Hz loop | 60 Hz + immediate acks | **60 Hz + queued (shipped)** |
+|---|---|---|---|
+| ack RTT p50 / p95 | 70.6 / 95.2 ms | 90.7 / 115.0 ❌ | **61.3 / 97.1 ms** |
+| ack spikes >1 s | 0 | 152 ❌ | **0** |
+| raw state-frame gap p50 | 35.4 ms | 25.2 ms | **21.5 ms** |
+| downlink/client | 16.2 KiB/s | 16.4 KiB/s | 19.5 KiB/s |
+| server tick+flush / closes | 0 ms · 0 | 0 ms · 0 | **0 ms · 0** |
+
+- The remaining ack latency is mostly physics: the measuring connection's
+  Cloudflare edge is **HKG** (TCP connect ~48 ms from Seoul — the ICN PoP
+  mostly serves Enterprise plans), so ~50+ ms of the 61.3 is the Seoul↔Hong
+  Kong round trip. Server-side waiting is now ~8 ms mean and CPU is 0 ms.
+- Perceived remote latency (one-way + gap/2 + adaptive interp) lands around
+  ~75–85 ms, down ~30% from the 30 Hz pass (~110 ms).
+
 ## Baselines
 
 - `ttt-json` (turn-based, JSON sync, no tick): 77 B/s per idle client — a
