@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "emberfall",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  // No custom domain yet — deploy target is workers.dev until M5 (play.tikron.dev).
+  "durable_objects": {
+    "bindings": [
+      { "name": "VillageRoom", "class_name": "VillageRoom" },
+      { "name": "FieldRoom", "class_name": "FieldRoom" },
+      { "name": "DungeonRoom", "class_name": "DungeonRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["VillageRoom", "FieldRoom", "DungeonRoom"] }
+  ],
+  // Anonymous-token character storage (§5) — separate from the platform D1.
+  // Migrations live in ./migrations.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "emberfall-game",
+      "database_id": "56548ac3-bea4-4152-914d-4e0aa6676c58",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "assets": { "directory": "./public" },
+  "observability": { "enabled": true }
+}

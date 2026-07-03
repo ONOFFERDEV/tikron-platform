@@ -1,0 +1,41 @@
+{
+  "_readme": "Tier-1 procedural + Tier-2 real CC0 models. Monster entries point at Quaternius Ultimate Monsters glTF (CC0, self-contained, animated: Idle/Walk/Run/HitReact/Death/Jump). Hero/skeleton entries point at KayKit Adventurers/Skeletons GLBs (CC0): the character mesh has zero embedded animations, so `animSource` supplies the shared 'Rig_Medium' rig GLBs (General = Idle/Hit/Death/Throw/Use_Item, MovementBasic = Walking/Running) whose clips are merged in and bound by shared bone names. anims maps game states -> glTF clip names. Wolf/wraith/golem stay procedural. Village/dungeon/field static props point at KayKit Medieval Hexagon Pack (buildings/blue + neutral fence + decoration nature/props) and KayKit Dungeon Remastered (pillar, torch_lit) glTF, all CC0, no anims needed. See ASSETS.md. `faceOffset` (radians): all KayKit/Quaternius unit models are set to 1.5708 (Pi/2) as a first-guess correction for the capsule-vs-GLB forward-axis mismatch (units.ts does `rotation.y = -facing + faceOffset`; the procedural capsule faces +X at offset 0, these GLBs are assumed to face +Z). If a model ends up facing directly opposite its travel direction after a browser check, flip it by Pi (i.e. -1.5708 or 4.7124); if it's off 90 degrees the other way, use -1.5708 instead.",
+
+  "unit.warrior": { "model": "/assets/models/Knight.glb", "scale": 1.0, "animSource": ["/assets/models/kaykit_adv_rig_general.glb", "/assets/models/kaykit_adv_rig_movement.glb"], "anims": { "idle": "Idle_A", "walk": "Walking_A", "attack": "Throw", "cast": "Use_Item", "hit": "Hit_A", "death": "Death_A" }, "faceOffset": 1.5708 },
+  "unit.mage": { "model": "/assets/models/Mage.glb", "scale": 1.0, "animSource": ["/assets/models/kaykit_adv_rig_general.glb", "/assets/models/kaykit_adv_rig_movement.glb"], "anims": { "idle": "Idle_A", "walk": "Walking_A", "attack": "Throw", "cast": "Use_Item", "hit": "Hit_A", "death": "Death_A" }, "faceOffset": 1.5708 },
+  "unit.cleric": { "model": "/assets/models/Ranger.glb", "scale": 1.0, "animSource": ["/assets/models/kaykit_adv_rig_general.glb", "/assets/models/kaykit_adv_rig_movement.glb"], "anims": { "idle": "Idle_A", "walk": "Walking_A", "attack": "Throw", "cast": "Use_Item", "hit": "Hit_A", "death": "Death_A" }, "faceOffset": 1.5708 },
+
+  "unit.wolf": { "primitive": "capsule", "tint": "#8f7a63", "scale": 0.75 },
+  "unit.goblin": { "model": "/assets/models/Demon.gltf", "scale": 0.9, "anims": { "idle": "Idle", "walk": "Walk", "attack": "Jump", "hit": "HitReact", "death": "Death" }, "faceOffset": 1.5708 },
+  "unit.goblin_thrower": { "model": "/assets/models/Cactoro.gltf", "scale": 0.9, "anims": { "idle": "Idle", "walk": "Walk", "attack": "Jump", "hit": "HitReact", "death": "Death" }, "faceOffset": 1.5708 },
+  "unit.boar": { "model": "/assets/models/Dino.gltf", "scale": 1.0, "anims": { "idle": "Idle", "walk": "Walk", "attack": "Jump", "hit": "HitReact", "death": "Death" }, "faceOffset": 1.5708 },
+  "unit.goblin_shaman": { "model": "/assets/models/BlueDemon.gltf", "scale": 0.9, "anims": { "idle": "Idle", "walk": "Walk", "attack": "Jump", "cast": "Jump", "hit": "HitReact", "death": "Death" }, "faceOffset": 1.5708 },
+  "unit.skeleton": { "model": "/assets/models/Skeleton_Warrior.glb", "scale": 1.0, "animSource": ["/assets/models/kaykit_skel_rig_general.glb", "/assets/models/kaykit_skel_rig_movement.glb"], "anims": { "idle": "Idle_A", "walk": "Walking_A", "attack": "Throw", "hit": "Hit_A", "death": "Death_A" }, "faceOffset": 1.5708 },
+  "unit.wraith": { "model": "/assets/models/Skeleton_Mage.glb", "scale": 1.0, "animSource": ["/assets/models/kaykit_skel_rig_general.glb", "/assets/models/kaykit_skel_rig_movement.glb"], "anims": { "idle": "Idle_A", "walk": "Walking_A", "attack": "Throw", "cast": "Use_Item", "hit": "Hit_A", "death": "Death_A" }, "faceOffset": 1.5708 },
+  "unit.golem": { "primitive": "capsule", "tint": "#8f8d86", "scale": 1.4 },
+  "unit.boss_chief": { "model": "/assets/models/Demon.gltf", "scale": 1.8, "anims": { "idle": "Idle", "walk": "Walk", "attack": "Jump", "hit": "HitReact", "death": "Death" }, "faceOffset": 1.5708 },
+  "unit.boss_lord": { "primitive": "capsule", "tint": "#e08a2b", "scale": 1.9 },
+
+  "npc.vendor": { "primitive": "capsule", "tint": "#4fa8d2", "scale": 1.0 },
+  "npc.shopkeeper": { "model": "/assets/models/building_market_blue.gltf", "scale": 2.2 },
+
+  "prop.tree_a": { "model": "/assets/models/tree_single_A.gltf", "scale": 2.5 },
+  "prop.rock_a": { "model": "/assets/models/rock_single_A.gltf", "scale": 4.0 },
+  "prop.tent": { "primitive": "box", "tint": "#8a5a3a", "scale": 1.0 },
+
+  "prop.house_a": { "model": "/assets/models/building_home_A_blue.gltf", "scale": 5.0 },
+  "prop.house_b": { "model": "/assets/models/building_home_B_blue.gltf", "scale": 3.8 },
+  "prop.well": { "model": "/assets/models/building_well_blue.gltf", "scale": 2.6 },
+  "prop.fence": { "model": "/assets/models/fence_stone_straight.gltf", "scale": 4.8 },
+  "prop.torch": { "model": "/assets/models/torch_lit.gltf", "scale": 1.2 },
+  "prop.training_dummy": { "model": "/assets/models/target.gltf", "scale": 4.3 },
+
+  "prop.dungeon_pillar": { "model": "/assets/models/pillar.gltf", "scale": 1.2 },
+  "prop.brazier": { "model": "/assets/models/torch_lit.gltf", "scale": 1.3 },
+
+  "prop.tree_b": { "model": "/assets/models/tree_single_B.gltf", "scale": 2.5 },
+  "prop.rock_b": { "model": "/assets/models/rock_single_B.gltf", "scale": 4.0 },
+  "prop.goblin_tent": { "model": "/assets/models/tent.gltf", "scale": 3.5 },
+
+  "fallback": { "primitive": "capsule", "tint": "#8899aa", "scale": 1.0 }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@tikron/rpg",
+  "version": "0.5.0",
+  "description": "Isomorphic RPG combat core for Tikron — data-driven skills, buffs, effects, stats, and combat math as pure deterministic reducers shared by the authoritative room and the client HUD. Zero timers, zero globals.",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "type": "module",
+  "keywords": ["tikron", "multiplayer", "game", "rpg", "mmorpg", "skills", "buffs", "combat", "deterministic"],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/rpg"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tikron/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.0"
+  }
+}
