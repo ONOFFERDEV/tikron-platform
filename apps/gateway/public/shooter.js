@@ -2237,9 +2237,22 @@ var client = new GameClient(location.host, {
   inputBatchMs: 33
 });
 var sprites = {};
-var sounds = {};
+var soundBuffers = {};
+var SFX_VOLUME = 0.25;
 var assetsReady = false;
 var audioUnlocked = false;
+var audioCtx = null;
+function getAudioCtx() {
+  if (audioCtx) return audioCtx;
+  const Ctor = window.AudioContext ?? window.webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    audioCtx = new Ctor();
+  } catch {
+    audioCtx = null;
+  }
+  return audioCtx;
+}
 function resolveAsset(name) {
   if (/^(https?:)?\/\//.test(name) || name.startsWith("/")) return name;
   return ASSET_BASE + name;
@@ -2258,24 +2271,26 @@ function loadImage(url, onSettled) {
     img.src = url;
   });
 }
-function loadAudio(url, onSettled) {
-  return new Promise((resolve) => {
-    const audio = new Audio();
-    let done = false;
-    const finish = (ok) => {
-      if (done) return;
-      done = true;
-      onSettled();
-      resolve(ok ? audio : null);
-    };
-    audio.addEventListener("canplaythrough", () => finish(true), { once: true });
-    audio.addEventListener("error", () => finish(false), { once: true });
-    setTimeout(() => finish(true), 4e3);
-    audio.preload = "auto";
-    audio.volume = 0.25;
-    audio.src = url;
-    audio.load();
-  });
+async function loadAudioBuffer(url, onSettled) {
+  const ctx2 = getAudioCtx();
+  if (!ctx2) {
+    onSettled();
+    return null;
+  }
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) throw new Error(String(res.status));
+    const raw = await res.arrayBuffer();
+    const buf = await new Promise((resolve, reject) => {
+      const maybe = ctx2.decodeAudioData(raw, resolve, reject);
+      if (maybe && typeof maybe.then === "function") maybe.then(resolve, reject);
+    });
+    onSettled();
+    return buf;
+  } catch {
+    onSettled();
+    return null;
+  }
 }
 async function preloadAssets(onProgress) {
   if (assetsReady) {
@@ -2308,8 +2323,8 @@ async function preloadAssets(onProgress) {
       if (img) sprites[key] = img;
     }),
     ...audioEntries.map(async ([key, file]) => {
-      const audio = await loadAudio(resolveAsset(file), bump);
-      if (audio) sounds[key] = audio;
+      const buf = await loadAudioBuffer(resolveAsset(file), bump);
+      if (buf) soundBuffers[key] = buf;
     })
   ]);
   assetsReady = true;
@@ -2317,22 +2332,23 @@ async function preloadAssets(onProgress) {
 }
 function unlockAudio() {
   if (audioUnlocked) return;
+  const ctx2 = getAudioCtx();
+  if (!ctx2) return;
+  void ctx2.resume().catch(() => {
+  });
   audioUnlocked = true;
-  for (const audio of Object.values(sounds)) {
-    audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }).catch(() => {
-    });
-  }
 }
 function playSound(key) {
-  const base = sounds[key];
-  if (!base || !audioUnlocked) return;
-  const clip = base.cloneNode(true);
-  clip.volume = base.volume;
-  void clip.play().catch(() => {
-  });
+  if (!audioUnlocked) return;
+  const ctx2 = audioCtx;
+  const buf = soundBuffers[key];
+  if (!ctx2 || !buf) return;
+  const src = ctx2.createBufferSource();
+  src.buffer = buf;
+  const gain = ctx2.createGain();
+  gain.gain.value = SFX_VOLUME;
+  src.connect(gain).connect(ctx2.destination);
+  src.start();
 }
 var crates = [];
 var crateSeed = null;

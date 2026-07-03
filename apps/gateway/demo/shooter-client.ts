@@ -77,9 +77,31 @@ interface Manifest {
   audio?: Partial<Record<AudioKey, string>>;
 }
 const sprites: Partial<Record<SpriteKey, HTMLImageElement>> = {};
-const sounds: Partial<Record<AudioKey, HTMLAudioElement>> = {};
+/**
+ * SFX are decoded ONCE into Web Audio buffers; each shot then fires a throwaway
+ * `AudioBufferSourceNode` (auto-GC'd when it ends). The old path cloned an
+ * `<audio>` element per shot — cheap on desktop, but on mobile the decode + GC
+ * churn of ~10 elements/sec under auto-fire piled up into progressive frame
+ * drops (the "keeps getting laggier the longer you hold fire" report).
+ */
+const soundBuffers: Partial<Record<AudioKey, AudioBuffer>> = {};
+const SFX_VOLUME = 0.25;
 let assetsReady = false;
 let audioUnlocked = false;
+
+let audioCtx: AudioContext | null = null;
+/** Lazily create the shared AudioContext (suspended until a gesture; decode works regardless). */
+function getAudioCtx(): AudioContext | null {
+  if (audioCtx) return audioCtx;
+  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    audioCtx = new Ctor();
+  } catch {
+    audioCtx = null;
+  }
+  return audioCtx;
+}
 
 function resolveAsset(name: string): string {
   if (/^(https?:)?\/\//.test(name) || name.startsWith("/")) return name;
@@ -101,26 +123,28 @@ function loadImage(url: string, onSettled: () => void): Promise<HTMLImageElement
   });
 }
 
-function loadAudio(url: string, onSettled: () => void): Promise<HTMLAudioElement | null> {
-  return new Promise((resolve) => {
-    const audio = new Audio();
-    let done = false;
-    const finish = (ok: boolean) => {
-      if (done) return;
-      done = true;
-      onSettled();
-      resolve(ok ? audio : null);
-    };
-    audio.addEventListener("canplaythrough", () => finish(true), { once: true });
-    audio.addEventListener("error", () => finish(false), { once: true });
-    // Best-effort: some browsers won't fire canplaythrough until a gesture — don't
-    // let a slow/edge decode stall the loading bar; the clip still plays once ready.
-    setTimeout(() => finish(true), 4000);
-    audio.preload = "auto";
-    audio.volume = 0.25;
-    audio.src = url;
-    audio.load();
-  });
+async function loadAudioBuffer(url: string, onSettled: () => void): Promise<AudioBuffer | null> {
+  const ctx = getAudioCtx();
+  if (!ctx) {
+    onSettled();
+    return null;
+  }
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) throw new Error(String(res.status));
+    const raw = await res.arrayBuffer();
+    // Hybrid decode: newer engines resolve the returned promise, older Safari
+    // only calls the success/error callbacks — accept whichever fires first.
+    const buf = await new Promise<AudioBuffer>((resolve, reject) => {
+      const maybe = ctx.decodeAudioData(raw, resolve, reject);
+      if (maybe && typeof maybe.then === "function") maybe.then(resolve, reject);
+    });
+    onSettled();
+    return buf;
+  } catch {
+    onSettled();
+    return null;
+  }
 }
 
 /**
@@ -162,8 +186,8 @@ async function preloadAssets(onProgress: (fraction: number) => void): Promise<vo
       if (img) sprites[key] = img;
     }),
     ...audioEntries.map(async ([key, file]) => {
-      const audio = await loadAudio(resolveAsset(file), bump);
-      if (audio) sounds[key] = audio;
+      const buf = await loadAudioBuffer(resolveAsset(file), bump);
+      if (buf) soundBuffers[key] = buf;
     }),
   ]);
   assetsReady = true;
@@ -172,28 +196,30 @@ async function preloadAssets(onProgress: (fraction: number) => void): Promise<vo
 
 function unlockAudio(): void {
   if (audioUnlocked) return;
-  audioUnlocked = true;
-  // A user gesture (the PLAY click) is in progress; nudge each clip so later
+  // A user gesture (the PLAY click) is in progress — resume the context so later
   // programmatic plays are allowed by the browser's autoplay policy.
-  for (const audio of Object.values(sounds)) {
-    audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      })
-      .catch(() => {
-        /* stays locked until the next gesture; sfx are non-essential */
-      });
-  }
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  void ctx.resume().catch(() => {
+    /* stays locked until the next gesture; sfx are non-essential */
+  });
+  audioUnlocked = true;
 }
 
 function playSound(key: AudioKey): void {
-  const base = sounds[key];
-  if (!base || !audioUnlocked) return;
-  const clip = base.cloneNode(true) as HTMLAudioElement;
-  clip.volume = base.volume;
-  void clip.play().catch(() => {});
+  if (!audioUnlocked) return;
+  const ctx = audioCtx;
+  const buf = soundBuffers[key];
+  if (!ctx || !buf) return;
+  // Throwaway source + gain per shot: constructing these is near-free and the
+  // graph node is released once playback ends — no per-shot media element, no
+  // decode, so rapid auto-fire on mobile no longer accumulates GC pressure.
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const gain = ctx.createGain();
+  gain.gain.value = SFX_VOLUME;
+  src.connect(gain).connect(ctx.destination);
+  src.start();
 }
 
 // ---------------------------------------------------------------------------
