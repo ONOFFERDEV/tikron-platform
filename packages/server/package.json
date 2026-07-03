@@ -1,6 +1,6 @@
 {
   "name": "@tikron/server",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Authoritative room framework for Tikron — Room base class, genre presets, ticks, AOI, binary sync, reconnection, and lag compensation on Cloudflare Durable Objects.",
   "license": "FSL-1.1-ALv2",
   "type": "module",

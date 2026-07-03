@@ -1,6 +1,6 @@
 {
   "name": "@tikron/schema",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Binary delta state-sync codec for Tikron — schema definitions with type inference, full/delta encoding, and wire-compatible serialization.",
   "license": "FSL-1.1-ALv2",
   "type": "module",
