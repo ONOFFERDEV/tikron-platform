@@ -22,7 +22,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = join(__dirname, "..", "templates");
 
 /** Published @tikron/* version range the generated project depends on. */
-const TIKRON_VERSION = "^0.3.0";
+const TIKRON_VERSION = "^0.4.0";
 
 interface Options {
   name: string;

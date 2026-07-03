@@ -7,8 +7,13 @@
  *
  * Estimation is NTP-style: with the ping's send time `t0`, the reply's receive
  * time `t1`, and the server's stamped time, `rtt = t1 - t0` and
- * `offset = serverTime + rtt/2 - t1`. Samples are kept in a rolling window and the
- * reported offset/rtt are the medians (robust to occasional jitter spikes).
+ * `offset = serverTime + rtt/2 - t1`. Samples are kept in a rolling window.
+ * `rttMs` is the window median (a representative round trip). `offsetMs` uses a
+ * min-RTT filter instead: the offset formula assumes the up/down legs are
+ * symmetric, and that assumption is most nearly true on the FASTEST samples —
+ * a queue/jitter spike inflates one leg and skews the offset by up to rtt/2.
+ * So the offset is the median of the lowest-RTT third of the window, which is
+ * what grounds subtick timestamps and server-side rewind accuracy.
  */
 export interface ClockSyncOptions {
   /** Send a `c:time` ping stamped with `t0` (the caller wires this to the transport). */
@@ -80,7 +85,11 @@ export class ClockSync {
     this.samples.push({ offset, rtt });
     while (this.samples.length > this.maxSamples) this.samples.shift();
     this.rttMs = median(this.samples.map((s) => s.rtt));
-    this.offsetMs = median(this.samples.map((s) => s.offset));
+    // Min-RTT filter: symmetric-legs is truest on the fastest round trips, so
+    // estimate the offset from the lowest-RTT third (at least 3 when available).
+    const byRtt = [...this.samples].sort((a, b) => a.rtt - b.rtt);
+    const best = byRtt.slice(0, Math.min(byRtt.length, Math.max(3, Math.ceil(byRtt.length / 3))));
+    this.offsetMs = median(best.map((s) => s.offset));
   }
 
   /** Begin syncing: a quick burst for a fast initial estimate, then periodic resync. */

@@ -162,6 +162,15 @@ export interface RenderPredictorOptions {
   snapDistance?: number;
   /** Send-clamp budget scale (default 1.1) — see {@link MotionProfile.sendHeadroom}. */
   sendHeadroom?: number;
+  /**
+   * Optional position constraint applied after every frame's integration (and to
+   * adopted server positions) — static collision, walls, no-go zones. MUST be the
+   * SAME rule the server enforces on its side (e.g. a shared push-out helper), or
+   * every contact turns into a correction fight: the client predicts into the
+   * obstacle, the server rejects, and the view rubber-bands at the wall. Pure
+   * `(pos) => pos` — return the input when unobstructed.
+   */
+  constrain?: (pos: Vec2) => Vec2;
 }
 
 /**
@@ -206,6 +215,7 @@ export class RenderPredictor {
   private readonly correctionTauMs: number;
   private readonly snapDistance: number;
   private readonly sendProfile: MotionProfile;
+  private readonly constrain: ((pos: Vec2) => Vec2) | null;
 
   constructor(initial: Vec2, opts: RenderPredictorOptions) {
     this.continuous = { x: initial.x, y: initial.y };
@@ -216,6 +226,7 @@ export class RenderPredictor {
     this.maxFrameMs = opts.maxFrameMs ?? opts.stepMs;
     this.correctionTauMs = opts.correctionTauMs ?? 100;
     this.snapDistance = opts.snapDistance ?? 300;
+    this.constrain = opts.constrain ?? null;
     this.sendProfile = {
       maxSpeed: opts.maxSpeed,
       stepMs: opts.stepMs,
@@ -232,7 +243,10 @@ export class RenderPredictor {
   static fromProfile(
     initial: Vec2,
     profile: MotionProfile,
-    opts: Pick<RenderPredictorOptions, "maxFrameMs" | "correctionTauMs" | "snapDistance"> = {},
+    opts: Pick<
+      RenderPredictorOptions,
+      "maxFrameMs" | "correctionTauMs" | "snapDistance" | "constrain"
+    > = {},
   ): RenderPredictor {
     return new RenderPredictor(initial, {
       maxSpeed: profile.maxSpeed,
@@ -279,6 +293,9 @@ export class RenderPredictor {
         this.world,
         this.maxFrameMs,
       );
+      // Static collision: constrain the integrated position with the SAME rule
+      // the server applies, so predicting into a wall never builds up error.
+      if (this.constrain) this.continuous = this.constrain(this.continuous);
     }
     this.offset = decayOffset(this.offset, dtMs, this.correctionTauMs);
     this.lastRender = {

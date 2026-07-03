@@ -5,6 +5,7 @@ import {
   integrateMove,
   clampToBudget,
   resolveMovement,
+  MoveBudget,
   type MotionProfile,
   type Vec2,
 } from "./index.js";
@@ -245,5 +246,57 @@ describe("resolveMovement (non-freezing movement validation)", () => {
   it("keeps validateMovement's freeze semantics untouched (backward compatibility)", () => {
     const r = validateMovement({ x: 0, y: 0 }, { x: 999, y: 999 }, PROFILE, 50);
     expect(r).toEqual({ position: { x: 0, y: 0 }, rejected: true });
+  });
+});
+
+describe("MoveBudget", () => {
+  it("grants a same-instant burst at most the seed + nothing more (closes the ×N floor hole)", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    // 10 moves in the same instant, each requesting the 25 ms floor.
+    let total = 0;
+    for (let i = 0; i < 10; i++) total += b.grant(1000, 25);
+    // seed = one tick (50 ms): first two moves drain it, the rest get 0.
+    expect(total).toBe(50);
+  });
+
+  it("never limits an honest fixed-cadence sender", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    let now = 1000;
+    for (let i = 0; i < 100; i++) {
+      expect(b.grant(now, 50)).toBe(50);
+      now += 50;
+    }
+  });
+
+  it("grants the full 2-tick catch-up after a late timer fire or a dropped move", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    expect(b.grant(1000, 50)).toBe(50);
+    // 150 ms gap (drop + late fire): accrual capped at burst 100 -> full grant.
+    expect(b.grant(1150, 100)).toBe(100);
+  });
+
+  it("bounds total granted time to elapsed + burst under a sustained 60/s spam", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    let total = 0;
+    // 60 moves over 1 real second, each claiming the 25 ms floor... every ~16.7 ms.
+    for (let i = 0; i < 60; i++) total += b.grant(1000 + Math.floor(i * 16.7), 25);
+    // Accrual over the window is ~983 ms + 50 seed; the old per-move floor
+    // would have granted 60 × 25 = 1500 ms.
+    expect(total).toBeLessThanOrEqual(1000 + 50);
+    expect(total).toBeGreaterThan(900); // and an honest-rate spend still flows
+  });
+
+  it("accrues nothing on a timeline regression", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    expect(b.grant(1000, 50)).toBe(50); // drained
+    expect(b.grant(900, 50)).toBe(0); // regression: no accrual, bucket dry
+    expect(b.grant(1050, 50)).toBe(50); // forward again: 50 ms accrued
+  });
+
+  it("reset() returns to the one-tick seed", () => {
+    const b = new MoveBudget({ stepMs: 50, burstMs: 100 });
+    b.grant(1000, 50);
+    b.reset();
+    expect(b.grant(5000, 100)).toBe(50); // seed, not burst
   });
 });

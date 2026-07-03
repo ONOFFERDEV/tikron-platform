@@ -195,3 +195,59 @@ export function validateMovement(
   }
   return { position: { x: prev.x, y: prev.y }, rejected: true };
 }
+
+/**
+ * Per-client movement-time token bucket — the server-side aggregate speed budget
+ * (isomorphic and pure so it unit-tests without timers).
+ *
+ * The per-move elapsed-time budget has a burst hole: each move's delta is clamped
+ * to a floor (e.g. ½ tick, so a same-instant burst can't claim zero time and
+ * stall), which means N moves fired in one instant are granted N × floor of
+ * movement time — at a 60 msg/s rate limit and a 25 ms floor that is 1.5 s of
+ * movement per real second, a ~1.5× speed hack surface (PLAN-FPS backlog #1).
+ *
+ * The bucket closes it by accounting in *milliseconds of movement time*: balance
+ * accrues at wall-clock rate (1 ms per elapsed ms) up to `burstMs`, and every
+ * move spends its measured delta from the balance. An honest client's spend rate
+ * equals its accrual rate by construction, so it never runs dry; a burst drains
+ * the bucket and further same-instant moves are granted 0 (the room resolves
+ * them as a zero-budget move — position holds, no cascade). `burstMs` should
+ * match the per-move delta ceiling (2 ticks) so one late timer fire or a
+ * rate-limit drop still gets its full catch-up grant.
+ */
+export class MoveBudget {
+  private available: number;
+  private lastNow: number | null = null;
+  private readonly burstMs: number;
+  private readonly stepMs: number;
+
+  constructor(opts: { stepMs: number; burstMs?: number }) {
+    this.stepMs = opts.stepMs;
+    this.burstMs = opts.burstMs ?? opts.stepMs * 2;
+    // First move gets exactly one tick — the same seed budget the per-move
+    // measurement uses when it has no reference yet.
+    this.available = opts.stepMs;
+  }
+
+  /**
+   * Spend up to `requestedMs` of movement time at timeline instant `nowMs`
+   * (server receipt or core-clamped subtick ts — the same monotonic reference
+   * the per-move delta is measured on). Returns the granted ms (0 when the
+   * bucket is dry). `nowMs` regressions accrue nothing (never negative).
+   */
+  grant(nowMs: number, requestedMs: number): number {
+    if (this.lastNow !== null) {
+      this.available = Math.min(this.burstMs, this.available + Math.max(0, nowMs - this.lastNow));
+    }
+    this.lastNow = this.lastNow === null ? nowMs : Math.max(this.lastNow, nowMs);
+    const granted = Math.max(0, Math.min(requestedMs, this.available));
+    this.available -= granted;
+    return granted;
+  }
+
+  /** Reset to the first-move state (respawn/teleport: drop stale accrual). */
+  reset(): void {
+    this.available = this.stepMs;
+    this.lastNow = null;
+  }
+}

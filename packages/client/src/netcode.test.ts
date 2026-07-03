@@ -59,3 +59,104 @@ describe("SnapshotBuffer (entity interpolation)", () => {
     expect(sb.sample(1000)).toBeUndefined();
   });
 });
+
+describe("SnapshotBuffer extrapolation", () => {
+  type P = { x: number };
+  const lerp = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t });
+
+  it("extrapolates past the newest snapshot along the last segment (t > 1)", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 100, lerp, maxExtrapolationMs: 50 });
+    sb.push(1000, { x: 0 });
+    sb.push(1100, { x: 100 }); // velocity: 1 u/ms
+    // target = 1130 -> 30 ms past newest -> x = 130
+    expect(sb.sample(1230)).toEqual({ x: 130 });
+  });
+
+  it("caps extrapolation at maxExtrapolationMs", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 100, lerp, maxExtrapolationMs: 50 });
+    sb.push(1000, { x: 0 });
+    sb.push(1100, { x: 100 });
+    // target = 1300 -> 200 ms past newest, capped at 50 -> x = 150
+    expect(sb.sample(1400)).toEqual({ x: 150 });
+  });
+
+  it("holds the newest state without opting in (back-compat)", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 100, lerp });
+    sb.push(1000, { x: 0 });
+    sb.push(1100, { x: 100 });
+    expect(sb.sample(1400)).toEqual({ x: 100 });
+  });
+
+  it("holds the newest state with a single snapshot (no segment to extrapolate)", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 100, lerp, maxExtrapolationMs: 50 });
+    sb.push(1000, { x: 7 });
+    expect(sb.sample(1400)).toEqual({ x: 7 });
+  });
+});
+
+describe("SnapshotBuffer adaptive delay", () => {
+  type P = { x: number };
+  const lerp = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t });
+
+  it("clamps the starting delay into [minMs, maxMs]", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 300, lerp, adaptiveDelay: { minMs: 60, maxMs: 200 } });
+    expect(sb.currentDelayMs).toBe(200);
+  });
+
+  it("raises the delay immediately on starvation (target beyond newest)", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 60, lerp, adaptiveDelay: { minMs: 60, maxMs: 200 } });
+    sb.push(1000, { x: 0 });
+    // sample(1100): target = 1100 − 60 = 1040 > newest 1000 -> margin −40
+    sb.sample(1100);
+    // delay += 40 (shortfall) + 10 (nudge) = 110
+    expect(sb.currentDelayMs).toBe(110);
+  });
+
+  it("never raises past maxMs", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 60, lerp, adaptiveDelay: { minMs: 60, maxMs: 100 } });
+    sb.push(1000, { x: 0 });
+    sb.sample(2000); // huge starvation
+    expect(sb.currentDelayMs).toBe(100);
+  });
+
+  it("shrinks slowly after a calm observation window with comfortable margin", () => {
+    const sb = new SnapshotBuffer<P>({
+      delayMs: 200,
+      lerp,
+      adaptiveDelay: { minMs: 60, maxMs: 200, windowMs: 1000, slewDownMsPerSec: 20, headroomMs: 10 },
+    });
+    // Steady 50 ms cadence, sampling right after each push: newest = now, so the
+    // margin is a constant, comfortable 200 ms (≫ interval 50 + headroom 10).
+    const before = sb.currentDelayMs;
+    for (let t = 1000; t <= 4100; t += 50) {
+      sb.push(t, { x: t });
+      sb.sample(t);
+    }
+    const after = sb.currentDelayMs;
+    expect(after).toBeLessThan(before);
+    // ~3 windows elapsed -> at most slewDownMsPerSec × windowSec = 20 ms per window
+    expect(before - after).toBeLessThanOrEqual(3 * 20);
+    expect(after).toBeGreaterThanOrEqual(60);
+  });
+
+  it("does not shrink when the margin is tight", () => {
+    const sb = new SnapshotBuffer<P>({
+      delayMs: 60,
+      lerp,
+      adaptiveDelay: { minMs: 40, maxMs: 200, windowMs: 500, headroomMs: 10 },
+    });
+    // 50 ms cadence with delay 60: margin hovers ~10 < interval(50)+headroom(10).
+    for (let t = 1000; t <= 3000; t += 50) {
+      sb.push(t, { x: t });
+      sb.sample(t + 50);
+    }
+    expect(sb.currentDelayMs).toBeGreaterThanOrEqual(60);
+  });
+
+  it("keeps a fixed delay when adaptive is not configured", () => {
+    const sb = new SnapshotBuffer<P>({ delayMs: 100, lerp });
+    sb.push(1000, { x: 0 });
+    sb.sample(5000);
+    expect(sb.currentDelayMs).toBe(100);
+  });
+});

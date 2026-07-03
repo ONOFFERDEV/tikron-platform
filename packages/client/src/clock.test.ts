@@ -56,3 +56,31 @@ describe("ClockSync offset/rtt estimation", () => {
     }
   });
 });
+
+describe("ClockSync min-RTT offset filter", () => {
+  it("estimates the offset from the lowest-RTT samples, ignoring jitter-skewed ones", () => {
+    let nowMs = 10_000;
+    const sync = new ClockSync({ send: () => {}, now: () => nowMs });
+    const trueOffset = 500; // server = client + 500
+
+    // 6 clean samples: rtt 40 (symmetric legs -> exact offset).
+    for (let i = 0; i < 6; i++) {
+      const t0 = nowMs;
+      nowMs += 40;
+      // server stamped at t0 + uplink(20): serverTime = t0 + 20 + trueOffset
+      sync.accept(t0, t0 + 20 + trueOffset);
+    }
+    // 6 spiky samples: rtt 240 with a fully asymmetric downlink (uplink 20,
+    // downlink 220) -> naive offset is skewed by (220-20)/2 = 100 ms.
+    for (let i = 0; i < 6; i++) {
+      const t0 = nowMs;
+      nowMs += 240;
+      sync.accept(t0, t0 + 20 + trueOffset);
+    }
+
+    // Median RTT over all samples is representative of the mixed link…
+    expect(sync.rttMs).toBeGreaterThan(40);
+    // …but the offset comes from the fastest third and stays accurate.
+    expect(Math.abs(sync.offsetMs - trueOffset)).toBeLessThanOrEqual(1);
+  });
+});

@@ -169,6 +169,14 @@ export interface InputMeta {
    * `this.rewind(client, input.ts)`.
    */
   ts?: number;
+  /**
+   * The instant the message ARRIVED at the server (epoch ms). Always present.
+   * With tick-aligned input queues the handler runs at the next tick, so a
+   * `Date.now()` inside it reads the DRAIN time — real arrival spacing gets
+   * quantized onto the tick grid and an elapsed-time budget mis-measures by up
+   * to ±tickMs. Measure elapsed time from `ts ?? receivedAt`, never wall-clock.
+   */
+  receivedAt: number;
 }
 
 export type MessageHandler = (
@@ -380,6 +388,8 @@ interface QueuedInput {
   seq?: number;
   /** Clamped subtick timestamp (server timeline), if the client supplied one. */
   ts?: number;
+  /** Receipt instant (epoch ms) — dispatch happens later, at the tick drain. */
+  receivedAt: number;
 }
 
 /** A client's seat in the room; survives transport reconnects (session-keyed). */
@@ -816,7 +826,10 @@ export abstract class Room<TState = unknown> {
     for (const q of batch) {
       const handler = this.handlers.get(q.type);
       if (handler) {
-        await handler(q.record.client, q.payload, q.seq, q.ts !== undefined ? { ts: q.ts } : undefined);
+        await handler(q.record.client, q.payload, q.seq, {
+          ...(q.ts !== undefined ? { ts: q.ts } : {}),
+          receivedAt: q.receivedAt,
+        });
       }
       // Ack when PROCESSED (not on receipt), addressed to the client's live conn.
       if (this.sendAcks && typeof q.seq === "number" && q.record.connId !== null) {
@@ -1115,23 +1128,24 @@ export abstract class Room<TState = unknown> {
 
     // Subtick timestamp: clamp a client-supplied `ts` to [now-250ms, now] on the
     // server timeline, so a client can neither backdate nor postdate an input to
-    // move lag-compensation rewind outside the recent window.
+    // move lag-compensation rewind outside the recent window. `receivedAt` is the
+    // same receipt instant, recorded for every input (see InputMeta.receivedAt).
+    const receivedAt = Date.now();
     let ts: number | undefined;
     if (typeof msg.ts === "number") {
-      const now = Date.now();
-      ts = Math.min(now, Math.max(now - INPUT_TS_MAX_AGE_MS, msg.ts));
+      ts = Math.min(receivedAt, Math.max(receivedAt - INPUT_TS_MAX_AGE_MS, msg.ts));
     }
 
     // Tick-aligned queue: defer dispatch (and the ack) to the next simulation tick,
     // so onTick sees a consistent batch. Otherwise dispatch + ack immediately.
     if (this.queueInputs) {
-      this.#inputQueue.push({ record, type: msg.type, payload: msg.payload, seq: msg.seq, ts });
+      this.#inputQueue.push({ record, type: msg.type, payload: msg.payload, seq: msg.seq, ts, receivedAt });
       return;
     }
 
     const handler = this.handlers.get(msg.type);
     if (handler) {
-      await handler(record.client, msg.payload, msg.seq, ts !== undefined ? { ts } : undefined);
+      await handler(record.client, msg.payload, msg.seq, { ...(ts !== undefined ? { ts } : {}), receivedAt });
     }
 
     if (this.sendAcks && typeof msg.seq === "number") {

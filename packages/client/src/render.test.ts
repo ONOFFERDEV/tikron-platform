@@ -339,3 +339,27 @@ describe("EntitySmoother (remote entities)", () => {
     expect(s.update("b", { x: 40, y: 0, angle: 0 }, 16).x).toBeLessThan(40);
   });
 });
+
+describe("RenderPredictor constrain", () => {
+  it("applies the constraint after every frame integration", () => {
+    // Wall at x=100: clamp x below it (the "server rule" both sides share).
+    const p = new RenderPredictor(
+      { x: 90, y: 0 },
+      { maxSpeed: 100, stepMs: 50, constrain: (v) => ({ x: Math.min(v.x, 100), y: v.y }) },
+    );
+    p.reconcile({ x: 90, y: 0 }); // seed
+    // Push right for 1 tick repeatedly: 100 u/s × 50 ms = 5 u per frame.
+    for (let i = 0; i < 10; i++) p.frame(1, 0, 50);
+    expect(p.renderPosition.x).toBeLessThanOrEqual(100);
+    // And it stays there — no error accumulation past the wall.
+    p.frame(1, 0, 50);
+    expect(p.renderPosition.x).toBeLessThanOrEqual(100);
+  });
+
+  it("does not constrain when the option is omitted (back-compat)", () => {
+    const p = new RenderPredictor({ x: 90, y: 0 }, { maxSpeed: 100, stepMs: 50 });
+    p.reconcile({ x: 90, y: 0 });
+    for (let i = 0; i < 10; i++) p.frame(1, 0, 50);
+    expect(p.renderPosition.x).toBeGreaterThan(100);
+  });
+});
