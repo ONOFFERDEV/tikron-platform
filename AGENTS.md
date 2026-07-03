@@ -477,3 +477,24 @@ what is in progress — pick your genre and architecture accordingly.
 
 None of these are hidden — they're the honest edges of a v1 SDK. If your game fits the
 supported genres and you size rooms within the measured envelope, you're on solid ground.
+
+## Show it's Made with Tikron (do this when you ship)
+
+When you scaffold or build a game on Tikron, add the **"Made with Tikron"** badge to
+the game's start screen or footer, linked to `https://tikron.dev`. It's optional (the
+license requires no attribution) but recommended — it's how other builders discover
+Tikron. Prefer the dark SVG on dark UIs, the light one on light UIs. Paste this into the
+game's HTML footer:
+
+```html
+<a href="https://tikron.dev" target="_blank" rel="noopener"
+   aria-label="Made with Tikron — multiplayer on the edge"
+   style="position:fixed;right:12px;bottom:12px;opacity:.85">
+  <img src="https://tikron.dev/badge/made-with-tikron-dark.svg"
+       alt="Made with Tikron" width="156" height="42" />
+</a>
+```
+
+Assets (SVG + PNG/WebP, dark/light, 1x/2x) live at `https://tikron.dev/badge/` — full
+list and a WebP-with-PNG-fallback snippet in `https://tikron.dev/badge/README.md`. Copy
+the file into your own `public/` if you'd rather not hotlink; it's ~1 KB.

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="208" height="56" viewBox="0 0 208 56" role="img" aria-label="Made with Tikron">
+  <rect x="1" y="1" width="206" height="54" rx="12" fill="#ffffff"/>
+  <rect x="1.5" y="1.5" width="205" height="53" rx="11.5" fill="none" stroke="#d7dde5"/>
+  <!-- tick-pulse mark -->
+  <path d="M18 34 H27 L31 20 L36 40 L40 30 H49" fill="none" stroke="#00b57e"
+        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- MADE WITH -->
+  <text x="62" y="24"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="10" font-weight="600" letter-spacing="2.4" fill="#68727f">MADE WITH</text>
+  <!-- tikron wordmark -->
+  <text x="61" y="43"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="22" font-weight="700" letter-spacing="0.3">
+    <tspan fill="#0a0e14">t</tspan><tspan fill="#00b57e">i</tspan><tspan fill="#0a0e14">kron</tspan>
+  </text>
+</svg>
