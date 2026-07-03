@@ -13,10 +13,16 @@ describe("load-test mirror codec stays in lock-step with the server codec", () =
   it("server-encoded ShooterState decodes identically through the load-test mirror", () => {
     const state = {
       players: {
-        a1b2: { x: 1234.5, y: 678.9, aim: 1.234, hp: 73, score: 9001, alive: true },
-        c3d4: { x: 0, y: 2999, aim: 6.28, hp: 0, score: 0, alive: false },
+        a1b2: { x: 1234.5, y: 678.9, aim: 1.234, hp: 73, score: 9001, alive: true, w: 1, sp: true, db: false },
+        c3d4: { x: 0, y: 2999, aim: 6.28, hp: 0, score: 0, alive: false, w: 0, sp: false, db: true },
       },
       seed: 0xdeadbeef,
+      pickups: { "0": { on: true }, "3": { on: false } },
+      broken: { "7": { b: true } },
+      zx: 1500,
+      zy: 1200.5,
+      zr: 2222.5,
+      roundEndMs: 1783015496821,
     };
 
     const serverBytes = encodeFull(ServerShooterSchema, state);

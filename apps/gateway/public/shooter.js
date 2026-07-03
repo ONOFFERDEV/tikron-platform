@@ -1035,7 +1035,9 @@ var ClockSync = class {
     while (this.samples.length > this.maxSamples)
       this.samples.shift();
     this.rttMs = median(this.samples.map((s) => s.rtt));
-    this.offsetMs = median(this.samples.map((s) => s.offset));
+    const byRtt = [...this.samples].sort((a, b) => a.rtt - b.rtt);
+    const best = byRtt.slice(0, Math.min(byRtt.length, Math.max(3, Math.ceil(byRtt.length / 3))));
+    this.offsetMs = median(best.map((s) => s.offset));
   }
   /** Begin syncing: a quick burst for a fast initial estimate, then periodic resync. */
   start() {
@@ -1144,12 +1146,42 @@ var SnapshotBuffer = class {
   delayMs;
   lerp;
   maxSnapshots;
+  maxExtrapolationMs;
+  adaptive;
+  /** EMA of the interval between pushed snapshot times (the send cadence). */
+  emaIntervalMs = null;
+  lastPushTime = null;
+  /** Smallest `newest.time − target` seen this observation window. */
+  windowMinMargin = Infinity;
+  windowStartedAt = null;
   constructor(opts) {
     this.delayMs = opts.delayMs ?? 100;
     this.lerp = opts.lerp;
     this.maxSnapshots = opts.maxSnapshots ?? 64;
+    this.maxExtrapolationMs = opts.maxExtrapolationMs ?? 0;
+    this.adaptive = opts.adaptiveDelay ? {
+      minMs: opts.adaptiveDelay.minMs,
+      maxMs: opts.adaptiveDelay.maxMs,
+      headroomMs: opts.adaptiveDelay.headroomMs ?? 10,
+      slewDownMsPerSec: opts.adaptiveDelay.slewDownMsPerSec ?? 10,
+      windowMs: opts.adaptiveDelay.windowMs ?? 3e3
+    } : null;
+    if (this.adaptive) {
+      this.delayMs = Math.min(this.adaptive.maxMs, Math.max(this.adaptive.minMs, this.delayMs));
+    }
+  }
+  /** The delay currently applied by {@link sample} (changes only when adaptive). */
+  get currentDelayMs() {
+    return this.delayMs;
   }
   push(time, state) {
+    if (this.lastPushTime !== null) {
+      const interval = time - this.lastPushTime;
+      if (interval > 0 && interval <= 1e3) {
+        this.emaIntervalMs = this.emaIntervalMs === null ? interval : this.emaIntervalMs * 0.9 + interval * 0.1;
+      }
+    }
+    this.lastPushTime = Math.max(this.lastPushTime ?? time, time);
     this.buf.push({ time, state });
     this.buf.sort((a, b) => a.time - b.time);
     while (this.buf.length > this.maxSnapshots)
@@ -1162,10 +1194,21 @@ var SnapshotBuffer = class {
     const target = now - this.delayMs;
     const first = this.buf[0];
     const last = this.buf[this.buf.length - 1];
+    if (this.adaptive)
+      this.adapt(now, last.time - target);
     if (target <= first.time)
       return first.state;
-    if (target >= last.time)
+    if (target >= last.time) {
+      if (this.maxExtrapolationMs > 0 && this.buf.length >= 2) {
+        const a = this.buf[this.buf.length - 2];
+        const span = last.time - a.time;
+        if (span > 0) {
+          const over = Math.min(target - last.time, this.maxExtrapolationMs);
+          return this.lerp(a.state, last.state, 1 + over / span);
+        }
+      }
       return last.state;
+    }
     for (let i = 0; i < this.buf.length - 1; i++) {
       const a = this.buf[i];
       const b = this.buf[i + 1];
@@ -1176,6 +1219,36 @@ var SnapshotBuffer = class {
       }
     }
     return last.state;
+  }
+  /**
+   * Feedback controller for the adaptive delay. `margin` is how far the newest
+   * snapshot leads the render target: negative = starved (raise the delay
+   * immediately by the shortfall plus a nudge), comfortably positive across a
+   * whole window = shrink one slow step. Uses the same `now` timeline as
+   * {@link sample}, so it needs no extra clock.
+   */
+  adapt(now, margin) {
+    const a = this.adaptive;
+    if (margin < 0) {
+      this.delayMs = Math.min(a.maxMs, this.delayMs + -margin + 10);
+      this.windowMinMargin = Infinity;
+      this.windowStartedAt = now;
+      return;
+    }
+    this.windowMinMargin = Math.min(this.windowMinMargin, margin);
+    if (this.windowStartedAt === null) {
+      this.windowStartedAt = now;
+      return;
+    }
+    if (now - this.windowStartedAt < a.windowMs)
+      return;
+    const safeMargin = (this.emaIntervalMs ?? this.delayMs) + a.headroomMs;
+    if (this.windowMinMargin > safeMargin) {
+      const step = Math.min(a.slewDownMsPerSec * (a.windowMs / 1e3), this.windowMinMargin - safeMargin);
+      this.delayMs = Math.max(a.minMs, this.delayMs - step);
+    }
+    this.windowMinMargin = Infinity;
+    this.windowStartedAt = now;
   }
 };
 
@@ -1279,6 +1352,7 @@ var RenderPredictor = class _RenderPredictor {
   correctionTauMs;
   snapDistance;
   sendProfile;
+  constrain;
   constructor(initial, opts) {
     this.continuous = { x: initial.x, y: initial.y };
     this.lastRender = { x: initial.x, y: initial.y };
@@ -1288,6 +1362,7 @@ var RenderPredictor = class _RenderPredictor {
     this.maxFrameMs = opts.maxFrameMs ?? opts.stepMs;
     this.correctionTauMs = opts.correctionTauMs ?? 100;
     this.snapDistance = opts.snapDistance ?? 300;
+    this.constrain = opts.constrain ?? null;
     this.sendProfile = {
       maxSpeed: opts.maxSpeed,
       stepMs: opts.stepMs,
@@ -1336,6 +1411,8 @@ var RenderPredictor = class _RenderPredictor {
   frame(dirX, dirY, dtMs) {
     if (this.aliveFlag) {
       this.continuous = integrateMove(this.continuous, dirX, dirY, dtMs, this.maxSpeed, this.world, this.maxFrameMs);
+      if (this.constrain)
+        this.continuous = this.constrain(this.continuous);
     }
     this.offset = decayOffset(this.offset, dtMs, this.correctionTauMs);
     this.lastRender = {
@@ -1790,43 +1867,83 @@ var ShooterSchema = schema({
       aim: quant(0, Math.PI * 2, 1e-3),
       hp: "u8",
       score: "u32",
-      alive: "bool"
+      alive: "bool",
+      w: "u8",
+      sp: "bool",
+      db: "bool"
     })
   ),
-  seed: "u32"
+  seed: "u32",
+  pickups: mapOf(schema({ on: "bool" })),
+  broken: mapOf(schema({ b: "bool" })),
+  zx: quant(0, 3e3, 0.5),
+  zy: quant(0, 3e3, 0.5),
+  zr: quant(0, 4500, 0.5),
+  roundEndMs: "f64"
 });
+var WEAPONS = [
+  { name: "RIFLE", damage: 34, range: 850, cooldownMs: 100, rays: 1, spread: 0 },
+  { name: "SHOTGUN", damage: 16, range: 380, cooldownMs: 600, rays: 3, spread: 0.24 },
+  { name: "SMG", damage: 14, range: 650, cooldownMs: 55, rays: 1, spread: 0 }
+];
 var SHOOTER = {
   // A 3000² map (up from 2000²) so 64 players spread out: at the spawn min-
   // separation (300u) a 2000² map is right at its packing limit for 64 points,
   // while 3000² leaves comfortable headroom. Keep the quant position range above
   // in lock-step with this.
   world: 3e3,
-  /** AOI view radius — well under the map so interest management actually bites. */
-  viewRadius: 600,
+  /** AOI view radius — well under the map so interest management actually bites.
+   *  Every weapon range MUST stay below it (you can never hit what you can't
+   *  see); raised with the range buff, at a bandwidth cost the tiers absorb. */
+  viewRadius: 900,
   maxSpeed: 500,
-  stepMs: 50,
-  // 20 Hz simulation
+  stepMs: 33,
+  // 30 Hz client send cadence + movement-budget unit (LAT-2 C3)
   maxHp: 100,
   shotDamage: 34,
-  // three hits to down a full-hp player
-  shotRange: 550,
-  // < viewRadius (600) so every hit resolves within the shooter's view
+  // legacy alias — the rifle's damage (see WEAPONS[0])
+  shotRange: 850,
+  // legacy alias — the rifle's range; also the max tracer length
   hitRadius: 40,
   // perpendicular distance to the ray that still counts as a hit
-  // Server-enforced minimum ms between shots (receipt clock). 100 ms ≈ 10 shots/s —
-  // above any human click rate, but it caps a scripted client at 340 dmg/s instead of
-  // the ~2000 dmg/s the shared input rate limit alone would allow.
+  // Per-weapon cooldowns live in WEAPONS; this remains the floor any client-side
+  // mirror can rely on (the rifle's).
   shotCooldownMs: 100,
-  respawnTicks: 30,
-  // 30 × 50 ms = 1.5 s downed before respawn
+  respawnMs: 1500,
+  // downed time before respawn (was respawnTicks × stepMs — now
+  // explicit ms so retuning the send cadence can never silently change it)
   // Spread-spawn tuning (see pickSpawn in shooter-spawn.ts).
   spawnMinSep: 300,
   // a spawn keeps ≥ this from every living player
   spawnRingMin: 400,
   // ring band around a random survivor a candidate is drawn from
   spawnRingMax: 700,
-  spawnCenterJitter: 300
+  spawnCenterJitter: 300,
   // half-extent of the center box used when nobody is alive
+  // --- round / zone / pickups / grenades / cover (the "fun" pass) ---
+  playerRadius: 14,
+  // circle used for crate movement collision + pickup grabs
+  spawnProtectMs: 2e3,
+  // invulnerable after spawning; firing ends it early
+  roundMs: 3e5,
+  // 5-minute rounds
+  intermissionMs: 6e3,
+  // winner banner + reset window between rounds
+  zoneEndRadius: 500,
+  // the zone shrinks to this by round end
+  zoneDamage: 8,
+  // hp per zone-damage application
+  zoneDamageEveryMs: 1e3,
+  // application cadence (hp is integer — no fractional ticks)
+  pickupCount: 10,
+  pickupRadius: 34,
+  // grab distance (centre to centre)
+  pickupRespawnMs: 15e3,
+  hpPackHeal: 50,
+  dmgBoostMs: 1e4,
+  dmgBoostMult: 2,
+  crateHp: 3
+  // rifle-equivalent hits to break a crate
 };
 var SHOOTER_PROFILE = {
   maxSpeed: SHOOTER.maxSpeed,
@@ -1837,6 +1954,124 @@ var SHOOTER_PROFILE = {
   // < tolerance so a clamped send always fits the server budget for the same delta.
   sendHeadroom: 1.1
 };
+
+// src/rooms/shooter-crates.ts
+function xorshift32(seed) {
+  let s = seed >>> 0 || 2654435769;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s >>> 0;
+  };
+}
+function makeCrates(seed, world) {
+  const rng = xorshift32(seed);
+  const unit = () => rng() / 4294967295;
+  const margin = 80;
+  const span = world - margin * 2;
+  const crates2 = [];
+  for (let i = 0; i < 44; i++) {
+    crates2.push({ x: margin + unit() * span, y: margin + unit() * span, size: 26 + unit() * 28 });
+  }
+  return crates2;
+}
+function crateContains(c, x, y) {
+  const h = c.size / 2;
+  return x >= c.x - h && x <= c.x + h && y >= c.y - h && y <= c.y + h;
+}
+function rayCoverDistance(crates2, ox, oy, dx, dy, maxT, skip) {
+  return rayCoverHit(crates2, ox, oy, dx, dy, maxT, skip)?.t ?? Infinity;
+}
+function rayCoverHit(crates2, ox, oy, dx, dy, maxT, skip) {
+  let best = Infinity;
+  let bestIndex = -1;
+  for (let i = 0; i < crates2.length; i++) {
+    if (skip?.(i)) continue;
+    const c = crates2[i];
+    if (crateContains(c, ox, oy)) continue;
+    const h = c.size / 2;
+    let tMin = 0;
+    let tMax = maxT;
+    let ok = true;
+    for (const [o, d, lo, hi] of [
+      [ox, dx, c.x - h, c.x + h],
+      [oy, dy, c.y - h, c.y + h]
+    ]) {
+      if (d === 0) {
+        if (o < lo || o > hi) {
+          ok = false;
+          break;
+        }
+        continue;
+      }
+      let t1 = (lo - o) / d;
+      let t2 = (hi - o) / d;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tMin = Math.max(tMin, t1);
+      tMax = Math.min(tMax, t2);
+      if (tMin > tMax) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && tMin < best && tMin > 0) {
+      best = tMin;
+      bestIndex = i;
+    }
+  }
+  return bestIndex >= 0 ? { t: best, index: bestIndex } : null;
+}
+
+// src/rooms/shooter-map.ts
+function makePickups(seed, world, crates2, count) {
+  const rng = xorshift32((seed ^ 2654435769) >>> 0);
+  const unit = () => rng() / 4294967295;
+  const margin = 140;
+  const span = world - margin * 2;
+  const spots = [];
+  while (spots.length < count) {
+    const x = margin + unit() * span;
+    const y = margin + unit() * span;
+    if (crates2.some((c) => crateContains(c, x, y))) continue;
+    spots.push({ x, y, kind: spots.length % 2 === 0 ? "hp" : "dmg" });
+  }
+  return spots;
+}
+function pushOutOfCrates(pos, r, crates2, isBroken) {
+  let { x, y } = pos;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < crates2.length; i++) {
+      if (isBroken?.(i)) continue;
+      const c = crates2[i];
+      const h = c.size / 2;
+      const cx = Math.max(c.x - h, Math.min(c.x + h, x));
+      const cy = Math.max(c.y - h, Math.min(c.y + h, y));
+      const dx = x - cx;
+      const dy = y - cy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= r * r) continue;
+      if (d2 > 1e-9) {
+        const d = Math.sqrt(d2);
+        x = cx + dx / d * r;
+        y = cy + dy / d * r;
+      } else {
+        const left = x - (c.x - h);
+        const right = c.x + h - x;
+        const top = y - (c.y - h);
+        const bottom = c.y + h - y;
+        const m = Math.min(left, right, top, bottom);
+        if (m === left) x = c.x - h - r;
+        else if (m === right) x = c.x + h + r;
+        else if (m === top) y = c.y - h - r;
+        else y = c.y + h + r;
+      }
+    }
+  }
+  return { x, y };
+}
 
 // demo/loading.ts
 function clamp01(v) {
@@ -1941,6 +2176,10 @@ var LoadingFlow = class {
 
 // demo/shooter-client.ts
 var MAX_PLAYERS = 64;
+var KILL_GLYPHS = { w0: "\u2022", w1: "\u2234", w2: "\u2261", zone: "\u25CD" };
+function weaponTracerColor(w) {
+  return w === 1 ? "rgba(255,159,67,0.55)" : w === 2 ? "rgba(88,166,255,0.5)" : "rgba(242,204,96,0.5)";
+}
 var ASSET_BASE = "/assets/shooter/";
 var canvas = document.getElementById("c");
 var ctx = canvas.getContext("2d");
@@ -2062,37 +2301,36 @@ function playSound(key) {
   void clip.play().catch(() => {
   });
 }
-function xorshift32(seed) {
-  let s = seed >>> 0 || 2654435769;
-  return () => {
-    s ^= s << 13;
-    s >>>= 0;
-    s ^= s >> 17;
-    s ^= s << 5;
-    s >>>= 0;
-    return s >>> 0;
-  };
-}
-function makeCrates(seed) {
-  const rng = xorshift32(seed);
-  const unit = () => rng() / 4294967295;
-  const margin = 80;
-  const span = SHOOTER.world - margin * 2;
-  const crates2 = [];
-  for (let i = 0; i < 44; i++) {
-    crates2.push({ x: margin + unit() * span, y: margin + unit() * span, size: 26 + unit() * 28 });
-  }
-  return crates2;
-}
 var crates = [];
 var crateSeed = null;
+var pickupSpots = [];
+var latestBroken = {};
+var isBrokenIdx = (i) => latestBroken[String(i)] !== void 0;
 var WORLD_CENTER = SHOOTER.world / 2;
 var predictor = new InputPredictor(
   { x: WORLD_CENTER, y: WORLD_CENTER },
   { apply: (_s, i) => ({ ...i }) }
 );
-var buffer = new SnapshotBuffer({ delayMs: 100, lerp: lerpState });
-var motion = RenderPredictor.fromProfile({ x: WORLD_CENTER, y: WORLD_CENTER }, SHOOTER_PROFILE);
+var buffer = new SnapshotBuffer({
+  delayMs: 60,
+  // starting point; the adaptive controller owns it from here
+  lerp: lerpState,
+  // Bridge a late/lost frame by extrapolating ~half an RTT along the last
+  // segment's velocity instead of freezing (lerpState with t > 1 extrapolates
+  // positions linearly; discrete fields already take the newest value).
+  maxExtrapolationMs: 50,
+  // 30 Hz flush + measured jitter: settles near the floor on a clean network
+  // (≈40 ms less added latency than the old fixed 100 ms), grows under jitter.
+  // 60 Hz flush: 2×interval + headroom lands near 40 ms on a clean network —
+  // let the controller settle there instead of pinning at the old 20 Hz floor.
+  adaptiveDelay: { minMs: 30, maxMs: 200 }
+});
+var motion = RenderPredictor.fromProfile({ x: WORLD_CENTER, y: WORLD_CENTER }, SHOOTER_PROFILE, {
+  // Predict crate collision with the SAME pushout the server applies (shooter-map.ts)
+  // so contact never rubber-bands. The closure reads the live module `crates` array
+  // (empty until the seed lands) and `latestBroken`, so destroyed cover stops blocking.
+  constrain: (pos) => pushOutOfCrates(pos, SHOOTER.playerRadius, crates, isBrokenIdx)
+});
 var smoother = new EntitySmoother();
 var cam = { x: WORLD_CENTER, y: WORLD_CENTER };
 var lastRenderMs = 0;
@@ -2101,8 +2339,29 @@ var seq = 0;
 var aim = 0;
 var mouse = { x: 0, y: 0 };
 var keys = /* @__PURE__ */ new Set();
+var isTouch = matchMedia("(pointer: coarse)").matches;
+var stickMove = { x: 0, y: 0 };
+var stickAim = { active: false, dir: 0, fire: false };
+var STICK_R = 56;
+var movePointerId = -1;
+var aimPointerId = -1;
+var moveOrigin = { x: 0, y: 0 };
+var moveKnob = { x: 0, y: 0 };
+var aimOrigin = { x: 0, y: 0 };
+var aimKnob = { x: 0, y: 0 };
+var tryFire = () => {
+};
 var tracers = [];
 var effects = [];
+var damageNumbers = [];
+var hitMarkerUntil = 0;
+var killFeed = [];
+var killStreak = 0;
+var streakBannerText = "";
+var streakBannerUntil = 0;
+var roundTop = [];
+var roundOverUntil = 0;
+var myWeapon = 0;
 var hitFlash = /* @__PURE__ */ new Map();
 var lastDrawn = /* @__PURE__ */ new Map();
 var prevAlive = /* @__PURE__ */ new Map();
@@ -2114,9 +2373,9 @@ function lerpState(a, b, t) {
   for (const id of Object.keys(b.players)) {
     const pb = b.players[id];
     const pa = a.players[id];
-    players[id] = pa ? { x: pa.x + (pb.x - pa.x) * t, y: pa.y + (pb.y - pa.y) * t, aim: pb.aim, hp: pb.hp, score: pb.score, alive: pb.alive } : pb;
+    players[id] = pa ? { ...pb, x: pa.x + (pb.x - pa.x) * t, y: pa.y + (pb.y - pa.y) * t } : pb;
   }
-  return { players, seed: b.seed };
+  return { ...b, players };
 }
 var flow = new LoadingFlow([
   { id: "assets", label: "Loading assets", weight: 3 },
@@ -2237,34 +2496,191 @@ function startGame(room) {
   room.onMessage("shot", (payload) => {
     const p = payload;
     const now = performance.now();
-    const anchor = p.from && lastDrawn.get(p.from) || { x: p.ox, y: p.oy };
-    tracers.push({
-      ox: anchor.x,
-      oy: anchor.y,
-      tx: anchor.x + Math.cos(p.dir) * SHOOTER.shotRange,
-      ty: anchor.y + Math.sin(p.dir) * SHOOTER.shotRange,
-      hit: p.hitId !== void 0,
-      until: now + 120
-    });
-    effects.push({ kind: "muzzle", x: anchor.x, y: anchor.y, dir: p.dir, until: now + 80 });
-    playSound("shot");
+    const wIdx = typeof p.w === "number" ? p.w : 0;
+    const range = WEAPONS[wIdx]?.range ?? SHOOTER.shotRange;
+    const dist = typeof p.dist === "number" ? p.dist : range;
+    if (p.from !== myId) {
+      const anchor = p.from && lastDrawn.get(p.from) || { x: p.ox, y: p.oy };
+      const tx = anchor.x + Math.cos(p.dir) * dist;
+      const ty = anchor.y + Math.sin(p.dir) * dist;
+      tracers.push({
+        ox: anchor.x,
+        oy: anchor.y,
+        tx,
+        ty,
+        hit: p.hitId !== void 0,
+        color: weaponTracerColor(wIdx),
+        until: now + 120
+      });
+      effects.push({ kind: "muzzle", x: anchor.x, y: anchor.y, dir: p.dir, until: now + 80 });
+      if (p.hitId === void 0 && dist < range - 1) {
+        effects.push({ kind: "impact", x: tx, y: ty, until: now + 110 });
+      }
+      playSound("shot");
+    }
     if (p.hitId !== void 0) {
       hitFlash.set(p.hitId, now + 140);
       playSound("hit");
+      if (p.from === myId) {
+        hitMarkerUntil = now + 120;
+        const victim = lastDrawn.get(p.hitId);
+        if (victim && typeof p.dmg === "number") {
+          damageNumbers.push({ x: victim.x, y: victim.y, dmg: p.dmg, until: now + 600 });
+        }
+      }
     }
+  });
+  room.onMessage("kill", (payload) => {
+    const p = payload;
+    const glyph = KILL_GLYPHS[p.by] ?? "\u2022";
+    const killer = p.kn ?? p.k.slice(0, 6);
+    const victim = p.vn ?? p.v.slice(0, 6);
+    killFeed.unshift({ text: `${glyph} ${killer} \u25B8 ${victim}`, mine: p.k === myId, until: performance.now() + 4e3 });
+    while (killFeed.length > 5) killFeed.pop();
+    if (p.k === myId) {
+      killStreak += 1;
+      const label2 = killStreak >= 8 ? "UNSTOPPABLE!" : killStreak >= 5 ? "RAMPAGE!" : killStreak >= 3 ? "KILLING SPREE!" : "";
+      if (label2) {
+        streakBannerText = label2;
+        streakBannerUntil = performance.now() + 1600;
+      }
+    }
+  });
+  room.onMessage("grab", (payload) => {
+    const p = payload;
+    const s = pickupSpots[p.i];
+    if (s) effects.push({ kind: "respawn", x: s.x, y: s.y, until: performance.now() + 350 });
+    if (p.id === myId) playSound("hit");
+  });
+  room.onMessage("round", (payload) => {
+    const p = payload;
+    roundTop = p.top ?? [];
+    roundOverUntil = performance.now() + 5e3;
   });
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
     mouse.y = e.clientY - rect.top;
   });
-  canvas.addEventListener("mousedown", () => {
+  let lastLocalShotAt = -Infinity;
+  tryFire = () => {
+    const nowW = performance.now();
+    const spec = WEAPONS[myWeapon] ?? WEAPONS[0];
+    if (nowW - lastLocalShotAt < spec.cooldownMs) return;
+    lastLocalShotAt = nowW;
     room.send("shoot", { dir: aim });
+    const me = lastDrawn.get(myId) ?? motion.renderPosition;
+    const color = weaponTracerColor(myWeapon);
+    for (let i = 0; i < spec.rays; i++) {
+      const rayDir = spec.rays > 1 ? aim + (i / (spec.rays - 1) - 0.5) * spec.spread : aim;
+      const cd = Math.cos(rayDir);
+      const sd = Math.sin(rayDir);
+      const dist = Math.min(
+        spec.range,
+        rayCoverDistance(crates, me.x, me.y, cd, sd, spec.range, isBrokenIdx)
+      );
+      const tx = me.x + cd * dist;
+      const ty = me.y + sd * dist;
+      tracers.push({ ox: me.x, oy: me.y, tx, ty, hit: false, color, until: nowW + 120 });
+      if (dist < spec.range - 1) effects.push({ kind: "impact", x: tx, y: ty, until: nowW + 110 });
+    }
+    effects.push({ kind: "muzzle", x: me.x, y: me.y, dir: aim, until: nowW + 80 });
+    playSound("shot");
+  };
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    tryFire();
   });
-  addEventListener("keydown", (e) => keys.add(e.key.toLowerCase()));
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  if (isTouch) {
+    const localPoint = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const p = localPoint(e);
+      const hit = weaponButtonRects().find((b) => p.x >= b.x && p.x <= b.x + b.s && p.y >= b.y && p.y <= b.y + b.s);
+      if (hit) {
+        if (hit.w !== myWeapon) {
+          myWeapon = hit.w;
+          room.send("weapon", { w: hit.w });
+        }
+        return;
+      }
+      if (p.x < canvas.width / 2) {
+        if (movePointerId !== -1) return;
+        movePointerId = e.pointerId;
+        moveOrigin.x = p.x;
+        moveOrigin.y = p.y;
+        moveKnob.x = p.x;
+        moveKnob.y = p.y;
+        stickMove = { x: 0, y: 0 };
+      } else {
+        if (aimPointerId !== -1) return;
+        aimPointerId = e.pointerId;
+        aimOrigin.x = p.x;
+        aimOrigin.y = p.y;
+        aimKnob.x = p.x;
+        aimKnob.y = p.y;
+        stickAim.active = true;
+        stickAim.fire = false;
+      }
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      const p = localPoint(e);
+      if (e.pointerId === movePointerId) {
+        let dx = p.x - moveOrigin.x;
+        let dy = p.y - moveOrigin.y;
+        const mag = Math.hypot(dx, dy);
+        if (mag > STICK_R) {
+          dx = dx / mag * STICK_R;
+          dy = dy / mag * STICK_R;
+        }
+        moveKnob.x = moveOrigin.x + dx;
+        moveKnob.y = moveOrigin.y + dy;
+        stickMove = { x: dx / STICK_R, y: dy / STICK_R };
+      } else if (e.pointerId === aimPointerId) {
+        const dx = p.x - aimOrigin.x;
+        const dy = p.y - aimOrigin.y;
+        const mag = Math.hypot(dx, dy);
+        const clamped = Math.min(mag, STICK_R);
+        if (mag > 0) {
+          aimKnob.x = aimOrigin.x + dx / mag * clamped;
+          aimKnob.y = aimOrigin.y + dy / mag * clamped;
+        }
+        if (mag > 12) stickAim.dir = Math.atan2(dy, dx);
+        stickAim.fire = mag >= STICK_R * 0.6;
+      }
+    });
+    const endPointer = (e) => {
+      if (e.pointerId === movePointerId) {
+        movePointerId = -1;
+        stickMove = { x: 0, y: 0 };
+      } else if (e.pointerId === aimPointerId) {
+        aimPointerId = -1;
+        stickAim.active = false;
+        stickAim.fire = false;
+      }
+    };
+    canvas.addEventListener("pointerup", endPointer);
+    canvas.addEventListener("pointercancel", endPointer);
+  }
+  addEventListener("keydown", (e) => {
+    keys.add(e.key.toLowerCase());
+    const w = e.code === "Digit1" || e.key === "1" ? 0 : e.code === "Digit2" || e.key === "2" ? 1 : e.code === "Digit3" || e.key === "3" ? 2 : -1;
+    if (w >= 0 && w !== myWeapon) {
+      myWeapon = w;
+      room.send("weapon", { w });
+    }
+  });
   addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
   setInterval(() => {
-    aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+    if (isTouch) {
+      if (stickAim.active) aim = stickAim.dir;
+    } else {
+      aim = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+    }
     seq += 1;
     const sent = motion.sendPosition(room.clock.serverNow());
     room.send("move", { x: sent.x, y: sent.y, aim });
@@ -2279,6 +2695,7 @@ function startGame(room) {
 }
 function ingestState(st, room) {
   buffer.push(room.lastStateServerTime ?? performance.now(), st);
+  latestBroken = st.broken;
   const me = st.players[myId];
   if (me) {
     predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
@@ -2287,7 +2704,8 @@ function ingestState(st, room) {
   }
   if (crateSeed === null && typeof st.seed === "number") {
     crateSeed = st.seed;
-    crates = makeCrates(st.seed);
+    crates = makeCrates(st.seed, SHOOTER.world);
+    pickupSpots = makePickups(st.seed, SHOOTER.world, crates, SHOOTER.pickupCount);
   }
   const now = performance.now();
   const seenNow = /* @__PURE__ */ new Set();
@@ -2298,6 +2716,7 @@ function ingestState(st, room) {
     if (was === true && !p.alive) {
       effects.push({ kind: "death", x: p.x, y: p.y, until: now + 500 });
       playSound("death");
+      if (id === myId) killStreak = 0;
     } else if (was === false && p.alive) {
       effects.push({ kind: "respawn", x: p.x, y: p.y, until: now + 450 });
     }
@@ -2344,9 +2763,10 @@ function render() {
   const now = performance.now();
   const dtMs = lastRenderMs === 0 ? 16 : now - lastRenderMs;
   lastRenderMs = now;
-  const dir = moveDir();
+  const dir = isTouch ? stickMove : moveDir();
   const { x: renderX, y: renderY } = motion.frame(dir.x, dir.y, dtMs);
   lastDrawn.set(myId, { x: renderX, y: renderY });
+  if (isTouch && stickAim.fire) tryFire();
   cam.x = renderX;
   cam.y = renderY;
   const camX = Math.round(cam.x - canvas.width / 2);
@@ -2354,13 +2774,16 @@ function render() {
   drawGround(camX, camY);
   drawWorldBounds(camX, camY);
   drawCrates(camX, camY);
+  const view = buffer.sample(sampleServerNow());
+  drawZone(view, camX, camY);
+  drawPickups(view, camX, camY, now);
   for (let i = tracers.length - 1; i >= 0; i--) {
     const tr = tracers[i];
     if (tr.until <= now) {
       tracers.splice(i, 1);
       continue;
     }
-    ctx.strokeStyle = tr.hit ? "#00e5a0" : "rgba(230,237,243,0.35)";
+    ctx.strokeStyle = tr.hit ? "#00e5a0" : tr.color ?? "rgba(230,237,243,0.35)";
     ctx.lineWidth = tr.hit ? 2 : 1;
     ctx.beginPath();
     ctx.moveTo(tr.ox - camX, tr.oy - camY);
@@ -2368,7 +2791,6 @@ function render() {
     ctx.stroke();
   }
   drawEffects(camX, camY, now);
-  const view = buffer.sample(sampleServerNow());
   const seen = /* @__PURE__ */ new Set();
   if (view) {
     for (const id of Object.keys(view.players)) {
@@ -2385,6 +2807,7 @@ function render() {
         hitFlash.get(id),
         now
       );
+      if (pl.alive && pl.sp) drawSpawnRing(sm.x - camX, sm.y - camY, now);
     }
   }
   smoother.prune(seen);
@@ -2393,44 +2816,152 @@ function render() {
   }
   const meState = view?.players[myId];
   const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
+  const meAlive = meState?.alive ?? true;
   drawPlayer(
-    { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meState?.alive ?? true },
+    { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meAlive },
     renderX - camX,
     renderY - camY,
     true,
     hitFlash.get(myId),
     now
   );
-  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, visible);
+  if (meAlive && meState?.sp) drawSpawnRing(renderX - camX, renderY - camY, now);
+  if (meAlive && meState?.db) {
+    ctx.fillStyle = "#ff9f43";
+    ctx.font = "bold 11px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("\xD72", renderX - camX, renderY - camY - 34);
+    ctx.textAlign = "start";
+  }
+  drawDamageNumbers(camX, camY, now);
+  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, visible, myWeapon, meState?.db ?? false);
+  drawRadar(view, renderX, renderY);
+  drawHitMarker(now);
+  drawKillFeed(now);
+  drawRoundUI(view, now);
+  drawStreakBanner(now);
+  if (view && meAlive && Math.hypot(renderX - view.zx, renderY - view.zy) > view.zr) {
+    drawZoneWarning(now);
+  }
+  drawTouchControls();
   requestAnimationFrame(render);
 }
-function drawGround(camX, camY) {
-  ctx.fillStyle = "#0a0e14";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const tile = 64;
-  const startX = -((camX % tile + tile) % tile);
-  const startY = -((camY % tile + tile) % tile);
-  const ground = sprites.groundTile;
-  if (ground) {
-    for (let x = startX; x < canvas.width; x += tile) {
-      for (let y = startY; y < canvas.height; y += tile) {
-        ctx.drawImage(ground, x, y, tile, tile);
-      }
-    }
-    return;
+function weaponButtonRects() {
+  const s = 44;
+  const gap = 8;
+  const pad = 14;
+  const radarTop = canvas.height - 168 - pad;
+  const x = canvas.width - pad - s;
+  return [0, 1, 2].map((w) => ({ x, y: radarTop - gap - s - (2 - w) * (s + gap), s, w }));
+}
+function drawTouchControls() {
+  if (!isTouch) return;
+  for (const b of weaponButtonRects()) {
+    const active = b.w === myWeapon;
+    ctx.fillStyle = "rgba(16,21,29,0.85)";
+    ctx.strokeStyle = active ? "#00e5a0" : "#232b36";
+    ctx.lineWidth = active ? 2 : 1;
+    roundRect(b.x, b.y, b.s, b.s, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = active ? "#00e5a0" : "#8b98a8";
+    ctx.font = "bold 18px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(b.w + 1), b.x + b.s / 2, b.y + b.s / 2 + 1);
+    ctx.textBaseline = "alphabetic";
   }
-  ctx.strokeStyle = "rgba(35,43,54,0.6)";
+  ctx.textAlign = "start";
+  if (movePointerId !== -1) drawStick(moveOrigin, moveKnob, "#00e5a0");
+  if (aimPointerId !== -1) drawStick(aimOrigin, aimKnob, stickAim.fire ? "#ff6b6b" : "#58a6ff");
+}
+function drawStick(origin, knob, knobColor) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(origin.x, origin.y, STICK_R, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(16,21,29,0.28)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(35,43,54,0.9)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.arc(knob.x, knob.y, 22, 0, Math.PI * 2);
+  ctx.fillStyle = knobColor;
+  ctx.fill();
+  ctx.restore();
+}
+function drawRadar(view, selfX, selfY) {
+  const size = 168;
+  const pad = 14;
+  const x0 = canvas.width - size - pad;
+  const y0 = canvas.height - size - pad;
+  const s = size / SHOOTER.world;
+  ctx.save();
+  ctx.fillStyle = "rgba(16,21,29,0.82)";
+  ctx.strokeStyle = "#232b36";
+  ctx.lineWidth = 1;
+  roundRect(x0, y0, size, size, 10);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  roundRect(x0, y0, size, size, 10);
+  ctx.clip();
+  ctx.fillStyle = "rgba(139,152,168,0.5)";
+  for (let i = 0; i < crates.length; i++) {
+    if (isBrokenIdx(i)) continue;
+    const cr = crates[i];
+    const cs = Math.max(2, cr.size * s);
+    ctx.fillRect(x0 + cr.x * s - cs / 2, y0 + cr.y * s - cs / 2, cs, cs);
+  }
+  if (view) {
+    ctx.strokeStyle = "rgba(255,107,107,0.6)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x0 + view.zx * s, y0 + view.zy * s, view.zr * s, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(0,229,160,0.25)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = startX; x < canvas.width; x += tile) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-  }
-  for (let y = startY; y < canvas.height; y += tile) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-  }
+  ctx.arc(x0 + selfX * s, y0 + selfY * s, SHOOTER.viewRadius * s, 0, Math.PI * 2);
   ctx.stroke();
+  if (view) {
+    for (const id of Object.keys(view.players)) {
+      if (id === myId) continue;
+      const pl = view.players[id];
+      ctx.fillStyle = pl.alive ? "#ff6b6b" : "rgba(139,152,168,0.4)";
+      ctx.beginPath();
+      ctx.arc(x0 + pl.x * s, y0 + pl.y * s, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const sx = x0 + selfX * s;
+  const sy = y0 + selfY * s;
+  ctx.fillStyle = "#00e5a0";
+  ctx.beginPath();
+  ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#00e5a0";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + Math.cos(aim) * 8, sy + Math.sin(aim) * 8);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawGround(camX, camY) {
+  ctx.fillStyle = "#0b0f15";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const grid = 56;
+  const startX = -((camX % grid + grid) % grid);
+  const startY = -((camY % grid + grid) % grid);
+  ctx.fillStyle = "rgba(35,45,58,0.55)";
+  for (let x = startX; x < canvas.width; x += grid) {
+    for (let y = startY; y < canvas.height; y += grid) {
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
 }
 function drawWorldBounds(camX, camY) {
   ctx.strokeStyle = "rgba(0,229,160,0.35)";
@@ -2440,10 +2971,26 @@ function drawWorldBounds(camX, camY) {
 function drawCrates(camX, camY) {
   if (crates.length === 0) return;
   const sprite = sprites.crate;
-  for (const cr of crates) {
+  for (let i = 0; i < crates.length; i++) {
+    const cr = crates[i];
     const x = cr.x - camX;
     const y = cr.y - camY;
     if (x < -cr.size || y < -cr.size || x > canvas.width + cr.size || y > canvas.height + cr.size) continue;
+    if (isBrokenIdx(i)) {
+      const h = cr.size / 2;
+      ctx.fillStyle = "#0d1219";
+      ctx.fillRect(x - h, y - cr.size / 6, cr.size, cr.size / 3);
+      ctx.strokeStyle = "#2a333f";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const ox = (k - 1) * h * 0.6;
+        ctx.moveTo(x + ox, y - 3);
+        ctx.lineTo(x + ox + 4, y + 4);
+      }
+      ctx.stroke();
+      continue;
+    }
     if (sprite) {
       ctx.drawImage(sprite, x - cr.size / 2, y - cr.size / 2, cr.size, cr.size);
     } else {
@@ -2486,6 +3033,22 @@ function drawEffects(camX, camY, now) {
         ctx.fill();
         ctx.restore();
       }
+    } else if (fx.kind === "impact") {
+      const life = (fx.until - now) / 110;
+      ctx.save();
+      ctx.globalAlpha = life;
+      ctx.strokeStyle = "#f2cc60";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * Math.PI * 2 + 0.4;
+        const r0 = 3 + (1 - life) * 3;
+        const r1 = r0 + 5 + (1 - life) * 6;
+        ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0);
+        ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
+      }
+      ctx.stroke();
+      ctx.restore();
     } else {
       const total = fx.kind === "death" ? 500 : 450;
       const life = (fx.until - now) / total;
@@ -2538,10 +3101,10 @@ function drawPlayer(p, x, y, isSelf, flashUntil, now) {
   ctx.fillRect(x - w / 2, y - 26, w * Math.max(0, p.hp) / SHOOTER.maxHp, 4);
   label(`${p.score}`, x, y + 30);
 }
-function drawHud(hp, score, count) {
+function drawHud(hp, score, count, weapon, db) {
   const pad = 14;
-  const w = 190;
-  const h = 76;
+  const w = 210;
+  const h = 118;
   const x = pad;
   const y = canvas.height - h - pad;
   ctx.fillStyle = "rgba(16,21,29,0.85)";
@@ -2567,7 +3130,228 @@ function drawHud(hp, score, count) {
   ctx.textAlign = "left";
   ctx.fillStyle = "#8b98a8";
   ctx.fillText(`${count}/${MAX_PLAYERS} in view`, bx, by + 42);
+  const spec = WEAPONS[weapon] ?? WEAPONS[0];
+  ctx.fillStyle = "#e6edf3";
+  ctx.fillText(`WEAPON ${spec.name}`, bx, by + 60);
+  if (db) {
+    ctx.fillStyle = "#ff9f43";
+    ctx.fillText("DMG \xD72", bx, by + 76);
+  }
+  ctx.fillStyle = "#8b98a8";
+  ctx.fillText(isTouch ? "sticks: move / aim \xB7 tap 1-3" : "1/2/3 swap weapons", bx, by + 92);
   ctx.textAlign = "start";
+}
+function drawSpawnRing(x, y, now) {
+  ctx.save();
+  ctx.globalAlpha = 0.35 + 0.25 * Math.sin(now / 150);
+  ctx.strokeStyle = "#00e5a0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, 20, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawDamageNumbers(camX, camY, now) {
+  ctx.save();
+  ctx.font = "bold 13px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  for (let i = damageNumbers.length - 1; i >= 0; i--) {
+    const d = damageNumbers[i];
+    if (d.until <= now) {
+      damageNumbers.splice(i, 1);
+      continue;
+    }
+    const life = (d.until - now) / 600;
+    ctx.globalAlpha = life;
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText(`-${d.dmg}`, d.x - camX, d.y - camY - (1 - life) * 24);
+  }
+  ctx.restore();
+  ctx.textAlign = "start";
+}
+function drawHitMarker(now) {
+  if (hitMarkerUntil <= now) return;
+  const life = (hitMarkerUntil - now) / 120;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  ctx.save();
+  ctx.globalAlpha = life;
+  ctx.strokeStyle = "#00e5a0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (const [sx, sy] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1]
+  ]) {
+    ctx.moveTo(cx + sx * 6, cy + sy * 6);
+    ctx.lineTo(cx + sx * 12, cy + sy * 12);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+function drawKillFeed(now) {
+  for (let i = killFeed.length - 1; i >= 0; i--) {
+    if (killFeed[i].until <= now) killFeed.splice(i, 1);
+  }
+  if (killFeed.length === 0) return;
+  ctx.save();
+  ctx.font = "12px ui-monospace, monospace";
+  ctx.textAlign = "right";
+  const rx = canvas.width - 16;
+  let y = 200;
+  for (const k of killFeed.slice(0, 5)) {
+    ctx.globalAlpha = Math.min(1, (k.until - now) / 400);
+    ctx.fillStyle = k.mine ? "#00e5a0" : "#e6edf3";
+    ctx.fillText(k.text, rx, y);
+    y += 18;
+  }
+  ctx.restore();
+  ctx.textAlign = "start";
+}
+function drawStreakBanner(now) {
+  if (streakBannerUntil <= now) return;
+  const life = (streakBannerUntil - now) / 1600;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, life * 2);
+  ctx.font = "bold 34px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#00e5a0";
+  ctx.shadowColor = "#00e5a0";
+  ctx.shadowBlur = 16;
+  ctx.fillText(streakBannerText, canvas.width / 2, canvas.height * 0.32);
+  ctx.restore();
+  ctx.textAlign = "start";
+}
+function drawRoundUI(view, now) {
+  if (view) {
+    const remain = Math.max(0, view.roundEndMs - sampleServerNow());
+    const mm = Math.floor(remain / 6e4);
+    const ss = Math.floor(remain % 6e4 / 1e3);
+    const text = `${mm}:${String(ss).padStart(2, "0")}`;
+    const w = 72;
+    const hgt = 30;
+    const x = canvas.width / 2 - w / 2;
+    const y = 14;
+    ctx.fillStyle = "rgba(16,21,29,0.85)";
+    ctx.strokeStyle = "#232b36";
+    ctx.lineWidth = 1;
+    roundRect(x, y, w, hgt, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = remain <= 3e4 ? "#ff6b6b" : "#e6edf3";
+    ctx.font = "16px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(text, canvas.width / 2, y + 21);
+    ctx.textAlign = "start";
+  }
+  if (roundOverUntil <= now) return;
+  const life = (roundOverUntil - now) / 5e3;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, life * 4);
+  ctx.textAlign = "center";
+  const cx = canvas.width / 2;
+  const cy = canvas.height * 0.42;
+  const win = roundTop[0];
+  const winName = win ? win.nick ?? win.id.slice(0, 6) : "\u2014";
+  ctx.fillStyle = "#00e5a0";
+  ctx.shadowColor = "#00e5a0";
+  ctx.shadowBlur = 14;
+  ctx.font = "bold 26px ui-monospace, monospace";
+  ctx.fillText(`ROUND OVER \u2014 WINNER: ${winName}${win ? ` (${win.score})` : ""}`, cx, cy);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#8b98a8";
+  ctx.font = "14px ui-monospace, monospace";
+  for (let i = 1; i < Math.min(3, roundTop.length); i++) {
+    const r = roundTop[i];
+    ctx.fillText(`${i + 1}. ${r.nick ?? r.id.slice(0, 6)} \u2014 ${r.score}`, cx, cy + 18 + i * 20);
+  }
+  ctx.restore();
+  ctx.textAlign = "start";
+}
+function drawZone(view, camX, camY) {
+  if (!view) return;
+  const zx = view.zx - camX;
+  const zy = view.zy - camY;
+  const zr = view.zr;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.arc(zx, zy, zr, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,60,60,0.08)";
+  ctx.fill("evenodd");
+  ctx.beginPath();
+  ctx.arc(zx, zy, zr, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,107,107,0.6)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+function drawZoneWarning(now) {
+  const pulse = 0.25 + 0.2 * Math.sin(now / 200);
+  const g = ctx.createRadialGradient(
+    canvas.width / 2,
+    canvas.height / 2,
+    Math.min(canvas.width, canvas.height) * 0.35,
+    canvas.width / 2,
+    canvas.height / 2,
+    Math.max(canvas.width, canvas.height) * 0.7
+  );
+  g.addColorStop(0, "rgba(255,60,60,0)");
+  g.addColorStop(1, `rgba(255,60,60,${pulse.toFixed(3)})`);
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ff6b6b";
+  ctx.font = "bold 14px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("OUTSIDE ZONE", canvas.width / 2, canvas.height / 2 + 30);
+  ctx.restore();
+  ctx.textAlign = "start";
+}
+function drawPickups(view, camX, camY, now) {
+  if (pickupSpots.length === 0) return;
+  for (let i = 0; i < pickupSpots.length; i++) {
+    if (view?.pickups[String(i)]?.on === false) continue;
+    const spot = pickupSpots[i];
+    const x = spot.x - camX;
+    const y = spot.y - camY - Math.sin(now / 300 + i) * 3;
+    if (x < -20 || y < -20 || x > canvas.width + 20 || y > canvas.height + 20) continue;
+    if (spot.kind === "hp") {
+      ctx.fillStyle = "rgba(0,229,160,0.18)";
+      ctx.strokeStyle = "#00e5a0";
+      ctx.lineWidth = 1.5;
+      roundRect(x - 9, y - 9, 18, 18, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 5);
+      ctx.lineTo(x, y + 5);
+      ctx.moveTo(x - 5, y);
+      ctx.lineTo(x + 5, y);
+      ctx.stroke();
+    } else {
+      ctx.save();
+      ctx.strokeStyle = "#ff9f43";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2;
+        ctx.moveTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4);
+        ctx.lineTo(x + Math.cos(a) * 10, y + Math.sin(a) * 10);
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#ff9f43";
+      ctx.font = "bold 10px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("\xD72", x, y + 3);
+      ctx.restore();
+      ctx.textAlign = "start";
+    }
+  }
 }
 function roundRect(x, y, w, h, r) {
   ctx.beginPath();

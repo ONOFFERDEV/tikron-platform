@@ -2,6 +2,7 @@ import { SELF, env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
 import { ShooterSchema, SHOOTER } from "../src/rooms/shooter-schema.js";
+import { makeCrates, rayCoverDistance, type Crate } from "../src/rooms/shooter-crates.js";
 import { topScores } from "../src/platform/db.js";
 import type { Env } from "../src/index.js";
 
@@ -126,7 +127,47 @@ async function driveTo(
   throw new Error(`driveTo(${id}) failed to reach (${tx}, ${ty})`);
 }
 
-const NORTH = -Math.PI / 2; // aim toward decreasing y (a target due north of the shooter)
+/** Distance from a point to a crate's AABB (0 when inside). */
+function crateClearance(c: Crate, x: number, y: number): number {
+  const h = c.size / 2;
+  const dx = Math.max(c.x - h - x, 0, x - (c.x + h));
+  const dy = Math.max(c.y - h - y, 0, y - (c.y + h));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Crates are authoritative cover now (they block shots AND movement), and each
+ * room's layout is seed-random — so the geometry tests can't just aim NORTH and
+ * hope. This reads the room's `state.seed`, rebuilds the same layout the server
+ * uses, and picks a firing direction whose 100u ray, target point, and 90u
+ * perpendicular slide lane are all clear of crates (with pushout margin).
+ */
+function clearRay(
+  seed: number,
+  sp: { x: number; y: number },
+): { dir: number; x: number; y: number; px: number; py: number } {
+  const crates = makeCrates(seed, SHOOTER.world);
+  const MARGIN = SHOOTER.playerRadius + 8; // pushout radius + settle tolerance
+  const clearPoint = (x: number, y: number) =>
+    x > 40 && y > 40 && x < SHOOTER.world - 40 && y < SHOOTER.world - 40 &&
+    crates.every((c) => crateClearance(c, x, y) >= MARGIN);
+  for (let k = 0; k < 8; k++) {
+    const dir = (k / 8) * Math.PI * 2;
+    const tx = sp.x + Math.cos(dir) * 100;
+    const ty = sp.y + Math.sin(dir) * 100;
+    if (!clearPoint(tx, ty)) continue;
+    if (rayCoverDistance(crates, sp.x, sp.y, Math.cos(dir), Math.sin(dir), 110) !== Infinity) continue;
+    for (const side of [1, -1]) {
+      const pd = dir + (Math.PI / 2) * side;
+      const px = Math.cos(pd);
+      const py = Math.sin(pd);
+      // The slide lane: mid + end points of the 90u sidestep must be clear too.
+      if (!clearPoint(tx + px * 45, ty + py * 45) || !clearPoint(tx + px * 95, ty + py * 95)) continue;
+      return { dir, x: tx, y: ty, px, py };
+    }
+  }
+  throw new Error("no clear firing lane from this spawn (extremely unlucky seed)");
+}
 
 describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
   it("move validation: an over-budget teleport is rejected and snapped back", async () => {
@@ -134,9 +175,10 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     const id = (await a.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
     const spawn = await posOf(a, id); // spread spawn: read wherever the room placed us
 
-    // A small step within the speed budget is accepted.
-    a.move({ x: spawn.x + 20, y: spawn.y }, 1);
-    await a.waitState((s) => s.players[id].x >= spawn.x + 15);
+    // A small step within the speed budget is accepted (the first move's seed
+    // budget is one stepMs — 500 u/s × 33 ms × 1.15 ≈ 19u — so step 15).
+    a.move({ x: spawn.x + 15, y: spawn.y }, 1);
+    await a.waitState((s) => s.players[id].x >= spawn.x + 12);
 
     // A huge jump exceeds the speed budget and is rejected; the server clamps the
     // player onto the budget circle toward the request (it advances at most
@@ -153,8 +195,8 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     // No rejection cascade: the next speed-legal move, based on the authoritative
     // position the rejection reported, is accepted normally (no second `rejected`).
     await sleep(SHOOTER.stepMs + 20);
-    a.move({ x: rejPos.x + 20, y: rejPos.y }, 3);
-    await a.waitState((s) => s.players[id].x >= rejPos.x + 15);
+    a.move({ x: rejPos.x + 18, y: rejPos.y }, 3);
+    await a.waitState((s) => s.players[id].x >= rejPos.x + 14);
     expect(a.sawMsg((m) => m.t === "s:msg" && m.type === "rejected")).toBe(false);
 
     a.ws.close();
@@ -176,7 +218,7 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     // measure from and gets the default one-tick budget, so it must stay in-place.
     a.move({ x, y: spawn.y }, 1);
     for (let i = 2; i <= 6; i++) {
-      await sleep(SHOOTER.stepMs + 20); // late timer: ~70 ms between sends
+      await sleep(SHOOTER.stepMs + 40); // late timer: ~73 ms between sends (> 2 ticks)
       x += 30 * dir;
       a.move({ x, y: spawn.y }, i);
     }
@@ -221,15 +263,15 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     const id = (await a.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
     await posOf(a, id); // wait for a state frame so serverTime() is populated
 
-    a.shoot(NORTH, 1, a.serverTime());
-    a.shoot(NORTH, 2, a.serverTime());
+    a.shoot(0, 1, a.serverTime());
+    a.shoot(0, 2, a.serverTime());
     await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot"); // the first lands
     // Give a (wrongly) accepted second shot ample time to surface, then assert silence.
     await sleep(SHOOTER.shotCooldownMs + 50);
     expect(a.sawMsg((m) => m.t === "s:msg" && m.type === "shot")).toBe(false);
 
     // Past the cooldown the next shot is accepted again.
-    a.shoot(NORTH, 3, a.serverTime());
+    a.shoot(0, 3, a.serverTime());
     await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
 
     a.ws.close();
@@ -242,15 +284,21 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     const target = await stateClient("shooter-room", "lag", ShooterSchema);
     const idT = (await target.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
 
-    // Drive the target 100u due north of the shooter — on its NORTH aim ray and well
-    // inside shotRange — no matter where spread-spawn dropped it.
-    const rayX = sp.x;
-    const rayY = sp.y - 100;
+    // Spawn protection makes a fresh joiner hitscan-transparent for 2 s — wait it
+    // out so the rewound shot below can actually connect.
+    await target.waitState((s) => s.players?.[idT]?.sp === false, 6000);
+
+    // Drive the target 100u out along a crate-free firing lane (crates block
+    // shots now, so the lane is chosen from the room's own seed-derived layout).
+    const seed = (await shooter.waitState((s) => typeof s.seed === "number")).seed as number;
+    const ray = clearRay(seed, sp);
+    const rayX = ray.x;
+    const rayY = ray.y;
     const seq = { n: 1 };
     await driveTo(target, seq, idT, rayX, rayY);
 
     // Wait until the shooter sees the target settled on the ray, then let ~300 ms of
-    // on-ray history accumulate in the lag buffer. Its retention depth is 250 ms, so
+    // on-ray history accumulate in the lag buffer. Its retention depth is 200 ms, so
     // its whole span is now "target on ray".
     await shooter.waitState((s) => {
       const t = s.players?.[idT];
@@ -258,27 +306,29 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     });
     await sleep(300);
 
-    // Slide the target off the ray (east), just now — in tick-paced, budget-sized
-    // steps. (The speed budget is now measured against each client's real inter-move
-    // elapsed time, so a zero-delay burst would be over-speed and clamped short.)
-    target.move({ x: rayX + 30, y: rayY }, seq.n++);
+    // Slide the target off the ray (perpendicular, along the pre-checked clear
+    // lane), just now — in tick-paced, budget-sized steps.
+    target.move({ x: rayX + ray.px * 30, y: rayY + ray.py * 30 }, seq.n++);
     await sleep(SHOOTER.stepMs + 20);
-    target.move({ x: rayX + 60, y: rayY }, seq.n++);
+    target.move({ x: rayX + ray.px * 60, y: rayY + ray.py * 60 }, seq.n++);
     await sleep(SHOOTER.stepMs + 20);
-    target.move({ x: rayX + 85, y: rayY }, seq.n++);
-    await shooter.waitState((s) => (s.players?.[idT]?.x ?? 0) >= rayX + 75);
+    target.move({ x: rayX + ray.px * 85, y: rayY + ray.py * 85 }, seq.n++);
+    await shooter.waitState((s) => {
+      const t = s.players?.[idT];
+      return t !== undefined && Math.hypot(t.x - rayX, t.y - rayY) >= 75;
+    });
 
     // Shoot with a stale subtick ts (~the retention horizon): rewind lands on the
     // target's *earlier* on-ray position, where the shooter aimed → HIT. (A high-RTT
     // client's input carries exactly such a past timestamp.)
-    shooter.shoot(NORTH, seq.n++, shooter.serverTime() - 240);
+    shooter.shoot(ray.dir, seq.n++, shooter.serverTime() - 190);
     const hitShot = await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     expect(hitShot.payload.from).toBe(idS);
     expect(hitShot.payload.hitId).toBe(idT); // rewind found the target where the shooter aimed
 
     // The same aim against the *current* world (ts=now, target now off the ray) → MISS.
     await sleep(SHOOTER.shotCooldownMs + 20); // clear the server fire-rate cooldown
-    shooter.shoot(NORTH, seq.n++, shooter.serverTime());
+    shooter.shoot(ray.dir, seq.n++, shooter.serverTime());
     const missShot = await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     expect(missShot.payload.from).toBe(idS);
     expect(missShot.payload.hitId).toBeUndefined();
@@ -293,10 +343,14 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     const sp = await posOf(shooter, idS);
     const target = await stateClient("shooter-room", "kill", ShooterSchema);
     const idT = (await target.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    // Wait out the victim's spawn protection or the shots below pass through it.
+    await target.waitState((s) => s.players?.[idT]?.sp === false, 6000);
 
-    // Put the target on the shooter's NORTH ray, 100u out (inside shotRange).
-    const rayX = sp.x;
-    const rayY = sp.y - 100;
+    // Put the target 100u out along a crate-free firing lane (seed-derived).
+    const seed = (await shooter.waitState((s) => typeof s.seed === "number")).seed as number;
+    const ray = clearRay(seed, sp);
+    const rayX = ray.x;
+    const rayY = ray.y;
     const seq = { n: 1 };
     await driveTo(target, seq, idT, rayX, rayY);
     await shooter.waitState((s) => {
@@ -311,7 +365,7 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     // and space the shots past the server's fire-rate cooldown.
     for (let i = 0; i < 3; i++) {
       if (i > 0) await sleep(SHOOTER.shotCooldownMs + 20);
-      shooter.shoot(NORTH, seq.n++, shooter.serverTime());
+      shooter.shoot(ray.dir, seq.n++, shooter.serverTime());
       await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     }
 
@@ -341,15 +395,19 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     const sp = await posOf(shooter, idS);
     const target = await stateClient("shooter-room", "nick", ShooterSchema);
     const idT = (await target.waitMsg((m) => m.t === "s:welcome")).connectionId as string;
+    // Wait out the victim's spawn protection or the kill below can't land.
+    await target.waitState((s) => s.players?.[idT]?.sp === false, 6000);
 
     // Surrounding spaces are trimmed and the embedded control char is stripped,
     // so "  Zoe␇Q  " is stored as "ZoeQ".
     shooter.nick("  Zoe" + String.fromCharCode(7) + "Q  ", 1);
 
-    // Down the target on the shooter's ray (same setup as the kill test) so the
+    // Down the target on a crate-free lane (same setup as the kill test) so the
     // frag is credited and a leaderboard row is written.
-    const rayX = sp.x;
-    const rayY = sp.y - 100;
+    const seed = (await shooter.waitState((s) => typeof s.seed === "number")).seed as number;
+    const ray = clearRay(seed, sp);
+    const rayX = ray.x;
+    const rayY = ray.y;
     const seq = { n: 2 };
     await driveTo(target, seq, idT, rayX, rayY);
     await shooter.waitState((s) => {
@@ -359,7 +417,7 @@ describe("ShooterRoom (FPS demo: subtick lag compensation + hitscan)", () => {
     await sleep(150);
     for (let i = 0; i < 3; i++) {
       if (i > 0) await sleep(SHOOTER.shotCooldownMs + 20); // clear the fire-rate cooldown
-      shooter.shoot(NORTH, seq.n++, shooter.serverTime());
+      shooter.shoot(ray.dir, seq.n++, shooter.serverTime());
       await shooter.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
     }
     await target.waitState((s) => s.players?.[idT]?.alive === false, 5000);

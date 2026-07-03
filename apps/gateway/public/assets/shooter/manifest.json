@@ -2,7 +2,6 @@
   "sprites": {
     "playerBody": "player.png",
     "enemyBody": "enemy.png",
-    "groundTile": "ground.png",
     "crate": "crate.png",
     "muzzleFlash": "muzzle.png"
   },

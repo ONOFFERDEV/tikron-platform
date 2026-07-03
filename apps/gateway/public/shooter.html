@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>Tikron · FPS demo (top-down shooter)</title>
     <meta name="description" content="Live Tikron demo — a server-authoritative top-down shooter with subtick input timestamps, server-side lag compensation, quantized state, and interest management on Cloudflare Durable Objects." />
     <meta name="theme-color" content="#0a0e14" />
@@ -41,8 +41,10 @@
         left: 0;
         width: 100vw;
         height: calc(100vh - 72px);
+        height: calc(100dvh - 72px); /* dynamic viewport height — no jump under the mobile URL bar */
         background: #0a0e14;
         cursor: crosshair;
+        touch-action: none; /* virtual sticks own every touch — no scroll / pinch / double-tap zoom */
       }
       /* existing demo elements — IDs unchanged, restyled as branded panels */
       #status {
@@ -257,6 +259,6 @@
       </div>
     </div>
 
-    <script type="module" src="/shooter.js"></script>
+    <script type="module" src="/shooter.js?v=7"></script>
   </body>
 </html>

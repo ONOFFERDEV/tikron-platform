@@ -69,14 +69,23 @@ export interface ShooterPlayer {
   hp: number;
   score: number;
   alive: boolean;
+  w: number;
+  sp: boolean;
+  db: boolean;
 }
 
 export interface ShooterState {
   players: Record<string, ShooterPlayer>;
-  /** Per-room PRNG seed for visual-only client obstacle rendering (see the server
-   *  schema). Optional here so the harness's empty initial state stays valid; the
-   *  codec always decodes it. */
+  /** Non-player fields are optional here so the harness's empty initial state
+   *  stays valid; the codec always decodes them (see the server schema for what
+   *  each one means — seed-derived geometry, pickups, zone, round). */
   seed?: number;
+  pickups?: Record<string, { on: boolean }>;
+  broken?: Record<string, { b: boolean }>;
+  zx?: number;
+  zy?: number;
+  zr?: number;
+  roundEndMs?: number;
 }
 
 export const ShooterSchema: Codec<ShooterState> = schema({
@@ -88,14 +97,23 @@ export const ShooterSchema: Codec<ShooterState> = schema({
       hp: "u8",
       score: "u32",
       alive: "bool",
+      w: "u8",
+      sp: "bool",
+      db: "bool",
     }),
   ),
   seed: "u32",
+  pickups: mapOf(schema({ on: "bool" })),
+  broken: mapOf(schema({ b: "bool" })),
+  zx: quant(0, 3000, 0.5),
+  zy: quant(0, 3000, 0.5),
+  zr: quant(0, 4500, 0.5),
+  roundEndMs: "f64",
 });
 
 export const SHOOTER = {
   world: 3000,
-  viewRadius: 600,
+  viewRadius: 900,
   maxSpeed: 500,
-  stepMs: 50,
+  stepMs: 33,
 } as const;
