@@ -1982,11 +1982,10 @@ var ShooterSchema = schema({
   roundEndMs: "f64"
 });
 var WEAPONS = [
-  // RIFLE: 20-round mag, ~1.5 s reload. SHOTGUN: 4× damage (16→64/ray), unlimited
-  // (no mag — its long 600 ms cooldown is the limiter). SMG: 40-round mag, faster
-  // fire (55→40 ms cooldown), ~2 s reload.
+  // RIFLE: 20-round mag, ~1.5 s reload. SHOTGUN: 4× damage (16→64/ray), 5-shell
+  // mag, ~2 s reload. SMG: 40-round mag, faster fire (55→40 ms cooldown), ~2 s reload.
   { name: "RIFLE", damage: 34, range: 850, cooldownMs: 100, rays: 1, spread: 0, mag: 20, reloadMs: 1500 },
-  { name: "SHOTGUN", damage: 64, range: 380, cooldownMs: 600, rays: 3, spread: 0.24, mag: 0, reloadMs: 0 },
+  { name: "SHOTGUN", damage: 64, range: 300, cooldownMs: 600, rays: 3, spread: 0.24, mag: 5, reloadMs: 2e3 },
   { name: "SMG", damage: 14, range: 650, cooldownMs: 40, rays: 1, spread: 0, mag: 40, reloadMs: 2e3 }
 ];
 var SHOOTER = {

@@ -106,10 +106,11 @@ describe("ShooterRoom fun pass (weapons / protection / zone / round)", () => {
     a.ws.close();
   });
 
-  it("locks the weapon tuning: rifle 20-mag, shotgun 4× dmg & unlimited, smg 40-mag & faster", () => {
+  it("locks the weapon tuning: rifle 20-mag, shotgun 4× dmg / 5-mag / range 300, smg 40-mag & faster", () => {
     expect(WEAPONS[0]!.mag).toBe(20);
     expect(WEAPONS[1]!.damage).toBe(64); // 16 → ×4
-    expect(WEAPONS[1]!.mag).toBe(0); // unlimited (no reload)
+    expect(WEAPONS[1]!.mag).toBe(5); // 5-shell magazine
+    expect(WEAPONS[1]!.range).toBe(300); // shortened
     expect(WEAPONS[2]!.mag).toBe(40);
     expect(WEAPONS[2]!.cooldownMs).toBe(40); // 55 → faster
   });
@@ -143,16 +144,17 @@ describe("ShooterRoom fun pass (weapons / protection / zone / round)", () => {
     a.ws.close();
   });
 
-  it("never gates the unlimited shotgun with a reload (no ammo echo)", async () => {
+  it("gates the shotgun on its 5-shell mag (one shot echoes ammo 4/5)", async () => {
     const a = await stateClient("fun-sg-ammo");
     const id = await a.myId();
     await a.waitState((s) => s.players?.[id] !== undefined);
     a.send("weapon", { w: 1 }, 2);
     await a.waitState((s) => s.players?.[id]?.w === 1);
-    // A shotgun shot lands (a `shot` event) but never an `ammo` echo — mag 0 = unlimited.
+    // One shotgun shot now echoes an owner-only ammo count (5-shell mag → 4 left).
     a.send("shoot", { dir: 0 }, 3, Date.now());
-    await a.waitMsg((m) => m.t === "s:msg" && m.type === "shot");
-    await expect(a.waitMsg((m) => m.t === "s:msg" && m.type === "ammo", 300)).rejects.toThrow();
+    const ev = await a.waitMsg((m) => m.t === "s:msg" && m.type === "ammo");
+    expect(ev.payload.w).toBe(1);
+    expect(ev.payload.n).toBe(4);
     a.ws.close();
   });
 });
