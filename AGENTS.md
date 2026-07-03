@@ -268,6 +268,16 @@ Rules of thumb:
 - Message budget: keep `1000/stepMs × message-types-per-tick` under the room's
   `maxInputsPerSecond` (default 30), or moves get silently dropped — the shooter room raises
   it to 90 for a 30 Hz move stream plus SMG fire.
+- **The budget is shared by EVERY developer message type on the connection** — game
+  inputs, chat, and any relay/side-channel traffic draw from one per-client limiter, and
+  over-budget messages are dropped silently (never acked, no error). The classic trap is
+  WebRTC signaling relayed through the room: ICE trickle bursts 10–16 candidates in
+  under a second, so a 20 Hz input stream + signaling on a 30/s budget loses candidates
+  (or the offer itself — there is no retransmit) exactly on the CGNAT sessions that need
+  TURN. Budget for the worst-case burst: a webcam 1v1 with 20 Hz inputs runs safely at
+  `maxInputsPerSecond = 60`, and throttle input cadence in non-gameplay phases (e.g.
+  5 Hz during a lobby/calibration screen) to widen the signaling window. Case study:
+  the 냠냠대전 dogfood game (docs/ROADMAP-dogfood.md P0-2).
 - Raising the network rate = lower `tickMs` (the loop drains inputs + flushes state per
   tick; `syncIntervalMs` alone cannot raise it — set it ≤ `tickMs` so the coalesce window
   doesn't throttle the flushes back down). Keep `queueInputs` ON: per-input immediate
