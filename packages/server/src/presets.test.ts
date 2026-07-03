@@ -306,3 +306,62 @@ describe("IoArenaRoom lag compensation", () => {
     expect(() => room.poke(client)).toThrow(/rewind\(\) requires lag compensation/);
   });
 });
+
+describe("IoArenaRoom.sendNear", () => {
+  class NearArena extends IoArenaRoom<ArenaState> {
+    protected readonly codec = ArenaSchema;
+    override onReady(): void {
+      this.setState({ players: {} });
+    }
+    protected override onTick(): void {}
+    override onJoin(client: Client): void {
+      this.state.players[client.id] = { x: 0, y: 0 };
+    }
+    place(id: string, x: number, y: number): void {
+      this.state.players[id] = { x, y };
+    }
+    fire(type: string, payload: unknown, x: number, y: number, always?: readonly string[]): void {
+      this.sendNear(type, payload, x, y, always ? { always } : {});
+    }
+  }
+
+  /** Developer-message frames (`s:msg`) of a given type seen by a fake conn. */
+  const sawEvent = (conn: FakeConn, type: string): boolean =>
+    conn.sent.some((f) => typeof f === "string" && f.includes(`"type":"${type}"`));
+
+  it("routes to clients within the AOI view radius plus `always` ids", async () => {
+    const ctx = new FakeCtx();
+    const room = new NearArena({ id: "r", ctx });
+    room["aoi"] = {
+      viewRadius: 100,
+      mapFields: ["players"],
+      position: (e: any) => e,
+      viewer: (s: ArenaState, id: string) => s.players[id] ?? null,
+    };
+    await room._create();
+    const near = ctx.open("near");
+    const far = ctx.open("far");
+    const victim = ctx.open("victim");
+    await room._connect(near, "near");
+    await room._connect(far, "far");
+    await room._connect(victim, "victim");
+    room.place("near", 50, 0); // inside the 100u radius of the event
+    room.place("far", 500, 0); // way outside
+    room.place("victim", 800, 0); // outside — but always-listed
+
+    room.fire("boom", { x: 0, y: 0 }, 0, 0, ["victim"]);
+    expect(sawEvent(near, "boom")).toBe(true);
+    expect(sawEvent(far, "boom")).toBe(false); // information hiding: no position leak
+    expect(sawEvent(victim, "boom")).toBe(true);
+  });
+
+  it("degrades to a full broadcast without an AOI config", async () => {
+    const ctx = new FakeCtx();
+    const room = new NearArena({ id: "r", ctx });
+    const spy = vi.spyOn(ctx, "broadcastRaw");
+    await room._create();
+    await room._connect(ctx.open("a"), "a");
+    room.fire("ping", {}, 0, 0);
+    expect(spy).toHaveBeenCalled(); // broadcast path, not per-client filtering
+  });
+});

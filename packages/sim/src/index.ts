@@ -251,3 +251,13 @@ export class MoveBudget {
     this.lastNow = null;
   }
 }
+
+// Static map geometry (seed-derived cover: LOS, movement push-out) — see geometry.ts.
+export {
+  xorshift32,
+  obstacleContains,
+  rayObstacleHit,
+  shotBlockedByObstacles,
+  pushOutOfObstacles,
+  type Obstacle,
+} from "./geometry.js";

@@ -1252,6 +1252,106 @@ var SnapshotBuffer = class {
   }
 };
 
+// ../../packages/sim/dist/geometry.js
+function xorshift32(seed) {
+  let s = seed >>> 0 || 2654435769;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s >>> 0;
+  };
+}
+function obstacleContains(o, x, y) {
+  const hw = o.w / 2;
+  const hh = o.h / 2;
+  return x >= o.x - hw && x <= o.x + hw && y >= o.y - hh && y <= o.y + hh;
+}
+function rayObstacleHit(obstacles2, ox, oy, dx, dy, maxT, skip) {
+  let best = Infinity;
+  let bestIndex = -1;
+  for (let i = 0; i < obstacles2.length; i++) {
+    if (skip?.(i))
+      continue;
+    const o = obstacles2[i];
+    if (obstacleContains(o, ox, oy))
+      continue;
+    const hw = o.w / 2;
+    const hh = o.h / 2;
+    let tMin = 0;
+    let tMax = maxT;
+    let ok = true;
+    for (const [p, d, lo, hi] of [
+      [ox, dx, o.x - hw, o.x + hw],
+      [oy, dy, o.y - hh, o.y + hh]
+    ]) {
+      if (d === 0) {
+        if (p < lo || p > hi) {
+          ok = false;
+          break;
+        }
+        continue;
+      }
+      let t1 = (lo - p) / d;
+      let t2 = (hi - p) / d;
+      if (t1 > t2)
+        [t1, t2] = [t2, t1];
+      tMin = Math.max(tMin, t1);
+      tMax = Math.min(tMax, t2);
+      if (tMin > tMax) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok && tMin < best && tMin > 0) {
+      best = tMin;
+      bestIndex = i;
+    }
+  }
+  return bestIndex >= 0 ? { t: best, index: bestIndex } : null;
+}
+function pushOutOfObstacles(pos, r, obstacles2, skip) {
+  let { x, y } = pos;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < obstacles2.length; i++) {
+      if (skip?.(i))
+        continue;
+      const o = obstacles2[i];
+      const hw = o.w / 2;
+      const hh = o.h / 2;
+      const cx = Math.max(o.x - hw, Math.min(o.x + hw, x));
+      const cy = Math.max(o.y - hh, Math.min(o.y + hh, y));
+      const dx = x - cx;
+      const dy = y - cy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= r * r)
+        continue;
+      if (d2 > 1e-9) {
+        const d = Math.sqrt(d2);
+        x = cx + dx / d * r;
+        y = cy + dy / d * r;
+      } else {
+        const left = x - (o.x - hw);
+        const right = o.x + hw - x;
+        const top = y - (o.y - hh);
+        const bottom = o.y + hh - y;
+        const m = Math.min(left, right, top, bottom);
+        if (m === left)
+          x = o.x - hw - r;
+        else if (m === right)
+          x = o.x + hw + r;
+        else if (m === top)
+          y = o.y - hh - r;
+        else
+          y = o.y + hh + r;
+      }
+    }
+  }
+  return { x, y };
+}
+
 // ../../packages/sim/dist/index.js
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
@@ -1956,16 +2056,15 @@ var SHOOTER_PROFILE = {
 };
 
 // src/rooms/shooter-crates.ts
-function xorshift32(seed) {
-  let s = seed >>> 0 || 2654435769;
-  return () => {
-    s ^= s << 13;
-    s >>>= 0;
-    s ^= s >> 17;
-    s ^= s << 5;
-    s >>>= 0;
-    return s >>> 0;
-  };
+var asObstacle = (c) => ({ x: c.x, y: c.y, w: c.size, h: c.size });
+var obstacleCache = /* @__PURE__ */ new WeakMap();
+function obstacles(crates2) {
+  let o = obstacleCache.get(crates2);
+  if (!o) {
+    o = crates2.map(asObstacle);
+    obstacleCache.set(crates2, o);
+  }
+  return o;
 }
 function makeCrates(seed, world) {
   const rng = xorshift32(seed);
@@ -1979,50 +2078,16 @@ function makeCrates(seed, world) {
   return crates2;
 }
 function crateContains(c, x, y) {
-  const h = c.size / 2;
-  return x >= c.x - h && x <= c.x + h && y >= c.y - h && y <= c.y + h;
+  return obstacleContains(asObstacle(c), x, y);
+}
+function rayCoverHit(crates2, ox, oy, dx, dy, maxT, skip) {
+  return rayObstacleHit(obstacles(crates2), ox, oy, dx, dy, maxT, skip);
 }
 function rayCoverDistance(crates2, ox, oy, dx, dy, maxT, skip) {
   return rayCoverHit(crates2, ox, oy, dx, dy, maxT, skip)?.t ?? Infinity;
 }
-function rayCoverHit(crates2, ox, oy, dx, dy, maxT, skip) {
-  let best = Infinity;
-  let bestIndex = -1;
-  for (let i = 0; i < crates2.length; i++) {
-    if (skip?.(i)) continue;
-    const c = crates2[i];
-    if (crateContains(c, ox, oy)) continue;
-    const h = c.size / 2;
-    let tMin = 0;
-    let tMax = maxT;
-    let ok = true;
-    for (const [o, d, lo, hi] of [
-      [ox, dx, c.x - h, c.x + h],
-      [oy, dy, c.y - h, c.y + h]
-    ]) {
-      if (d === 0) {
-        if (o < lo || o > hi) {
-          ok = false;
-          break;
-        }
-        continue;
-      }
-      let t1 = (lo - o) / d;
-      let t2 = (hi - o) / d;
-      if (t1 > t2) [t1, t2] = [t2, t1];
-      tMin = Math.max(tMin, t1);
-      tMax = Math.min(tMax, t2);
-      if (tMin > tMax) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok && tMin < best && tMin > 0) {
-      best = tMin;
-      bestIndex = i;
-    }
-  }
-  return bestIndex >= 0 ? { t: best, index: bestIndex } : null;
+function pushOutOfCrates(pos, r, crates2, skip) {
+  return pushOutOfObstacles(pos, r, obstacles(crates2), skip);
 }
 
 // src/rooms/shooter-map.ts
@@ -2039,38 +2104,6 @@ function makePickups(seed, world, crates2, count) {
     spots.push({ x, y, kind: spots.length % 2 === 0 ? "hp" : "dmg" });
   }
   return spots;
-}
-function pushOutOfCrates(pos, r, crates2, isBroken) {
-  let { x, y } = pos;
-  for (let pass = 0; pass < 2; pass++) {
-    for (let i = 0; i < crates2.length; i++) {
-      if (isBroken?.(i)) continue;
-      const c = crates2[i];
-      const h = c.size / 2;
-      const cx = Math.max(c.x - h, Math.min(c.x + h, x));
-      const cy = Math.max(c.y - h, Math.min(c.y + h, y));
-      const dx = x - cx;
-      const dy = y - cy;
-      const d2 = dx * dx + dy * dy;
-      if (d2 >= r * r) continue;
-      if (d2 > 1e-9) {
-        const d = Math.sqrt(d2);
-        x = cx + dx / d * r;
-        y = cy + dy / d * r;
-      } else {
-        const left = x - (c.x - h);
-        const right = c.x + h - x;
-        const top = y - (c.y - h);
-        const bottom = c.y + h - y;
-        const m = Math.min(left, right, top, bottom);
-        if (m === left) x = c.x - h - r;
-        else if (m === right) x = c.x + h + r;
-        else if (m === top) y = c.y - h - r;
-        else y = c.y + h + r;
-      }
-    }
-  }
-  return { x, y };
 }
 
 // demo/loading.ts

@@ -6,6 +6,11 @@ import {
   clampToBudget,
   resolveMovement,
   MoveBudget,
+  xorshift32,
+  obstacleContains,
+  rayObstacleHit,
+  shotBlockedByObstacles,
+  pushOutOfObstacles,
   type MotionProfile,
   type Vec2,
 } from "./index.js";
@@ -298,5 +303,50 @@ describe("MoveBudget", () => {
     b.grant(1000, 50);
     b.reset();
     expect(b.grant(5000, 100)).toBe(50); // seed, not burst
+  });
+});
+
+describe("obstacle geometry (seed-derived cover)", () => {
+  const box = { x: 100, y: 0, w: 40, h: 40 }; // AABB x:[80,120] y:[-20,20]
+
+  it("xorshift32 streams are deterministic per seed", () => {
+    const a = xorshift32(42);
+    const b = xorshift32(42);
+    expect([a(), a(), a()]).toEqual([b(), b(), b()]);
+    expect(xorshift32(7)()).not.toBe(xorshift32(42)());
+  });
+
+  it("rayObstacleHit: near face + index, origin-inside exemption, skip callback", () => {
+    expect(rayObstacleHit([box], 0, 0, 1, 0, 550)).toEqual({ t: 80, index: 0 });
+    expect(rayObstacleHit([box], 100, 0, 1, 0, 550)).toBeNull(); // fire out of your cover
+    expect(rayObstacleHit([box], 0, 0, 1, 0, 550, () => true)).toBeNull(); // broken
+    expect(rayObstacleHit([box], 0, 100, 1, 0, 550)).toBeNull(); // parallel, outside slab
+    expect(rayObstacleHit([box], 0, 0, 1, 0, 50)).toBeNull(); // beyond maxT
+  });
+
+  it("shotBlockedByObstacles: blocks behind cover, never shields a contained victim", () => {
+    expect(shotBlockedByObstacles([box], 0, 0, 1, 0, 200, 200, 0)).toBe(true);
+    expect(shotBlockedByObstacles([box], 0, 0, 1, 0, 60, 60, 0)).toBe(false);
+    expect(shotBlockedByObstacles([box], 0, 0, 1, 0, 100, 100, 0)).toBe(false); // victim inside
+  });
+
+  it("pushOutOfObstacles: pushes a circle to the face + resolves centre-inside", () => {
+    // Circle r=14 overlapping the left face (x=80): pushed to x = 80 - 14.
+    const out = pushOutOfObstacles({ x: 85, y: 0 }, 14, [box]);
+    expect(out.x).toBeCloseTo(66);
+    expect(out.y).toBeCloseTo(0);
+    // Centre inside: exits through the nearest face.
+    const inside = pushOutOfObstacles({ x: 82, y: 0 }, 14, [box]);
+    expect(inside.x).toBeCloseTo(66);
+    // Skip (broken) obstacles never collide.
+    const ghost = pushOutOfObstacles({ x: 100, y: 0 }, 14, [box], () => true);
+    expect(ghost).toEqual({ x: 100, y: 0 });
+  });
+
+  it("rectangular obstacles use per-axis extents", () => {
+    const wall = { x: 0, y: 0, w: 200, h: 10 }; // long thin wall
+    expect(rayObstacleHit([wall], 0, -50, 0, 1, 100)!.t).toBeCloseTo(45); // enters y=-5
+    expect(obstacleContains(wall, 99, 4)).toBe(true);
+    expect(obstacleContains(wall, 99, 6)).toBe(false);
   });
 });

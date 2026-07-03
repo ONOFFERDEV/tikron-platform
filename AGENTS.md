@@ -273,6 +273,14 @@ Rules of thumb:
   doesn't throttle the flushes back down). Keep `queueInputs` ON: per-input immediate
   dispatch sends every ack as its own write and measurably regresses latency at scale
   (drain-batched acks coalesce; measured in docs/PERF.md "LAT-2").
+- Transient events that carry positions (tracers, explosions, pickups) go through
+  `this.sendNear(type, payload, x, y, { always })` — AOI-filtered routing, so the event
+  channel can't become a wallhack and an event costs ~viewers sends instead of N.
+- Static cover is **seed-derived geometry** (`@tikron/sim`): broadcast one u32 seed in
+  state, build the same obstacle list on both sides with `xorshift32(seed)`, then use
+  `rayObstacleHit`/`shotBlockedByObstacles` for line-of-sight and `pushOutOfObstacles`
+  for movement (server after `resolveMovement`, client via RenderPredictor `constrain`)
+  — authoritative walls for zero wire bytes. `skip(index)` makes cover destructible.
 - `RenderPredictor` is a different model from `InputPredictor` (input replay for
   server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
   InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.

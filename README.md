@@ -37,9 +37,9 @@ npx create-tikron my-game        # scaffold a standalone game (recommended)
 npm i @tikron/client @tikron/server @tikron/schema partyserver
 ```
 
-The published `@tikron/*` packages are at **0.4.1**. Client and server share the wire
-protocol — keep both sides on a wire-compatible line: **0.3.x and 0.4.x interoperate**
-(0.4 adds client/server APIs only); 0.1.x and 0.2.x are not wire-compatible with them.
+The published `@tikron/*` packages are at **0.5.0**. Client and server share the wire
+protocol — keep both sides on a wire-compatible line: **0.3.x–0.5.x interoperate**
+(0.4/0.5 add client/server APIs only); 0.1.x and 0.2.x are not wire-compatible with them.
 
 ## Monorepo layout
 

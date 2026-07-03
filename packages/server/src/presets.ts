@@ -247,6 +247,49 @@ export abstract class IoArenaRoom<TState = unknown> extends CasualRealtimeRoom<T
   }
 
   /**
+   * Route a transient event (tracer, explosion, footstep, pickup pop) to the
+   * clients whose player is within `radius` of `(x, y)` — plus `always` ids
+   * (shooter, victim) — instead of a full-room broadcast. Two wins, promoted
+   * from the FPS demo where every visual event ships this way:
+   *
+   * - **information hiding**: events carry positions, so fanning them out to
+   *   the whole room would leak locations the AOI state stream deliberately
+   *   withholds (a wallhack via the event channel);
+   * - **send economy**: at 64+ players an event costs ~viewers sends, not N.
+   *
+   * Uses the {@link aoi} config's `viewer` to locate each client (default
+   * radius = `aoi.viewRadius`). Without an AOI config there is no per-client
+   * position to filter on, so it degrades to a full broadcast.
+   */
+  protected sendNear(
+    type: string,
+    payload: unknown,
+    x: number,
+    y: number,
+    opts: { radius?: number; always?: readonly string[] } = {},
+  ): void {
+    const aoi = this.aoi;
+    if (!aoi) {
+      this.broadcast(type, payload);
+      return;
+    }
+    const radius = opts.radius ?? aoi.viewRadius;
+    const r2 = radius * radius;
+    for (const c of this.clientList()) {
+      if (opts.always?.includes(c.id)) {
+        c.send(type, payload);
+        continue;
+      }
+      const entity = aoi.viewer(this.state, c.id);
+      if (!entity) continue;
+      const pos = aoi.position(entity);
+      const dx = pos.x - x;
+      const dy = pos.y - y;
+      if (dx * dx + dy * dy <= r2) c.send(type, payload);
+    }
+  }
+
+  /**
    * One-time room setup: seed `this.state` and register `onMessage` handlers here
    * (the realtime `IoArenaRoom` owns `onCreate`, so this is your equivalent hook).
    */

@@ -8,8 +8,8 @@ import {
   type ShooterState,
 } from "./shooter-schema.js";
 import { pickSpawn, makeRng, type SpawnConfig } from "./shooter-spawn.js";
-import { makeCrates, rayCoverHit, shotBlocked, type Crate } from "./shooter-crates.js";
-import { makePickups, pushOutOfCrates, type PickupSpot } from "./shooter-map.js";
+import { makeCrates, rayCoverHit, shotBlocked, type Crate, pushOutOfCrates } from "./shooter-crates.js";
+import { makePickups, type PickupSpot } from "./shooter-map.js";
 import { sanitizeNick } from "./shooter-nick.js";
 
 /**
@@ -426,7 +426,7 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
         dist = Math.min(spec.range, cover?.t ?? Infinity);
         if (cover) this.damageCrate(cover.index);
       }
-      this.sendEventToViewers(
+      this.sendNear(
         "shot",
         {
           from: client.id,
@@ -439,7 +439,7 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
         },
         ox,
         oy,
-        hit ? [hit.id] : [],
+        { always: hit ? [hit.id] : [] },
       );
     }
     this.markStateChanged();
@@ -519,7 +519,7 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
         }
         slot.on = false;
         this.pickupRespawnAt.set(i, this.currentTick + PICKUP_RESPAWN_LOOPS);
-        this.sendEventToViewers("grab", { id, i, kind: s.kind }, s.x, s.y, [id]);
+        this.sendNear("grab", { id, i, kind: s.kind }, s.x, s.y, { always: [id] });
         changed = true;
       }
     }
@@ -623,33 +623,8 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
     }
   }
 
-  // --- events / hitscan ------------------------------------------------------------
+  // --- hitscan ----------------------------------------------------------------------
 
-  /**
-   * Route a transient visual event to clients whose player is within view radius
-   * of `(cx, cy)` — plus `alwaysIds` (shooter, victim, grabber). Never a full
-   * fan-out: a wallhack boundary and, at 64 players, ~viewers instead of N sends.
-   */
-  private sendEventToViewers(
-    type: string,
-    payload: unknown,
-    cx: number,
-    cy: number,
-    alwaysIds: string[],
-  ): void {
-    const r2 = SHOOTER.viewRadius * SHOOTER.viewRadius;
-    for (const c of this.clientList()) {
-      if (alwaysIds.includes(c.id)) {
-        c.send(type, payload);
-        continue;
-      }
-      const p = this.state.players[c.id];
-      if (!p) continue;
-      const dx = p.x - cx;
-      const dy = p.y - cy;
-      if (dx * dx + dy * dy <= r2) c.send(type, payload);
-    }
-  }
 
   // Ray/point hitscan against the rewound world: the nearest living, unprotected
   // player whose perpendicular distance to the aim ray is within `hitRadius`, in

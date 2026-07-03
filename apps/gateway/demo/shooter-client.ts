@@ -7,8 +7,8 @@ import {
   type Room,
 } from "@tikron/client";
 import { ShooterSchema, SHOOTER, SHOOTER_PROFILE, WEAPONS, type ShooterState } from "../src/rooms/shooter-schema.js";
-import { makeCrates, rayCoverDistance, type Crate } from "../src/rooms/shooter-crates.js";
-import { makePickups, pushOutOfCrates, type PickupSpot } from "../src/rooms/shooter-map.js";
+import { makeCrates, rayCoverDistance, type Crate, pushOutOfCrates } from "../src/rooms/shooter-crates.js";
+import { makePickups, type PickupSpot } from "../src/rooms/shooter-map.js";
 import { LoadingFlow, type LoadingView } from "./loading.js";
 
 /**
