@@ -18,6 +18,7 @@ import { MovementRoomImpl } from "./rooms/movement-room.js";
 import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
 import { ShooterRoomImpl } from "./rooms/shooter-room.js";
+import { MmoRoomImpl } from "./rooms/mmo-room.js";
 import { Matchmaker } from "./matchmaker.js";
 import {
   enforceConnection,
@@ -26,7 +27,7 @@ import {
   resolveProject,
 } from "./platform/api.js";
 import { getProject, submitScore } from "./platform/db.js";
-import { handleIngest } from "./platform/ingest.js";
+import { handleIngest, handleScoreIngest } from "./platform/ingest.js";
 import { verifyJwt } from "./platform/jwt.js";
 import { isLocationHint, resolveLocationHint, LOCATION_HINTS_LIST } from "./region.js";
 
@@ -38,6 +39,7 @@ export interface Env {
   TicTacToe: DurableObjectNamespace;
   AgarRoom: DurableObjectNamespace;
   ShooterRoom: DurableObjectNamespace;
+  MmoRoom: DurableObjectNamespace;
   Matchmaker: DurableObjectNamespace<Matchmaker>;
   /** Platform database (M5). Absent → API-key enforcement + metering are skipped. */
   DB?: D1Database;
@@ -133,6 +135,31 @@ function matchmaker(env: Env) {
 }
 
 /**
+ * Player-token auth for a room connection (wired as {@link DefineRoomOptions.onAuth}).
+ * Off unless the project opted in (`require_player_auth`). Returns:
+ *   - `true`  — connection allowed WITHOUT a verified identity (dev / unmetered
+ *               rooms, or a project with enforcement off). `client.auth` stays
+ *               undefined; leaderboards then key by the session id.
+ *   - `{id, claims}` — a valid player JWT: the verified `sub` becomes
+ *               `client.auth.id`, a DURABLE identity that survives reconnects and
+ *               new tabs (what rooms should key rankings/bans by).
+ *   - `false` — enforcement on and the token is missing / invalid → rejected.
+ * Extracted (vs inline) so it can be unit-tested directly — the object vs boolean
+ * distinction isn't observable on the wire.
+ */
+export async function playerOnAuth(
+  env: Env,
+  info: { roomId: string; projectId: string | null; token: string | null; session: string | null },
+) {
+  if (!info.projectId || !env.DB) return true; // dev / unmetered rooms — no player auth
+  const project = await getProject(env.DB, info.projectId);
+  if (!project || project.require_player_auth !== 1) return true; // enforcement off
+  if (!info.token) return false;
+  const claims = await verifyJwt(project.player_jwt_secret, info.token);
+  return claims ? { id: claims.sub, claims } : false;
+}
+
+/**
  * Rooms report live occupancy to the matchmaker on every join / final leave (and
  * on a periodic heartbeat), and validate self-supplied session keys against the
  * ones the matchmaker issued for the room.
@@ -142,15 +169,10 @@ const roomOptions: DefineRoomOptions = {
     matchmaker(env as Env).report(roomId, count, sessions, seq, projectId ?? undefined, messages),
   validateSession: (env, { roomId, session }) =>
     matchmaker(env as Env).validateSession(roomId, session),
-  // Player-token auth, off unless the project opted in (require_player_auth).
-  onAuth: async (env, { projectId, token }) => {
-    const e = env as Env;
-    if (!projectId || !e.DB) return true; // dev / unmetered rooms — no player auth
-    const project = await getProject(e.DB, projectId);
-    if (!project || project.require_player_auth !== 1) return true; // enforcement off
-    if (!token) return false;
-    return (await verifyJwt(project.player_jwt_secret, token)) !== null;
-  },
+  // Player-token auth, off unless the project opted in (require_player_auth). A
+  // valid token now yields the verified identity ({id, claims} → client.auth), not
+  // just a boolean, so room code can key on a durable player id (see playerOnAuth).
+  onAuth: (env, info) => playerOnAuth(env as Env, info),
   // Server-authoritative leaderboard writes. Fire-and-forget upserts to D1 (no
   // ordering seq needed: "max"/"sum" are order-independent and "last" reflects
   // the write that lands last). A null project (dev-mode) writes to the shared
@@ -182,6 +204,9 @@ export const AgarRoom = defineRoom(AgarRoomImpl, roomOptions);
 
 /** FPS proof-of-concept — hitscan shooter with subtick timestamps + lag compensation. */
 export const ShooterRoom = defineRoom(ShooterRoomImpl, roomOptions);
+
+/** MMORPG example — integrates the @tikron/rpg combat engine (skills, buffs, aggro, XP). */
+export const MmoRoom = defineRoom(MmoRoomImpl, roomOptions);
 
 /** REST matchmaking API: place players into rooms and browse the lobby. */
 async function handleApi(url: URL, env: Env): Promise<Response> {
@@ -244,6 +269,8 @@ export default {
     // Self-hosted usage reporting: key-authenticated occupancy ingest (needs the
     // request for its Authorization header + body, so it takes `request` not `url`).
     if (url.pathname === "/api/ingest/occupancy") return handleIngest(request, env);
+    // Self-hosted leaderboard score ingest — twin of occupancy, but tk_live_ only.
+    if (url.pathname === "/api/ingest/score") return handleScoreIngest(request, env);
     if (url.pathname.startsWith("/api/")) return handleApi(url, env);
     if (url.pathname.startsWith("/parties/")) {
       // Enforce API keys (unless dev-bypassed) and forward the project to the room.

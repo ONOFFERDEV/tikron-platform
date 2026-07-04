@@ -1,10 +1,12 @@
 import { SELF, env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import type { Env } from "../src/index.js";
+import { playerOnAuth } from "../src/index.js";
 import { createProject } from "../src/platform/db.js";
 import { signJwt } from "../src/platform/jwt.js";
 
 const db = () => (env as unknown as Env).DB!;
+const testEnv = () => env as unknown as Env;
 
 async function connect(room: string, params: Record<string, string>) {
   const q = new URLSearchParams(params);
@@ -70,5 +72,58 @@ describe("player-token room auth (require_player_auth)", () => {
     const err2 = await badToken.waitFrame((f) => f.t === "s:error");
     expect(err2.code).toBe("unauthorized");
     badToken.ws.close();
+  });
+});
+
+// The wire can't reveal whether onAuth returned `true` or `{id, claims}` (both
+// accept the connect), so the F094 identity contract is verified against the
+// exported onAuth function directly.
+describe("playerOnAuth identity contract (F094)", () => {
+  it("returns {id, claims} for a valid JWT, false for missing/invalid, true when enforcement is off", async () => {
+    const secret = "player-secret-f094";
+    const project = await createProject(db(), {
+      id: crypto.randomUUID(),
+      ownerGithubId: "auth-id-owner",
+      name: "auth-id",
+      playerJwtSecret: secret,
+    });
+    await db().prepare(`UPDATE projects SET require_player_auth = 1 WHERE id = ?`).bind(project.id).run();
+
+    const now = Math.floor(Date.now() / 1000);
+    const token = await signJwt(secret, { sub: "player-42", iat: now, exp: now + 3600 });
+
+    // Valid token → the verified sub becomes client.auth.id, with claims attached.
+    const ok = await playerOnAuth(testEnv(), {
+      roomId: "r",
+      projectId: project.id,
+      token,
+      session: null,
+    });
+    expect(ok).toMatchObject({ id: "player-42" });
+    expect((ok as { claims: { sub: string } }).claims.sub).toBe("player-42");
+
+    // Missing / invalid token under enforcement → false (rejected).
+    expect(
+      await playerOnAuth(testEnv(), { roomId: "r", projectId: project.id, token: null, session: null }),
+    ).toBe(false);
+    expect(
+      await playerOnAuth(testEnv(), { roomId: "r", projectId: project.id, token: "nope", session: null }),
+    ).toBe(false);
+
+    // A project with enforcement OFF (default) → true, no verified identity.
+    const open = await createProject(db(), {
+      id: crypto.randomUUID(),
+      ownerGithubId: "auth-id-owner",
+      name: "open",
+      playerJwtSecret: secret,
+    });
+    expect(
+      await playerOnAuth(testEnv(), { roomId: "r", projectId: open.id, token: null, session: null }),
+    ).toBe(true);
+
+    // No project id (dev / unmetered) → true.
+    expect(
+      await playerOnAuth(testEnv(), { roomId: "r", projectId: null, token: null, session: null }),
+    ).toBe(true);
   });
 });

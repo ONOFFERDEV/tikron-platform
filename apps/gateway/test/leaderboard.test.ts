@@ -1,7 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import type { Env } from "../src/index.js";
-import { submitScore, topScores } from "../src/platform/db.js";
+import { createApiKey, createProject, submitScore, topScores } from "../src/platform/db.js";
+import { generateApiKey } from "../src/platform/apikeys.js";
 import { handleLeaderboard } from "../src/platform/api.js";
 
 const db = () => (env as unknown as Env).DB!;
@@ -80,6 +81,8 @@ describe("public leaderboard read (GET /api/leaderboard)", () => {
     const res = await handleLeaderboard(e, new URL(`https://x/api/leaderboard?board=${b}&limit=10`));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("max-age=10");
+    // Cross-origin readable: a self-hosted game reads this from its own origin.
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const body = (await res.json()) as {
       rank: number;
       playerId: string;
@@ -89,13 +92,53 @@ describe("public leaderboard read (GET /api/leaderboard)", () => {
     expect(body[0]).toEqual({ rank: 1, playerId: "hi", displayName: "hero", score: 42 });
   });
 
-  it("400s a missing board and 401s an invalid key", async () => {
+  it("400s a missing board and 401s an invalid key (both CORS-readable)", async () => {
     const e = { DB: db(), DEMO_PROJECT_ID: "demo" } as Env;
-    expect((await handleLeaderboard(e, new URL("https://x/api/leaderboard"))).status).toBe(400);
+    const noBoard = await handleLeaderboard(e, new URL("https://x/api/leaderboard"));
+    expect(noBoard.status).toBe(400);
+    expect(noBoard.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const bad = await handleLeaderboard(
       e,
       new URL("https://x/api/leaderboard?board=x&apiKey=tk_live_nope"),
     );
     expect(bad.status).toBe(401);
+    expect(bad.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("reads with a tk_pub_ (publishable) key under enforcement — no scope gate on reads", async () => {
+    // Enforced env (no DEV_MODE, no DEMO fallback): the key must actually resolve.
+    const project = await createProject(db(), {
+      id: crypto.randomUUID(),
+      ownerGithubId: "lb-owner",
+      name: "PubRead",
+      playerJwtSecret: "s",
+    });
+    const gen = await generateApiKey("public"); // tk_pub_
+    expect(gen.key).toMatch(/^tk_pub_/);
+    await createApiKey(db(), {
+      id: crypto.randomUUID(),
+      projectId: project.id,
+      keyHash: gen.hash,
+      keyPrefix: gen.prefix,
+    });
+    const b = board();
+    await submitScore(db(), {
+      projectId: project.id,
+      board: b,
+      playerId: "hero",
+      displayName: "H",
+      score: 7,
+      mode: "max",
+    });
+
+    const e = { DB: db() } as Env; // enforcement ON
+    const res = await handleLeaderboard(
+      e,
+      new URL(`https://x/api/leaderboard?board=${b}&apiKey=${encodeURIComponent(gen.key)}`),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    const body = (await res.json()) as { playerId: string; score: number }[];
+    expect(body[0]).toMatchObject({ playerId: "hero", score: 7 });
   });
 });

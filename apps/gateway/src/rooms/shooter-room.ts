@@ -13,6 +13,15 @@ import { makePickups, type PickupSpot } from "./shooter-map.js";
 import { sanitizeNick } from "./shooter-nick.js";
 
 /**
+ * Durable leaderboard identity for a client. Prefers the VERIFIED player id
+ * (`client.auth.id`, populated when the game wires player-token auth via
+ * `onAuth`), so a player's kills accrue to one row across reconnects and new
+ * tabs. Anonymous sessions still key by their session UUID (`client.id`) until
+ * the game adds player auth — which is why the demo leaderboard resets per tab.
+ */
+const pid = (c: Client): string => c.auth?.id ?? c.id;
+
+/**
  * FPS proof-of-concept — a top-down hitscan shooter on the {@link IoArenaRoom}
  * preset. This demo exists to *dogfood* the F3 FPS layer end-to-end on Cloudflare
  * Durable Objects:
@@ -528,9 +537,13 @@ export class ShooterRoomImpl extends IoArenaRoom<ShooterState> {
       if (killer) {
         killer.score += 1;
         killerNick = this.nickOf(killerId);
+        // Key the board by the killer's DURABLE identity when available (auth id),
+        // falling back to the session id — the game state itself is keyed by
+        // client.id, so look the client up to read its auth (like nickOf does).
+        const killerClient = this.clientList().find((c) => c.id === killerId);
         this.services.leaderboard?.submit({
           board: "shooter-top",
-          playerId: killerId,
+          playerId: killerClient ? pid(killerClient) : killerId,
           score: killer.score,
           displayName: killerNick ?? killerId.slice(0, 6),
           mode: "max",

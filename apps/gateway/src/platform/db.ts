@@ -250,6 +250,36 @@ export async function submitScore(
     .run();
 }
 
+/** Free-tier cap on distinct leaderboard boards per project (config-overridable,
+ *  default 50). Bounds worst-case D1 row growth from a self-hosted ingest without
+ *  a per-submit read on the hot path (see {@link submitScore} callers). */
+export async function leaderboardBoardsCap(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare(`SELECT v FROM config WHERE k = 'free_leaderboard_boards'`)
+    .first<{ v: string }>();
+  const n = Number(row?.v);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 50;
+}
+
+/** Count of distinct boards a project has so far (the cap is applied to this). */
+export async function boardCount(db: D1Database, projectId: string): Promise<number> {
+  const row = await db
+    .prepare(`SELECT COUNT(DISTINCT board) AS n FROM leaderboards WHERE project_id = ?`)
+    .bind(projectId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/** Whether a specific board already exists for a project (a write to it doesn't
+ *  grow the distinct-board count, so it stays allowed even at the cap). */
+export async function boardExists(db: D1Database, projectId: string, board: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT 1 AS x FROM leaderboards WHERE project_id = ? AND board = ? LIMIT 1`)
+    .bind(projectId, board)
+    .first<{ x: number }>();
+  return row !== null;
+}
+
 /**
  * Top-N entries for a project's board, highest score first (ties break to the
  * earlier achiever). `limit` is clamped to 1..100.

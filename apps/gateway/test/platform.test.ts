@@ -60,17 +60,20 @@ describe("platform dashboard API", () => {
     const list = await (await api("/api/platform/projects")).json();
     expect(list.some((p: any) => p.id === projectId)).toBe(true);
 
-    // Create a key: the full secret is returned exactly once.
+    // Create a key: the full secret is returned exactly once. The default class
+    // is PUBLISHABLE (tk_pub_) — the safe class to hand to a browser.
     const key = await (
       await api(`/api/platform/projects/${projectId}/keys`, { method: "POST" })
     ).json();
-    expect(key.key).toMatch(/^tk_live_/);
+    expect(key.key).toMatch(/^tk_pub_/);
+    expect(key.scope).toBe("public");
     expect(key.prefix).toBe(key.key.slice(0, 12));
 
-    // Listing keys never returns the full secret, only the prefix.
+    // Listing keys never returns the full secret, only the prefix + derived scope.
     const keys = await (await api(`/api/platform/projects/${projectId}/keys`)).json();
     expect(keys).toHaveLength(1);
     expect(keys[0].prefix).toBe(key.prefix);
+    expect(keys[0].scope).toBe("public");
     expect(keys[0].key).toBeUndefined();
 
     // Revoke it.
@@ -78,6 +81,47 @@ describe("platform dashboard API", () => {
     expect(del.status).toBe(200);
     const afterRevoke = await (await api(`/api/platform/projects/${projectId}/keys`)).json();
     expect(afterRevoke[0].revokedAt).not.toBeNull();
+  });
+
+  it("mints a secret (tk_live_) key on scope=secret; both classes resolve for connect/read", async () => {
+    const cookie = await devLogin("scoped-keys");
+    const api = client(cookie);
+    const project = await (
+      await api("/api/platform/projects", { method: "POST", body: JSON.stringify({ name: "Scoped" }) })
+    ).json();
+    const projectId = project.id as string;
+
+    // Explicit secret scope → tk_live_.
+    const secret = await (
+      await api(`/api/platform/projects/${projectId}/keys`, {
+        method: "POST",
+        body: JSON.stringify({ scope: "secret" }),
+      })
+    ).json();
+    expect(secret.key).toMatch(/^tk_live_/);
+    expect(secret.scope).toBe("secret");
+
+    // Default → publishable tk_pub_.
+    const pub = await (
+      await api(`/api/platform/projects/${projectId}/keys`, { method: "POST" })
+    ).json();
+    expect(pub.key).toMatch(/^tk_pub_/);
+    expect(pub.scope).toBe("public");
+
+    // The listing derives scope from the stored prefix (no scope column).
+    const keys = await (await api(`/api/platform/projects/${projectId}/keys`)).json();
+    expect(new Set(keys.map((k: { scope: string }) => k.scope))).toEqual(new Set(["secret", "public"]));
+
+    // Regression: BOTH classes resolve on the connect/read path (no scope gate
+    // there) — only server-side ingest is secret-only.
+    for (const k of [secret.key, pub.key]) {
+      _clearKeyCache();
+      const resolved = await resolveProject(
+        enforcedEnv(),
+        new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(k)}`),
+      );
+      expect(resolved).toEqual({ ok: true, projectId });
+    }
   });
 
   it("reports empty usage, limits, and rooms for a fresh project", async () => {

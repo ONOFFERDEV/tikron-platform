@@ -21,7 +21,7 @@ import {
   type ProjectRow,
   type ShowcaseRow,
 } from "./db.js";
-import { generateApiKey, resolveProjectId } from "./apikeys.js";
+import { generateApiKey, resolveProjectId, scopeForKey, type KeyScope } from "./apikeys.js";
 import { exchangeGithubCode, githubAuthorizeUrl } from "./github.js";
 import { signJwt } from "./jwt.js";
 import {
@@ -152,6 +152,21 @@ export async function enforceConnection(env: Env, request: Request, url: URL): P
 // --- public leaderboard read ---
 
 /**
+ * Cross-origin read headers. The leaderboard is read straight from the browser of
+ * a SELF-HOSTED game (different origin than tikron.dev), so the response must be
+ * CORS-readable. A `tk_pub_` key in the query is a normal, expected caller here
+ * (reads are a public-key path); only `?apiKey=` on a plain GET is involved, so no
+ * preflight is required, but `Access-Control-Allow-Origin` is still needed for the
+ * browser to hand the JSON back to the page.
+ */
+const LEADERBOARD_CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
+/**
  * Public top-N read: `GET /api/leaderboard?board=<name>&limit=50`. Resolved to the
  * calling project by `?apiKey=` (missing key → `DEMO_PROJECT_ID` when set;
  * dev-mode / null project → the shared "dev" scope). Returns ranked entries with
@@ -159,9 +174,9 @@ export async function enforceConnection(env: Env, request: Request, url: URL): P
  */
 export async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
   const resolved = await resolveProject(env, url);
-  if (!resolved.ok) return json({ error: resolved.code }, resolved.status);
+  if (!resolved.ok) return json({ error: resolved.code }, resolved.status, LEADERBOARD_CORS);
   const board = url.searchParams.get("board");
-  if (!board) return json({ error: "missing_board" }, 400);
+  if (!board) return json({ error: "missing_board" }, 400, LEADERBOARD_CORS);
 
   const scope = resolved.projectId ?? "dev";
   const limitRaw = Number(url.searchParams.get("limit") ?? "50");
@@ -173,7 +188,7 @@ export async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
     displayName: r.display_name,
     score: r.score,
   }));
-  return json(body, 200, { "Cache-Control": "public, max-age=10" });
+  return json(body, 200, { "Cache-Control": "public, max-age=10", ...LEADERBOARD_CORS });
 }
 
 // --- dashboard session helpers ---
@@ -488,13 +503,21 @@ async function handleProjects(
         keys.map((k) => ({
           id: k.id,
           prefix: k.key_prefix,
+          // scope is derived from the stored prefix (no scope column) — lets the
+          // dashboard badge pub vs secret keys without a schema change.
+          scope: scopeForKey(k.key_prefix),
           createdAt: new Date(k.created_at).toISOString(),
           revokedAt: isoOrNull(k.revoked_at),
         })),
       );
     }
     if (keyId === undefined && method === "POST") {
-      const gen = await generateApiKey();
+      // Body { scope?: "public" | "secret" }, default publishable. A `secret`
+      // (tk_live_) key is the one that may hit server-side ingest routes; the
+      // default `public` (tk_pub_) key is the safe one to ship in a browser.
+      const body = (await request.json().catch(() => ({}))) as { scope?: string };
+      const scope: KeyScope = body.scope === "secret" ? "secret" : "public";
+      const gen = await generateApiKey(scope);
       const row = await createApiKey(db, {
         id: crypto.randomUUID(),
         projectId,
@@ -503,7 +526,13 @@ async function handleProjects(
       });
       // The full key is returned exactly once — it is never stored in the clear.
       return json(
-        { id: row.id, key: gen.key, prefix: gen.prefix, createdAt: new Date(row.created_at).toISOString() },
+        {
+          id: row.id,
+          key: gen.key,
+          prefix: gen.prefix,
+          scope: gen.scope,
+          createdAt: new Date(row.created_at).toISOString(),
+        },
         201,
       );
     }
