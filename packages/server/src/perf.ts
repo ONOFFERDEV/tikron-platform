@@ -18,11 +18,32 @@ export interface DurationStats {
   n: number;
 }
 
+/**
+ * Per-reason counts of developer inputs the room DROPPED rather than processed
+ * (F119). Each reason maps to a silent `return` the core used to take — surfaced
+ * here so an AI agent can poll `tk:stats` and see, mechanically, that (say) its
+ * message type never had a handler. Cumulative for the room's lifetime.
+ */
+export interface DropCounts {
+  /** Inputs refused by the per-client per-second rate limit. */
+  rateLimited: number;
+  /** Inputs whose seq was <= the last processed seq (stale / replayed). */
+  staleSeq: number;
+  /** `c:mbatch` frames rejected whole for exceeding the per-frame message cap. */
+  oversizedBatch: number;
+  /** Messages whose `type` had no registered handler (usually a typo'd type). */
+  unknownType: number;
+}
+
 /** The `tk:stats` reply payload — the wire contract the loadtest harness parses. */
 export interface PerfSnapshot {
   tick: DurationStats;
   flush: DurationStats;
   windowMs: number;
+  /** Cumulative dropped-input counts by reason (F119). */
+  drops: DropCounts;
+  /** Cumulative count of exceptions routed through {@link Room.onError} (F120). */
+  errors: number;
 }
 
 /**

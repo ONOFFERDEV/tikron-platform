@@ -10,9 +10,33 @@ import {
   type RoomStorage,
   type RoomInit,
   type LeaderboardSubmit,
+  type ClientAuth,
 } from "./room.js";
 
 export type RoomClass<TState> = new (init: RoomInit) => Room<TState>;
+
+/**
+ * What an {@link DefineRoomOptions.onAuth} may return. A boolean keeps the
+ * original contract (`true` accepts with no identity, `false` rejects). Return an
+ * object to also carry the verified player identity into room code: `id` (or a
+ * `claims.sub` string when `id` is omitted) becomes {@link Client.auth}.`id`, and
+ * `claims` are exposed on {@link Client.auth}.`claims`. Live-only — a client's
+ * auth is NOT persisted across Durable Object eviction (phase-2).
+ */
+export type AuthResult = boolean | { id?: string; claims?: Record<string, unknown> };
+
+/**
+ * Derive the durable {@link ClientAuth} from an {@link AuthResult}. A boolean (or
+ * an object with neither `id` nor a string `claims.sub`) yields no identity — the
+ * connection is authorized but anonymous, and `client.auth` stays undefined.
+ */
+function authFromResult(res: AuthResult): ClientAuth | undefined {
+  if (typeof res !== "object") return undefined; // boolean true → authorized, no identity
+  const claims = res.claims ?? {};
+  const sub = typeof claims.sub === "string" ? claims.sub : undefined;
+  const id = res.id ?? sub;
+  return id !== undefined ? { id, claims } : undefined;
+}
 
 /** The Durable Object class shape produced by {@link defineRoom} (wrangler-bindable). */
 export type DefinedRoomClass = new (
@@ -61,7 +85,7 @@ export interface DefineRoomOptions {
   onAuth?: (
     env: unknown,
     info: { roomId: string; projectId: string | null; token: string | null; session: string | null },
-  ) => boolean | Promise<boolean>;
+  ) => AuthResult | Promise<AuthResult>;
   /**
    * Optional platform services the host exposes to room code (see
    * {@link RoomServices}). Each is invoked with the host env plus the room's
@@ -112,6 +136,10 @@ function makeContext(
   const submitScore = options?.services?.submitScore;
   return {
     roomId: host.name,
+    // Injected once at room creation: gates the room's verbose per-drop dev
+    // warnings (F119). Read here rather than passed as a flag so the core stays
+    // env-agnostic. `wrangler dev` sets DEV_MODE=1 via the scaffold's dev script.
+    devMode: (getEnv() as { DEV_MODE?: string }).DEV_MODE === "1",
     connections: () => host.getConnections(),
     connection: (id) => host.getConnection(id),
     broadcastRaw: (data, exceptIds) => host.broadcast(data, exceptIds),
@@ -226,21 +254,25 @@ export function defineRoom<TState>(
       }
 
       // Player-token auth runs first: reject before a seat or session is considered.
+      // A truthy result authorizes the connect; an object result additionally
+      // carries the verified identity into `client.auth` (live-only).
+      let auth: ClientAuth | undefined;
       if (options?.onAuth) {
         const token = queryParam(ctx, AUTH_QUERY_PARAM) ?? null;
-        const ok = await options.onAuth(this.env, {
+        const res = await options.onAuth(this.env, {
           roomId: this.name,
           projectId: this.#projectId,
           token,
           session: session ?? null,
         });
-        if (!ok) {
+        if (!res) {
           conn.send(
             encode({ t: ServerMessageType.Error, code: "unauthorized", message: "player auth failed" }),
           );
           conn.close(CLOSE_UNAUTHORIZED, "unauthorized");
           return;
         }
+        auth = authFromResult(res);
       }
 
       // A self-supplied session key is validated before it can claim a seat; a
@@ -259,7 +291,7 @@ export function defineRoom<TState>(
           return;
         }
       }
-      await room._connect(conn, session);
+      await room._connect(conn, session, auth);
     }
 
     override async onMessage(conn: Connection, message: string | ArrayBuffer): Promise<void> {

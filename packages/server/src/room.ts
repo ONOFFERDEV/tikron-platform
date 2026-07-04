@@ -8,10 +8,30 @@ import {
   type RawData,
   type ClientGameMessage,
 } from "@tikron/protocol";
-import { encodeFull, encodeDelta, encodeDeltaOrNull, type Codec } from "@tikron/schema";
+import {
+  encodeFull,
+  encodeDelta,
+  encodeDeltaOrNull,
+  schemaFingerprint,
+  type Codec,
+} from "@tikron/schema";
 import { RateLimiter } from "./rate-limit.js";
 import { buildGrid, queryRadius, type Grid } from "./aoi-grid.js";
-import { DurationRing, type PerfSnapshot } from "./perf.js";
+import { DurationRing, type PerfSnapshot, type DropCounts } from "./perf.js";
+
+/**
+ * A verified player identity carried on a {@link Client} (F094). Populated when the
+ * host's `onAuth` returns an object (its `id`, or a string `claims.sub`); absent
+ * for anonymous/`onAuth`-less connections. Distinct from `Client.id`, which is the
+ * reconnection SESSION key (a per-tab UUID): `client.auth.id` is the DURABLE
+ * identity to key leaderboards/bans on. Live-only — not persisted across eviction.
+ */
+export interface ClientAuth {
+  /** The durable player id (verified `onAuth` `id`, or `claims.sub`). */
+  id: string;
+  /** The verified token claims (empty object when none were supplied). */
+  claims: Record<string, unknown>;
+}
 
 /** A connected player, as seen by developer room code. */
 export interface Client {
@@ -30,6 +50,23 @@ export interface Client {
    * compensation to rewind hit checks to what this client saw.
    */
   readonly rttMs: number;
+  /**
+   * The client's verified identity, when the host authenticated it via `onAuth`
+   * returning an object (F094). Undefined for anonymous connections. Key durable
+   * things (leaderboards, bans) on `client.auth?.id ?? client.id`, not the raw
+   * session id. Live-only: cleared on Durable Object eviction.
+   */
+  readonly auth?: ClientAuth;
+}
+
+/** Where an exception surfaced, handed to {@link Room.onError} (F120). */
+export interface RoomErrorContext {
+  /** The room lifecycle/dispatch phase the exception came from. */
+  phase: "onMessage" | "onTick" | "onJoin" | "onLeave" | "onReconnect" | "persist";
+  /** The developer message type, when `phase` is `onMessage`. */
+  type?: string;
+  /** The related client's stable id, when known. */
+  clientId?: string;
 }
 
 /** Minimal transport surface a Room needs; provided by the partyserver host. */
@@ -116,6 +153,14 @@ export interface RoomContext {
    * always-present {@link Room.services} accessor and calls each optionally.
    */
   services?: RoomServices;
+  /**
+   * True when the host runs in DEV_MODE (`env.DEV_MODE === "1"`), injected by
+   * `defineRoom`. Gates the room's verbose per-drop dev warnings (F119): loud in
+   * dev, quiet in production. The once-per-type unknown-message warning is NOT
+   * gated by this — it always fires, so a typo'd message type is visible even on
+   * a self-hosted room that never set DEV_MODE. Absent → treated as false.
+   */
+  devMode?: boolean;
 }
 
 /** Shared empty services object so {@link Room.services} is never undefined. */
@@ -358,6 +403,13 @@ const INPUT_TS_MAX_AGE_MS = 250;
  */
 const INPUT_BATCH_MAX = 16;
 
+/**
+ * Cap on the set of already-warned drop keys (F119). `unknownType`'s `type` is a
+ * client-controlled string, so an unbounded dedup set is a memory-growth vector; a
+ * malicious client spamming distinct types stops minting new warnings past this.
+ */
+const DROP_WARN_KEYS_MAX = 64;
+
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
 
@@ -564,6 +616,19 @@ export abstract class Room<TState = unknown> {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Cumulative dropped-input counts by reason (F119); exposed via tk:stats. */
+  readonly #drops: DropCounts = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0 };
+  /** Cumulative count of exceptions routed through {@link onError} (F120). */
+  #errorCount = 0;
+  /**
+   * Cached state-codec fingerprint (F003). `undefined` = not computed yet; once
+   * computed it is a number (codec shape hash) or `null` (no/undescribable codec).
+   */
+  #codecFingerprint: number | null | undefined = undefined;
+  /** Drop reasons/types already warned about, so a warning fires at most once each. */
+  readonly #warnedDropKeys = new Set<string>();
+  /** One-shot guard so a persist failure logs its actionable guidance once per room. */
+  #persistFailWarned = false;
 
   constructor(init: RoomInit) {
     this.id = init.id;
@@ -646,6 +711,83 @@ export abstract class Room<TState = unknown> {
    */
   protected get services(): RoomServices {
     return this.ctx.services ?? NO_SERVICES;
+  }
+
+  /** True when the host runs in DEV_MODE (gates verbose per-drop warnings, F119). */
+  private get devMode(): boolean {
+    return this.ctx.devMode ?? false;
+  }
+
+  /**
+   * Overridable error hook (F120). Every exception the core catches — a throwing
+   * message handler, `onTick`, `onJoin`/`onLeave`, or a failed state persist — is
+   * routed here with a {@link RoomErrorContext} instead of vanishing into a
+   * `catch {}` or an unhandled rejection. The default logs a structured, greppable
+   * line; override to forward to Sentry/Workers Logs. The count of routed errors
+   * is also exposed on `tk:stats` (`PerfSnapshot.errors`).
+   *
+   * ```ts
+   * protected override onError(err: unknown, ctx: RoomErrorContext): void {
+   *   myLogger.error({ room: this.id, ...ctx }, err);
+   * }
+   * ```
+   */
+  protected onError(err: unknown, ctx: RoomErrorContext): void {
+    console.error(
+      `[tikron] room=${this.id} phase=${ctx.phase}` +
+        `${ctx.type ? ` type=${ctx.type}` : ""}${ctx.clientId ? ` client=${ctx.clientId}` : ""}`,
+      err,
+    );
+  }
+
+  /** Count an error and hand it to {@link onError}; a throwing hook can't escape. */
+  private reportError(err: unknown, ctx: RoomErrorContext): void {
+    this.#errorCount++;
+    try {
+      this.onError(err, ctx);
+    } catch (hookErr) {
+      // The error hook itself threw. The theme is "no silent failures", so fall
+      // back to a plain console.error rather than swallow it.
+      console.error(`[tikron] room=${this.id} onError hook threw`, hookErr);
+    }
+  }
+
+  /**
+   * Count a dropped/unprocessed input by reason and, where a developer can act on
+   * it, surface it in the log (F119). An unknown message type — the single most
+   * common AI mistake (a typo'd type, or a handler never registered) — warns ONCE
+   * PER TYPE unconditionally, so it shows in `wrangler tail` even on a self-hosted
+   * room that never set DEV_MODE. Every other reason warns only in devMode. The
+   * dedup set is capped ({@link DROP_WARN_KEYS_MAX}) so a client spamming distinct
+   * types can't grow it without bound. Counters always increment (poll tk:stats).
+   */
+  private noteDrop(reason: keyof DropCounts, type?: string): void {
+    this.#drops[reason]++;
+    if (reason === "unknownType") {
+      this.warnDropOnce(`unknownType:${type ?? ""}`, () =>
+        console.warn(
+          `[tikron] room=${this.id} dropped a message of unknown type ${JSON.stringify(type)}: no ` +
+            "handler is registered for it. Fix: register one with this.onMessage(type, handler), or " +
+            "correct the type string on the client (server and client type strings must match exactly).",
+        ),
+      );
+      return;
+    }
+    if (this.devMode) {
+      this.warnDropOnce(reason, () =>
+        console.warn(
+          `[tikron] room=${this.id} dropped an input (${reason}). This is DEV_MODE-only diagnostic ` +
+            "output; poll tk:stats for the running drop counters.",
+        ),
+      );
+    }
+  }
+
+  /** Emit `warn()` the first time `key` is seen, respecting the dedup-set cap. */
+  private warnDropOnce(key: string, warn: () => void): void {
+    if (this.#warnedDropKeys.has(key) || this.#warnedDropKeys.size >= DROP_WARN_KEYS_MAX) return;
+    this.#warnedDropKeys.add(key);
+    warn();
   }
 
   /** Seated clients, including any inside a reconnection window. */
@@ -797,7 +939,14 @@ export abstract class Room<TState = unknown> {
         this.#tick++;
         const t0 = performance.now();
         await this.drainInputQueue(); // queued inputs process at the tick boundary
-        fn(intervalMs); // always a fixed dt
+        // Isolate onTick (F120): a throwing tick is routed to onError, not left to
+        // abort the catch-up burst or escape as an unhandled rejection (the loop
+        // runs via `void this.advanceSimulation`). The next tick still fires.
+        try {
+          fn(intervalMs); // always a fixed dt
+        } catch (err) {
+          this.reportError(err, { phase: "onTick" });
+        }
         const t1 = performance.now();
         this.tickDurations.record(t1, t1 - t0); // F0: input-drain + onTick time
       }
@@ -826,10 +975,20 @@ export abstract class Room<TState = unknown> {
     for (const q of batch) {
       const handler = this.handlers.get(q.type);
       if (handler) {
-        await handler(q.record.client, q.payload, q.seq, {
-          ...(q.ts !== undefined ? { ts: q.ts } : {}),
-          receivedAt: q.receivedAt,
-        });
+        // Isolate each handler (F106): one client's throwing handler must not kill
+        // the rest of the tick's batch. The ack stays OUTSIDE this try — the input
+        // was already consumed (its seq advanced on receipt), so we ack regardless
+        // of whether the handler threw, keeping client reconciliation correct.
+        try {
+          await handler(q.record.client, q.payload, q.seq, {
+            ...(q.ts !== undefined ? { ts: q.ts } : {}),
+            receivedAt: q.receivedAt,
+          });
+        } catch (err) {
+          this.reportError(err, { phase: "onMessage", type: q.type, clientId: q.record.client.id });
+        }
+      } else {
+        this.noteDrop("unknownType", q.type);
       }
       // Ack when PROCESSED (not on receipt), addressed to the client's live conn.
       if (this.sendAcks && typeof q.seq === "number" && q.record.connId !== null) {
@@ -889,6 +1048,9 @@ export abstract class Room<TState = unknown> {
       tick: this.tickDurations.stats(now, PERF_WINDOW_MS),
       flush: this.flushDurations.stats(now, PERF_WINDOW_MS),
       windowMs: PERF_WINDOW_MS,
+      // Copy so a poller can't mutate the live counters (F119/F120).
+      drops: { ...this.#drops },
+      errors: this.#errorCount,
     };
   }
 
@@ -919,7 +1081,7 @@ export abstract class Room<TState = unknown> {
   }
 
   /** @internal */
-  async _connect(conn: RoomConnection, session?: string): Promise<void> {
+  async _connect(conn: RoomConnection, session?: string, auth?: ClientAuth): Promise<void> {
     const clientId = session && session.length > 0 ? session : conn.id;
     const existing = this.records.get(clientId);
 
@@ -943,7 +1105,7 @@ export abstract class Room<TState = unknown> {
     }
 
     const record: ClientRecord = {
-      client: this.makeClient(clientId),
+      client: this.makeClient(clientId, {}, auth),
       connId: conn.id,
       awaitingReconnect: false,
       reconnectPromise: null,
@@ -957,19 +1119,17 @@ export abstract class Room<TState = unknown> {
     this.records.set(clientId, record);
     this.connToClient.set(conn.id, clientId);
 
-    conn.send(
-      encode({
-        t: ServerMessageType.Welcome,
-        connectionId: clientId,
-        room: this.id,
-        protocol: PROTOCOL_VERSION,
-        peers: this.peersOf(clientId),
-      }),
-    );
+    conn.send(encode(this.welcomePayload(clientId, false)));
 
     this.sendInitialState(conn);
 
-    await this.onJoin(record.client);
+    try {
+      await this.onJoin(record.client);
+    } catch (err) {
+      // A throwing onJoin no longer vanishes or aborts the join — surface it and
+      // let the client take its seat (peers/occupancy still fire below).
+      this.reportError(err, { phase: "onJoin", clientId });
+    }
     this.ctx.broadcastRaw(encode({ t: ServerMessageType.PeerJoined, connectionId: clientId }), [
       conn.id,
     ]);
@@ -999,16 +1159,7 @@ export abstract class Room<TState = unknown> {
     this.settleReconnection(record);
     record.reconnectPromise = null;
 
-    conn.send(
-      encode({
-        t: ServerMessageType.Welcome,
-        connectionId: clientId,
-        room: this.id,
-        protocol: PROTOCOL_VERSION,
-        peers: this.peersOf(clientId),
-        reconnected: true,
-      }),
-    );
+    conn.send(encode(this.welcomePayload(clientId, true)));
 
     this.sendInitialState(conn);
     await this.onReconnect(record.client);
@@ -1037,6 +1188,38 @@ export abstract class Room<TState = unknown> {
 
   private peersOf(clientId: string): string[] {
     return [...this.records.keys()].filter((id) => id !== clientId);
+  }
+
+  /**
+   * The state codec's shape fingerprint (F003), computed once and cached. `null`
+   * when there is no codec or it can't be described — the handshake then carries no
+   * `schema` field and the client skips the check (no worse than today).
+   */
+  private codecFingerprint(): number | null {
+    if (this.#codecFingerprint === undefined) {
+      const fp = this.stateCodec ? schemaFingerprint(this.stateCodec) : null;
+      this.#codecFingerprint = fp;
+      return fp;
+    }
+    return this.#codecFingerprint;
+  }
+
+  /**
+   * Assemble the Welcome payload shared by an initial connect and a reattach. The
+   * codec fingerprint rides along as `schema` (when non-null) so the client can
+   * hard-reject a mismatched state shape; `reconnected` marks a reattach.
+   */
+  private welcomePayload(clientId: string, reconnected: boolean) {
+    const fp = this.codecFingerprint();
+    return {
+      t: ServerMessageType.Welcome,
+      connectionId: clientId,
+      room: this.id,
+      protocol: PROTOCOL_VERSION,
+      peers: this.peersOf(clientId),
+      ...(fp !== null ? { schema: fp } : {}),
+      ...(reconnected ? { reconnected: true } : {}),
+    };
   }
 
   /** @internal */
@@ -1080,7 +1263,10 @@ export abstract class Room<TState = unknown> {
     // truncating a client's inputs.
     if (msg.t === ClientMessageType.MessageBatch) {
       const inner = Array.isArray(msg.msgs) ? msg.msgs : [];
-      if (inner.length > INPUT_BATCH_MAX) return; // oversized batch dropped
+      if (inner.length > INPUT_BATCH_MAX) {
+        this.noteDrop("oversizedBatch");
+        return; // oversized batch dropped
+      }
       for (let i = 0; i < inner.length; i++) {
         const m = inner[i];
         if (m && m.t === ClientMessageType.Message && typeof m.type === "string") {
@@ -1105,7 +1291,10 @@ export abstract class Room<TState = unknown> {
     record: ClientRecord,
     msg: ClientGameMessage,
   ): Promise<void> {
-    if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) return; // dropped
+    if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) {
+      this.noteDrop("rateLimited");
+      return; // dropped
+    }
 
     // Core-reserved timing poll: answered only AFTER the seat + rate-limit checks
     // (so an unseated or flooding client can't drive the perfSnapshot cost), and
@@ -1120,7 +1309,10 @@ export abstract class Room<TState = unknown> {
 
     if (typeof msg.seq === "number") {
       const last = this.lastSeq.get(clientId) ?? 0;
-      if (msg.seq <= last) return; // stale / replayed input
+      if (msg.seq <= last) {
+        this.noteDrop("staleSeq");
+        return; // stale / replayed input
+      }
       this.lastSeq.set(clientId, msg.seq);
     }
 
@@ -1145,7 +1337,19 @@ export abstract class Room<TState = unknown> {
 
     const handler = this.handlers.get(msg.type);
     if (handler) {
-      await handler(record.client, msg.payload, msg.seq, { ...(ts !== undefined ? { ts } : {}), receivedAt });
+      // Isolate the handler (F106): a throw is routed to onError, not left to
+      // become an unhandled rejection that kills this dispatch. The ack stays
+      // OUTSIDE the try — the seq was already consumed, so ack regardless.
+      try {
+        await handler(record.client, msg.payload, msg.seq, {
+          ...(ts !== undefined ? { ts } : {}),
+          receivedAt,
+        });
+      } catch (err) {
+        this.reportError(err, { phase: "onMessage", type: msg.type, clientId });
+      }
+    } else {
+      this.noteDrop("unknownType", msg.type);
     }
 
     if (this.sendAcks && typeof msg.seq === "number") {
@@ -1168,9 +1372,12 @@ export abstract class Room<TState = unknown> {
     record.connId = null;
     try {
       await this.onLeave(record.client); // room code may open a reconnection window
-    } catch {
-      // A throwing onLeave (e.g. an un-caught allowReconnection timeout) must
-      // not leak the seat — finalization below still runs exactly once.
+    } catch (err) {
+      // A throwing onLeave (e.g. an un-caught allowReconnection timeout) must not
+      // leak the seat — finalization below still runs exactly once — but it is no
+      // longer swallowed silently: route it to onError so an unhandled expiry or a
+      // bug in leave-cleanup is visible (F120).
+      this.reportError(err, { phase: "onLeave", clientId });
     }
 
     // If room code opened a window without awaiting it, wait for the outcome
@@ -1282,10 +1489,41 @@ export abstract class Room<TState = unknown> {
     };
     try {
       await storage.put(ROOM_STORAGE_KEY, snapshot);
-    } catch {
-      // Best-effort: a failed persist just means a cold start restores an older
-      // snapshot (or none). The live in-memory room is unaffected.
+    } catch (err) {
+      this.notePersistFailure(err);
     }
+  }
+
+  /**
+   * Surface a failed state persist (F002) instead of swallowing it. The live
+   * in-memory room is unaffected, but a cold start would restore an older snapshot
+   * (or none), so this routes the error to {@link onError} (counted every time) and
+   * logs actionable guidance ONCE per room — a repeated failure every
+   * `persistIntervalMs` won't flood the log with the same advice.
+   */
+  private notePersistFailure(err: unknown): void {
+    this.reportError(err, { phase: "persist" });
+    if (this.#persistFailWarned) return;
+    this.#persistFailWarned = true;
+    console.error(
+      `[tikron] room=${this.id} failed to persist its state snapshot; the live room is unaffected, ` +
+        "but a cold start after eviction would restore an older snapshot (or none). Most likely the " +
+        "state is too large for Durable Object storage (single values are limited to a few MB) or a " +
+        "transient storage error. Fix: keep this.state slim (exclude cold/derived fields), and call " +
+        "await this.forcePersist() after critical transitions. This guidance logs once per room.",
+      err,
+    );
+  }
+
+  /**
+   * Immediately write a durable state snapshot without waiting for the coalescing
+   * window (F052). Call after a critical transition (a trade completing, a round
+   * ending) so a redeploy or DO restart can't lose it: `persistNow`'s contract
+   * cancels any pending coalesced write, so this both flushes now and resets the
+   * timer, closing the up-to-`persistIntervalMs` loss window for that transition.
+   */
+  protected async forcePersist(): Promise<void> {
+    await this.persistNow();
   }
 
   /** Drop the durable snapshot + pending alarm when the room disposes (empty). */
@@ -1424,11 +1662,18 @@ export abstract class Room<TState = unknown> {
     await this.syncReconnectAlarm();
   }
 
-  private makeClient(clientId: string, data: Record<string, unknown> = {}): Client {
+  private makeClient(
+    clientId: string,
+    data: Record<string, unknown> = {},
+    auth?: ClientAuth,
+  ): Client {
     const room = this;
     return {
       id: clientId,
       data,
+      // Live-only identity (F094): present when the host authenticated this connect
+      // via onAuth returning an object. Not persisted, so a restored seat has none.
+      ...(auth ? { auth } : {}),
       get rttMs(): number {
         return room.records.get(clientId)?.lastRttMs ?? 0;
       },
