@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RG9SDZ61SD"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-RG9SDZ61SD');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tikron · MMORPG demo</title>
+    <meta name="description" content="Live Tikron demo — a server-authoritative MMORPG room integrating the @tikron/rpg deterministic combat engine: skills, buffs, aggro, and XP over binary delta sync." />
+    <link rel="canonical" href="https://tikron.dev/mmo" />
+    <meta property="og:url" content="https://tikron.dev/mmo" />
+    <meta property="og:site_name" content="Tikron" />
+    <meta property="og:image" content="https://tikron.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://tikron.dev/og.png" />
+
+    <meta name="theme-color" content="#0a0e14" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/brand.css" />
+    <style>
+      body {
+        overflow: hidden;
+      }
+      .demobar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(10, 14, 20, 0.82);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      .demobar .right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      canvas#c {
+        display: block;
+        margin: 72px auto 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        max-width: 96vw;
+      }
+      #status {
+        position: fixed;
+        top: 64px;
+        left: 16px;
+        z-index: 2;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--muted);
+        background: rgba(16, 21, 29, 0.85);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 5px 12px;
+      }
+      #hotbar {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2;
+        display: flex;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      #hotbar .key {
+        padding: 6px 10px;
+        color: var(--text);
+        background: rgba(16, 21, 29, 0.9);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      #hotbar .key b {
+        color: var(--neon);
+        text-shadow: var(--glow);
+        margin-right: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demobar">
+      <a class="wordmark" href="/" aria-label="Tikron home">
+        <img src="/favicon.svg" width="24" height="24" alt="" />
+        t<span class="i">i</span>kron
+      </a>
+      <div class="right">
+        <span class="badge badge-neon badge-dot">Built with Tikron</span>
+      </div>
+    </div>
+
+    <div id="status">connecting…</div>
+    <canvas id="c" width="900" height="640"></canvas>
+    <div id="hotbar"></div>
+    <script type="module" src="/mmo.js"></script>
+  </body>
+</html>

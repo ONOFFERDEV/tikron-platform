@@ -16,6 +16,7 @@
       { "name": "TicTacToe", "class_name": "TicTacToe" },
       { "name": "AgarRoom", "class_name": "AgarRoom" },
       { "name": "ShooterRoom", "class_name": "ShooterRoom" },
+      { "name": "MmoRoom", "class_name": "MmoRoom" },
       { "name": "Matchmaker", "class_name": "Matchmaker" }
     ]
   },
@@ -24,7 +25,8 @@
     { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] },
     { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
     { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] },
-    { "tag": "v5", "new_sqlite_classes": ["ShooterRoom"] }
+    { "tag": "v5", "new_sqlite_classes": ["ShooterRoom"] },
+    { "tag": "v6", "new_sqlite_classes": ["MmoRoom"] }
   ],
   // Platform database (M5). database_id is filled in by `wrangler d1 create`;
   // local dev + vitest-pool-workers use a local SQLite regardless of the id.
