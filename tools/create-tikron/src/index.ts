@@ -21,8 +21,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Project templates live next to the compiled entry: <package>/dist/index.js → <package>/templates. */
 const TEMPLATES_DIR = join(__dirname, "..", "templates");
 
-/** Published @tikron/* version range the generated project depends on. */
-const TIKRON_VERSION = "^0.5.0";
+/**
+ * Published @tikron/* version range the generated project depends on. Pinned to
+ * ^0.6.0: the scaffold's pre-wired `platformLeaderboard` (src/index.ts template)
+ * ships in the 0.6.0 lockstep release. Keep this in step with the SDK release.
+ */
+const TIKRON_VERSION = "^0.6.0";
 
 interface Options {
   name: string;
@@ -91,14 +95,17 @@ function packageJson(name: string): string {
     private: true,
     type: "module",
     scripts: {
-      // esbuild is inlined (not `pnpm build:client`) so the project works with any
-      // package manager — npm, pnpm, yarn, or bun.
-      dev: "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler dev",
+      // `dev` runs scripts/dev.mjs (esbuild watch-rebuild of the client bundle +
+      // `wrangler dev --var DEV_MODE:1`). The rest inline esbuild (not `pnpm
+      // build:client`) so the project works with any package manager — npm, pnpm,
+      // yarn, or bun.
+      dev: "node scripts/dev.mjs",
       deploy:
         "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler deploy",
       build:
         "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap && wrangler deploy --dry-run --outdir dist",
       "build:client": "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap",
+      test: "vitest run",
       typecheck: "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     },
     dependencies: {
@@ -112,6 +119,7 @@ function packageJson(name: string): string {
       "@cloudflare/workers-types": "^4.20260701.1",
       esbuild: "^0.28.1",
       typescript: "^5.7.3",
+      vitest: "^4.1.0",
       wrangler: "^4.106.0",
     },
   };
@@ -147,12 +155,13 @@ function scaffoldStandalone(name: string, into: string): void {
     `Created ./${name} — a standalone Tikron game.\n\n` +
       `Next steps:\n` +
       `  cd ${name}\n` +
-      `  npm install                  # or pnpm / yarn / bun\n` +
-      `  # edit your game: src/arena-room.ts (state shape + onMessage handlers)\n` +
+      `  npm install                  # or pnpm / yarn / bun (Node >= 22)\n` +
       `  npm run dev                  # http://127.0.0.1:8787 (open 2 tabs)\n` +
-      `  npx wrangler login           # once\n` +
+      `  npm test                     # in-process room test (green out of the box)\n` +
       `  npm run deploy               # ship to YOUR Cloudflare account\n\n` +
-      `Docs: https://tikron.dev · the room API is in AGENTS.md.\n`,
+      `This project ships AGENTS.md — the room API, hard rules, knobs, error codes,\n` +
+      `and a headless (no-browser) deploy recipe. Read it first.\n` +
+      `Full brief online: https://tikron.dev/llms-full.txt\n`,
   );
 }
 

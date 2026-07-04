@@ -79,6 +79,15 @@ export class ArenaRoomImpl extends CasualRealtimeRoom<ArenaState> {
       this.state.splats.push({ x: me.x, y: me.y, hue: me.hue });
       if (this.state.splats.length > MAX_SPLATS) this.state.splats.shift();
       this.markStateChanged();
+
+      // Want a leaderboard? With a TIKRON_API_KEY wired in src/index.ts you can
+      // record a server-authoritative score from any handler:
+      //   this.services.leaderboard?.submit({
+      //     board: "splats",
+      //     playerId: client.auth?.id ?? client.id, // verified identity if you set up onAuth, else the session id
+      //     score: this.state.splats.length,
+      //   });
+      // No key → the leaderboard service is simply absent and the call is skipped.
     });
   }
 

@@ -19,13 +19,17 @@ from npm — no monorepo, no clone. Then edit `src/arena-room.ts` (your game) an
 ### What you get
 
 ```
-src/index.ts        Worker entry: defineRoom(ArenaRoomImpl) + a router
-src/arena-room.ts   the game — a CasualRealtimeRoom (state + onMessage handlers)
-client/main.ts      browser client via @tikron/client
-public/index.html   a canvas
-wrangler.jsonc      Cloudflare config (DO binding + assets)
+src/index.ts            Worker entry: defineRoom(ArenaRoomImpl) + router + dormant platform hooks
+src/arena-room.ts       the game — a CasualRealtimeRoom (state + onMessage handlers)
+src/arena-room.test.ts  a green in-process room test (vitest + @tikron/server/testing)
+client/main.ts          browser client via @tikron/client (pointer input, remote smoothing)
+public/index.html       a canvas
+scripts/dev.mjs         watch-rebuild the client bundle + run `wrangler dev` (used by `npm run dev`)
+wrangler.jsonc          Cloudflare config (DO binding + assets)
+vitest.config.ts        test-runner config
 tsconfig(.client).json
-package.json        @tikron/* deps at ^0.2.0, dev/deploy/build scripts (esbuild + wrangler)
+AGENTS.md               condensed room-API brief for AI agents — read this first
+package.json            @tikron/* deps (pinned) + dev/deploy/build/test scripts (esbuild + wrangler)
 ```
 
 ### Options

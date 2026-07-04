@@ -18,11 +18,60 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/emberfall:
+    dependencies:
+      '@tikron/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@tikron/rpg':
+        specifier: workspace:*
+        version: link:../../packages/rpg
+      '@tikron/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@tikron/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      partyserver:
+        specifier: ^0.5.8
+        version: 0.5.8(@cloudflare/workers-types@4.20260701.1)
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.17.0
+        version: 0.17.0(@cloudflare/workers-types@4.20260701.1)(@vitest/runner@4.1.9)(@vitest/snapshot@4.1.9)(vitest@4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4)))
+      '@cloudflare/workers-types':
+        specifier: ^4.20260701.1
+        version: 4.20260701.1
+      '@tikron/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.0
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
+      wrangler:
+        specifier: ^4.106.0
+        version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
+
   apps/gateway:
     dependencies:
       '@tikron/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@tikron/rpg':
+        specifier: workspace:*
+        version: link:../../packages/rpg
       '@tikron/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -98,6 +147,9 @@ importers:
       esbuild:
         specifier: ^0.28.1
         version: 0.28.1
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
       wrangler:
         specifier: ^4.106.0
         version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
@@ -122,6 +174,16 @@ importers:
         version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
 
   packages/protocol:
+    devDependencies:
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
+
+  packages/rpg:
+    dependencies:
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../sim
     devDependencies:
       vitest:
         specifier: ^4.1.0
@@ -247,6 +309,9 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
+
+  '@dimforge/rapier3d-compat@0.12.0':
+    resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
 
   '@discord/embedded-app-sdk@2.5.0':
     resolution: {integrity: sha512-FNoe5PbSkoKEbqPubaBmq6tlEMOftMjR3gu55YrdrrKmBfKKM4i9P/Z+Zxl0RZdJcKviBwVcTyYMMPM/aGex/w==}
@@ -731,6 +796,9 @@ packages:
     cpu: [arm64]
     os: [win32]
 
+  '@tweenjs/tween.js@23.1.3':
+    resolution: {integrity: sha512-vJmvvwFxYuGnF2axRtPYocag6Clbb5YS7kLL+SO/TeVFzHqDIWrNKYtcsPMibjDx9O+bu+psAy9NKfWklassUA==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -749,8 +817,17 @@ packages:
   '@types/node@24.13.2':
     resolution: {integrity: sha512-fRa09kZTgu8o71KFcDjUFuc7F+dEbZYZmkI0mg5YBTRs0yMKjYHsq/c0urDKeDb+D5qVgXOdFcuu+DZPKOITwA==}
 
+  '@types/stats.js@0.17.4':
+    resolution: {integrity: sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==}
+
+  '@types/three@0.185.0':
+    resolution: {integrity: sha512-O2Uy8Cj4Nonr8dWUUbifMdPe8B0Mq7EdOHb89S4+kjUw/KhbjTZrUuYlrQ1bpUKG+EP9QJnN7qNxbHGlGoLHMA==}
+
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
+
+  '@types/webxr@0.5.24':
+    resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -849,6 +926,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -863,6 +943,9 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  meshoptimizer@1.1.1:
+    resolution: {integrity: sha512-oRFNWJRDA/WTrVj7NWvqa5HqE1t9MYDj2VaWirQCzCCrAd2GHrqR/sQezCxiWATPNlKTcRaPRHPJwIRoPBAp5g==}
 
   miniflare@4.20260630.0:
     resolution: {integrity: sha512-lyRplDrSJJWVpzSSQPBSQtNmUuxScCZyOOkXFs37uSbdTfWRDDmw6DyFKVS2s1eYtA/i4u2xR/0FyPIsTl/HJw==}
@@ -952,6 +1035,9 @@ packages:
   supports-color@10.2.2:
     resolution: {integrity: sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g==}
     engines: {node: '>=18'}
+
+  three@0.185.1:
+    resolution: {integrity: sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -1166,6 +1252,8 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+
+  '@dimforge/rapier3d-compat@0.12.0': {}
 
   '@discord/embedded-app-sdk@2.5.0':
     dependencies:
@@ -1477,6 +1565,8 @@ snapshots:
   '@turbo/windows-arm64@2.10.2':
     optional: true
 
+  '@tweenjs/tween.js@23.1.3': {}
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -1496,7 +1586,20 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
+  '@types/stats.js@0.17.4': {}
+
+  '@types/three@0.185.0':
+    dependencies:
+      '@dimforge/rapier3d-compat': 0.12.0
+      '@tweenjs/tween.js': 23.1.3
+      '@types/stats.js': 0.17.4
+      '@types/webxr': 0.5.24
+      fflate: 0.8.3
+      meshoptimizer: 1.1.1
+
   '@types/uuid@10.0.0': {}
+
+  '@types/webxr@0.5.24': {}
 
   '@types/ws@8.18.1':
     dependencies:
@@ -1608,6 +1711,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  fflate@0.8.3: {}
+
   fsevents@2.3.3:
     optional: true
 
@@ -1618,6 +1723,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  meshoptimizer@1.1.1: {}
 
   miniflare@4.20260630.0:
     dependencies:
@@ -1740,6 +1847,8 @@ snapshots:
   std-env@4.1.0: {}
 
   supports-color@10.2.2: {}
+
+  three@0.185.1: {}
 
   tinybench@2.9.0: {}
 
