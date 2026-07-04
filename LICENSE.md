@@ -1,8 +1,21 @@
-# Functional Source License, Version 1.1, ALv2 Future License
+# Tikron License 1.0
 
-## Abbreviation
+## Identifier
 
-FSL-1.1-ALv2
+Tikron-1.0
+
+## About this license
+
+This license is adapted from the Functional Source License, Version 1.1, with
+the Apache License 2.0 as the Future License (FSL-1.1-ALv2). It differs from the
+stock FSL in exactly one way: the Future License change date is the **first**
+anniversary of each release, rather than the second. Because the change date is
+different, this license is named the "Tikron License" and not "FSL", in keeping
+with the Functional Source License's own naming guidance.
+
+In short: source-available, free for any use except a Competing Use (as defined
+below), and every release becomes Apache-2.0 one year after it is made available.
+It is not an OSI-approved open source license.
 
 ## Notice
 

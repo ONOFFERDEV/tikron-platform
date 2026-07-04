@@ -2,7 +2,7 @@
   "name": "@tikron/server",
   "version": "0.5.0",
   "description": "Authoritative room framework for Tikron — Room base class, genre presets, ticks, AOI, binary sync, reconnection, and lag compensation on Cloudflare Durable Objects.",
-  "license": "FSL-1.1-ALv2",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "keywords": ["tikron", "multiplayer", "realtime", "game", "server", "durable-objects", "cloudflare", "workers", "netcode"],
   "homepage": "https://tikron.dev",

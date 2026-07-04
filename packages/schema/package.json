@@ -2,7 +2,7 @@
   "name": "@tikron/schema",
   "version": "0.5.0",
   "description": "Binary delta state-sync codec for Tikron — schema definitions with type inference, full/delta encoding, and wire-compatible serialization.",
-  "license": "FSL-1.1-ALv2",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "keywords": ["tikron", "multiplayer", "binary", "serialization", "delta", "state-sync", "codec", "netcode"],
   "homepage": "https://tikron.dev",

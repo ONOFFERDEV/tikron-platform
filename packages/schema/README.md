@@ -61,5 +61,5 @@ Low-level buffers: `ByteWriter`, `ByteReader`.
 
 [tikron.dev](https://tikron.dev) ·
 [AGENTS.md](https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md).
-Licensed **FSL-1.1-ALv2** — converts to **Apache-2.0** one year after each release.
+Licensed under the **Tikron License 1.0** (adapted from FSL-1.1) — converts to **Apache-2.0** one year after each release.
 See LICENSE.

@@ -2,7 +2,7 @@
   "name": "@tikron/client",
   "version": "0.5.0",
   "description": "Browser SDK for Tikron — GameClient (matchmake/joinOrCreate) and Room (send, onStateChange, prediction, clock sync) over PartySocket.",
-  "license": "FSL-1.1-ALv2",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "keywords": ["tikron", "multiplayer", "realtime", "game", "websocket", "client", "sdk", "netcode"],
   "homepage": "https://tikron.dev",
