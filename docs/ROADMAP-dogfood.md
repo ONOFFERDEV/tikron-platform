@@ -69,13 +69,27 @@ philosophy that puts rooms on the customer's account. Concretely:
    bucket, `GET /s/:id` SSR OG page, 24h object lifecycle. Platform-hosted
    version only if/when a paid plan exists to carry storage cost.
 7. **Leaderboard ingest for self-hosted games** — same auth pattern as
-   occupancy ingest, WITH per-plan caps (boards per project, submissions/day)
-   via the existing enforcement layer.
-8. **create-tikron upgrades:** vitest + a sample `createTestRoom` test in the
-   scaffold (real games add this immediately; the scaffold has no test
-   wiring), secrets how-to, and a `--template webcam` variant (camera
-   pipeline + MediaPipe wiring + relay + BYO-TURN pre-wired — nyam-duel is
-   the source material).
+   occupancy ingest, WITH per-plan caps via the existing enforcement layer.
+   - **Boards-per-project cap = DONE** (this sprint): `free_leaderboard_boards`
+     (default 50, config-adjustable); a brand-new board past the cap →
+     `403 cap_leaderboard_boards`. Ingest is `POST /api/ingest/score`, a
+     `tk_live_` (secret) key only — a `tk_pub_` key → `403 key_scope_forbidden`.
+     Wire it from a self-hosted room with `platformLeaderboard()` (see
+     AGENTS.md → Hosted leaderboards).
+   - **submissions/day = still P2.** The shipped rate guard is an
+     **isolate-local** token bucket (30/s, burst 60 → `429 cap_leaderboard_rate`),
+     which stops per-second floods but is **not** a hard cross-isolate daily
+     quota. An exact daily quota needs a dedicated Submits DO and lands with
+     billing.
+8. **create-tikron upgrades:**
+   - **vitest + a sample `createTestRoom` test in the scaffold = DONE** (this
+     sprint): every generated project ships `vitest.config.ts` (with a
+     `cloudflare:workers` stub so a room-importing spec runs under plain Node
+     vitest), a green `arena-room.test.ts`, and a `test` script.
+   - **Secrets / headless-deploy how-to = DONE** (this sprint): the bundled +
+     root `AGENTS.md` carry the `CLOUDFLARE_API_TOKEN` headless-deploy recipe.
+   - **`--template webcam` variant** (camera pipeline + MediaPipe + relay +
+     BYO-TURN pre-wired — nyam-duel is the source material) = **still P2**.
 9. **Engine-state persistence pattern.** Only `this.state` survives DO
    eviction; in-memory tick engines (nyam-duel RoundEngine) lose a round on
    hard eviction. Document an `onRestore` + periodic snapshot pattern with an
@@ -91,3 +105,9 @@ philosophy that puts rooms on the customer's account. Concretely:
   (packages/client) — fixed the full-room infinite hang.
 - `POST /api/ingest/occupancy` + `platformReporter()` (self-hosted usage →
   dashboard) — commit 6500590, deployed to production 2026-07-03.
+- **Launch-blocker sprint (2026-07-04):** self-host leaderboard ingest
+  (`POST /api/ingest/score` + `platformLeaderboard()`, boards cap), schema/
+  protocol handshake (`RoomJoinError("schema_mismatch"|"protocol_mismatch")`),
+  room observability (`Room.onError`, `tk:stats.drops/errors`), `forcePersist()`,
+  live `client.auth` identity, and scaffold test/headless-deploy wiring. Packages
+  staged at 0.6.0 (lockstep publish user-gated).

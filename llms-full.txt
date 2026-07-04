@@ -1,6 +1,6 @@
 # Tikron — full agent reference
 
-Source-available (FSL-1.1), server-authoritative multiplayer SDK for web games — you self-host rooms
+Source-available (Tikron License 1.0), server-authoritative multiplayer SDK for web games — you self-host rooms
 on your OWN Cloudflare account (Workers + Durable Objects); no lock-in. One Durable
 Object per room, placed at the edge near players. Optional hosted services (leaderboards
 + a usage dashboard, keyed by API key) are the only managed part. You author a Room
@@ -19,7 +19,11 @@ tikron.dev/shooter.html (FPS — subtick lag-comp + AOI priority tiers, up to 10
     pnpm typecheck | pnpm test | pnpm build     # workspace-wide (turbo)
     pnpm --filter <pkg> dev                     # local edge server (127.0.0.1:8787)
     pnpm --filter <pkg> run deploy              # deploy (once: pnpm exec wrangler login)
-    npx create-tikron my-game                 # scaffold a standalone game (SDK from npm)
+    CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… npm run deploy   # headless/CI deploy, no
+                                                # browser login (AGENTS.md "Deploy without a browser")
+    npx create-tikron my-game                 # scaffold a standalone game (SDK from npm); ships a
+                                                # condensed AGENTS.md + green npm test + vitest.config
+                                                # (cloudflare:workers stub); closing msg → tikron.dev/llms-full.txt
 
 ## @tikron/server — authoring rooms
 
@@ -77,10 +81,23 @@ Developer API (protected):
                                         never dropped — no flicker); the top downlink lever
                                         at high CCU.
     currentTick                       monotonic sim-tick counter (state-frame tick)
+    onError(err, ctx)                 protected, overridable (F120): every caught exception
+                                       (throwing handler / onTick / onJoin / onLeave / failed
+                                       persist) routes here instead of vanishing; default =
+                                       structured console.error `[tikron] room=.. phase=..`.
+                                       ctx.phase ∈ onMessage|onTick|onJoin|onLeave|onReconnect|
+                                       persist (+ type/clientId when known). A throwing message
+                                       handler no longer kills the tick's input batch (F106) —
+                                       others still process, ack still sent, onTick still runs.
+    forcePersist()                    protected async (F052): immediate durable snapshot (cancels
+                                       the coalesce timer) — await after a critical transition to
+                                       close the up-to-persistIntervalMs deploy/restart loss window.
 
 tk:stats: a client can send the core-reserved `tk:stats` developer message to read the
 room's recent tick/flush timing ({tick, flush, windowMs} of DurationStats); the load test
 uses it to report real in-DO processing cost. Not billable, never collides with onMessage.
+The reply (PerfSnapshot) also carries drops (DropCounts: rateLimited/staleSeq/oversizedBatch/
+unknownType) + errors (cumulative onError count) — the machine-readable "my type is dropped" signal.
 
 Knobs (protected fields): maxClients=Infinity (room-side hard cap → room_full/4002;
 reattach never capped) · maxInputsPerSecond=30 (excess inputs dropped) ·
@@ -91,8 +108,11 @@ persistIntervalMs=5000 (durable snapshot cadence) · stateVersion=1 (bump on inc
 TState change + override migrateState(from, old) so a redeploy migrates old snapshots
 instead of silently restoring the old shape; return null = discard + start fresh).
 
-Facts: Client = { id, data (server-only scratch), send }. client.id is the session key
+Facts: Client = { id, data (server-only scratch), auth?, send }. client.id is the session key
 when supplied, else the connection id — state keyed by client.id survives reconnects.
+client.auth = {id, claims} is the DURABLE verified identity (present when onAuth returns an
+object) — key leaderboards/bans/ownership on client.auth?.id ?? client.id, NEVER the raw
+session id (a new tab/reconnect resets it); live-only (not persisted across eviction).
 Only this.state and client.data survive DO eviction (persisted snapshot); ad-hoc
 instance fields do not. State must be structured-clone-able. Duplicate session connect
 = takeover (old socket closed 4001). Input seq replay-floor resets on reattach.
@@ -106,7 +126,16 @@ instance fields do not. State must be structured-clone-able. Duplicate session c
 DefineRoomOptions (all optional):
     reportOccupancy(env, {roomId, count, sessions, seq, projectId?, messages?})
     validateSession(env, {roomId, session}) -> boolean     gate self-supplied ?_session=
-    onAuth(env, {roomId, projectId?, token, session}) -> boolean   player JWT gate (?_auth=)
+    onAuth(env, {roomId, projectId?, token, session}) -> AuthResult   player JWT gate (?_auth=).
+        AuthResult = boolean | {id?, claims?}: an object populates client.auth={id, claims}
+        (id = res.id ?? claims.sub); true = authorize anon (client.auth undefined); false = 4004.
+    services.submitScore(env, {...}, entry)   self-host leaderboard hook — wire
+        platformLeaderboard({apiKey:(env)=>env.TIKRON_API_KEY}); room calls
+        this.services.leaderboard?.submit({board, playerId, score, displayName?, mode?})
+        (mode max|sum|last). tk_live_ secret key server-side; no key = silent no-op; POSTs
+        fire-and-forget to https://tikron.dev/api/ingest/score (never throws into the room).
+RoomContext.devMode = env.DEV_MODE === "1" (verbose per-drop warns gated on it; the unknown-
+message-type warn fires once/type regardless, so a typo'd onMessage type shows in wrangler tail).
 
 Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_FULL ·
 4003 CLOSE_INVALID_SESSION · 4004 CLOSE_UNAUTHORIZED.
@@ -115,7 +144,9 @@ Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_
 
     const client = new GameClient(location.host, {
       party: "my-room",            // kebab-case binding name
-      apiKey?: "tk_live_...",      // metered platform key (?apiKey=)
+      apiKey?: "tk_pub_...",       // PUBLISHABLE key for browser connect/matchmake/read (?apiKey=).
+                                   // Two prefix-derived classes: tk_pub_ (browser-safe) vs tk_live_
+                                   // (secret, server-side ingest only — never ship in client code).
       authToken?: "<jwt>",         // player token (?_auth=) when project requires it
       stateCodec?: MySchema,       // must match the room's codec for binary sync
       subtickTimestamps?: true,    // stamp each send() with its server-clock time so the
@@ -131,6 +162,10 @@ Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_
     });
     const m = await client.matchmake({ mode?, maxClients?, region? }); // {roomId, sessionId, region?}
     const room = await client.joinOrCreate(m.roomId, { _session: m.sessionId });
+    // Since 0.6 joinOrCreate validates the Welcome frame and rejects codec/protocol drift with
+    // RoomJoinError("protocol_mismatch"|"schema_mismatch") naming BOTH sides' values (via
+    // schemaFingerprint over the codec shape; str(maxLen) changes don't trip it). Live-reconnect
+    // mismatch → console.error + close (no retry). Fingerprint check only active vs a 0.6+ server.
 
     room.send(type, payload)             auto-seq'd intent
     room.onStateChange(state => ...)     authoritative state (JSON or decoded binary)
@@ -142,7 +177,9 @@ Close codes (exported consts): 4001 CLOSE_SESSION_TAKEN_OVER · 4002 CLOSE_ROOM_
 Netcode helpers: InputPredictor (predict/reconcile — input replay for server-integrated
 movement) · SnapshotBuffer (interpolation, delayMs ~100). Transport auto-reconnects
 (PartySocket); it stops on close 4001. Binary frames arrive as arraybuffer (SDK sets
-binaryType — hand-rolled clients must too).
+binaryType — hand-rolled clients must too). Decode guards: a binary state frame that fails
+to decode → console.error ONCE, frame dropped, last good state kept; a binary frame with no
+stateCodec set → console.warn ONCE (this covers a pre-0.6 server that sends no fingerprint).
 
 Render helpers (client-authoritative movement — "client sends position, server validates
 speed"; anti-rubber-band by contract):
@@ -170,6 +207,13 @@ backlogs drain). reconcile(echo) ignores small RTT gaps; snaps on first frame / 
 easing over SnapshotBuffer samples (rounds off AOI priority-tier steps); prune(seen)
 per frame. Pure primitives also exported: integrateMove, clampToBudget, decayOffset,
 applyCorrection, smoothAxis, smoothAngle, followCamera.
+
+Casual (server-authoritative) rooms use EntitySmoother ALONE — no RenderPredictor/SnapshotBuffer:
+smoother.update(id,{x,y},dtMs) per remote entity + smoother.prune(seen); render the local player
+straight from its own input target (zero added latency). Default snapDistance=300 never triggers
+in a normalized [0,1] world, so it only eases — exactly what a cursor/paint room wants.
+Input: the starter client uses pointer events (pointermove/pointerdown) + canvas touch-action:none
++ viewport maximum-scale=1 — one code path for touch & mouse (the absolute-cursor pattern).
 
 ## @tikron/sim — shared movement math (zero-dep, isomorphic)
 
@@ -206,7 +250,11 @@ index, <=256) · str(maxLen) (length-checked string). Wire ops: encodeFull, enco
 encodeDeltaOrNull (delta or null when unchanged — the AOI hot path), decodeFull, applyDelta.
 
 Wire: first byte 0x01 full snapshot / 0x02 delta; decodeFull/applyDelta client-side
-(the SDK does this). Schema must be identical (and same order) on both sides.
+(the SDK does this). Schema must be identical (and same order) on both sides — a fingerprint
+handshake now ENFORCES this: drift surfaces as RoomJoinError("schema_mismatch") at joinOrCreate
+(naming both fingerprints) instead of silently decoding garbage. schemaFingerprint(codec) ->
+u32|null (FNV-1a over the codec shape; null = undescribable → check skipped). str(maxLen) is
+write-only (not decode-relevant), so a str length change does NOT trip it.
 
 ## Platform (apps/gateway) — multi-tenancy
 
@@ -214,12 +262,20 @@ REST: GET /api/matchmake?type=<party>&mode=&max= → {roomId, sessionId} (403
 cap_room_hours | cap_concurrent_rooms when capped) · GET /api/rooms → lobby ·
 Dashboard API under /api/platform/* (session-cookie auth; see dashboard).
 
-Keys: tk_live_* (SHA-256 stored; shown once). /parties/* connects require ?apiKey=
-when the platform DB is bound; missing key falls back to the metered demo project
-(DEMO_PROJECT_ID) if configured; invalid key → 401. Local dev: DEV_MODE=1 bypasses.
-Caps (D1 config, defaults): 1,000 room-hours/month · 20 concurrent rooms · 20
+Keys: two prefix-derived classes — tk_pub_ (publishable: browser connect/matchmake/leaderboard
+read; safe to ship) and tk_live_ (secret: + server-side ingest; keep off the client). SHA-256
+stored over the WHOLE key incl. prefix (scope is unforgeable); shown once. Create: POST
+/api/platform/projects/:id/keys {scope?:"public"|"secret"} (default public; response includes
+scope). /parties/* connects require ?apiKey= when the platform DB is bound; missing key falls back
+to the metered demo project (DEMO_PROJECT_ID) if configured; invalid key → 401. Local dev:
+DEV_MODE=1 bypasses. Caps (D1 config, defaults): 1,000 room-hours/month · 20 concurrent rooms · 20
 players/room. Usage: rooms report occupancy + 30s heartbeats; matchmaker accrues
 room-hours/peak CCU/messages → usage_daily (60s alarm flush).
+Self-host leaderboard ingest: POST /api/ingest/score (Authorization: Bearer tk_live_ ONLY;
+tk_pub_ → 403 key_scope_forbidden) {board, playerId, score, displayName?, mode?} → 204 |
+{error, message}; caps 403 cap_leaderboard_boards (free_leaderboard_boards=50, new boards only) /
+429 cap_leaderboard_rate (isolate-local bucket 30/s, burst 60). Read: GET /api/leaderboard?board=
+&limit=&apiKey=tk_pub_ (Access-Control-Allow-Origin: *).
 
 ## Hard rules (failures these prevent — details in AGENTS.md)
 
@@ -241,8 +297,11 @@ room-hours/peak CCU/messages → usage_daily (60s alarm flush).
 97ms/p99 144ms, server tick+flush 0ms (tk:stats) — the full FPS stack (subtick shots +
 tiered AOI + map deltas) holds too. Caveat: 100 upgrades in 3s to one DO fail ~20% —
 pace joins (~10s) / rely on client reconnect backoff. Turn-based idle: ~77 B/s/client.
-Room cost ≈ $0.0058/room-hour (DO duration billing, approximate) — self-hosted rooms
-bill to YOUR Cloudflare account.
+Room cost: DO duration ≈ $0.005625/room-hour (128MB pinned, verified) PLUS inbound WebSocket
+request billing (20:1 rule applies to the standard non-hibernation WS too), which DOMINATES at
+realtime CCU — a 20Hz room ≈ $0.016 / $0.040 / $0.060 per room-hour at 20 / 64 / 100 CCU (marginal,
+past the free tier). Self-hosted rooms bill to YOUR Cloudflare account. Hibernation saves $0 with
+an always-on tick. Full math + verified-vs-estimated: docs/COSTS.md.
 
 ## Limits & roadmap (v1 — full detail in AGENTS.md "Limits & roadmap")
 
@@ -265,4 +324,7 @@ bill to YOUR Cloudflare account.
   at high CCU is connection admission + fan-out, not filtering. Shard very large worlds anyway.
 - Wire compat: client and server share PROTOCOL_VERSION + the binary frame layout — ship the
   SAME SDK minor on both sides; 0.1.x and 0.2.x are not wire-compatible (0.2 added c:mbatch,
-  subtick ts, and the state-frame serverTime). Upgrade both together.
+  subtick ts, and the state-frame serverTime). Upgrade both together. Since 0.6 a schema-
+  fingerprint handshake enforces codec parity (RoomJoinError("schema_mismatch"|"protocol_mismatch")
+  on initial-join drift, naming both sides); protection needs a 0.6+ server, and a client-first
+  rollout is safe (a new client just skips the check against an old server).

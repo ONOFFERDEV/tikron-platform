@@ -1,6 +1,6 @@
 # Tikron
 
-> Tikron is a **source-available (FSL-1.1), server-authoritative multiplayer SDK for web games**
+> Tikron is a **source-available (Tikron License 1.0), server-authoritative multiplayer SDK for web games**
 > ("Supabase for game netcode", but self-hosted). You author a `Room<TState>` subclass
 > (state shape + `onMessage` intent handlers) and deploy it to **your own Cloudflare
 > account** — one Durable Object per room at the edge, placed near players, no lock-in.
@@ -12,8 +12,10 @@
 ## Start here
 
 - [AGENTS.md](AGENTS.md): Read first. The operational brief — genre→preset table, the
-  golden path (scaffold → run → deploy), hard rules, command reference, error-code
-  table, and measured limits.
+  golden path (scaffold → run → deploy, incl. a headless / `CLOUDFLARE_API_TOKEN` deploy
+  recipe), pointer / `touch-action` input, the schema/protocol handshake, ops & observability
+  (`Room.onError`, `tk:stats` drops/errors), identity & auth, hosted leaderboards, hard rules,
+  command reference, error-code tables, and measured limits.
 - [.claude/skills/tikron/SKILL.md](.claude/skills/tikron/SKILL.md): Read when
   building/modifying a room. Preset decision tree, room-authoring checklist, local
   smoke-test loop, deploy steps.
@@ -23,6 +25,9 @@
 - [docs/PERF.md](docs/PERF.md): Read before quoting any performance number. Measured
   load-test results (20-player AOI room, 128 CCU across 8 rooms, the flush-throttle
   before/after). Cite these; never invent latency figures.
+- [docs/COSTS.md](docs/COSTS.md): Read before quoting a per-room $ cost. Cloudflare DO
+  duration + WebSocket request billing (the 20:1 rule applies to standard WS), worked at
+  20/64/100 CCU, with verified-vs-estimated flags.
 - [examples/starter/README.md](examples/starter/README.md): Read to see a complete
   game in ~150 lines (deploy-in-5-minutes cursor arena) and how to reshape it.
 
@@ -49,14 +54,24 @@
 - [apps/gateway/src/rooms/shooter-room.ts](apps/gateway/src/rooms/shooter-room.ts): Read
   for the FPS stack in practice — subtick lag-compensation rewind, AOI priority tiers, and
   a quantized codec on `IoArenaRoom`.
+- [packages/rpg/src/engine.ts](packages/rpg/src/engine.ts): Read for the RPG combat engine —
+  a deterministic, timer-heap-driven `RpgEngine` (skills, buffs, aggro/AI, damage, XP) whose
+  sole driver is `tick(now)`. `serialize()`/`restore()` survive a Durable Object eviction.
+- [apps/gateway/src/rooms/mmo-room.ts](apps/gateway/src/rooms/mmo-room.ts): Read for the
+  reference `@tikron/rpg` integration — one engine per room fed player intents, `tick(now)`
+  once per tick with a monotonic engine clock, unit state mirrored into a synced codec, and
+  the returned `CombatEvent[]` broadcast as one batched `combat` message.
 
 ## Demos (live on tikron.dev)
 
 - [.io demo](https://tikron.dev/agar.html): the flagship realtime arena (binary delta + AOI).
 - [FPS demo](https://tikron.dev/shooter.html): hitscan shooter — subtick timestamps + server-side
   lag compensation + AOI priority tiers at up to 100 players in one room.
+- [MMORPG demo](https://tikron.dev/mmo.html): server-authoritative RPG combat via `@tikron/rpg` —
+  click-to-move, hotbar skills, a wolf pack + boss with aggro/AI, damage/XP, and eviction survival.
 
 ## Tooling
 
 - [tools/create-tikron/README.md](tools/create-tikron/README.md): Read for the
-  scaffolder (`npx create-tikron my-game`) — standalone project, SDK from npm.
+  scaffolder (`npx create-tikron my-game`) — standalone project, SDK from npm; ships a
+  condensed `AGENTS.md`, a green `npm test`, and vitest wiring into each generated project.

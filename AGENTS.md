@@ -1,7 +1,7 @@
 # AGENTS.md — building a game on Tikron
 
 You are a coding agent shipping a multiplayer web game for a non-developer. Tikron
-is a **source-available (FSL-1.1), server-authoritative multiplayer SDK for web games**. You write
+is a **source-available (Tikron License 1.0), server-authoritative multiplayer SDK for web games**. You write
 room state + message handlers and deploy them to **your own Cloudflare account**
 (Workers + Durable Objects) — each room is one Durable Object at the edge, placed near
 players. Serverless (no VMs to run) and no lock-in: it's your account, your bill. The
@@ -10,7 +10,8 @@ by API key); the rooms themselves always run on your infrastructure.
 
 This file is the operational brief; for measured performance read
 [`docs/PERF.md`](docs/PERF.md). Cite real numbers from PERF.md — never invent
-latency figures.
+latency figures. For per-room $ cost (Cloudflare DO duration + WebSocket request
+billing, with worked presets) read [`docs/COSTS.md`](docs/COSTS.md).
 
 ## Pick a preset by genre
 
@@ -57,6 +58,22 @@ npm run deploy          # prints https://my-game.<account>.workers.dev
 
 Rename the deploy target by editing `name` in the project's `wrangler.jsonc`. Every
 distinct room id is its own isolated room: `wss://<host>/parties/<party>/<room-id>`.
+`npx create-tikron` bundles a condensed `AGENTS.md` (this brief, trimmed) into every
+generated project, so the game ships with its own agent guide and a green `npm test`.
+
+### Deploy without a browser (headless / CI)
+
+`wrangler login` opens a browser — an AI agent can't do that for a non-dev. Use a scoped
+API token instead:
+
+1. (human, once) https://dash.cloudflare.com/profile/api-tokens → "Edit Cloudflare Workers"
+   template. Scopes: Account → Workers Scripts:Edit, Durable Objects:Edit
+   (+ Workers KV/Assets:Edit if your project uses them).
+2. `export CLOUDFLARE_API_TOKEN=...`      # the token
+   `export CLOUDFLARE_ACCOUNT_ID=...`     # dash → Workers, right sidebar
+3. `npm run deploy`                       # no login, no browser
+
+CI recipe: `docs/github-actions-ci.yml` has a `deploy` job gated on `main`.
 
 ### The whole multiplayer loop
 
@@ -81,6 +98,13 @@ Lifecycle hooks to override: `onCreate` (set initial state, register handlers),
 persisted, e.g. a spatial grid or an id→cell map seeded in setup). `onRestore` runs only
 when a snapshot was actually restored, so `onCreate`/`onReady` alone won't rebuild those
 indexes after an eviction.
+
+**Touch & mouse from one path.** The starter client uses pointer events
+(`pointermove` / `pointerdown`), so a finger drag and a mouse move share one code path;
+the canvas sets `touch-action: none` (and the viewport pins `maximum-scale=1`) so the
+browser can't scroll or pinch-zoom the canvas out from under a gesture. This is the
+**absolute-cursor** pattern (client reports a target, server owns the position). A
+movement-style `.io` game instead needs a virtual joystick (phase-2 `--template` work).
 
 ## Hard rules — these prevent the classic failures
 
@@ -193,10 +217,33 @@ class Shooter extends IoArenaRoom<ShooterState> {
 const gc = new GameClient(host, { stateCodec: ShooterSchema, subtickTimestamps: true, inputBatchMs: 33 });
 ```
 
-**Wire compatibility:** client and server share `PROTOCOL_VERSION` and the binary state-frame
-layout. Ship the SAME SDK minor on both sides — 0.1.x and 0.2.x are not wire-compatible (0.2
-added the `c:mbatch` frame, the subtick `ts` field, and the state-frame `serverTime`). Upgrade
-both together.
+**Wire compatibility & the handshake.** Client and server share `PROTOCOL_VERSION` and the
+binary state-frame layout. Ship the SAME SDK minor on both sides — 0.1.x and 0.2.x are not
+wire-compatible (0.2 added the `c:mbatch` frame, the subtick `ts` field, and the state-frame
+`serverTime`). Upgrade both together.
+
+Since 0.6 the client **validates the Welcome frame** and fails fast instead of decoding garbage:
+
+- **Initial join:** a mismatch **rejects `joinOrCreate()`** with a `RoomJoinError` whose `code`
+  is `protocol_mismatch` or `schema_mismatch`; the message names BOTH the server's and the
+  client's value and the fix (rebuild both with the same `@tikron/*` minor / identical
+  `schema({...})` — same fields, order, types). `PROTOCOL_VERSION` has been `2` across 0.3–0.6,
+  so `protocol_mismatch` only fires against pre-0.3 peers — the **schema fingerprint**
+  (`schemaFingerprint(codec)`, an FNV-1a hash of the codec shape) is where real drift is caught.
+  A `str(maxLen)` change does NOT trip it (maxLen is write-only, not decode-relevant), so
+  `str(16)` and `str(64)` fingerprint identically.
+- **Live reconnect:** a mismatch surfaces as a structured `console.error` and the socket closes
+  **with no auto-retry** (it stops decoding state the client can no longer read).
+- **Client decode guard (covers pre-0.6 servers):** a binary state frame that fails to decode is
+  logged **once** with a loud `console.error` (probable codec/schema mismatch or a corrupted /
+  truncated frame) and dropped — the last good state is kept. A binary frame arriving with **no
+  `stateCodec` configured** warns **once** with the fix (`new GameClient(host, { stateCodec })`).
+
+**Mixed-version honesty:** the fingerprint handshake protects only when the **server is 0.6+** —
+a pre-0.6 server sends no `schema` field, so the client skips the check and falls back to the
+decode guard above. Pin the same `@tikron/*` minor on both sides; a 0.6 client against a 0.5
+server gets **no** fingerprint protection. A **client-first rollout** is safe: a new client
+against an old server simply skips the check (no false rejects), so upgrade clients, then servers.
 
 ## Smooth rendering: RenderPredictor + EntitySmoother
 
@@ -209,6 +256,15 @@ corrects (a rate-limit drop left it behind), the correction rebases the clamp so
 can never cascade; and the server resolves an over-budget move by partial advance
 (`resolveMovement`), never by freezing — the freeze is what used to amplify one rejection
 into an RTT-long snapback burst.
+
+**Casual (server-authoritative) rooms need only EntitySmoother.** When the server owns
+positions (the `CasualRealtimeRoom` starter), you do NOT use `RenderPredictor` or
+`SnapshotBuffer`. Run every *remote* entity through `EntitySmoother` alone
+(`smoother.update(id, { x, y }, dtMs)` per frame, `smoother.prune(seen)` to drop those
+who left) so ~20 Hz updates glide instead of stepping; render the *local* player straight
+from its own input target (zero added latency). `EntitySmoother`'s default
+`snapDistance = 300` never triggers in a normalized `[0,1]` world, so it only ever eases —
+exactly what a cursor/paint room wants.
 
 ```ts
 // Shared module (imported by BOTH the room and the client bundle) — one budget, two sides.
@@ -295,6 +351,52 @@ Rules of thumb:
   server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
   InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.
 
+## RPG combat: `@tikron/rpg`
+
+Reach for this when a room needs **server-authoritative RPG combat** — data-driven skills,
+buffs/DoTs/HoTs, stat summation, two-stage hit resolution, aggro/NPC AI, damage, death, and
+XP — instead of hand-rolling combat math. It is an isomorphic, **deterministic** engine
+(`RpgEngine`) with no timers/globals: time is the absolute `now` you pass in and randomness
+is one seeded stream, so the same seed + call sequence always produces the same event stream
+(and `serialize()`/`restore()` round-trip a live fight across a Durable Object eviction). The
+reference integration is `apps/gateway`'s `MmoRoom` (an `IoArenaRoom`); the package README has
+the full API.
+
+**The one contract that matters: `tick(now)` is the SOLE driver.** Feed player intents
+whenever they arrive (`useSkill(id, skillId, target, now)` / `moveUnit` /
+`startAutoAttack(id, targetId, now)`), then call `engine.tick(now)` **once per room tick** and
+broadcast the returned `CombatEvent[]`. `now` MUST be **absolute monotonic ms derived from the
+tick counter** (e.g. `clockBaseMs + this.currentTick * tickMs`) — **never `Date.now()`**, and
+never let it rewind (after an eviction `currentTick` restarts at 0, so seed `clockBaseMs` from
+the restored snapshot's `nowMs`). Mirror engine unit state into your synced `this.state` from
+`engine.getUnit(id)` / `engine.units()` (readonly `UnitView`: pos, hp/mp, alive, casting,
+`moveSpeedMul`, buffs, cooldowns); `unitPoints` events are coalesced to ≤1/unit/tick and carry
+authoritative hp/mp. Gear rides through `setEquipmentModifiers`; NPC self-target skills are
+range-gated against the current aggro target.
+
+```ts
+import { IoArenaRoom } from "@tikron/server";
+import { RpgEngine, sampleContent } from "@tikron/rpg";
+
+class Dungeon extends IoArenaRoom<MyState> {
+  protected readonly codec = MySchema;
+  private engine = new RpgEngine(sampleContent, { seed: 0xC0FFEE });
+  private now() { return this.currentTick * this.tickMs; } // monotonic; NOT Date.now()
+
+  protected override onReady() {
+    this.engine.spawnNpc("boss", { x: 0, y: 0 });
+    this.onMessage("cast", (c, m: { skillId: string; targetId?: string }) =>
+      this.engine.useSkill(c.id, m.skillId, m.targetId ? { unitId: m.targetId } : undefined, this.now()));
+  }
+  override onJoin(c) { this.engine.spawnPlayer({ id: c.id, pos: { x: 5, y: 0 }, weapon: "sword" }); }
+  protected override onTick() {
+    const events = this.engine.tick(this.now());     // sole driver
+    for (const u of this.engine.units()) this.mirror(u);  // UnitView -> this.state
+    if (events.length) this.broadcast("combat", events);  // one batched message
+  }
+}
+```
+
 ## Self-hosted usage reporting
 
 Your rooms run on **your** Cloudflare account, so the hosted dashboard
@@ -324,10 +426,134 @@ can never break a room. No key configured → it's a no-op, and the game runs
 exactly as before. Self-hosted rooms are metered but never appear in the gateway
 lobby (`/api/rooms`) or matchmaking.
 
+## Identity & auth (player tokens)
+
+`onAuth` (a `defineRoom` option) gates a connection on a player token (`?_auth=` JWT). It
+may return a **`boolean`** OR an **`{ id?, claims? }`** object (`AuthResult = boolean | { id?; claims? }`):
+
+- `true` — authorize anonymously (`client.auth` stays `undefined`).
+- `false` — reject with a `4004` close.
+- `{ id, claims }` — authorize AND populate **`client.auth = { id, claims }`** on the seat
+  (`id` defaults to `claims.sub`).
+
+**`_session` vs `client.auth.id` — key durable things by the RIGHT id:**
+
+- `client.id` / `_session` — a per-tab **session** UUID that survives *reconnects*. Ephemeral;
+  it exists to reclaim a seat after a transport drop. Fine for "who's connected right now,"
+  NEVER for durable rankings.
+- `client.auth.id` — the **verified, durable** player identity, present only when the room
+  wires `onAuth` to return an object. This survives new tabs and fresh sessions. Key
+  leaderboards, bans, and ownership on **`client.auth?.id ?? client.id`** — the raw session id
+  resets a player's standing on every new tab/reconnect.
+
+**Live-only (phase-2 limitation).** `client.auth` is NOT persisted across a Durable Object
+eviction — a seat restored from a cold snapshot has no `auth` until that client reconnects and
+re-authenticates. Snapshot-durable auth is phase-2. Demos key by `c.auth?.id ?? c.id`, so a
+demo board keys by session until the game wires real player auth.
+
+## Hosted leaderboards
+
+The managed plane (tikron.dev) hosts per-project leaderboards. A room writes a score
+**server-authoritatively** via
+`this.services.leaderboard?.submit({ board, playerId, score, displayName?, mode? })`
+(`mode` ∈ `max | sum | last`, default `max`). Reads are a public path.
+
+**Gateway-hosted rooms** already have this wired — nothing to do.
+
+**Self-hosted rooms** (your own Cloudflare account) opt in by wiring `platformLeaderboard()`
+into `services.submitScore`, keyed by a **secret** API key kept server-side:
+
+```ts
+import { platformLeaderboard } from "@tikron/server";
+export const ArenaRoom = defineRoom(ArenaRoomImpl, {
+  services: { submitScore: platformLeaderboard({ apiKey: (e) => (e as Env).TIKRON_API_KEY }) },
+});
+// wrangler secret put TIKRON_API_KEY   → a tk_live_ key from the dashboard
+```
+
+Room code then calls `this.services.leaderboard?.submit({ board, playerId: client.auth?.id ?? client.id, score })`.
+With **no key set, `submit` is a silent no-op** (the game runs unchanged). The score is POSTed
+fire-and-forget to `https://tikron.dev/api/ingest/score`; the owning project is taken from the
+**key**, never the request body, and the POST never throws into the room.
+
+**Reading** is a publishable-key path — CORS-enabled, so a browser on your own domain reads it
+directly: `GET /api/leaderboard?board=<b>&limit=50&apiKey=tk_pub_...`.
+
+**Diagnostics — "my scores aren't showing up"** (self-hosted). The write is best-effort, but a
+`4xx` from the ingest endpoint logs `console.warn` **once** with the status. Check, in order:
+
+1. Is `TIKRON_API_KEY` a **`tk_live_`** (secret) key? A `tk_pub_` publishable key is rejected
+   `403 key_scope_forbidden` — publishable keys connect/read but never ingest.
+2. Is the endpoint reachable (`https://tikron.dev/api/ingest/score`)?
+3. Board cap: a project is limited to 50 distinct boards (`free_leaderboard_boards`); a
+   brand-new board past the cap → `403 cap_leaderboard_boards`. Reuse an existing board name.
+4. Rate: submissions throttle to 30/s (burst 60) per project → `429 cap_leaderboard_rate`.
+
+Version skew: an old `@tikron/server` (no helper) writes nothing; a new helper against an old
+`tikron.dev` gets a 404 (swallowed) — the once-warn surfaces it.
+
+## Ops & observability
+
+Rooms run on your account; these surfaces let an agent see what a live room is doing without a
+debugger.
+
+- **`Room.onError(err, ctx)`** (protected, overridable) — every caught exception (a throwing
+  message handler, `onTick`, `onJoin`/`onLeave`, or a failed persist) is routed here instead of
+  vanishing. The default logs a structured, greppable line
+  `[tikron] room=<id> phase=<phase> ...`; `ctx.phase` ∈
+  `onMessage | onTick | onJoin | onLeave | onReconnect | persist` (plus `ctx.type` / `ctx.clientId`
+  when known). Override to forward:
+  ```ts
+  protected override onError(err: unknown, ctx: RoomErrorContext): void {
+    Sentry.captureException(err, { tags: { room: this.id, ...ctx } });
+  }
+  ```
+  A throwing override is itself caught (falls back to `console.error`).
+- **`tk:stats` now carries `drops` + `errors`** (additive JSON — 0.3–0.5 peers ignore it). Poll
+  the core-reserved `tk:stats` message and read
+  `payload.drops.{rateLimited, staleSeq, oversizedBatch, unknownType}` and `payload.errors`
+  (cumulative `onError` count). This is the machine-readable way to see *"my message type is
+  being dropped"* — a typo'd `onMessage` type shows up as `drops.unknownType`.
+- **Handler isolation.** One client's throwing message handler no longer kills the rest of the
+  tick's input batch: it is caught and routed to `onError`, the other clients' inputs in that
+  tick still process, and `onTick` still runs. The input's ack is still sent (its seq was already
+  consumed), so client reconciliation is unaffected.
+- **`DEV_MODE`.** Verbose per-drop warnings are gated by `DEV_MODE=1`, EXCEPT the
+  unknown-message-type warning, which fires **once per type unconditionally** (dedup set capped
+  at 64) so a typo'd handler type is visible in `wrangler tail` even on a self-hosted room. The
+  scaffold's `wrangler dev` sets `DEV_MODE=1`.
+- Observe a deployed room with **`wrangler tail`** or the Workers Logs dashboard.
+
+**MIGRATION NOTE — `allowReconnection` needs a `try/catch`.** `onLeave`'s previously-silent catch
+now routes to `onError`. If you call `allowReconnection` yourself from a hand-rolled `onLeave`
+(raw core), wrap it — otherwise the window expiry surfaces as `onError(phase:"onLeave")`:
+
+```ts
+override async onLeave(client: Client) {
+  try {
+    await this.allowReconnection(client, 30);   // resolves if they return
+  } catch {
+    delete this.state.players[client.id];        // window expired — finalize the seat
+    this.markStateChanged();
+  }
+}
+```
+
+The presets (`CasualRealtimeRoom` / `IoArenaRoom`) already own `onLeave` and route expiry to
+`onSeatExpired` — this note is only for rooms that await `allowReconnection` directly. See also
+`forcePersist()` under "Deploys & live rooms" for closing the snapshot loss window.
+
 ## Test your room
 
 Unit-test room logic in-process with the `@tikron/server/testing` harness — no Durable
 Object, no WebSocket, no network. Connect fake clients, send intents, advance time, assert.
+
+If a spec imports the room through the `@tikron/server` barrel (which pulls `defineRoom` →
+`partyserver` → `import ... from "cloudflare:workers"`), plain Node vitest throws
+`Only URLs with a scheme in: file, data, and node are supported`. The scaffold's
+`vitest.config.ts` stubs `cloudflare:workers` with an inert virtual module so in-process room
+specs run without workerd (`defineRoom` is never *called* in a logic test). Hand-rolling your
+own vitest setup? Copy that stub.
 
 ```ts
 import { createTestRoom } from "@tikron/server/testing";
@@ -409,9 +635,26 @@ Error **frames** (`{ t: "s:error", code, message }`) — HTTP or in-band, socket
 | `invalid_api_key` | HTTP 401 on `/parties/*` | API key not recognized. Use a key from the dashboard for this project. |
 | `cap_concurrent_rooms` | HTTP 403 on `/api/matchmake` | Project hit its concurrent-rooms cap. Free rooms as players leave, or upgrade the plan. |
 | `cap_room_hours` | HTTP 403 on `/api/matchmake` | Project hit its monthly room-hours cap. Wait for reset or upgrade. |
+| `key_scope_forbidden` | HTTP 403 on `/api/ingest/score` | A `tk_pub_` publishable key hit the secret-only score-ingest route. Use a `tk_live_` secret key (dashboard → Keys, or `POST /api/platform/projects/:id/keys {"scope":"secret"}`), kept server-side. |
+| `cap_leaderboard_boards` | HTTP 403 on `/api/ingest/score` | Project hit its distinct-board limit (`free_leaderboard_boards`, default 50). Reuse an existing board name or raise the cap. |
+| `cap_leaderboard_rate` | HTTP 429 on `/api/ingest/score` | Per-project submit rate exceeded (30/s, burst 60). Throttle/batch server-side score writes and retry. |
+
+The three `/api/ingest/score` codes carry an actionable `message` field in the JSON body
+(`{ error, message }`); the plain occupancy-ingest errors stay code-only.
 
 (API-key enforcement + caps apply only when the gateway runs with a platform DB; local
 dev with `DEV_MODE=1` skips them.)
+
+**Client join & decode diagnostics** (`@tikron/client`, since 0.6) — surfaced at the client,
+not as server frames:
+
+| Situation | How it surfaces | Fix |
+|---|---|---|
+| Initial join, protocol differs | `joinOrCreate` rejects `RoomJoinError("protocol_mismatch")` (names both versions) | pin the same `@tikron/*` minor, rebuild both |
+| Initial join, schema differs | `joinOrCreate` rejects `RoomJoinError("schema_mismatch")` (names both fingerprints) | rebuild both with identical `schema({...})` — same fields, order, types |
+| Live reconnect, protocol/schema differs | `console.error` + socket close (no retry) | same as above |
+| Binary frame fails to decode | `console.error` **once**, frame dropped, last good state kept | usually a codec mismatch or a corrupted/truncated frame |
+| Binary frame, no `stateCodec` set | `console.warn` **once** | pass the same codec the server uses (`new GameClient(host, { stateCodec })`) |
 
 ## Measured limits (from docs/PERF.md — real numbers, one client in Korea)
 
@@ -457,13 +700,23 @@ what is in progress — pick your genre and architecture accordingly.
   WebTransport (UDP-like) is on the roadmap, but Cloudflare Workers do **not** terminate
   WebTransport server-side today, so there is no date — don't design around it yet.
 - **Deploys & live rooms.** `wrangler deploy` restarts your Durable Objects. Tikron rooms
-  survive it: the durable snapshot (`this.state` + seats) plus the 30 s session-reconnection
-  window mean players reconnect into the same seat and state. **State-shape changes across
-  versions:** bump `stateVersion` and override `migrateState(fromVersion, oldState)` to
-  transform an old snapshot into the new shape on restore. Returning `null` (the default)
-  discards the snapshot — the room starts fresh and its persisted seats are dropped — with a
-  dev-visible warning, so a redeploy that changes the shape never silently restores the old
-  one. Snapshots written before versioning are treated as version 1.
+  recover: the durable snapshot (`this.state` + seats) plus the 30 s session-reconnection
+  window mean players reconnect into the same seat and state. **Loss window (honesty):** a
+  redeploy / DO restart can lose up to `persistIntervalMs` (default **5 s**) of pure state
+  changes (score, pickups, trades) made since the last coalesced snapshot — there is no reliable
+  pre-eviction flush hook on Cloudflare, so replace any "survives deploys" claim with this. Close
+  the window for a critical transition by awaiting **`this.forcePersist()`** right after it (an
+  immediate durable write that cancels the pending coalesce timer). **State-size budget:** keep
+  `this.state` slim — a single Durable Object storage value is capped at a few MB, and an
+  over-large snapshot now surfaces as `onError(phase:"persist")` plus a once-per-room
+  `console.error` with guidance (previously a silent `catch {}`). Exclude cold/derived fields
+  from `this.state` and rebuild them in `onRestore`; a smaller `persistIntervalMs` shrinks the
+  loss window but costs more storage writes. **State-shape changes across versions:** bump
+  `stateVersion` and override `migrateState(fromVersion, oldState)` to transform an old snapshot
+  into the new shape on restore. Returning `null` (the default) discards the snapshot — the room
+  starts fresh and its persisted seats are dropped — with a dev-visible warning, so a redeploy
+  that changes the shape never silently restores the old one. Snapshots written before versioning
+  are treated as version 1.
 - **Room placement.** A Durable Object is created near whoever opens the room and **stays
   there** for its life. A group spread across regions sees asymmetric latency (players far
   from the creator pay the distance). Pass a `region` hint to matchmaking

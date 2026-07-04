@@ -43,3 +43,56 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  deploy:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.19.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter tikron-starter deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Structural guard: scaffold a fresh app and prove it typechecks + tests green.
+  # MUST install @tikron/* from LOCAL TARBALLS — the generated package.json pins
+  # ^0.6.0, but the public registry still serves 0.5.0 (which lacks
+  # platformLeaderboard, imported by the template). A naive `npm i` would fail
+  # until the lockstep 0.6.0 publish. Drop the pack/override once 0.6.0 is live.
+  scaffold-smoke:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.19.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build            # build @tikron/* dists before packing
+      # Pack the SDK packages to tarballs and scaffold a fresh app.
+      - run: |
+          set -e
+          mkdir -p /tmp/tik-tars
+          for p in schema protocol sim client server; do
+            ( cd packages/$p && npm pack --pack-destination /tmp/tik-tars )
+          done
+          node tools/create-tikron/dist/index.js smoke-app --into /tmp
+      # Override the ^0.6.0 pins with the local tarballs, then the real smoke.
+      - run: |
+          set -e
+          cd /tmp/smoke-app
+          npm i --no-save \
+            /tmp/tik-tars/tikron-client-*.tgz \
+            /tmp/tik-tars/tikron-schema-*.tgz \
+            /tmp/tik-tars/tikron-server-*.tgz \
+            /tmp/tik-tars/tikron-sim-*.tgz
+          npm install
+          npm run typecheck
+          npm test
