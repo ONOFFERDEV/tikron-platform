@@ -13,6 +13,7 @@ import {
   encodeDeltaOrNull,
   decodeFull,
   applyDelta,
+  schemaFingerprint,
   type Codec,
 } from "./index.js";
 
@@ -656,6 +657,113 @@ describe("mapOf per-entry field delta", () => {
         live = next;
       }
     }
+  });
+});
+
+describe("schemaFingerprint (handshake shape hash)", () => {
+  it("is stable and equal for two independently-built identical shapes", () => {
+    const a = schema({ players: mapOf(schema({ x: "f32", y: "f32" })), tick: "u32" });
+    const b = schema({ players: mapOf(schema({ x: "f32", y: "f32" })), tick: "u32" });
+    const fp = schemaFingerprint(a);
+    expect(fp).not.toBeNull();
+    expect(typeof fp).toBe("number");
+    expect(schemaFingerprint(b)).toBe(fp);
+    // A u32 hash — non-negative, within range.
+    expect(fp!).toBeGreaterThanOrEqual(0);
+    expect(fp!).toBeLessThanOrEqual(0xffffffff);
+  });
+
+  it("changes when field ORDER changes (order is decode-relevant)", () => {
+    const ab = schema({ a: "u8", b: "u16" });
+    const ba = schema({ b: "u16", a: "u8" });
+    expect(schemaFingerprint(ab)).not.toBe(schemaFingerprint(ba));
+  });
+
+  it("changes when a field is renamed, added, or retyped", () => {
+    const base = schema({ x: "f32", y: "f32" });
+    expect(schemaFingerprint(schema({ x: "f32", z: "f32" }))).not.toBe(schemaFingerprint(base));
+    expect(schemaFingerprint(schema({ x: "f32", y: "f32", z: "f32" }))).not.toBe(
+      schemaFingerprint(base),
+    );
+    expect(schemaFingerprint(schema({ x: "f32", y: "u32" }))).not.toBe(schemaFingerprint(base));
+  });
+
+  it("changes when quant min/max/step change", () => {
+    const base = schema({ v: quant(0, 100, 0.01) });
+    expect(schemaFingerprint(schema({ v: quant(0, 100, 0.1) }))).not.toBe(schemaFingerprint(base));
+    expect(schemaFingerprint(schema({ v: quant(0, 200, 0.01) }))).not.toBe(schemaFingerprint(base));
+    expect(schemaFingerprint(schema({ v: quant(-1, 100, 0.01) }))).not.toBe(schemaFingerprint(base));
+    // Same params → same fingerprint.
+    expect(schemaFingerprint(schema({ v: quant(0, 100, 0.01) }))).toBe(schemaFingerprint(base));
+  });
+
+  it("is UNCHANGED when only str maxLen changes (maxLen is not decode-relevant)", () => {
+    const a = schema({ name: str(8), score: "u32" });
+    const b = schema({ name: str(64), score: "u32" });
+    expect(schemaFingerprint(a)).toBe(schemaFingerprint(b));
+  });
+
+  it("treats str(n) as decode-identical to prim(\"str\")", () => {
+    // Same wire format → must fingerprint the same so a str(n)↔prim(\"str\") swap is not
+    // flagged as a mismatch (they decode byte-for-byte identically).
+    expect(schemaFingerprint(schema({ name: str(16) }))).toBe(
+      schemaFingerprint(schema({ name: "str" })),
+    );
+  });
+
+  it("distinguishes container kinds around the same child", () => {
+    const child = schema({ x: "f32" });
+    const asList = schemaFingerprint(listOf(child));
+    const asMap = schemaFingerprint(mapOf(child));
+    const asOpt = schemaFingerprint(optionalOf(child));
+    expect(new Set([asList, asMap, asOpt]).size).toBe(3); // all distinct
+  });
+
+  it("escapes enum members so a separator can't collide two different unions (false-negative guard)", () => {
+    // Naive `values.join(\"|\")` would render both as `a|b|c` and collide. Length-prefix
+    // escaping keeps them distinct.
+    const one = schema({ mode: enumOf("a|b", "c") });
+    const two = schema({ mode: enumOf("a", "b|c") });
+    expect(schemaFingerprint(one)).not.toBe(schemaFingerprint(two));
+  });
+
+  it("escapes field names containing the separators (: , #) so shapes stay distinct", () => {
+    // Field names carrying the structural separators must not let one shape masquerade
+    // as another. Length-prefixing each name keeps every one of these distinct.
+    expect(schemaFingerprint(schema({ "a:b": "u8", c: "u8" }))).not.toBe(
+      schemaFingerprint(schema({ a: "u8", "b:c": "u8" })),
+    );
+    // A name crafted to imitate a "field,field" joiner must not collapse into two fields.
+    expect(schemaFingerprint(schema({ "a,b": "u8" }))).not.toBe(
+      schemaFingerprint(schema({ a: "u8", b: "u8" })),
+    );
+    // A name crafted to imitate the "len#value" token must not collide either.
+    expect(schemaFingerprint(schema({ "2#hi": "u8" }))).not.toBe(
+      schemaFingerprint(schema({ hi: "u8" })),
+    );
+  });
+
+  it("is order-sensitive for enum members too", () => {
+    expect(schemaFingerprint(enumOf("ffa", "duo"))).not.toBe(schemaFingerprint(enumOf("duo", "ffa")));
+  });
+
+  it("returns null when any node lacks describe (custom codec) and propagates up the tree", () => {
+    // A hand-written codec with no describe (additive: older custom codecs still work).
+    const custom: Codec<number> = {
+      writeFull: (w, v) => w.u8(v),
+      readFull: (r) => r.u8(),
+      writeDelta: (w, _p, n) => w.u8(n),
+      readDelta: (r) => r.u8(),
+      equals: (a, b) => a === b,
+      clone: (v) => v,
+      // no describe
+    };
+    expect(schemaFingerprint(custom)).toBeNull();
+    // A parent that contains an undescribable child is itself undescribable → null.
+    expect(schemaFingerprint(schema({ ok: "u8", weird: custom }))).toBeNull();
+    expect(schemaFingerprint(mapOf(custom))).toBeNull();
+    expect(schemaFingerprint(listOf(custom))).toBeNull();
+    expect(schemaFingerprint(optionalOf(custom))).toBeNull();
   });
 });
 

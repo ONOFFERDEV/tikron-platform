@@ -21,6 +21,28 @@ export interface Codec<T> {
    * because it walks only the codec's own shape.
    */
   clone(value: T): T;
+  /**
+   * A canonical string describing this codec's decode-relevant shape, used to
+   * fingerprint the schema for the Welcome handshake ({@link schemaFingerprint}).
+   * It reflects only what changes how bytes map to values — field names and order,
+   * primitive types, `quant` min/max/step, `enum` members and order, container kind —
+   * and deliberately omits write-only constraints (`str` maxLen, which does not affect
+   * decoding). Optional and additive: a custom codec that does not implement it makes
+   * the whole tree undescribable, so {@link schemaFingerprint} returns `null` and the
+   * handshake safely skips the schema check rather than false-rejecting.
+   */
+  describe?(): string | undefined;
+}
+
+/**
+ * Length-prefix a user-controlled string (a field name or enum member) inside the
+ * canonical description so it cannot collide across a separator boundary. Without it
+ * `enumOf("a|b", "c")` and `enumOf("a", "b|c")` would both render their members as
+ * `a|b|c` and fingerprint identically; `len#value` is uniquely decodable, so distinct
+ * token sequences always produce distinct strings.
+ */
+function descToken(s: string): string {
+  return `${s.length}#${s}`;
 }
 
 export type Prim = "u8" | "u16" | "u32" | "i32" | "f32" | "f64" | "bool" | "str";
@@ -49,6 +71,7 @@ export function prim<P extends Prim>(type: P): Codec<PrimValue<P>> {
     readDelta: (r) => read(r),
     equals: (a, b) => a === b,
     clone: (v) => v, // primitives are immutable — no copy needed
+    describe: () => type,
   };
 }
 
@@ -109,6 +132,8 @@ export function quant(min: number, max: number, step: number): Codec<number> {
     readDelta: (r) => read(r),
     equals: (a, b) => quantize(a) === quantize(b),
     clone: (v) => v, // numbers are immutable
+    // min/max/step fully determine the wire width and the byte->value mapping.
+    describe: () => `q(${min},${max},${step})`,
   };
 }
 
@@ -178,6 +203,17 @@ export function schema<S extends Shape>(shape: S): Codec<Infer<S>> {
       const out: Record<string, unknown> = {};
       for (const f of fields) out[f.name] = f.codec.clone(get(value, f.name));
       return out as Infer<S>;
+    },
+    describe() {
+      // Field names + order are decode-relevant (they drive the read sequence and the
+      // dirty-bit mask). If any child cannot describe, the whole object cannot either.
+      const parts: string[] = [];
+      for (const f of fields) {
+        const childDesc = f.codec.describe?.();
+        if (childDesc === undefined) return undefined;
+        parts.push(`${descToken(f.name)}:${childDesc}`);
+      }
+      return `obj(${parts.join(",")})`;
     },
   };
 }
@@ -259,6 +295,10 @@ export function mapOf<T>(child: Codec<T>): Codec<Record<string, T>> {
       for (const k of keysOf(value)) out[k] = child.clone(value[k] as T);
       return out;
     },
+    describe() {
+      const c = child.describe?.();
+      return c === undefined ? undefined : `map(${c})`;
+    },
   };
 }
 
@@ -323,6 +363,10 @@ export function listOf<T>(child: Codec<T>): Codec<T[]> {
       for (let i = 0; i < value.length; i++) out[i] = child.clone(value[i] as T);
       return out;
     },
+    describe() {
+      const c = child.describe?.();
+      return c === undefined ? undefined : `list(${c})`;
+    },
   };
 }
 
@@ -359,6 +403,10 @@ export function optionalOf<T>(child: Codec<T>): Codec<T | null> {
     },
     clone(value) {
       return value === null ? null : child.clone(value);
+    },
+    describe() {
+      const c = child.describe?.();
+      return c === undefined ? undefined : `opt(${c})`;
     },
   };
 }
@@ -399,6 +447,9 @@ export function enumOf<const V extends readonly string[]>(...values: V): Codec<V
     readDelta: (r) => values[r.u8()] as V[number],
     equals: (a, b) => a === b,
     clone: (v) => v, // enum members are immutable strings
+    // Members + order fix the u8 index of each value. Length-prefix each member so a
+    // "|"-bearing value can't be confused with a member boundary (see descToken).
+    describe: () => `enum(${values.map(descToken).join(",")})`,
   };
 }
 
@@ -435,6 +486,10 @@ export function str(maxLen: number): Codec<string> {
     readDelta: (r) => r.str(),
     equals: (a, b) => a === b,
     clone: (v) => v, // strings are immutable
+    // maxLen is a write-only length check — it does not change the wire format (same
+    // varint-prefixed bytes as prim("str")), so it is excluded and str(n) fingerprints
+    // identically to prim("str"), which is decode-compatible.
+    describe: () => "str",
   };
 }
 
@@ -474,4 +529,26 @@ export function decodeFull<T>(codec: Codec<T>, bytes: Uint8Array): T {
 
 export function applyDelta<T>(codec: Codec<T>, prev: T | undefined, bytes: Uint8Array): T {
   return codec.readDelta(new ByteReader(bytes), prev);
+}
+
+/**
+ * A stable FNV-1a (32-bit) fingerprint of a codec's decode-relevant shape, for the
+ * Welcome handshake: the server ships `schemaFingerprint(stateCodec)` and the client
+ * compares it against its own, rejecting a join with `schema_mismatch` when the two
+ * differ (so a codec drift surfaces at connect time instead of as silently corrupt
+ * state). Built over {@link Codec.describe}; returns `null` if any node in the tree
+ * lacks `describe` (e.g. a hand-written custom codec), in which case callers skip the
+ * check rather than false-reject. Deterministic across engines — `describe` uses only
+ * spec-fixed string/number formatting — so a server and client that import the same
+ * schema definition always agree.
+ */
+export function schemaFingerprint(codec: Codec<unknown>): number | null {
+  const desc = codec.describe?.();
+  if (desc === undefined) return null;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < desc.length; i++) {
+    h ^= desc.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
 }

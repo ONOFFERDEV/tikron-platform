@@ -1,6 +1,7 @@
 import {
   ClientMessageType,
   ServerMessageType,
+  PROTOCOL_VERSION,
   encode,
   decodeServerMessage,
   type ClientMessage,
@@ -10,7 +11,7 @@ import {
   type ErrorMessage,
   type RawData,
 } from "@tikron/protocol";
-import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
+import { decodeFull, applyDelta, schemaFingerprint, type Codec } from "@tikron/schema";
 import {
   createPartySocketTransport,
   type Transport,
@@ -61,14 +62,22 @@ export type Unsubscribe = () => void;
 
 /**
  * Rejection thrown by {@link GameClient.joinOrCreate} (and anything awaiting
- * {@link Room.connected}) when the socket closes or errors BEFORE the server sends
- * its Welcome frame — the join failed rather than the room going live. `code` is the
- * server Error frame's code when one arrived before the close (e.g. `"room_full"`
- * ahead of a 4002 close), otherwise `"connection-closed"`. Catch it to route the
- * player to another room or surface a message instead of hanging on `joinOrCreate`.
+ * {@link Room.connected}) when the join fails rather than the room going live. `code`
+ * is one of:
+ * - `"protocol_mismatch"` — the server's `PROTOCOL_VERSION` differs from this client's
+ *   (pin the same `@tikron/*` minor on both sides); the message names both versions.
+ * - `"schema_mismatch"` — the server's state codec shape differs from this client's
+ *   (rebuild/redeploy both with the identical `schema({...})`); the message names both
+ *   fingerprints.
+ * - a pre-Welcome server Error frame's code (e.g. `"room_full"` sent ahead of a 4002
+ *   close).
+ * - `"connection-closed"` — the socket closed or errored before Welcome with no Error
+ *   frame.
+ * Catch it to route the player elsewhere or surface a message instead of hanging on
+ * `joinOrCreate`.
  */
 export class RoomJoinError extends Error {
-  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  /** See the class doc: a handshake code, a pre-Welcome Error code, or `"connection-closed"`. */
   readonly code: string;
   constructor(code: string, message?: string) {
     super(message ?? `room join failed: ${code}`);
@@ -76,6 +85,11 @@ export class RoomJoinError extends Error {
     this.code = code;
   }
 }
+
+/** A protocol/schema incompatibility detected on a Welcome frame. @internal */
+type HandshakeMismatch =
+  | { kind: "protocol_mismatch"; server: number; client: number }
+  | { kind: "schema_mismatch"; server: number; client: number | null };
 
 export interface GameClientOptions {
   /** Party (Durable Object binding) name. Defaults to "game-room". */
@@ -166,6 +180,12 @@ export class Room {
   /** Reject side of {@link welcome}; wired in the constructor. */
   private failWelcome: (err: RoomJoinError) => void = () => {};
   private readonly stateCodec?: Codec<unknown>;
+  /** This client's own state-codec fingerprint, computed once (null if none/undescribable). */
+  private readonly clientFingerprint: number | null;
+  /** Guards the one-time "binary frame but no stateCodec" warning (per room). */
+  private noCodecWarned = false;
+  /** Guards the one-time "binary state decode failed" error (per room). */
+  private decodeErrorWarned = false;
   private readonly clockEnabled: boolean;
   private readonly subtickTimestamps: boolean;
   private readonly inputBatchMs: number;
@@ -183,6 +203,9 @@ export class Room {
     this.name = name;
     this.transport = transport;
     this.stateCodec = stateCodec;
+    // Fingerprint our own codec once so the Welcome handshake is a cheap integer
+    // compare (null when there is no codec or it can't be described).
+    this.clientFingerprint = stateCodec ? schemaFingerprint(stateCodec) : null;
     this.clockEnabled = !opts.disableClockSync;
     this.subtickTimestamps = opts.subtickTimestamps ?? false;
     this.inputBatchMs = opts.inputBatchMs ?? 0;
@@ -223,9 +246,21 @@ export class Room {
           // its code ("room_full") in the join rejection instead of a generic one.
           this.preWelcomeError = msg;
         } else if (msg.t === ServerMessageType.Welcome) {
+          // Settle + unsubscribe FIRST so the later dispatch pass (which also sees this
+          // same Welcome) takes the reconnect branch's welcomeSettled guard and does
+          // NOT re-run handshake validation — the initial join is handled only here.
           this.welcomeSettled = true;
-          this.connectionId = msg.connectionId;
           off();
+          const mismatch = this.validateHandshake(msg);
+          if (mismatch !== null) {
+            // Incompatible peer on the very first Welcome: fail the join with a typed,
+            // actionable error and tear the socket down so no state decode follows.
+            this.failWelcome(this.handshakeError(mismatch));
+            this.clock.stop();
+            this.transport.close();
+            return;
+          }
+          this.connectionId = msg.connectionId;
           if (this.clockEnabled) this.clock.start(); // begin syncing once connected
           resolve(msg);
         }
@@ -265,6 +300,59 @@ export class Room {
     this.transport.close();
   }
 
+  /**
+   * Check a Welcome frame for a protocol or state-schema incompatibility, returning the
+   * mismatch (or null if compatible). Protocol is always checked; the schema is checked
+   * only when this client has a codec AND the server advertised a fingerprint (a
+   * pre-0.6 server omits it, so the check is skipped rather than false-firing) AND this
+   * client's own codec is describable (`clientFingerprint !== null`).
+   */
+  private validateHandshake(msg: WelcomeMessage): HandshakeMismatch | null {
+    if (msg.protocol !== PROTOCOL_VERSION) {
+      return { kind: "protocol_mismatch", server: msg.protocol, client: PROTOCOL_VERSION };
+    }
+    if (this.stateCodec && typeof msg.schema === "number" && this.clientFingerprint !== null) {
+      if (msg.schema !== this.clientFingerprint) {
+        return { kind: "schema_mismatch", server: msg.schema, client: this.clientFingerprint };
+      }
+    }
+    return null;
+  }
+
+  /** The human/agent-actionable message for a handshake mismatch (names BOTH values). */
+  private handshakeMessage(m: HandshakeMismatch): string {
+    return m.kind === "protocol_mismatch"
+      ? `Tikron PROTOCOL_VERSION mismatch: server=${m.server}, client=${m.client}. ` +
+          `The wire protocol only guarantees compatibility within a minor — pin the SAME ` +
+          `@tikron/* minor version on both the client and the server, then rebuild both.`
+      : `Tikron state schema fingerprint mismatch: server=${m.server}, client=${m.client}. ` +
+          `The server's stateCodec shape differs from the client's — rebuild and redeploy ` +
+          `both sides so they import the IDENTICAL schema({...}) (same fields, same order, ` +
+          `same types).`;
+  }
+
+  private handshakeError(m: HandshakeMismatch): RoomJoinError {
+    return new RoomJoinError(m.kind, this.handshakeMessage(m));
+  }
+
+  /**
+   * A live reconnect returned a Welcome that no longer matches this client — the server
+   * was redeployed with an incompatible protocol/schema mid-session. The join promise is
+   * long settled, so surface it loudly on the console (structured, actionable) and close
+   * the socket. The close is client-initiated, so it trips PartySocket's `_closeCalled`
+   * guard and does NOT reconnect — stopping the room before it decodes state it can no
+   * longer read.
+   */
+  private reportReconnectMismatch(m: HandshakeMismatch): void {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[@tikron/client] room=${this.name} live reconnect rejected — ${this.handshakeMessage(m)} ` +
+        `Closing the socket (no auto-retry) to stop decoding stale state.`,
+    );
+    this.clock.stop();
+    this.transport.close();
+  }
+
   private dispatch(raw: RawData): void {
     if (typeof raw !== "string") {
       this.applyBinaryState(raw);
@@ -279,6 +367,18 @@ export class Room {
     }
 
     if (msg.t === ServerMessageType.Welcome) {
+      // The INITIAL Welcome is validated + resolved by the join resolver (a raw handler
+      // that runs later in this same dispatch); it sets welcomeSettled before then, so
+      // this branch is a no-op on first contact. A Welcome seen with welcomeSettled
+      // already true is a live reconnect — re-validate, because the server may have been
+      // redeployed with an incompatible protocol/schema under the live session.
+      if (this.welcomeSettled) {
+        const mismatch = this.validateHandshake(msg);
+        if (mismatch !== null) {
+          this.reportReconnectMismatch(mismatch);
+          return; // socket is closing; don't fan this Welcome out to handlers
+        }
+      }
       // Re-sent after an automatic reconnect; the id is stable when a session
       // key was supplied, so handlers keyed on connectionId keep working.
       this.connectionId = msg.connectionId;
@@ -301,7 +401,21 @@ export class Room {
   }
 
   private applyBinaryState(raw: ArrayBuffer | Uint8Array): void {
-    if (!this.stateCodec) return;
+    if (!this.stateCodec) {
+      // A binary state frame arrived but this client has no codec to read it — almost
+      // always a forgotten stateCodec. Warn once (loud, actionable) instead of silently
+      // dropping every authoritative state update.
+      if (!this.noCodecWarned) {
+        this.noCodecWarned = true;
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[@tikron/client] room=${this.name} received a binary state frame but no stateCodec ` +
+            `is configured, so authoritative state is being ignored. Pass the SAME codec the ` +
+            `server uses, e.g. new GameClient(host, { stateCodec: YourState }).`,
+        );
+      }
+      return;
+    }
     const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     // Header: [tag(u8), tick(u32 LE), serverTimeMs(f64 LE)] then the codec body.
     if (bytes.length < 13) return;
@@ -310,9 +424,32 @@ export class Room {
     const tick = view.getUint32(1, true);
     const serverTime = view.getFloat64(5, true);
     const body = bytes.subarray(13);
-    if (tag === 0x01) this.state = decodeFull(this.stateCodec, body);
-    else if (tag === 0x02) this.state = applyDelta(this.stateCodec, this.state, body);
-    else return;
+    let next: unknown;
+    try {
+      if (tag === 0x01) next = decodeFull(this.stateCodec, body);
+      else if (tag === 0x02) next = applyDelta(this.stateCodec, this.state, body);
+      else return;
+    } catch (err) {
+      // A decode throw (buffer overrun, junk length prefix, ...) means the bytes don't
+      // fit this codec: usually the client's stateCodec disagrees with the server's — a
+      // schema drift the fingerprint handshake could not cover (e.g. a pre-0.6 server
+      // that sends no fingerprint) — or a corrupted/truncated frame. Surface it loudly
+      // once instead of letting a raw error escape the socket callback; keep the last
+      // good state and drop just this frame.
+      if (!this.decodeErrorWarned) {
+        this.decodeErrorWarned = true;
+        // eslint-disable-next-line no-console
+        console.error(
+          `[@tikron/client] room=${this.name} failed to decode a binary state frame ` +
+            `(tag=${tag}). This usually means the client's stateCodec shape does not match ` +
+            `the server's — rebuild both sides with the identical schema({...}) — or the ` +
+            `frame was corrupted. Keeping the last good state and dropping this frame.`,
+          err,
+        );
+      }
+      return;
+    }
+    this.state = next;
     this.lastStateTick = tick;
     this.lastStateServerTime = serverTime;
     for (const handler of this.stateHandlers) handler(this.state);

@@ -10,10 +10,18 @@ import {
   encode,
   decodeClientMessage,
   ServerMessageType,
+  PROTOCOL_VERSION,
   type RawData,
   type ServerMessage,
 } from "@tikron/protocol";
-import { schema, mapOf, encodeFull, encodeDelta } from "@tikron/schema";
+import {
+  schema,
+  mapOf,
+  encodeFull,
+  encodeDelta,
+  schemaFingerprint,
+  type Codec,
+} from "@tikron/schema";
 
 class FakeTransport implements Transport {
   readonly sent: string[] = [];
@@ -76,7 +84,7 @@ function harness() {
     t: ServerMessageType.Welcome,
     connectionId: "c1",
     room: "lobby",
-    protocol: 1,
+    protocol: PROTOCOL_VERSION,
     peers: [],
   });
   return {
@@ -97,7 +105,7 @@ describe("GameClient / Room", () => {
       t: ServerMessageType.Welcome,
       connectionId: "c1",
       room: "lobby",
-      protocol: 1,
+      protocol: PROTOCOL_VERSION,
       peers: ["c0"],
     });
     const room = await pending;
@@ -223,7 +231,7 @@ describe("GameClient / Room", () => {
       t: ServerMessageType.Welcome,
       connectionId: "c1",
       room: "m",
-      protocol: 1,
+      protocol: PROTOCOL_VERSION,
       peers: [],
     });
     const room = await pending;
@@ -266,7 +274,7 @@ describe("GameClient / Room", () => {
       t: ServerMessageType.Welcome,
       connectionId: "c1",
       room: "m",
-      protocol: 2,
+      protocol: PROTOCOL_VERSION,
       peers: [],
     });
     const room = await pending;
@@ -302,7 +310,7 @@ describe("GameClient input pipeline (F3: subtick + batching)", () => {
       t: ServerMessageType.Welcome,
       connectionId: "c1",
       room: "m",
-      protocol: 2,
+      protocol: PROTOCOL_VERSION,
       peers: [],
     });
     return {
@@ -447,5 +455,220 @@ describe("joinOrCreate rejection (pre-Welcome close/error)", () => {
     expect(room.connectionId).toBe("c1");
     // A close AFTER connecting is ordinary teardown — it must not throw or reject.
     expect(() => h.transport().emitClose()).not.toThrow();
+  });
+});
+
+describe("Welcome handshake validation (F003/F099/F128)", () => {
+  const State = schema({ players: mapOf(schema({ x: "f32", y: "f32" })), tick: "u32" });
+  const matchingFp = schemaFingerprint(State)!;
+  const differentFp = (matchingFp ^ 0xabcd) >>> 0;
+
+  /** Build a client + capture its FakeTransport, without emitting a Welcome yet. */
+  function setup(options: Parameters<typeof GameClient>[1] = {}): {
+    join: (room?: string) => Promise<import("./index.js").Room>;
+    transport: () => FakeTransport;
+  } {
+    let transport: FakeTransport | undefined;
+    const client = new GameClient("localhost:8787", {
+      disableClockSync: true,
+      createTransport: (opts) => (transport = new FakeTransport(opts)),
+      ...options,
+    });
+    return {
+      join: (room = "lobby") => client.joinOrCreate(room),
+      transport: () => {
+        if (!transport) throw new Error("transport not created yet");
+        return transport;
+      },
+    };
+  }
+
+  /** A Welcome frame with overridable protocol/schema. */
+  function welcomeFrame(over: { protocol?: number; schema?: number } = {}): ServerMessage {
+    const base: ServerMessage = {
+      t: ServerMessageType.Welcome,
+      connectionId: "c1",
+      room: "lobby",
+      protocol: over.protocol ?? PROTOCOL_VERSION,
+      peers: [],
+    };
+    return over.schema !== undefined ? { ...base, schema: over.schema } : base;
+  }
+
+  /** Pack a binary state frame: [tag(u8), tick(u32 LE), serverTime(f64 LE)] + body. */
+  function frameOf(tag: number, body: Uint8Array): Uint8Array {
+    const out = new Uint8Array(body.length + 13);
+    const view = new DataView(out.buffer);
+    out[0] = tag;
+    view.setUint32(1, 0, true);
+    view.setFloat64(5, 0, true);
+    out.set(body, 13);
+    return out;
+  }
+
+  it("rejects the initial join with schema_mismatch naming BOTH fingerprints", async () => {
+    const h = setup({ stateCodec: State });
+    const pending = h.join();
+    h.transport().emit(welcomeFrame({ schema: differentFp }));
+
+    await expect(pending).rejects.toBeInstanceOf(RoomJoinError);
+    await expect(pending).rejects.toHaveProperty("code", "schema_mismatch");
+    // The message must name the server AND client fingerprints so an agent can act.
+    await expect(pending).rejects.toThrow(new RegExp(`${differentFp}[\\s\\S]*${matchingFp}`));
+    expect(h.transport().isClosed).toBe(true);
+  });
+
+  it("rejects the initial join with protocol_mismatch naming BOTH versions", async () => {
+    const h = setup();
+    const pending = h.join();
+    h.transport().emit(welcomeFrame({ protocol: 99 }));
+
+    await expect(pending).rejects.toHaveProperty("code", "protocol_mismatch");
+    await expect(pending).rejects.toThrow(
+      new RegExp(`server=99[\\s\\S]*client=${PROTOCOL_VERSION}`),
+    );
+    expect(h.transport().isClosed).toBe(true);
+  });
+
+  it("resolves when the server fingerprint matches the client's", async () => {
+    const h = setup({ stateCodec: State });
+    const pending = h.join();
+    h.transport().emit(welcomeFrame({ schema: matchingFp }));
+    const room = await pending;
+    expect(room.connectionId).toBe("c1");
+  });
+
+  it("resolves against an old server that sends no schema fingerprint (0.5 interop)", async () => {
+    // A pre-0.6 server omits `schema` entirely → the check is skipped, join resolves.
+    const h = setup({ stateCodec: State });
+    const pending = h.join();
+    h.transport().emit(welcomeFrame()); // no schema field
+    await expect(pending).resolves.toBeDefined();
+  });
+
+  it("skips the schema check when the client configured no stateCodec", async () => {
+    const h = setup(); // no stateCodec
+    const pending = h.join();
+    h.transport().emit(welcomeFrame({ schema: 0xabcdef }));
+    await expect(pending).resolves.toBeDefined();
+  });
+
+  it("skips the schema check when the client's own codec is undescribable (null fingerprint)", async () => {
+    // A hand-written codec with no describe → clientFingerprint is null → the handshake
+    // skips schema comparison rather than false-rejecting (end-to-end of the null path).
+    const custom: Codec<unknown> = {
+      writeFull: () => {},
+      readFull: () => 0,
+      writeDelta: () => {},
+      readDelta: () => 0,
+      equals: () => true,
+      clone: (v) => v,
+    };
+    expect(schemaFingerprint(custom)).toBeNull();
+    const h = setup({ stateCodec: custom });
+    const pending = h.join();
+    h.transport().emit(welcomeFrame({ schema: 0x1234 }));
+    await expect(pending).resolves.toBeDefined();
+  });
+
+  it("MUST-FIX#1: an initial mismatched Welcome rejects via the join path ONLY (no double-fire)", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const h = setup({ stateCodec: State });
+      const pending = h.join();
+      h.transport().emit(welcomeFrame({ schema: differentFp }));
+
+      await expect(pending).rejects.toHaveProperty("code", "schema_mismatch");
+      // The reconnect/live path (reportReconnectMismatch) logs a console.error; it must
+      // NOT fire for the initial Welcome — only the join resolver handled it.
+      expect(errSpy).not.toHaveBeenCalled();
+      expect(h.transport().isClosed).toBe(true);
+    } finally {
+      errSpy.mockRestore();
+    }
+  });
+
+  it("MUST-FIX#1: a genuine reconnect Welcome that mismatches emits a loud error and closes without retry", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const h = setup({ stateCodec: State });
+      const pending = h.join();
+      // First Welcome matches → join resolves live.
+      h.transport().emit(welcomeFrame({ schema: matchingFp }));
+      await pending;
+      expect(errSpy).not.toHaveBeenCalled();
+
+      // The socket reconnects and the server (redeployed) now advertises a different
+      // schema: the live path surfaces it loudly and closes the socket.
+      h.transport().emit(welcomeFrame({ schema: differentFp }));
+      expect(errSpy).toHaveBeenCalledTimes(1);
+      expect(String(errSpy.mock.calls[0]![0])).toMatch(/schema fingerprint mismatch/);
+      expect(h.transport().isClosed).toBe(true);
+    } finally {
+      errSpy.mockRestore();
+    }
+  });
+
+  it("MUST-FIX#2: a corrupted binary state frame logs a loud error and keeps the last good state", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const h = setup({ stateCodec: State });
+      const pending = h.join();
+      h.transport().emit(welcomeFrame({ schema: matchingFp }));
+      const room = await pending;
+
+      // Seed a known-good state.
+      const good = { players: { c1: { x: 1, y: 2 } }, tick: 5 };
+      h.transport().emitRaw(frameOf(0x01, encodeFull(State, good)));
+      expect(room.state).toEqual(good);
+
+      const changes: unknown[] = [];
+      room.onStateChange((s) => changes.push(s));
+
+      // A corrupted full frame: the body claims a 5-entry player map but carries no key
+      // bytes, so decodeFull overruns the buffer and throws.
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([5])));
+
+      expect(errSpy).toHaveBeenCalledTimes(1);
+      expect(String(errSpy.mock.calls[0]![0])).toMatch(/failed to decode a binary state frame/);
+      expect(room.state).toEqual(good); // last good state preserved, not clobbered
+      expect(changes).toHaveLength(0); // the dropped frame fires no state-change
+    } finally {
+      errSpy.mockRestore();
+    }
+  });
+
+  it("MUST-FIX#2: repeated decode failures warn only once (no 60Hz console flood)", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const h = setup({ stateCodec: State });
+      const pending = h.join();
+      h.transport().emit(welcomeFrame({ schema: matchingFp }));
+      await pending;
+
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([5])));
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([5])));
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([5])));
+      expect(errSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      errSpy.mockRestore();
+    }
+  });
+
+  it("F119: warns ONCE when a binary state frame arrives with no stateCodec, with the fix", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = setup(); // no stateCodec
+      const pending = h.join();
+      h.transport().emit(welcomeFrame());
+      await pending;
+
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([0])));
+      h.transport().emitRaw(frameOf(0x01, new Uint8Array([0])));
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(String(warnSpy.mock.calls[0]![0])).toMatch(/no stateCodec is configured/);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

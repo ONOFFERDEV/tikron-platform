@@ -130,6 +130,17 @@ export interface WelcomeMessage {
   peers: string[];
   /** True when this Welcome reattaches a previous session (state was preserved). */
   reconnected?: boolean;
+  /**
+   * FNV-1a fingerprint of the room's binary state codec shape (from
+   * `schemaFingerprint` in `@tikron/schema`). Present only when the server has a
+   * describable stateCodec; the client compares it against its own cached fingerprint
+   * and rejects the join with `schema_mismatch` when they differ, so a codec drift is
+   * caught at connect time instead of decoding to garbage. Additive and backward
+   * compatible: servers before 0.6 (or rooms with no/undescribable codec) omit it, and
+   * a client that receives no `schema` simply skips the check. `PROTOCOL_VERSION` is
+   * unchanged by this field.
+   */
+  schema?: number;
 }
 
 export interface EchoReplyMessage {

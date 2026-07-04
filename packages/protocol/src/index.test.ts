@@ -31,6 +31,34 @@ describe("protocol", () => {
     expect(decodeServerMessage(encode(welcome))).toEqual(welcome);
   });
 
+  it("carries an optional schema fingerprint on Welcome (additive, protocol unchanged)", () => {
+    const welcome: WelcomeMessage = {
+      t: ServerMessageType.Welcome,
+      connectionId: "abc",
+      room: "lobby",
+      protocol: PROTOCOL_VERSION,
+      peers: [],
+      schema: 0xdeadbeef,
+    };
+    const decoded = decodeServerMessage(encode(welcome)) as WelcomeMessage;
+    expect(decoded.schema).toBe(0xdeadbeef);
+    // The new field does not bump the protocol version (interop stays within a minor).
+    expect(PROTOCOL_VERSION).toBe(2);
+  });
+
+  it("a Welcome without the schema field leaves it undefined (old-server shape)", () => {
+    const decoded = decodeServerMessage(
+      encode({
+        t: ServerMessageType.Welcome,
+        connectionId: "abc",
+        room: "lobby",
+        protocol: PROTOCOL_VERSION,
+        peers: [],
+      }),
+    ) as WelcomeMessage;
+    expect(decoded.schema).toBeUndefined();
+  });
+
   it("decodes from an ArrayBuffer", () => {
     const buf = new TextEncoder().encode(
       encode({ t: ClientMessageType.Broadcast, text: "yo" }),

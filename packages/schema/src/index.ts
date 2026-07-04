@@ -13,6 +13,7 @@ export {
   encodeDeltaOrNull,
   decodeFull,
   applyDelta,
+  schemaFingerprint,
   type Codec,
   type Prim,
 } from "./schema.js";
