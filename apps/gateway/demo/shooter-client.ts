@@ -283,6 +283,12 @@ const smoother = new EntitySmoother();
 const cam: Vec = { x: WORLD_CENTER, y: WORLD_CENTER };
 /** Wall-clock ms of the previous render, for a frame-rate-independent integration dt. */
 let lastRenderMs = 0;
+/** Latest raw zone radius + the wall-clock ms the "zone shrinking" banner stays lit.
+ *  Re-armed on every authoritative radius decrease (the room shrinks zr continuously
+ *  through the round, so the banner is ambient during the shrink phase and clears once
+ *  the zone settles at its end radius). -1 = no frame seen yet (don't false-trigger). */
+let lastZoneR = -1;
+let zoneShrinkUntil = 0;
 
 let myId = "";
 let seq = 0;
@@ -354,6 +360,10 @@ const prevAlive = new Map<string, boolean>();
 let sampleServerNow: () => number = () => performance.now();
 let nickname = "";
 let running = false;
+/** Own live match score, mirrored into the leaderboard's pinned YOU row without a refetch. */
+let myScore = 0;
+/** The leaderboard YOU-row score cell, re-grabbed each poll rebuild (null until first render). */
+let lbYouScoreEl: HTMLElement | null = null;
 
 function lerpState(a: ShooterState, b: ShooterState, t: number): ShooterState {
   const players: ShooterState["players"] = {};
@@ -830,6 +840,7 @@ function startGame(room: Room): void {
   resizeCanvas();
   addEventListener("resize", resizeCanvas);
   requestAnimationFrame(render);
+  renderLeaderboard([]); // paint the panel + YOU row now; the poll fills the top-5
   void refreshLeaderboard();
   setInterval(() => void refreshLeaderboard(), 5000);
 }
@@ -840,8 +851,20 @@ function ingestState(st: ShooterState, room: Room): void {
   // Newest broken-crate set drives collision prediction (the `constrain` closure) and
   // the broken-crate rendering skip — read raw, never lerped.
   latestBroken = st.broken;
+  // Zone radius is authoritative + monotonically non-increasing; any drop means the
+  // zone is actively shrinking, so (re)arm the ambient warning banner. Raw `st`, not
+  // the interpolated view, so buffer jitter can't false-trigger it.
+  if (typeof st.zr === "number") {
+    if (lastZoneR >= 0 && st.zr < lastZoneR - 0.1) zoneShrinkUntil = performance.now() + 1400;
+    lastZoneR = st.zr;
+  }
   const me = st.players[myId];
   if (me) {
+    // Mirror own score into the leaderboard's pinned YOU row (cheap text write, on change).
+    if (me.score !== myScore) {
+      myScore = me.score;
+      if (lbYouScoreEl) lbYouScoreEl.textContent = String(myScore);
+    }
     predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
     // Feed the authoritative echo to the render predictor: `alive` gates integration
     // (a dead player holding a key must not dead-reckon away) and arms the respawn
@@ -893,16 +916,33 @@ interface LeaderRow {
   score: number;
 }
 
+/** Render the SHOOTER-TOP panel: mint title, top-5 rows (rank 1 highlighted), a divider,
+ *  then the pinned YOU row (own live match score — no server-side rank lookup needed). */
+function renderLeaderboard(rows: LeaderRow[]): void {
+  if (!lbEl) return;
+  const items = rows
+    .map((r, i) => {
+      const name = escapeHtml(r.displayName ?? r.playerId.slice(0, 6));
+      return `<li class="lb-row${i === 0 ? " lb-top" : ""}"><span class="lb-nm">${i + 1}. ${name}</span><span class="lb-sc">${r.score}</span></li>`;
+    })
+    .join("");
+  const youName = escapeHtml(nickname || "YOU");
+  lbEl.innerHTML =
+    `<div class="lb-title">SHOOTER-TOP</div>` +
+    `<ol class="lb-list">${items}</ol>` +
+    `<div class="lb-div"></div>` +
+    `<div class="lb-row lb-you"><span class="lb-nm">${youName}</span><span class="lb-sc" id="lb-you-score">${myScore}</span></div>`;
+  // Re-grab the YOU cell so the per-frame score mirror keeps writing to the live node.
+  lbYouScoreEl = document.getElementById("lb-you-score");
+}
+
 async function refreshLeaderboard(): Promise<void> {
   if (!lbEl) return;
   try {
     const res = await fetch("/api/leaderboard?board=shooter-top&limit=5");
     if (!res.ok) return;
     const rows = (await res.json()) as LeaderRow[];
-    const items = rows
-      .map((r) => `<li>${escapeHtml(r.displayName ?? r.playerId.slice(0, 6))} — ${r.score}</li>`)
-      .join("");
-    lbEl.innerHTML = `<b>shooter-top</b><ol>${items}</ol>`;
+    renderLeaderboard(rows);
   } catch {
     /* leaderboard is best-effort; ignore transient fetch errors */
   }
@@ -1023,8 +1063,6 @@ function render(): void {
   // Local player: drawn at the continuous render position (= camera centre) so it moves
   // uniformly with the world every frame and stays locked to screen centre.
   const meState = view?.players[myId];
-  // AOI delivers only players in view; the count always includes the local player.
-  const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   const meAlive = meState?.alive ?? true;
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meAlive },
@@ -1047,17 +1085,19 @@ function render(): void {
   // Floating own-hit damage numbers (world-anchored), above the sprites.
   drawDamageNumbers(camX, camY, now);
 
+  // Zone membership drives both the HUD status line and the danger vignette below.
+  const outsideZone = !!view && meAlive && Math.hypot(renderX - view.zx, renderY - view.zy) > view.zr;
+
   // Screen-space overlays.
-  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, visible, myWeapon, meState?.db ?? false);
+  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, myWeapon, meState?.db ?? false, !outsideZone, killStreak);
   drawRadar(view, renderX, renderY);
   drawHitMarker(now);
   drawKillFeed(now);
   drawRoundUI(view, now);
   drawStreakBanner(now);
-  // Outside-zone danger: a pulsing red vignette + a warning under the crosshair.
-  if (view && meAlive && Math.hypot(renderX - view.zx, renderY - view.zy) > view.zr) {
-    drawZoneWarning(now);
-  }
+  drawZoneShrinkBanner(now); // ambient "SURVIVAL ZONE SHRINKING" banner while zr is dropping
+  // Outside-zone danger: a pulsing red vignette (the bottom-left panel names the state).
+  if (outsideZone) drawZoneWarning(now);
   // Touch UI on top of everything: weapon buttons + the floating sticks.
   drawTouchControls();
   requestAnimationFrame(render);
@@ -1131,22 +1171,36 @@ function drawRadar(view: ShooterState | undefined, selfX: number, selfY: number)
   const pad = 14;
   const x0 = canvas.width - size - pad;
   const y0 = canvas.height - size - pad;
-  const s = size / SHOOTER.world; // world units -> radar px
+  const cx = x0 + size / 2;
+  const cy = y0 + size / 2;
+  const rad = size / 2; // scope radius
+  const s = size / SHOOTER.world; // world units -> radar px (whole arena spans the diameter)
 
   ctx.save();
-  // Panel (matches the HUD styling).
-  ctx.fillStyle = "rgba(16,21,29,0.82)";
-  ctx.strokeStyle = "#232b36";
-  ctx.lineWidth = 1;
-  roundRect(x0, y0, size, size, 10);
-  ctx.fill();
-  ctx.stroke();
+  // Circular clip — the whole arena inside a round scope; the square map's corners trim off.
   ctx.beginPath();
-  roundRect(x0, y0, size, size, 10);
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
   ctx.clip();
 
+  // Dark scope bg + two faint range rings + a crosshair reticle for depth.
+  ctx.fillStyle = "rgba(10,15,20,0.82)";
+  ctx.fillRect(x0, y0, size, size);
+  ctx.strokeStyle = "rgba(0,229,160,0.10)";
+  ctx.lineWidth = 1;
+  for (const rr of [rad * 0.5, rad * 0.82]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(cx - rad, cy);
+  ctx.lineTo(cx + rad, cy);
+  ctx.moveTo(cx, cy - rad);
+  ctx.lineTo(cx, cy + rad);
+  ctx.stroke();
+
   // Crates — the same authoritative cover the hitscan uses (broken ones drop out).
-  ctx.fillStyle = "rgba(139,152,168,0.5)";
+  ctx.fillStyle = "rgba(139,152,168,0.45)";
   for (let i = 0; i < crates.length; i++) {
     if (isBrokenIdx(i)) continue;
     const cr = crates[i]!;
@@ -1154,9 +1208,9 @@ function drawRadar(view: ShooterState | undefined, selfX: number, selfY: number)
     ctx.fillRect(x0 + cr.x * s - cs / 2, y0 + cr.y * s - cs / 2, cs, cs);
   }
 
-  // Shrink zone (red circle), so the safe area reads on the minimap too.
+  // Shrink zone (mint circle) — matches the in-world mint boundary.
   if (view) {
-    ctx.strokeStyle = "rgba(255,107,107,0.6)";
+    ctx.strokeStyle = "rgba(0,229,160,0.5)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(x0 + view.zx * s, y0 + view.zy * s, view.zr * s, 0, Math.PI * 2);
@@ -1164,7 +1218,7 @@ function drawRadar(view: ShooterState | undefined, selfX: number, selfY: number)
   }
 
   // View-radius ring around yourself (what the AOI lets you see).
-  ctx.strokeStyle = "rgba(0,229,160,0.25)";
+  ctx.strokeStyle = "rgba(0,229,160,0.22)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(x0 + selfX * s, y0 + selfY * s, SHOOTER.viewRadius * s, 0, Math.PI * 2);
@@ -1175,28 +1229,43 @@ function drawRadar(view: ShooterState | undefined, selfX: number, selfY: number)
     for (const id of Object.keys(view.players)) {
       if (id === myId) continue;
       const pl = view.players[id]!;
-      ctx.fillStyle = pl.alive ? "#ff6b6b" : "rgba(139,152,168,0.4)";
+      ctx.fillStyle = pl.alive ? "#ff5a5a" : "rgba(139,152,168,0.4)";
       ctx.beginPath();
       ctx.arc(x0 + pl.x * s, y0 + pl.y * s, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // Self: neon dot + a short aim tick.
+  // Self: a soft mint view-cone wedge in the aim direction + a mint arrow.
   const sx = x0 + selfX * s;
   const sy = y0 + selfY * s;
-  ctx.fillStyle = "#00e5a0";
-  ctx.beginPath();
-  ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#00e5a0";
-  ctx.lineWidth = 1.5;
+  ctx.fillStyle = "rgba(0,229,160,0.14)";
   ctx.beginPath();
   ctx.moveTo(sx, sy);
-  ctx.lineTo(sx + Math.cos(aim) * 8, sy + Math.sin(aim) * 8);
-  ctx.stroke();
+  ctx.arc(sx, sy, 30, aim - 0.42, aim + 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(aim);
+  ctx.fillStyle = "#00e5a0";
+  ctx.beginPath();
+  ctx.moveTo(7, 0);
+  ctx.lineTo(-4, -4.5);
+  ctx.lineTo(-4, 4.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 
   ctx.restore();
+
+  // Scope rim + tactical corner brackets (outside the clip).
+  ctx.strokeStyle = "rgba(0,229,160,0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.stroke();
+  drawCornerBrackets(x0 - 3, y0 - 3, size + 6, size + 6, 14, "#00e5a0", 2);
 }
 
 function drawGround(camX: number, camY: number): void {
@@ -1352,8 +1421,8 @@ function drawPlayer(
     }
     ctx.restore();
   } else {
-    // Vector fallback: filled circle + aim spoke.
-    ctx.fillStyle = flashing ? "#ff6b6b" : isSelf ? "#00e5a0" : "#58a6ff";
+    // Vector fallback: filled circle + aim spoke (self mint, enemies red per the key art).
+    ctx.fillStyle = flashing ? "#ff6b6b" : isSelf ? "#00e5a0" : "#ff5a5a";
     circle(x, y, 12, true);
     ctx.strokeStyle = ctx.fillStyle;
     ctx.lineWidth = 2;
@@ -1362,11 +1431,11 @@ function drawPlayer(
     ctx.lineTo(x + Math.cos(p.aim) * 20, y + Math.sin(p.aim) * 20);
     ctx.stroke();
   }
-  // HP bar (screen-space, above the sprite).
+  // HP bar (screen-space, above the sprite): own bar mint, enemy bars red.
   const w = 30;
   ctx.fillStyle = "rgba(16,21,29,0.9)";
   ctx.fillRect(x - w / 2, y - 26, w, 4);
-  ctx.fillStyle = isSelf ? "#00e5a0" : "#58a6ff";
+  ctx.fillStyle = isSelf ? "#00e5a0" : "#ff5a5a";
   ctx.fillRect(x - w / 2, y - 26, (w * Math.max(0, p.hp)) / SHOOTER.maxHp, 4);
   label(`${p.score}`, x, y + 30);
 }
@@ -1374,67 +1443,94 @@ function drawPlayer(
 function drawHud(
   hp: number,
   score: number,
-  count: number,
   weapon: number,
   db: boolean,
+  inZone: boolean,
+  streak: number,
 ): void {
   const pad = 14;
-  const w = 210;
-  const h = 118;
+  const w = 216;
+  const h = 92;
   const x = pad;
   const y = canvas.height - h - pad;
-  ctx.fillStyle = "rgba(16,21,29,0.85)";
-  ctx.strokeStyle = "#232b36";
+  // Panel: flat dark fill + a faint mint hairline, framed by tactical corner brackets.
+  ctx.fillStyle = "rgba(12,17,23,0.82)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(0,229,160,0.14)";
   ctx.lineWidth = 1;
-  roundRect(x, y, w, h, 10);
-  ctx.fill();
-  ctx.stroke();
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  drawCornerBrackets(x, y, w, h, 13, "#00e5a0", 2);
 
-  // HP bar.
-  const bx = x + 14;
-  const by = y + 16;
+  const lx = x + 14; // left column
+  const rx = x + w - 14; // right column
+
+  // Mint HP bar across the top.
+  const by = y + 14;
   const bw = w - 28;
+  const bh = 7;
   ctx.fillStyle = "#0a0e14";
-  ctx.fillRect(bx, by, bw, 10);
+  ctx.fillRect(lx, by, bw, bh);
   const frac = clamp(hp / SHOOTER.maxHp, 0, 1);
   ctx.fillStyle = frac > 0.5 ? "#00e5a0" : frac > 0.25 ? "#f2cc60" : "#ff6b6b";
-  ctx.fillRect(bx, by, bw * frac, 10);
-  ctx.fillStyle = "#e6edf3";
+  ctx.fillRect(lx, by, bw * frac, bh);
+
+  // Row 1 — HP <n> (left) · SCORE <n> (right).
+  ctx.font = "12px ui-monospace, monospace";
+  const r1 = y + 40;
+  hudPair(lx, r1, "HP", String(Math.max(0, Math.round(hp))), "left");
+  hudPair(rx, r1, "SCORE", String(score), "right");
+
+  // Row 2 — status: STREAK <n> · IN/OUT ZONE (+ DMG×2 while boosted). Zone turns red when out.
+  const r2 = y + 58;
   ctx.font = "11px ui-monospace, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(`HP ${Math.max(0, Math.round(hp))}`, bx, by + 26);
-  ctx.textAlign = "right";
-  ctx.fillText(`SCORE ${score}`, bx + bw, by + 26);
-  ctx.textAlign = "left";
+  const streakTxt = `STREAK ${streak}   ·   `;
   ctx.fillStyle = "#8b98a8";
-  ctx.fillText(`${count}/${MAX_PLAYERS} in view`, bx, by + 42);
+  ctx.fillText(streakTxt, lx, r2);
+  const zoneTxt = inZone ? "IN ZONE" : "OUT OF ZONE";
+  const zoneX = lx + ctx.measureText(streakTxt).width;
+  ctx.fillStyle = inZone ? "#8b98a8" : "#ff6b6b";
+  ctx.fillText(zoneTxt, zoneX, r2);
+  if (db) {
+    ctx.fillStyle = "#ff9f43";
+    ctx.fillText("   ·   DMG×2", zoneX + ctx.measureText(zoneTxt).width, r2);
+  }
 
-  // Equipped weapon + ammo/reload (ammo right-aligned on the same line).
+  // Row 3 — WEAPON <name> (left) · ammo/reload (right).
+  const r3 = y + 78;
+  ctx.font = "12px ui-monospace, monospace";
   const spec = WEAPONS[weapon] ?? WEAPONS[0]!;
-  ctx.fillStyle = "#e6edf3";
-  ctx.fillText(`WEAPON ${spec.name}`, bx, by + 60);
+  hudPair(lx, r3, "WEAPON", spec.name, "left");
   ctx.textAlign = "right";
   if (spec.mag <= 0) {
     ctx.fillStyle = "#8b98a8";
-    ctx.fillText("∞", bx + bw, by + 60);
+    ctx.fillText("∞", rx, r3);
   } else if (reloadUntil > 0 && performance.now() < reloadUntil) {
     ctx.fillStyle = "#f2cc60";
-    ctx.fillText("RELOAD…", bx + bw, by + 60);
+    ctx.fillText("RELOAD…", rx, r3);
   } else {
     const n = ammo[weapon] ?? 0;
     ctx.fillStyle = n <= spec.mag * 0.25 ? "#ff6b6b" : "#e6edf3";
-    ctx.fillText(`${n}/${spec.mag}`, bx + bw, by + 60);
+    ctx.fillText(`${n}/${spec.mag}`, rx, r3);
   }
-  ctx.textAlign = "left";
-  // Damage-boost indicator (only while active).
-  if (db) {
-    ctx.fillStyle = "#ff9f43";
-    ctx.fillText("DMG ×2", bx, by + 76);
-  }
-  // Controls hint (touch swaps the keyboard line for the stick legend).
-  ctx.fillStyle = "#8b98a8";
-  ctx.fillText(isTouch ? "sticks: move / aim · tap 1-3" : "hold fire · 1/2/3 swap · R reload", bx, by + 92);
   ctx.textAlign = "start";
+}
+
+/** One "LABEL value" cell: muted label + bright value, packed left→right or right→left. */
+function hudPair(x: number, y: number, label: string, value: string, align: "left" | "right"): void {
+  if (align === "left") {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText(label, x, y);
+    ctx.fillStyle = "#e6edf3";
+    ctx.fillText(value, x + ctx.measureText(label + " ").width, y);
+  } else {
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#e6edf3";
+    ctx.fillText(value, x, y);
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText(label, x - ctx.measureText(value + " ").width, y);
+  }
 }
 
 /** Pulsing neon ring around a spawn-protected player (self or remote). */
@@ -1503,7 +1599,7 @@ function drawKillFeed(now: number): void {
   ctx.font = "12px ui-monospace, monospace";
   ctx.textAlign = "right";
   const rx = canvas.width - 16;
-  let y = 200; // clears the HTML leaderboard panel in the top-right corner
+  let y = 236; // clears the taller SHOOTER-TOP leaderboard panel in the top-right corner
   for (const k of killFeed.slice(0, 5)) {
     ctx.globalAlpha = Math.min(1, (k.until - now) / 400); // fade the last 400 ms
     ctx.fillStyle = k.mine ? "#00e5a0" : "#e6edf3";
@@ -1579,7 +1675,8 @@ function drawRoundUI(view: ShooterState | undefined, now: number): void {
   ctx.textAlign = "start";
 }
 
-/** Translucent red fill OUTSIDE the shrink zone + the zone edge (world-space). */
+/** Shrink zone (world-space): a faint danger wash OUTSIDE the circle, a glowing mint
+ *  boundary arc, and a few inward-pointing chevron ticks along the on-screen arc. */
 function drawZone(view: ShooterState | undefined, camX: number, camY: number): void {
   if (!view) return;
   const zx = view.zx - camX;
@@ -1590,14 +1687,28 @@ function drawZone(view: ShooterState | undefined, camX: number, camY: number): v
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
   ctx.arc(zx, zy, zr, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,60,60,0.08)";
+  ctx.fillStyle = "rgba(255,60,60,0.06)";
   ctx.fill("evenodd");
-  // Zone edge.
+  // Mint boundary arc with a soft glow.
   ctx.beginPath();
   ctx.arc(zx, zy, zr, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255,107,107,0.6)";
+  ctx.strokeStyle = "rgba(0,229,160,0.55)";
   ctx.lineWidth = 2;
+  ctx.shadowColor = "rgba(0,229,160,0.5)";
+  ctx.shadowBlur = 8;
   ctx.stroke();
+  ctx.shadowBlur = 0;
+  // A handful of inward-pointing chevrons — only anchors on/near screen, so a huge
+  // early-round circle shows just the visible arc, not an ornate full ring.
+  ctx.fillStyle = "rgba(0,229,160,0.5)";
+  const ticks = 24;
+  for (let i = 0; i < ticks; i++) {
+    const a = (i / ticks) * Math.PI * 2;
+    const px = zx + Math.cos(a) * zr;
+    const py = zy + Math.sin(a) * zr;
+    if (px < -16 || py < -16 || px > canvas.width + 16 || py > canvas.height + 16) continue;
+    drawChevron(px, py, a + Math.PI, 6); // point toward the zone centre (inward = safe)
+  }
   ctx.restore();
 }
 
@@ -1617,11 +1728,43 @@ function drawZoneWarning(now: number): void {
   ctx.save();
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#ff6b6b";
-  ctx.font = "bold 14px ui-monospace, monospace";
-  ctx.textAlign = "center";
-  ctx.fillText("OUTSIDE ZONE", canvas.width / 2, canvas.height / 2 + 30);
   ctx.restore();
+}
+
+/**
+ * Bottom-centre ambient banner: "⚠ SURVIVAL ZONE SHRINKING" flanked by mint chevrons,
+ * lit while the authoritative zone radius is dropping (armed in ingestState). Purely
+ * drawn — it never intercepts input, so it can't shadow the mobile stick touch zones.
+ */
+function drawZoneShrinkBanner(now: number): void {
+  if (now >= zoneShrinkUntil) return;
+  const compact = canvas.width < 560; // narrow / mobile: shorter text, no side chevrons
+  const text = compact ? "⚠ ZONE SHRINKING" : "⚠ SURVIVAL ZONE SHRINKING";
+  const pulse = 0.72 + 0.28 * Math.sin(now / 180);
+  ctx.save();
+  ctx.font = "bold 13px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const bw = ctx.measureText(text).width + (compact ? 44 : 120);
+  const bh = 32;
+  const bx = Math.round(canvas.width / 2 - bw / 2);
+  const by = canvas.height - 62;
+  const mid = by + bh / 2 + 1;
+  ctx.fillStyle = "rgba(12,17,23,0.82)";
+  roundRect(bx, by, bw, bh, 8);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(0,229,160,${(0.25 + 0.35 * pulse).toFixed(3)})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = "#00e5a0";
+  ctx.fillText(text, canvas.width / 2, mid);
+  if (!compact) {
+    ctx.fillText("<<<", bx + 24, mid);
+    ctx.fillText(">>>", bx + bw - 24, mid);
+  }
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
   ctx.textAlign = "start";
 }
 
@@ -1679,6 +1822,40 @@ function roundRect(x: number, y: number, w: number, h: number, r: number): void 
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+/** Four L-shaped corner brackets around a rect — the recurring tactical frame accent. */
+function drawCornerBrackets(x: number, y: number, w: number, h: number, len: number, color: string, lw = 2): void {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(x, y + len);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + len, y); // TL
+  ctx.moveTo(x + w - len, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + len); // TR
+  ctx.moveTo(x + w, y + h - len);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x + w - len, y + h); // BR
+  ctx.moveTo(x + len, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + h - len); // BL
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A small filled triangle at (x,y) whose tip points along `dir` (radians), `size` px out. */
+function drawChevron(x: number, y: number, dir: number, size: number): void {
+  const c = Math.cos(dir);
+  const s = Math.sin(dir);
+  ctx.beginPath();
+  ctx.moveTo(x + c * size, y + s * size); // tip
+  ctx.lineTo(x - s * size * 0.7, y + c * size * 0.7); // base, one side (perpendicular)
+  ctx.lineTo(x + s * size * 0.7, y - c * size * 0.7); // base, other side
+  ctx.closePath();
+  ctx.fill();
 }
 
 function circle(x: number, y: number, r: number, fill: boolean): void {

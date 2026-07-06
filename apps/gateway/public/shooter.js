@@ -1,4 +1,5 @@
 // ../../packages/protocol/dist/index.js
+var PROTOCOL_VERSION = 2;
 var ClientMessageType = {
   Hello: "c:hello",
   Echo: "c:echo",
@@ -131,6 +132,9 @@ var ByteReader = class {
 };
 
 // ../../packages/schema/dist/schema.js
+function descToken(s) {
+  return `${s.length}#${s}`;
+}
 var PRIM_IO = {
   u8: { write: (w, v) => w.u8(v), read: (r) => r.u8() },
   u16: { write: (w, v) => w.u16(v), read: (r) => r.u16() },
@@ -151,8 +155,9 @@ function prim(type) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // primitives are immutable — no copy needed
+    describe: () => type
   };
 }
 function quant(min, max, step) {
@@ -179,8 +184,10 @@ function quant(min, max, step) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => quantize(a) === quantize(b),
-    clone: (v) => v
+    clone: (v) => v,
     // numbers are immutable
+    // min/max/step fully determine the wire width and the byte->value mapping.
+    describe: () => `q(${min},${max},${step})`
   };
 }
 function schema(shape) {
@@ -245,6 +252,16 @@ function schema(shape) {
       for (const f of fields)
         out[f.name] = f.codec.clone(get(value, f.name));
       return out;
+    },
+    describe() {
+      const parts = [];
+      for (const f of fields) {
+        const childDesc = f.codec.describe?.();
+        if (childDesc === void 0)
+          return void 0;
+        parts.push(`${descToken(f.name)}:${childDesc}`);
+      }
+      return `obj(${parts.join(",")})`;
     }
   };
 }
@@ -311,6 +328,10 @@ function mapOf(child) {
       for (const k of keysOf(value))
         out[k] = child.clone(value[k]);
       return out;
+    },
+    describe() {
+      const c = child.describe?.();
+      return c === void 0 ? void 0 : `map(${c})`;
     }
   };
 }
@@ -319,6 +340,17 @@ function decodeFull(codec, bytes) {
 }
 function applyDelta(codec, prev, bytes) {
   return codec.readDelta(new ByteReader(bytes), prev);
+}
+function schemaFingerprint(codec) {
+  const desc = codec.describe?.();
+  if (desc === void 0)
+    return null;
+  let h = 2166136261;
+  for (let i = 0; i < desc.length; i++) {
+    h ^= desc.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 // ../../node_modules/.pnpm/partysocket@1.3.0_react@19.2.7/node_modules/partysocket/dist/ws.js
@@ -1642,7 +1674,7 @@ var EntitySmoother = class {
 var networkConditionsWarned = false;
 var subtickClockWarned = false;
 var RoomJoinError = class extends Error {
-  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  /** See the class doc: a handshake code, a pre-Welcome Error code, or `"connection-closed"`. */
   code;
   constructor(code, message) {
     super(message ?? `room join failed: ${code}`);
@@ -1681,6 +1713,12 @@ var Room = class {
   failWelcome = () => {
   };
   stateCodec;
+  /** This client's own state-codec fingerprint, computed once (null if none/undescribable). */
+  clientFingerprint;
+  /** Guards the one-time "binary frame but no stateCodec" warning (per room). */
+  noCodecWarned = false;
+  /** Guards the one-time "binary state decode failed" error (per room). */
+  decodeErrorWarned = false;
   clockEnabled;
   subtickTimestamps;
   inputBatchMs;
@@ -1692,6 +1730,7 @@ var Room = class {
     this.name = name;
     this.transport = transport;
     this.stateCodec = stateCodec;
+    this.clientFingerprint = stateCodec ? schemaFingerprint(stateCodec) : null;
     this.clockEnabled = !opts.disableClockSync;
     this.subtickTimestamps = opts.subtickTimestamps ?? false;
     this.inputBatchMs = opts.inputBatchMs ?? 0;
@@ -1717,8 +1756,15 @@ var Room = class {
           this.preWelcomeError = msg;
         } else if (msg.t === ServerMessageType.Welcome) {
           this.welcomeSettled = true;
-          this.connectionId = msg.connectionId;
           off();
+          const mismatch = this.validateHandshake(msg);
+          if (mismatch !== null) {
+            this.failWelcome(this.handshakeError(mismatch));
+            this.clock.stop();
+            this.transport.close();
+            return;
+          }
+          this.connectionId = msg.connectionId;
           if (this.clockEnabled)
             this.clock.start();
           resolve(msg);
@@ -1748,6 +1794,44 @@ var Room = class {
     this.clock.stop();
     this.transport.close();
   }
+  /**
+   * Check a Welcome frame for a protocol or state-schema incompatibility, returning the
+   * mismatch (or null if compatible). Protocol is always checked; the schema is checked
+   * only when this client has a codec AND the server advertised a fingerprint (a
+   * pre-0.6 server omits it, so the check is skipped rather than false-firing) AND this
+   * client's own codec is describable (`clientFingerprint !== null`).
+   */
+  validateHandshake(msg) {
+    if (msg.protocol !== PROTOCOL_VERSION) {
+      return { kind: "protocol_mismatch", server: msg.protocol, client: PROTOCOL_VERSION };
+    }
+    if (this.stateCodec && typeof msg.schema === "number" && this.clientFingerprint !== null) {
+      if (msg.schema !== this.clientFingerprint) {
+        return { kind: "schema_mismatch", server: msg.schema, client: this.clientFingerprint };
+      }
+    }
+    return null;
+  }
+  /** The human/agent-actionable message for a handshake mismatch (names BOTH values). */
+  handshakeMessage(m) {
+    return m.kind === "protocol_mismatch" ? `Tikron PROTOCOL_VERSION mismatch: server=${m.server}, client=${m.client}. The wire protocol only guarantees compatibility within a minor \u2014 pin the SAME @tikron/* minor version on both the client and the server, then rebuild both.` : `Tikron state schema fingerprint mismatch: server=${m.server}, client=${m.client}. The server's stateCodec shape differs from the client's \u2014 rebuild and redeploy both sides so they import the IDENTICAL schema({...}) (same fields, same order, same types).`;
+  }
+  handshakeError(m) {
+    return new RoomJoinError(m.kind, this.handshakeMessage(m));
+  }
+  /**
+   * A live reconnect returned a Welcome that no longer matches this client — the server
+   * was redeployed with an incompatible protocol/schema mid-session. The join promise is
+   * long settled, so surface it loudly on the console (structured, actionable) and close
+   * the socket. The close is client-initiated, so it trips PartySocket's `_closeCalled`
+   * guard and does NOT reconnect — stopping the room before it decodes state it can no
+   * longer read.
+   */
+  reportReconnectMismatch(m) {
+    console.error(`[@tikron/client] room=${this.name} live reconnect rejected \u2014 ${this.handshakeMessage(m)} Closing the socket (no auto-retry) to stop decoding stale state.`);
+    this.clock.stop();
+    this.transport.close();
+  }
   dispatch(raw) {
     if (typeof raw !== "string") {
       this.applyBinaryState(raw);
@@ -1760,6 +1844,13 @@ var Room = class {
       return;
     }
     if (msg.t === ServerMessageType.Welcome) {
+      if (this.welcomeSettled) {
+        const mismatch = this.validateHandshake(msg);
+        if (mismatch !== null) {
+          this.reportReconnectMismatch(mismatch);
+          return;
+        }
+      }
       this.connectionId = msg.connectionId;
     } else if (msg.t === ServerMessageType.State) {
       this.state = msg.state;
@@ -1784,8 +1875,13 @@ var Room = class {
       handler(msg);
   }
   applyBinaryState(raw) {
-    if (!this.stateCodec)
+    if (!this.stateCodec) {
+      if (!this.noCodecWarned) {
+        this.noCodecWarned = true;
+        console.warn(`[@tikron/client] room=${this.name} received a binary state frame but no stateCodec is configured, so authoritative state is being ignored. Pass the SAME codec the server uses, e.g. new GameClient(host, { stateCodec: YourState }).`);
+      }
       return;
+    }
     const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     if (bytes.length < 13)
       return;
@@ -1794,12 +1890,22 @@ var Room = class {
     const tick = view.getUint32(1, true);
     const serverTime = view.getFloat64(5, true);
     const body = bytes.subarray(13);
-    if (tag === 1)
-      this.state = decodeFull(this.stateCodec, body);
-    else if (tag === 2)
-      this.state = applyDelta(this.stateCodec, this.state, body);
-    else
+    let next;
+    try {
+      if (tag === 1)
+        next = decodeFull(this.stateCodec, body);
+      else if (tag === 2)
+        next = applyDelta(this.stateCodec, this.state, body);
+      else
+        return;
+    } catch (err) {
+      if (!this.decodeErrorWarned) {
+        this.decodeErrorWarned = true;
+        console.error(`[@tikron/client] room=${this.name} failed to decode a binary state frame (tag=${tag}). This usually means the client's stateCodec shape does not match the server's \u2014 rebuild both sides with the identical schema({...}) \u2014 or the frame was corrupted. Keeping the last good state and dropping this frame.`, err);
+      }
       return;
+    }
+    this.state = next;
     this.lastStateTick = tick;
     this.lastStateServerTime = serverTime;
     for (const handler of this.stateHandlers)
@@ -2385,6 +2491,8 @@ var motion = RenderPredictor.fromProfile({ x: WORLD_CENTER, y: WORLD_CENTER }, S
 var smoother = new EntitySmoother();
 var cam = { x: WORLD_CENTER, y: WORLD_CENTER };
 var lastRenderMs = 0;
+var lastZoneR = -1;
+var zoneShrinkUntil = 0;
 var myId = "";
 var seq = 0;
 var aim = 0;
@@ -2422,6 +2530,8 @@ var prevAlive = /* @__PURE__ */ new Map();
 var sampleServerNow = () => performance.now();
 var nickname = "";
 var running = false;
+var myScore = 0;
+var lbYouScoreEl = null;
 function lerpState(a, b, t) {
   const players = {};
   for (const id of Object.keys(b.players)) {
@@ -2779,14 +2889,23 @@ function startGame(room) {
   resizeCanvas();
   addEventListener("resize", resizeCanvas);
   requestAnimationFrame(render);
+  renderLeaderboard([]);
   void refreshLeaderboard();
   setInterval(() => void refreshLeaderboard(), 5e3);
 }
 function ingestState(st, room) {
   buffer.push(room.lastStateServerTime ?? performance.now(), st);
   latestBroken = st.broken;
+  if (typeof st.zr === "number") {
+    if (lastZoneR >= 0 && st.zr < lastZoneR - 0.1) zoneShrinkUntil = performance.now() + 1400;
+    lastZoneR = st.zr;
+  }
   const me = st.players[myId];
   if (me) {
+    if (me.score !== myScore) {
+      myScore = me.score;
+      if (lbYouScoreEl) lbYouScoreEl.textContent = String(myScore);
+    }
     predictor.reconcile({ x: me.x, y: me.y }, room.lastAckSeq);
     motion.alive = me.alive;
     motion.reconcile({ x: me.x, y: me.y });
@@ -2819,14 +2938,23 @@ function ingestState(st, room) {
     if (!seenNow.has(id)) prevAlive.delete(id);
   }
 }
+function renderLeaderboard(rows) {
+  if (!lbEl) return;
+  const items = rows.map((r, i) => {
+    const name = escapeHtml(r.displayName ?? r.playerId.slice(0, 6));
+    return `<li class="lb-row${i === 0 ? " lb-top" : ""}"><span class="lb-nm">${i + 1}. ${name}</span><span class="lb-sc">${r.score}</span></li>`;
+  }).join("");
+  const youName = escapeHtml(nickname || "YOU");
+  lbEl.innerHTML = `<div class="lb-title">SHOOTER-TOP</div><ol class="lb-list">${items}</ol><div class="lb-div"></div><div class="lb-row lb-you"><span class="lb-nm">${youName}</span><span class="lb-sc" id="lb-you-score">${myScore}</span></div>`;
+  lbYouScoreEl = document.getElementById("lb-you-score");
+}
 async function refreshLeaderboard() {
   if (!lbEl) return;
   try {
     const res = await fetch("/api/leaderboard?board=shooter-top&limit=5");
     if (!res.ok) return;
     const rows = await res.json();
-    const items = rows.map((r) => `<li>${escapeHtml(r.displayName ?? r.playerId.slice(0, 6))} \u2014 ${r.score}</li>`).join("");
-    lbEl.innerHTML = `<b>shooter-top</b><ol>${items}</ol>`;
+    renderLeaderboard(rows);
   } catch {
   }
 }
@@ -2912,7 +3040,6 @@ function render() {
     if (id !== myId && !seen.has(id)) lastDrawn.delete(id);
   }
   const meState = view?.players[myId];
-  const visible = Math.max(view ? Object.keys(view.players).length : 0, 1);
   const meAlive = meState?.alive ?? true;
   drawPlayer(
     { aim, hp: meState?.hp ?? SHOOTER.maxHp, score: meState?.score ?? 0, alive: meAlive },
@@ -2931,15 +3058,15 @@ function render() {
     ctx.textAlign = "start";
   }
   drawDamageNumbers(camX, camY, now);
-  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, visible, myWeapon, meState?.db ?? false);
+  const outsideZone = !!view && meAlive && Math.hypot(renderX - view.zx, renderY - view.zy) > view.zr;
+  drawHud(meState?.hp ?? SHOOTER.maxHp, meState?.score ?? 0, myWeapon, meState?.db ?? false, !outsideZone, killStreak);
   drawRadar(view, renderX, renderY);
   drawHitMarker(now);
   drawKillFeed(now);
   drawRoundUI(view, now);
   drawStreakBanner(now);
-  if (view && meAlive && Math.hypot(renderX - view.zx, renderY - view.zy) > view.zr) {
-    drawZoneWarning(now);
-  }
+  drawZoneShrinkBanner(now);
+  if (outsideZone) drawZoneWarning(now);
   drawTouchControls();
   requestAnimationFrame(render);
 }
@@ -2993,18 +3120,30 @@ function drawRadar(view, selfX, selfY) {
   const pad = 14;
   const x0 = canvas.width - size - pad;
   const y0 = canvas.height - size - pad;
+  const cx = x0 + size / 2;
+  const cy = y0 + size / 2;
+  const rad = size / 2;
   const s = size / SHOOTER.world;
   ctx.save();
-  ctx.fillStyle = "rgba(16,21,29,0.82)";
-  ctx.strokeStyle = "#232b36";
-  ctx.lineWidth = 1;
-  roundRect(x0, y0, size, size, 10);
-  ctx.fill();
-  ctx.stroke();
   ctx.beginPath();
-  roundRect(x0, y0, size, size, 10);
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
   ctx.clip();
-  ctx.fillStyle = "rgba(139,152,168,0.5)";
+  ctx.fillStyle = "rgba(10,15,20,0.82)";
+  ctx.fillRect(x0, y0, size, size);
+  ctx.strokeStyle = "rgba(0,229,160,0.10)";
+  ctx.lineWidth = 1;
+  for (const rr of [rad * 0.5, rad * 0.82]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(cx - rad, cy);
+  ctx.lineTo(cx + rad, cy);
+  ctx.moveTo(cx, cy - rad);
+  ctx.lineTo(cx, cy + rad);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(139,152,168,0.45)";
   for (let i = 0; i < crates.length; i++) {
     if (isBrokenIdx(i)) continue;
     const cr = crates[i];
@@ -3012,13 +3151,13 @@ function drawRadar(view, selfX, selfY) {
     ctx.fillRect(x0 + cr.x * s - cs / 2, y0 + cr.y * s - cs / 2, cs, cs);
   }
   if (view) {
-    ctx.strokeStyle = "rgba(255,107,107,0.6)";
+    ctx.strokeStyle = "rgba(0,229,160,0.5)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(x0 + view.zx * s, y0 + view.zy * s, view.zr * s, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeStyle = "rgba(0,229,160,0.25)";
+  ctx.strokeStyle = "rgba(0,229,160,0.22)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.arc(x0 + selfX * s, y0 + selfY * s, SHOOTER.viewRadius * s, 0, Math.PI * 2);
@@ -3027,7 +3166,7 @@ function drawRadar(view, selfX, selfY) {
     for (const id of Object.keys(view.players)) {
       if (id === myId) continue;
       const pl = view.players[id];
-      ctx.fillStyle = pl.alive ? "#ff6b6b" : "rgba(139,152,168,0.4)";
+      ctx.fillStyle = pl.alive ? "#ff5a5a" : "rgba(139,152,168,0.4)";
       ctx.beginPath();
       ctx.arc(x0 + pl.x * s, y0 + pl.y * s, 2.5, 0, Math.PI * 2);
       ctx.fill();
@@ -3035,17 +3174,30 @@ function drawRadar(view, selfX, selfY) {
   }
   const sx = x0 + selfX * s;
   const sy = y0 + selfY * s;
-  ctx.fillStyle = "#00e5a0";
-  ctx.beginPath();
-  ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#00e5a0";
-  ctx.lineWidth = 1.5;
+  ctx.fillStyle = "rgba(0,229,160,0.14)";
   ctx.beginPath();
   ctx.moveTo(sx, sy);
-  ctx.lineTo(sx + Math.cos(aim) * 8, sy + Math.sin(aim) * 8);
-  ctx.stroke();
+  ctx.arc(sx, sy, 30, aim - 0.42, aim + 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(aim);
+  ctx.fillStyle = "#00e5a0";
+  ctx.beginPath();
+  ctx.moveTo(7, 0);
+  ctx.lineTo(-4, -4.5);
+  ctx.lineTo(-4, 4.5);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
+  ctx.restore();
+  ctx.strokeStyle = "rgba(0,229,160,0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.stroke();
+  drawCornerBrackets(x0 - 3, y0 - 3, size + 6, size + 6, 14, "#00e5a0", 2);
 }
 function drawGround(camX, camY) {
   ctx.fillStyle = "#3b4049";
@@ -3182,7 +3334,7 @@ function drawPlayer(p, x, y, isSelf, flashUntil, now) {
     }
     ctx.restore();
   } else {
-    ctx.fillStyle = flashing ? "#ff6b6b" : isSelf ? "#00e5a0" : "#58a6ff";
+    ctx.fillStyle = flashing ? "#ff6b6b" : isSelf ? "#00e5a0" : "#ff5a5a";
     circle(x, y, 12, true);
     ctx.strokeStyle = ctx.fillStyle;
     ctx.lineWidth = 2;
@@ -3194,62 +3346,82 @@ function drawPlayer(p, x, y, isSelf, flashUntil, now) {
   const w = 30;
   ctx.fillStyle = "rgba(16,21,29,0.9)";
   ctx.fillRect(x - w / 2, y - 26, w, 4);
-  ctx.fillStyle = isSelf ? "#00e5a0" : "#58a6ff";
+  ctx.fillStyle = isSelf ? "#00e5a0" : "#ff5a5a";
   ctx.fillRect(x - w / 2, y - 26, w * Math.max(0, p.hp) / SHOOTER.maxHp, 4);
   label(`${p.score}`, x, y + 30);
 }
-function drawHud(hp, score, count, weapon, db) {
+function drawHud(hp, score, weapon, db, inZone, streak) {
   const pad = 14;
-  const w = 210;
-  const h = 118;
+  const w = 216;
+  const h = 92;
   const x = pad;
   const y = canvas.height - h - pad;
-  ctx.fillStyle = "rgba(16,21,29,0.85)";
-  ctx.strokeStyle = "#232b36";
+  ctx.fillStyle = "rgba(12,17,23,0.82)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(0,229,160,0.14)";
   ctx.lineWidth = 1;
-  roundRect(x, y, w, h, 10);
-  ctx.fill();
-  ctx.stroke();
-  const bx = x + 14;
-  const by = y + 16;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  drawCornerBrackets(x, y, w, h, 13, "#00e5a0", 2);
+  const lx = x + 14;
+  const rx = x + w - 14;
+  const by = y + 14;
   const bw = w - 28;
+  const bh = 7;
   ctx.fillStyle = "#0a0e14";
-  ctx.fillRect(bx, by, bw, 10);
+  ctx.fillRect(lx, by, bw, bh);
   const frac = clamp2(hp / SHOOTER.maxHp, 0, 1);
   ctx.fillStyle = frac > 0.5 ? "#00e5a0" : frac > 0.25 ? "#f2cc60" : "#ff6b6b";
-  ctx.fillRect(bx, by, bw * frac, 10);
-  ctx.fillStyle = "#e6edf3";
+  ctx.fillRect(lx, by, bw * frac, bh);
+  ctx.font = "12px ui-monospace, monospace";
+  const r1 = y + 40;
+  hudPair(lx, r1, "HP", String(Math.max(0, Math.round(hp))), "left");
+  hudPair(rx, r1, "SCORE", String(score), "right");
+  const r2 = y + 58;
   ctx.font = "11px ui-monospace, monospace";
   ctx.textAlign = "left";
-  ctx.fillText(`HP ${Math.max(0, Math.round(hp))}`, bx, by + 26);
-  ctx.textAlign = "right";
-  ctx.fillText(`SCORE ${score}`, bx + bw, by + 26);
-  ctx.textAlign = "left";
+  const streakTxt = `STREAK ${streak}   \xB7   `;
   ctx.fillStyle = "#8b98a8";
-  ctx.fillText(`${count}/${MAX_PLAYERS} in view`, bx, by + 42);
+  ctx.fillText(streakTxt, lx, r2);
+  const zoneTxt = inZone ? "IN ZONE" : "OUT OF ZONE";
+  const zoneX = lx + ctx.measureText(streakTxt).width;
+  ctx.fillStyle = inZone ? "#8b98a8" : "#ff6b6b";
+  ctx.fillText(zoneTxt, zoneX, r2);
+  if (db) {
+    ctx.fillStyle = "#ff9f43";
+    ctx.fillText("   \xB7   DMG\xD72", zoneX + ctx.measureText(zoneTxt).width, r2);
+  }
+  const r3 = y + 78;
+  ctx.font = "12px ui-monospace, monospace";
   const spec = WEAPONS[weapon] ?? WEAPONS[0];
-  ctx.fillStyle = "#e6edf3";
-  ctx.fillText(`WEAPON ${spec.name}`, bx, by + 60);
+  hudPair(lx, r3, "WEAPON", spec.name, "left");
   ctx.textAlign = "right";
   if (spec.mag <= 0) {
     ctx.fillStyle = "#8b98a8";
-    ctx.fillText("\u221E", bx + bw, by + 60);
+    ctx.fillText("\u221E", rx, r3);
   } else if (reloadUntil > 0 && performance.now() < reloadUntil) {
     ctx.fillStyle = "#f2cc60";
-    ctx.fillText("RELOAD\u2026", bx + bw, by + 60);
+    ctx.fillText("RELOAD\u2026", rx, r3);
   } else {
     const n = ammo[weapon] ?? 0;
     ctx.fillStyle = n <= spec.mag * 0.25 ? "#ff6b6b" : "#e6edf3";
-    ctx.fillText(`${n}/${spec.mag}`, bx + bw, by + 60);
+    ctx.fillText(`${n}/${spec.mag}`, rx, r3);
   }
-  ctx.textAlign = "left";
-  if (db) {
-    ctx.fillStyle = "#ff9f43";
-    ctx.fillText("DMG \xD72", bx, by + 76);
-  }
-  ctx.fillStyle = "#8b98a8";
-  ctx.fillText(isTouch ? "sticks: move / aim \xB7 tap 1-3" : "hold fire \xB7 1/2/3 swap \xB7 R reload", bx, by + 92);
   ctx.textAlign = "start";
+}
+function hudPair(x, y, label2, value, align) {
+  if (align === "left") {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText(label2, x, y);
+    ctx.fillStyle = "#e6edf3";
+    ctx.fillText(value, x + ctx.measureText(label2 + " ").width, y);
+  } else {
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#e6edf3";
+    ctx.fillText(value, x, y);
+    ctx.fillStyle = "#8b98a8";
+    ctx.fillText(label2, x - ctx.measureText(value + " ").width, y);
+  }
 }
 function drawSpawnRing(x, y, now) {
   ctx.save();
@@ -3310,7 +3482,7 @@ function drawKillFeed(now) {
   ctx.font = "12px ui-monospace, monospace";
   ctx.textAlign = "right";
   const rx = canvas.width - 16;
-  let y = 200;
+  let y = 236;
   for (const k of killFeed.slice(0, 5)) {
     ctx.globalAlpha = Math.min(1, (k.until - now) / 400);
     ctx.fillStyle = k.mine ? "#00e5a0" : "#e6edf3";
@@ -3389,13 +3561,25 @@ function drawZone(view, camX, camY) {
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
   ctx.arc(zx, zy, zr, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,60,60,0.08)";
+  ctx.fillStyle = "rgba(255,60,60,0.06)";
   ctx.fill("evenodd");
   ctx.beginPath();
   ctx.arc(zx, zy, zr, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255,107,107,0.6)";
+  ctx.strokeStyle = "rgba(0,229,160,0.55)";
   ctx.lineWidth = 2;
+  ctx.shadowColor = "rgba(0,229,160,0.5)";
+  ctx.shadowBlur = 8;
   ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(0,229,160,0.5)";
+  const ticks = 24;
+  for (let i = 0; i < ticks; i++) {
+    const a = i / ticks * Math.PI * 2;
+    const px = zx + Math.cos(a) * zr;
+    const py = zy + Math.sin(a) * zr;
+    if (px < -16 || py < -16 || px > canvas.width + 16 || py > canvas.height + 16) continue;
+    drawChevron(px, py, a + Math.PI, 6);
+  }
   ctx.restore();
 }
 function drawZoneWarning(now) {
@@ -3413,11 +3597,37 @@ function drawZoneWarning(now) {
   ctx.save();
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#ff6b6b";
-  ctx.font = "bold 14px ui-monospace, monospace";
-  ctx.textAlign = "center";
-  ctx.fillText("OUTSIDE ZONE", canvas.width / 2, canvas.height / 2 + 30);
   ctx.restore();
+}
+function drawZoneShrinkBanner(now) {
+  if (now >= zoneShrinkUntil) return;
+  const compact = canvas.width < 560;
+  const text = compact ? "\u26A0 ZONE SHRINKING" : "\u26A0 SURVIVAL ZONE SHRINKING";
+  const pulse = 0.72 + 0.28 * Math.sin(now / 180);
+  ctx.save();
+  ctx.font = "bold 13px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const bw = ctx.measureText(text).width + (compact ? 44 : 120);
+  const bh = 32;
+  const bx = Math.round(canvas.width / 2 - bw / 2);
+  const by = canvas.height - 62;
+  const mid = by + bh / 2 + 1;
+  ctx.fillStyle = "rgba(12,17,23,0.82)";
+  roundRect(bx, by, bw, bh, 8);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(0,229,160,${(0.25 + 0.35 * pulse).toFixed(3)})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = "#00e5a0";
+  ctx.fillText(text, canvas.width / 2, mid);
+  if (!compact) {
+    ctx.fillText("<<<", bx + 24, mid);
+    ctx.fillText(">>>", bx + bw - 24, mid);
+  }
+  ctx.restore();
+  ctx.textBaseline = "alphabetic";
   ctx.textAlign = "start";
 }
 function drawPickups(view, camX, camY, now) {
@@ -3471,6 +3681,36 @@ function roundRect(x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+function drawCornerBrackets(x, y, w, h, len, color, lw = 2) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(x, y + len);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + len, y);
+  ctx.moveTo(x + w - len, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + len);
+  ctx.moveTo(x + w, y + h - len);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x + w - len, y + h);
+  ctx.moveTo(x + len, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + h - len);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawChevron(x, y, dir, size) {
+  const c = Math.cos(dir);
+  const s = Math.sin(dir);
+  ctx.beginPath();
+  ctx.moveTo(x + c * size, y + s * size);
+  ctx.lineTo(x - s * size * 0.7, y + c * size * 0.7);
+  ctx.lineTo(x + s * size * 0.7, y - c * size * 0.7);
+  ctx.closePath();
+  ctx.fill();
 }
 function circle(x, y, r, fill) {
   ctx.beginPath();
