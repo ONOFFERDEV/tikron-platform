@@ -1,6 +1,6 @@
 {
   "name": "@tikron/protocol",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Shared wire protocol for Tikron — message tags and the JSON envelope codec between the client SDK and the room server.",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",

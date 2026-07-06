@@ -1,6 +1,6 @@
 {
   "name": "@tikron/rpg",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Isomorphic RPG combat core for Tikron — data-driven skills, buffs, effects, stats, and combat math as pure deterministic reducers shared by the authoritative room and the client HUD. Zero timers, zero globals.",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
