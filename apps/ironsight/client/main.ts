@@ -15,8 +15,9 @@ import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { Hud } from "./hud.js";
-import { initAudio, playFire, playHit, playKill } from "./audio.js";
-import { INTERP_DELAY_MS } from "./config.js";
+import { initAudio, playBoom, playFire, playHit, playKill, playSwap } from "./audio.js";
+import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
+import { WEAPONS } from "../src/config.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 
 interface Pose {
@@ -42,7 +43,18 @@ async function main(): Promise<void> {
   const net = await Net.connect();
   const me0 = await waitForSelf(net);
 
-  const input = new Input(scene.canvas, me0?.yaw ?? 0);
+  const input = new Input(
+    scene.canvas,
+    me0?.yaw ?? 0,
+    undefined,
+    (slot) => net.sendSwitch(slot),
+    (dir) => {
+      const cur = net.state?.players[net.myId]?.weapon ?? 0;
+      const next = (((cur + dir) % WEAPONS.length) + WEAPONS.length) % WEAPONS.length;
+      net.sendSwitch(next + 1);
+    },
+    () => net.sendNade(),
+  );
   input.pitch = me0?.pitch ?? 0;
   const predictor = new Predictor();
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
@@ -70,13 +82,25 @@ async function main(): Promise<void> {
   let killerName: string | undefined;
   let matchEnd: { winner: string; red: number; blue: number } | null = null;
 
-  net.onAmmo((e) => hud.setAmmo(e.mag, e.reserve, e.reloadMs));
+  let curWeapon = 0;
+  net.onAmmo((e) => {
+    hud.setAmmo(e.mag, e.reserve, e.reloadMs);
+    // ammo.weapon is the SLOT (1–5, WeaponSpec.slot); everything client-side indexes 0–4.
+    const idx = e.weapon - 1;
+    hud.setWeapon(idx);
+    if (idx !== curWeapon && idx >= 0) {
+      curWeapon = idx;
+      scene.setWeapon(idx);
+      net.setFireInterval(idx);
+      playSwap();
+    }
+  });
   net.onHit((e) => {
     hud.showHitmarker(e.head);
     playHit(e.head);
   });
   net.onKill((e) => {
-    hud.addKill(name(e.killer), name(e.victim), e.part === "head", e.killerTeam);
+    hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam);
     if (e.victim === net.myId) killerName = name(e.killer);
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
@@ -85,6 +109,12 @@ async function main(): Promise<void> {
   });
   net.onMatchEnd((e) => {
     matchEnd = { winner: e.winner, red: e.red, blue: e.blue };
+  });
+  net.onNadeSpawn((e) => scene.spawnNade(e));
+  net.onNadeBounce((e) => scene.bounceNade(e));
+  net.onNadeBoom((e) => {
+    scene.boomNade(e);
+    playBoom();
   });
 
   net.room.onStateChange((raw) => {
@@ -117,6 +147,11 @@ async function main(): Promise<void> {
   let last = performance.now();
   let prevYaw = input.yaw;
   let prevPitch = input.pitch;
+  const onAds = (held: boolean): void => {
+    scene.setAds(held);
+    // Zoom slows the turn: scale look sensitivity by the live FOV ratio.
+    input.sensScale = scene.currentFov / HIP_FOV;
+  };
 
   function frame(now: number): void {
     const dt = Math.min(100, now - last);
@@ -138,14 +173,15 @@ async function main(): Promise<void> {
     // Firing (server fire interval is the truth; net gates, we kick locally).
     if (input.isFiring && alive && phase === "live") {
       if (net.tryFire(now)) {
-        scene.fireRecoil();
-        playFire();
+        scene.fireRecoil(curWeapon);
+        playFire(curWeapon);
       }
     }
 
     // Camera from prediction (local, immediate) — hide own body, show viewmodel.
     const eye = predictor.eye();
     scene.setView(eye, input.yaw, input.pitch);
+    onAds(input.adsHeld);
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
     prevYaw = input.yaw;
@@ -160,7 +196,10 @@ async function main(): Promise<void> {
     scene.render();
 
     // HUD.
-    if (me) hud.setHp(me.hp);
+    if (me) {
+      hud.setHp(me.hp);
+      hud.setNades(me.nades);
+    }
     if (state) hud.setScores(state.redScore, state.blueScore);
     hud.setSpread(!predictor.isGrounded ? 1 : moving ? 0.5 : 0);
     hud.setPing(net.rttMs);

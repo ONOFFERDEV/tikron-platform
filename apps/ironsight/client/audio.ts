@@ -38,34 +38,93 @@ function ready(): AudioContext | null {
   return c;
 }
 
-/** Rifle crack: a fast noise burst through a bandpass, plus a short body thump. */
-export function playFire(): void {
+/** Per-weapon crack character (indexed like WEAPONS: AR/SMG/Shotgun/Sniper/Pistol). */
+const FIRE_PARAMS = [
+  { bp: 1600, dur: 0.09, gain: 0.9, thump: 180 }, // AR — the baseline crack
+  { bp: 2300, dur: 0.055, gain: 0.65, thump: 240 }, // SMG — short & snappy
+  { bp: 650, dur: 0.18, gain: 1.1, thump: 110 }, // Shotgun — low boom
+  { bp: 900, dur: 0.26, gain: 1.2, thump: 80 }, // Sniper — big & long
+  { bp: 1300, dur: 0.08, gain: 0.75, thump: 200 }, // Pistol
+] as const;
+
+/** Gunshot: a noise burst through a bandpass + a body thump, tuned per weapon. */
+export function playFire(weaponIndex = 0): void {
   const c = ready();
   if (!c || !master || !noise) return;
+  const p = FIRE_PARAMS[weaponIndex] ?? FIRE_PARAMS[0];
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
   const bp = c.createBiquadFilter();
   bp.type = "bandpass";
-  bp.frequency.value = 1600;
+  bp.frequency.value = p.bp;
   bp.Q.value = 0.8;
   const g = c.createGain();
-  g.gain.setValueAtTime(0.9, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  g.gain.setValueAtTime(p.gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
   src.connect(bp).connect(g).connect(master);
   src.start(t);
-  src.stop(t + 0.1);
+  src.stop(t + p.dur + 0.02);
 
   const osc = c.createOscillator();
   osc.type = "triangle";
-  osc.frequency.setValueAtTime(180, t);
-  osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+  osc.frequency.setValueAtTime(p.thump, t);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(45, p.thump / 3), t + p.dur * 0.9);
   const og = c.createGain();
   og.gain.setValueAtTime(0.5, t);
-  og.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  og.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
   osc.connect(og).connect(master);
   osc.start(t);
-  osc.stop(t + 0.1);
+  osc.stop(t + p.dur + 0.02);
+}
+
+/** Grenade detonation: a long low-passed noise rumble + a 50 Hz sub swell. */
+export function playBoom(): void {
+  const c = ready();
+  if (!c || !master || !noise) return;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noise;
+  const lp = c.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.setValueAtTime(900, t);
+  lp.frequency.exponentialRampToValueAtTime(80, t + 0.45);
+  const g = c.createGain();
+  g.gain.setValueAtTime(1.2, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  src.connect(lp).connect(g).connect(master);
+  src.start(t);
+  src.stop(t + 0.52);
+
+  const sub = c.createOscillator();
+  sub.type = "sine";
+  sub.frequency.value = 50;
+  const sg = c.createGain();
+  sg.gain.setValueAtTime(0.0001, t);
+  sg.gain.linearRampToValueAtTime(0.6, t + 0.02);
+  sg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+  sub.connect(sg).connect(master);
+  sub.start(t);
+  sub.stop(t + 0.42);
+}
+
+/** Weapon-swap: a short mechanical double click. */
+export function playSwap(): void {
+  const c = ready();
+  if (!c || !master) return;
+  const t = c.currentTime;
+  for (const [i, f] of [420, 300].entries()) {
+    const osc = c.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = f;
+    const g = c.createGain();
+    const start = t + i * 0.06;
+    g.gain.setValueAtTime(0.12, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.03);
+    osc.connect(g).connect(master);
+    osc.start(start);
+    osc.stop(start + 0.04);
+  }
 }
 
 /** Hit confirm: a short high tick. */

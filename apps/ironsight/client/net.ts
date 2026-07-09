@@ -7,7 +7,7 @@
  */
 import { GameClient, type Room } from "@tikron/client";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR } from "../src/config.js";
+import { AR, WEAPONS } from "../src/config.js";
 import { LOOK_SEND_MS, MOVE_KEEPALIVE_MS } from "./config.js";
 
 /** The held movement intent the server integrates every tick. */
@@ -22,6 +22,7 @@ export interface MoveIntent {
 export interface AmmoEvent {
   mag: number;
   reserve: number;
+  weapon: number;
   reloadMs?: number;
 }
 export interface HitEvent {
@@ -37,6 +38,7 @@ export interface KillEvent {
 }
 export interface ShotEvent {
   from: string;
+  weapon: number;
   ox: number;
   oy: number;
   oz: number;
@@ -45,6 +47,33 @@ export interface ShotEvent {
   dz: number;
   dist: number;
   hit: boolean;
+}
+export interface NadeSpawnEvent {
+  id: string;
+  from: string;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  fuseMs: number;
+}
+export interface NadeBounceEvent {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+}
+export interface NadeBoomEvent {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  r: number;
 }
 export interface MatchEndEvent {
   winner: "red" | "blue" | "draw";
@@ -167,8 +196,15 @@ export class Net {
    * budget (the server is the real cadence). Returns true when a `fire` was sent,
    * so the caller can kick the predicted viewmodel immediately.
    */
+  private fireIntervalMs = AR.fireIntervalMs;
+
+  /** Track the held weapon's cadence (main calls this on switch) so held-fire matches it. */
+  setFireInterval(weaponIndex: number): void {
+    this.fireIntervalMs = WEAPONS[weaponIndex]?.fireIntervalMs ?? AR.fireIntervalMs;
+  }
+
   tryFire(now: number): boolean {
-    if (now - this.lastFireAt < AR.fireIntervalMs) return false;
+    if (now - this.lastFireAt < this.fireIntervalMs) return false;
     this.lastFireAt = now;
     this.room.send("fire", {});
     return true;
@@ -180,6 +216,21 @@ export class Net {
 
   respawn(): void {
     this.room.send("respawn");
+  }
+
+  /** Switch to loadout slot 1–5 (matches {@link WeaponSpec.slot}). */
+  sendSwitch(slot: number): void {
+    this.room.send("switch", { slot });
+  }
+
+  /** Throw the held grenade. */
+  sendNade(): void {
+    this.room.send("nade", {});
+  }
+
+  /** Set the primary weapon for the next loadout (M2 lobby concern; not called yet). */
+  sendLoadout(primary: number): void {
+    this.room.send("loadout", { primary });
   }
 
   // --- events ----------------------------------------------------------------
@@ -195,6 +246,15 @@ export class Net {
   }
   onShot(cb: (e: ShotEvent) => void): void {
     this.room.onMessage("shot", (p) => cb(p as ShotEvent));
+  }
+  onNadeSpawn(cb: (e: NadeSpawnEvent) => void): void {
+    this.room.onMessage("nadeSpawn", (p) => cb(p as NadeSpawnEvent));
+  }
+  onNadeBounce(cb: (e: NadeBounceEvent) => void): void {
+    this.room.onMessage("nadeBounce", (p) => cb(p as NadeBounceEvent));
+  }
+  onNadeBoom(cb: (e: NadeBoomEvent) => void): void {
+    this.room.onMessage("nadeBoom", (p) => cb(p as NadeBoomEvent));
   }
   onRespawn(cb: (id: string) => void): void {
     this.room.onMessage("respawn", (p) => cb((p as { id: string }).id));

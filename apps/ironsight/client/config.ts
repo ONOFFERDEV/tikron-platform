@@ -34,3 +34,13 @@ export const RECONCILE_TAU_MS = 80; // render-offset decay time constant
 /** Team tints (0 = red, 1 = blue — matches TEAM in the server config). */
 export const TEAM_COLOR = [0xe8563a, 0x3a7ce8] as const;
 export const TEAM_COLOR_DIM = [0x7a2c20, 0x1f3f78] as const;
+
+/**
+ * FOV zoom on ADS (right-click aim). `HIP_FOV` matches the camera's default FOV;
+ * `ADS_FOV` is per-weapon (indexed like `WEAPONS`: AR/SMG/Shotgun/Sniper/Pistol) so
+ * the sniper gets a real zoom while the rest just tighten slightly.
+ */
+export const HIP_FOV = 78;
+export const ADS_FOV = [55, 55, 55, 30, 55] as const;
+/** Mouse sensitivity multiplier while ADS-holding (FOV ratio — zoom slows the turn). */
+export const ADS_SENS_SCALE = ADS_FOV.map((f) => f / HIP_FOV);

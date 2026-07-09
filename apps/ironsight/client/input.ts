@@ -17,16 +17,25 @@ export class Input {
   yaw = 0;
   pitch = 0;
   locked = false;
+  /** Look-sensitivity multiplier (main sets it to fov/HIP_FOV so ADS zoom slows the turn). */
+  sensScale = 1;
 
   private readonly held = new Set<string>();
   private firing = false;
   private jumpEdge = false;
   private reloadEdge = false;
+  private adsHeldState = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     initialYaw: number,
     private readonly onLockChange?: (locked: boolean) => void,
+    /** Digit1–5 pressed: switch to that loadout slot. */
+    private readonly onSwitch?: (slot: number) => void,
+    /** Scroll wheel: cycle to the adjacent slot (+1 = next, -1 = previous). */
+    private readonly onCycle?: (dir: 1 | -1) => void,
+    /** KeyG pressed: throw a grenade. */
+    private readonly onNade?: () => void,
   ) {
     this.yaw = initialYaw;
     this.bind();
@@ -40,6 +49,11 @@ export class Input {
         e.preventDefault();
       } else if (e.code === "KeyR") {
         if (!e.repeat) this.reloadEdge = true;
+      } else if (e.code === "KeyG") {
+        if (!e.repeat) this.onNade?.();
+      } else if (e.code.startsWith("Digit")) {
+        const slot = Number(e.code.slice(5));
+        if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
       }
       this.held.add(e.code);
     });
@@ -48,20 +62,41 @@ export class Input {
     window.addEventListener("blur", () => {
       this.held.clear();
       this.firing = false;
+      this.adsHeldState = false;
     });
 
     this.canvas.addEventListener("mousedown", (e) => {
+      if (e.button === 2) {
+        if (this.locked) this.adsHeldState = true;
+        return;
+      }
       if (e.button !== 0) return;
       if (this.locked) this.firing = true;
       else void this.canvas.requestPointerLock();
     });
     window.addEventListener("mouseup", (e) => {
       if (e.button === 0) this.firing = false;
+      else if (e.button === 2) this.adsHeldState = false;
     });
+    // Right-click drives ADS, not the browser context menu.
+    this.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    this.canvas.addEventListener(
+      "wheel",
+      (e) => {
+        if (!this.locked) return;
+        this.onCycle?.(e.deltaY > 0 ? 1 : -1);
+        e.preventDefault();
+      },
+      { passive: false },
+    );
 
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.canvas;
-      if (!this.locked) this.firing = false;
+      if (!this.locked) {
+        this.firing = false;
+        this.adsHeldState = false;
+      }
       this.onLockChange?.(this.locked);
     });
 
@@ -70,8 +105,8 @@ export class Input {
       // Mouse-right must turn the view right: with forward=(sin yaw, cos yaw) and the FPS
       // camera's screen-x axis, that means yaw DECREASES as movementX grows (user report:
       // left/right was inverted).
-      this.yaw -= e.movementX * MOUSE_SENSITIVITY;
-      const dp = e.movementY * MOUSE_SENSITIVITY * (INVERT_Y ? 1 : -1);
+      this.yaw -= e.movementX * MOUSE_SENSITIVITY * this.sensScale;
+      const dp = e.movementY * MOUSE_SENSITIVITY * this.sensScale * (INVERT_Y ? 1 : -1);
       this.pitch = clamp(this.pitch + dp, -PITCH_LIMIT, PITCH_LIMIT);
       this.yaw = wrapTau(this.yaw);
     });
@@ -85,6 +120,11 @@ export class Input {
   /** Whether left-fire is currently held (only true while pointer-locked). */
   get isFiring(): boolean {
     return this.firing && this.locked;
+  }
+
+  /** Whether right-click ADS is currently held (only true while pointer-locked). */
+  get adsHeld(): boolean {
+    return this.adsHeldState && this.locked;
   }
 
   /**

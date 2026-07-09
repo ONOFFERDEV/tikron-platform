@@ -5,6 +5,7 @@
  * is injected here so `index.html` stays a bare mount point.
  */
 import { TEAM_COLOR } from "./config.js";
+import { WEAPONS } from "../src/config.js";
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
@@ -35,6 +36,11 @@ const css = `
 #overlay h1 { font-size: 34px; margin: 0 0 8px; letter-spacing: 2px; }
 #overlay p { margin: 4px; opacity: 0.85; }
 #overlay .hint { margin-top: 18px; font-size: 13px; opacity: 0.6; }
+#wbar { left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; }
+#wbar .slot { padding: 4px 10px; border-radius: 6px; background: rgba(10,13,18,0.55); opacity: 0.5; font-size: 12px; white-space: nowrap; }
+#wbar .slot .num { opacity: 0.6; margin-right: 4px; }
+#wbar .slot.active { opacity: 1; background: rgba(70,130,220,0.65); box-shadow: 0 0 0 1px #9cc4ff; }
+#wbar .nades { padding: 4px 10px; border-radius: 6px; background: rgba(10,13,18,0.55); font-size: 12px; }
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -64,6 +70,8 @@ export class Hud {
   private readonly hitmarker: HTMLElement;
   private readonly vignette: HTMLElement;
   private readonly overlay: HTMLElement;
+  private readonly wslots: HTMLElement[];
+  private readonly nadeCount: HTMLElement;
 
   private reloadStart = -1;
   private reloadMs = 0;
@@ -119,6 +127,19 @@ export class Hud {
     scores.append(this.scoreR, el("span", undefined, "vs"), this.scoreB);
     this.root.appendChild(scores);
 
+    // Weapon bar (bottom-center): one slot per WEAPONS entry, plus a grenade badge.
+    const wbar = el("div", "wbar"); wbar.className = "panel";
+    this.wslots = WEAPONS.map((w, i) => {
+      const slot = el("div", undefined, `<span class="num">${i + 1}</span>${esc(w.name)}`);
+      slot.className = "slot";
+      wbar.appendChild(slot);
+      return slot;
+    });
+    this.nadeCount = el("div", undefined, "💣 0");
+    this.nadeCount.className = "nades";
+    wbar.appendChild(this.nadeCount);
+    this.root.appendChild(wbar);
+
     // Killfeed + ping + vignette + overlay.
     this.feed = el("div", "feed"); this.root.appendChild(this.feed);
     this.ping = el("div", "ping"); this.ping.className = "panel"; this.ping.textContent = "-- ms";
@@ -156,6 +177,16 @@ export class Hud {
     this.scoreB.textContent = String(blue);
   }
 
+  /** Highlight the held weapon's slot (index into {@link WEAPONS}). */
+  setWeapon(index: number): void {
+    this.wslots.forEach((s, i) => s.classList.toggle("active", i === index));
+  }
+
+  /** Update the carried grenade count badge. */
+  setNades(n: number): void {
+    this.nadeCount.innerHTML = `💣 ${n}`;
+  }
+
   /** Crosshair gap grows with `spread01` (0 = tight, 1 = wide). Visual only. */
   setSpread(spread01: number): void {
     const gap = 4 + spread01 * 16;
@@ -169,9 +200,9 @@ export class Hud {
     this.xhair.forEach((arm, i) => (arm.style.cssText = arms[i]![0]));
   }
 
-  addKill(killer: string, victim: string, head: boolean, killerTeam: number | null): void {
+  addKill(killer: string, victim: string, part: string, killerTeam: number | null): void {
     const color = killerTeam === 0 || killerTeam === 1 ? `#${TEAM_COLOR[killerTeam].toString(16)}` : "#eee";
-    const icon = head ? " ✷ " : " ➜ ";
+    const icon = part === "head" ? " ✷ " : part === "blast" ? " 💥 " : " ➜ ";
     const node = el("div"); node.className = "k";
     node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}`;
     this.feed.appendChild(node);
