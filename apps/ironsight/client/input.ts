@@ -67,7 +67,10 @@ export class Input {
 
     document.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
-      this.yaw += e.movementX * MOUSE_SENSITIVITY;
+      // Mouse-right must turn the view right: with forward=(sin yaw, cos yaw) and the FPS
+      // camera's screen-x axis, that means yaw DECREASES as movementX grows (user report:
+      // left/right was inverted).
+      this.yaw -= e.movementX * MOUSE_SENSITIVITY;
       const dp = e.movementY * MOUSE_SENSITIVITY * (INVERT_Y ? 1 : -1);
       this.pitch = clamp(this.pitch + dp, -PITCH_LIMIT, PITCH_LIMIT);
       this.yaw = wrapTau(this.yaw);
