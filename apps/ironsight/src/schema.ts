@@ -47,19 +47,27 @@ export interface ArenaPlayer {
   nades: number;
 }
 
-export type MatchPhase = "live" | "ended";
+export type MatchPhase = "live" | "ended" | "warmup";
 
 export interface ArenaState {
   players: Record<string, ArenaPlayer>;
   /** Per-room PRNG seed (u32) — drives deterministic per-shot spread. */
   seed: number;
-  /** Team scores (kills). */
+  /** Team scores (kills); reused as the point-capture score in "dom". */
   redScore: number;
   blueScore: number;
-  /** "live" during a round, "ended" during the post-match intermission banner. */
+  /** "live" during a round, "ended" during the post-match intermission banner,
+   * "warmup" while waiting for enough players before the round starts. */
   phase: MatchPhase;
   /** Server-clock epoch ms when the round's time limit expires (constant per round). */
   matchEndMs: number;
+  /** Numeric wire encoding of the active game mode — see modes.ts's MODE_ORDER. */
+  mode: number;
+  /** Domination capture-point gauges (0..200, 100 = neutral, 0 = blue, 200 = red);
+   * unused outside "dom". Appended after the M0/M1 fields for wire compatibility. */
+  capA: number;
+  capB: number;
+  capC: number;
 }
 
 const PlayerSchema: Codec<ArenaPlayer> = schema({
@@ -86,6 +94,13 @@ export const ArenaSchema: Codec<ArenaState> = schema({
   seed: "u32",
   redScore: "u16",
   blueScore: "u16",
-  phase: enumOf("live", "ended"),
+  // "warmup" appended after the existing values — do not reorder, it would break
+  // positional decoding on the wire.
+  phase: enumOf("live", "ended", "warmup"),
   matchEndMs: "f64",
+  // Appended after the M0/M1 fields so the existing wire layout is unchanged.
+  mode: "u8",
+  capA: "u8",
+  capB: "u8",
+  capC: "u8",
 });

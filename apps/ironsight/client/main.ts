@@ -59,7 +59,21 @@ async function main(): Promise<void> {
   const predictor = new Predictor();
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
 
-  const name = (id: string): string => (id === net.myId ? "You" : id.slice(0, 4));
+  const name = (id: string): string => {
+    if (id === net.myId) return "You";
+    if (id.startsWith("bot-")) return `BOT${id.slice(4)}`;
+    return id.slice(0, 4);
+  };
+
+  // Restart-vote keybind: R while phase==="ended" (input.ts's own KeyR is the
+  // live-play reload edge — this is a separate listener gated to the end-of-match
+  // overlay, and sends at most once per match end via voteSent).
+  window.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyR" || e.repeat) return;
+    if (net.state?.phase !== "ended" || voteSent) return;
+    voteSent = true;
+    net.sendVoteRestart();
+  });
 
   // Read-only introspection hook for E2E tooling / automated screenshots: the
   // authoritative state the client already holds, plus a look setter (equivalent to
@@ -81,6 +95,7 @@ async function main(): Promise<void> {
   let respawnSent = false;
   let killerName: string | undefined;
   let matchEnd: { winner: string; red: number; blue: number } | null = null;
+  let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
   let curWeapon = 0;
   net.onAmmo((e) => {
@@ -100,16 +115,18 @@ async function main(): Promise<void> {
     playHit(e.head);
   });
   net.onKill((e) => {
-    hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam);
+    hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam, e.assist ? name(e.assist) : undefined);
     if (e.victim === net.myId) killerName = name(e.killer);
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
+  net.onStreak((e) => hud.showStreak(name(e.id), e.count));
   net.onShot((e: ShotEvent) => {
     scene.addTracer({ x: e.ox, y: e.oy, z: e.oz }, { x: e.dx, y: e.dy, z: e.dz }, e.dist, e.hit);
   });
   net.onMatchEnd((e) => {
     matchEnd = { winner: e.winner, red: e.red, blue: e.blue };
   });
+  net.onVote((e) => hud.setVoteStatus(e.count, e.need));
   net.onNadeSpawn((e) => scene.spawnNade(e));
   net.onNadeBounce((e) => scene.bounceNade(e));
   net.onNadeBoom((e) => {
@@ -120,6 +137,12 @@ async function main(): Promise<void> {
   net.room.onStateChange((raw) => {
     const state = raw as ArenaState;
     if (state.phase === "live") matchEnd = null;
+    // Re-arm the restart vote once the match is no longer "ended" (routes through
+    // "warmup" first on a successful vote — see arena-room's enterWarmup).
+    if (state.phase !== "ended") {
+      voteSent = false;
+      hud.resetVoteStatus();
+    }
     const me = state.players[net.myId];
     if (me) {
       predictor.reconcile({ x: me.x, y: me.y, z: me.z });
@@ -204,6 +227,18 @@ async function main(): Promise<void> {
       hud.setNades(me.nades);
     }
     if (state) hud.setScores(state.redScore, state.blueScore);
+    const mode = state?.mode ?? 0;
+    hud.setMode(mode);
+    hud.setWarmup(phase === "warmup");
+    if (mode === 2 && state) hud.setCaps(state.capA, state.capB, state.capC);
+    else hud.hideCaps();
+    if (mode === 1 && state) {
+      const rows = Object.entries(state.players)
+        .map(([id, p]) => ({ name: name(id), k: p.k, d: p.d, isMe: id === net.myId }))
+        .sort((a, b) => b.k - a.k || a.d - b.d)
+        .slice(0, 8);
+      hud.setLeaderboard(rows);
+    }
     hud.setSpread(!predictor.isGrounded ? 1 : moving ? 0.5 : 0);
     fpsFrames++;
     if (now - fpsWindowStart >= 500) {
@@ -215,7 +250,11 @@ async function main(): Promise<void> {
 
     // Overlay precedence: match end > death > pointer-lock prompt.
     if (phase === "ended" && matchEnd) {
-      hud.showMatchEnd(matchEnd.winner, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0);
+      const isFfa = mode === 1;
+      // "draw" is a literal wire value (the no-score timeout), not a player id — name()
+      // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
+      const winnerLabel = isFfa && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
+      hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, isFfa);
     } else if (me && !me.alive) {
       const left = Math.max(0, RESPAWN_MS - (now - deathAt)) / 1000;
       hud.showDeath(left, killerName);

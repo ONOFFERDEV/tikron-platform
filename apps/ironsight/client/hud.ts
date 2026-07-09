@@ -6,6 +6,7 @@
  */
 import { TEAM_COLOR } from "./config.js";
 import { WEAPONS } from "../src/config.js";
+import { MODE_ORDER } from "../src/modes.js";
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
@@ -22,8 +23,22 @@ const css = `
 #reloadfill { height: 100%; width: 0%; background: #ffb347; }
 #scores { top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; align-items: center; font-size: 20px; font-weight: 700; }
 #scores .r { color: #ff8a6e; } #scores .b { color: #7db0ff; }
+#mode { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 2px; opacity: 0.5; }
+#streak { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; color: #ffd24a; text-shadow: 0 0 10px rgba(255,170,30,0.65); opacity: 0; transition: opacity 200ms; }
+#warmup { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; color: #ffd24a; text-shadow: 0 0 10px rgba(255,170,30,0.65); display: none; }
+#lb { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: none; font-size: 12px; min-width: 220px; }
+#lb table { border-collapse: collapse; width: 100%; }
+#lb th, #lb td { padding: 2px 10px; }
+#lb th:nth-child(n+3), #lb td:nth-child(n+3) { text-align: right; }
+#lb tr.me { color: #ffd24a; font-weight: 700; }
+#caps { position: absolute; top: 78px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; padding: 6px 10px; }
+#caps .cap { width: 70px; }
+#caps .cap .lbl { font-size: 10px; text-align: center; opacity: 0.7; margin-bottom: 2px; }
+#caps .cap .bar { position: relative; height: 8px; background: #2a2f3a; border-radius: 4px; overflow: hidden; }
+#caps .cap .fill { position: absolute; top: 0; bottom: 0; }
 #feed { top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
 #feed .k { background: rgba(10,13,18,0.55); padding: 3px 8px; border-radius: 6px; transition: opacity 300ms; }
+#feed .k .assist { opacity: 0.55; }
 #ping { left: 16px; top: 16px; opacity: 0.6; font-size: 12px; }
 #hitmarker { opacity: 0; }
 #hitmarker.show { opacity: 1; }
@@ -64,6 +79,14 @@ export class Hud {
   private readonly reloadFill: HTMLElement;
   private readonly scoreR: HTMLElement;
   private readonly scoreB: HTMLElement;
+  private readonly scoresPanel: HTMLElement;
+  private readonly modeLabel: HTMLElement;
+  private readonly streak: HTMLElement;
+  private readonly warmup: HTMLElement;
+  private readonly lb: HTMLElement;
+  private readonly lbBody: HTMLElement;
+  private readonly caps: HTMLElement;
+  private readonly capFills: HTMLElement[];
   private readonly feed: HTMLElement;
   private readonly ping: HTMLElement;
   private readonly xhair: HTMLElement[];
@@ -77,7 +100,11 @@ export class Hud {
   private reloadMs = 0;
   private hitAt = -1e9;
   private vignetteAt = -1e9;
+  private streakAt = -1e9;
   private readonly kills: KillRow[] = [];
+  /** Live restart-vote tally shown on the match-end overlay; -1 = no vote yet (show the hint instead). */
+  private voteCount = -1;
+  private voteNeed = 0;
 
   constructor(container: HTMLElement = document.body) {
     const style = el("style");
@@ -121,11 +148,46 @@ export class Hud {
     this.root.appendChild(ammo);
 
     // Scores.
-    const scores = el("div", "scores"); scores.className = "panel";
+    this.scoresPanel = el("div", "scores"); this.scoresPanel.className = "panel";
     this.scoreR = el("span", undefined, "0"); this.scoreR.className = "r";
     this.scoreB = el("span", undefined, "0"); this.scoreB.className = "b";
-    scores.append(this.scoreR, el("span", undefined, "vs"), this.scoreB);
-    this.root.appendChild(scores);
+    this.scoresPanel.append(this.scoreR, el("span", undefined, "vs"), this.scoreB);
+    this.root.appendChild(this.scoresPanel);
+
+    // Mode label.
+    this.modeLabel = el("div", "mode");
+    this.root.appendChild(this.modeLabel);
+
+    // Killstreak banner (transient; decayed in update()).
+    this.streak = el("div", "streak");
+    this.root.appendChild(this.streak);
+
+    // Warmup banner (static; toggled on/off by setWarmup, no decay).
+    this.warmup = el("div", "warmup", "WARMUP");
+    this.root.appendChild(this.warmup);
+
+    // FFA leaderboard (toggled with #scores by setMode).
+    this.lb = el("div", "lb");
+    const lbTable = el("table");
+    lbTable.appendChild(el("thead", undefined, "<tr><th>#</th><th>name</th><th>K</th><th>D</th></tr>"));
+    this.lbBody = el("tbody");
+    lbTable.appendChild(this.lbBody);
+    this.lb.appendChild(lbTable);
+    this.root.appendChild(this.lb);
+
+    // DOM capture-point gauges (mode-gated by main.ts via setCaps/hideCaps).
+    this.caps = el("div", "caps");
+    this.capFills = ["A", "B", "C"].map((label) => {
+      const cap = el("div"); cap.className = "cap";
+      const lbl = el("div", undefined, label); lbl.className = "lbl";
+      const bar = el("div"); bar.className = "bar";
+      const fill = el("div"); fill.className = "fill";
+      bar.appendChild(fill);
+      cap.append(lbl, bar);
+      this.caps.appendChild(cap);
+      return fill;
+    });
+    this.root.appendChild(this.caps);
 
     // Weapon bar (bottom-center): one slot per WEAPONS entry, plus a grenade badge.
     const wbar = el("div", "wbar"); wbar.className = "panel";
@@ -200,17 +262,82 @@ export class Hud {
     this.xhair.forEach((arm, i) => (arm.style.cssText = arms[i]![0]));
   }
 
-  addKill(killer: string, victim: string, part: string, killerTeam: number | null): void {
+  addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string): void {
     const color = killerTeam === 0 || killerTeam === 1 ? `#${TEAM_COLOR[killerTeam].toString(16)}` : "#eee";
     const icon = part === "head" ? " ✷ " : part === "blast" ? " 💥 " : " ➜ ";
+    const assist = assistName ? ` <span class="assist">(+assist ${esc(assistName)})</span>` : "";
     const node = el("div"); node.className = "k";
-    node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}`;
+    node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}${assist}`;
     this.feed.appendChild(node);
     this.kills.push({ node, born: performance.now() });
     while (this.kills.length > 5) {
       const old = this.kills.shift()!;
       old.node.remove();
     }
+  }
+
+  /** Uppercased active-mode label; also toggles the FFA leaderboard vs team scores. */
+  setMode(modeIndex: number): void {
+    this.modeLabel.textContent = MODE_ORDER[modeIndex]?.toUpperCase() ?? "";
+    const isFfa = modeIndex === 1;
+    this.lb.style.display = isFfa ? "block" : "none";
+    this.scoresPanel.style.display = isFfa ? "none" : "flex";
+  }
+
+  /** Transient center-top killstreak banner, decayed in update(). */
+  showStreak(who: string, count: number): void {
+    this.streak.textContent = `${who.toUpperCase()} · ${count} KILL STREAK`;
+    this.streak.style.opacity = "1";
+    this.streakAt = performance.now();
+  }
+
+  /** Static top-center "WARMUP" banner; visible only while phase==="warmup" (no decay). */
+  setWarmup(active: boolean): void {
+    this.warmup.style.display = active ? "block" : "none";
+  }
+
+  /** Live restart-vote tally, pushed from the "vote" broadcast. Read by showMatchEnd. */
+  setVoteStatus(count: number, need: number): void {
+    this.voteCount = count;
+    this.voteNeed = need;
+  }
+
+  /** Re-arm the vote hint for the next match-end (call once a new match starts). */
+  resetVoteStatus(): void {
+    this.voteCount = -1;
+    this.voteNeed = 0;
+  }
+
+  /** DOM capture-gauge bars (mode===2 only); a/b/c are 0..200, 100 = neutral. */
+  setCaps(a: number, b: number, c: number): void {
+    this.caps.style.display = "flex";
+    [a, b, c].forEach((v, i) => this.renderCap(this.capFills[i]!, v));
+  }
+
+  hideCaps(): void {
+    this.caps.style.display = "none";
+  }
+
+  private renderCap(fill: HTMLElement, value: number): void {
+    const pct = (value - 100) / 100; // -1 (fully blue) .. 0 (neutral) .. 1 (fully red)
+    if (pct >= 0) {
+      fill.style.left = "50%";
+      fill.style.right = "";
+      fill.style.width = `${pct * 50}%`;
+      fill.style.background = `#${TEAM_COLOR[0].toString(16)}`;
+    } else {
+      fill.style.left = "";
+      fill.style.right = "50%";
+      fill.style.width = `${-pct * 50}%`;
+      fill.style.background = `#${TEAM_COLOR[1].toString(16)}`;
+    }
+  }
+
+  /** Compact top-center k/d table (mode===1 only, toggled by setMode). */
+  setLeaderboard(rows: { name: string; k: number; d: number; isMe: boolean }[]): void {
+    this.lbBody.innerHTML = rows
+      .map((r, i) => `<tr class="${r.isMe ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`)
+      .join("");
   }
 
   showHitmarker(head: boolean): void {
@@ -252,13 +379,23 @@ export class Hud {
     this.overlay.innerHTML = `<h1 style="color:#e05a4a">ELIMINATED</h1>${sub}${line}`;
   }
 
-  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number): void {
+  /**
+   * `winner` is a display label, already resolved by the caller (main.ts) — the raw
+   * "red"/"blue"/"draw" wire value for team modes, or a player name via name(id) for
+   * FFA (`isFfa`), which renders in a neutral color instead of the team colors.
+   */
+  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, isFfa: boolean): void {
     this.overlay.style.display = "flex";
-    const title = winner === "draw" ? "DRAW" : `${winner.toUpperCase()} WINS`;
-    const color = winner === "red" ? "#ff8a6e" : winner === "blue" ? "#7db0ff" : "#eee";
-    this.overlay.innerHTML = `<h1 style="color:${color}">${title}</h1>`
-      + `<p><span style="color:#ff8a6e">RED ${red}</span> — <span style="color:#7db0ff">BLUE ${blue}</span></p>`
-      + `<p>your score: ${myKills} K / ${myDeaths} D</p><p class="hint">next round starting…</p>`;
+    // "draw" is checked before isFfa so an FFA no-score timeout renders "DRAW" in
+    // neutral color, matching team-mode draw rendering, instead of "draw WINS".
+    const title = winner === "draw" ? "DRAW" : isFfa ? `${esc(winner)} WINS` : `${winner.toUpperCase()} WINS`;
+    const color = isFfa ? "#eee" : winner === "red" ? "#ff8a6e" : winner === "blue" ? "#7db0ff" : "#eee";
+    const scoreLine = isFfa ? "" : `<p><span style="color:#ff8a6e">RED ${red}</span> — <span style="color:#7db0ff">BLUE ${blue}</span></p>`;
+    const voteLine = this.voteCount >= 0
+      ? `<p class="hint">RESTART VOTES ${this.voteCount}/${this.voteNeed}</p>`
+      : `<p class="hint">PRESS R TO VOTE RESTART</p>`;
+    this.overlay.innerHTML = `<h1 style="color:${color}">${title}</h1>${scoreLine}`
+      + `<p>your score: ${myKills} K / ${myDeaths} D</p>${voteLine}`;
   }
 
   hideOverlay(): void {
@@ -277,6 +414,7 @@ export class Hud {
     }
     if (now - this.hitAt > 90) this.hitmarker.className = "center";
     if (now - this.vignetteAt > 60) this.vignette.style.boxShadow = "inset 0 0 120px 40px rgba(200,30,30,0)";
+    if (now - this.streakAt > 1800) this.streak.style.opacity = "0";
     for (let i = this.kills.length - 1; i >= 0; i--) {
       const k = this.kills[i]!;
       const age = now - k.born;

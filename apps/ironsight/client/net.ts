@@ -35,6 +35,7 @@ export interface KillEvent {
   victim: string;
   part: string;
   killerTeam: number | null;
+  assist?: string;
 }
 export interface ShotEvent {
   from: string;
@@ -76,7 +77,9 @@ export interface NadeBoomEvent {
   r: number;
 }
 export interface MatchEndEvent {
-  winner: "red" | "blue" | "draw";
+  /** TDM/DOM: "red" | "blue" | "draw". FFA: the winning player's session id (or
+   *  "draw" on the rare scoreless-timeout fallback — see arena-room's endMatch). */
+  winner: string;
   red: number;
   blue: number;
 }
@@ -233,6 +236,11 @@ export class Net {
     this.room.send("loadout", { primary });
   }
 
+  /** Cast this client's restart vote (only meaningful while phase is "ended"). */
+  sendVoteRestart(): void {
+    this.room.send("voteRestart");
+  }
+
   // --- events ----------------------------------------------------------------
 
   onAmmo(cb: (e: AmmoEvent) => void): void {
@@ -243,6 +251,9 @@ export class Net {
   }
   onKill(cb: (e: KillEvent) => void): void {
     this.room.onMessage("kill", (p) => cb(p as KillEvent));
+  }
+  onStreak(cb: (e: { id: string; count: number }) => void): void {
+    this.room.onMessage("streak", (p) => cb(p as { id: string; count: number }));
   }
   onShot(cb: (e: ShotEvent) => void): void {
     this.room.onMessage("shot", (p) => cb(p as ShotEvent));
@@ -261,5 +272,8 @@ export class Net {
   }
   onMatchEnd(cb: (e: MatchEndEvent) => void): void {
     this.room.onMessage("matchEnd", (p) => cb(p as MatchEndEvent));
+  }
+  onVote(cb: (e: { count: number; need: number }) => void): void {
+    this.room.onMessage("vote", (p) => cb(p as { count: number; need: number }));
   }
 }

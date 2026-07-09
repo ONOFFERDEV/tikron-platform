@@ -25,6 +25,11 @@ class BattleArena extends ArenaRoomImpl {
   protected override respawnMs = 1000; // quick turnaround so 90 s holds many duels
   protected override killTarget = 500; // unreachable in the budget → phase stays "live"
   protected override matchTimeMs = 60 * 60_000; // 1 h → the clock never ends the round
+  // This E2E scripts exactly two bots and asserts redScore+blueScore === kills, so the
+  // M2 match flow must not interfere: no filler bots (would add kills off-script) and no
+  // warmup gate (a resetMatch would wipe the running score mid-run).
+  protected override fillToPlayers = 0;
+  protected override startInWarmup = false;
 }
 
 /** Interpolation delay in whole ticks — how far back the bot's perception sits. */

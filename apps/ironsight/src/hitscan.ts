@@ -49,8 +49,11 @@ export interface Hit {
 /**
  * The nearest enemy hit along `origin + t·dir` within `range`, or `null`. Ray
  * direction must be unit length. Targets on `shooterTeam` are ignored (no friendly
- * fire and teammates never block your bullets in M0). A map box entered before a
- * target shields it.
+ * fire and teammates never block your bullets in M0) UNLESS `teamless` is set (FFA:
+ * every other player is a valid target regardless of the shared team=0 the room
+ * assigns everyone — the shooter itself is excluded upstream, before `targets` is
+ * built, so this flag never needs to reintroduce self-exclusion). A map box entered
+ * before a target shields it.
  */
 export function resolveHitscan(
   origin: Vec3,
@@ -60,12 +63,13 @@ export function resolveHitscan(
   targets: readonly HitTarget[],
   boxes: readonly Box[],
   cfg: HitConfig,
+  teamless = false,
 ): Hit | null {
   const occludeT = nearestBox(origin, dir, boxes, range);
   let best: Hit | null = null;
 
   for (const tgt of targets) {
-    if (tgt.team === shooterTeam) continue;
+    if (!teamless && tgt.team === shooterTeam) continue;
 
     const headCentre: Vec3 = { x: tgt.x, y: tgt.headY - cfg.headRadius, z: tgt.z };
     const tHead = raySphere(origin, dir, headCentre, cfg.headRadius, range);

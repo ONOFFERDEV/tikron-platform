@@ -58,3 +58,11 @@ export const ARENA1_SPAWNS: { readonly red: readonly Vec3[]; readonly blue: read
     { x: 56, y: 0, z: 34 },
   ],
 };
+
+/** Domination (M2-A) capture points — centred on the map's mid lane, spread across
+ * the three z-rows the existing spawn rows also use, so they sit on open ground. */
+export const ARENA1_CAPS: { readonly a: Vec3; readonly b: Vec3; readonly c: Vec3 } = {
+  a: { x: 30, y: 0, z: 7 },
+  b: { x: 30, y: 0, z: 20 },
+  c: { x: 30, y: 0, z: 33 },
+};

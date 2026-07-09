@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR, GRENADE, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
+import { AR, GRENADE, MODES, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
 
 const SHOTGUN = WEAPONS.find((w) => w.name === "Shotgun")!;
 /** Pitch that drops the eye-height muzzle onto an enemy's chest `dist` m away. */
@@ -19,6 +19,32 @@ class FastArena extends ArenaRoomImpl {
   protected override spawnProtectMs = 0;
   protected override respawnMs = 200;
   protected override intermissionMs = 200;
+  // These suites script combat directly: no M2 filler bots, no warmup gate.
+  protected override fillToPlayers = 0;
+  protected override startInWarmup = false;
+  // The post-match reset still runs through warmup → live; make it reachable with a
+  // single scripted connection and short enough to reach within a test's tick budget.
+  protected override warmupMinPlayers = 1;
+  protected override warmupMs = 200;
+}
+
+/** Real spawn protection (1.5 s) but no filler bots, so a scripted 2-player duel isn't disturbed. */
+class ProtArena extends ArenaRoomImpl {
+  protected override fillToPlayers = 0;
+  protected override startInWarmup = false;
+}
+
+/** Fast match flow (mirrors FastArena) but keeps filler bots on, for vote-restart tests
+ *  that need real (non-voting) bot seats alongside scripted human connections. */
+class VoteArena extends ArenaRoomImpl {
+  protected override killTarget = 2;
+  protected override intermissionMs = 200;
+  protected override respawnMs = 200;
+  protected override spawnProtectMs = 0;
+  protected override startInWarmup = false;
+  protected override warmupMinPlayers = 1;
+  protected override warmupMs = 200;
+  protected override fillToPlayers = 4;
 }
 
 /** Pitch that aims the shooter's eye-height muzzle at an enemy's chest 10 m away. */
@@ -68,7 +94,7 @@ afterEach(() => {
 
 describe("arena room — teams & movement", () => {
   it("auto-balances teams on join (red, then blue, then red)", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
     const b = await h.connect();
     const c = await h.connect();
@@ -79,7 +105,7 @@ describe("arena room — teams & movement", () => {
   });
 
   it("integrates WASD forward; sprint is faster, crouch is slower and lowers the stance", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect(); // red, spawns facing +x (yaw π/2)
 
     await a.send("move", { mz: 1 });
@@ -106,7 +132,7 @@ describe("arena room — teams & movement", () => {
   });
 
   it("jump rises off the ground and gravity returns the player to it", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
     await a.send("move", { jump: true });
     await tick(h, 3);
@@ -116,7 +142,7 @@ describe("arena room — teams & movement", () => {
   });
 
   it("map cover blocks horizontal movement (no tunnelling through a box)", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect(); // red spawn (4,·,6), facing +x toward the platform at x≈27
     await a.send("move", { mz: 1 });
     await tick(h, 100);
@@ -126,7 +152,7 @@ describe("arena room — teams & movement", () => {
   });
 
   it("look wraps yaw into [0,2π) and clamps pitch to the vertical limit", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
     await a.send("look", { yaw: 10, pitch: 5 });
     await tick(h, 1);
@@ -138,7 +164,7 @@ describe("arena room — teams & movement", () => {
 
 describe("arena room — weapon (server-authoritative)", () => {
   it("enforces the fire-rate cap: a second shot inside the interval is ignored", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
     await a.send("fire");
     await a.send("fire"); // same tick / same clock instant — inside the 100 ms interval
@@ -152,7 +178,7 @@ describe("arena room — weapon (server-authoritative)", () => {
   });
 
   it("decrements the magazine per shot and a manual reload refills from the reserve", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
     for (let i = 0; i < 3; i++) {
       await a.send("fire");
@@ -198,7 +224,7 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
   });
 
   it("spawn protection makes an enemy untargetable until it expires", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const shooter = await h.connect();
     const target = await h.connect();
     await tick(h, 2);
@@ -274,17 +300,121 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     expect(h.snapshot().phase).toBe("ended");
     expect(h.broadcastsOf("s:msg").some((f) => (f.data as { type?: string }).type === "matchEnd")).toBe(true);
 
-    await tick(h, 6); // > intermissionMs (200 ms)
+    await tick(h, 12); // intermission (4 ticks) + warmup arm (1) + warmup countdown (4) + buffer
     const s = h.snapshot();
     expect(s.phase).toBe("live");
     expect(s.redScore).toBe(0);
     expect(s.blueScore).toBe(0);
   });
+
+  it("resetMatch: capture gauges return to neutral and killstreak counters clear", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    await tick(h, 1);
+
+    // Dirty state that must not survive into the next match.
+    liveState(h).capA = 200;
+    liveState(h).capB = 0;
+    liveState(h).capC = 150;
+    (h.room as unknown as { streaks: Map<string, number> }).streaks.set(shooter.id, 4);
+
+    liveState(h).redScore = 2; // hits FastArena's killTarget=2 → endMatch → warmup → resetMatch
+    await tick(h, 12); // intermission + warmup arm + warmup countdown + buffer (same budget as above)
+
+    const s = h.snapshot();
+    expect(s.phase).toBe("live");
+    expect(s.capA).toBe(100);
+    expect(s.capB).toBe(100);
+    expect(s.capC).toBe(100);
+    expect((h.room as unknown as { streaks: Map<string, number> }).streaks.size).toBe(0);
+  });
+});
+
+describe("arena room — vote-restart excludes filler-bot seats", () => {
+  it("need is computed from human seats only, so bots can't inflate (or satisfy) quorum", async () => {
+    const h = await createTestRoom(VoteArena, { codec: ArenaSchema, sync: "throttled" });
+    const h1 = await h.connect();
+    const h2 = await h.connect();
+    await tick(h, 1); // reconcileBots fills to fillToPlayers=4 with 2 filler bots
+    expect(Object.keys(h.snapshot().players).length).toBe(4);
+
+    liveState(h).phase = "ended";
+    await tick(h, 1);
+
+    await h1.send("voteRestart");
+    await tick(h, 1);
+    const voteFrame = h
+      .broadcastsOf("s:msg")
+      .find((f) => (f.data as { type?: string }).type === "vote");
+    // 2 humans → need = floor(2/2)+1 = 2, NOT floor(4/2)+1 = 3 (the pre-fix bug).
+    expect((voteFrame!.data as { payload?: { need?: number } }).payload?.need).toBe(2);
+    expect(h.snapshot().phase).toBe("ended"); // 1/2 human votes — not enough yet
+
+    await h2.send("voteRestart");
+    await tick(h, 1);
+    expect(h.snapshot().phase).toBe("warmup"); // 2/2 human votes → restart triggers
+  });
+});
+
+describe("arena room — ffa (teamless) mode: no false-positive friendly fire", () => {
+  it("hitscan connects between two players despite both sharing team=0", async () => {
+    const h = await createTestRoom(ProtArena, { id: "arena-ffa", codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+    expect(liveState(h).players[shooter.id]!.team).toBe(0);
+    expect(liveState(h).players[target.id]!.team).toBe(0); // ffa: everyone is team 0
+
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire");
+    await tick(h, 2);
+    expect(h.snapshot().players[target.id]!.hp).toBeLessThan(PLAYER.maxHp);
+  });
+
+  it("a grenade damages a non-owner target despite both sharing team=0", async () => {
+    const h = await createTestRoom(ProtArena, { id: "arena-ffa", codec: ArenaSchema, sync: "throttled" });
+    const a = await h.connect();
+    const b = await h.connect();
+    await tick(h, 2);
+
+    place(h, a.id, 20, { yaw: Math.PI / 2, pitch: -1.56 }); // look straight down → nade drops at the feet
+    place(h, b.id, 22); // 2 m away in the same clear lane
+    await tick(h, 2);
+
+    await a.send("nade");
+    await tick(h, Math.ceil(GRENADE.fuseMs / TICK_MS) + 2);
+    expect(h.snapshot().players[b.id]!.hp).toBeLessThan(PLAYER.maxHp);
+  });
+});
+
+describe("arena room — dom mode: score win reaches gameMode.winCheck, not the killTarget fallback", () => {
+  it("stays live past the (TDM-only) killTarget threshold, then ends via dom's real scoreTarget", async () => {
+    const h = await createTestRoom(ProtArena, { id: "arena-dom", codec: ArenaSchema, sync: "throttled" });
+    await h.connect();
+    await tick(h, 1);
+
+    // Between the room's killTarget=50 default and dom's real scoreTarget=200: the
+    // pre-fix bug ended the match here via the TDM-shaped fallback.
+    liveState(h).redScore = 60;
+    await tick(h, 1);
+    expect(h.snapshot().phase).toBe("live");
+
+    liveState(h).redScore = MODES.dom.scoreTarget;
+    await tick(h, 1);
+    expect(h.snapshot().phase).toBe("ended");
+    const matchEnd = h
+      .broadcastsOf("s:msg")
+      .find((f) => (f.data as { type?: string }).type === "matchEnd");
+    expect((matchEnd!.data as { payload?: { winner?: string } }).payload?.winner).toBe("red");
+  });
 });
 
 describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", () => {
   it("a switch changes the held weapon but the swap delay gates the next shot", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
 
     await a.send("switch", { slot: 3 }); // shotgun (index 2)
@@ -303,7 +433,7 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
   });
 
   it("each weapon keeps its own magazine; the ammo event names the held slot", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
 
     for (let i = 0; i < 3; i++) {

@@ -267,6 +267,14 @@ export const MATCH = {
   intermissionMs: 5_000, // "ended" banner window before the arena resets to "live"
   respawnMs: 3_000, // downed → respawn delay
   spawnProtectMs: 1_500, // post-spawn invulnerability (cleared early by firing)
+  warmupMinPlayers: 2, // seats needed before the warmup→live countdown starts — reconcileBots
+  // autofills seats to fillToPlayers before this gate is checked, so with the default
+  // fillToPlayers=4 a lone human always has enough seats; solo practice pre-countdown
+  // is unreachable in practice
+  warmupMs: 10_000, // countdown once minPlayers is met, then a full reset into "live"
+  assistWindowMs: 3_000, // prior damage inside this window before a kill counts as an assist
+  killstreakThresholds: [3, 5, 8] as readonly number[], // consecutive-kill counts that broadcast "streak"
+  fillToPlayers: 4, // bots fill empty seats up to this count while real players are short
 } as const;
 
 /** Server-side lag compensation (PLAN §2: hit judgement via server rewind). */
@@ -278,3 +286,25 @@ export const LAG = {
 /** Teams. Index 0 = red, 1 = blue (u8 in the codec). */
 export const TEAM = { red: 0, blue: 1 } as const;
 export type TeamId = (typeof TEAM)[keyof typeof TEAM];
+
+/**
+ * Game mode tunables (modes.ts). `state.mode`'s wire value is the index into
+ * modes.ts's MODE_ORDER (tdm=0, ffa=1, dom=2) — not stored here, this is scores/pacing only.
+ */
+export const MODES = {
+  /** Team deathmatch. */
+  tdm: {
+    killTarget: 50, // team score (kills) that ends the match — mirrors MATCH.killTarget
+  },
+  /** Free-for-all. */
+  ffa: {
+    killTarget: 30, // personal kills (state.players[id].k) that ends the match
+  },
+  /** Domination — 3 capture points (arena1's ARENA1_CAPS). */
+  dom: {
+    captureRadius: 4, // metres — playersAt radius used to judge a point's occupiers
+    capturePerSec: 25, // gauge units/sec moved toward the sole occupying team (0..200 range)
+    pointsPer2s: 1, // score added per owned point every 2 s
+    scoreTarget: 200, // redScore/blueScore that ends the match
+  },
+} as const;

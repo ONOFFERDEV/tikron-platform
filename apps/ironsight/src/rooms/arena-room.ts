@@ -26,7 +26,9 @@ import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../phys
 import { resolveHitscan, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
-import { ARENA1_BOUNDS, ARENA1_BOXES, ARENA1_SPAWNS } from "../map/arena1.js";
+import { ARENA1_BOUNDS, ARENA1_BOXES, ARENA1_CAPS, ARENA1_SPAWNS } from "../map/arena1.js";
+import { modeFromRoomId, modeIndex, type GameMode, type ModeCtx } from "../modes.js";
+import { botThink, createBotBrain, type BotBrain, type BotView } from "../bots.js";
 
 /** A live grenade in flight (server-only; never in wire state — see schema.ts). */
 interface Grenade {
@@ -118,6 +120,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected intermissionMs: number = MATCH.intermissionMs;
   protected respawnMs: number = MATCH.respawnMs;
   protected spawnProtectMs: number = MATCH.spawnProtectMs;
+  protected warmupMinPlayers: number = MATCH.warmupMinPlayers;
+  protected warmupMs: number = MATCH.warmupMs;
+  protected assistWindowMs: number = MATCH.assistWindowMs;
+  /** Real+bot seat target; a test subclass sets 0 to keep bots out of a scripted room. */
+  protected fillToPlayers: number = MATCH.fillToPlayers;
+  /** Boot straight into "live" (skips warmup) — for scripted tests that stage combat directly. */
+  protected startInWarmup = true;
 
   // --- server-only per-player sim state (never synced) ---
   private readonly inputs = new Map<string, PlayerInput>();
@@ -134,6 +143,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly primaryWeapon = new Map<string, number>(); // chosen spawn weapon index (loadout)
   private readonly respawnAt = new Map<string, number>(); // sim tick
   private readonly protUntil = new Map<string, number>(); // sim tick
+  /** Bot AI state per bot id (created on addBot, discarded on removeBot). */
+  private readonly botBrains = new Map<string, BotBrain>();
 
   /** Grenades currently in flight (stepped every tick). */
   private grenades: Grenade[] = [];
@@ -145,8 +156,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly spawnRot: Record<number, number> = { [TEAM.red]: 0, [TEAM.blue]: 0 };
   /** Sim tick the post-match intermission ends and the arena resets (phase "ended"). */
   private endedUntil: number | undefined;
+  /** Sim tick the warmup countdown elapses (unset while below {@link warmupMinPlayers}). */
+  private warmupUntil: number | undefined;
+  /** One vote per player id; only meaningful while phase is "ended". */
+  private readonly restartVotes = new Set<string>();
+  /** Recent non-lethal damage per victim, for assist attribution: victim → [{attacker, dmg, at}]. */
+  private readonly hits = new Map<string, { attacker: string; dmg: number; at: number }[]>();
+  /** Current consecutive-kill count per killer id (reset when that player dies). */
+  private readonly streaks = new Map<string, number>();
   /** Deterministic PRNG for per-shot spread (seeded from state.seed in onReady). */
   private spreadRng: () => number = xorshift32(1);
+
+  /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
+  private readonly gameMode: GameMode = modeFromRoomId(this.id);
 
   private readonly boxes: readonly Box[] = ARENA1_BOXES;
 
@@ -165,8 +187,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       seed,
       redScore: 0,
       blueScore: 0,
-      phase: "live",
+      phase: this.startInWarmup ? "warmup" : "live",
       matchEndMs: Date.now() + this.matchTimeMs,
+      mode: modeIndex(this.gameMode.id),
+      capA: 100,
+      capB: 100,
+      capC: 100,
     });
 
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
@@ -177,10 +203,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.onMessage("nade", (client) => this.handleNade(client));
     this.onMessage("loadout", (client, payload) => this.handleLoadout(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
+    this.onMessage("voteRestart", (client) => this.handleVoteRestart(client));
   }
 
   override onJoin(client: Client): void {
-    const team = this.assignTeam();
+    const team = this.gameMode.teams ? this.assignTeam() : 0;
+    const p = this.initPlayer(client.id, team);
+    this.spawnInto(p, client.id);
+    this.markStateChanged();
+  }
+
+  /** Shared player-record init for real joins and bot fills (team assignment stays
+   *  in the caller so both paths go through the same balance logic). */
+  private initPlayer(id: string, team: number): ArenaPlayer {
     const p: ArenaPlayer = {
       x: 0,
       z: 0,
@@ -197,10 +232,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       weapon: DEFAULT_WEAPON,
       nades: GRENADE.count,
     };
-    this.state.players[client.id] = p;
-    this.inputs.set(client.id, { ...NO_INPUT });
-    this.spawnInto(p, client.id);
-    this.markStateChanged();
+    this.state.players[id] = p;
+    this.inputs.set(id, { ...NO_INPUT });
+    return p;
   }
 
   protected override onSeatExpired(client: Client): void {
@@ -219,9 +253,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.primaryWeapon,
       this.respawnAt,
       this.protUntil,
+      this.hits,
+      this.streaks,
     ]) {
       m.delete(id);
     }
+    this.restartVotes.delete(id);
     this.grenades = this.grenades.filter((g) => g.owner !== id);
     this.markStateChanged();
   }
@@ -239,17 +276,38 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const now = Date.now();
     const dt = clamp(dtMs, 0, MOVE.maxDtMs) / 1000;
 
-    // Match clock / win condition.
+    this.reconcileBots();
+
+    // Match clock / win condition. Mode-specific scoring (dom's capture gauges,
+    // ffa's per-player target) runs first; the killTarget/time-limit check below
+    // stays as the TDM/default fallback so existing test overrides of killTarget
+    // keep working unchanged.
     if (this.state.phase === "live") {
-      if (
-        this.state.redScore >= this.killTarget ||
-        this.state.blueScore >= this.killTarget ||
+      const ctx = this.modeCtx();
+      this.gameMode.tick(ctx, dtMs);
+      const result = this.gameMode.winCheck(ctx);
+      if (result) {
+        this.endMatch(result.winner);
+      } else if (
+        // The killTarget fallback mirrors TDM's own winCheck (a symmetric red/blue
+        // score threshold) — gated to TDM only so it can't fire early for a mode
+        // whose winCheck uses a different score shape (dom's much-higher
+        // scoreTarget, ffa's per-player kills). The time limit is mode-agnostic and
+        // always applies.
+        (this.gameMode.id === "tdm" &&
+          (this.state.redScore >= this.killTarget || this.state.blueScore >= this.killTarget)) ||
         now >= this.state.matchEndMs
       ) {
         this.endMatch();
       }
+    } else if (this.state.phase === "warmup") {
+      this.tickWarmup(now);
     } else if (this.endedUntil !== undefined && this.currentTick >= this.endedUntil) {
-      this.resetMatch(now);
+      this.enterWarmup();
+    }
+
+    if (this.state.phase === "live" || this.state.phase === "warmup") {
+      this.tickBots(dtMs);
     }
 
     // Movement integration for the living.
@@ -458,7 +516,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     let nearestHitT = Infinity;
     for (const off of pelletPattern(spec)) {
       const dir = dirFromAngles(shooter.yaw + off.dyaw + this.jitter(acc), shooter.pitch + off.dpitch + this.jitter(acc));
-      const hit = resolveHitscan(origin, dir, spec.range, shooter.team, targets, this.boxes, cfg);
+      const hit = resolveHitscan(
+        origin,
+        dir,
+        spec.range,
+        shooter.team,
+        targets,
+        this.boxes,
+        cfg,
+        !this.gameMode.teams,
+      );
       if (!hit) continue;
       if (hit.t < nearestHitT) nearestHitT = hit.t;
       const base = hit.part === "head" ? spec.damageHead : spec.damageBody;
@@ -684,10 +751,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private explodeGrenade(g: Grenade): void {
     const c = g.body.pos;
     this.sendNear("nadeBoom", { id: g.id, x: c.x, y: c.y, z: c.z, r: GRENADE.radius }, c.x, c.z);
+    const teamless = !this.gameMode.teams;
     for (const [pid, p] of Object.entries(this.state.players)) {
       if (!p.alive || p.prot) continue;
-      // Friendly fire off for teammates (matches bullets), but self-damage is on.
-      if (p.team === g.team && pid !== g.owner) continue;
+      // Friendly fire off for teammates (matches bullets), but self-damage is on;
+      // teamless modes (FFA) have no "teammates" to shield, so damage everyone.
+      if (!teamless && p.team === g.team && pid !== g.owner) continue;
       const dx = p.x - c.x;
       const dy = p.y + this.height(p) / 2 - c.y; // measure to the victim's torso centre
       const dz = p.z - c.z;
@@ -709,27 +778,77 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const victim = this.state.players[victimId];
     if (!victim || !victim.alive || victim.prot) return;
     victim.hp = Math.max(0, victim.hp - dmg);
-    if (victim.hp > 0) return;
+    const now = Date.now();
+    if (victim.hp > 0) {
+      if (killerId !== victimId) this.recordHit(victimId, killerId, dmg, now);
+      return;
+    }
 
+    const warmup = this.state.phase === "warmup";
     victim.alive = false;
-    victim.d += 1;
     this.vy.set(victimId, 0);
-    this.respawnAt.set(victimId, this.currentTick + Math.ceil(this.respawnMs / TICK_MS));
+    const delayMs = warmup ? 0 : this.respawnMs;
+    this.respawnAt.set(victimId, this.currentTick + Math.ceil(delayMs / TICK_MS));
 
-    if (killerId !== victimId) {
-      const killer = this.state.players[killerId];
-      if (killer) {
-        killer.k += 1;
-        if (killer.team === TEAM.red) this.state.redScore += 1;
-        else this.state.blueScore += 1;
+    let assist: string | undefined;
+    if (!warmup) {
+      victim.d += 1;
+      if (killerId !== victimId) {
+        assist = this.assistFor(victimId, killerId, now);
+        const killer = this.state.players[killerId];
+        if (killer) {
+          killer.k += 1;
+          this.gameMode.onKill(this.modeCtx(), killerId, victimId);
+        }
+        this.bumpStreak(killerId);
       }
     }
+    this.hits.delete(victimId);
+    this.streaks.delete(victimId);
+
     this.broadcast("kill", {
       killer: killerId,
       victim: victimId,
       part,
       killerTeam: this.state.players[killerId]?.team ?? null,
+      assist,
     });
+  }
+
+  private recordHit(victimId: string, attackerId: string, dmg: number, at: number): void {
+    const list = this.hits.get(victimId) ?? [];
+    list.push({ attacker: attackerId, dmg, at });
+    this.hits.set(victimId, list);
+  }
+
+  /** The non-killer attacker with the most damage on `victimId` inside {@link assistWindowMs}. */
+  private assistFor(victimId: string, killerId: string, at: number): string | undefined {
+    const list = this.hits.get(victimId);
+    if (!list) return undefined;
+    const cutoff = at - this.assistWindowMs;
+    const totals = new Map<string, number>();
+    for (const h of list) {
+      if (h.at < cutoff || h.attacker === killerId) continue;
+      totals.set(h.attacker, (totals.get(h.attacker) ?? 0) + h.dmg);
+    }
+    let best: string | undefined;
+    let bestDmg = 0;
+    for (const [attacker, dealt] of totals) {
+      if (dealt > bestDmg) {
+        best = attacker;
+        bestDmg = dealt;
+      }
+    }
+    return best;
+  }
+
+  /** killer's current kill streak; broadcasts `streak` on 3/5/8 (MATCH.killstreakThresholds). */
+  private bumpStreak(killerId: string): void {
+    const count = (this.streaks.get(killerId) ?? 0) + 1;
+    this.streaks.set(killerId, count);
+    if (MATCH.killstreakThresholds.includes(count)) {
+      this.broadcast("streak", { id: killerId, count });
+    }
   }
 
   // --- spawning / teams -------------------------------------------------------
@@ -746,9 +865,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private spawnInto(p: ArenaPlayer, id: string): void {
-    const points = p.team === TEAM.red ? ARENA1_SPAWNS.red : ARENA1_SPAWNS.blue;
-    const i = this.spawnRot[p.team] ?? 0;
-    this.spawnRot[p.team] = i + 1;
+    // Teamless modes (ffa) round-robin across both spawn pools combined, keyed
+    // off a dedicated rotation slot rather than the (always-0) player team.
+    const teamed = this.gameMode.teams;
+    const points = teamed
+      ? p.team === TEAM.red
+        ? ARENA1_SPAWNS.red
+        : ARENA1_SPAWNS.blue
+      : [...ARENA1_SPAWNS.red, ...ARENA1_SPAWNS.blue];
+    const rotKey = teamed ? p.team : -1;
+    const i = this.spawnRot[rotKey] ?? 0;
+    this.spawnRot[rotKey] = i + 1;
     const pt = points[i % points.length]!;
     p.x = pt.x;
     p.y = 0;
@@ -773,6 +900,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.lastShotAt.delete(id);
     this.swapUntil.delete(id);
     this.nadeReadyAt.delete(id);
+    this.hits.delete(id);
   }
 
   private handleRespawn(client: Client): void {
@@ -787,22 +915,211 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.markStateChanged();
   }
 
+  /** 1 vote per player; a majority of current seats during "ended" skips the
+   *  intermission and heads straight into warmup (M2 µ2b contract). */
+  private handleVoteRestart(client: Client): void {
+    if (this.state.phase !== "ended") return;
+    const id = client.id;
+    if (!this.state.players[id]) return;
+    this.restartVotes.add(id);
+    // Filler bots never vote, so they must not inflate the quorum — count only
+    // human seats (total seats minus the bot registry, the source of truth for
+    // which ids are bots).
+    const humanSeats = Object.keys(this.state.players).length - this.botBrains.size;
+    const need = Math.floor(humanSeats / 2) + 1;
+    this.broadcast("vote", { count: this.restartVotes.size, need });
+    if (this.restartVotes.size >= need) this.enterWarmup();
+  }
+
+  // --- bots ---------------------------------------------------------------
+
+  /** Patrol points bots path between: both spawn pools + the map's capture points,
+   *  giving lane coverage without a dedicated waypoint table in arena1.ts. */
+  private botWaypoints(): { x: number; y: number }[] {
+    return [...ARENA1_SPAWNS.red, ...ARENA1_SPAWNS.blue, ARENA1_CAPS.a, ARENA1_CAPS.b, ARENA1_CAPS.c].map(
+      (p) => ({ x: p.x, y: p.z }),
+    );
+  }
+
+  /** Lowest free `bot-N` id so a removed bot's number gets reused. */
+  private nextBotId(): string {
+    let n = 1;
+    while (this.state.players[`bot-${n}`]) n += 1;
+    return `bot-${n}`;
+  }
+
+  /** Fill to {@link MATCH.fillToPlayers} (real + bots). Real players are never
+   *  removed; only bot seats are added/trimmed to hit the target. */
+  private reconcileBots(): void {
+    const ids = Object.keys(this.state.players);
+    const botIds = ids.filter((id) => id.startsWith("bot-"));
+    const target = this.fillToPlayers;
+
+    let deficit = target - ids.length;
+    while (deficit > 0) {
+      this.addBot();
+      deficit -= 1;
+    }
+
+    let surplus = ids.length - target;
+    for (const id of botIds) {
+      if (surplus <= 0) break;
+      this.removeBot(id);
+      surplus -= 1;
+    }
+  }
+
+  private addBot(): void {
+    const id = this.nextBotId();
+    const team = this.gameMode.teams ? this.assignTeam() : 0;
+    const p = this.initPlayer(id, team);
+    const n = Number(id.slice(4));
+    this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints() }));
+    this.spawnInto(p, id);
+    this.markStateChanged();
+  }
+
+  private removeBot(id: string): void {
+    delete this.state.players[id];
+    this.botBrains.delete(id);
+    this.grenades = this.grenades.filter((g) => g.owner !== id);
+    for (const m of [
+      this.inputs,
+      this.vy,
+      this.grounded,
+      this.magByW,
+      this.reserveByW,
+      this.reloadUntil,
+      this.lastShotAt,
+      this.swapUntil,
+      this.nadeReadyAt,
+      this.primaryWeapon,
+      this.respawnAt,
+      this.protUntil,
+      this.hits,
+      this.streaks,
+    ]) {
+      m.delete(id);
+    }
+    this.markStateChanged();
+  }
+
+  /** Drive every living bot's AI this tick: sets its held move input (consumed by
+   *  {@link integrate} right after this runs) and look, and fires/switches through
+   *  the same paths a real client's messages would hit. */
+  private tickBots(dtMs: number): void {
+    if (this.botBrains.size === 0) return;
+    for (const [id, brain] of this.botBrains) {
+      const self = this.state.players[id];
+      if (!self || !self.alive) continue;
+      const decision = botThink(this.botView(id, self), brain, dtMs);
+      this.inputs.set(id, {
+        mx: decision.move.mx,
+        mz: decision.move.mz,
+        jump: decision.move.jump,
+        crouch: decision.move.crouch,
+        sprint: decision.move.sprint,
+      });
+      self.yaw = ((decision.look.yaw % TAU) + TAU) % TAU;
+      self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
+      if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
+      if (decision.fire) this.botFire(id);
+    }
+  }
+
+  private botView(id: string, self: ArenaPlayer): BotView {
+    const ffa = !this.gameMode.teams;
+    const enemies: BotView["enemies"][number][] = [];
+    for (const [pid, p] of Object.entries(this.state.players)) {
+      if (pid === id || !p.alive) continue;
+      if (!ffa && p.team === self.team) continue;
+      enemies.push({ id: pid, x: p.x, y: p.y, z: p.z, crouch: p.crouch, alive: p.alive, team: p.team });
+    }
+    return {
+      self: { x: self.x, y: self.y, z: self.z, crouch: self.crouch, alive: self.alive, team: self.team },
+      enemies,
+      teamless: ffa,
+    };
+  }
+
+  /** Reuses {@link handleFire} with a stand-in client — bots have no real socket,
+   *  and a fixed `ts: now` gives them zero simulated latency (rewind reads it as
+   *  the subtick instant instead of estimating from RTT). */
+  private botFire(id: string): void {
+    const client = { id, rttMs: 0, send: () => {} } as unknown as Client;
+    this.handleFire(client, { ts: Date.now() } as unknown as InputMeta);
+  }
+
+  private botSwitch(id: string, slot: number): void {
+    const client = { id, rttMs: 0, send: () => {} } as unknown as Client;
+    this.handleSwitch(client, { slot });
+  }
+
   // --- match flow -------------------------------------------------------------
 
-  private endMatch(): void {
+  private endMatch(winner?: string): void {
     const { redScore, blueScore } = this.state;
-    const winner = redScore > blueScore ? "red" : blueScore > redScore ? "blue" : "draw";
+    const w = winner ?? (redScore > blueScore ? "red" : blueScore > redScore ? "blue" : "draw");
     this.state.phase = "ended";
     this.endedUntil = this.currentTick + Math.ceil(this.intermissionMs / TICK_MS);
-    this.broadcast("matchEnd", { winner, red: redScore, blue: blueScore });
+    this.restartVotes.clear();
+    this.broadcast("matchEnd", { winner: w, red: redScore, blue: blueScore });
+  }
+
+  /** Warmup: waits for {@link warmupMinPlayers}, then counts down {@link warmupMs} before a full
+   *  reset into "live" (a lone player stays in warmup indefinitely — practice mode). */
+  private tickWarmup(now: number): void {
+    const seats = Object.keys(this.state.players).length;
+    if (seats < this.warmupMinPlayers) {
+      this.warmupUntil = undefined;
+      return;
+    }
+    if (this.warmupUntil === undefined) {
+      this.warmupUntil = this.currentTick + Math.ceil(this.warmupMs / TICK_MS);
+      return;
+    }
+    if (this.currentTick >= this.warmupUntil) {
+      this.warmupUntil = undefined;
+      this.resetMatch(now);
+    }
+  }
+
+  /** Post-match → warmup (not straight to "live"): routes through the same
+   *  min-players/countdown gate as room creation (M2 µ2b). */
+  private enterWarmup(): void {
+    this.endedUntil = undefined;
+    this.warmupUntil = undefined;
+    this.restartVotes.clear();
+    this.state.phase = "warmup";
+  }
+
+  /** Build the read/write surface a {@link GameMode} needs for this tick. */
+  private modeCtx(): ModeCtx {
+    return {
+      state: this.state,
+      now: Date.now(),
+      broadcast: (type, payload) => this.broadcast(type, payload),
+      playersAt: (x, z, r) => {
+        const out: { id: string; team: number; alive: boolean }[] = [];
+        for (const [id, p] of Object.entries(this.state.players)) {
+          if (Math.hypot(p.x - x, p.z - z) <= r) out.push({ id, team: p.team, alive: p.alive });
+        }
+        return out;
+      },
+    };
   }
 
   private resetMatch(now: number): void {
     this.state.redScore = 0;
     this.state.blueScore = 0;
+    this.state.capA = 100;
+    this.state.capB = 100;
+    this.state.capC = 100;
     this.state.phase = "live";
     this.state.matchEndMs = now + this.matchTimeMs;
     this.endedUntil = undefined;
+    this.streaks.clear();
+    this.hits.clear();
     for (const [id, p] of Object.entries(this.state.players)) {
       p.k = 0;
       p.d = 0;

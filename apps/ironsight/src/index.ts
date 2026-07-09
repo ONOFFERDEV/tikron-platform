@@ -14,16 +14,20 @@ export interface Env {
 export const ArenaRoom = defineRoom(ArenaRoomImpl);
 
 /**
- * Minimal M0 matchmaking: hand the client a room id + a fresh session key. All
- * players funnel into one arena room ("arena") whose `maxClients` cap the room
- * enforces server-side; team balancing happens on join. (A real matchmaker DO —
- * multiple rooms, reservations, region hints — is the gateway pattern to graft in
- * post-M0; the client contract here, `{ party, room, session }`, stays the same.)
+ * M2 matchmaking: hand the client a room id + a fresh session key, routed by
+ * `?mode=tdm|ffa|dom` (default tdm) to a per-mode room `arena-<mode>` — the room
+ * itself picks its {@link GameMode} from that id (see modes.ts). `maxClients` cap
+ * the room enforces server-side; team balancing happens on join. (A real matchmaker
+ * DO — multiple rooms per mode, reservations, region hints — is the gateway pattern
+ * to graft in later; the client contract here, `{ party, room, session }`, stays
+ * the same.)
  */
-function handleMatchmake(): Response {
+function handleMatchmake(url: URL): Response {
+  const modeParam = url.searchParams.get("mode");
+  const mode = modeParam === "ffa" || modeParam === "dom" ? modeParam : "tdm";
   return Response.json({
     party: "arena-room",
-    room: "arena",
+    room: `arena-${mode}`,
     session: crypto.randomUUID(),
   });
 }
@@ -35,7 +39,7 @@ export default {
       return Response.json({ ok: true });
     }
     if (url.pathname === "/api/matchmake") {
-      return handleMatchmake();
+      return handleMatchmake(url);
     }
     // Static assets (./public) are served automatically for matching paths before
     // this handler runs; everything else falls through to room routing.
