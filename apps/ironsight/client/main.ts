@@ -31,7 +31,10 @@ interface Snap {
 const RESPAWN_MS = 3000; // mirrors MATCH.respawnMs (client countdown only)
 
 async function main(): Promise<void> {
-  const scene = new SceneRig();
+  // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
+  // above a body-mounted canvas and swallows every click (pointer lock never requested;
+  // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
+  const scene = new SceneRig(document.getElementById("app") ?? document.body);
   const hud = new Hud();
   initAudio();
   hud.showLockPrompt(true, "CONNECTING…");
