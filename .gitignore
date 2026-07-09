@@ -13,6 +13,8 @@ examples/starter/public/client.js
 examples/starter/public/client.js.map
 examples/discord-activity/public/client.js
 examples/discord-activity/public/client.js.map
+apps/ironsight/public/client.js
+apps/ironsight/public/client.js.map
 coverage/
 *.log
 .dev.vars
