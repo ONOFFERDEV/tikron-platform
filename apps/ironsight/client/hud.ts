@@ -224,7 +224,14 @@ export class Hud {
   }
 
   setPing(ms: number): void {
-    this.ping.textContent = `${Math.round(ms)} ms`;
+    this.ping.textContent = `${this.fps} fps · ${Math.round(ms)} ms`;
+  }
+
+  private fps = 0;
+
+  /** Render frame rate, shown in the top-left panel next to the ping. */
+  setFps(n: number): void {
+    this.fps = Math.round(n);
   }
 
   /** The click-to-play / ESC prompt. */

@@ -147,6 +147,9 @@ async function main(): Promise<void> {
   let last = performance.now();
   let prevYaw = input.yaw;
   let prevPitch = input.pitch;
+  // FPS: count rendered frames, publish twice a second (user-visible next to ping).
+  let fpsFrames = 0;
+  let fpsWindowStart = last;
   const onAds = (held: boolean): void => {
     scene.setAds(held);
     // Zoom slows the turn: scale look sensitivity by the live FOV ratio.
@@ -202,6 +205,12 @@ async function main(): Promise<void> {
     }
     if (state) hud.setScores(state.redScore, state.blueScore);
     hud.setSpread(!predictor.isGrounded ? 1 : moving ? 0.5 : 0);
+    fpsFrames++;
+    if (now - fpsWindowStart >= 500) {
+      hud.setFps((fpsFrames * 1000) / (now - fpsWindowStart));
+      fpsFrames = 0;
+      fpsWindowStart = now;
+    }
     hud.setPing(net.rttMs);
 
     // Overlay precedence: match end > death > pointer-lock prompt.
