@@ -71,8 +71,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected override syncIntervalMs = TICK_MS;
   // The point of the FPS stack: rewind hit checks to the shooter's subtick instant.
   protected override lagCompensation = true;
-  protected override lagCompensationDepthMs = LAG.depthMs;
-  protected override lagInterpolationMs = LAG.interpolationMs;
+  // Explicit `: number` — the `as const` config narrows these to literal types, which blocks
+  // test subclasses from overriding with other latencies (W-C finding).
+  protected override lagCompensationDepthMs: number = LAG.depthMs;
+  protected override lagInterpolationMs: number = LAG.interpolationMs;
   // AOI is wired (event routing + anti-wallhack boundary), but the view radius
   // spans the whole small arena so a 12-player TDM never culls a teammate you
   // need on the map — interest-tier tuning is an M2 concern at higher CCU.
