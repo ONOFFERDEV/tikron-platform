@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR, PLAYER, TICK_MS } from "../src/config.js";
+import { AR, GRENADE, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
+
+const SHOTGUN = WEAPONS.find((w) => w.name === "Shotgun")!;
+/** Pitch that drops the eye-height muzzle onto an enemy's chest `dist` m away. */
+const pitchFor = (dist: number): number => Math.atan2(1.0 - PLAYER.standEye, dist);
+const swapTicks = Math.ceil(WEAPON.swapMs / TICK_MS) + 1;
 
 /**
  * A faster arena for tests: no spawn protection, quick respawns, and a 2-kill
@@ -47,6 +52,10 @@ function place(
 
 function ammoFrames(conn: { frames(): Record<string, unknown>[] }): Record<string, unknown>[] {
   return conn.frames().filter((f) => f.t === "s:msg" && f.type === "ammo");
+}
+
+function shotFrames(conn: { frames(): Record<string, unknown>[] }): Record<string, unknown>[] {
+  return conn.frames().filter((f) => f.t === "s:msg" && f.type === "shot");
 }
 
 beforeEach(() => {
@@ -270,5 +279,110 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     expect(s.phase).toBe("live");
     expect(s.redScore).toBe(0);
     expect(s.blueScore).toBe(0);
+  });
+});
+
+describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", () => {
+  it("a switch changes the held weapon but the swap delay gates the next shot", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const a = await h.connect();
+
+    await a.send("switch", { slot: 3 }); // shotgun (index 2)
+    await tick(h, 1);
+    expect(liveState(h).players[a.id]!.weapon).toBe(2);
+
+    const before = shotFrames(a).length;
+    await a.send("fire"); // still mid-swap
+    await tick(h, 1);
+    expect(shotFrames(a).length).toBe(before); // blocked by the swap delay
+
+    await tick(h, swapTicks); // wait out the swap
+    await a.send("fire");
+    await tick(h, 1);
+    expect(shotFrames(a).length).toBe(before + 1); // now it fires
+  });
+
+  it("each weapon keeps its own magazine; the ammo event names the held slot", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, { codec: ArenaSchema, sync: "throttled" });
+    const a = await h.connect();
+
+    for (let i = 0; i < 3; i++) {
+      await a.send("fire"); // AR
+      await tick(h, 3);
+    }
+    const arAmmo = ammoFrames(a).at(-1)!.payload as { mag: number; weapon: number };
+    expect(arAmmo.mag).toBe(AR.mag - 3);
+    expect(arAmmo.weapon).toBe(1); // AR is slot 1
+
+    await a.send("switch", { slot: 3 }); // shotgun
+    await tick(h, 1);
+    const swAmmo = ammoFrames(a).at(-1)!.payload as { mag: number; weapon: number };
+    expect(swAmmo.weapon).toBe(3);
+    expect(swAmmo.mag).toBe(SHOTGUN.mag); // full — independent of the AR's spent mag
+
+    await a.send("switch", { slot: 1 }); // back to AR
+    await tick(h, 1);
+    const backAmmo = ammoFrames(a).at(-1)!.payload as { mag: number; weapon: number };
+    expect(backAmmo.weapon).toBe(1);
+    expect(backAmmo.mag).toBe(AR.mag - 3); // the AR remembers the three spent rounds
+  });
+
+  it("a point-blank shotgun blast stacks its pellets into a one-shot kill", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect(); // red
+    const target = await h.connect(); // blue
+    await tick(h, 2);
+
+    place(h, shooter.id, 15, { yaw: Math.PI / 2, pitch: pitchFor(5) });
+    place(h, target.id, 20); // 5 m ahead in the clear z = 6 lane
+
+    await shooter.send("switch", { slot: 3 }); // shotgun
+    await tick(h, swapTicks); // wait out the swap (also fills the lag buffer)
+
+    await shooter.send("fire");
+    await tick(h, 2);
+    expect(h.snapshot().players[target.id]!.alive).toBe(false); // all 8 pellets connected
+  });
+
+  it("a thrown grenade decrements the count, detonates on its fuse, and blasts nearby players (self too)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const a = await h.connect(); // red
+    const b = await h.connect(); // blue
+    await tick(h, 2);
+
+    place(h, a.id, 20, { yaw: Math.PI / 2, pitch: -1.56 }); // look straight down → nade drops at the feet
+    place(h, b.id, 22); // 2 m away in the same clear lane
+    await tick(h, 2);
+
+    expect(liveState(h).players[a.id]!.nades).toBe(GRENADE.count);
+    await a.send("nade");
+    await tick(h, 1);
+    expect(liveState(h).players[a.id]!.nades).toBe(GRENADE.count - 1); // spent one
+    expect(a.frames().some((f) => f.t === "s:msg" && f.type === "nadeSpawn")).toBe(true);
+
+    await tick(h, Math.ceil(GRENADE.fuseMs / TICK_MS) + 2); // run out the fuse
+    // nadeBoom fans out via sendNear (per-client), so it lands in the client's frames.
+    expect(a.frames().some((f) => f.t === "s:msg" && f.type === "nadeBoom")).toBe(true);
+
+    const s = h.snapshot();
+    expect(s.players[b.id]!.hp).toBeLessThan(PLAYER.maxHp); // enemy caught in the blast
+    expect(s.players[a.id]!.hp).toBeLessThan(PLAYER.maxHp); // self-damage included
+  });
+
+  it("a grenade behind cover does not damage a shielded player (line-of-sight AoE)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const a = await h.connect(); // red
+    const b = await h.connect(); // blue
+    await tick(h, 2);
+
+    // Throw the grenade straight down at the central 2.2 m cover stack (28.5–31.5),
+    // and stand the enemy on the far side of that wall — the LoS check spares them.
+    place(h, a.id, 30, { yaw: Math.PI / 2, pitch: -1.56, z: 17.5 });
+    place(h, b.id, 30, { z: 23 }); // opposite face of the box at (28.5,·,18.5)-(31.5,·,21.5)
+    await tick(h, 2);
+
+    await a.send("nade");
+    await tick(h, Math.ceil(GRENADE.fuseMs / TICK_MS) + 2);
+    expect(h.snapshot().players[b.id]!.hp).toBe(PLAYER.maxHp); // wall between them absorbed it
   });
 });

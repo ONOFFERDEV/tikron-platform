@@ -7,10 +7,36 @@ import {
 } from "@tikron/server";
 import { xorshift32, type Vec2 } from "@tikron/sim";
 import { ArenaSchema, type ArenaState, type ArenaPlayer } from "../schema.js";
-import { ARENA, AR, LAG, MATCH, MOVE, PLAYER, TEAM, TICK_MS } from "../config.js";
+import {
+  ARENA,
+  DEFAULT_WEAPON,
+  GRENADE,
+  LAG,
+  MATCH,
+  MOVE,
+  PISTOL_INDEX,
+  PLAYER,
+  TEAM,
+  TICK_MS,
+  WEAPON,
+  WEAPONS,
+  type WeaponSpec,
+} from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
 import { resolveHitscan, type HitTarget } from "../hitscan.js";
+import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
+import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import { ARENA1_BOUNDS, ARENA1_BOXES, ARENA1_SPAWNS } from "../map/arena1.js";
+
+/** A live grenade in flight (server-only; never in wire state — see schema.ts). */
+interface Grenade {
+  id: string;
+  owner: string;
+  team: number;
+  body: GrenadeBody;
+  /** Sim tick it detonates on. */
+  boomTick: number;
+}
 
 /** Latest held-input intent for a player (server integrates it every tick). */
 interface PlayerInput {
@@ -97,12 +123,21 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly inputs = new Map<string, PlayerInput>();
   private readonly vy = new Map<string, number>();
   private readonly grounded = new Map<string, boolean>();
-  private readonly ammoMag = new Map<string, number>();
-  private readonly ammoReserve = new Map<string, number>();
-  private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading
+  // Per-weapon ammo: arrays indexed by weapon (0..WEAPONS.length−1), so each weapon
+  // keeps its own magazine + reserve (PLAN §4: "탄약/재장전 무기별 분리").
+  private readonly magByW = new Map<string, number[]>();
+  private readonly reserveByW = new Map<string, number[]>();
+  private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading (current weapon only)
   private readonly lastShotAt = new Map<string, number>(); // epoch ms
+  private readonly swapUntil = new Map<string, number>(); // epoch ms; can't fire until a weapon swap settles
+  private readonly nadeReadyAt = new Map<string, number>(); // epoch ms; earliest next grenade throw
+  private readonly primaryWeapon = new Map<string, number>(); // chosen spawn weapon index (loadout)
   private readonly respawnAt = new Map<string, number>(); // sim tick
   private readonly protUntil = new Map<string, number>(); // sim tick
+
+  /** Grenades currently in flight (stepped every tick). */
+  private grenades: Grenade[] = [];
+  private nadeSeq = 0;
 
   /** Vertical lag-comp channel: id → {x: feetY, y: headY}. Paired with {@link rewind}. */
   private vertLag = new LagCompensator({ depthMs: LAG.depthMs });
@@ -138,6 +173,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, input));
     this.onMessage("reload", (client) => this.handleReload(client));
+    this.onMessage("switch", (client, payload) => this.handleSwitch(client, payload));
+    this.onMessage("nade", (client) => this.handleNade(client));
+    this.onMessage("loadout", (client, payload) => this.handleLoadout(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
   }
 
@@ -156,6 +194,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       prot: true,
       k: 0,
       d: 0,
+      weapon: DEFAULT_WEAPON,
+      nades: GRENADE.count,
     };
     this.state.players[client.id] = p;
     this.inputs.set(client.id, { ...NO_INPUT });
@@ -170,15 +210,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.inputs,
       this.vy,
       this.grounded,
-      this.ammoMag,
-      this.ammoReserve,
+      this.magByW,
+      this.reserveByW,
       this.reloadUntil,
       this.lastShotAt,
+      this.swapUntil,
+      this.nadeReadyAt,
+      this.primaryWeapon,
       this.respawnAt,
       this.protUntil,
     ]) {
       m.delete(id);
     }
+    this.grenades = this.grenades.filter((g) => g.owner !== id);
     this.markStateChanged();
   }
 
@@ -237,6 +281,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.reloadUntil.delete(id);
       this.finishReload(id);
     }
+
+    // Grenades in flight: integrate + bounce, detonate on the fuse.
+    if (this.grenades.length > 0) this.stepGrenades(dt, now);
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
     // preset right after this returns — same cadence, same Date.now()).
@@ -349,24 +396,31 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (!shooter || !shooter.alive) return;
 
     const now = Date.now();
-    const last = this.lastShotAt.get(id);
-    if (last !== undefined && now - last < AR.fireIntervalMs) return; // server fire-rate cap
+    const spec = this.weaponOf(shooter);
+    const w = shooter.weapon;
 
-    // Ammo (server-authoritative). Reloading blocks; an empty mag auto-reloads.
+    // A weapon swap must settle before the new weapon can fire.
+    const swap = this.swapUntil.get(id);
+    if (swap !== undefined && now < swap) return;
+
+    const last = this.lastShotAt.get(id);
+    if (last !== undefined && now - last < spec.fireIntervalMs) return; // server fire-rate cap
+
+    // Ammo (server-authoritative, per weapon). Reloading blocks; an empty mag auto-reloads.
     const done = this.reloadUntil.get(id);
     if (done !== undefined) {
       if (now < done) return; // mid-reload
       this.reloadUntil.delete(id);
       this.finishReload(id);
     }
-    const mag = this.ammoMag.get(id) ?? AR.mag;
-    if (mag <= 0) {
+    const mags = this.magArr(id);
+    if ((mags[w] ?? 0) <= 0) {
       this.startReload(id, now);
       return;
     }
-    this.ammoMag.set(id, mag - 1);
+    mags[w] = (mags[w] ?? 0) - 1;
     this.lastShotAt.set(id, now);
-    client.send("ammo", { mag: mag - 1, reserve: this.ammoReserve.get(id) ?? 0 });
+    client.send("ammo", { mag: mags[w], reserve: this.reserveArr(id)[w] ?? 0, weapon: spec.slot });
 
     // Firing ends spawn protection early (no shooting from behind the shield).
     if (shooter.prot) {
@@ -375,7 +429,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
 
     const origin: Vec3 = { x: shooter.x, y: shooter.y + this.eyeHeight(shooter), z: shooter.z };
-    const dir = this.aimDir(id, shooter);
 
     // Rewind both channels to the same instant: the subtick ts when the client
     // supplied one, else the RTT + interpolation estimate.
@@ -392,52 +445,96 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       targets.push({ id: tid, x: h.x, z: h.y, feetY: v.x, headY: v.y, team: tp.team });
     }
 
-    const hit = resolveHitscan(origin, dir, AR.range, shooter.team, targets, this.boxes, {
-      radius: PLAYER.radius,
-      headRadius: PLAYER.headRadius,
-    });
+    // Fire the weapon's pellets: a fixed pattern (the shotgun's spread) plus a
+    // per-ray accuracy-cone jitter (movement penalty). Per-pellet damage scales
+    // with range (falloff), and pellets on the same victim stack into one hit.
+    const inp = this.inputs.get(id);
+    const grounded = this.grounded.get(id) ?? true;
+    const moving = inp ? inp.mx !== 0 || inp.mz !== 0 : false;
+    const acc = accuracySpread(spec, moving, grounded);
+    const cfg = { radius: PLAYER.radius, headRadius: PLAYER.headRadius };
 
-    const dist = hit ? hit.t : Math.min(AR.range, nearestBox(origin, dir, this.boxes, AR.range));
+    const dmgByVictim = new Map<string, { dmg: number; head: boolean }>();
+    let nearestHitT = Infinity;
+    for (const off of pelletPattern(spec)) {
+      const dir = dirFromAngles(shooter.yaw + off.dyaw + this.jitter(acc), shooter.pitch + off.dpitch + this.jitter(acc));
+      const hit = resolveHitscan(origin, dir, spec.range, shooter.team, targets, this.boxes, cfg);
+      if (!hit) continue;
+      if (hit.t < nearestHitT) nearestHitT = hit.t;
+      const base = hit.part === "head" ? spec.damageHead : spec.damageBody;
+      const agg = dmgByVictim.get(hit.id) ?? { dmg: 0, head: false };
+      agg.dmg += base * falloffMul(spec, hit.t);
+      agg.head = agg.head || hit.part === "head";
+      dmgByVictim.set(hit.id, agg);
+    }
+
+    // One shot event per trigger pull (base aim ray → muzzle flash + tracer); the
+    // tracer reaches the nearest pellet impact, else the map-occlusion distance.
+    const baseDir = dirFromAngles(shooter.yaw, shooter.pitch);
+    const dist =
+      nearestHitT < Infinity
+        ? nearestHitT
+        : Math.min(spec.range, nearestBox(origin, baseDir, this.boxes, spec.range));
+    const victims = [...dmgByVictim.keys()];
     this.sendNear(
       "shot",
       {
         from: id,
+        weapon: spec.slot,
         ox: origin.x,
         oy: origin.y,
         oz: origin.z,
-        dx: dir.x,
-        dy: dir.y,
-        dz: dir.z,
+        dx: baseDir.x,
+        dy: baseDir.y,
+        dz: baseDir.z,
         dist,
-        hit: hit !== null,
+        hit: victims.length > 0,
       },
       origin.x,
       origin.z,
-      { always: [id, ...(hit ? [hit.id] : [])] },
+      { always: [id, ...victims] },
     );
 
-    if (hit) {
-      const dmg = hit.part === "head" ? AR.damageHead : AR.damageBody;
-      this.applyDamage(hit.id, dmg, id, hit.part);
-      client.send("hit", { victim: hit.id, dmg, head: hit.part === "head" });
+    for (const [vid, agg] of dmgByVictim) {
+      const dmg = Math.round(agg.dmg);
+      if (dmg <= 0) continue;
+      this.applyDamage(vid, dmg, id, agg.head ? "head" : "body");
+      client.send("hit", { victim: vid, dmg, head: agg.head });
     }
     this.markStateChanged();
   }
 
-  /** Aim unit vector from yaw/pitch, widened by spread when moving/airborne. */
-  private aimDir(id: string, p: ArenaPlayer): Vec3 {
-    let yaw = p.yaw;
-    let pitch = p.pitch;
-    const inp = this.inputs.get(id);
-    const grounded = this.grounded.get(id) ?? true;
-    const moving = inp ? inp.mx !== 0 || inp.mz !== 0 : false;
-    const spread = !grounded ? AR.spreadAir : moving ? AR.spreadMove : AR.spreadStill;
-    if (spread > 0) {
-      yaw += (this.spreadRng() / 0xffffffff - 0.5) * 2 * spread;
-      pitch += (this.spreadRng() / 0xffffffff - 0.5) * 2 * spread;
+  private weaponOf(p: ArenaPlayer): WeaponSpec {
+    return WEAPONS[p.weapon] ?? WEAPONS[DEFAULT_WEAPON]!;
+  }
+
+  /** Per-weapon magazine array (lazily filled to every weapon's full mag). */
+  private magArr(id: string): number[] {
+    let a = this.magByW.get(id);
+    if (!a) {
+      a = WEAPONS.map((wpn) => wpn.mag);
+      this.magByW.set(id, a);
     }
-    const cp = Math.cos(pitch);
-    return { x: Math.sin(yaw) * cp, y: Math.sin(pitch), z: Math.cos(yaw) * cp };
+    return a;
+  }
+
+  /** Per-weapon reserve array (lazily filled to every weapon's full reserve). */
+  private reserveArr(id: string): number[] {
+    let a = this.reserveByW.get(id);
+    if (!a) {
+      a = WEAPONS.map((wpn) => wpn.reserve);
+      this.reserveByW.set(id, a);
+    }
+    return a;
+  }
+
+  /** Symmetric spread offset (rad) for a cone half-angle; 0 → pinpoint (deterministic). */
+  private jitter(spread: number): number {
+    return spread > 0 ? (this.spreadRng() / 0xffffffff - 0.5) * 2 * spread : 0;
+  }
+
+  private ownerClient(id: string): Client | undefined {
+    return this.clientList().find((c) => c.id === id);
   }
 
   private handleReload(client: Client): void {
@@ -445,28 +542,165 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const p = this.state.players[id];
     if (!p || !p.alive) return;
     if (this.reloadUntil.has(id)) return; // already reloading
-    if ((this.ammoMag.get(id) ?? AR.mag) >= AR.mag) return; // full
-    if ((this.ammoReserve.get(id) ?? 0) <= 0) return; // no spare rounds
+    const spec = this.weaponOf(p);
+    if ((this.magArr(id)[p.weapon] ?? 0) >= spec.mag) return; // full
+    if ((this.reserveArr(id)[p.weapon] ?? 0) <= 0) return; // no spare rounds
     this.startReload(id, Date.now());
   }
 
   private startReload(id: string, now: number): void {
-    if ((this.ammoReserve.get(id) ?? 0) <= 0) return;
+    const p = this.state.players[id];
+    if (!p) return;
     if (this.reloadUntil.has(id)) return;
-    this.reloadUntil.set(id, now + AR.reloadMs);
-    const client = this.clientList().find((c) => c.id === id);
-    client?.send("ammo", { mag: this.ammoMag.get(id) ?? 0, reserve: this.ammoReserve.get(id) ?? 0, reloadMs: AR.reloadMs });
+    const spec = this.weaponOf(p);
+    const w = p.weapon;
+    if ((this.reserveArr(id)[w] ?? 0) <= 0) return;
+    this.reloadUntil.set(id, now + spec.reloadMs);
+    this.ownerClient(id)?.send("ammo", {
+      mag: this.magArr(id)[w] ?? 0,
+      reserve: this.reserveArr(id)[w] ?? 0,
+      weapon: spec.slot,
+      reloadMs: spec.reloadMs,
+    });
   }
 
   private finishReload(id: string): void {
-    const mag = this.ammoMag.get(id) ?? 0;
-    const reserve = this.ammoReserve.get(id) ?? 0;
-    const need = AR.mag - mag;
-    const take = Math.min(need, reserve);
-    this.ammoMag.set(id, mag + take);
-    this.ammoReserve.set(id, reserve - take);
-    const client = this.clientList().find((c) => c.id === id);
-    client?.send("ammo", { mag: mag + take, reserve: reserve - take });
+    const p = this.state.players[id];
+    if (!p) return;
+    const spec = this.weaponOf(p);
+    const w = p.weapon;
+    const mags = this.magArr(id);
+    const reserves = this.reserveArr(id);
+    const mag = mags[w] ?? 0;
+    const reserve = reserves[w] ?? 0;
+    const take = Math.min(spec.mag - mag, reserve);
+    mags[w] = mag + take;
+    reserves[w] = reserve - take;
+    this.ownerClient(id)?.send("ammo", { mag: mags[w], reserve: reserves[w], weapon: spec.slot });
+  }
+
+  // --- weapon switch / loadout / grenades -------------------------------------
+
+  /** Switch to loadout slot 1–5; the swap delay gates the next shot. */
+  private handleSwitch(client: Client, payload: unknown): void {
+    const id = client.id;
+    const p = this.state.players[id];
+    if (!p || !p.alive) return;
+    const slot = readNum(payload, "slot");
+    if (slot === undefined) return;
+    const idx = Math.round(slot) - 1;
+    if (idx < 0 || idx >= WEAPONS.length || idx === p.weapon) return;
+    p.weapon = idx;
+    this.swapUntil.set(id, Date.now() + WEAPON.swapMs);
+    this.reloadUntil.delete(id); // a swap cancels an in-progress reload
+    this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
+    this.ownerClient(id)?.send("ammo", {
+      mag: this.magArr(id)[idx] ?? 0,
+      reserve: this.reserveArr(id)[idx] ?? 0,
+      weapon: WEAPONS[idx]!.slot,
+    });
+    this.markStateChanged();
+  }
+
+  /** Choose the weapon you SPAWN holding (primary = slots 1–4; applied next spawn). */
+  private handleLoadout(client: Client, payload: unknown): void {
+    const slot = readNum(payload, "primary");
+    if (slot === undefined) return;
+    const idx = Math.round(slot) - 1;
+    if (idx < 0 || idx >= PISTOL_INDEX) return; // a primary is slots 1–4, never the pistol
+    this.primaryWeapon.set(client.id, idx);
+  }
+
+  /** Throw a grenade along the aim ray (server owns the trajectory + fuse). */
+  private handleNade(client: Client): void {
+    const id = client.id;
+    const p = this.state.players[id];
+    if (!p || !p.alive || p.nades <= 0) return;
+    const now = Date.now();
+    const ready = this.nadeReadyAt.get(id);
+    if (ready !== undefined && now < ready) return;
+    this.nadeReadyAt.set(id, now + GRENADE.throwCooldownMs);
+    p.nades -= 1;
+
+    const dir = dirFromAngles(p.yaw, p.pitch);
+    const eye = p.y + this.eyeHeight(p);
+    // Spawn just ahead of the muzzle so it clears the thrower's own body/cover.
+    const pos: Vec3 = { x: p.x + dir.x * 0.6, y: eye + dir.y * 0.6, z: p.z + dir.z * 0.6 };
+    const vel: Vec3 = {
+      x: dir.x * GRENADE.throwSpeed,
+      y: dir.y * GRENADE.throwSpeed,
+      z: dir.z * GRENADE.throwSpeed,
+    };
+    const gid = `${id}#${this.nadeSeq++}`;
+    this.grenades.push({
+      id: gid,
+      owner: id,
+      team: p.team,
+      body: { pos, vel },
+      boomTick: this.currentTick + Math.ceil(GRENADE.fuseMs / TICK_MS),
+    });
+    this.sendNear(
+      "nadeSpawn",
+      { id: gid, from: id, x: pos.x, y: pos.y, z: pos.z, vx: vel.x, vy: vel.y, vz: vel.z, fuseMs: GRENADE.fuseMs },
+      pos.x,
+      pos.z,
+      { always: [id] },
+    );
+    this.markStateChanged();
+  }
+
+  /** Advance every grenade one tick; detonate the ones whose fuse elapsed. */
+  private stepGrenades(dt: number, _now: number): void {
+    const live: Grenade[] = [];
+    for (const g of this.grenades) {
+      if (this.currentTick >= g.boomTick) {
+        this.explodeGrenade(g);
+        continue;
+      }
+      const bounced = stepGrenade(
+        g.body,
+        dt,
+        MOVE.gravity,
+        GRENADE.restitution,
+        GRENADE.projRadius,
+        this.boxes,
+        ARENA1_BOUNDS,
+      );
+      if (bounced) {
+        const { pos, vel } = g.body;
+        this.sendNear(
+          "nadeBounce",
+          { id: g.id, x: pos.x, y: pos.y, z: pos.z, vx: vel.x, vy: vel.y, vz: vel.z },
+          pos.x,
+          pos.z,
+        );
+      }
+      live.push(g);
+    }
+    this.grenades = live;
+  }
+
+  /** Detonate: emit the boom, then apply radial AoE (enemies + self, LoS-checked). */
+  private explodeGrenade(g: Grenade): void {
+    const c = g.body.pos;
+    this.sendNear("nadeBoom", { id: g.id, x: c.x, y: c.y, z: c.z, r: GRENADE.radius }, c.x, c.z);
+    for (const [pid, p] of Object.entries(this.state.players)) {
+      if (!p.alive || p.prot) continue;
+      // Friendly fire off for teammates (matches bullets), but self-damage is on.
+      if (p.team === g.team && pid !== g.owner) continue;
+      const dx = p.x - c.x;
+      const dy = p.y + this.height(p) / 2 - c.y; // measure to the victim's torso centre
+      const dz = p.z - c.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist >= GRENADE.radius) continue;
+      // Cover between the blast and the victim shields them.
+      if (dist > 1e-3) {
+        const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
+        if (nearestBox(c, dir, this.boxes, dist) < dist) continue;
+      }
+      const dmg = Math.round(blastDamage(GRENADE.maxDamage, GRENADE.radius, dist));
+      if (dmg > 0) this.applyDamage(pid, dmg, g.owner, "blast");
+    }
   }
 
   // --- damage / kills ---------------------------------------------------------
@@ -525,14 +759,20 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.crouch = false;
     p.yaw = p.team === TEAM.red ? Math.PI / 2 : (3 * Math.PI) / 2;
     p.pitch = 0;
+    // Loadout: spawn holding the chosen primary (default AR), full ammo on every
+    // weapon, and a fresh set of grenades.
+    p.weapon = this.primaryWeapon.get(id) ?? DEFAULT_WEAPON;
+    p.nades = GRENADE.count;
     this.vy.set(id, 0);
     this.grounded.set(id, true);
     this.inputs.set(id, { ...NO_INPUT }); // drop a corpse's held keys
     this.protUntil.set(id, this.currentTick + Math.ceil(this.spawnProtectMs / TICK_MS));
-    this.ammoMag.set(id, AR.mag);
-    this.ammoReserve.set(id, AR.reserve);
+    this.magByW.set(id, WEAPONS.map((wpn) => wpn.mag));
+    this.reserveByW.set(id, WEAPONS.map((wpn) => wpn.reserve));
     this.reloadUntil.delete(id);
     this.lastShotAt.delete(id);
+    this.swapUntil.delete(id);
+    this.nadeReadyAt.delete(id);
   }
 
   private handleRespawn(client: Client): void {

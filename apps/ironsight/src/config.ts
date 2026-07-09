@@ -51,21 +51,212 @@ export const MOVE = {
 } as const;
 
 /**
- * The AR (M0's only weapon). PLAN §4 damage: body 25 / head 50, 100 ms fire
- * interval, 30-round mag, 1.8 s reload. Spread widens while moving/airborne
- * (pinpoint when still + grounded, so still shots are deterministic).
+ * Weapon data (PLAN §4 "무기 5+1"). Every weapon is one {@link WeaponSpec} row so
+ * M4 ("config 추출") can lift the whole {@link WEAPONS} table into a data-driven
+ * template — the room resolves a shot purely from the held weapon's spec, with no
+ * per-weapon branching in the sim.
+ *
+ * ## Two independent spread channels
+ *
+ * - **accuracy cone** (`spreadStill/Move/Air`): a per-ray random jitter that widens
+ *   while moving/airborne — the movement-vs-precision tension. Pinpoint (`0`) when
+ *   still + grounded, so a stationary single-pellet shot is deterministic.
+ * - **pellet pattern** (`pellets` > 1, `pelletSpread`): a FIXED deterministic cone
+ *   the pellets fill on every trigger pull (the shotgun's spread). Being fixed, not
+ *   random, it makes the shotgun's damage-by-distance reproducible and testable.
+ *
+ * ## Distance falloff (the shotgun/SMG balance lever)
+ *
+ * Damage is scaled by {@link WeaponSpec.falloffStart}/`falloffEnd`/`falloffMin`:
+ * full within `falloffStart`, linearly down to `falloffMin×` past `falloffEnd`.
+ * This is what stops any one weapon dominating every range (PLAN §5 gate): the SMG
+ * and shotgun fall off a cliff past close range, the AR holds, the sniper never
+ * falls off — so the best weapon differs per range band.
  */
-export const AR = {
+export interface WeaponSpec {
+  /** Loadout slot 1–5 (the `switch` intent's slot; wire `weapon` stores slot−1). */
+  readonly slot: number;
+  readonly name: string;
+  readonly damageBody: number;
+  readonly damageHead: number;
+  /** Server-enforced minimum ms between trigger pulls (fire-rate cap). */
+  readonly fireIntervalMs: number;
+  readonly mag: number;
+  /** Spare rounds available to reload from. */
+  readonly reserve: number;
+  readonly reloadMs: number;
+  /** Hitscan reach (metres). */
+  readonly range: number;
+  /** Rays per trigger pull (1 for all but the shotgun). */
+  readonly pellets: number;
+  /** Fixed pellet-pattern cone half-angle (rad); 0 for single-ray weapons. */
+  readonly pelletSpread: number;
+  /** Accuracy cone half-angle (rad) when still + grounded. */
+  readonly spreadStill: number;
+  /** Added to the accuracy cone while moving on the ground. */
+  readonly spreadMove: number;
+  /** Added to the accuracy cone while airborne. */
+  readonly spreadAir: number;
+  /** Full damage within this range (m). */
+  readonly falloffStart: number;
+  /** Damage reaches `falloffMin×` at this range and holds (m). */
+  readonly falloffEnd: number;
+  /** Damage multiplier floor (0–1) past `falloffEnd`. */
+  readonly falloffMin: number;
+}
+
+/** AR — the all-rounder baseline (PLAN §4: body 25 / head 50, 100 ms, 30-mag, 1.8 s). */
+const AR_SPEC: WeaponSpec = {
+  slot: 1,
+  name: "AR",
   damageBody: 25,
   damageHead: 50,
-  fireIntervalMs: 100, // server-enforced minimum between shots
+  fireIntervalMs: 100,
   mag: 30,
-  reserve: 90, // spare rounds (3 mags) available to reload from
+  reserve: 90,
   reloadMs: 1800,
-  range: 100, // hitscan reach (metres) — covers the arena diagonal
-  spreadStill: 0, // rad cone half-angle when still + grounded (pinpoint)
-  spreadMove: 0.02, // added while moving on the ground
-  spreadAir: 0.05, // added while airborne
+  range: 100,
+  pellets: 1,
+  pelletSpread: 0,
+  spreadStill: 0,
+  spreadMove: 0.02,
+  spreadAir: 0.05,
+  falloffStart: 30,
+  falloffEnd: 65,
+  falloffMin: 0.7,
+};
+
+/** SMG — higher close-range DPS, cliffs off past mid (owns the 15 m band). */
+const SMG_SPEC: WeaponSpec = {
+  slot: 2,
+  name: "SMG",
+  damageBody: 20,
+  damageHead: 30,
+  fireIntervalMs: 65,
+  mag: 25,
+  reserve: 100,
+  reloadMs: 1600,
+  range: 80,
+  pellets: 1,
+  pelletSpread: 0,
+  spreadStill: 0.004,
+  spreadMove: 0.03,
+  spreadAir: 0.06,
+  falloffStart: 16,
+  falloffEnd: 36,
+  falloffMin: 0.5,
+};
+
+/** Shotgun — 8 pellets: a point-blank one-shot that decays to nothing past ~20 m. */
+const SHOTGUN_SPEC: WeaponSpec = {
+  slot: 3,
+  name: "Shotgun",
+  damageBody: 14, // per pellet (× up to 8)
+  damageHead: 20, // per pellet
+  fireIntervalMs: 850,
+  mag: 6,
+  reserve: 24,
+  reloadMs: 2800,
+  range: 40,
+  pellets: 8,
+  pelletSpread: 0.055,
+  spreadStill: 0,
+  spreadMove: 0.02,
+  spreadAir: 0.05,
+  falloffStart: 6,
+  falloffEnd: 22,
+  falloffMin: 0.25,
+};
+
+/** Sniper — bolt-action: body chunk (2-shot), head one-shot, no falloff, huge move penalty. */
+const SNIPER_SPEC: WeaponSpec = {
+  slot: 4,
+  name: "Sniper",
+  damageBody: 80,
+  damageHead: 150,
+  fireIntervalMs: 1300,
+  mag: 5,
+  reserve: 20,
+  reloadMs: 3000,
+  range: 100,
+  pellets: 1,
+  pelletSpread: 0,
+  spreadStill: 0.0005,
+  spreadMove: 0.12, // punishing while moving — this is a stand-still weapon
+  spreadAir: 0.2,
+  falloffStart: 100, // ≥ range → full damage everywhere in reach
+  falloffEnd: 101,
+  falloffMin: 1,
+};
+
+/** Pistol — the reliable semi-auto sidearm every loadout carries (slot 5). */
+const PISTOL_SPEC: WeaponSpec = {
+  slot: 5,
+  name: "Pistol",
+  damageBody: 34,
+  damageHead: 60,
+  fireIntervalMs: 160,
+  mag: 12,
+  reserve: 48,
+  reloadMs: 1400,
+  range: 90,
+  pellets: 1,
+  pelletSpread: 0,
+  spreadStill: 0.002,
+  spreadMove: 0.02,
+  spreadAir: 0.05,
+  falloffStart: 20,
+  falloffEnd: 45,
+  falloffMin: 0.7,
+};
+
+/**
+ * The weapon table, indexed by wire `weapon` value (0–4). The `switch` intent's
+ * slot 1–5 maps to `WEAPONS[slot − 1]`. Everyone carries all five; the loadout's
+ * `primary` selection only sets which one you SPAWN holding.
+ */
+export const WEAPONS: readonly WeaponSpec[] = [
+  AR_SPEC,
+  SMG_SPEC,
+  SHOTGUN_SPEC,
+  SNIPER_SPEC,
+  PISTOL_SPEC,
+];
+
+/** Default spawn weapon (index into {@link WEAPONS}) when no primary is chosen. */
+export const DEFAULT_WEAPON = 0; // AR
+/** The pistol is always slot 5 / index 4; a primary choice can't be the pistol. */
+export const PISTOL_INDEX = 4;
+
+/**
+ * The AR spec under its historical name. Kept so the client (`net.ts` reads the
+ * fire cadence) and the M0 bots/tests (which model the AR loadout) import a stable
+ * `AR` — every field they use lives on the spec.
+ */
+export const AR = AR_SPEC;
+
+/** Weapon-handling tunables shared across all weapons. */
+export const WEAPON = {
+  /** Delay after a `switch` before the new weapon can fire (swap animation). */
+  swapMs: 350,
+} as const;
+
+/**
+ * Frag grenade (PLAN §4 "+수류탄"): a thrown projectile that arcs under gravity,
+ * bounces off cover, and detonates on a fuse for a radial AoE. Deliberately NOT a
+ * one-shot even at the blast centre (`maxDamage` < {@link PLAYER.maxHp}) — a direct
+ * frag softens a group but still needs a follow-up (PLAN §5 balance: "직격+폭발이
+ * 원샷 아님"). Self-damage is on, so a point-blank throw hurts the thrower too.
+ */
+export const GRENADE = {
+  count: 2, // carried on (re)spawn
+  fuseMs: 2500, // throw → detonation
+  radius: 5, // AoE reach (m)
+  maxDamage: 90, // at the blast centre — one short of a kill
+  throwSpeed: 18, // initial launch speed along the aim ray (m/s)
+  restitution: 0.45, // velocity retained per bounce
+  projRadius: 0.15, // collision sphere radius
+  throwCooldownMs: 800, // minimum ms between throws
 } as const;
 
 /** TDM match flow. */

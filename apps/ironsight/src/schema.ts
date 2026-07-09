@@ -41,6 +41,10 @@ export interface ArenaPlayer {
   k: number;
   /** Lifetime deaths (scoreboard). */
   d: number;
+  /** Held weapon — index into {@link WEAPONS} (0 = AR). Others render its viewmodel. */
+  weapon: number;
+  /** Grenades remaining. */
+  nades: number;
 }
 
 export type MatchPhase = "live" | "ended";
@@ -71,6 +75,10 @@ const PlayerSchema: Codec<ArenaPlayer> = schema({
   prot: "bool",
   k: "u16",
   d: "u16",
+  // Appended after the M0 fields so the existing wire layout is unchanged (positional
+  // decode) — client and bots import this same codec, so the fingerprint stays in sync.
+  weapon: "u8",
+  nades: "u8",
 });
 
 export const ArenaSchema: Codec<ArenaState> = schema({
