@@ -101,6 +101,34 @@ importers:
         specifier: ^4.106.0
         version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
 
+  apps/ironsight:
+    dependencies:
+      '@tikron/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@tikron/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      '@tikron/server':
+        specifier: workspace:*
+        version: link:../../packages/server
+      '@tikron/sim':
+        specifier: workspace:*
+        version: link:../../packages/sim
+      partyserver:
+        specifier: ^0.5.8
+        version: 0.5.8(@cloudflare/workers-types@4.20260701.1)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20260701.1
+        version: 4.20260701.1
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
+      wrangler:
+        specifier: ^4.106.0
+        version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
+
   examples/discord-activity:
     dependencies:
       '@discord/embedded-app-sdk':

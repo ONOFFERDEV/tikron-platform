@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ironsight",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  // One Durable Object class: the FPS arena room. Binding "ArenaRoom" maps to the
+  // kebab-case party "arena-room" (AGENTS.md rule 4) — the client connects to
+  // wss://<host>/parties/arena-room/<room-id>.
+  "durable_objects": {
+    "bindings": [{ "name": "ArenaRoom", "class_name": "ArenaRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ArenaRoom"] }],
+  "assets": { "directory": "./public" },
+  "observability": { "enabled": true }
+}
