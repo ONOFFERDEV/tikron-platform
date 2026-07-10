@@ -1,7 +1,7 @@
 import type { Vec2 } from "@tikron/sim";
 import { xorshift32 } from "@tikron/sim";
 import { ARENA1_BOXES } from "../../src/map/arena1.js";
-import { nearestBox, type Vec3 } from "../../src/physics.js";
+import { nearestBox, type Box, type Vec3 } from "../../src/physics.js";
 import { AR, PLAYER } from "../../src/config.js";
 import type { ArenaPlayer, ArenaState } from "../../src/schema.js";
 
@@ -17,8 +17,9 @@ import type { ArenaPlayer, ArenaState } from "../../src/schema.js";
  * back — there is no client prediction to drift.
  *
  * Behaviour: patrol the supplied lane {@link ArenaBotOptions.waypoints} until an
- * enemy is in line of sight (occlusion-tested against {@link ARENA1_BOXES}), then
- * face the nearest one, keep strafing between waypoints so it stays a moving
+ * enemy is in line of sight (occlusion-tested against {@link ArenaBotOptions.boxes},
+ * arena1's by default), then face the nearest one, keep strafing between waypoints
+ * so it stays a moving
  * target, and fire on the weapon's cadence. Aim carries a seeded normal-distribution
  * angular error so two mirrored bots never land pixel-identical shots (and the run
  * stays reproducible). Ammo is modelled from the bot's own shot count — the mag
@@ -70,6 +71,9 @@ export interface ArenaBotOptions {
   strafeAmp?: number;
   /** Half-period of the strafe oscillation, ms (default 700). */
   strafePeriodMs?: number;
+  /** Map geometry for the line-of-sight occlusion test (default arena1's boxes —
+   *  pass a different map's boxes to run this harness against e.g. arena2). */
+  boxes?: readonly Box[];
 }
 
 /** A sink the driver adapts to its transport (`TestConnection`, `GameClient`, …). */
@@ -92,6 +96,7 @@ export class ArenaBot {
   private readonly strafeZ: number;
   private readonly strafeAmp: number;
   private readonly strafePeriodMs: number;
+  private readonly boxes: readonly Box[];
   private wpIndex = 0;
 
   // Ammo model (mag is owner-only, off the wire) + fire cadence, on the bot clock.
@@ -113,6 +118,7 @@ export class ArenaBot {
     this.strafeZ = opts.strafeZ ?? 11;
     this.strafeAmp = opts.strafeAmp ?? 1.2;
     this.strafePeriodMs = opts.strafePeriodMs ?? 700;
+    this.boxes = opts.boxes ?? ARENA1_BOXES;
   }
 
   /** Uniform in [0, 1). */
@@ -208,7 +214,7 @@ export class ArenaBot {
       if (dist === 0 || dist >= bestDist) continue;
       const dir: Vec3 = { x: dx / dist, y: dy / dist, z: dz / dist };
       // Occluded if a map box is entered before the target along the ray.
-      if (nearestBox(eye, dir, ARENA1_BOXES, dist) < dist) continue;
+      if (nearestBox(eye, dir, this.boxes, dist) < dist) continue;
       best = p;
       bestDist = dist;
     }

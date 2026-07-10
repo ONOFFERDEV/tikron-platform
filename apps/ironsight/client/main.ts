@@ -15,9 +15,10 @@ import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { Hud } from "./hud.js";
-import { initAudio, playBoom, playFire, playHit, playKill, playSwap } from "./audio.js";
+import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
-import { WEAPONS } from "../src/config.js";
+import { PLAYER, WEAPONS } from "../src/config.js";
+import { MODE_ORDER, mapForMode } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 
 interface Pose {
@@ -30,18 +31,35 @@ interface Snap {
 }
 
 const RESPAWN_MS = 3000; // mirrors MATCH.respawnMs (client countdown only)
+const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
-  // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
-  // above a body-mounted canvas and swallows every click (pointer lock never requested;
-  // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
-  const scene = new SceneRig(document.getElementById("app") ?? document.body);
   const hud = new Hud();
   initAudio();
   hud.showLockPrompt(true, "CONNECTING…");
 
   const net = await Net.connect();
   const me0 = await waitForSelf(net);
+  if (!me0) {
+    // waitForSelf timed out: state (or our own player entry in it) never arrived,
+    // so mapForMode below would fall back to mode 0's map even in a dom/ffa room —
+    // client and server would render different geometry for an already-broken
+    // session. Net.connect() itself never surfaces a fatal error (it retries with
+    // backoff forever), so mirror that "keep the user informed, don't proceed"
+    // idiom here the only way a stuck session can recover: reload from scratch.
+    hud.showLockPrompt(true, "CONNECTION FAILED — RELOADING…");
+    setTimeout(() => location.reload(), RESYNC_RELOAD_MS);
+    return;
+  }
+  // The map is derived from the mode the server actually placed us in (state.mode,
+  // synced on join) rather than guessed client-side — same single source of truth
+  // (mapForMode) the room itself resolves from modeFromRoomId.
+  const map = mapForMode(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm");
+
+  // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
+  // above a body-mounted canvas and swallows every click (pointer lock never requested;
+  // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
+  const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
 
   const input = new Input(
     scene.canvas,
@@ -56,7 +74,7 @@ async function main(): Promise<void> {
     () => net.sendNade(),
   );
   input.pitch = me0?.pitch ?? 0;
-  const predictor = new Predictor();
+  const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
 
   const name = (id: string): string => {
@@ -94,6 +112,8 @@ async function main(): Promise<void> {
   let deathAt = -1;
   let respawnSent = false;
   let killerName: string | undefined;
+  let killerId: string | undefined;
+  let deathCam: { eye: { x: number; y: number; z: number }; yaw: number; pitch: number } | null = null;
   let matchEnd: { winner: string; red: number; blue: number } | null = null;
   let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
@@ -116,12 +136,25 @@ async function main(): Promise<void> {
   });
   net.onKill((e) => {
     hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam, e.assist ? name(e.assist) : undefined);
-    if (e.victim === net.myId) killerName = name(e.killer);
+    if (e.victim === net.myId) {
+      killerName = name(e.killer);
+      killerId = e.killer;
+    }
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
   net.onStreak((e) => hud.showStreak(name(e.id), e.count));
   net.onShot((e: ShotEvent) => {
-    scene.addTracer({ x: e.ox, y: e.oy, z: e.oz }, { x: e.dx, y: e.dy, z: e.dz }, e.dist, e.hit);
+    const origin = { x: e.ox, y: e.oy, z: e.oz };
+    const dir = { x: e.dx, y: e.dy, z: e.dz };
+    scene.addTracer(origin, dir, e.dist, e.hit);
+    scene.spawnCasing(origin, dir);
+    const impactDist = Math.max(0.5, e.dist);
+    scene.spawnImpact(
+      { x: e.ox + e.dx * impactDist, y: e.oy + e.dy * impactDist, z: e.oz + e.dz * impactDist },
+      dir,
+      e.hit,
+    );
+    if (e.from !== net.myId) scene.spawnMuzzleFlash(origin, dir);
   });
   net.onMatchEnd((e) => {
     matchEnd = { winner: e.winner, red: e.red, blue: e.blue };
@@ -147,10 +180,18 @@ async function main(): Promise<void> {
     if (me) {
       predictor.reconcile({ x: me.x, y: me.y, z: me.z });
       predictor.setAlive(me.alive);
-      if (me.alive && me.hp < prevHp) hud.flashDamage();
+      if (me.alive && me.hp < prevHp) {
+        hud.flashDamage();
+        playHurt();
+      }
       if (wasAlive && !me.alive) {
         deathAt = performance.now();
         respawnSent = false;
+        deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
+      }
+      if (!wasAlive && me.alive) {
+        deathCam = null;
+        killerId = undefined;
       }
       prevHp = me.hp;
       wasAlive = me.alive;
@@ -205,8 +246,13 @@ async function main(): Promise<void> {
     }
 
     // Camera from prediction (local, immediate) — hide own body, show viewmodel.
+    // While dead, hold the frozen death-cam view instead of following input look.
     const eye = predictor.eye();
-    scene.setView(eye, input.yaw, input.pitch);
+    if (deathCam) {
+      scene.setView(deathCam.eye, deathCam.yaw, deathCam.pitch);
+    } else {
+      scene.setView(eye, input.yaw, input.pitch);
+    }
     onAds(input.adsHeld);
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
@@ -215,10 +261,14 @@ async function main(): Promise<void> {
     const moving = intent.mx !== 0 || intent.mz !== 0;
     const speed01 = moving ? (intent.sprint && intent.mz > 0 ? 1 : 0.6) : 0;
     scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
+    scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);
 
     // Remote players interpolated in the past.
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS);
     scene.syncPlayers(poses, net.myId);
+    for (const [id, p] of poses) {
+      if (id !== net.myId && p.alive) scene.stepFootRemote(id, p, dt, eye);
+    }
     scene.render();
 
     // HUD.
@@ -330,6 +380,25 @@ function wrapPi(a: number): number {
 }
 function lerpAngle(a: number, b: number, t: number): number {
   return a + wrapPi(b - a) * t;
+}
+
+/** Snapshot the death-cam view once: a frozen eye position aimed at the killer's
+ *  live pose at the moment of death (falls back to holding the current look
+ *  direction when there's no killer to aim at — suicide, disconnect, or self). */
+function buildDeathCam(
+  eye: { x: number; y: number; z: number },
+  yaw: number,
+  pitch: number,
+  killerId: string | undefined,
+  myId: string,
+  state: ArenaState,
+): { eye: { x: number; y: number; z: number }; yaw: number; pitch: number } {
+  const killer = killerId && killerId !== myId ? state.players[killerId] : undefined;
+  if (!killer) return { eye, yaw, pitch };
+  const dx = killer.x - eye.x;
+  const dz = killer.z - eye.z;
+  const dy = killer.y + (killer.crouch ? PLAYER.crouchEye : PLAYER.standEye) - eye.y;
+  return { eye, yaw: Math.atan2(dx, dz), pitch: Math.atan2(dy, Math.hypot(dx, dz)) };
 }
 
 void main();

@@ -1,7 +1,6 @@
 import type { Vec2 } from "@tikron/sim";
 import { xorshift32 } from "@tikron/sim";
-import { ARENA1_BOXES } from "./map/arena1.js";
-import { nearestBox, type Vec3 } from "./physics.js";
+import { nearestBox, type Box, type Vec3 } from "./physics.js";
 import { PLAYER } from "./config.js";
 
 /**
@@ -14,7 +13,9 @@ import { PLAYER } from "./config.js";
  * shared fire handler) — this file never talks to a socket or a `Client`.
  *
  * Ported from `tools/bots/arena-bot.ts` (the E2E test-harness bot): waypoint patrol,
- * line-of-sight occlusion test against {@link ARENA1_BOXES}, and seeded gaussian aim
+ * line-of-sight occlusion test against the active map's boxes (passed in via
+ * {@link BotView.boxes} — a filler bot on a dom room must occlude against arena2's
+ * geometry, not arena1's), and seeded gaussian aim
  * error. Ammo/reload/fire-cadence modelling from the harness is dropped here — the
  * room's own authoritative ammo/cooldown state already gates the bot's `fire` intent
  * the same way it gates a real player's, so the brain only needs to decide *want to
@@ -27,6 +28,19 @@ import { PLAYER } from "./config.js";
  */
 
 const TAU = Math.PI * 2;
+
+/**
+ * DOM-only: movement toward the objective is the DEFAULT regardless of enemy
+ * visibility — aim/fire always track a visible enemy the same way combat does,
+ * only the MOVE vector differs. Gating travel on mere visibility (the legacy
+ * tdm/ffa rule below) doesn't work here: arena2 has no lane dividers, so an
+ * enemy is visible from across the whole open map almost constantly, and that
+ * would freeze every dom bot's push to the cap nearly all the time. Only a
+ * genuinely close threat gets brief combat priority. */
+const CLOSE_THREAT_M = 8;
+/** DOM-only: once this close to the objective, hold position (strafe around the
+ *  objective's own z) instead of continuing to walk straight through the point. */
+const OBJECTIVE_ARRIVE_M = 2;
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -74,6 +88,15 @@ export interface BotView {
   /** True in teamless modes (FFA), where the room assigns everyone team=0 — target
    *  acquisition must not treat every other player as a "teammate". */
   teamless: boolean;
+  /** The active room's map geometry, for line-of-sight occlusion (arena1 for
+   *  tdm/ffa, arena2 for dom — see modes.ts's mapForMode). */
+  boxes: readonly Box[];
+  /** DOM-only: the reachable point (capWaypoints anchor, else the cap's own
+   *  centre) on the nearest capture point this bot's team hasn't fully secured —
+   *  undefined outside dom, or once every point is already owned in this team's
+   *  favour (falls back to the plain waypoint patrol below). Set by the room
+   *  (arena-room.ts's botView), never computed here. */
+  objective?: { x: number; z: number };
 }
 
 export interface BotBrainOptions {
@@ -166,6 +189,7 @@ function nearestVisibleEnemy(
   enemies: readonly BotEnemyView[],
   aimHeight: number,
   teamless: boolean,
+  boxes: readonly Box[],
 ): BotEnemyView | null {
   const eye: Vec3 = { x: self.x, y: self.y + eyeHeight(self), z: self.z };
   let best: BotEnemyView | null = null;
@@ -179,7 +203,7 @@ function nearestVisibleEnemy(
     const dist = Math.hypot(dx, dy, dz);
     if (dist === 0 || dist >= bestDist) continue;
     const dir: Vec3 = { x: dx / dist, y: dy / dist, z: dz / dist };
-    if (nearestBox(eye, dir, ARENA1_BOXES, dist) < dist) continue;
+    if (nearestBox(eye, dir, boxes, dist) < dist) continue;
     best = p;
     bestDist = dist;
   }
@@ -210,11 +234,28 @@ function worldToMove(yaw: number, wx: number, wz: number): BotMoveIntent {
   return { mx, mz, jump: false, crouch: false, sprint: false };
 }
 
+/** Unit world-space direction from `from` to `to` ({x:0,z:0} if coincident). */
+function dirTo(from: { x: number; z: number }, to: { x: number; z: number }): { x: number; z: number } {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  const len = Math.hypot(dx, dz);
+  return len < 1e-6 ? { x: 0, z: 0 } : { x: dx / len, z: dz / len };
+}
+
+/** Sidestep along the depth axis while facing a target: oscillates between
+ *  `anchorZ ± strafeAmp` (half-period `strafePeriodMs`), converted to WASD via
+ *  `yaw`. Factored out of {@link combatStrafe} so {@link domThink}'s "hold the
+ *  objective" case can anchor the oscillation on the objective's own z instead
+ *  of the brain's unrelated tuned default (see {@link BotBrainOptions.strafeZ}). */
+function strafeAround(brain: BotBrain, self: BotPlayerView, yaw: number, anchorZ: number): BotMoveIntent {
+  const phase = Math.floor(brain.clockMs / brain.strafePeriodMs) % 2 === 0 ? 1 : -1;
+  const targetZ = anchorZ + phase * brain.strafeAmp;
+  return worldToMove(yaw, 0, clamp(targetZ - self.z, -1, 1));
+}
+
 /** Sidestep along the depth axis while facing the enemy — see {@link BotBrainOptions.strafeZ}. */
 function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMoveIntent {
-  const phase = Math.floor(brain.clockMs / brain.strafePeriodMs) % 2 === 0 ? 1 : -1;
-  const targetZ = brain.strafeZ + phase * brain.strafeAmp;
-  return worldToMove(yaw, 0, clamp(targetZ - self.z, -1, 1));
+  return strafeAround(brain, self, yaw, brain.strafeZ);
 }
 
 /** Loop the patrol cursor forward once the bot reaches the current waypoint. */
@@ -247,7 +288,12 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     };
   }
 
-  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless);
+  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes);
+
+  // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
+  // dom once every point is owned) falls through to the legacy logic below,
+  // completely unchanged.
+  if (view.objective) return domThink(view.objective, self, enemy, brain, dtMs);
 
   if (!enemy) {
     brain.lockId = null;
@@ -274,4 +320,61 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   const move = combatStrafe(brain, self, look.yaw);
   const fire = brain.lockMs >= brain.reactionMs;
   return { look, move, fire };
+}
+
+/**
+ * DOM-only decision path. Aim/fire ALWAYS track a visible enemy (identical
+ * lock/reaction-delay + aim as combat) regardless of what the bot is doing —
+ * only the MOVE vector changes:
+ *  - a genuinely close threat (`CLOSE_THREAT_M`) gets brief combat-priority
+ *    evasive strafing, same as the legacy branch;
+ *  - otherwise, movement pushes toward the objective BY DEFAULT, visible enemy
+ *    or not — the legacy branch above freezes its waypoint cursor the instant
+ *    ANY enemy is visible, and on arena2's open, divider-free sightlines that's
+ *    nearly always true, so a dom bot would otherwise never reach a point;
+ *  - once within `OBJECTIVE_ARRIVE_M`, hold there — strafing around the
+ *    OBJECTIVE'S OWN z, not the brain's unrelated tuned {@link BotBrainOptions.strafeZ}
+ *    default (11), which would otherwise pull an arrived bot straight back off
+ *    a cap sitting at a different z.
+ */
+function domThink(
+  objective: { x: number; z: number },
+  self: BotPlayerView,
+  enemy: BotEnemyView | null,
+  brain: BotBrain,
+  dtMs: number,
+): BotDecision {
+  let look: BotLookIntent;
+  let fire = false;
+  if (enemy) {
+    if (brain.lockId !== enemy.id) {
+      brain.lockId = enemy.id;
+      brain.lockMs = 0;
+    } else {
+      brain.lockMs += dtMs;
+    }
+    look = aimAt(brain, self, enemy);
+    fire = brain.lockMs >= brain.reactionMs;
+  } else {
+    brain.lockId = null;
+    brain.lockMs = 0;
+    look = { yaw: Math.atan2(objective.x - self.x, objective.z - self.z), pitch: 0 };
+  }
+
+  const enemyDist = enemy ? Math.hypot(enemy.x - self.x, enemy.y - self.y, enemy.z - self.z) : Infinity;
+  if (enemy && enemyDist < CLOSE_THREAT_M) {
+    // Very close threat: brief combat-priority evasive strafing beats the push.
+    return { look, move: combatStrafe(brain, self, look.yaw), fire };
+  }
+
+  const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
+  if (distToObjective <= OBJECTIVE_ARRIVE_M) {
+    return { look, move: strafeAround(brain, self, look.yaw, objective.z), fire };
+  }
+
+  // Default: push toward the objective — converts the world-space direction
+  // into a move intent relative to wherever we're currently looking (mirrors
+  // how combatStrafe lets a bot strafe sideways while keeping its aim on target).
+  const dir = dirTo(self, objective);
+  return { look, move: worldToMove(look.yaw, dir.x, dir.z), fire };
 }

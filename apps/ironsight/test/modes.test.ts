@@ -6,10 +6,12 @@ import {
   MODE_ORDER,
   modeFromRoomId,
   modeIndex,
+  mapForMode,
   type ModeCtx,
 } from "../src/modes.js";
 import { MODES, TEAM } from "../src/config.js";
-import { ARENA1_CAPS } from "../src/map/arena1.js";
+import { ARENA1 } from "../src/map/arena1.js";
+import { ARENA2 } from "../src/map/arena2.js";
 import type { ArenaState } from "../src/schema.js";
 
 /**
@@ -48,9 +50,11 @@ function makeCtx(
     now: opts.now ?? 0,
     broadcast: (_type: string, _payload: unknown) => {},
     playersAt(x: number, z: number) {
-      if (x === ARENA1_CAPS.a.x && z === ARENA1_CAPS.a.z) return occupants.a ?? [];
-      if (x === ARENA1_CAPS.b.x && z === ARENA1_CAPS.b.z) return occupants.b ?? [];
-      if (x === ARENA1_CAPS.c.x && z === ARENA1_CAPS.c.z) return occupants.c ?? [];
+      // dom is always played on ARENA2 (see modes.ts's mapForMode) — its capture
+      // points come from there, not ARENA1.
+      if (x === ARENA2.caps.a.x && z === ARENA2.caps.a.z) return occupants.a ?? [];
+      if (x === ARENA2.caps.b.x && z === ARENA2.caps.b.z) return occupants.b ?? [];
+      if (x === ARENA2.caps.c.x && z === ARENA2.caps.c.z) return occupants.c ?? [];
       return [];
     },
   };
@@ -230,5 +234,13 @@ describe("MODE_ORDER & modeIndex", () => {
     for (let i = 0; i < MODE_ORDER.length; i++) {
       expect(modeIndex(MODE_ORDER[i]!)).toBe(i);
     }
+  });
+});
+
+describe("mapForMode", () => {
+  it("routes tdm and ffa to ARENA1, and dom to ARENA2", () => {
+    expect(mapForMode("tdm")).toBe(ARENA1);
+    expect(mapForMode("ffa")).toBe(ARENA1);
+    expect(mapForMode("dom")).toBe(ARENA2);
   });
 });

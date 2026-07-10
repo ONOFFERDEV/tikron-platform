@@ -8,6 +8,7 @@
 import { GameClient, type Room } from "@tikron/client";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
 import { AR, WEAPONS } from "../src/config.js";
+import type { ModeId } from "../src/modes.js";
 import { LOOK_SEND_MS, MOVE_KEEPALIVE_MS } from "./config.js";
 
 /** The held movement intent the server integrates every tick. */
@@ -90,11 +91,20 @@ interface Matchmake {
   session: string;
 }
 
+/** The page's `?mode=` query param (tdm/ffa/dom), else "tdm" — the server's own
+ *  handleMatchmake (index.ts) applies this exact same fallback independently, so
+ *  this only keeps the forwarded value clean, it isn't the source of truth. */
+function modeFromLocation(): ModeId {
+  const m = new URLSearchParams(location.search).get("mode");
+  return m === "ffa" || m === "dom" ? m : "tdm";
+}
+
 /** Fetch a room + session, retrying with backoff until the worker answers. */
 async function matchmake(): Promise<Matchmake> {
+  const mode = modeFromLocation();
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await fetch("/api/matchmake");
+      const res = await fetch(`/api/matchmake?mode=${mode}`);
       if (res.ok) return (await res.json()) as Matchmake;
     } catch {
       // network hiccup — fall through to the backoff

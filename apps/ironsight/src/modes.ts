@@ -6,7 +6,9 @@
  * `state.mode` on the wire is the numeric index into {@link MODE_ORDER}.
  */
 import { MODES, TEAM } from "./config.js";
-import { ARENA1_CAPS } from "./map/arena1.js";
+import { ARENA1 } from "./map/arena1.js";
+import { ARENA2 } from "./map/arena2.js";
+import type { MapDef } from "./map/types.js";
 import type { ArenaState } from "./schema.js";
 
 export type ModeId = "tdm" | "ffa" | "dom";
@@ -73,10 +75,13 @@ export const FFA_MODE: GameMode = {
 };
 
 const CAP_KEYS = ["capA", "capB", "capC"] as const;
+// Dom is always played on ARENA2 (see mapForMode below) — its capture points come
+// straight from that map rather than a room-supplied value, since there is only
+// ever one (mode, map) pairing for "dom".
 const CAPTURE_POINTS = [
-  { key: "capA" as const, point: ARENA1_CAPS.a },
-  { key: "capB" as const, point: ARENA1_CAPS.b },
-  { key: "capC" as const, point: ARENA1_CAPS.c },
+  { key: "capA" as const, point: ARENA2.caps.a },
+  { key: "capB" as const, point: ARENA2.caps.b },
+  { key: "capC" as const, point: ARENA2.caps.c },
 ];
 
 export const DOM_MODE: GameMode = {
@@ -126,4 +131,11 @@ export function modeFromRoomId(roomId: string): GameMode {
 
 export function modeIndex(m: ModeId): number {
   return MODE_ORDER.indexOf(m);
+}
+
+/** The map a mode is played on — single source of truth for both the server (the
+ *  room resolves it once from `modeFromRoomId(this.id)`) and the client (resolves
+ *  it from `MODE_ORDER[state.mode]` once the first synced state arrives). */
+export function mapForMode(mode: ModeId): MapDef {
+  return mode === "dom" ? ARENA2 : ARENA1;
 }

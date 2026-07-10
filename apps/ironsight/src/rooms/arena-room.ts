@@ -26,8 +26,8 @@ import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../phys
 import { resolveHitscan, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
-import { ARENA1_BOUNDS, ARENA1_BOXES, ARENA1_CAPS, ARENA1_SPAWNS } from "../map/arena1.js";
-import { modeFromRoomId, modeIndex, type GameMode, type ModeCtx } from "../modes.js";
+import type { MapDef } from "../map/types.js";
+import { modeFromRoomId, modeIndex, mapForMode, type GameMode, type ModeCtx } from "../modes.js";
 import { botThink, createBotBrain, type BotBrain, type BotView } from "../bots.js";
 
 /** A live grenade in flight (server-only; never in wire state — see schema.ts). */
@@ -170,7 +170,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
   private readonly gameMode: GameMode = modeFromRoomId(this.id);
 
-  private readonly boxes: readonly Box[] = ARENA1_BOXES;
+  /** This room's map, resolved once from its mode (tdm/ffa → arena1, dom → arena2). */
+  private readonly map: MapDef = mapForMode(this.gameMode.id);
+  private readonly boxes: readonly Box[] = this.map.boxes;
 
   protected override onReady(): void {
     this.maxClients = MATCH.maxClients;
@@ -360,7 +362,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // Crouch (updated before speed/height so this tick uses it). Standing up is
     // rejected if the taller capsule would clip cover/ceiling.
     if (p.crouch && !inp.crouch) {
-      if (canStand(p.x, p.y, p.z, PLAYER.radius, PLAYER.standHeight, this.boxes, ARENA1_BOUNDS)) {
+      if (canStand(p.x, p.y, p.z, PLAYER.radius, PLAYER.standHeight, this.boxes, this.map.bounds)) {
         p.crouch = false;
       }
     } else {
@@ -404,7 +406,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       delta,
       vy,
       this.boxes,
-      ARENA1_BOUNDS,
+      this.map.bounds,
     );
     p.x = res.pos.x;
     p.y = res.pos.y;
@@ -731,7 +733,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         GRENADE.restitution,
         GRENADE.projRadius,
         this.boxes,
-        ARENA1_BOUNDS,
+        this.map.bounds,
       );
       if (bounced) {
         const { pos, vel } = g.body;
@@ -870,9 +872,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const teamed = this.gameMode.teams;
     const points = teamed
       ? p.team === TEAM.red
-        ? ARENA1_SPAWNS.red
-        : ARENA1_SPAWNS.blue
-      : [...ARENA1_SPAWNS.red, ...ARENA1_SPAWNS.blue];
+        ? this.map.spawns.red
+        : this.map.spawns.blue
+      : [...this.map.spawns.red, ...this.map.spawns.blue];
     const rotKey = teamed ? p.team : -1;
     const i = this.spawnRot[rotKey] ?? 0;
     this.spawnRot[rotKey] = i + 1;
@@ -933,12 +935,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   // --- bots ---------------------------------------------------------------
 
-  /** Patrol points bots path between: both spawn pools + the map's capture points,
-   *  giving lane coverage without a dedicated waypoint table in arena1.ts. */
+  /** Patrol points bots path between: both spawn pools + the map's capture points
+   *  (or that cap's `capWaypoints` override, for a cap whose own (x,z) sits inside
+   *  solid geometry — see MapDef's doc comment), giving lane coverage without a
+   *  dedicated waypoint table in arena1.ts/arena2.ts. */
   private botWaypoints(): { x: number; y: number }[] {
-    return [...ARENA1_SPAWNS.red, ...ARENA1_SPAWNS.blue, ARENA1_CAPS.a, ARENA1_CAPS.b, ARENA1_CAPS.c].map(
-      (p) => ({ x: p.x, y: p.z }),
-    );
+    const { spawns, caps, capWaypoints } = this.map;
+    const capPts = [
+      ...(capWaypoints?.a ?? [caps.a]),
+      ...(capWaypoints?.b ?? [caps.b]),
+      ...(capWaypoints?.c ?? [caps.c]),
+    ];
+    return [...spawns.red, ...spawns.blue, ...capPts].map((p) => ({ x: p.x, y: p.z }));
   }
 
   /** Lowest free `bot-N` id so a removed bot's number gets reused. */
@@ -1039,7 +1047,39 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self: { x: self.x, y: self.y, z: self.z, crouch: self.crouch, alive: self.alive, team: self.team },
       enemies,
       teamless: ffa,
+      boxes: this.boxes,
+      objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
     };
+  }
+
+  /** DOM-only: the nearest reachable point (a `capWaypoints` anchor, else the
+   *  cap's own centre) among capture points this bot's team hasn't fully secured
+   *  yet (red targets gauge<200, blue targets gauge>0). undefined once every
+   *  point is already owned in this bot's favour — botThink then falls back to
+   *  plain waypoint patrol. "Nearest" ranks by distance from the bot to each
+   *  candidate anchor, not the cap's raw centre, so it picks whichever approach
+   *  side is actually closest for a multi-anchor cap (e.g. cap B's two sides). */
+  private domObjectiveFor(self: ArenaPlayer): { x: number; z: number } | undefined {
+    const caps: { key: "a" | "b" | "c"; point: Vec3; gauge: number }[] = [
+      { key: "a", point: this.map.caps.a, gauge: this.state.capA },
+      { key: "b", point: this.map.caps.b, gauge: this.state.capB },
+      { key: "c", point: this.map.caps.c, gauge: this.state.capC },
+    ];
+    let best: { x: number; z: number } | undefined;
+    let bestDist = Infinity;
+    for (const { key, point, gauge } of caps) {
+      const incomplete = self.team === TEAM.red ? gauge < 200 : gauge > 0;
+      if (!incomplete) continue;
+      const anchors = this.map.capWaypoints?.[key] ?? [point];
+      for (const a of anchors) {
+        const d = Math.hypot(a.x - self.x, a.z - self.z);
+        if (d < bestDist) {
+          bestDist = d;
+          best = { x: a.x, z: a.z };
+        }
+      }
+    }
+    return best;
   }
 
   /** Reuses {@link handleFire} with a stand-in client — bots have no real socket,

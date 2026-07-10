@@ -6,8 +6,8 @@
  * trust the local prediction for zero input lag; above it, ease toward the server;
  * a teleport-sized gap snaps). See `../src/rooms/arena-room.ts` `integrate()`.
  */
-import { moveAndSlide, canStand, type Box, type Vec3 } from "../src/physics.js";
-import { ARENA1_BOXES, ARENA1_BOUNDS } from "../src/map/arena1.js";
+import { moveAndSlide, canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
+import type { MapDef } from "../src/map/types.js";
 import { MOVE, PLAYER, TICK_MS } from "../src/config.js";
 import {
   RECONCILE_SOFT_M,
@@ -17,13 +17,14 @@ import {
 } from "./config.js";
 import type { MoveIntent } from "./net.js";
 
-const boxes: readonly Box[] = ARENA1_BOXES;
 const TICK_S = TICK_MS / 1000;
 
 export class Predictor {
   pos: Vec3 = { x: 0, y: 0, z: 0 };
   crouch = false;
   alive = true;
+  private readonly boxes: readonly Box[];
+  private readonly bounds: Bounds;
   private vy = 0;
   private grounded = true;
   private offset: Vec3 = { x: 0, y: 0, z: 0 };
@@ -31,6 +32,11 @@ export class Predictor {
   private accMs = 0;
   private seeded = false;
   private respawnSnap = false;
+
+  constructor(map: MapDef) {
+    this.boxes = map.boxes;
+    this.bounds = map.bounds;
+  }
 
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
    *  rate, buffering the jump edge across frames, then decay the render offset. */
@@ -51,7 +57,7 @@ export class Predictor {
     // Crouch (resolved before speed/height, like the server). Standing up is refused
     // when the taller capsule would clip cover/ceiling.
     if (this.crouch && !inp.crouch) {
-      if (canStand(this.pos.x, this.pos.y, this.pos.z, PLAYER.radius, PLAYER.standHeight, boxes, ARENA1_BOUNDS)) {
+      if (canStand(this.pos.x, this.pos.y, this.pos.z, PLAYER.radius, PLAYER.standHeight, this.boxes, this.bounds)) {
         this.crouch = false;
       }
     } else {
@@ -82,7 +88,7 @@ export class Predictor {
 
     const height = this.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
     const delta: Vec3 = { x: wx * speed * TICK_S, y: this.vy * TICK_S, z: wz * speed * TICK_S };
-    const res = moveAndSlide(this.pos, PLAYER.radius, height, delta, this.vy, boxes, ARENA1_BOUNDS);
+    const res = moveAndSlide(this.pos, PLAYER.radius, height, delta, this.vy, this.boxes, this.bounds);
     this.pos = res.pos;
     this.vy = res.vy;
     this.grounded = res.grounded;

@@ -1,6 +1,7 @@
 /**
- * Three.js presentation: the FPS camera, arena1 geometry (imported from the shared
- * map so walls cost zero wire bytes), remote-player capsules, the procedural rifle
+ * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
+ * {@link MapDef} so walls cost zero wire bytes — main.ts resolves which map from the
+ * mode, same as the room does), remote-player capsules, the procedural rifle
  * viewmodel with sway/bob/recoil, muzzle flash, and tracers. Pure rendering — it
  * holds no authority; `main.ts` feeds it poses each frame.
  *
@@ -10,9 +11,11 @@
  * `aimDir`, which keeps the crosshair (screen centre) honest with hit registration.
  */
 import * as THREE from "three";
-import { ARENA1_BOXES } from "../src/map/arena1.js";
+import type { Box } from "../src/physics.js";
+import type { MapDef } from "../src/map/types.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { ADS_FOV, HIP_FOV, TEAM_COLOR } from "./config.js";
+import { Vfx } from "./vfx.js";
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
 const FWD_Z = new THREE.Vector3(0, 0, 1);
@@ -72,6 +75,7 @@ export class SceneRig {
   readonly camera: THREE.PerspectiveCamera;
   private readonly scene = new THREE.Scene();
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly boxes: readonly Box[];
   private readonly players = new Map<string, PlayerRig>();
   private readonly tracers: Tracer[] = [];
 
@@ -99,8 +103,10 @@ export class SceneRig {
   private readonly booms: BoomFx[] = [];
   private shakeAmp = 0;
   private lastFx = performance.now();
+  private readonly vfx: Vfx;
 
-  constructor(container: HTMLElement = document.body) {
+  constructor(map: MapDef, container: HTMLElement = document.body) {
+    this.boxes = map.boxes;
     this.canvas = document.createElement("canvas");
     this.canvas.style.display = "block";
     this.canvas.style.width = "100%";
@@ -123,6 +129,7 @@ export class SceneRig {
     this.scene.add(key);
     this.scene.add(new THREE.AmbientLight(0x60708a, 0.9));
 
+    this.vfx = new Vfx(this.scene);
     this.buildArena();
 
     const vm = this.buildViewmodel();
@@ -181,7 +188,7 @@ export class SceneRig {
     // Cover / dividers / platforms from the shared map.
     const boxMat = new THREE.MeshStandardMaterial({ color: 0x93a1ba, roughness: 0.85, metalness: 0.05 });
     const edgeMat = new THREE.LineBasicMaterial({ color: 0xc4cee0 });
-    for (const b of ARENA1_BOXES) {
+    for (const b of this.boxes) {
       const w = b.max.x - b.min.x;
       const h = b.max.y - b.min.y;
       const d = b.max.z - b.min.z;
@@ -514,6 +521,31 @@ export class SceneRig {
     this.tracers.push({ mesh, born: performance.now(), mat });
   }
 
+  // --- VFX/SFX polish (remote flashes, casings, impacts, footsteps) -------------
+  // Thin wiring only — `vfx.ts` owns the pools and per-frame aging.
+
+  spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
+    this.vfx.spawnMuzzleFlash(origin, dir);
+  }
+
+  spawnCasing(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
+    this.vfx.spawnCasing(origin, dir);
+  }
+
+  spawnImpact(pos: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, hitPlayer: boolean): void {
+    this.vfx.spawnImpact(pos, dir, hitPlayer);
+  }
+
+  /** Self footstep cadence; `dtMs` is the render frame delta. */
+  stepFootSelf(pos: { x: number; y: number; z: number }, dtMs: number, grounded: boolean): void {
+    this.vfx.stepFoot("me", pos, dtMs / 1000, grounded, null);
+  }
+
+  /** Remote footstep cadence, attenuated by distance to `listenerPos` (the local eye). */
+  stepFootRemote(id: string, pos: { x: number; y: number; z: number }, dtMs: number, listenerPos: { x: number; y: number; z: number }): void {
+    this.vfx.stepFoot(id, pos, dtMs / 1000, true, listenerPos);
+  }
+
   private updateTracers(now: number): void {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i]!;
@@ -533,6 +565,7 @@ export class SceneRig {
     const now = performance.now();
     this.updateTracers(now);
     this.stepFx(now);
+    this.vfx.update(now);
     this.renderer.render(this.scene, this.camera);
   }
 

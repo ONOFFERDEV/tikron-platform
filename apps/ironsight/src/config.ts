@@ -300,7 +300,7 @@ export const MODES = {
   ffa: {
     killTarget: 30, // personal kills (state.players[id].k) that ends the match
   },
-  /** Domination — 3 capture points (arena1's ARENA1_CAPS). */
+  /** Domination — 3 capture points (arena2's ARENA2_CAPS; dom is always played on arena2). */
   dom: {
     captureRadius: 4, // metres — playersAt radius used to judge a point's occupiers
     capturePerSec: 25, // gauge units/sec moved toward the sole occupying team (0..200 range)

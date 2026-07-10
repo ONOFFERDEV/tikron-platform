@@ -1,5 +1,6 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
 import { ARENA } from "../config.js";
+import type { MapDef } from "./types.js";
 
 /**
  * arena1 — the M0 map: a symmetric 3-lane arena (~60×40). A pure data module so
@@ -60,9 +61,38 @@ export const ARENA1_SPAWNS: { readonly red: readonly Vec3[]; readonly blue: read
 };
 
 /** Domination (M2-A) capture points — centred on the map's mid lane, spread across
- * the three z-rows the existing spawn rows also use, so they sit on open ground. */
+ * the three z-rows the existing spawn rows also use. A and C each sit inside their
+ * side raised platform's footprint (same as B under the central cover) — see the
+ * `capWaypoints` override below for their reachable patrol anchors. */
 export const ARENA1_CAPS: { readonly a: Vec3; readonly b: Vec3; readonly c: Vec3 } = {
   a: { x: 30, y: 0, z: 7 },
   b: { x: 30, y: 0, z: 20 },
   c: { x: 30, y: 0, z: 33 },
+};
+
+/** arena1 packaged as one {@link MapDef} — the single value `mapForMode` (modes.ts)
+ *  resolves and threads everywhere; the individual named exports above stay as
+ *  aliases so existing direct importers don't need to change. */
+export const ARENA1: MapDef = {
+  bounds: ARENA1_BOUNDS,
+  boxes: ARENA1_BOXES,
+  spawns: ARENA1_SPAWNS,
+  caps: ARENA1_CAPS,
+  capWaypoints: {
+    // A and C's own (x,z) sit inside their side platform's footprint (z [4,9]
+    // and z [31,36]) — a raw waypoint there is unreachable the same way B's is.
+    // Each anchor sits just outside that platform's near face and within
+    // captureRadius (4 m) of its cap: |10−7| = |33−30| = 3 m.
+    a: [{ x: 30, y: 0, z: 10 }],
+    // Cap B's own (x,z) sits inside the central cover stack's footprint
+    // (z [18.5,21.5], solid at ground level), so a patrolling bot's raw waypoint
+    // there would walk into the box and never reach it. These sit just outside
+    // its north/south faces and within captureRadius (4 m) of cap B's centre
+    // (30,20): |20−17| = |23−20| = 3 m.
+    b: [
+      { x: 30, y: 0, z: 17 },
+      { x: 30, y: 0, z: 23 },
+    ],
+    c: [{ x: 30, y: 0, z: 30 }],
+  },
 };

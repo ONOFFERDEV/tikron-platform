@@ -29,7 +29,31 @@ function ensure(): AudioContext | null {
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   noise = buf;
+  startAmbient(ctx, master);
   return ctx;
+}
+
+/**
+ * Ambient wind bed: a long low-passed noise loop through the master gain (so `M`
+ * mutes it), started once alongside the rest of the graph. It's silent until the
+ * context resumes on the first user gesture — same lifecycle as everything else
+ * here, just no explicit resume call of its own.
+ */
+function startAmbient(c: AudioContext, m: GainNode): void {
+  const buf = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  const lp = c.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 500;
+  lp.Q.value = 0.5;
+  const g = c.createGain();
+  g.gain.value = 0.05;
+  src.connect(lp).connect(g).connect(m);
+  src.start(0);
 }
 
 function ready(): AudioContext | null {
@@ -141,6 +165,43 @@ export function playHit(head = false): void {
   osc.connect(g).connect(master);
   osc.start(t);
   osc.stop(t + 0.07);
+}
+
+/** Footstep: a soft short low-passed noise tap, scaled by `atten` (distance falloff
+ *  for remote players; self always passes 1). */
+export function playFootstep(atten = 1): void {
+  const c = ready();
+  if (!c || !master || !noise || atten <= 0.02) return;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noise;
+  const lp = c.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 350;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.12 * atten, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  src.connect(lp).connect(g).connect(master);
+  src.start(t);
+  src.stop(t + 0.06);
+}
+
+/** Hurt: a short descending low-register thud, distinct from the shooter-side
+ *  `playHit` tick — this is the VICTIM's feedback on taking damage. */
+export function playHurt(): void {
+  const c = ready();
+  if (!c || !master) return;
+  const t = c.currentTime;
+  const osc = c.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(180, t);
+  osc.frequency.exponentialRampToValueAtTime(70, t + 0.12);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.35, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+  osc.connect(g).connect(master);
+  osc.start(t);
+  osc.stop(t + 0.14);
 }
 
 /** Kill confirm: a quick two-tone rising ding. */
