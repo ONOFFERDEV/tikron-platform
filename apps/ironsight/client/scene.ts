@@ -114,6 +114,7 @@ export class SceneRig {
   private shakeAmp = 0;
   private lastFx = performance.now();
   private readonly vfx: Vfx;
+  private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
 
   constructor(map: MapDef, container: HTMLElement = document.body) {
     this.boxes = map.boxes;
@@ -550,6 +551,16 @@ export class SceneRig {
    *  self-authoritative tracer a plausible endpoint without server round-trip). */
   wallDistance(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, maxT: number): number {
     return Math.min(maxT, nearestBox(origin, dir, this.boxes, maxT));
+  }
+
+  /** World-space position of the LOCAL player's own viewmodel muzzle right now —
+   *  the same node `fireRecoil` flashes, so it already carries every animated
+   *  offset (rest pose, bob, sway, recoil kick, ADS centering) for free. Used to
+   *  anchor the self tracer/casing to the gun instead of the eye, which used to
+   *  make them appear to shoot out of the middle of the screen. */
+  getSelfMuzzlePos(): { x: number; y: number; z: number } {
+    this.muzzle.getWorldPosition(this.muzzleWorldScratch);
+    return { x: this.muzzleWorldScratch.x, y: this.muzzleWorldScratch.y, z: this.muzzleWorldScratch.z };
   }
 
   /** The currently-rendered world position of a remote player's rig, near eye

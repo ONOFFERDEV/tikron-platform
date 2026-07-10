@@ -298,17 +298,32 @@ async function main(): Promise<void> {
         // Self-authoritative tracer/casing: waiting for the "shot" echo (see
         // onShot above) would draw them from this shooter's server-known position
         // as of ~RTT ago — a stride behind while moving (the reported bug). Fire
-        // them locally instead, from the live predicted eye and current look
-        // direction; the endpoint is a client-side wall stop (or the weapon's
-        // range if nothing's in the way) since the actual hit/miss distance is
-        // only known server-side — the tracer fades in 130 ms so that's not
-        // noticeable, and `spawnImpact` (still wire-authoritative below) carries
+        // them locally instead, from the live predicted eye/look direction; the
+        // endpoint is a client-side wall stop (or the weapon's range if nothing's
+        // in the way) since the actual hit/miss distance is only known
+        // server-side — `spawnImpact` (still wire-authoritative below) carries
         // the real hit location regardless.
-        const dir = dirFromAngles(input.yaw, input.pitch);
+        const aimDir = dirFromAngles(input.yaw, input.pitch);
         const range = WEAPONS[curWeapon]?.range ?? 100;
-        const dist = scene.wallDistance(eye, dir, range);
-        scene.addTracer(eye, dir, dist, false);
-        scene.spawnCasing(eye, dir);
+        const aimDist = scene.wallDistance(eye, aimDir, range);
+        const endpoint = {
+          x: eye.x + aimDir.x * aimDist,
+          y: eye.y + aimDir.y * aimDist,
+          z: eye.z + aimDir.z * aimDist,
+        };
+        // The tracer/casing themselves start at the viewmodel's muzzle, not the
+        // eye — anchoring to the eye made them appear to fire from dead centre of
+        // the screen. Re-aim from muzzle toward the SAME endpoint above (the
+        // crosshair's true impact point is unchanged; only where the visible
+        // beam originates moves).
+        const muzzle = scene.getSelfMuzzlePos();
+        const toEnd = { x: endpoint.x - muzzle.x, y: endpoint.y - muzzle.y, z: endpoint.z - muzzle.z };
+        const muzzleDist = Math.hypot(toEnd.x, toEnd.y, toEnd.z);
+        const muzzleDir = muzzleDist > 1e-6
+          ? { x: toEnd.x / muzzleDist, y: toEnd.y / muzzleDist, z: toEnd.z / muzzleDist }
+          : aimDir;
+        scene.addTracer(muzzle, muzzleDir, muzzleDist, false);
+        scene.spawnCasing(muzzle, muzzleDir);
       }
     }
 
