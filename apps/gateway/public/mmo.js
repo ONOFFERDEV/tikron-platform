@@ -1,4 +1,5 @@
 // ../../packages/protocol/dist/index.js
+var PROTOCOL_VERSION = 2;
 var ClientMessageType = {
   Hello: "c:hello",
   Echo: "c:echo",
@@ -131,6 +132,9 @@ var ByteReader = class {
 };
 
 // ../../packages/schema/dist/schema.js
+function descToken(s) {
+  return `${s.length}#${s}`;
+}
 var PRIM_IO = {
   u8: { write: (w, v) => w.u8(v), read: (r) => r.u8() },
   u16: { write: (w, v) => w.u16(v), read: (r) => r.u16() },
@@ -151,8 +155,9 @@ function prim(type) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // primitives are immutable — no copy needed
+    describe: () => type
   };
 }
 function quant(min, max, step) {
@@ -179,8 +184,10 @@ function quant(min, max, step) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => quantize(a) === quantize(b),
-    clone: (v) => v
+    clone: (v) => v,
     // numbers are immutable
+    // min/max/step fully determine the wire width and the byte->value mapping.
+    describe: () => `q(${min},${max},${step})`
   };
 }
 function schema(shape) {
@@ -245,6 +252,16 @@ function schema(shape) {
       for (const f of fields)
         out[f.name] = f.codec.clone(get(value, f.name));
       return out;
+    },
+    describe() {
+      const parts = [];
+      for (const f of fields) {
+        const childDesc = f.codec.describe?.();
+        if (childDesc === void 0)
+          return void 0;
+        parts.push(`${descToken(f.name)}:${childDesc}`);
+      }
+      return `obj(${parts.join(",")})`;
     }
   };
 }
@@ -311,6 +328,10 @@ function mapOf(child) {
       for (const k of keysOf(value))
         out[k] = child.clone(value[k]);
       return out;
+    },
+    describe() {
+      const c = child.describe?.();
+      return c === void 0 ? void 0 : `map(${c})`;
     }
   };
 }
@@ -366,6 +387,10 @@ function listOf(child) {
       for (let i = 0; i < value.length; i++)
         out[i] = child.clone(value[i]);
       return out;
+    },
+    describe() {
+      const c = child.describe?.();
+      return c === void 0 ? void 0 : `list(${c})`;
     }
   };
 }
@@ -388,8 +413,11 @@ function enumOf(...values) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => values[r.u8()],
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // enum members are immutable strings
+    // Members + order fix the u8 index of each value. Length-prefix each member so a
+    // "|"-bearing value can't be confused with a member boundary (see descToken).
+    describe: () => `enum(${values.map(descToken).join(",")})`
   };
 }
 function str(maxLen) {
@@ -410,8 +438,12 @@ function str(maxLen) {
     },
     readDelta: (r) => r.str(),
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // strings are immutable
+    // maxLen is a write-only length check — it does not change the wire format (same
+    // varint-prefixed bytes as prim("str")), so it is excluded and str(n) fingerprints
+    // identically to prim("str"), which is decode-compatible.
+    describe: () => "str"
   };
 }
 function decodeFull(codec, bytes) {
@@ -419,6 +451,17 @@ function decodeFull(codec, bytes) {
 }
 function applyDelta(codec, prev, bytes) {
   return codec.readDelta(new ByteReader(bytes), prev);
+}
+function schemaFingerprint(codec) {
+  const desc = codec.describe?.();
+  if (desc === void 0)
+    return null;
+  let h = 2166136261;
+  for (let i = 0; i < desc.length; i++) {
+    h ^= desc.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 // ../../node_modules/.pnpm/partysocket@1.3.0_react@19.2.7/node_modules/partysocket/dist/ws.js
@@ -1215,7 +1258,7 @@ function withNetworkConditions(inner, conditions) {
 var networkConditionsWarned = false;
 var subtickClockWarned = false;
 var RoomJoinError = class extends Error {
-  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  /** See the class doc: a handshake code, a pre-Welcome Error code, or `"connection-closed"`. */
   code;
   constructor(code, message) {
     super(message ?? `room join failed: ${code}`);
@@ -1254,6 +1297,12 @@ var Room = class {
   failWelcome = () => {
   };
   stateCodec;
+  /** This client's own state-codec fingerprint, computed once (null if none/undescribable). */
+  clientFingerprint;
+  /** Guards the one-time "binary frame but no stateCodec" warning (per room). */
+  noCodecWarned = false;
+  /** Guards the one-time "binary state decode failed" error (per room). */
+  decodeErrorWarned = false;
   clockEnabled;
   subtickTimestamps;
   inputBatchMs;
@@ -1265,6 +1314,7 @@ var Room = class {
     this.name = name;
     this.transport = transport;
     this.stateCodec = stateCodec;
+    this.clientFingerprint = stateCodec ? schemaFingerprint(stateCodec) : null;
     this.clockEnabled = !opts.disableClockSync;
     this.subtickTimestamps = opts.subtickTimestamps ?? false;
     this.inputBatchMs = opts.inputBatchMs ?? 0;
@@ -1290,8 +1340,15 @@ var Room = class {
           this.preWelcomeError = msg;
         } else if (msg.t === ServerMessageType.Welcome) {
           this.welcomeSettled = true;
-          this.connectionId = msg.connectionId;
           off();
+          const mismatch = this.validateHandshake(msg);
+          if (mismatch !== null) {
+            this.failWelcome(this.handshakeError(mismatch));
+            this.clock.stop();
+            this.transport.close();
+            return;
+          }
+          this.connectionId = msg.connectionId;
           if (this.clockEnabled)
             this.clock.start();
           resolve(msg);
@@ -1321,6 +1378,44 @@ var Room = class {
     this.clock.stop();
     this.transport.close();
   }
+  /**
+   * Check a Welcome frame for a protocol or state-schema incompatibility, returning the
+   * mismatch (or null if compatible). Protocol is always checked; the schema is checked
+   * only when this client has a codec AND the server advertised a fingerprint (a
+   * pre-0.6 server omits it, so the check is skipped rather than false-firing) AND this
+   * client's own codec is describable (`clientFingerprint !== null`).
+   */
+  validateHandshake(msg) {
+    if (msg.protocol !== PROTOCOL_VERSION) {
+      return { kind: "protocol_mismatch", server: msg.protocol, client: PROTOCOL_VERSION };
+    }
+    if (this.stateCodec && typeof msg.schema === "number" && this.clientFingerprint !== null) {
+      if (msg.schema !== this.clientFingerprint) {
+        return { kind: "schema_mismatch", server: msg.schema, client: this.clientFingerprint };
+      }
+    }
+    return null;
+  }
+  /** The human/agent-actionable message for a handshake mismatch (names BOTH values). */
+  handshakeMessage(m) {
+    return m.kind === "protocol_mismatch" ? `Tikron PROTOCOL_VERSION mismatch: server=${m.server}, client=${m.client}. The wire protocol only guarantees compatibility within a minor \u2014 pin the SAME @tikron/* minor version on both the client and the server, then rebuild both.` : `Tikron state schema fingerprint mismatch: server=${m.server}, client=${m.client}. The server's stateCodec shape differs from the client's \u2014 rebuild and redeploy both sides so they import the IDENTICAL schema({...}) (same fields, same order, same types).`;
+  }
+  handshakeError(m) {
+    return new RoomJoinError(m.kind, this.handshakeMessage(m));
+  }
+  /**
+   * A live reconnect returned a Welcome that no longer matches this client — the server
+   * was redeployed with an incompatible protocol/schema mid-session. The join promise is
+   * long settled, so surface it loudly on the console (structured, actionable) and close
+   * the socket. The close is client-initiated, so it trips PartySocket's `_closeCalled`
+   * guard and does NOT reconnect — stopping the room before it decodes state it can no
+   * longer read.
+   */
+  reportReconnectMismatch(m) {
+    console.error(`[@tikron/client] room=${this.name} live reconnect rejected \u2014 ${this.handshakeMessage(m)} Closing the socket (no auto-retry) to stop decoding stale state.`);
+    this.clock.stop();
+    this.transport.close();
+  }
   dispatch(raw) {
     if (typeof raw !== "string") {
       this.applyBinaryState(raw);
@@ -1333,6 +1428,13 @@ var Room = class {
       return;
     }
     if (msg.t === ServerMessageType.Welcome) {
+      if (this.welcomeSettled) {
+        const mismatch = this.validateHandshake(msg);
+        if (mismatch !== null) {
+          this.reportReconnectMismatch(mismatch);
+          return;
+        }
+      }
       this.connectionId = msg.connectionId;
     } else if (msg.t === ServerMessageType.State) {
       this.state = msg.state;
@@ -1357,8 +1459,13 @@ var Room = class {
       handler(msg);
   }
   applyBinaryState(raw) {
-    if (!this.stateCodec)
+    if (!this.stateCodec) {
+      if (!this.noCodecWarned) {
+        this.noCodecWarned = true;
+        console.warn(`[@tikron/client] room=${this.name} received a binary state frame but no stateCodec is configured, so authoritative state is being ignored. Pass the SAME codec the server uses, e.g. new GameClient(host, { stateCodec: YourState }).`);
+      }
       return;
+    }
     const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     if (bytes.length < 13)
       return;
@@ -1367,12 +1474,22 @@ var Room = class {
     const tick = view.getUint32(1, true);
     const serverTime = view.getFloat64(5, true);
     const body = bytes.subarray(13);
-    if (tag === 1)
-      this.state = decodeFull(this.stateCodec, body);
-    else if (tag === 2)
-      this.state = applyDelta(this.stateCodec, this.state, body);
-    else
+    let next;
+    try {
+      if (tag === 1)
+        next = decodeFull(this.stateCodec, body);
+      else if (tag === 2)
+        next = applyDelta(this.stateCodec, this.state, body);
+      else
+        return;
+    } catch (err) {
+      if (!this.decodeErrorWarned) {
+        this.decodeErrorWarned = true;
+        console.error(`[@tikron/client] room=${this.name} failed to decode a binary state frame (tag=${tag}). This usually means the client's stateCodec shape does not match the server's \u2014 rebuild both sides with the identical schema({...}) \u2014 or the frame was corrupted. Keeping the last good state and dropping this frame.`, err);
+      }
       return;
+    }
+    this.state = next;
     this.lastStateTick = tick;
     this.lastStateServerTime = serverTime;
     for (const handler of this.stateHandlers)
