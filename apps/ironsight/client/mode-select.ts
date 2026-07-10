@@ -9,13 +9,7 @@
  * talks to `Net` directly.
  */
 import { MODE_ORDER, type ModeId } from "../src/modes.js";
-
-const LABELS: Record<ModeId, { ko: string; en: string }> = {
-  tdm: { ko: "팀 데스매치", en: "TEAM DEATHMATCH" },
-  ffa: { ko: "개인전", en: "FREE-FOR-ALL" },
-  dom: { ko: "거점 점령", en: "DOMINATION" },
-  practice: { ko: "연습 모드", en: "PRACTICE" },
-};
+import { GAME } from "../src/game-config.js";
 
 const css = `
 #modeMenu { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
@@ -54,11 +48,11 @@ function showMenu(): Promise<ModeId> {
     const root = document.createElement("div");
     root.id = "modeMenu";
     const title = document.createElement("h1");
-    title.textContent = "IRONSIGHT";
+    title.textContent = GAME.text.title;
     root.appendChild(title);
 
     for (const id of MODE_ORDER) {
-      const { ko, en } = LABELS[id];
+      const { ko, en } = GAME.text.modeLabels[id];
       const btn = document.createElement("button");
       btn.innerHTML = `<span class="ko">${ko}</span><span class="en">${en}</span>`;
       btn.addEventListener("click", () => {

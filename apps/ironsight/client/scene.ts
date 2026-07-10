@@ -14,8 +14,13 @@ import * as THREE from "three";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef } from "../src/map/types.js";
 import { ARENA, PLAYER } from "../src/config.js";
-import { ADS_FOV, HIP_FOV, TEAM_COLOR } from "./config.js";
 import { Vfx } from "./vfx.js";
+import { GAME } from "../src/game-config.js";
+
+const PALETTE = GAME.palette;
+const ADS_FOV = GAME.camera.adsFov;
+const HIP_FOV = GAME.camera.hipFov;
+const TEAM_COLOR = GAME.teams.colors;
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
 const FWD_Z = new THREE.Vector3(0, 0, 1);
@@ -28,10 +33,10 @@ const TRACER_FADE_MS = 25; // brief opacity fade in the final stretch before the
 const MUZZLE_LIFE_MS = 55;
 const CAP_LEN = PLAYER.standHeight - 2 * PLAYER.radius;
 /** Viewmodel recoil kick per weapon (indexed like WEAPONS: AR/SMG/Shotgun/Sniper/Pistol). */
-const VM_RECOIL = [0.4, 0.2, 0.7, 0.9, 0.3] as const;
+const VM_RECOIL = GAME.weaponVis.recoil;
 const NADE_GRAVITY = -22; // matches the server's grenade integrator
-const SWAP_DOWN_MS = 120;
-const SWAP_UP_MS = 230; // down+up = the server's 350 ms switch delay
+const SWAP_DOWN_MS = GAME.weaponVis.swapDownMs;
+const SWAP_UP_MS = GAME.weaponVis.swapUpMs; // down+up = the server's 350 ms switch delay
 
 interface NadeFx {
   mesh: THREE.Mesh;
@@ -129,16 +134,16 @@ export class SceneRig {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
 
-    this.scene.background = new THREE.Color(0x1a2030);
-    this.scene.fog = new THREE.Fog(0x1a2030, 40, 110);
+    this.scene.background = new THREE.Color(PALETTE.sceneBg);
+    this.scene.fog = new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
-    this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 300);
+    this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, GAME.camera.far);
 
-    this.scene.add(new THREE.HemisphereLight(0xc2d4f2, 0x3a4656, 1.5));
-    const key = new THREE.DirectionalLight(0xfff0d8, 2.4);
+    this.scene.add(new THREE.HemisphereLight(PALETTE.lights.hemiSky, PALETTE.lights.hemiGround, 1.5));
+    const key = new THREE.DirectionalLight(PALETTE.lights.key, 2.4);
     key.position.set(25, 45, 15);
     this.scene.add(key);
-    this.scene.add(new THREE.AmbientLight(0x60708a, 0.9));
+    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, 0.9));
 
     this.vfx = new Vfx(this.scene);
     this.buildArena();
@@ -166,7 +171,7 @@ export class SceneRig {
     floorTex.repeat.set(width / 2, depth / 2);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshStandardMaterial({ map: floorTex, color: 0x49546a, roughness: 1, metalness: 0 }),
+      new THREE.MeshStandardMaterial({ map: floorTex, color: PALETTE.floor, roughness: 1, metalness: 0 }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(width / 2, 0, depth / 2);
@@ -184,7 +189,7 @@ export class SceneRig {
     }
 
     // Perimeter walls (dark, low) so the arena bounds read.
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x2c3444, roughness: 1 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: PALETTE.walls, roughness: 1 });
     const wallH = 3;
     const wall = (w: number, d: number, x: number, z: number): void => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), wallMat);
@@ -197,8 +202,8 @@ export class SceneRig {
     wall(0.4, depth, width, depth / 2);
 
     // Cover / dividers / platforms from the shared map.
-    const boxMat = new THREE.MeshStandardMaterial({ color: 0x93a1ba, roughness: 0.85, metalness: 0.05 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0xc4cee0 });
+    const boxMat = new THREE.MeshStandardMaterial({ color: PALETTE.coverBox, roughness: 0.85, metalness: 0.05 });
+    const edgeMat = new THREE.LineBasicMaterial({ color: PALETTE.coverEdge });
     for (const b of this.boxes) {
       const w = b.max.x - b.min.x;
       const h = b.max.y - b.min.y;
@@ -221,12 +226,12 @@ export class SceneRig {
 
     const muzzle = new THREE.Mesh(
       new THREE.PlaneGeometry(0.28, 0.28),
-      new THREE.MeshBasicMaterial({ color: 0xffdd88, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: PALETTE.muzzle, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
     muzzle.position.set(0, 0.02, -0.74);
     g.add(muzzle);
 
-    const light = new THREE.PointLight(0xffcc77, 0, 6, 2);
+    const light = new THREE.PointLight(PALETTE.muzzleLight, 0, 6, 2);
     light.position.set(0, 0.02, -0.74);
     g.add(light);
 
@@ -268,7 +273,7 @@ export class SceneRig {
   spawnNade(e: { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number }): void {
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(0.13, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0x3f5a3a, roughness: 0.6, metalness: 0.3 }),
+      new THREE.MeshStandardMaterial({ color: PALETTE.grenadeMesh, roughness: 0.6, metalness: 0.3 }),
     );
     mesh.position.set(e.x, e.y, e.z);
     this.scene.add(mesh);
@@ -293,11 +298,11 @@ export class SceneRig {
       this.nades.delete(e.id);
     }
     // Flash + expanding ring + debris burst.
-    const light = new THREE.PointLight(0xffb066, 60, e.r * 4, 2);
+    const light = new THREE.PointLight(PALETTE.boom.light, 60, e.r * 4, 2);
     light.position.set(e.x, e.y + 0.3, e.z);
     this.scene.add(light);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffcc88, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+      color: PALETTE.boom.ring, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.55, 40), ringMat);
@@ -305,7 +310,7 @@ export class SceneRig {
     ring.position.set(e.x, Math.max(0.05, e.y) + 0.05, e.z);
     this.scene.add(ring);
     const partMat = new THREE.MeshBasicMaterial({
-      color: 0xffa050, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false,
+      color: PALETTE.boom.parts, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const parts: THREE.Mesh[] = [];
     const vels: THREE.Vector3[] = [];
@@ -522,7 +527,7 @@ export class SceneRig {
     const segLen = Math.min(travelDist * TRACER_SEG_FRAC, TRACER_SEG_MAX);
     const d = new THREE.Vector3(dir.x, dir.y, dir.z).normalize();
     const mat = new THREE.MeshBasicMaterial({
-      color: hit ? 0xff7755 : 0xffe08a,
+      color: hit ? PALETTE.tracerHit : PALETTE.tracerMiss,
       transparent: true,
       opacity: 0.85,
       blending: THREE.AdditiveBlending,
@@ -657,9 +662,9 @@ function lerp(a: number, b: number, t: number): number {
 
 // --- per-weapon procedural viewmodels -----------------------------------------
 
-const VM_METAL = new THREE.MeshStandardMaterial({ color: 0x424956, roughness: 0.55, metalness: 0.4 });
-const VM_ACCENT = new THREE.MeshStandardMaterial({ color: 0x5f6b82, roughness: 0.45, metalness: 0.55 });
-const VM_DARK = new THREE.MeshStandardMaterial({ color: 0x2c313c, roughness: 0.6, metalness: 0.35 });
+const VM_METAL = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.metal, roughness: 0.55, metalness: 0.4 });
+const VM_ACCENT = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.accent, roughness: 0.45, metalness: 0.55 });
+const VM_DARK = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.dark, roughness: 0.6, metalness: 0.35 });
 
 /** Build the blocky low-poly mesh for a weapon slot (0 AR · 1 SMG · 2 Shotgun · 3 Sniper · 4 Pistol). */
 function buildWeaponMesh(index: number): THREE.Group {

@@ -2,6 +2,7 @@ import type { Vec2 } from "@tikron/sim";
 import { xorshift32 } from "@tikron/sim";
 import { nearestBox, type Box, type Vec3 } from "./physics.js";
 import { PLAYER } from "./config.js";
+import { GAME } from "./game-config.js";
 
 /**
  * ironsight server filler bot — a pure brain with no room import.
@@ -37,10 +38,10 @@ const TAU = Math.PI * 2;
  * enemy is visible from across the whole open map almost constantly, and that
  * would freeze every dom bot's push to the cap nearly all the time. Only a
  * genuinely close threat gets brief combat priority. */
-const CLOSE_THREAT_M = 8;
+const CLOSE_THREAT_M = GAME.bots.closeThreatM;
 /** DOM-only: once this close to the objective, hold position (strafe around the
  *  objective's own z) instead of continuing to walk straight through the point. */
-const OBJECTIVE_ARRIVE_M = 2;
+const OBJECTIVE_ARRIVE_M = GAME.bots.objectiveArriveM;
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
@@ -149,13 +150,13 @@ export interface BotBrain {
 export function createBotBrain(opts: BotBrainOptions): BotBrain {
   if (opts.waypoints.length === 0) throw new Error("bot brain needs at least one waypoint");
   return {
-    aimNoiseRad: opts.aimNoiseRad ?? 0.012,
-    reactionMs: opts.reactionMs ?? 150,
-    aimHeight: opts.aimHeight ?? 1.0,
+    aimNoiseRad: opts.aimNoiseRad ?? GAME.bots.aimNoiseRad,
+    reactionMs: opts.reactionMs ?? GAME.bots.reactionMs,
+    aimHeight: opts.aimHeight ?? GAME.bots.aimHeight,
     waypoints: opts.waypoints,
-    strafeZ: opts.strafeZ ?? 11,
-    strafeAmp: opts.strafeAmp ?? 1.2,
-    strafePeriodMs: opts.strafePeriodMs ?? 700,
+    strafeZ: opts.strafeZ ?? GAME.bots.strafeZ,
+    strafeAmp: opts.strafeAmp ?? GAME.bots.strafeAmp,
+    strafePeriodMs: opts.strafePeriodMs ?? GAME.bots.strafePeriodMs,
     rng: xorshift32(opts.seed >>> 0 || 1),
     wpIndex: 0,
     clockMs: 0,

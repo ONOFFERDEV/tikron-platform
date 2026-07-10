@@ -2,8 +2,14 @@ import type { Vec2 } from "@tikron/sim";
 import { xorshift32 } from "@tikron/sim";
 import { ARENA1_BOXES } from "../../src/map/arena1.js";
 import { nearestBox, type Box, type Vec3 } from "../../src/physics.js";
-import { AR, PLAYER } from "../../src/config.js";
+import { PLAYER } from "../../src/config.js";
 import type { ArenaPlayer, ArenaState } from "../../src/schema.js";
+import { GAME } from "../../src/game-config.js";
+
+// The bot models its held weapon's ammo/cadence off the CURRENT theme's default
+// weapon (matches arena-room.ts's own DEFAULT_WEAPON) so a config swap keeps the
+// bot's fire rhythm in sync with what the server actually enforces.
+const AR = GAME.weapons[GAME.weaponMeta.defaultIndex]!;
 
 /**
  * ironsight arena bot — a transport-agnostic FPS opponent for the M0 gate tests.

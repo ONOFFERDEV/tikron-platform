@@ -9,17 +9,14 @@ import { xorshift32, type Vec2 } from "@tikron/sim";
 import { ArenaSchema, type ArenaState, type ArenaPlayer } from "../schema.js";
 import {
   ARENA,
-  DEFAULT_WEAPON,
   GRENADE,
   LAG,
   MATCH,
   MOVE,
-  PISTOL_INDEX,
   PLAYER,
   TEAM,
   TICK_MS,
   WEAPON,
-  WEAPONS,
   type WeaponSpec,
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
@@ -29,6 +26,14 @@ import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
 import { modeFromRoomId, modeIndex, mapForMode, type GameMode, type ModeCtx } from "../modes.js";
 import { botThink, createBotBrain, type BotBrain, type BotView } from "../bots.js";
+import { GAME } from "../game-config.js";
+
+// The active theme's weapon roster — swapping game-config.ts's loaded config
+// changes what these resolve to (GAME.weapons === WEAPONS by reference for the
+// ironsight theme, so this is a no-op alias for the shipped game).
+const WEAPONS = GAME.weapons;
+const DEFAULT_WEAPON = GAME.weaponMeta.defaultIndex;
+const PISTOL_INDEX = GAME.weaponMeta.pistolIndex;
 
 /** A live grenade in flight (server-only; never in wire state — see schema.ts). */
 interface Grenade {
@@ -107,7 +112,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // spans the whole small arena so a 12-player TDM never culls a teammate you
   // need on the map — interest-tier tuning is an M2 concern at higher CCU.
   protected override aoi: AOIConfig<ArenaState> = {
-    viewRadius: 100,
+    viewRadius: GAME.match.aoiViewRadius,
     mapFields: ["players"],
     position: (e) => ({ x: (e as ArenaPlayer).x, y: (e as ArenaPlayer).z }),
     viewer: (s, id) => s.players[id] ?? null,
@@ -178,7 +183,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.maxClients = MATCH.maxClients;
     // The move+look stream runs ~ per-tick (20–30 Hz) plus fire — keep headroom
     // over the 30/s default so inputs are never silently rate-dropped.
-    this.maxInputsPerSecond = 90;
+    this.maxInputsPerSecond = GAME.match.maxInputsPerSecond;
 
     // Practice is a solo/bot sandbox with no match flow to wait on or end: skip
     // warmup (straight into "live") and disable the mode-agnostic time-limit
@@ -201,9 +206,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       phase: this.startInWarmup ? "warmup" : "live",
       matchEndMs: Date.now() + this.matchTimeMs,
       mode: modeIndex(this.gameMode.id),
-      capA: 100,
-      capB: 100,
-      capC: 100,
+      capA: GAME.match.capNeutral,
+      capB: GAME.match.capNeutral,
+      capC: GAME.match.capNeutral,
     });
 
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
@@ -231,7 +236,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       x: 0,
       z: 0,
       y: 0,
-      yaw: team === TEAM.red ? Math.PI / 2 : (3 * Math.PI) / 2,
+      yaw: team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1],
       pitch: 0,
       hp: PLAYER.maxHp,
       team,
@@ -703,7 +708,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const dir = dirFromAngles(p.yaw, p.pitch);
     const eye = p.y + this.eyeHeight(p);
     // Spawn just ahead of the muzzle so it clears the thrower's own body/cover.
-    const pos: Vec3 = { x: p.x + dir.x * 0.6, y: eye + dir.y * 0.6, z: p.z + dir.z * 0.6 };
+    const off = GAME.grenade.muzzleOffset;
+    const pos: Vec3 = { x: p.x + dir.x * off, y: eye + dir.y * off, z: p.z + dir.z * off };
     const vel: Vec3 = {
       x: dir.x * GRENADE.throwSpeed,
       y: dir.y * GRENADE.throwSpeed,
@@ -895,7 +901,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.alive = true;
     p.prot = true;
     p.crouch = false;
-    p.yaw = p.team === TEAM.red ? Math.PI / 2 : (3 * Math.PI) / 2;
+    p.yaw = p.team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1];
     p.pitch = 0;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
     // weapon, and a fresh set of grenades.
@@ -1171,9 +1177,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private resetMatch(now: number): void {
     this.state.redScore = 0;
     this.state.blueScore = 0;
-    this.state.capA = 100;
-    this.state.capB = 100;
-    this.state.capC = 100;
+    this.state.capA = GAME.match.capNeutral;
+    this.state.capB = GAME.match.capNeutral;
+    this.state.capC = GAME.match.capNeutral;
     this.state.phase = "live";
     this.state.matchEndMs = now + this.matchTimeMs;
     this.endedUntil = undefined;

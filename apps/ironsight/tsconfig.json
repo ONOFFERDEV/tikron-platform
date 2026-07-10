@@ -7,6 +7,6 @@
     "declarationMap": false,
     "noEmit": true
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "config"],
   "exclude": ["dist", "node_modules"]
 }

@@ -18,6 +18,8 @@
  * pointer lock (browsers guard against instant reclaim-after-release), so it
  * falls back to the ordinary unlocked "CLICK TO PLAY" prompt instead.
  */
+import { GAME } from "../src/game-config.js";
+
 const css = `
 #quitConfirm { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center;
   justify-content: center; background: rgba(6,8,12,0.55); font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
@@ -51,7 +53,7 @@ function showQuitConfirm(relock: () => void): void {
   dlg.id = "quitConfirm";
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.innerHTML = `<h2>게임을 나가시겠습니까?</h2>`;
+  panel.innerHTML = `<h2>${GAME.text.quit.prompt}</h2>`;
   const rowEl = document.createElement("div");
   rowEl.className = "row";
 
@@ -67,11 +69,11 @@ function showQuitConfirm(relock: () => void): void {
   };
 
   const continueBtn = document.createElement("button");
-  continueBtn.textContent = "계속하기";
+  continueBtn.textContent = GAME.text.quit.continueLabel;
   continueBtn.addEventListener("click", () => dismiss(true));
   const quitBtn = document.createElement("button");
   quitBtn.className = "quit";
-  quitBtn.textContent = "나가기";
+  quitBtn.textContent = GAME.text.quit.quitLabel;
   quitBtn.addEventListener("click", () => quitToMenu());
 
   rowEl.append(continueBtn, quitBtn);

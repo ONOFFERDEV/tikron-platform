@@ -1,3 +1,12 @@
+// [config: ironsight] — most of this suite is generic room mechanics and stays
+// green through a swap, but it imports `AR`/`WEAPONS` directly from src/config.ts
+// (ironsight's fixed array) to compute EXPECTED mag/ammo values, while the real
+// room now reads `GAME.weapons` (W3 finding — arena-room.ts was migrated so a
+// config swap changes actual combat, not just cosmetics). Confirmed empirically
+// (W3): under the NEONSTRIKE swap, 2 of ~20 tests fail exactly where they compare
+// live server ammo against `AR.mag`/`AR.reloadMs` — proof the swap is real, not
+// that the file is broken. A few other assertions also hardcode ironsight-specific
+// numeric relationships (e.g. dom's killTarget=50-default-vs-scoreTarget=200 gap).
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";

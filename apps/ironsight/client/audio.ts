@@ -5,8 +5,10 @@
  * of emberfall's file-based `audio.ts`; the same lifecycle, oscillators instead of
  * decoded buffers.
  */
+import { GAME } from "../src/game-config.js";
 
 const MUTED_KEY = "iron_muted";
+const A = GAME.audio;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -22,10 +24,10 @@ function ensure(): AudioContext | null {
   if (!Ctor) return null;
   ctx = new Ctor();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.5;
+  master.gain.value = muted ? 0 : A.masterGain;
   master.connect(ctx.destination);
   // One second of white noise, reused for every gunshot.
-  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+  const buf = ctx.createBuffer(1, ctx.sampleRate * A.noiseBufferSec, ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   noise = buf;
@@ -40,7 +42,7 @@ function ensure(): AudioContext | null {
  * here, just no explicit resume call of its own.
  */
 function startAmbient(c: AudioContext, m: GainNode): void {
-  const buf = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);
+  const buf = c.createBuffer(1, c.sampleRate * A.ambient.bufferSec, c.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   const src = c.createBufferSource();
@@ -48,10 +50,10 @@ function startAmbient(c: AudioContext, m: GainNode): void {
   src.loop = true;
   const lp = c.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 500;
-  lp.Q.value = 0.5;
+  lp.frequency.value = A.ambient.lpFreq;
+  lp.Q.value = A.ambient.lpQ;
   const g = c.createGain();
-  g.gain.value = 0.05;
+  g.gain.value = A.ambient.gain;
   src.connect(lp).connect(g).connect(m);
   src.start(0);
 }
@@ -62,44 +64,35 @@ function ready(): AudioContext | null {
   return c;
 }
 
-/** Per-weapon crack character (indexed like WEAPONS: AR/SMG/Shotgun/Sniper/Pistol). */
-const FIRE_PARAMS = [
-  { bp: 1600, dur: 0.09, gain: 0.9, thump: 180 }, // AR — the baseline crack
-  { bp: 2300, dur: 0.055, gain: 0.65, thump: 240 }, // SMG — short & snappy
-  { bp: 650, dur: 0.18, gain: 1.1, thump: 110 }, // Shotgun — low boom
-  { bp: 900, dur: 0.26, gain: 1.2, thump: 80 }, // Sniper — big & long
-  { bp: 1300, dur: 0.08, gain: 0.75, thump: 200 }, // Pistol
-] as const;
-
 /** Gunshot: a noise burst through a bandpass + a body thump, tuned per weapon. */
 export function playFire(weaponIndex = 0): void {
   const c = ready();
   if (!c || !master || !noise) return;
-  const p = FIRE_PARAMS[weaponIndex] ?? FIRE_PARAMS[0];
+  const p = A.fireParams[weaponIndex] ?? A.fireParams[0]!;
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
   const bp = c.createBiquadFilter();
   bp.type = "bandpass";
   bp.frequency.value = p.bp;
-  bp.Q.value = 0.8;
+  bp.Q.value = A.fireBandpassQ;
   const g = c.createGain();
   g.gain.setValueAtTime(p.gain, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
   src.connect(bp).connect(g).connect(master);
   src.start(t);
-  src.stop(t + p.dur + 0.02);
+  src.stop(t + p.dur + A.fireStopTailSec);
 
   const osc = c.createOscillator();
   osc.type = "triangle";
   osc.frequency.setValueAtTime(p.thump, t);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(45, p.thump / 3), t + p.dur * 0.9);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(A.fireThumpFreqFloor, p.thump / 3), t + p.dur * A.fireThumpDecayFrac);
   const og = c.createGain();
-  og.gain.setValueAtTime(0.5, t);
+  og.gain.setValueAtTime(A.fireThumpGainStart, t);
   og.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
   osc.connect(og).connect(master);
   osc.start(t);
-  osc.stop(t + p.dur + 0.02);
+  osc.stop(t + p.dur + A.fireStopTailSec);
 }
 
 /** Grenade detonation: a long low-passed noise rumble + a 50 Hz sub swell. */
@@ -111,25 +104,25 @@ export function playBoom(): void {
   src.buffer = noise;
   const lp = c.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.setValueAtTime(900, t);
-  lp.frequency.exponentialRampToValueAtTime(80, t + 0.45);
+  lp.frequency.setValueAtTime(A.boom.lpStart, t);
+  lp.frequency.exponentialRampToValueAtTime(A.boom.lpEnd, t + A.boom.lpRampSec);
   const g = c.createGain();
-  g.gain.setValueAtTime(1.2, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  g.gain.setValueAtTime(A.boom.gainStart, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + A.boom.gainRampSec);
   src.connect(lp).connect(g).connect(master);
   src.start(t);
-  src.stop(t + 0.52);
+  src.stop(t + A.boom.stopSec);
 
   const sub = c.createOscillator();
   sub.type = "sine";
-  sub.frequency.value = 50;
+  sub.frequency.value = A.boom.subFreq;
   const sg = c.createGain();
   sg.gain.setValueAtTime(0.0001, t);
-  sg.gain.linearRampToValueAtTime(0.6, t + 0.02);
-  sg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+  sg.gain.linearRampToValueAtTime(A.boom.subGainPeak, t + A.boom.subGainRampUpSec);
+  sg.gain.exponentialRampToValueAtTime(0.001, t + A.boom.subGainRampDownSec);
   sub.connect(sg).connect(master);
   sub.start(t);
-  sub.stop(t + 0.42);
+  sub.stop(t + A.boom.subStopSec);
 }
 
 /** Weapon-swap: a short mechanical double click. */
@@ -137,17 +130,17 @@ export function playSwap(): void {
   const c = ready();
   if (!c || !master) return;
   const t = c.currentTime;
-  for (const [i, f] of [420, 300].entries()) {
+  for (const [i, f] of A.swap.freqs.entries()) {
     const osc = c.createOscillator();
     osc.type = "square";
     osc.frequency.value = f;
     const g = c.createGain();
-    const start = t + i * 0.06;
-    g.gain.setValueAtTime(0.12, start);
-    g.gain.exponentialRampToValueAtTime(0.001, start + 0.03);
+    const start = t + i * A.swap.staggerSec;
+    g.gain.setValueAtTime(A.swap.gain, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + A.swap.rampSec);
     osc.connect(g).connect(master);
     osc.start(start);
-    osc.stop(start + 0.04);
+    osc.stop(start + A.swap.stopSec);
   }
 }
 
@@ -158,13 +151,13 @@ export function playHit(head = false): void {
   const t = c.currentTime;
   const osc = c.createOscillator();
   osc.type = "square";
-  osc.frequency.value = head ? 1400 : 900;
+  osc.frequency.value = head ? A.hit.freqHead : A.hit.freqBody;
   const g = c.createGain();
-  g.gain.setValueAtTime(0.28, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  g.gain.setValueAtTime(A.hit.gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + A.hit.rampSec);
   osc.connect(g).connect(master);
   osc.start(t);
-  osc.stop(t + 0.07);
+  osc.stop(t + A.hit.stopSec);
 }
 
 /** Footstep: a soft short low-passed noise tap, scaled by `atten` (distance falloff
@@ -177,13 +170,13 @@ export function playFootstep(atten = 1): void {
   src.buffer = noise;
   const lp = c.createBiquadFilter();
   lp.type = "lowpass";
-  lp.frequency.value = 350;
+  lp.frequency.value = A.footstep.lpFreq;
   const g = c.createGain();
-  g.gain.setValueAtTime(0.12 * atten, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  g.gain.setValueAtTime(A.footstep.gain * atten, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + A.footstep.rampSec);
   src.connect(lp).connect(g).connect(master);
   src.start(t);
-  src.stop(t + 0.06);
+  src.stop(t + A.footstep.stopSec);
 }
 
 /** Hurt: a short descending low-register thud, distinct from the shooter-side
@@ -194,14 +187,14 @@ export function playHurt(): void {
   const t = c.currentTime;
   const osc = c.createOscillator();
   osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(180, t);
-  osc.frequency.exponentialRampToValueAtTime(70, t + 0.12);
+  osc.frequency.setValueAtTime(A.hurt.freqStart, t);
+  osc.frequency.exponentialRampToValueAtTime(A.hurt.freqEnd, t + A.hurt.freqRampSec);
   const g = c.createGain();
-  g.gain.setValueAtTime(0.35, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+  g.gain.setValueAtTime(A.hurt.gain, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + A.hurt.gainRampSec);
   osc.connect(g).connect(master);
   osc.start(t);
-  osc.stop(t + 0.14);
+  osc.stop(t + A.hurt.stopSec);
 }
 
 /** Kill confirm: a quick two-tone rising ding. */
@@ -209,18 +202,18 @@ export function playKill(): void {
   const c = ready();
   if (!c || !master) return;
   const t = c.currentTime;
-  for (const [i, f] of [660, 990].entries()) {
+  for (const [i, f] of A.kill.freqs.entries()) {
     const osc = c.createOscillator();
     osc.type = "sine";
     osc.frequency.value = f;
     const g = c.createGain();
-    const start = t + i * 0.07;
+    const start = t + i * A.kill.staggerSec;
     g.gain.setValueAtTime(0.0001, start);
-    g.gain.linearRampToValueAtTime(0.3, start + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+    g.gain.linearRampToValueAtTime(A.kill.gainPeak, start + A.kill.rampUpSec);
+    g.gain.exponentialRampToValueAtTime(0.001, start + A.kill.rampDownSec);
     osc.connect(g).connect(master);
     osc.start(start);
-    osc.stop(start + 0.13);
+    osc.stop(start + A.kill.stopSec);
   }
 }
 
@@ -229,7 +222,7 @@ export function isMuted(): boolean {
 }
 
 function applyMute(): void {
-  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 0.5, ctx.currentTime, 0.01);
+  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : A.masterGain, ctx.currentTime, 0.01);
 }
 
 /** Self-wire gesture-resume + the M mute toggle. Returns the mute state on toggle. */

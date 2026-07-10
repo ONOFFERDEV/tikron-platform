@@ -4,9 +4,13 @@
  * and the match-end scoreboard. Pure presentation driven by `main.ts`; all layout
  * is injected here so `index.html` stays a bare mount point.
  */
-import { TEAM_COLOR } from "./config.js";
-import { WEAPONS } from "../src/config.js";
 import { MODE_ORDER, isTeamless } from "../src/modes.js";
+import { GAME } from "../src/game-config.js";
+
+const TEAM_COLOR = GAME.teams.colors;
+const T = GAME.text;
+const [UI_RED, UI_BLUE] = GAME.teams.uiText;
+const WEAPONS = GAME.weapons;
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
@@ -22,7 +26,7 @@ const css = `
 #reload { height: 4px; background: #2a2f3a; border-radius: 3px; margin-top: 6px; overflow: hidden; display: none; }
 #reloadfill { height: 100%; width: 0%; background: #ffb347; }
 #scores { top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; align-items: center; font-size: 20px; font-weight: 700; }
-#scores .r { color: #ff8a6e; } #scores .b { color: #7db0ff; }
+#scores .r { color: ${UI_RED}; } #scores .b { color: ${UI_BLUE}; }
 #mode { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 2px; opacity: 0.5; }
 #streak { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; color: #ffd24a; text-shadow: 0 0 10px rgba(255,170,30,0.65); opacity: 0; transition: opacity 200ms; }
 #warmup { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; color: #ffd24a; text-shadow: 0 0 10px rgba(255,170,30,0.65); display: none; }
@@ -131,7 +135,7 @@ export class Hud {
 
     // HP.
     const hp = el("div", "hp"); hp.className = "panel";
-    hp.appendChild(el("div", undefined, "HP"));
+    hp.appendChild(el("div", undefined, T.hud.hp));
     const hpbar = el("div", "hpbar");
     this.hpFill = el("div", "hpfill");
     hpbar.appendChild(this.hpFill); hp.appendChild(hpbar);
@@ -151,7 +155,7 @@ export class Hud {
     this.scoresPanel = el("div", "scores"); this.scoresPanel.className = "panel";
     this.scoreR = el("span", undefined, "0"); this.scoreR.className = "r";
     this.scoreB = el("span", undefined, "0"); this.scoreB.className = "b";
-    this.scoresPanel.append(this.scoreR, el("span", undefined, "vs"), this.scoreB);
+    this.scoresPanel.append(this.scoreR, el("span", undefined, T.hud.vs), this.scoreB);
     this.root.appendChild(this.scoresPanel);
 
     // Mode label.
@@ -163,7 +167,7 @@ export class Hud {
     this.root.appendChild(this.streak);
 
     // Warmup banner (static; toggled on/off by setWarmup, no decay).
-    this.warmup = el("div", "warmup", "WARMUP");
+    this.warmup = el("div", "warmup", T.hud.warmup);
     this.root.appendChild(this.warmup);
 
     // FFA leaderboard (toggled with #scores by setMode).
@@ -197,7 +201,7 @@ export class Hud {
       wbar.appendChild(slot);
       return slot;
     });
-    this.nadeCount = el("div", undefined, "💣 0");
+    this.nadeCount = el("div", undefined, `${T.nadeIcon} 0`);
     this.nadeCount.className = "nades";
     wbar.appendChild(this.nadeCount);
     this.root.appendChild(wbar);
@@ -246,7 +250,7 @@ export class Hud {
 
   /** Update the carried grenade count badge. */
   setNades(n: number): void {
-    this.nadeCount.innerHTML = `💣 ${n}`;
+    this.nadeCount.innerHTML = `${T.nadeIcon} ${n}`;
   }
 
   /** Crosshair gap grows with `spread01` (0 = tight, 1 = wide). Visual only. */
@@ -264,7 +268,7 @@ export class Hud {
 
   addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string): void {
     const color = killerTeam === 0 || killerTeam === 1 ? `#${TEAM_COLOR[killerTeam].toString(16)}` : "#eee";
-    const icon = part === "head" ? " ✷ " : part === "blast" ? " 💥 " : " ➜ ";
+    const icon = part === "head" ? T.killfeedIcons.head : part === "blast" ? T.killfeedIcons.blast : T.killfeedIcons.body;
     const assist = assistName ? ` <span class="assist">(+assist ${esc(assistName)})</span>` : "";
     const node = el("div"); node.className = "k";
     node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}${assist}`;
@@ -288,7 +292,7 @@ export class Hud {
 
   /** Transient center-top killstreak banner, decayed in update(). */
   showStreak(who: string, count: number): void {
-    this.streak.textContent = `${who.toUpperCase()} · ${count} KILL STREAK`;
+    this.streak.textContent = fmt(T.hud.streakFmt, { who: who.toUpperCase(), count });
     this.streak.style.opacity = "1";
     this.streakAt = performance.now();
   }
@@ -364,10 +368,10 @@ export class Hud {
   }
 
   /** The click-to-play / ESC prompt. */
-  showLockPrompt(show: boolean, text = "CLICK TO PLAY"): void {
+  showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
     if (show) {
       this.overlay.style.display = "flex";
-      this.overlay.innerHTML = `<h1>ironsight</h1><p>${text}</p><p class="hint">WASD move · Shift sprint · Ctrl/C crouch · Space jump · R reload · LMB fire · M mute</p>`;
+      this.overlay.innerHTML = `<h1>${T.hud.gameTitle}</h1><p>${text}</p><p class="hint">${T.controlsHint}</p>`;
     } else {
       this.overlay.style.display = "none";
     }
@@ -376,9 +380,11 @@ export class Hud {
   /** Death overlay with a live respawn countdown (seconds). */
   showDeath(secondsLeft: number, killerName?: string): void {
     this.overlay.style.display = "flex";
-    const sub = killerName ? `<p>eliminated by ${esc(killerName)}</p>` : "";
-    const line = secondsLeft > 0 ? `<p>respawn in ${secondsLeft.toFixed(1)}s</p>` : `<p>respawning…</p>`;
-    this.overlay.innerHTML = `<h1 style="color:#e05a4a">ELIMINATED</h1>${sub}${line}`;
+    const sub = killerName ? `<p>${fmt(T.hud.eliminatedByFmt, { killer: esc(killerName) })}</p>` : "";
+    const line = secondsLeft > 0
+      ? `<p>${fmt(T.hud.respawnInFmt, { s: secondsLeft.toFixed(1) })}</p>`
+      : `<p>${T.hud.respawningNow}</p>`;
+    this.overlay.innerHTML = `<h1 style="color:#e05a4a">${T.hud.eliminated}</h1>${sub}${line}`;
   }
 
   /**
@@ -392,14 +398,16 @@ export class Hud {
     this.overlay.style.display = "flex";
     // "draw" is checked before teamless so an FFA no-score timeout renders "DRAW"
     // in neutral color, matching team-mode draw rendering, instead of "draw WINS".
-    const title = winner === "draw" ? "DRAW" : teamless ? `${esc(winner)} WINS` : `${winner.toUpperCase()} WINS`;
-    const color = teamless ? "#eee" : winner === "red" ? "#ff8a6e" : winner === "blue" ? "#7db0ff" : "#eee";
-    const scoreLine = teamless ? "" : `<p><span style="color:#ff8a6e">RED ${red}</span> — <span style="color:#7db0ff">BLUE ${blue}</span></p>`;
+    const title = winner === "draw"
+      ? T.hud.draw
+      : fmt(T.hud.winsFmt, { winner: teamless ? esc(winner) : winner.toUpperCase() });
+    const color = teamless ? "#eee" : winner === "red" ? UI_RED : winner === "blue" ? UI_BLUE : "#eee";
+    const scoreLine = teamless ? "" : `<p><span style="color:${UI_RED}">RED ${red}</span> — <span style="color:${UI_BLUE}">BLUE ${blue}</span></p>`;
     const voteLine = this.voteCount >= 0
-      ? `<p class="hint">RESTART VOTES ${this.voteCount}/${this.voteNeed}</p>`
-      : `<p class="hint">PRESS R TO VOTE RESTART</p>`;
+      ? `<p class="hint">${fmt(T.hud.restartVotesFmt, { count: this.voteCount, need: this.voteNeed })}</p>`
+      : `<p class="hint">${T.hud.voteHint}</p>`;
     this.overlay.innerHTML = `<h1 style="color:${color}">${title}</h1>${scoreLine}`
-      + `<p>your score: ${myKills} K / ${myDeaths} D</p>${voteLine}`;
+      + `<p>${fmt(T.hud.yourScoreFmt, { k: myKills, d: myDeaths })}</p>${voteLine}`;
   }
 
   hideOverlay(): void {
@@ -434,4 +442,9 @@ export class Hud {
 
 function esc(s: string): string {
   return s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
+}
+
+/** Fill a `{key}` template (GAME.text.hud's *Fmt strings) from `vars`. */
+function fmt(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? `{${k}}`));
 }

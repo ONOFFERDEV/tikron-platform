@@ -7,9 +7,12 @@
  */
 import { GameClient, type Room } from "@tikron/client";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR, WEAPONS } from "../src/config.js";
 import type { ModeId } from "../src/modes.js";
 import { LOOK_SEND_MS, MOVE_KEEPALIVE_MS } from "./config.js";
+import { GAME } from "../src/game-config.js";
+
+const WEAPONS = GAME.weapons;
+const DEFAULT_WEAPON_SPEC = WEAPONS[GAME.weaponMeta.defaultIndex]!;
 
 /** The held movement intent the server integrates every tick. */
 export interface MoveIntent {
@@ -210,11 +213,11 @@ export class Net {
    * budget (the server is the real cadence). Returns true when a `fire` was sent,
    * so the caller can kick the predicted viewmodel immediately.
    */
-  private fireIntervalMs = AR.fireIntervalMs;
+  private fireIntervalMs = DEFAULT_WEAPON_SPEC.fireIntervalMs;
 
   /** Track the held weapon's cadence (main calls this on switch) so held-fire matches it. */
   setFireInterval(weaponIndex: number): void {
-    this.fireIntervalMs = WEAPONS[weaponIndex]?.fireIntervalMs ?? AR.fireIntervalMs;
+    this.fireIntervalMs = WEAPONS[weaponIndex]?.fireIntervalMs ?? DEFAULT_WEAPON_SPEC.fireIntervalMs;
   }
 
   tryFire(now: number): boolean {

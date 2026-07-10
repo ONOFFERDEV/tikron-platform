@@ -19,10 +19,14 @@ import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
-import { PLAYER, WEAPON, WEAPONS } from "../src/config.js";
+import { PLAYER } from "../src/config.js";
 import { dirFromAngles } from "../src/weapons.js";
 import { MODE_ORDER, mapForMode, isTeamless } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
+import { GAME } from "../src/game-config.js";
+
+const WEAPONS = GAME.weapons;
+const WEAPON = { swapMs: GAME.weaponMeta.swapMs };
 
 interface Pose {
   x: number; y: number; z: number; yaw: number; pitch: number;
@@ -33,7 +37,7 @@ interface Snap {
   players: Map<string, Pose>;
 }
 
-const RESPAWN_MS = 3000; // mirrors MATCH.respawnMs (client countdown only)
+const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (client countdown only)
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
@@ -44,7 +48,7 @@ async function main(): Promise<void> {
   // valid `?mode=` — a deep link resolves immediately with no menu. Either way,
   // `location.search` carries the chosen mode by the time Net.connect() reads it.
   await resolveMode();
-  hud.showLockPrompt(true, "CONNECTING…");
+  hud.showLockPrompt(true, GAME.text.hud.connecting);
 
   const net = await Net.connect();
   const me0 = await waitForSelf(net);
@@ -55,7 +59,7 @@ async function main(): Promise<void> {
     // session. Net.connect() itself never surfaces a fatal error (it retries with
     // backoff forever), so mirror that "keep the user informed, don't proceed"
     // idiom here the only way a stuck session can recover: reload from scratch.
-    hud.showLockPrompt(true, "CONNECTION FAILED — RELOADING…");
+    hud.showLockPrompt(true, GAME.text.hud.connectionFailed);
     setTimeout(() => location.reload(), RESYNC_RELOAD_MS);
     return;
   }
@@ -86,8 +90,8 @@ async function main(): Promise<void> {
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
 
   const name = (id: string): string => {
-    if (id === net.myId) return "You";
-    if (id.startsWith("bot-")) return `BOT${id.slice(4)}`;
+    if (id === net.myId) return GAME.text.selfName;
+    if (id.startsWith("bot-")) return GAME.text.botNameFmt.replace("{n}", id.slice(4));
     return id.slice(0, 4);
   };
 
@@ -246,7 +250,7 @@ async function main(): Promise<void> {
     while (buf.length > 24) buf.shift();
   });
 
-  hud.showLockPrompt(true, "CLICK TO PLAY");
+  hud.showLockPrompt(true, GAME.text.hud.clickToPlay);
 
   // --- render loop ----------------------------------------------------------
   let last = performance.now();
@@ -394,7 +398,7 @@ async function main(): Promise<void> {
         respawnSent = true;
       }
     } else if (!input.locked) {
-      hud.showLockPrompt(true, "CLICK TO PLAY");
+      hud.showLockPrompt(true, GAME.text.hud.clickToPlay);
     } else {
       hud.hideOverlay();
     }

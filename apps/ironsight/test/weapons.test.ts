@@ -1,3 +1,12 @@
+// [config: ironsight] — the formulas under test (falloffMul/pelletPattern/
+// accuracySpread/dirFromAngles/blastDamage/stepGrenade) are theme-agnostic, but
+// this file imports `WEAPONS` directly from src/config.ts (ironsight's own fixed
+// array, NOT `GAME.weapons`), so it stays green through a config swap by being
+// entirely decoupled from it — it never actually exercises the swapped-in
+// roster. Confirmed empirically (W3): passes unchanged during the NEONSTRIKE
+// swap, but only because it's testing ironsight's own AR/Shotgun/Sniper
+// regardless of what's loaded into GAME — a from-scratch theme would need its
+// own equivalent suite (`byName("Pulse Rifle")`, etc.), not a rerun of this one.
 import { describe, it, expect } from "vitest";
 import {
   accuracySpread,

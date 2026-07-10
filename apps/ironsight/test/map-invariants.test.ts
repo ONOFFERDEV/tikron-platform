@@ -1,3 +1,6 @@
+// [blueprint] — structural invariants only (spawn/cap in-bounds, cap separation via
+// MODES.dom.captureRadius read dynamically, bot-waypoint reachability); imports
+// ARENA1/ARENA2/MODES directly (not GAME), so it's unaffected by any config swap.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";

@@ -12,6 +12,9 @@
  */
 import * as THREE from "three";
 import { playFootstep } from "./audio.js";
+import { GAME } from "../src/game-config.js";
+
+const PALETTE = GAME.palette;
 
 interface Vec3 {
   x: number;
@@ -92,7 +95,7 @@ export class Vfx {
 
   private buildMuzzle(): MuzzleSlot {
     const mat = new THREE.SpriteMaterial({
-      color: 0xffdd88,
+      color: PALETTE.muzzle,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
@@ -102,14 +105,14 @@ export class Vfx {
     sprite.scale.setScalar(0.4);
     sprite.visible = false;
     this.scene.add(sprite);
-    const light = new THREE.PointLight(0xffcc77, 0, 5, 2);
+    const light = new THREE.PointLight(PALETTE.muzzleLight, 0, 5, 2);
     this.scene.add(light);
     return { sprite, mat, light, born: -1e9 };
   }
 
   private buildCasing(): CasingSlot {
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xc9a227,
+      color: PALETTE.casing,
       roughness: 0.4,
       metalness: 0.6,
       transparent: true,
@@ -175,7 +178,7 @@ export class Vfx {
   spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean): void {
     const d = normalize(dir);
     const count = hitPlayer ? 5 : 7;
-    const color = hitPlayer ? 0x7a1414 : 0xffcf8a;
+    const color = hitPlayer ? PALETTE.impactBlood : PALETTE.impactSpark;
     const speed = hitPlayer ? 1 : 2.5;
     const gravity = hitPlayer ? -6 : -2;
     const life = hitPlayer ? 400 : 260;

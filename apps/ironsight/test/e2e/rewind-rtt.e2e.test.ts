@@ -1,3 +1,6 @@
+// [blueprint] — server-rewind lag-compensation mechanic only (hit-registration rate
+// vs simulated RTT); reads PLAYER/LAG/TICK_MS dynamically, no weapon-name or
+// balance dependency.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../../src/rooms/arena-room.js";

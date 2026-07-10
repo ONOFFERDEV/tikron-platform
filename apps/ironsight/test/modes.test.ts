@@ -1,3 +1,5 @@
+// [blueprint] — every threshold (killTarget/captureRadius/scoreTarget/etc.) is read
+// dynamically off MODES, not hardcoded, so this holds for any mode config.
 import { describe, it, expect } from "vitest";
 import {
   TDM_MODE,

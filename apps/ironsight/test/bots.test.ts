@@ -1,3 +1,5 @@
+// [blueprint] — pure botThink()/createBotBrain() behavior on hand-built fixtures;
+// no import of config.ts, GAME, or any weapon/team identity.
 import { describe, it, expect } from "vitest";
 import { botThink, createBotBrain, type BotView } from "../src/bots.js";
 

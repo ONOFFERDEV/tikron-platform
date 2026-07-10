@@ -1,3 +1,7 @@
+// [blueprint] — practice-mode room/matchmaking mechanics (no warmup gate, teamless
+// hitscan, passive filler bots, matchmake room-id format); no weapon-name or exact
+// balance dependency, only assumes the DEFAULT weapon can kill within a handful
+// of shots (true of any reasonably-tuned roster).
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";

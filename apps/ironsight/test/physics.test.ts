@@ -1,3 +1,6 @@
+// [blueprint] — pure physics/hitscan math (moveAndSlide, canStand, ray primitives,
+// head/body/occlusion resolution); every fixture reads PLAYER dynamically, so this
+// holds for any player capsule size, not just ironsight's.
 import { describe, it, expect } from "vitest";
 import {
   canStand,

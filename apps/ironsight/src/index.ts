@@ -1,6 +1,7 @@
 import { routePartykitRequest } from "partyserver";
 import { defineRoom } from "@tikron/server";
 import { ArenaRoomImpl } from "./rooms/arena-room.js";
+import { GAME } from "./game-config.js";
 
 export interface Env {
   ArenaRoom: DurableObjectNamespace;
@@ -30,7 +31,7 @@ export function handleMatchmake(url: URL): Response {
   if (modeParam === "practice") {
     const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     return Response.json({
-      party: "arena-room",
+      party: GAME.meta.party,
       room: `arena-practice-${rand}`,
       session: crypto.randomUUID(),
     });

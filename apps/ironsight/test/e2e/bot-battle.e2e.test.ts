@@ -1,3 +1,7 @@
+// [blueprint] — the in-process boot smoke: two ArenaBots fight a full match via
+// generic room mechanics (hits/kills/respawns/phase), no weapon-name assertions.
+// ArenaBot's own ammo/cadence model reads GAME.weapons[GAME.weaponMeta.defaultIndex]
+// (tools/bots/arena-bot.ts), so it stays in sync with whichever theme is loaded.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestConnection, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../../src/rooms/arena-room.js";
