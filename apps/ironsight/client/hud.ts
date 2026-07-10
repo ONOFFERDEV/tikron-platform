@@ -6,7 +6,7 @@
  */
 import { TEAM_COLOR } from "./config.js";
 import { WEAPONS } from "../src/config.js";
-import { MODE_ORDER } from "../src/modes.js";
+import { MODE_ORDER, isTeamless } from "../src/modes.js";
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
@@ -276,12 +276,14 @@ export class Hud {
     }
   }
 
-  /** Uppercased active-mode label; also toggles the FFA leaderboard vs team scores. */
+  /** Uppercased active-mode label; also toggles the leaderboard vs team scores
+   *  for a teamless mode (FFA, practice — see modes.ts's isTeamless). */
   setMode(modeIndex: number): void {
-    this.modeLabel.textContent = MODE_ORDER[modeIndex]?.toUpperCase() ?? "";
-    const isFfa = modeIndex === 1;
-    this.lb.style.display = isFfa ? "block" : "none";
-    this.scoresPanel.style.display = isFfa ? "none" : "flex";
+    const id = MODE_ORDER[modeIndex];
+    this.modeLabel.textContent = id?.toUpperCase() ?? "";
+    const teamless = id !== undefined && isTeamless(id);
+    this.lb.style.display = teamless ? "block" : "none";
+    this.scoresPanel.style.display = teamless ? "none" : "flex";
   }
 
   /** Transient center-top killstreak banner, decayed in update(). */
@@ -382,15 +384,17 @@ export class Hud {
   /**
    * `winner` is a display label, already resolved by the caller (main.ts) — the raw
    * "red"/"blue"/"draw" wire value for team modes, or a player name via name(id) for
-   * FFA (`isFfa`), which renders in a neutral color instead of the team colors.
+   * a teamless mode (`teamless` — FFA, practice), which renders in a neutral color
+   * instead of the team colors. (Practice never actually reaches "ended" — its
+   * match never ends — so this path is unreachable there in practice.)
    */
-  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, isFfa: boolean): void {
+  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, teamless: boolean): void {
     this.overlay.style.display = "flex";
-    // "draw" is checked before isFfa so an FFA no-score timeout renders "DRAW" in
-    // neutral color, matching team-mode draw rendering, instead of "draw WINS".
-    const title = winner === "draw" ? "DRAW" : isFfa ? `${esc(winner)} WINS` : `${winner.toUpperCase()} WINS`;
-    const color = isFfa ? "#eee" : winner === "red" ? "#ff8a6e" : winner === "blue" ? "#7db0ff" : "#eee";
-    const scoreLine = isFfa ? "" : `<p><span style="color:#ff8a6e">RED ${red}</span> — <span style="color:#7db0ff">BLUE ${blue}</span></p>`;
+    // "draw" is checked before teamless so an FFA no-score timeout renders "DRAW"
+    // in neutral color, matching team-mode draw rendering, instead of "draw WINS".
+    const title = winner === "draw" ? "DRAW" : teamless ? `${esc(winner)} WINS` : `${winner.toUpperCase()} WINS`;
+    const color = teamless ? "#eee" : winner === "red" ? "#ff8a6e" : winner === "blue" ? "#7db0ff" : "#eee";
+    const scoreLine = teamless ? "" : `<p><span style="color:#ff8a6e">RED ${red}</span> — <span style="color:#7db0ff">BLUE ${blue}</span></p>`;
     const voteLine = this.voteCount >= 0
       ? `<p class="hint">RESTART VOTES ${this.voteCount}/${this.voteNeed}</p>`
       : `<p class="hint">PRESS R TO VOTE RESTART</p>`;

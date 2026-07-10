@@ -15,15 +15,26 @@ export const ArenaRoom = defineRoom(ArenaRoomImpl);
 
 /**
  * M2 matchmaking: hand the client a room id + a fresh session key, routed by
- * `?mode=tdm|ffa|dom` (default tdm) to a per-mode room `arena-<mode>` — the room
- * itself picks its {@link GameMode} from that id (see modes.ts). `maxClients` cap
- * the room enforces server-side; team balancing happens on join. (A real matchmaker
- * DO — multiple rooms per mode, reservations, region hints — is the gateway pattern
- * to graft in later; the client contract here, `{ party, room, session }`, stays
- * the same.)
+ * `?mode=tdm|ffa|dom|practice` (default tdm) to a per-mode room `arena-<mode>` —
+ * the room itself picks its {@link GameMode} from that id (see modes.ts).
+ * `maxClients` cap the room enforces server-side; team balancing happens on
+ * join. `practice` is the one exception to the shared-room-per-mode rule: every
+ * request gets its OWN private room (`arena-practice-<random>`, matched by
+ * prefix in modes.ts's `modeFromRoomId`), so practice sessions never share a
+ * seat with unrelated players. (A real matchmaker DO — multiple rooms per mode,
+ * reservations, region hints — is the gateway pattern to graft in later; the
+ * client contract here, `{ party, room, session }`, stays the same.)
  */
-function handleMatchmake(url: URL): Response {
+export function handleMatchmake(url: URL): Response {
   const modeParam = url.searchParams.get("mode");
+  if (modeParam === "practice") {
+    const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    return Response.json({
+      party: "arena-room",
+      room: `arena-practice-${rand}`,
+      session: crypto.randomUUID(),
+    });
+  }
   const mode = modeParam === "ffa" || modeParam === "dom" ? modeParam : "tdm";
   return Response.json({
     party: "arena-room",

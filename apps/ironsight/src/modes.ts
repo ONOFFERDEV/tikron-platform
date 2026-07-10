@@ -11,10 +11,12 @@ import { ARENA2 } from "./map/arena2.js";
 import type { MapDef } from "./map/types.js";
 import type { ArenaState } from "./schema.js";
 
-export type ModeId = "tdm" | "ffa" | "dom";
+export type ModeId = "tdm" | "ffa" | "dom" | "practice";
 
-/** Wire encoding: `state.mode` is the index into this array. */
-export const MODE_ORDER: readonly ModeId[] = ["tdm", "ffa", "dom"];
+/** Wire encoding: `state.mode` is the index into this array. Append-only — an
+ *  existing index must never move or its meaning changes for already-synced
+ *  clients (practice is index 3, appended after M3's tdm/ffa/dom). */
+export const MODE_ORDER: readonly ModeId[] = ["tdm", "ffa", "dom", "practice"];
 
 /** The minimal room surface a mode needs — modes never import the room itself. */
 export interface ModeCtx {
@@ -123,9 +125,31 @@ export const DOM_MODE: GameMode = {
   },
 };
 
+/** A solo/bot sandbox: teamless (so shooting + bot targeting thread through the
+ *  same teamless path FFA already uses), never scores, and never ends — the
+ *  room additionally skips warmup and disables the mode-agnostic time-limit
+ *  fallback for practice specifically (see arena-room.ts's onReady). */
+export const PRACTICE_MODE: GameMode = {
+  id: "practice",
+  teams: false,
+  onKill() {
+    // No scoring in practice — it's a sandbox, not a scored match.
+  },
+  tick() {
+    // Nothing to tick; practice has no timers or capture gauges of its own.
+  },
+  winCheck() {
+    return null; // practice never ends
+  },
+};
+
+/** Every room id practice matchmaking issues is `arena-practice-<random>` (a
+ *  private per-request room — see index.ts's handleMatchmake) — matched by
+ *  prefix, not exact equality, unlike the fixed tdm/ffa/dom room ids. */
 export function modeFromRoomId(roomId: string): GameMode {
   if (roomId === "arena-ffa") return FFA_MODE;
   if (roomId === "arena-dom") return DOM_MODE;
+  if (roomId.startsWith("arena-practice")) return PRACTICE_MODE;
   return TDM_MODE;
 }
 
@@ -138,4 +162,16 @@ export function modeIndex(m: ModeId): number {
  *  it from `MODE_ORDER[state.mode]` once the first synced state arrives). */
 export function mapForMode(mode: ModeId): MapDef {
   return mode === "dom" ? ARENA2 : ARENA1;
+}
+
+const TEAMS_BY_ID = new Map<ModeId, boolean>(
+  [TDM_MODE, FFA_MODE, DOM_MODE, PRACTICE_MODE].map((m) => [m.id, m.teams]),
+);
+
+/** True for a mode with no team score (FFA, practice) — single source of truth
+ *  for the client's "FFA-style" display (leaderboard instead of red-vs-blue),
+ *  derived straight from each {@link GameMode}'s own `teams` field rather than a
+ *  hardcoded list of mode ids the client would have to keep in sync by hand. */
+export function isTeamless(mode: ModeId): boolean {
+  return TEAMS_BY_ID.get(mode) === false;
 }

@@ -180,6 +180,15 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // over the 30/s default so inputs are never silently rate-dropped.
     this.maxInputsPerSecond = 90;
 
+    // Practice is a solo/bot sandbox with no match flow to wait on or end: skip
+    // warmup (straight into "live") and disable the mode-agnostic time-limit
+    // fallback in onTick (PRACTICE_MODE.winCheck already never ends the match on
+    // its own — matchEndMs would otherwise still do it via that shared fallback).
+    if (this.gameMode.id === "practice") {
+      this.startInWarmup = false;
+      this.matchTimeMs = Infinity;
+    }
+
     const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
     this.spreadRng = xorshift32(seed || 1);
     this.vertLag = new LagCompensator({ depthMs: this.lagCompensationDepthMs });

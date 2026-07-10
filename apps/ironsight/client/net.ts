@@ -91,12 +91,13 @@ interface Matchmake {
   session: string;
 }
 
-/** The page's `?mode=` query param (tdm/ffa/dom), else "tdm" — the server's own
- *  handleMatchmake (index.ts) applies this exact same fallback independently, so
- *  this only keeps the forwarded value clean, it isn't the source of truth. */
+/** The page's `?mode=` query param (tdm/ffa/dom/practice), else "tdm" — the
+ *  server's own handleMatchmake (index.ts) applies this exact same fallback
+ *  independently, so this only keeps the forwarded value clean, it isn't the
+ *  source of truth. */
 function modeFromLocation(): ModeId {
   const m = new URLSearchParams(location.search).get("mode");
-  return m === "ffa" || m === "dom" ? m : "tdm";
+  return m === "ffa" || m === "dom" || m === "practice" ? m : "tdm";
 }
 
 /** Fetch a room + session, retrying with backoff until the worker answers. */

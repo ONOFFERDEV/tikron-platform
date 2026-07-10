@@ -15,10 +15,11 @@ import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { Hud } from "./hud.js";
+import { resolveMode } from "./mode-select.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER, WEAPONS } from "../src/config.js";
-import { MODE_ORDER, mapForMode } from "../src/modes.js";
+import { MODE_ORDER, mapForMode, isTeamless } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 
 interface Pose {
@@ -36,6 +37,11 @@ const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reload
 async function main(): Promise<void> {
   const hud = new Hud();
   initAudio();
+
+  // Shows the fullscreen mode menu (and awaits a pick) only when the page has no
+  // valid `?mode=` — a deep link resolves immediately with no menu. Either way,
+  // `location.search` carries the chosen mode by the time Net.connect() reads it.
+  await resolveMode();
   hud.showLockPrompt(true, "CONNECTING…");
 
   const net = await Net.connect();
@@ -278,11 +284,13 @@ async function main(): Promise<void> {
     }
     if (state) hud.setScores(state.redScore, state.blueScore);
     const mode = state?.mode ?? 0;
+    const modeId = MODE_ORDER[mode] ?? "tdm";
+    const teamless = isTeamless(modeId);
     hud.setMode(mode);
     hud.setWarmup(phase === "warmup");
     if (mode === 2 && state) hud.setCaps(state.capA, state.capB, state.capC);
     else hud.hideCaps();
-    if (mode === 1 && state) {
+    if (teamless && state) {
       const rows = Object.entries(state.players)
         .map(([id, p]) => ({ name: name(id), k: p.k, d: p.d, isMe: id === net.myId }))
         .sort((a, b) => b.k - a.k || a.d - b.d)
@@ -300,11 +308,10 @@ async function main(): Promise<void> {
 
     // Overlay precedence: match end > death > pointer-lock prompt.
     if (phase === "ended" && matchEnd) {
-      const isFfa = mode === 1;
       // "draw" is a literal wire value (the no-score timeout), not a player id — name()
       // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
-      const winnerLabel = isFfa && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
-      hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, isFfa);
+      const winnerLabel = teamless && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
+      hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless);
     } else if (me && !me.alive) {
       const left = Math.max(0, RESPAWN_MS - (now - deathAt)) / 1000;
       hud.showDeath(left, killerName);

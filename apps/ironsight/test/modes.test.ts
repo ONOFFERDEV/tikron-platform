@@ -3,10 +3,12 @@ import {
   TDM_MODE,
   FFA_MODE,
   DOM_MODE,
+  PRACTICE_MODE,
   MODE_ORDER,
   modeFromRoomId,
   modeIndex,
   mapForMode,
+  isTeamless,
   type ModeCtx,
 } from "../src/modes.js";
 import { MODES, TEAM } from "../src/config.js";
@@ -210,6 +212,24 @@ describe("DOM_MODE — scoring & win", () => {
   });
 });
 
+describe("PRACTICE_MODE", () => {
+  it("onKill is a no-op — practice is a sandbox, not a scored match", () => {
+    const state = makeState({ r1: { team: TEAM.red, k: 5 } });
+    const ctx = makeCtx(state);
+    PRACTICE_MODE.onKill(ctx, "r1", "v1");
+    expect(state.redScore).toBe(0);
+    expect(state.blueScore).toBe(0);
+  });
+
+  it("winCheck always returns null — practice never ends", () => {
+    const state = makeState();
+    const ctx = makeCtx(state);
+    state.redScore = 999_999;
+    state.blueScore = 999_999;
+    expect(PRACTICE_MODE.winCheck(ctx)).toBeNull();
+  });
+});
+
 describe("modeFromRoomId", () => {
   it("routes the ffa room id to FFA_MODE", () => {
     expect(modeFromRoomId("arena-ffa")).toBe(FFA_MODE);
@@ -223,11 +243,16 @@ describe("modeFromRoomId", () => {
   it("routes the dom room id to DOM_MODE", () => {
     expect(modeFromRoomId("arena-dom")).toBe(DOM_MODE);
   });
+
+  it("routes any arena-practice-<random> room id to PRACTICE_MODE by prefix", () => {
+    expect(modeFromRoomId("arena-practice-a1b2c3d4")).toBe(PRACTICE_MODE);
+    expect(modeFromRoomId("arena-practice-00000000")).toBe(PRACTICE_MODE);
+  });
 });
 
 describe("MODE_ORDER & modeIndex", () => {
-  it("orders tdm, ffa, dom to match the documented wire encoding", () => {
-    expect(MODE_ORDER).toEqual(["tdm", "ffa", "dom"]);
+  it("orders tdm, ffa, dom, practice to match the documented wire encoding", () => {
+    expect(MODE_ORDER).toEqual(["tdm", "ffa", "dom", "practice"]);
   });
 
   it("round-trips each mode id through its wire index", () => {
@@ -238,9 +263,19 @@ describe("MODE_ORDER & modeIndex", () => {
 });
 
 describe("mapForMode", () => {
-  it("routes tdm and ffa to ARENA1, and dom to ARENA2", () => {
+  it("routes tdm, ffa, and practice to ARENA1, and dom to ARENA2", () => {
     expect(mapForMode("tdm")).toBe(ARENA1);
     expect(mapForMode("ffa")).toBe(ARENA1);
     expect(mapForMode("dom")).toBe(ARENA2);
+    expect(mapForMode("practice")).toBe(ARENA1);
+  });
+});
+
+describe("isTeamless", () => {
+  it("is true for ffa and practice, false for tdm and dom", () => {
+    expect(isTeamless("ffa")).toBe(true);
+    expect(isTeamless("practice")).toBe(true);
+    expect(isTeamless("tdm")).toBe(false);
+    expect(isTeamless("dom")).toBe(false);
   });
 });
