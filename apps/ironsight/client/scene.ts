@@ -19,7 +19,12 @@ import { Vfx } from "./vfx.js";
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
 const FWD_Z = new THREE.Vector3(0, 0, 1);
-const TRACER_LIFE_MS = 130;
+// Tracer = a short segment travelling from the muzzle to the impact point (not a
+// static beam) — see addTracer/updateTracers.
+const TRACER_SPEED = 300; // world units/sec the visible segment travels at
+const TRACER_SEG_FRAC = 0.15; // segment length as a fraction of the shot's travel distance
+const TRACER_SEG_MAX = 8; // segment length cap (world units) so long shots don't streak forever
+const TRACER_FADE_MS = 25; // brief opacity fade in the final stretch before the head arrives
 const MUZZLE_LIFE_MS = 55;
 const CAP_LEN = PLAYER.standHeight - 2 * PLAYER.radius;
 /** Viewmodel recoil kick per weapon (indexed like WEAPONS: AR/SMG/Shotgun/Sniper/Pistol). */
@@ -66,8 +71,13 @@ interface PlayerRig {
 
 interface Tracer {
   mesh: THREE.Mesh;
-  born: number;
   mat: THREE.MeshBasicMaterial;
+  origin: THREE.Vector3;
+  dir: THREE.Vector3; // unit length
+  dist: number; // travel distance (clamped to a visible minimum for point-blank shots)
+  segLen: number;
+  born: number;
+  baseOpacity: number;
 }
 
 export class SceneRig {
@@ -503,10 +513,13 @@ export class SceneRig {
 
   // --- tracers ----------------------------------------------------------------
 
+  /** Spawn a tracer that TRAVELS from `origin` to `origin + dir*dist` at
+   *  {@link TRACER_SPEED} (a moving segment, not a static beam) — see
+   *  {@link updateTracers}, which owns the per-frame position/opacity. */
   addTracer(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, dist: number, hit: boolean): void {
-    const len = Math.max(0.5, dist);
+    const travelDist = Math.max(0.5, dist);
+    const segLen = Math.min(travelDist * TRACER_SEG_FRAC, TRACER_SEG_MAX);
     const d = new THREE.Vector3(dir.x, dir.y, dir.z).normalize();
-    const mid = new THREE.Vector3(origin.x, origin.y, origin.z).addScaledVector(d, len / 2);
     const mat = new THREE.MeshBasicMaterial({
       color: hit ? 0xff7755 : 0xffe08a,
       transparent: true,
@@ -514,11 +527,19 @@ export class SceneRig {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, len), mat);
-    mesh.position.copy(mid);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, segLen), mat);
     mesh.quaternion.setFromUnitVectors(FWD_Z, d);
     this.scene.add(mesh);
-    this.tracers.push({ mesh, born: performance.now(), mat });
+    this.tracers.push({
+      mesh,
+      mat,
+      origin: new THREE.Vector3(origin.x, origin.y, origin.z),
+      dir: d,
+      dist: travelDist,
+      segLen,
+      born: performance.now(),
+      baseOpacity: 0.85,
+    });
   }
 
   // --- VFX/SFX polish (remote flashes, casings, impacts, footsteps) -------------
@@ -564,18 +585,36 @@ export class SceneRig {
     this.vfx.stepFoot(id, pos, dtMs / 1000, true, listenerPos);
   }
 
+  /** Advance each tracer's travelling segment: `headDist` is how far its leading
+   *  edge has moved from `origin` at {@link TRACER_SPEED}; the segment is the
+   *  [headDist − segLen, headDist] window (clamped to not go behind the muzzle),
+   *  so it grows out of the muzzle over the first `segLen / TRACER_SPEED`
+   *  seconds, then cruises at a constant on-screen length. Brightness stays flat
+   *  until the last {@link TRACER_FADE_MS} before the head reaches `dist`, then a
+   *  short fade; once it arrives, the tracer is removed outright (no beam left
+   *  hanging at the impact point). */
   private updateTracers(now: number): void {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i]!;
-      const age = now - t.born;
-      if (age >= TRACER_LIFE_MS) {
+      const headDist = TRACER_SPEED * ((now - t.born) / 1000);
+      if (headDist >= t.dist) {
         this.scene.remove(t.mesh);
         t.mesh.geometry.dispose();
         t.mat.dispose();
         this.tracers.splice(i, 1);
-      } else {
-        t.mat.opacity = 0.85 * (1 - age / TRACER_LIFE_MS);
+        continue;
       }
+      const tailDist = Math.max(0, headDist - t.segLen);
+      const visibleLen = headDist - tailDist;
+      const midDist = (headDist + tailDist) / 2;
+      t.mesh.position.set(
+        t.origin.x + t.dir.x * midDist,
+        t.origin.y + t.dir.y * midDist,
+        t.origin.z + t.dir.z * midDist,
+      );
+      t.mesh.scale.z = visibleLen / t.segLen;
+      const remainingMs = ((t.dist - headDist) / TRACER_SPEED) * 1000;
+      t.mat.opacity = remainingMs < TRACER_FADE_MS ? t.baseOpacity * (remainingMs / TRACER_FADE_MS) : t.baseOpacity;
     }
   }
 
