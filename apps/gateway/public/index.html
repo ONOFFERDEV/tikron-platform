@@ -48,7 +48,163 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/brand.css" />
     <style>
-      /* page-specific layout (shared tokens/components live in brand.css) */
+      /* page-specific layout + "instrument panel" design system for the landing page
+         (shared tokens/components live in brand.css — these are local additions and
+         page-scoped overrides only). */
+
+      :root {
+        --grid-line: rgba(230, 237, 243, 0.055);
+        --hairline: rgba(230, 237, 243, 0.1);
+        --panel-2: #0d131b;
+        --corner: rgba(0, 229, 160, 0.5);
+        --underglow: rgba(0, 229, 160, 0.22);
+      }
+
+      /* fixed page frame: low-contrast vertical guides at the container edges,
+         so the whole page reads as one engineered surface while scrolling. */
+      .page-frame {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: min(var(--maxw), 92vw);
+        transform: translateX(-50%);
+        border-left: 1px solid var(--grid-line);
+        border-right: 1px solid var(--grid-line);
+        z-index: 0;
+        pointer-events: none;
+      }
+      .page {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* --- status rail: slim strip above the topbar --- */
+      .status-rail {
+        border-bottom: 1px solid var(--hairline);
+        padding: 7px 0;
+      }
+      .status-rail-inner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .rail-label,
+      .rail-status {
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .rail-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .rail-status {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-left: auto;
+        flex: 0 0 auto;
+      }
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--neon);
+        box-shadow: var(--glow);
+        animation: live-pulse 2.4s ease-in-out infinite;
+      }
+      @keyframes live-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+      @media (max-width: 560px) {
+        .rail-label {
+          display: none;
+        }
+        .rail-status {
+          margin-left: 0;
+        }
+      }
+
+      /* brand.css's .topbar nav is a single non-wrapping row, which overflows
+         narrow viewports with all 5 links — wrap it here (page-scoped, since
+         brand.css itself is off-limits). */
+      @media (max-width: 600px) {
+        .topbar {
+          flex-wrap: wrap;
+          row-gap: 10px;
+        }
+        .topbar nav {
+          flex-wrap: wrap;
+          row-gap: 8px;
+          gap: 8px 14px;
+          width: 100%;
+          font-size: 13px;
+        }
+      }
+
+      /* --- section header device: SYS/0N tag + label + ruler line, reused
+         at the top of every section for a consistent instrument-panel rhythm --- */
+      .sys-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sys-row::after {
+        content: "";
+        flex: 1;
+        min-width: 24px;
+        height: 1px;
+        background: var(--hairline);
+      }
+      .sys-tag {
+        flex: 0 0 auto;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 2px 7px;
+      }
+
+      /* --- framed utility: 1px shell + corner brackets, no extra markup --- */
+      .framed {
+        position: relative;
+        transition: box-shadow 0.2s ease;
+      }
+      .framed::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        --cl: 11px;
+        --cb: 1px;
+        background:
+          linear-gradient(var(--corner), var(--corner)) top left / var(--cl) var(--cb) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) top left / var(--cb) var(--cl) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) top right / var(--cl) var(--cb) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) top right / var(--cb) var(--cl) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) bottom left / var(--cl) var(--cb) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) bottom left / var(--cb) var(--cl) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) bottom right / var(--cl) var(--cb) no-repeat,
+          linear-gradient(var(--corner), var(--corner)) bottom right / var(--cb) var(--cl) no-repeat;
+      }
+      .card.framed:hover,
+      .term.framed:hover {
+        box-shadow: 0 0 34px -20px var(--underglow);
+      }
+
+      /* --- hero --- */
       .hero {
         position: relative;
         overflow: hidden;
@@ -64,15 +220,18 @@
       .hero .container {
         position: relative;
         z-index: 1;
-        padding: 96px 0 88px;
+        padding: 92px 0 84px;
       }
       .hero h1 {
-        font-size: clamp(34px, 6vw, 60px);
-        max-width: 15ch;
-        margin-top: 18px;
+        font-size: clamp(36px, 4.6vw, 56px);
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        max-width: 19ch;
+        margin-top: 20px;
       }
       .hero .lead {
-        font-size: clamp(16px, 2.2vw, 20px);
+        font-size: clamp(16px, 2.1vw, 19px);
+        line-height: 1.65;
         color: var(--muted);
         max-width: 52ch;
       }
@@ -88,7 +247,114 @@
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        margin-top: 30px;
+        margin-top: 28px;
+      }
+      .cta-row .btn:not(.btn-primary) {
+        background: transparent;
+        border-color: var(--hairline);
+        color: var(--muted);
+        font-weight: 500;
+        padding: 10px 16px;
+      }
+      .cta-row .btn:not(.btn-primary):hover {
+        color: var(--text);
+        border-color: var(--border);
+        background: var(--panel);
+      }
+
+      /* --- command chip: the AI-first proof object --- */
+      .cmd-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .cmd-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        max-width: 100%;
+        padding: 9px 12px 9px 14px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        transition:
+          border-color 0.15s ease,
+          background 0.15s ease,
+          transform 0.08s ease;
+      }
+      .cmd-chip:hover {
+        border-color: #33404f;
+        background: var(--raised);
+      }
+      .cmd-chip:active {
+        transform: translateY(1px);
+      }
+      .cmd-chip-prompt {
+        flex: 0 0 auto;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: var(--neon);
+      }
+      .cmd-chip-code {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 46vw;
+        overflow-x: auto;
+        white-space: nowrap;
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .cmd-chip-copy {
+        flex: 0 0 auto;
+        display: inline-flex;
+        color: var(--muted);
+      }
+      .cmd-chip.is-copied .cmd-chip-copy {
+        color: var(--neon);
+      }
+      .cmd-chip-hint {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+      @media (max-width: 480px) {
+        .cmd-chip-code {
+          max-width: 52vw;
+        }
+        .cmd-chip-hint {
+          display: none;
+        }
+      }
+
+      /* --- telemetry panel (measured numbers) --- */
+      .telemetry {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 26px 22px 20px;
+      }
+      @media (min-width: 760px) {
+        .telemetry {
+          padding: 30px 30px 24px;
+        }
+      }
+      .telemetry .ticks {
+        height: 6px;
+        margin-bottom: 20px;
+        background-image: repeating-linear-gradient(to right, var(--hairline) 0 1px, transparent 1px 10px);
       }
       .numbers {
         display: grid;
@@ -98,6 +364,10 @@
       @media (min-width: 760px) {
         .numbers {
           grid-template-columns: repeat(4, 1fr);
+        }
+        .telemetry .num:not(:last-child) {
+          border-right: 1px solid var(--hairline);
+          padding-right: 18px;
         }
       }
       .num .n {
@@ -110,11 +380,42 @@
       .num .l {
         color: var(--muted);
         font-size: 13.5px;
+        line-height: 1.5;
         margin-top: 4px;
       }
+
+      /* --- pillar cards: framed + mono status footer --- */
+      .card-status {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--hairline);
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .status-dot {
+        flex: 0 0 auto;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--neon);
+      }
+
+      /* --- quickstart: terminal / editor windows --- */
       .quick {
         display: grid;
         gap: 20px;
+      }
+      .quick > div {
+        /* grid items default to min-width:auto, which lets the <pre>'s
+           unwrapped code lines blow out the track; force it back down so
+           .term pre's own overflow-x:auto can scroll internally instead. */
+        min-width: 0;
       }
       @media (min-width: 860px) {
         .quick {
@@ -122,6 +423,45 @@
           align-items: start;
         }
       }
+      .term {
+        background: #070a0f;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .term-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: var(--raised);
+        border-bottom: 1px solid var(--border);
+      }
+      .term-dots {
+        display: flex;
+        gap: 5px;
+      }
+      .term-dots i {
+        display: block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--border);
+      }
+      .term-title {
+        margin-left: 2px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+      .term pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+      }
+
+      /* --- pricing --- */
       .price {
         display: grid;
         gap: 18px;
@@ -137,6 +477,7 @@
       }
       .plan.featured {
         border-color: rgba(0, 229, 160, 0.4);
+        box-shadow: 0 0 46px -22px var(--underglow), inset 0 1px 0 rgba(255, 255, 255, 0.02);
       }
       .plan .amt {
         font-family: var(--font-mono);
@@ -158,34 +499,14 @@
       .plan li .mono {
         color: var(--text);
       }
-      footer {
-        color: var(--muted);
-        font-size: 14px;
-        padding: 34px 0 56px;
-        border-top: 1px solid var(--border);
-      }
-      footer .links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 18px;
-        margin-top: 8px;
-      }
-      footer .legal {
-        margin-top: 20px;
-        padding-top: 16px;
-        border-top: 1px solid var(--border);
-        font-size: 12px;
-        line-height: 1.8;
-      }
-      footer .legal a {
-        color: inherit;
-      }
+
+      /* --- limits & roadmap --- */
       .limits {
         list-style: none;
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 10px;
+        gap: 12px;
       }
       .limits li {
         position: relative;
@@ -193,11 +514,13 @@
         padding-left: 18px;
         color: var(--muted);
         font-size: 14.5px;
+        line-height: 1.6;
       }
       .limits li::before {
         content: "–";
         position: absolute;
         left: 0;
+        font-family: var(--font-mono);
         color: var(--neon);
       }
       .limits b {
@@ -214,120 +537,196 @@
         border: 1px solid var(--border);
         border-radius: 999px;
       }
+
+      /* --- footer --- */
+      footer {
+        color: var(--muted);
+        font-size: 14px;
+        padding: 34px 0 56px;
+        border-top: 1px solid var(--border);
+      }
+      footer .footer-main {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      footer .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+      }
+      footer .legal {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      footer .legal a {
+        color: inherit;
+      }
     </style>
   </head>
   <body>
-    <!-- top bar -->
-    <div class="container">
-      <header class="topbar">
-        <a class="wordmark" href="/" aria-label="Tikron home">
-          <img src="/favicon.svg" width="26" height="26" alt="" />
-          t<span class="i">i</span>kron
-        </a>
-        <nav>
-          <a href="/games.html">Games</a>
-          <a href="/shooter.html">Demo</a>
-          <a href="/dashboard/">Dashboard</a>
-          <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
-          <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
-        </nav>
-      </header>
-    </div>
-
-    <!-- hero -->
-    <section class="hero section">
-      <canvas id="bg" aria-hidden="true"></canvas>
-      <div class="container">
-        <span class="eyebrow">infrastructure for games</span>
-        <h1>Server-authoritative multiplayer for web games — on the edge, in minutes.</h1>
-        <p class="lead">
-          A source-available SDK (Tikron License 1.0) you deploy to <b>your own Cloudflare account</b> in minutes —
-          the free tier works, no lock-in. One Durable Object per room, placed near the
-          player who creates it — or a region you choose — on Cloudflare's global network
-          (330+ cities). State lives on the server, clients send intents,
-          reconnection is built in.
-        </p>
-        <p class="lead ai">Built so <b>AI coding agents ship multiplayer games in one session</b>.</p>
-        <div class="cta-row">
-          <a class="btn btn-primary" href="/shooter.html">Play the FPS demo</a>
-          <a class="btn" href="/dashboard/">Dashboard</a>
-          <a class="btn btn-ghost" href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
+    <div class="page-frame" aria-hidden="true"></div>
+    <div class="page">
+      <!-- status rail -->
+      <div class="status-rail" aria-hidden="true">
+        <div class="container status-rail-inner">
+          <span class="rail-label">TIKRON // SERVER-AUTHORITATIVE MULTIPLAYER</span>
+          <span class="rail-status"><i class="live-dot"></i>LIVE</span>
         </div>
       </div>
-    </section>
 
-    <!-- measured numbers (docs/PERF.md) -->
-    <section class="section">
+      <!-- top bar -->
       <div class="container">
-        <span class="eyebrow">measured, not marketing</span>
-        <div class="numbers" style="margin-top: 22px">
-          <div class="num">
-            <div class="n">85 ms</div>
-            <div class="l">p50 — full 20-player AOI room, deployed</div>
+        <header class="topbar">
+          <a class="wordmark" href="/" aria-label="Tikron home">
+            <img src="/favicon.svg" width="26" height="26" alt="" />
+            t<span class="i">i</span>kron
+          </a>
+          <nav>
+            <a href="/games.html">Games</a>
+            <a href="/shooter.html">Demo</a>
+            <a href="/dashboard/">Dashboard</a>
+            <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
+            <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
+          </nav>
+        </header>
+      </div>
+
+      <!-- hero -->
+      <section class="hero section">
+        <canvas id="bg" aria-hidden="true"></canvas>
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/01</span>
+            <span class="eyebrow">infrastructure for games</span>
           </div>
-          <div class="num">
-            <div class="n">128 CCU</div>
-            <div class="l">across 8 rooms — p50 82 ms</div>
+          <h1>Server-authoritative multiplayer for web games — on the edge, in minutes.</h1>
+          <p class="lead">
+            A source-available SDK (Tikron License 1.0) you deploy to <b>your own Cloudflare account</b> in minutes —
+            the free tier works, no lock-in. One Durable Object per room, placed near the
+            player who creates it — or a region you choose — on Cloudflare's global network
+            (330+ cities). State lives on the server, clients send intents,
+            reconnection is built in.
+          </p>
+          <p class="lead ai">Built so <b>AI coding agents ship multiplayer games in one session</b>.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="/shooter.html">Play the FPS demo</a>
+            <a class="btn" href="/dashboard/">Dashboard</a>
+            <a class="btn btn-ghost" href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
           </div>
-          <div class="num">
-            <div class="n">100 CCU</div>
-            <div class="l">one FPS room, deployed — zero drops</div>
-          </div>
-          <div class="num">
-            <div class="n">≈77 B/s</div>
-            <div class="l">idle turn-based room per client</div>
+          <div class="cmd-chip-row">
+            <button type="button" class="cmd-chip" id="cmdChip">
+              <span class="cmd-chip-prompt" aria-hidden="true">$</span>
+              <code class="cmd-chip-code">npx create-tikron my-game</code>
+              <span class="cmd-chip-copy" aria-hidden="true">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5" />
+                  <path d="M2.5 10.5v-7A1.5 1.5 0 0 1 4 2h7" />
+                </svg>
+              </span>
+            </button>
+            <span class="cmd-chip-hint" id="cmdChipHint" aria-live="polite">click to copy</span>
           </div>
         </div>
-        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
-          Latency measured end-to-end from a residential connection in Korea — includes
-          ~80 ms of network RTT to the assigned edge; the engine itself adds single-digit
-          milliseconds. Full methodology in
-          <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/docs/PERF.md">docs/PERF.md</a>.
-        </p>
-      </div>
-    </section>
+      </section>
 
-    <!-- pillars -->
-    <section class="section">
-      <div class="container">
-        <span class="eyebrow">why Tikron</span>
-        <div class="grid grid-3" style="margin-top: 22px">
-          <article class="card">
-            <h3>Server authority</h3>
-            <p>
-              The server owns state and validates every payload, so cheating by packet
-              forgery isn't a thing you bolt on later. Interest management (AOI) sends
-              each client only what it can see — anti-wallhack by construction.
-            </p>
-          </article>
-          <article class="card">
-            <h3>Edge rooms</h3>
-            <p>
-              Each room is its own Durable Object, spun up on demand near the player who
-              creates it — or pinned to a region with a matchmake hint. Rooms scale
-              horizontally, and state-preserving reconnection is built into the core.
-            </p>
-          </article>
-          <article class="card">
-            <h3>AI-first DX</h3>
-            <p>
-              Genre presets pick your netcode in one decision. An in-repo
-              <code>AGENTS.md</code> and <code>llms.txt</code> make a coding agent
-              productive in one context window — <code>npx create-tikron</code> and go.
-            </p>
-          </article>
+      <!-- measured numbers (docs/PERF.md) -->
+      <section class="section">
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/02</span>
+            <span class="eyebrow">measured, not marketing</span>
+          </div>
+          <div class="telemetry framed" style="margin-top: 22px">
+            <div class="ticks" aria-hidden="true"></div>
+            <div class="numbers">
+              <div class="num">
+                <div class="n">85 ms</div>
+                <div class="l">p50 — full 20-player AOI room, deployed</div>
+              </div>
+              <div class="num">
+                <div class="n">128 CCU</div>
+                <div class="l">across 8 rooms — p50 82 ms</div>
+              </div>
+              <div class="num">
+                <div class="n">100 CCU</div>
+                <div class="l">one FPS room, deployed — zero drops</div>
+              </div>
+              <div class="num">
+                <div class="n">≈77 B/s</div>
+                <div class="l">idle turn-based room per client</div>
+              </div>
+            </div>
+          </div>
+          <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+            Latency measured end-to-end from a residential connection in Korea — includes
+            ~80 ms of network RTT to the assigned edge; the engine itself adds single-digit
+            milliseconds. Full methodology in
+            <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/docs/PERF.md">docs/PERF.md</a>.
+          </p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- quickstart -->
-    <section class="section">
-      <div class="container">
-        <span class="eyebrow">quickstart</span>
-        <div class="quick" style="margin-top: 22px">
-          <div>
-            <h3 style="font-size: 18px">Scaffold, install, deploy</h3>
-            <pre><code><span class="tok-com"># 1. scaffold a game (SDK from npm)</span>
+      <!-- pillars -->
+      <section class="section">
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/03</span>
+            <span class="eyebrow">why Tikron</span>
+          </div>
+          <div class="grid grid-3" style="margin-top: 22px">
+            <article class="card framed">
+              <h3>Server authority</h3>
+              <p>
+                The server owns state and validates every payload, so cheating by packet
+                forgery isn't a thing you bolt on later. Interest management (AOI) sends
+                each client only what it can see — anti-wallhack by construction.
+              </p>
+              <div class="card-status" aria-hidden="true"><span class="status-dot"></span>Enforced · server-side</div>
+            </article>
+            <article class="card framed">
+              <h3>Edge rooms</h3>
+              <p>
+                Each room is its own Durable Object, spun up on demand near the player who
+                creates it — or pinned to a region with a matchmake hint. Rooms scale
+                horizontally, and state-preserving reconnection is built into the core.
+              </p>
+              <div class="card-status" aria-hidden="true"><span class="status-dot"></span>Placed · nearest edge</div>
+            </article>
+            <article class="card framed">
+              <h3>AI-first DX</h3>
+              <p>
+                Genre presets pick your netcode in one decision. An in-repo
+                <code>AGENTS.md</code> and <code>llms.txt</code> make a coding agent
+                productive in one context window — <code>npx create-tikron</code> and go.
+              </p>
+              <div class="card-status" aria-hidden="true"><span class="status-dot"></span>Ready · one context window</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- quickstart -->
+      <section class="section">
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/04</span>
+            <span class="eyebrow">quickstart</span>
+          </div>
+          <div class="quick" style="margin-top: 22px">
+            <div>
+              <h3 style="font-size: 18px">Scaffold, install, deploy</h3>
+              <div class="term framed">
+                <div class="term-bar" aria-hidden="true">
+                  <span class="term-dots"><i></i><i></i><i></i></span>
+                  <span class="term-title">terminal</span>
+                </div>
+                <pre><code><span class="tok-com"># 1. scaffold a game (SDK from npm)</span>
 npx create-tikron my-game
 cd my-game && npm install
 
@@ -336,10 +735,16 @@ npx wrangler login
 
 <span class="tok-com"># 3. ship it to the edge — your account, your game</span>
 npm run deploy</code></pre>
-          </div>
-          <div>
-            <h3 style="font-size: 18px">A whole realtime room</h3>
-            <pre><code><span class="tok-key">import</span> { CasualRealtimeRoom, <span class="tok-key">type</span> Client } <span class="tok-key">from</span> <span class="tok-str">"@tikron/server"</span>;
+              </div>
+            </div>
+            <div>
+              <h3 style="font-size: 18px">A whole realtime room</h3>
+              <div class="term framed">
+                <div class="term-bar" aria-hidden="true">
+                  <span class="term-dots"><i></i><i></i><i></i></span>
+                  <span class="term-title">board.ts</span>
+                </div>
+                <pre><code><span class="tok-key">import</span> { CasualRealtimeRoom, <span class="tok-key">type</span> Client } <span class="tok-key">from</span> <span class="tok-str">"@tikron/server"</span>;
 
 <span class="tok-key">interface</span> State { cursors: Record&lt;string, { x: number; y: number }&gt; }
 
@@ -356,137 +761,150 @@ npm run deploy</code></pre>
   <span class="tok-fn">onJoin</span>(c: Client) { <span class="tok-key">this</span>.state.cursors[c.id] = { x: 0, y: 0 }; <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>(); }
   <span class="tok-fn">onSeatExpired</span>(c: Client) { <span class="tok-key">delete this</span>.state.cursors[c.id]; <span class="tok-key">this</span>.<span class="tok-fn">markStateChanged</span>(); }
 }</code></pre>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- pricing -->
-    <section class="section">
-      <div class="container">
-        <span class="eyebrow">pricing</span>
-        <p style="color: var(--muted); max-width: 60ch; margin: 6px 0 22px">
-          Tikron is <b style="color: var(--text)">open core</b>: the SDK runs on your own
-          Cloudflare account (you self-host the rooms). Optional hosted services add
-          leaderboards and a usage dashboard, keyed by API key.
-        </p>
-        <div class="price">
-          <div class="card plan">
-            <div class="badge">Source-available (Tikron License)</div>
-            <div class="amt">$0</div>
-            <ul>
-              <li>The SDK + templates, <span class="mono">Tikron License 1.0</span> (Apache-2.0 in 1 year)</li>
-              <li>Self-hosted on <span class="mono">your</span> Cloudflare account</li>
-              <li>Unlimited rooms &amp; players — your infra, your bill</li>
-              <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Get the repo</a></li>
-            </ul>
+      <!-- pricing -->
+      <section class="section">
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/05</span>
+            <span class="eyebrow">pricing</span>
           </div>
-          <div class="card plan featured">
-            <div class="badge badge-neon">Hosted services · free beta</div>
-            <div class="amt">$0<span style="font-size: 15px; color: var(--muted)"> · beta</span></div>
-            <ul>
-              <li>Leaderboards API + dashboard usage view</li>
-              <li>Keyed by API key (add to your self-hosted worker)</li>
-              <li>Beta caps: <span class="mono">1,000</span> room-hours-equiv metering, <span class="mono">20</span> concurrent rooms</li>
-              <li>Paid tiers when it graduates</li>
-            </ul>
+          <p style="color: var(--muted); max-width: 60ch; margin: 6px 0 22px">
+            Tikron is <b style="color: var(--text)">open core</b>: the SDK runs on your own
+            Cloudflare account (you self-host the rooms). Optional hosted services add
+            leaderboards and a usage dashboard, keyed by API key.
+          </p>
+          <div class="price">
+            <div class="card plan framed">
+              <div class="badge">Source-available (Tikron License)</div>
+              <div class="amt">$0</div>
+              <ul>
+                <li>The SDK + templates, <span class="mono">Tikron License 1.0</span> (Apache-2.0 in 1 year)</li>
+                <li>Self-hosted on <span class="mono">your</span> Cloudflare account</li>
+                <li>Unlimited rooms &amp; players — your infra, your bill</li>
+                <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Get the repo</a></li>
+              </ul>
+            </div>
+            <div class="card plan featured framed">
+              <div class="badge badge-neon">Hosted services · free beta</div>
+              <div class="amt">$0<span style="font-size: 15px; color: var(--muted)"> · beta</span></div>
+              <ul>
+                <li>Leaderboards API + dashboard usage view</li>
+                <li>Keyed by API key (add to your self-hosted worker)</li>
+                <li>Beta caps: <span class="mono">1,000</span> room-hours-equiv metering, <span class="mono">20</span> concurrent rooms</li>
+                <li>Paid tiers when it graduates</li>
+              </ul>
+            </div>
+            <div class="card plan framed">
+              <div class="badge">Scale</div>
+              <div class="amt">Custom</div>
+              <ul>
+                <li>Higher hosted-service caps</li>
+                <li>Priority support</li>
+                <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Contact us</a></li>
+              </ul>
+            </div>
           </div>
-          <div class="card plan">
-            <div class="badge">Scale</div>
-            <div class="amt">Custom</div>
-            <ul>
-              <li>Higher hosted-service caps</li>
-              <li>Priority support</li>
-              <li><a href="https://github.com/ONOFFERDEV/tikron-platform">Contact us</a></li>
-            </ul>
-          </div>
+          <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+            A room-hour = one live room for one hour; rooms with no players cost nothing. Self-hosted
+            rooms bill to your Cloudflare account — roughly <span class="mono">~$0.006</span>
+            per room-hour at Cloudflare's own Durable Object pricing (approximate).
+          </p>
         </div>
-        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
-          A room-hour = one live room for one hour; rooms with no players cost nothing. Self-hosted
-          rooms bill to your Cloudflare account — roughly <span class="mono">~$0.006</span>
-          per room-hour at Cloudflare's own Durable Object pricing (approximate).
-        </p>
-      </div>
-    </section>
+      </section>
 
-    <!-- limits & roadmap -->
-    <section class="section">
-      <div class="container">
-        <span class="eyebrow">limits &amp; roadmap</span>
-        <p style="color: var(--muted); max-width: 62ch; margin: 6px 0 18px">
-          What Tikron does and doesn't do today — so you can decide before you commit.
-        </p>
-        <ul class="limits">
-          <li>
-            <b>WebSocket transport (TCP).</b> Great for turn-based, casual, and most
-            <code>.io</code> games; not for competitive twitch shooters (head-of-line
-            blocking under packet loss). WebTransport is on the roadmap.<span class="soon">roadmap</span>
-          </li>
-          <li>
-            <b>Deploys restart rooms.</b> Players auto-reconnect into the same seat and
-            state via the durable snapshot + a 30 s window. Change the state shape across
-            versions with a <code>stateVersion</code> bump + a <code>migrateState</code> hook.
-          </li>
-          <li>
-            <b>One room = one Durable Object,</b> placed near its creator — a cross-region
-            group sees asymmetric latency. Place a room near a chosen region with a matchmake
-            region hint.
-          </li>
-          <li>
-            <b>Matchmaking is join-or-create + filter.</b> No skill rating, parties, or
-            reconnect-into-queue — build ranked/party logic in your own app layer.
-          </li>
-          <li>
-            <b>Measured comfortable</b> to 20 players/room, 100 players in one room, and 128
-            CCU across rooms; rooms scale horizontally. AOI is grid-indexed, so per-room cost
-            no longer grows quadratically with room size.
-          </li>
-        </ul>
-        <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
-          Full detail:
-          <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md">AGENTS.md → Limits &amp; roadmap</a>.
-        </p>
-      </div>
-    </section>
+      <!-- limits & roadmap -->
+      <section class="section">
+        <div class="container">
+          <div class="sys-row">
+            <span class="sys-tag">SYS/06</span>
+            <span class="eyebrow">limits &amp; roadmap</span>
+          </div>
+          <p style="color: var(--muted); max-width: 62ch; margin: 10px 0 18px">
+            What Tikron does and doesn't do today — so you can decide before you commit.
+          </p>
+          <ul class="limits">
+            <li>
+              <b>WebSocket transport (TCP).</b> Great for turn-based, casual, and most
+              <code>.io</code> games; not for competitive twitch shooters (head-of-line
+              blocking under packet loss). WebTransport is on the roadmap.<span class="soon">roadmap</span>
+            </li>
+            <li>
+              <b>Deploys restart rooms.</b> Players auto-reconnect into the same seat and
+              state via the durable snapshot + a 30 s window. Change the state shape across
+              versions with a <code>stateVersion</code> bump + a <code>migrateState</code> hook.
+            </li>
+            <li>
+              <b>One room = one Durable Object,</b> placed near its creator — a cross-region
+              group sees asymmetric latency. Place a room near a chosen region with a matchmake
+              region hint.
+            </li>
+            <li>
+              <b>Matchmaking is join-or-create + filter.</b> No skill rating, parties, or
+              reconnect-into-queue — build ranked/party logic in your own app layer.
+            </li>
+            <li>
+              <b>Measured comfortable</b> to 20 players/room, 100 players in one room, and 128
+              CCU across rooms; rooms scale horizontally. AOI is grid-indexed, so per-room cost
+              no longer grows quadratically with room size.
+            </li>
+          </ul>
+          <p style="color: var(--muted); font-size: 13px; margin-top: 14px">
+            Full detail:
+            <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md">AGENTS.md → Limits &amp; roadmap</a>.
+          </p>
+        </div>
+      </section>
 
-    <!-- footer -->
-    <footer>
-      <div class="container">
-        <a class="wordmark" href="/" style="font-size: 16px">
-          t<span class="i">i</span>kron
-        </a>
-        <div class="links">
-          <a href="/games.html">Games</a>
-          <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
-          <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md">Docs (AGENTS.md)</a>
-          <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
-          <a href="/shooter.html">FPS demo</a>
-          <a href="/dashboard/">Dashboard</a>
+      <!-- footer -->
+      <footer>
+        <div class="container">
+          <div class="footer-main">
+            <a class="wordmark" href="/" style="font-size: 16px">
+              t<span class="i">i</span>kron
+            </a>
+            <div class="links">
+              <a href="/games.html">Games</a>
+              <a href="https://github.com/ONOFFERDEV/tikron-platform">GitHub</a>
+              <a href="https://github.com/ONOFFERDEV/tikron-platform/blob/main/AGENTS.md">Docs (AGENTS.md)</a>
+              <a href="https://discord.gg/uXnK7Czq7G">Discord</a>
+              <a href="/shooter.html">FPS demo</a>
+              <a href="/dashboard/">Dashboard</a>
+            </div>
+          </div>
+          <div class="legal">
+            (주)온오퍼 · 대표자: 박태환 · 개인정보 보호책임자: 박태환<br />
+            사업자등록번호: 850-86-03027 · 통신판매업 신고번호: 제2023-서울성동-1124호<br />
+            사업장 주소: 서울특별시 성동구 성수이로 51, 1301호(성수동2가, 서울숲한라시그마밸리)<br />
+            고객센터: 070-4366-1899 · <a href="mailto:ai@onoffer.kr">ai@onoffer.kr</a>
+          </div>
         </div>
-        <div class="legal">
-          (주)온오퍼 · 대표자: 박태환 · 개인정보 보호책임자: 박태환<br />
-          사업자등록번호: 850-86-03027 · 통신판매업 신고번호: 제2023-서울성동-1124호<br />
-          사업장 주소: 서울특별시 성동구 성수이로 51, 1301호(성수동2가, 서울숲한라시그마밸리)<br />
-          고객센터: 070-4366-1899 · <a href="mailto:ai@onoffer.kr">ai@onoffer.kr</a>
-        </div>
-      </div>
-    </footer>
+      </footer>
+    </div>
 
     <script>
-      // Hero background: a self-contained fake sim of drifting neon "cursor" dots.
-      // Purely decorative (aria-hidden), no network. Honors prefers-reduced-motion.
+      // Hero background: a self-contained fake sim of drifting neon "cursor" dots,
+      // with occasional thin links between nearby dots (an AOI — area-of-interest —
+      // feel, echoing Tikron's grid-indexed interest management). Purely decorative
+      // (aria-hidden), no network. Honors prefers-reduced-motion.
       (function () {
         const canvas = document.getElementById("bg");
         const ctx = canvas.getContext("2d");
         const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const COLORS = ["#00e5a0", "#58a6ff"];
-        let w, h, dots, raf;
+        let w, h, dots, raf, linkDist;
 
         function resize() {
           const r = canvas.getBoundingClientRect();
           const dpr = Math.min(window.devicePixelRatio || 1, 2);
           w = canvas.width = Math.max(1, r.width * dpr);
           h = canvas.height = Math.max(1, r.height * dpr);
+          linkDist = 116 * dpr;
           const n = Math.min(46, Math.round((r.width * r.height) / 26000));
           dots = Array.from({ length: n }, () => ({
             x: Math.random() * w,
@@ -498,6 +916,37 @@ npm run deploy</code></pre>
           }));
         }
 
+        function drawLinks() {
+          ctx.strokeStyle = "#00e5a0";
+          ctx.lineWidth = Math.max(1, linkDist * 0.006);
+          for (let i = 0; i < dots.length; i++) {
+            for (let j = i + 1; j < dots.length; j++) {
+              const a = dots[i], b = dots[j];
+              const dx = a.x - b.x, dy = a.y - b.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < linkDist) {
+                ctx.globalAlpha = (1 - dist / linkDist) * 0.16;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+              }
+            }
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        function drawDots(alpha) {
+          for (const d of dots) {
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+            ctx.fillStyle = d.c;
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+
         function frame() {
           ctx.clearRect(0, 0, w, h);
           for (const d of dots) {
@@ -507,13 +956,9 @@ npm run deploy</code></pre>
             else if (d.x > w) d.x -= w;
             if (d.y < 0) d.y += h;
             else if (d.y > h) d.y -= h;
-            ctx.beginPath();
-            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-            ctx.fillStyle = d.c;
-            ctx.globalAlpha = 0.5;
-            ctx.fill();
           }
-          ctx.globalAlpha = 1;
+          drawLinks();
+          drawDots(0.38);
           raf = requestAnimationFrame(frame);
         }
 
@@ -521,14 +966,8 @@ npm run deploy</code></pre>
         window.addEventListener("resize", resize);
         if (reduce) {
           // Draw a single static frame; do not animate.
-          for (const d of dots) {
-            ctx.beginPath();
-            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-            ctx.fillStyle = d.c;
-            ctx.globalAlpha = 0.4;
-            ctx.fill();
-          }
-          ctx.globalAlpha = 1;
+          drawLinks();
+          drawDots(0.3);
         } else {
           raf = requestAnimationFrame(frame);
           document.addEventListener("visibilitychange", () => {
@@ -536,6 +975,57 @@ npm run deploy</code></pre>
             else raf = requestAnimationFrame(frame);
           });
         }
+      })();
+    </script>
+    <script>
+      // Command chip: copies the scaffold command to the clipboard, with a
+      // textarea+execCommand fallback for browsers/contexts without the
+      // async Clipboard API. No network requests.
+      (function () {
+        const btn = document.getElementById("cmdChip");
+        const hint = document.getElementById("cmdChipHint");
+        if (!btn || !hint) return;
+        const cmd = "npx create-tikron my-game";
+        const defaultHint = hint.textContent;
+        let timer;
+
+        function fallbackCopy(text) {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand("copy");
+          } catch (e) {
+            /* clipboard unavailable; no-op */
+          }
+          document.body.removeChild(ta);
+        }
+
+        function showCopied() {
+          btn.classList.add("is-copied");
+          hint.textContent = "copied";
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            btn.classList.remove("is-copied");
+            hint.textContent = defaultHint;
+          }, 1600);
+        }
+
+        btn.addEventListener("click", () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cmd).then(showCopied, () => {
+              fallbackCopy(cmd);
+              showCopied();
+            });
+          } else {
+            fallbackCopy(cmd);
+            showCopied();
+          }
+        });
       })();
     </script>
   </body>
