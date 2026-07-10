@@ -96,6 +96,39 @@ describe("practice room — combat", () => {
   });
 });
 
+describe("practice room — passive bots", () => {
+  it("filler bots stand still (no movement) and never fire across many ticks", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-passive1",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect(); // 1 human → reconcileBots fills 3 bots (fillToPlayers default 4)
+    await tick(h, 2); // let the deficit-fill run
+
+    const before = liveState(h).players;
+    const botIds = Object.keys(before).filter((id) => id.startsWith("bot-"));
+    expect(botIds.length).toBeGreaterThan(0);
+    const beforePositions = botIds.map((id) => ({ id, x: before[id]!.x, z: before[id]!.z }));
+
+    await tick(h, 100); // long fast-forward
+    const after = liveState(h).players;
+    for (const { id, x, z } of beforePositions) {
+      expect(after[id]!.x).toBe(x);
+      expect(after[id]!.z).toBe(z);
+    }
+
+    const botFired = h
+      .broadcastsOf("s:msg")
+      .some(
+        (f) =>
+          (f.data as { type?: string }).type === "shot" &&
+          (f.data as { from?: string }).from?.startsWith("bot-"),
+      );
+    expect(botFired).toBe(false);
+  });
+});
+
 describe("handleMatchmake — practice", () => {
   it("issues a unique private arena-practice-<random> room id per request", async () => {
     const res1 = handleMatchmake(new URL("http://test.local/api/matchmake?mode=practice"));

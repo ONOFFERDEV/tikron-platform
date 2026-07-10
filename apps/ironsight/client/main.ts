@@ -16,6 +16,7 @@ import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
+import { wireQuitConfirm } from "./quit-confirm.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER, WEAPONS } from "../src/config.js";
@@ -70,7 +71,7 @@ async function main(): Promise<void> {
   const input = new Input(
     scene.canvas,
     me0?.yaw ?? 0,
-    undefined,
+    wireQuitConfirm(() => input.lock()),
     (slot) => net.sendSwitch(slot),
     (dir) => {
       const cur = net.state?.players[net.myId]?.weapon ?? 0;

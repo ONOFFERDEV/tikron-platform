@@ -83,7 +83,14 @@ export interface BotEnemyView extends BotPlayerView {
 
 /** The world as the bot perceives it this tick: own state, enemy list, map constants. */
 export interface BotView {
-  self: BotPlayerView;
+  self: BotPlayerView & {
+    /** Current facing (radians) — read only by the passive branch below, to hold
+     *  the bot's existing look instead of snapping it to a fixed direction every
+     *  tick; combat/patrol logic derives its own look from aiming or waypoints
+     *  and never reads this. */
+    yaw: number;
+    pitch: number;
+  };
   enemies: readonly BotEnemyView[];
   /** True in teamless modes (FFA), where the room assigns everyone team=0 — target
    *  acquisition must not treat every other player as a "teammate". */
@@ -97,6 +104,10 @@ export interface BotView {
    *  favour (falls back to the plain waypoint patrol below). Set by the room
    *  (arena-room.ts's botView), never computed here. */
   objective?: { x: number; z: number };
+  /** Practice-only: a fully passive target — no movement, no aim tracking, no
+   *  firing, holding its current look (see botThink's very first check). Every
+   *  other mode leaves this undefined. Set by the room. */
+  passive?: boolean;
 }
 
 export interface BotBrainOptions {
@@ -276,6 +287,17 @@ function advanceWaypoint(brain: BotBrain, self: BotPlayerView): Vec2 {
 export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
   brain.clockMs += dtMs;
   const { self, enemies } = view;
+
+  // Practice-only: a fully passive target — no movement, no aim tracking, no
+  // firing. Holds its current look (self.yaw/pitch) rather than snapping to a
+  // fixed direction every tick, so it doesn't visibly "reset" facing in place.
+  if (view.passive) {
+    return {
+      move: { mx: 0, mz: 0, jump: false, crouch: false, sprint: false },
+      look: { yaw: self.yaw, pitch: self.pitch },
+      fire: false,
+    };
+  }
 
   if (!self.alive) {
     brain.wpIndex = 0;

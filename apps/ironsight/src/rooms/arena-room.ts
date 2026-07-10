@@ -1053,11 +1053,21 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       enemies.push({ id: pid, x: p.x, y: p.y, z: p.z, crouch: p.crouch, alive: p.alive, team: p.team });
     }
     return {
-      self: { x: self.x, y: self.y, z: self.z, crouch: self.crouch, alive: self.alive, team: self.team },
+      self: {
+        x: self.x,
+        y: self.y,
+        z: self.z,
+        crouch: self.crouch,
+        alive: self.alive,
+        team: self.team,
+        yaw: self.yaw,
+        pitch: self.pitch,
+      },
       enemies,
       teamless: ffa,
       boxes: this.boxes,
       objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
+      passive: this.gameMode.id === "practice" ? true : undefined,
     };
   }
 

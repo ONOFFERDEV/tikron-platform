@@ -10,7 +10,7 @@ import { botThink, createBotBrain, type BotView } from "../src/bots.js";
 
 function baseView(overrides: Partial<BotView> = {}): BotView {
   return {
-    self: { x: 30, y: 0, z: 10, crouch: false, alive: true, team: 0 },
+    self: { x: 30, y: 0, z: 10, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
     enemies: [],
     teamless: false,
     boxes: [],
@@ -66,12 +66,29 @@ describe("botThink — dom objective", () => {
     // the brain's default strafeZ (11) — if the hold-strafe were still anchored
     // there (the rejected design), it would push hard south (mz<0) off the point.
     const view = baseView({
-      self: { x: 30, y: 0, z: 19.5, crouch: false, alive: true, team: 0 },
+      self: { x: 30, y: 0, z: 19.5, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
       objective: { x: 30, z: 20 },
     });
     const decision = botThink(view, brain, 50);
 
     expect(decision.fire).toBe(false);
     expect(decision.move.mz).toBeGreaterThan(0); // pushes toward the objective's own z, not toward 11
+  });
+});
+
+describe("botThink — practice passive target", () => {
+  it("returns a no-op decision holding its current look, even with a visible nearby enemy", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 0, y: 0 }] });
+    const view = baseView({
+      self: { x: 10, y: 0, z: 10, crouch: false, alive: true, team: 0, yaw: 1.23, pitch: -0.4 },
+      enemies: [{ id: "e1", x: 15, y: 0, z: 10, crouch: false, alive: true, team: 1 }], // 5 m away — would normally be engaged
+      teamless: true,
+      passive: true,
+    });
+    const decision = botThink(view, brain, 50);
+
+    expect(decision.move).toEqual({ mx: 0, mz: 0, jump: false, crouch: false, sprint: false });
+    expect(decision.fire).toBe(false);
+    expect(decision.look).toEqual({ yaw: 1.23, pitch: -0.4 }); // held, not reset
   });
 });
