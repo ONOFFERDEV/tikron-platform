@@ -11,7 +11,7 @@
  * `aimDir`, which keeps the crosshair (screen centre) honest with hit registration.
  */
 import * as THREE from "three";
-import type { Box } from "../src/physics.js";
+import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef } from "../src/map/types.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { ADS_FOV, HIP_FOV, TEAM_COLOR } from "./config.js";
@@ -523,6 +523,24 @@ export class SceneRig {
 
   // --- VFX/SFX polish (remote flashes, casings, impacts, footsteps) -------------
   // Thin wiring only — `vfx.ts` owns the pools and per-frame aging.
+
+  /** Distance to the first map box the ray enters within `maxT`, or `maxT` itself
+   *  if none (a pure client-side wall stop — used by main.ts to give a
+   *  self-authoritative tracer a plausible endpoint without server round-trip). */
+  wallDistance(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, maxT: number): number {
+    return Math.min(maxT, nearestBox(origin, dir, this.boxes, maxT));
+  }
+
+  /** The currently-rendered world position of a remote player's rig, near eye
+   *  height (feet + the head mesh's local Y, which already accounts for crouch) —
+   *  used to anchor their muzzle flash/casing/tracer start to where they visually
+   *  are, since the wire shot origin is stale by their RTT plus our own render
+   *  interpolation delay. `undefined` if the rig isn't tracked (e.g. just left). */
+  getRemoteMuzzleAnchor(id: string): { x: number; y: number; z: number } | undefined {
+    const rig = this.players.get(id);
+    if (!rig) return undefined;
+    return { x: rig.group.position.x, y: rig.group.position.y + rig.head.position.y, z: rig.group.position.z };
+  }
 
   spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
     this.vfx.spawnMuzzleFlash(origin, dir);

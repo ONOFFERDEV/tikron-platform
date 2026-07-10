@@ -19,7 +19,8 @@ import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
-import { PLAYER, WEAPONS } from "../src/config.js";
+import { PLAYER, WEAPON, WEAPONS } from "../src/config.js";
+import { dirFromAngles } from "../src/weapons.js";
 import { MODE_ORDER, mapForMode, isTeamless } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 
@@ -125,8 +126,24 @@ async function main(): Promise<void> {
   let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
   let curWeapon = 0;
+  // Client-side mirror of the server's fire-drop conditions (arena-room.ts's
+  // handleFire: mid-reload, empty mag, mid weapon-swap), so predicted-only local
+  // feedback (recoil/sound/tracer/casing — see the frame loop below) never fires
+  // for a shot the server will silently drop. All three resync from the "ammo"
+  // unicast, which is authoritative, so a wrong prediction is bounded by the
+  // shots in flight (~RTT/fireInterval) and self-corrects within about one RTT —
+  // never a lasting desync. `mag` starts `null` (unknown) rather
+  // than 0 — the server never proactively pushes ammo on join/spawn/respawn, only
+  // in reaction to a fire/reload/switch, so a literal 0 default would wrongly gate
+  // out the very first shot after every spawn; `null` means "not yet synced,
+  // assume fireable" (true in practice, since every spawn starts with a full mag).
+  let mag: number | null = null;
+  let reloadUntil = -1; // performance.now()-based; -1 = not reloading
+  let swapUntil = -1; // performance.now()-based; -1 = no pending swap cooldown
   net.onAmmo((e) => {
     hud.setAmmo(e.mag, e.reserve, e.reloadMs);
+    mag = e.mag;
+    reloadUntil = e.reloadMs ? performance.now() + e.reloadMs : -1;
     // ammo.weapon is the SLOT (1–5, WeaponSpec.slot); everything client-side indexes 0–4.
     const idx = e.weapon - 1;
     hud.setWeapon(idx);
@@ -134,6 +151,7 @@ async function main(): Promise<void> {
       curWeapon = idx;
       scene.setWeapon(idx);
       net.setFireInterval(idx);
+      swapUntil = performance.now() + WEAPON.swapMs;
       playSwap();
     }
   });
@@ -151,17 +169,27 @@ async function main(): Promise<void> {
   });
   net.onStreak((e) => hud.showStreak(name(e.id), e.count));
   net.onShot((e: ShotEvent) => {
-    const origin = { x: e.ox, y: e.oy, z: e.oz };
     const dir = { x: e.dx, y: e.dy, z: e.dz };
-    scene.addTracer(origin, dir, e.dist, e.hit);
-    scene.spawnCasing(origin, dir);
+    // Self shots already got their tracer/casing at the moment of firing (see the
+    // frame loop below) — the wire origin here is this shooter's server-known
+    // position as of ~their RTT ago, stale by the time it echoes back to them.
+    // Remote shots have no local equivalent, so anchor them to that player's
+    // CURRENTLY RENDERED rig position instead of the (also stale, and further
+    // delayed by our own render-interpolation) wire origin.
+    if (e.from !== net.myId) {
+      const anchor = scene.getRemoteMuzzleAnchor(e.from) ?? { x: e.ox, y: e.oy, z: e.oz };
+      scene.addTracer(anchor, dir, e.dist, e.hit);
+      scene.spawnCasing(anchor, dir);
+      scene.spawnMuzzleFlash(anchor, dir);
+    }
+    // Impact FX stays wire-authoritative for everyone — it's the true world-space
+    // hit/wall location the server computed, unaffected by muzzle-position lag.
     const impactDist = Math.max(0.5, e.dist);
     scene.spawnImpact(
       { x: e.ox + e.dx * impactDist, y: e.oy + e.dy * impactDist, z: e.oz + e.dz * impactDist },
       dir,
       e.hit,
     );
-    if (e.from !== net.myId) scene.spawnMuzzleFlash(origin, dir);
   });
   net.onMatchEnd((e) => {
     matchEnd = { winner: e.winner, red: e.red, blue: e.blue };
@@ -199,6 +227,12 @@ async function main(): Promise<void> {
       if (!wasAlive && me.alive) {
         deathCam = null;
         killerId = undefined;
+        // Mirrors the server clearing reloadUntil/swapUntil on death; mag goes
+        // back to "unknown" since a fresh spawn's mag isn't pushed until the next
+        // fire/reload/switch (see the `mag` declaration above).
+        mag = null;
+        reloadUntil = -1;
+        swapUntil = -1;
       }
       prevHp = me.hp;
       wasAlive = me.alive;
@@ -244,17 +278,41 @@ async function main(): Promise<void> {
     const phase = state?.phase ?? "live";
     const alive = me?.alive ?? false;
 
+    // Camera from prediction (local, immediate) — needed here already: a confirmed
+    // shot below anchors its tracer/casing to this same live eye position.
+    const eye = predictor.eye();
+
     // Firing (server fire interval is the truth; net gates, we kick locally).
     if (input.isFiring && alive && phase === "live") {
-      if (net.tryFire(now)) {
+      // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
+      // server (the real authority) can act on it regardless of our own gate
+      // below. canPredictFire mirrors the REST of the server's drop conditions
+      // (mid-reload, empty mag, mid weapon-swap) so local-only feedback — recoil,
+      // fire sound, and the self-authoritative tracer/casing below — never shows
+      // for a shot the server will silently drop; it never touches the network
+      // send itself.
+      if (net.tryFire(now) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
         scene.fireRecoil(curWeapon);
         playFire(curWeapon);
+        if (mag !== null) mag -= 1; // predicted decrement; the next "ammo" resyncs it
+        // Self-authoritative tracer/casing: waiting for the "shot" echo (see
+        // onShot above) would draw them from this shooter's server-known position
+        // as of ~RTT ago — a stride behind while moving (the reported bug). Fire
+        // them locally instead, from the live predicted eye and current look
+        // direction; the endpoint is a client-side wall stop (or the weapon's
+        // range if nothing's in the way) since the actual hit/miss distance is
+        // only known server-side — the tracer fades in 130 ms so that's not
+        // noticeable, and `spawnImpact` (still wire-authoritative below) carries
+        // the real hit location regardless.
+        const dir = dirFromAngles(input.yaw, input.pitch);
+        const range = WEAPONS[curWeapon]?.range ?? 100;
+        const dist = scene.wallDistance(eye, dir, range);
+        scene.addTracer(eye, dir, dist, false);
+        scene.spawnCasing(eye, dir);
       }
     }
 
-    // Camera from prediction (local, immediate) — hide own body, show viewmodel.
     // While dead, hold the frozen death-cam view instead of following input look.
-    const eye = predictor.eye();
     if (deathCam) {
       scene.setView(deathCam.eye, deathCam.yaw, deathCam.pitch);
     } else {
@@ -388,6 +446,19 @@ function wrapPi(a: number): number {
 }
 function lerpAngle(a: number, b: number, t: number): number {
   return a + wrapPi(b - a) * t;
+}
+
+/** Client-side mirror of arena-room.ts's `handleFire` drop conditions: mid
+ *  weapon-swap, mid-reload, or an empty magazine. `mag === null` means "not yet
+ *  synced" — treated as fireable, since a fresh spawn always starts with a full
+ *  mag and the server never proactively pushes ammo before the first fire/reload/
+ *  switch. Used only to gate LOCAL feedback (recoil/sound/tracer/casing); the
+ *  actual "fire" send is never gated by this. */
+function canPredictFire(now: number, mag: number | null, reloadUntil: number, swapUntil: number): boolean {
+  if (swapUntil >= 0 && now < swapUntil) return false;
+  if (reloadUntil >= 0 && now < reloadUntil) return false;
+  if (mag !== null && mag <= 0) return false;
+  return true;
 }
 
 /** Snapshot the death-cam view once: a frozen eye position aimed at the killer's
