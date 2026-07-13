@@ -166,7 +166,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
     impactBlood: 0xff0055,
     impactSpark: 0x00e5ff,
     casing: 0xffe600,
-    viewmodel: { metal: 0x2a1750, accent: 0x00e5ff, dark: 0x0a0518 },
+    viewmodel: { metal: 0x2a1750, accent: 0x00e5ff, dark: 0x0a0518, modelEmissive: 0x00e5ff },
     lights: { hemiSky: 0x6a3aff, hemiGround: 0x1a0e30, key: 0xff2bd6, ambient: 0x2a1750 },
   },
 

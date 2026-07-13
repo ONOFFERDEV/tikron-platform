@@ -191,7 +191,7 @@ export const ironsightConfig: GameConfig = defineConfig({
     impactBlood: 0x7a1414, // vfx.ts spawnImpact (hitPlayer)
     impactSpark: 0xffcf8a, // vfx.ts spawnImpact (else)
     casing: 0xc9a227, // vfx.ts buildCasing
-    viewmodel: { metal: 0x424956, accent: 0x5f6b82, dark: 0x2c313c }, // scene.ts VM_METAL/VM_ACCENT/VM_DARK
+    viewmodel: { metal: 0x424956, accent: 0x5f6b82, dark: 0x2c313c, modelEmissive: 0x00e5ff }, // scene.ts VM_METAL/VM_ACCENT/VM_DARK; modelEmissive = cyber-trooper-era cyan accent for GLB weapons
     lights: { hemiSky: 0xc2d4f2, hemiGround: 0x3a4656, key: 0xfff0d8, ambient: 0x60708a }, // scene.ts constructor
   },
 
@@ -259,6 +259,16 @@ export const ironsightConfig: GameConfig = defineConfig({
     recoil: [0.4, 0.2, 0.7, 0.9, 0.3], // scene.ts's VM_RECOIL
     swapDownMs: 120, // scene.ts's SWAP_DOWN_MS
     swapUpMs: 230, // scene.ts's SWAP_UP_MS
+    // Cyber-trooper-era viewmodel weapon GLBs (slot index matches `weapons`'s
+    // AR/SMG/Shotgun/Sniper/Pistol order) — see client/weapon-loader.ts. Absent
+    // slots (none, here — all 5 are covered) fall back to buildWeaponMesh().
+    models: {
+      0: "/assets/models/weapons/ar.glb",
+      1: "/assets/models/weapons/smg.glb",
+      2: "/assets/models/weapons/shotgun.glb",
+      3: "/assets/models/weapons/sniper.glb",
+      4: "/assets/models/weapons/pistol.glb",
+    },
   },
 
   // --- models: rigged remote-player GLB (client/rig-loader.ts) ----------------

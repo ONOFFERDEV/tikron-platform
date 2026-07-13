@@ -241,7 +241,15 @@ export interface PaletteConfig {
   impactBlood: number;
   impactSpark: number;
   casing: number;
-  viewmodel: { metal: number; accent: number; dark: number };
+  viewmodel: {
+    metal: number;
+    accent: number;
+    dark: number;
+    /** Emissive accent for GLB-modeled viewmodel weapons (weaponVis.models) — a
+     *  subtle glow, not a base color; the procedural box-built weapons (VM_METAL/
+     *  VM_ACCENT/VM_DARK) don't use this at all. */
+    modelEmissive: number;
+  };
   /** Scene lighting rig colors (scene.ts's constructor `HemisphereLight`/
    *  `DirectionalLight`/`AmbientLight` — a W2 finding, not itemized in the
    *  original W1 catalogue). Intensities stay as code-side art tuning. */

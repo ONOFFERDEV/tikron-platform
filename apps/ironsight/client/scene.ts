@@ -18,6 +18,7 @@ import { ARENA, PLAYER } from "../src/config.js";
 import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
+import { loadWeaponModel, cloneWeaponMesh } from "./weapon-loader.js";
 
 const PALETTE = GAME.palette;
 const ADS_FOV = GAME.camera.adsFov;
@@ -39,6 +40,49 @@ const VM_RECOIL = GAME.weaponVis.recoil;
 const NADE_GRAVITY = -22; // matches the server's grenade integrator
 const SWAP_DOWN_MS = GAME.weaponVis.swapDownMs;
 const SWAP_UP_MS = GAME.weaponVis.swapUpMs; // down+up = the server's 350 ms switch delay
+const MUZZLE_Z_DEFAULT = -0.74; // procedural weapons' fixed muzzle depth (buildViewmodel's rest value)
+
+interface WeaponVmTransform {
+  /** Uniform scale bringing the model to roughly the same size the procedural
+   *  boxes occupied at this same depth. */
+  scale: number;
+  /** Position within weaponHolder (X/Y stay 0 for every slot; only depth varies). */
+  posZ: number;
+  /** Local Z of this model's own muzzle tip — this.muzzle/muzzleLight move here
+   *  (X/Y stay 0/0.02, matching the procedural convention) while it's held. */
+  muzzleZ: number;
+}
+
+/**
+ * Empirically-tuned per-weapon-slot scale/position/muzzle-tip offsets for the
+ * cyber-trooper viewmodel GLBs (weaponVis.models — index matches WEAPONS'
+ * AR/SMG/Shotgun/Sniper/Pistol order).
+ *
+ * The rotation direction was independently re-verified after a review flagged
+ * the rendered weapons as looking backwards: rendering each raw GLB's two Z
+ * extremes close-up (looking straight down the bore) shows a clear circular
+ * muzzle opening at local +Z and a smooth, closed stock/butt face at local
+ * -Z, for every one of the 5 assets — confirming +Z really is the muzzle, so
+ * the shared `rotation.y = Math.PI` flip (this viewmodel's own forward is -Z)
+ * is correct and untouched. The actual defect was `posZ`: the original values
+ * placed each model's near (stock) end only ~0.05-0.1 units from the camera —
+ * close enough to the near-clip plane to produce a heavily distorted,
+ * unrecognizable close-up blob that read as "wrong orientation" even though
+ * the rotation itself was fine. Reset here so every weapon's near point sits
+ * ~0.3 units out (matching the procedural weapons' own depth), and `muzzleZ`
+ * re-derived from each model's own measured bounding box at that new depth
+ * (not guessed) so the muzzle flash/tracer origin still lands on the visible
+ * barrel tip. A reported ~45° pistol grip tilt did not reproduce in this or
+ * the original pass, at any scale/rotation tried — flagged, not "fixed",
+ * since it was never observed here.
+ */
+const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
+  0: { scale: 0.4, posZ: -0.196, muzzleZ: -0.603 }, // AR
+  1: { scale: 0.35, posZ: -0.119, muzzleZ: -0.513 }, // SMG
+  2: { scale: 0.42, posZ: -0.204, muzzleZ: -0.65 }, // Shotgun
+  3: { scale: 0.45, posZ: -0.167, muzzleZ: -0.715 }, // Sniper
+  4: { scale: 0.3, posZ: -0.117, muzzleZ: -0.486 }, // Pistol
+};
 
 /**
  * Correction applied to a model rig's yaw so it visually faces the direction
@@ -167,6 +211,10 @@ export class SceneRig {
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
+  // Whether weaponHolder's current child is a cloned GLB (shared/cached geometry
+  // + material, never disposed) or a procedural buildWeaponMesh() (fresh
+  // BoxGeometry per call, must be disposed) — see setWeaponVisual/disposeCurrentWeaponMesh.
+  private weaponIsModel = false;
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
   private muzzleFiredAt = -1e9;
@@ -224,7 +272,7 @@ export class SceneRig {
     this.muzzleLight = vm.light;
     this.camera.add(this.viewmodel);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
-    this.weaponHolder.add(buildWeaponMesh(0));
+    this.setWeaponVisual(0);
 
     const modelUrl = GAME.models?.player;
     if (modelUrl) {
@@ -321,9 +369,16 @@ export class SceneRig {
     light.position.set(0, 0.02, -0.74);
     g.add(light);
 
-    // Rest pose: lower-right of the view.
+    // Rest pose: lower-right of the view. rotation.y is turned in enough to
+    // show a classic FPS 3/4 view of the barrel's length rather than looking
+    // nearly straight down it — verified by sweeping candidates with the real
+    // camera/viewmodel hierarchy: -0.05 (and more negative) foreshortens the
+    // GLB weapons' long barrels away to almost nothing (an AR reads as a
+    // pistol from behind), while +0.35 reveals the barrel clearly toward the
+    // crosshair for all 5 GLB weapons AND keeps the procedural boxes reading
+    // the same as before (checked side by side).
     g.position.set(0.22, -0.2, -0.5);
-    g.rotation.y = -0.05;
+    g.rotation.y = 0.35;
     return { group: g, muzzle, light };
   }
 
@@ -342,6 +397,55 @@ export class SceneRig {
     if (index === this.pendingWeapon) return;
     this.pendingWeapon = index;
     this.swapT = performance.now();
+  }
+
+  /** Shows `index`'s viewmodel: builds the procedural mesh immediately (so the
+   *  holder is never empty, and it's the permanent result if no model is
+   *  configured or its load fails), then swaps in the GLB — with its own
+   *  scale/position/muzzle-tip offset from VM_WEAPON_TRANSFORMS — once loaded.
+   *  Guards against a stale load resolving after the player has since switched
+   *  to a different weapon. */
+  private setWeaponVisual(index: number): void {
+    this.disposeCurrentWeaponMesh();
+    this.weaponHolder.add(buildWeaponMesh(index));
+    this.weaponIsModel = false;
+    this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
+    this.muzzleLight.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
+
+    const url = GAME.weaponVis.models?.[index];
+    const transform = VM_WEAPON_TRANSFORMS[index];
+    if (!url || !transform) return;
+    loadWeaponModel(url).then((gltf) => {
+      if (!gltf) return; // load failed — weapon-loader already warned once, stay procedural
+      if (this.weaponIndex !== index) return; // player swapped away again before this resolved
+
+      this.disposeCurrentWeaponMesh();
+      const obj = cloneWeaponMesh(gltf);
+      obj.scale.setScalar(transform.scale);
+      obj.rotation.y = Math.PI; // this asset family's +Z-is-muzzle -> this viewmodel's -Z-is-forward
+      obj.position.set(0, 0, transform.posZ);
+      obj.traverse((n) => {
+        if (n instanceof THREE.Mesh) n.material = VM_MODEL_MATERIAL;
+      });
+      this.weaponHolder.add(obj);
+      this.weaponIsModel = true;
+      this.muzzle.position.set(0, 0.02, transform.muzzleZ);
+      this.muzzleLight.position.set(0, 0.02, transform.muzzleZ);
+    });
+  }
+
+  /** Empties weaponHolder. A model mesh's geometry/material are shared/cached
+   *  (SkeletonUtils-free `Object3D#clone()` in weapon-loader.ts) and must never
+   *  be disposed here; only the procedural mesh's fresh-per-call BoxGeometry is. */
+  private disposeCurrentWeaponMesh(): void {
+    for (const child of [...this.weaponHolder.children]) {
+      this.weaponHolder.remove(child);
+      if (!this.weaponIsModel) {
+        child.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.geometry.dispose();
+        });
+      }
+    }
   }
 
   /** ADS hold state (from input). FOV/viewmodel/scope ease toward it every frame. */
@@ -478,8 +582,7 @@ export class SceneRig {
       } else {
         if (this.weaponIndex !== this.pendingWeapon) {
           this.weaponIndex = this.pendingWeapon;
-          disposeWeaponMesh(this.weaponHolder);
-          this.weaponHolder.add(buildWeaponMesh(this.weaponIndex));
+          this.setWeaponVisual(this.weaponIndex);
         }
         const up = (t - SWAP_DOWN_MS) / SWAP_UP_MS;
         swapDip = Math.max(0, 1 - up);
@@ -898,6 +1001,16 @@ function applyTeamTint(object: THREE.Object3D, color: number): void {
 const VM_METAL = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.metal, roughness: 0.55, metalness: 0.4 });
 const VM_ACCENT = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.accent, roughness: 0.45, metalness: 0.55 });
 const VM_DARK = new THREE.MeshStandardMaterial({ color: PALETTE.viewmodel.dark, roughness: 0.6, metalness: 0.35 });
+// Shared across every cloned weapon GLB (untextured, single mesh each) — a dark
+// body with a subtle cyan glow, not a base color; overpoweringly bright emissive
+// (tried during tuning) reads as "all cyan", not "dark gun with an accent".
+const VM_MODEL_MATERIAL = new THREE.MeshStandardMaterial({
+  color: PALETTE.viewmodel.dark,
+  roughness: 0.45,
+  metalness: 0.55,
+  emissive: PALETTE.viewmodel.modelEmissive,
+  emissiveIntensity: 0.1,
+});
 
 /** Build the blocky low-poly mesh for a weapon slot (0 AR · 1 SMG · 2 Shotgun · 3 Sniper · 4 Pistol). */
 function buildWeaponMesh(index: number): THREE.Group {
@@ -948,16 +1061,6 @@ function buildWeaponMesh(index: number): THREE.Group {
       part(0.03, 0.06, 0.03, 0, 0.09, -0.28, VM_ACCENT);
   }
   return g;
-}
-
-/** Remove + dispose the holder's current weapon mesh (materials are shared module constants). */
-function disposeWeaponMesh(holder: THREE.Group): void {
-  for (const child of [...holder.children]) {
-    holder.remove(child);
-    child.traverse((o) => {
-      if (o instanceof THREE.Mesh) o.geometry.dispose();
-    });
-  }
 }
 
 function makeGridTexture(): THREE.CanvasTexture {
