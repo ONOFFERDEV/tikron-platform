@@ -260,4 +260,9 @@ export const ironsightConfig: GameConfig = defineConfig({
     swapDownMs: 120, // scene.ts's SWAP_DOWN_MS
     swapUpMs: 230, // scene.ts's SWAP_UP_MS
   },
+
+  // --- models: rigged remote-player GLB (client/rig-loader.ts) ----------------
+  models: {
+    player: "/assets/models/player.glb",
+  },
 });

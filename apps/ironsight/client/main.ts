@@ -349,7 +349,7 @@ async function main(): Promise<void> {
 
     // Remote players interpolated in the past.
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS);
-    scene.syncPlayers(poses, net.myId);
+    scene.syncPlayers(poses, net.myId, dt);
     for (const [id, p] of poses) {
       if (id !== net.myId && p.alive) scene.stepFootRemote(id, p, dt, eye);
     }

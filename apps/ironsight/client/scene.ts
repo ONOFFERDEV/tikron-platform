@@ -11,11 +11,13 @@
  * `aimDir`, which keeps the crosshair (screen centre) honest with hit registration.
  */
 import * as THREE from "three";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef } from "../src/map/types.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
+import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
 
 const PALETTE = GAME.palette;
 const ADS_FOV = GAME.camera.adsFov;
@@ -37,6 +39,42 @@ const VM_RECOIL = GAME.weaponVis.recoil;
 const NADE_GRAVITY = -22; // matches the server's grenade integrator
 const SWAP_DOWN_MS = GAME.weaponVis.swapDownMs;
 const SWAP_UP_MS = GAME.weaponVis.swapUpMs; // down+up = the server's 350 ms switch delay
+
+/**
+ * Correction applied to a model rig's yaw so it visually faces the direction
+ * `pose.yaw` says it's looking (`pose.yaw = 0` faces world +z — see this
+ * file's header). The GLB's own forward axis is whatever the source
+ * generation pipeline baked in and isn't knowable from the file alone, so this
+ * was checked EMPIRICALLY: a static, single-time-seek render of the "walk"
+ * clip at `rotation.y = 0` (no correction), viewed head-on along +z, shows a
+ * forward-facing head and natural contralateral arm swing (left arm forward
+ * while the right leg steps, and vice versa) — i.e. the raw model ALREADY
+ * faces +z with no rotation applied, so no correction is needed here.
+ * Re-confirmed 0 after the Plan-B swap to the KayKit-based (Knight.glb +
+ * borrowed idle/walk/run/death clips) asset — same check, same result. If a
+ * future model swap faces the wrong way, redo that check (a single static
+ * `mixer.update(t)` seek viewed from a plain front camera — NOT a side/3-4
+ * angle or a translating rig at extreme relative angles; both were found to
+ * trigger a severe render artifact on the ORIGINAL UniRig asset, later traced
+ * to that asset's own skin/rest-pose data, not the rendering pipeline — see
+ * D:\game-assets\generated\unirig-poc\ingame\ for the investigation trail)
+ * and adjust this constant in Math.PI/2 increments.
+ */
+const MODEL_YAW_OFFSET = 0; // radians — see calibration note above
+
+/** Locomotion state thresholds (m/s), picked against MOVE's crouch=3/walk=6/
+ *  sprint=9 so ordinary walking always lands in "walk" and only sprint plays "run". */
+const LOCOMOTION_IDLE_MAX = 0.5;
+const LOCOMOTION_WALK_MAX = 7;
+
+/** Subtle vertical squash for a crouched model rig — there's no crouch clip, so
+ *  (unlike the capsule path's real height change) this just compresses the model. */
+const MODEL_CROUCH_SQUASH = 0.8;
+
+/** How long a model rig stays visible playing its death clip before hiding, once
+ *  the server reports the player dead — capped so a very long/missing clip can't
+ *  leave a corpse standing around. */
+const DEATH_HOLD_MS = 1200;
 
 interface NadeFx {
   mesh: THREE.Mesh;
@@ -67,11 +105,34 @@ interface PlayerPose {
   alive: boolean;
 }
 
+/** A remote player's rig: either the original capsule+head primitives, or (once
+ *  the player GLB is loaded) an animated model clone. `kind` discriminates which
+ *  fields below are populated — see {@link SceneRig.makeRig}. */
 interface PlayerRig {
   group: THREE.Group;
-  body: THREE.Mesh;
-  head: THREE.Mesh;
   team: number;
+  kind: "capsule" | "model";
+  // --- kind === "capsule" ---
+  body?: THREE.Mesh;
+  head?: THREE.Mesh;
+  // --- kind === "model" ---
+  modelRoot?: THREE.Object3D;
+  model?: PlayerRigModel;
+  /** Uniform scale that normalizes the GLB to PLAYER.standHeight. */
+  baseScale?: number;
+  /** The model's own local bbox min.y (pre-scale) — needed to re-derive the
+   *  feet-at-zero vertical offset whenever the crouch squash changes `scale.y`. */
+  localMinY?: number;
+  aliveWas?: boolean;
+  /** performance.now() deadline until which a just-died model rig stays visible
+   *  playing its death clip; undefined when not mid-death-hold. */
+  deadHoldUntil?: number;
+  prevX?: number;
+  prevZ?: number;
+  /** Local Y (relative to `group`, i.e. relative to the feet) of the head/eye
+   *  anchor point, refreshed each sync — kept uniform across both kinds so
+   *  {@link SceneRig.getRemoteMuzzleAnchor} doesn't need to know which one it has. */
+  headY?: number;
 }
 
 interface Tracer {
@@ -93,6 +154,15 @@ export class SceneRig {
   private readonly boxes: readonly Box[];
   private readonly players = new Map<string, PlayerRig>();
   private readonly tracers: Tracer[] = [];
+  // Rigged remote-player model: kicked off once in the constructor (if configured),
+  // resolved asynchronously — see makeRig()/upgradeCapsuleRigs(). "absent" covers
+  // both "no models.player configured" (neonstrike) and "load failed" (rig-loader
+  // already console.warn'd once); either way every rig stays capsule permanently.
+  // While "loading", new rigs are capsules too (players/bots already exist from the
+  // room's first broadcast, so this is the COMMON case, not a rare race) — once the
+  // load resolves, upgradeCapsuleRigs() swaps every existing capsule rig in place.
+  private modelState: "loading" | "ready" | "absent" = "absent";
+  private modelGltf: GLTF | undefined;
 
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
@@ -155,6 +225,22 @@ export class SceneRig {
     this.camera.add(this.viewmodel);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
     this.weaponHolder.add(buildWeaponMesh(0));
+
+    const modelUrl = GAME.models?.player;
+    if (modelUrl) {
+      this.modelState = "loading";
+      loadPlayerModel(modelUrl).then((gltf) => {
+        this.modelGltf = gltf;
+        this.modelState = gltf ? "ready" : "absent";
+        // Bots/players already exist server-side from the room's first broadcast,
+        // so the client's very first syncPlayers() call (same frame the scene is
+        // constructed) almost always creates their rigs BEFORE this async load can
+        // possibly finish — confirmed live: every rig came up capsule-only even
+        // seconds after the model had already loaded. Upgrade any rig that was
+        // built as a capsule for exactly that reason, now that the model is ready.
+        if (gltf) this.upgradeCapsuleRigs();
+      });
+    }
 
     this.resize();
     window.addEventListener("resize", () => this.resize());
@@ -467,8 +553,11 @@ export class SceneRig {
 
   // --- players ----------------------------------------------------------------
 
-  /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn. */
-  syncPlayers(poses: Map<string, PlayerPose>, selfId: string): void {
+  /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
+   *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
+   *  model rig's locomotion state from consecutive poses and to step its mixer. */
+  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number): void {
+    const now = performance.now();
     const seen = new Set<string>();
     for (const [id, pose] of poses) {
       if (id === selfId) continue;
@@ -479,15 +568,8 @@ export class SceneRig {
         rig = this.makeRig(pose.team);
         this.players.set(id, rig);
       }
-      rig.group.visible = pose.alive;
-      if (!pose.alive) continue;
-      const stance = pose.crouch ? PLAYER.crouchHeight / PLAYER.standHeight : 1;
-      const h = pose.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
-      rig.body.scale.y = stance;
-      rig.body.position.y = h / 2;
-      rig.head.position.y = h - PLAYER.headRadius;
-      rig.group.position.set(pose.x, pose.y, pose.z);
-      // (capsule + head sphere are radially symmetric, so yaw needs no cosmetic rotation)
+      if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now);
+      else this.syncCapsuleRig(rig, pose);
     }
     for (const [id, rig] of [...this.players]) {
       if (!seen.has(id)) {
@@ -497,7 +579,88 @@ export class SceneRig {
     }
   }
 
+  private syncCapsuleRig(rig: PlayerRig, pose: PlayerPose): void {
+    rig.group.visible = pose.alive;
+    if (!pose.alive) return;
+    const stance = pose.crouch ? PLAYER.crouchHeight / PLAYER.standHeight : 1;
+    const h = pose.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
+    rig.body!.scale.y = stance;
+    rig.body!.position.y = h / 2;
+    rig.head!.position.y = h - PLAYER.headRadius;
+    rig.headY = rig.head!.position.y;
+    rig.group.position.set(pose.x, pose.y, pose.z);
+    // (capsule + head sphere are radially symmetric, so yaw needs no cosmetic rotation)
+  }
+
+  private syncModelRig(rig: PlayerRig, pose: PlayerPose, dtMs: number, now: number): void {
+    const model = rig.model!;
+    const wasAlive = rig.aliveWas ?? true;
+    rig.aliveWas = pose.alive;
+
+    if (!pose.alive) {
+      if (wasAlive) {
+        // Death edge: play the clip once, hold the rig visible for the shorter of
+        // the clip's own length or DEATH_HOLD_MS, then hide it.
+        model.setState("death");
+        const clipMs = (model.deathDuration ?? DEATH_HOLD_MS / 1000) * 1000;
+        rig.deadHoldUntil = now + Math.min(DEATH_HOLD_MS, clipMs);
+      }
+      const holding = rig.deadHoldUntil !== undefined && now < rig.deadHoldUntil;
+      rig.group.visible = holding;
+      if (holding) model.update(dtMs / 1000);
+      return;
+    }
+
+    rig.group.visible = true;
+    if (!wasAlive) {
+      // Respawn edge: snap back to idle and re-anchor the speed sample so the
+      // teleport-to-spawn jump isn't read as an instantaneous sprint next frame.
+      model.forceIdle();
+      rig.deadHoldUntil = undefined;
+      rig.prevX = pose.x;
+      rig.prevZ = pose.z;
+    }
+
+    const squash = pose.crouch ? MODEL_CROUCH_SQUASH : 1;
+    const sy = rig.baseScale! * squash;
+    rig.modelRoot!.scale.set(rig.baseScale!, sy, rig.baseScale!);
+    rig.modelRoot!.position.y = -rig.localMinY! * sy; // keeps feet at the group's local y=0 as squash changes
+    rig.group.position.set(pose.x, pose.y, pose.z);
+    rig.group.rotation.y = pose.yaw + MODEL_YAW_OFFSET;
+    // Mirrors the capsule rig's head-sphere formula so getRemoteMuzzleAnchor's
+    // anchor height is consistent regardless of which rig kind a player has.
+    rig.headY = (pose.crouch ? PLAYER.crouchHeight : PLAYER.standHeight) - PLAYER.headRadius;
+
+    const dtSec = dtMs / 1000;
+    const dx = pose.x - (rig.prevX ?? pose.x);
+    const dz = pose.z - (rig.prevZ ?? pose.z);
+    const speed = dtSec > 0 ? Math.hypot(dx, dz) / dtSec : 0;
+    rig.prevX = pose.x;
+    rig.prevZ = pose.z;
+    const locomotion: LocomotionState =
+      speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : "run";
+    model.setState(locomotion);
+    model.update(dtSec);
+  }
+
   private makeRig(team: number): PlayerRig {
+    if (this.modelState === "ready" && this.modelGltf) return this.makeModelRig(team, this.modelGltf);
+    return this.makeCapsuleRig(team);
+  }
+
+  /** Runs once, right after the player model finishes loading: swaps every
+   *  currently-tracked capsule rig for a model rig of the same team, in place.
+   *  Positions/pose are re-applied by the very next syncPlayers() tick, same as
+   *  any newly-created rig — nothing special needs to happen here beyond the swap. */
+  private upgradeCapsuleRigs(): void {
+    for (const [id, rig] of this.players) {
+      if (rig.kind !== "capsule") continue;
+      this.disposeRig(rig);
+      this.players.set(id, this.makeModelRig(rig.team, this.modelGltf!));
+    }
+  }
+
+  private makeCapsuleRig(team: number): PlayerRig {
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: TEAM_COLOR[team] ?? 0xaaaaaa, roughness: 0.7 });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(PLAYER.radius, CAP_LEN, 4, 10), mat);
@@ -507,14 +670,62 @@ export class SceneRig {
     group.add(body);
     group.add(head);
     this.scene.add(group);
-    return { group, body, head, team };
+    return { group, team, kind: "capsule", body, head };
+  }
+
+  private makeModelRig(team: number, gltf: GLTF): PlayerRig {
+    const group = new THREE.Group();
+    const model = clonePlayerRig(gltf);
+    const object = model.object;
+
+    // Normalize scale from the model's own (unknown) authored bbox to
+    // PLAYER.standHeight, then position it so its feet sit at the group's local
+    // y=0 — matches the capsule rig's convention of "group position = feet".
+    object.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(object);
+    const height = box.max.y - box.min.y || 1;
+    const baseScale = PLAYER.standHeight / height;
+    object.scale.setScalar(baseScale);
+    object.position.y = -box.min.y * baseScale;
+    object.traverse((n) => {
+      if (n instanceof THREE.Mesh) {
+        n.castShadow = true;
+        n.receiveShadow = true;
+      }
+    });
+    applyTeamTint(object, TEAM_COLOR[team] ?? 0xaaaaaa);
+
+    group.add(object);
+    this.scene.add(group);
+    return {
+      group,
+      team,
+      kind: "model",
+      modelRoot: object,
+      model,
+      baseScale,
+      localMinY: box.min.y,
+      aliveWas: true,
+    };
   }
 
   private disposeRig(rig: PlayerRig): void {
     this.scene.remove(rig.group);
-    rig.body.geometry.dispose();
-    rig.head.geometry.dispose();
-    (rig.body.material as THREE.Material).dispose();
+    if (rig.kind === "capsule") {
+      rig.body!.geometry.dispose();
+      rig.head!.geometry.dispose();
+      (rig.body!.material as THREE.Material).dispose();
+      return;
+    }
+    // Geometry is shared across every clone of the cached GLB (SkeletonUtils.clone
+    // never deep-clones buffers) — only the per-instance tint materials this rig's
+    // makeModelRig() created are ours to dispose.
+    rig.modelRoot!.traverse((n) => {
+      if (!(n instanceof THREE.Mesh)) return;
+      const m = n.material;
+      if (Array.isArray(m)) m.forEach((mm) => mm.dispose());
+      else (m as THREE.Material).dispose();
+    });
   }
 
   // --- tracers ----------------------------------------------------------------
@@ -576,7 +787,7 @@ export class SceneRig {
   getRemoteMuzzleAnchor(id: string): { x: number; y: number; z: number } | undefined {
     const rig = this.players.get(id);
     if (!rig) return undefined;
-    return { x: rig.group.position.x, y: rig.group.position.y + rig.head.position.y, z: rig.group.position.z };
+    return { x: rig.group.position.x, y: rig.group.position.y + (rig.headY ?? 0), z: rig.group.position.z };
   }
 
   spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
@@ -658,6 +869,28 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
+}
+
+/** Colors the player GLB for its team. A mesh with NO texture map (the original
+ *  shape-only UniRig asset) gets a fresh flat team-tinted MeshStandardMaterial.
+ *  A mesh that DOES carry a texture map (the KayKit-based asset's authored look)
+ *  gets a per-instance clone of its own material with `color` set to the team
+ *  tint — `material.color` multiplies the diffuse map in three.js, so this
+ *  colors the texture instead of replacing it, preserving the authored detail. */
+function applyTeamTint(object: THREE.Object3D, color: number): void {
+  const tint = new THREE.Color(color);
+  object.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const tintOne = (m: THREE.Material): THREE.Material => {
+      if ((m as { map?: unknown }).map instanceof THREE.Texture) {
+        const clone = m.clone();
+        (clone as THREE.MeshStandardMaterial).color.set(tint);
+        return clone;
+      }
+      return new THREE.MeshStandardMaterial({ color: tint, roughness: 0.7, metalness: 0.05 });
+    };
+    node.material = Array.isArray(node.material) ? node.material.map(tintOne) : tintOne(node.material);
+  });
 }
 
 // --- per-weapon procedural viewmodels -----------------------------------------

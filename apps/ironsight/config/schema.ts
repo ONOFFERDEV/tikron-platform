@@ -351,6 +351,17 @@ export interface WeaponVisConfig {
   models?: Record<number, string>;
 }
 
+// ── models (optional visual asset overrides) ─────────────────────────────────
+
+/** Optional GLB model overrides for otherwise-procedural visuals. Absent (or an
+ *  absent sub-field) means the existing procedural/capsule path — neonstrike
+ *  carries no `models` at all, proving the client's fallback still holds. */
+export interface ModelsConfig {
+  /** Rigged remote-player character (client/rig-loader.ts). Normalized to
+   *  `player.standHeight` with feet at y=0 on load, team-tinted via `teams.colors`. */
+  player?: string;
+}
+
 // ── root ──────────────────────────────────────────────────────────────────────
 
 /** The full data surface of one ironsight game. */
@@ -374,6 +385,7 @@ export interface GameConfig {
   feel: FeelConfig;
   audio: AudioConfig;
   weaponVis: WeaponVisConfig;
+  models?: ModelsConfig;
 }
 
 /** Identity helper: authors a `GameConfig` with full inference + excess-property
