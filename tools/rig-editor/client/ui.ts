@@ -43,6 +43,10 @@ const css = `
 #gen-fields label.inline { display: flex; flex-direction: column; gap: 2px; font-size: 11px; opacity: 0.8; flex: 1; }
 #gen-log { background: #0d0f14; border: 1px solid #2a2f3a; border-radius: 4px; padding: 6px; font-size: 10.5px; height: 130px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
 #gen-error { color: #e08a6a; font-size: 11px; white-space: pre-wrap; }
+#export-picker-overlay { position: fixed; inset: 0; background: rgba(6,8,12,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+#export-picker-dialog { background: #171a22; border: 1px solid #3a4152; border-radius: 8px; padding: 14px; width: 320px; max-height: 80vh; display: flex; flex-direction: column; gap: 8px; }
+#export-picker-list { overflow-y: auto; max-height: 50vh; display: flex; flex-direction: column; gap: 2px; }
+#export-picker-list label { display: block; }
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -54,6 +58,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: s
 
 export interface Callbacks {
   onFiles(files: FileList | File[]): void;
+  /** Always treated as an animation library (the user clicked the dedicated
+   *  button, so there's no model-vs-library ambiguity to resolve). */
+  onLoadLibraryFiles(files: FileList | File[]): void;
   onBoneSelect(name: string): void;
   onClipSelect(index: number): void;
   onPlayPause(): void;
@@ -79,6 +86,7 @@ export class RigUi {
   private readonly sideEl: HTMLElement;
   private readonly dropEl: HTMLElement;
   private readonly fileInput: HTMLInputElement;
+  private readonly libraryFileInput: HTMLInputElement;
   private readonly boneInfoEl: HTMLElement;
   private readonly clipSelect: HTMLSelectElement;
   private readonly playBtn: HTMLButtonElement;
@@ -193,6 +201,20 @@ export class RigUi {
     this.sideEl.appendChild(this.dropEl);
     this.sideEl.appendChild(this.fileInput);
     this.wireDropZone();
+
+    // Always unambiguously "add clips" — the model/library confirm branch
+    // (see onFiles) only applies to the drop zone / "Choose file…" above.
+    this.libraryFileInput = el("input", "library-file-input");
+    this.libraryFileInput.type = "file";
+    this.libraryFileInput.accept = ".glb";
+    this.libraryFileInput.style.display = "none";
+    const libraryBtn = el("button", undefined, "Load animation library…");
+    libraryBtn.addEventListener("click", () => this.libraryFileInput.click());
+    this.libraryFileInput.addEventListener("change", () => {
+      if (this.libraryFileInput.files?.length) this.cb.onLoadLibraryFiles(this.libraryFileInput.files);
+    });
+    this.sideEl.appendChild(libraryBtn);
+    this.sideEl.appendChild(this.libraryFileInput);
 
     this.sideEl.appendChild(el("h2", undefined, "View"));
     const viewRow = el("div"); viewRow.className = "row";
@@ -339,6 +361,56 @@ export class RigUi {
       ul.appendChild(li);
     }
     return ul;
+  }
+
+  // --- export clip picker (M4) ----------------------------------------------
+
+  /** Modal checklist for the Baked GLB export (M4 #19) — a merged animation
+   *  library can carry 100+ clips, so export defaults to a small checked
+   *  subset (`defaultChecked`) rather than everything. Resolves to the chosen
+   *  name set, or undefined if the user cancels. */
+  showExportClipPicker(clipNames: string[], defaultChecked: ReadonlySet<string>): Promise<Set<string> | undefined> {
+    return new Promise((resolve) => {
+      const overlay = el("div", "export-picker-overlay");
+      const dialog = el("div", "export-picker-dialog");
+      dialog.appendChild(el("h2", undefined, "Export clips"));
+
+      const list = el("div", "export-picker-list");
+      const checks: HTMLInputElement[] = [];
+      for (const name of clipNames) {
+        const label = el("label");
+        const check = el("input");
+        check.type = "checkbox";
+        check.checked = defaultChecked.has(name);
+        label.append(check, document.createTextNode(" " + name));
+        list.appendChild(label);
+        checks.push(check);
+      }
+      dialog.appendChild(list);
+
+      const btnRow = el("div"); btnRow.className = "row";
+      const cancelBtn = el("button", undefined, "Cancel");
+      const exportBtn = el("button", undefined, "Export");
+      exportBtn.className = "primary";
+      btnRow.append(cancelBtn, exportBtn);
+      dialog.appendChild(btnRow);
+
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+
+      cancelBtn.addEventListener("click", () => {
+        overlay.remove();
+        resolve(undefined);
+      });
+      exportBtn.addEventListener("click", () => {
+        const chosen = new Set<string>();
+        clipNames.forEach((name, i) => {
+          if (checks[i]!.checked) chosen.add(name);
+        });
+        overlay.remove();
+        resolve(chosen);
+      });
+    });
   }
 
   // --- side panel updates ----------------------------------------------------

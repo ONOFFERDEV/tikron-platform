@@ -15,8 +15,12 @@ import * as http from "node:http";
 import * as esbuild from "esbuild";
 import { isGenerateApiRoute, handleGenerateApi } from "./generate-api.mjs";
 
-const PUBLIC_PORT = 8642;
-const ESBUILD_PORT = 8643; // internal only — reached solely via the proxy below
+// RIG_EDITOR_PORT overrides the default 8642 (e.g. to run a second instance
+// alongside one already occupying 8642 without touching it) — the internal
+// esbuild port always follows one above it, so overriding the public port
+// alone can't collide with another instance's internal port either.
+const PUBLIC_PORT = Number(process.env.RIG_EDITOR_PORT) || 8642;
+const ESBUILD_PORT = PUBLIC_PORT + 1; // internal only — reached solely via the proxy below
 
 const ctx = await esbuild.context({
   entryPoints: ["client/main.ts"],

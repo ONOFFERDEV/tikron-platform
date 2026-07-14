@@ -19,6 +19,7 @@ import { listKeyTicks, findKeyIndexAtTime, findQuaternionTrack, readKeyQuaternio
 import { buildCorrectionJson, downloadText, exportBakedGlb } from "./export.js";
 import { UndoStack } from "./undo.js";
 import { runGenerate } from "./generate.js";
+import { loadAnimationLibraryFromFile, mergeClips } from "./library.js";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("#app mount point missing");
@@ -227,11 +228,67 @@ async function loadFile(file: File): Promise<void> {
   }
 }
 
+/** M4: loads `file` as an animation library and merges its clips into the
+ *  current rig (see library.ts's header for why no re-binding step is needed). */
+async function loadLibrary(file: File): Promise<void> {
+  if (!rig) {
+    alert("Load a character model first, then load an animation library.");
+    return;
+  }
+  try {
+    const result = await loadAnimationLibraryFromFile(file, new Set(rig.bones.keys()));
+    if (result.matchedFraction < 0.7) {
+      const pct = Math.round(result.matchedFraction * 100);
+      const proceed = confirm(
+        `Warning: only ${pct}% of this library's bone names match the loaded model's skeleton ` +
+          `(more than 30% won't animate). Load it anyway?`,
+      );
+      if (!proceed) return;
+    }
+
+    const conflicting = result.clips.filter((c) => rig!.clips.some((existing) => existing.name === c.name));
+    let replaceConflicts = true;
+    if (conflicting.length > 0) {
+      const names = conflicting.map((c) => c.name).slice(0, 5).join(", ");
+      const more = conflicting.length > 5 ? `, +${conflicting.length - 5} more` : "";
+      replaceConflicts = confirm(
+        `${conflicting.length} clip name(s) already exist (${names}${more}). ` +
+          `Replace them with the library's versions? Cancel keeps the existing ones.`,
+      );
+    }
+
+    const summary = mergeClips(rig, result.clips, replaceConflicts);
+    ui.setClipList(rig.clips.map((c) => c.name), activeClipIndex);
+    alert(
+      `Animation library merged: ${summary.added} added, ${summary.replaced} replaced, ` +
+        `${summary.skipped} skipped (${rig.clips.length} clips total).`,
+    );
+  } catch (err) {
+    console.error("[rig-editor] failed to load animation library", err);
+    alert(`Failed to load animation library: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 const callbacks: Callbacks = {
   onFiles(files) {
     const arr = Array.from(files);
     const glb = arr.find((f) => f.name.toLowerCase().endsWith(".glb")) ?? arr[0];
-    if (glb) void loadFile(glb);
+    if (!glb) return;
+    if (rig) {
+      const wantsReplace = confirm(
+        `A model is already loaded. Click OK to REPLACE it with "${glb.name}", ` +
+          `or Cancel to add its clips as an animation library instead.`,
+      );
+      if (wantsReplace) void loadFile(glb);
+      else void loadLibrary(glb);
+    } else {
+      void loadFile(glb);
+    }
+  },
+  onLoadLibraryFiles(files) {
+    const arr = Array.from(files);
+    const glb = arr.find((f) => f.name.toLowerCase().endsWith(".glb")) ?? arr[0];
+    if (glb) void loadLibrary(glb);
   },
   onBoneSelect(name) {
     selectBone(name);
@@ -304,7 +361,14 @@ const callbacks: Callbacks = {
   },
   onExportGlb() {
     if (!rig) return;
-    void exportBakedGlb(rig, corrections);
+    const currentRig = rig;
+    const clipNames = currentRig.clips.map((c) => c.name);
+    const defaultNames = ["idle", "walk", "run", "death"].filter((n) => clipNames.includes(n));
+    const defaultChecked = new Set(defaultNames.length > 0 ? defaultNames : clipNames);
+    void ui.showExportClipPicker(clipNames, defaultChecked).then((chosen) => {
+      if (!chosen || chosen.size === 0) return;
+      void exportBakedGlb(currentRig, corrections, chosen);
+    });
   },
   onKeyTickClick(time) {
     if (!rig || !selectedBone) return;
@@ -401,6 +465,7 @@ interface RigEditorTestHook {
     editedKeyCount: number;
     clipCount: number;
     boneCount: number;
+    clipNames: string[];
   };
 }
 (window as unknown as { __rigEditorTest: RigEditorTestHook }).__rigEditorTest = {
@@ -428,6 +493,7 @@ interface RigEditorTestHook {
       editedKeyCount,
       clipCount: rig ? rig.clips.length : 0,
       boneCount: rig ? rig.bones.size : 0,
+      clipNames: rig ? rig.clips.map((c) => c.name) : [],
     };
   },
 };

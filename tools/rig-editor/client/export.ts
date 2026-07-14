@@ -49,9 +49,14 @@ function triggerDownload(fileName: string, blob: Blob): void {
  * pose is never baked in as the rest transform — see LoadedRig.bindQuats),
  * and hands the result to GLTFExporter. The live editor pose is restored
  * immediately after, so clicking export doesn't visibly disturb the viewport.
+ *
+ * `clipNames`, if given (M4's export clip picker — a merged animation library
+ * can carry 100+ clips, most of which nobody wants baked into every export),
+ * restricts the baked set to those names; omitted/undefined bakes every clip.
  */
-export async function exportBakedGlb(rig: LoadedRig, corrections: CorrectionMap): Promise<void> {
-  const bakedClips = rig.clips.map((clip) => {
+export async function exportBakedGlb(rig: LoadedRig, corrections: CorrectionMap, clipNames?: ReadonlySet<string>): Promise<void> {
+  const sourceClips = clipNames ? rig.clips.filter((c) => clipNames.has(c.name)) : rig.clips;
+  const bakedClips = sourceClips.map((clip) => {
     const baked = clip.clone();
     for (const [boneName, corr] of corrections) {
       if (corr.x === 0 && corr.y === 0 && corr.z === 0 && corr.w === 1) continue;
