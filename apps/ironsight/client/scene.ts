@@ -107,12 +107,16 @@ const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
 const MODEL_YAW_OFFSET = 0; // radians — see calibration note above
 
 /** Locomotion state thresholds (m/s), picked against MOVE's crouch=3/walk=6/
- *  sprint=9 so ordinary walking always lands in "walk" and only sprint plays "run". */
+ *  sprint=9 so ordinary walking always lands in "walk" and only sprint plays
+ *  "run"/"sprint". The same idle threshold also gates crouch_idle vs crouch_walk
+ *  since crouch itself is capped at MOVE.crouch=3, well under LOCOMOTION_WALK_MAX. */
 const LOCOMOTION_IDLE_MAX = 0.5;
 const LOCOMOTION_WALK_MAX = 7;
 
-/** Subtle vertical squash for a crouched model rig — there's no crouch clip, so
- *  (unlike the capsule path's real height change) this just compresses the model. */
+/** Subtle vertical squash for a crouched model rig on GLBs with no crouch clip
+ *  (`!model.hasCrouchClips`) — (unlike the capsule path's real height change)
+ *  this just compresses the model. Rigs whose GLB has a real crouch_idle/
+ *  crouch_walk clip play that instead and skip the squash entirely. */
 const MODEL_CROUCH_SQUASH = 0.8;
 
 /** How long a model rig stays visible playing its death clip before hiding, once
@@ -724,7 +728,7 @@ export class SceneRig {
       rig.prevZ = pose.z;
     }
 
-    const squash = pose.crouch ? MODEL_CROUCH_SQUASH : 1;
+    const squash = pose.crouch && !model.hasCrouchClips ? MODEL_CROUCH_SQUASH : 1;
     const sy = rig.baseScale! * squash;
     rig.modelRoot!.scale.set(rig.baseScale!, sy, rig.baseScale!);
     rig.modelRoot!.position.y = -rig.localMinY! * sy; // keeps feet at the group's local y=0 as squash changes
@@ -740,8 +744,13 @@ export class SceneRig {
     const speed = dtSec > 0 ? Math.hypot(dx, dz) / dtSec : 0;
     rig.prevX = pose.x;
     rig.prevZ = pose.z;
-    const locomotion: LocomotionState =
-      speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : "run";
+    let locomotion: LocomotionState;
+    if (pose.crouch && model.hasCrouchClips) {
+      locomotion = speed < LOCOMOTION_IDLE_MAX ? "crouch_idle" : "crouch_walk";
+    } else {
+      locomotion =
+        speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : model.hasSprintClip ? "sprint" : "run";
+    }
     model.setState(locomotion);
     model.update(dtSec);
   }

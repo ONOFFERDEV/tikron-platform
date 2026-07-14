@@ -13,7 +13,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 
-export type LocomotionState = "idle" | "walk" | "run" | "death";
+export type LocomotionState = "idle" | "walk" | "run" | "crouch_idle" | "crouch_walk" | "sprint" | "death";
 
 const CROSSFADE_SEC = 0.15;
 const ONE_SHOT_STATES: readonly LocomotionState[] = ["death"];
@@ -41,6 +41,14 @@ export interface PlayerRigModel {
   readonly object: THREE.Object3D;
   /** Duration (seconds) of the "death" clip, or undefined if the GLB has none. */
   readonly deathDuration: number | undefined;
+  /** Whether this GLB has a "crouch_idle" or "crouch_walk" clip. False for
+   *  older/backup GLBs (idle/walk/run/death only) — scene.ts uses this to decide
+   *  whether to play a real crouch clip or fall back to its vertical-squash
+   *  crouch approximation. */
+  readonly hasCrouchClips: boolean;
+  /** Whether this GLB has a "sprint" clip — if false, the top speed band keeps
+   *  playing "run" (unchanged legacy behavior). */
+  readonly hasSprintClip: boolean;
   /** Crossfades to `state`. A no-op once "death" has played (terminal) — see {@link forceIdle}. */
   setState(state: LocomotionState): void;
   /** Snaps directly back to "idle", bypassing the death lock — used on the respawn edge,
@@ -51,13 +59,15 @@ export interface PlayerRigModel {
 
 /** Clones a fresh, independently-posable instance of `gltf` (SkeletonUtils.clone,
  *  not Object3D#clone, so the skinned-mesh bone bindings survive) with a
- *  per-instance AnimationMixer driving idle/walk/run/death (whichever of those
- *  clip names exist on the GLB — missing ones are silently skipped). */
+ *  per-instance AnimationMixer driving idle/walk/run/crouch_idle/crouch_walk/
+ *  sprint/death (whichever of those clip names exist on the GLB — missing ones
+ *  are silently skipped, which is how older/backup GLBs without the newer
+ *  crouch/sprint clips keep working). */
 export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const object = cloneSkeleton(gltf.scene) as THREE.Object3D;
   const mixer = new THREE.AnimationMixer(object);
   const actions = new Map<LocomotionState, THREE.AnimationAction>();
-  for (const s of ["idle", "walk", "run", "death"] as const) {
+  for (const s of ["idle", "walk", "run", "crouch_idle", "crouch_walk", "sprint", "death"] as const) {
     const clip = THREE.AnimationClip.findByName(gltf.animations, s);
     if (!clip) continue;
     const action = mixer.clipAction(clip);
@@ -68,6 +78,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     actions.set(s, action);
   }
   const deathDuration = actions.get("death")?.getClip().duration;
+  const hasCrouchClips = actions.has("crouch_idle") || actions.has("crouch_walk");
+  const hasSprintClip = actions.has("sprint");
 
   let current: THREE.AnimationAction | undefined;
   let state: LocomotionState = "idle";
@@ -85,6 +97,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   return {
     object,
     deathDuration,
+    hasCrouchClips,
+    hasSprintClip,
     setState(next: LocomotionState): void {
       if (state === "death") return; // terminal until forceIdle()
       const restart = ONE_SHOT_STATES.includes(next);
