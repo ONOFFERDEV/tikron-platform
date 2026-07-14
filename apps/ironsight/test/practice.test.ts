@@ -68,7 +68,7 @@ describe("practice room — match flow", () => {
     await h.connect();
     expect(h.snapshot().phase).toBe("live"); // no warmup gate, unlike tdm/ffa/dom
 
-    await tick(h, 50); // a modest fast-forward, filler bots (fillToPlayers=4) included
+    await tick(h, 50); // a modest fast-forward, the showcase roster (fillToPlayers=6) included
     const s = h.snapshot();
     expect(s.phase).toBe("live");
     expect(h.broadcastsOf("s:msg").some((f) => (f.data as { type?: string }).type === "matchEnd")).toBe(false);
@@ -100,27 +100,109 @@ describe("practice room — combat", () => {
   });
 });
 
-describe("practice room — passive bots", () => {
-  it("filler bots stand still (no movement) and never fire across many ticks", async () => {
+describe("practice room — showcase bots", () => {
+  it("fills the fixed 5-bot showcase roster (idle/crouch/sneak/walk/sprint)", async () => {
     const h = await createTestRoom(ArenaRoomImpl, {
-      id: "arena-practice-passive1",
+      id: "arena-practice-showcase1",
       codec: ArenaSchema,
       sync: "throttled",
     });
-    await h.connect(); // 1 human → reconcileBots fills 3 bots (fillToPlayers default 4)
+    await h.connect(); // 1 human → reconcileBots fills the roster (fillToPlayers 6)
     await tick(h, 2); // let the deficit-fill run
 
+    const ids = Object.keys(liveState(h).players);
+    for (const id of ["bot-idle", "bot-crouch", "bot-sneak", "bot-walk", "bot-sprint"]) {
+      expect(ids).toContain(id);
+    }
+  });
+
+  it("idle/crouch bots stand still; crouch/sneak carry crouch=true on the wire, walk/sprint don't", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-showcase2",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect();
+    await tick(h, 5); // let the crouch-down transition (integrate()'s inp.crouch edge) settle
+
     const before = liveState(h).players;
-    const botIds = Object.keys(before).filter((id) => id.startsWith("bot-"));
-    expect(botIds.length).toBeGreaterThan(0);
-    const beforePositions = botIds.map((id) => ({ id, x: before[id]!.x, z: before[id]!.z }));
+    const idleBefore = { x: before["bot-idle"]!.x, z: before["bot-idle"]!.z };
+    const crouchBefore = { x: before["bot-crouch"]!.x, z: before["bot-crouch"]!.z };
 
     await tick(h, 100); // long fast-forward
     const after = liveState(h).players;
-    for (const { id, x, z } of beforePositions) {
-      expect(after[id]!.x).toBe(x);
-      expect(after[id]!.z).toBe(z);
+
+    expect(after["bot-idle"]!.x).toBe(idleBefore.x);
+    expect(after["bot-idle"]!.z).toBe(idleBefore.z);
+    expect(after["bot-idle"]!.crouch).toBe(false);
+
+    expect(after["bot-crouch"]!.x).toBe(crouchBefore.x);
+    expect(after["bot-crouch"]!.z).toBe(crouchBefore.z);
+    expect(after["bot-crouch"]!.crouch).toBe(true);
+
+    expect(after["bot-sneak"]!.crouch).toBe(true);
+    expect(after["bot-walk"]!.crouch).toBe(false);
+    expect(after["bot-sprint"]!.crouch).toBe(false);
+  });
+
+  it("walk/sprint/sneak bots pace back and forth — position reverses direction, proving it's not a one-way drift", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-showcase3",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect();
+    await tick(h, 2);
+
+    for (const id of ["bot-walk", "bot-sprint", "bot-sneak"]) {
+      let z = liveState(h).players[id]!.z;
+      let sawIncrease = false;
+      let sawDecrease = false;
+      for (let i = 0; i < 200 && !(sawIncrease && sawDecrease); i++) {
+        await tick(h, 5);
+        const nz = liveState(h).players[id]!.z;
+        if (nz > z) sawIncrease = true;
+        if (nz < z) sawDecrease = true;
+        z = nz;
+      }
+      expect(sawIncrease).toBe(true);
+      expect(sawDecrease).toBe(true);
     }
+  });
+
+  it("the sprint bot covers more ground than the walk bot over the same window", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-showcase4",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect();
+    await tick(h, 2);
+
+    let walkTravel = 0;
+    let sprintTravel = 0;
+    let prevWalkZ = liveState(h).players["bot-walk"]!.z;
+    let prevSprintZ = liveState(h).players["bot-sprint"]!.z;
+    for (let i = 0; i < 150; i++) {
+      await tick(h, 2);
+      const wz = liveState(h).players["bot-walk"]!.z;
+      const sz = liveState(h).players["bot-sprint"]!.z;
+      walkTravel += Math.abs(wz - prevWalkZ);
+      sprintTravel += Math.abs(sz - prevSprintZ);
+      prevWalkZ = wz;
+      prevSprintZ = sz;
+    }
+    expect(sprintTravel).toBeGreaterThan(walkTravel);
+  });
+
+  it("no showcase bot ever fires, across many ticks", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-showcase5",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect();
+    await tick(h, 150);
 
     const botFired = h
       .broadcastsOf("s:msg")

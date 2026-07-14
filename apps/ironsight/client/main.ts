@@ -21,7 +21,7 @@ import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } 
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { dirFromAngles } from "../src/weapons.js";
-import { MODE_ORDER, mapForMode, isTeamless } from "../src/modes.js";
+import { MODE_ORDER, mapForMode, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 import { GAME } from "../src/game-config.js";
 
@@ -91,6 +91,7 @@ async function main(): Promise<void> {
 
   const name = (id: string): string => {
     if (id === net.myId) return GAME.text.selfName;
+    if (id in PRACTICE_SHOWCASE_LABELS) return PRACTICE_SHOWCASE_LABELS[id]!;
     if (id.startsWith("bot-")) return GAME.text.botNameFmt.replace("{n}", id.slice(4));
     return id.slice(0, 4);
   };

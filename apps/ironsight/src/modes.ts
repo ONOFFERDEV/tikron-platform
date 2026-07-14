@@ -10,6 +10,7 @@ import { ARENA1 } from "./map/arena1.js";
 import { ARENA2 } from "./map/arena2.js";
 import type { MapDef } from "./map/types.js";
 import type { ArenaState } from "./schema.js";
+import type { ShowcaseRole } from "./bots.js";
 
 export type ModeId = "tdm" | "ffa" | "dom" | "practice";
 
@@ -142,6 +143,48 @@ export const PRACTICE_MODE: GameMode = {
     return null; // practice never ends
   },
 };
+
+/** One row per {@link ShowcaseRole}, positioned/named for arena-room.ts's practice
+ *  bot fill + client/main.ts's scoreboard name lookup. */
+export interface ShowcaseBotDef {
+  readonly id: string;
+  readonly role: ShowcaseRole;
+  readonly label: string;
+  readonly x: number;
+  readonly z: number;
+  /** Metres either side of `z` the bot paces (0 = stationary). */
+  readonly amp: number;
+}
+
+/**
+ * Practice-mode-only demonstration roster: one bot per {@link ShowcaseRole}, so a
+ * solo player can see every crouch/sprint animation without needing a second
+ * client. Practice is always played on ARENA1 (see {@link mapForMode}), and these
+ * positions are specific to it: all sit at x=12 — 8 m ahead, along +x, of the
+ * room's first (teamless round-robin) spawn point {x:4,z:6} (arena-room.ts's
+ * spawnInto pins showcase bots here regardless of the round-robin, including on
+ * respawn) — and every ARENA1_BOXES entry starts at x=14+, so that whole Z range
+ * is clear of interior geometry. Reciprocating bots pace along Z: the practice
+ * spawn faces yaw=π/2 (+x, see GAME.teams.spawnFacingYaw), so Z is what reads as
+ * left-right on screen — a profile-view gait, not a toward/away foreshortened one.
+ */
+export const PRACTICE_SHOWCASE_BOTS: readonly ShowcaseBotDef[] = [
+  { id: "bot-idle", role: "idle", label: "IDLE", x: 12, z: 6, amp: 0 },
+  { id: "bot-crouch", role: "crouch", label: "CROUCH", x: 12, z: 10, amp: 0 },
+  { id: "bot-sneak", role: "sneak", label: "SNEAK", x: 12, z: 15, amp: 3 },
+  { id: "bot-walk", role: "walk", label: "WALK", x: 12, z: 23, amp: 4 },
+  { id: "bot-sprint", role: "sprint", label: "SPRINT", x: 12, z: 28, amp: 10 },
+];
+
+/** The stationary showcase roles face back along this yaw so their pose reads
+ *  head-on to the spawning player (who faces the opposite way, +x, toward them). */
+export const PRACTICE_SHOWCASE_FACE_YAW = -Math.PI / 2;
+
+/** id → scoreboard label for the showcase roster — client/main.ts's name() checks
+ *  this before falling back to the generic "BOT{n}" naming other modes' bots use. */
+export const PRACTICE_SHOWCASE_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
+  PRACTICE_SHOWCASE_BOTS.map((b) => [b.id, b.label]),
+);
 
 /** Every room id practice matchmaking issues is `arena-practice-<random>` (a
  *  private per-request room — see index.ts's handleMatchmake) — matched by

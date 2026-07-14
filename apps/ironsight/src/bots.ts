@@ -82,6 +82,17 @@ export interface BotEnemyView extends BotPlayerView {
   id: string;
 }
 
+/** Practice-only demonstration roles — see {@link showcaseThink}. */
+export type ShowcaseRole = "idle" | "walk" | "sprint" | "crouch" | "sneak";
+
+/** What a showcase bot needs beyond its role: a fixed facing for the stationary
+ *  roles (idle/crouch), pointed back at the spawning player — supplied by the
+ *  room, which is the one that knows which way the practice spawn faces. */
+export interface ShowcaseView {
+  role: ShowcaseRole;
+  faceYaw: number;
+}
+
 /** The world as the bot perceives it this tick: own state, enemy list, map constants. */
 export interface BotView {
   self: BotPlayerView & {
@@ -105,10 +116,10 @@ export interface BotView {
    *  favour (falls back to the plain waypoint patrol below). Set by the room
    *  (arena-room.ts's botView), never computed here. */
   objective?: { x: number; z: number };
-  /** Practice-only: a fully passive target — no movement, no aim tracking, no
-   *  firing, holding its current look (see botThink's very first check). Every
+  /** Practice-only: demonstrates one locomotion state instead of patrolling/
+   *  fighting (see botThink's very first check → {@link showcaseThink}). Every
    *  other mode leaves this undefined. Set by the room. */
-  passive?: boolean;
+  showcase?: ShowcaseView;
 }
 
 export interface BotBrainOptions {
@@ -280,6 +291,33 @@ function advanceWaypoint(brain: BotBrain, self: BotPlayerView): Vec2 {
 }
 
 /**
+ * Practice-only: demonstrates one locomotion state at a fixed spot instead of
+ * patrolling/fighting. Stationary roles (idle/crouch) hold a fixed facing
+ * (`view.faceYaw`, back toward the spawning player) so their pose reads head-on.
+ * Moving roles (walk/sprint/sneak) reuse the same 2-point {@link BotBrain.waypoints}
+ * patrol {@link advanceWaypoint} already drives for combat bots — the room sets
+ * them to the role's home ± amplitude along the map's Z axis — and face their own
+ * direction of travel, so a player looking down the map's X axis sees a natural
+ * profile-view gait rather than a sideways slide.
+ */
+function showcaseThink(view: ShowcaseView, self: BotPlayerView, brain: BotBrain): BotDecision {
+  if (view.role === "idle" || view.role === "crouch") {
+    return {
+      move: { mx: 0, mz: 0, jump: false, crouch: view.role === "crouch", sprint: false },
+      look: { yaw: view.faceYaw, pitch: 0 },
+      fire: false,
+    };
+  }
+  const wp = advanceWaypoint(brain, self);
+  const yaw = Math.atan2(wp.x - self.x, wp.y - self.z);
+  return {
+    look: { yaw, pitch: 0 },
+    move: { mx: 0, mz: 1, jump: false, crouch: view.role === "sneak", sprint: view.role === "sprint" },
+    fire: false,
+  };
+}
+
+/**
  * Decide this tick's intents from the perceived world. Pure given `view` and `brain`'s
  * current contents — `brain` is the caller-owned mutable state threaded through every
  * call (patrol cursor, aim-noise RNG stream, target-lock timer), so this function never
@@ -289,16 +327,8 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   brain.clockMs += dtMs;
   const { self, enemies } = view;
 
-  // Practice-only: a fully passive target — no movement, no aim tracking, no
-  // firing. Holds its current look (self.yaw/pitch) rather than snapping to a
-  // fixed direction every tick, so it doesn't visibly "reset" facing in place.
-  if (view.passive) {
-    return {
-      move: { mx: 0, mz: 0, jump: false, crouch: false, sprint: false },
-      look: { yaw: self.yaw, pitch: self.pitch },
-      fire: false,
-    };
-  }
+  // Practice-only: demonstrate one locomotion state — no aim tracking, no firing.
+  if (view.showcase) return showcaseThink(view.showcase, self, brain);
 
   if (!self.alive) {
     brain.wpIndex = 0;

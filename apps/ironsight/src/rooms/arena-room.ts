@@ -24,7 +24,16 @@ import { resolveHitscan, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
-import { modeFromRoomId, modeIndex, mapForMode, type GameMode, type ModeCtx } from "../modes.js";
+import {
+  modeFromRoomId,
+  modeIndex,
+  mapForMode,
+  PRACTICE_SHOWCASE_BOTS,
+  PRACTICE_SHOWCASE_FACE_YAW,
+  type GameMode,
+  type ModeCtx,
+  type ShowcaseBotDef,
+} from "../modes.js";
 import { botThink, createBotBrain, type BotBrain, type BotView } from "../bots.js";
 import { GAME } from "../game-config.js";
 
@@ -192,6 +201,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (this.gameMode.id === "practice") {
       this.startInWarmup = false;
       this.matchTimeMs = Infinity;
+      // 1 solo player + the full showcase roster (see reconcileBots/addShowcaseBot) —
+      // unless a subclass already overrode fillToPlayers itself (e.g. a scripted-duel
+      // test room that wants zero filler bots), which this must not stomp.
+      if (this.fillToPlayers === MATCH.fillToPlayers) {
+        this.fillToPlayers = PRACTICE_SHOWCASE_BOTS.length + 1;
+      }
     }
 
     const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
@@ -918,6 +933,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.swapUntil.delete(id);
     this.nadeReadyAt.delete(id);
     this.hits.delete(id);
+
+    // Practice showcase bots ignore the round-robin pool above — pinned to their
+    // demo spot every spawn (including auto-respawn after a stray kill, since this
+    // is the one spawn path both addShowcaseBot and the tick's respawn loop share)
+    // so the layout never drifts. Facing/crouch settle themselves: showcaseThink
+    // drives both continuously via the normal input path (see bots.ts).
+    const showcase = PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id);
+    if (showcase) {
+      p.x = showcase.x;
+      p.z = showcase.z;
+      p.yaw = PRACTICE_SHOWCASE_FACE_YAW;
+    }
   }
 
   private handleRespawn(client: Client): void {
@@ -972,15 +999,24 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   /** Fill to {@link MATCH.fillToPlayers} (real + bots). Real players are never
-   *  removed; only bot seats are added/trimmed to hit the target. */
+   *  removed; only bot seats are added/trimmed to hit the target. Practice fills
+   *  from the fixed {@link PRACTICE_SHOWCASE_BOTS} roster instead of generic
+   *  numbered combat bots (see addShowcaseBot). */
   private reconcileBots(): void {
     const ids = Object.keys(this.state.players);
     const botIds = ids.filter((id) => id.startsWith("bot-"));
     const target = this.fillToPlayers;
+    const showcase = this.gameMode.id === "practice";
 
     let deficit = target - ids.length;
     while (deficit > 0) {
-      this.addBot();
+      if (showcase) {
+        const def = PRACTICE_SHOWCASE_BOTS.find((b) => !this.state.players[b.id]);
+        if (!def) break; // roster exhausted — shouldn't happen given fillToPlayers's derivation
+        this.addShowcaseBot(def);
+      } else {
+        this.addBot();
+      }
       deficit -= 1;
     }
 
@@ -999,6 +1035,25 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const n = Number(id.slice(4));
     this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints() }));
     this.spawnInto(p, id);
+    this.markStateChanged();
+  }
+
+  /** Practice-only: adds one fixed-role showcase bot (see modes.ts's
+   *  {@link PRACTICE_SHOWCASE_BOTS}) — a stationary role gets a single-point
+   *  "waypoint" (already at it, so advanceWaypoint never has anywhere to send
+   *  it), a pacing role gets its home ∓ amplitude along Z as a 2-point patrol. */
+  private addShowcaseBot(def: ShowcaseBotDef): void {
+    const p = this.initPlayer(def.id, 0);
+    const waypoints =
+      def.amp > 0
+        ? [
+            { x: def.x, y: def.z - def.amp },
+            { x: def.x, y: def.z + def.amp },
+          ]
+        : [{ x: def.x, y: def.z }];
+    const seed = this.state.seed + PRACTICE_SHOWCASE_BOTS.indexOf(def) + 1;
+    this.botBrains.set(def.id, createBotBrain({ seed: seed || 1, waypoints }));
+    this.spawnInto(p, def.id);
     this.markStateChanged();
   }
 
@@ -1073,8 +1128,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.boxes,
       objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
-      passive: this.gameMode.id === "practice" ? true : undefined,
+      showcase: this.gameMode.id === "practice" ? this.showcaseViewFor(id) : undefined,
     };
+  }
+
+  /** Practice-only: this bot id's {@link ShowcaseView}, or undefined if `id` isn't
+   *  in the showcase roster (shouldn't happen — every practice bot comes from
+   *  addShowcaseBot — but this stays a lookup rather than an assumption). */
+  private showcaseViewFor(id: string): { role: ShowcaseBotDef["role"]; faceYaw: number } | undefined {
+    const def = PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id);
+    return def ? { role: def.role, faceYaw: PRACTICE_SHOWCASE_FACE_YAW } : undefined;
   }
 
   /** DOM-only: the nearest reachable point (a `capWaypoints` anchor, else the

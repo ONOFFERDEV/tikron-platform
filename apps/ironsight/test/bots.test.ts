@@ -78,19 +78,77 @@ describe("botThink — dom objective", () => {
   });
 });
 
-describe("botThink — practice passive target", () => {
-  it("returns a no-op decision holding its current look, even with a visible nearby enemy", () => {
-    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 0, y: 0 }] });
+describe("botThink — practice showcase bots", () => {
+  const FACE_YAW = -Math.PI / 2;
+
+  it("idle: stationary, holds its fixed facing, ignores a visible nearby enemy", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 6 }] }); // unused (stationary)
     const view = baseView({
-      self: { x: 10, y: 0, z: 10, crouch: false, alive: true, team: 0, yaw: 1.23, pitch: -0.4 },
-      enemies: [{ id: "e1", x: 15, y: 0, z: 10, crouch: false, alive: true, team: 1 }], // 5 m away — would normally be engaged
+      self: { x: 12, y: 0, z: 6, crouch: false, alive: true, team: 0, yaw: 1.23, pitch: -0.4 },
+      enemies: [{ id: "e1", x: 15, y: 0, z: 6, crouch: false, alive: true, team: 1 }], // 3 m away — would normally be engaged
       teamless: true,
-      passive: true,
+      showcase: { role: "idle", faceYaw: FACE_YAW },
     });
     const decision = botThink(view, brain, 50);
 
     expect(decision.move).toEqual({ mx: 0, mz: 0, jump: false, crouch: false, sprint: false });
     expect(decision.fire).toBe(false);
-    expect(decision.look).toEqual({ yaw: 1.23, pitch: -0.4 }); // held, not reset
+    expect(decision.look).toEqual({ yaw: FACE_YAW, pitch: 0 }); // fixed facing, not the enemy
+  });
+
+  it("crouch: stationary but crouched", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 10 }] });
+    const view = baseView({
+      self: { x: 12, y: 0, z: 10, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
+      showcase: { role: "crouch", faceYaw: FACE_YAW },
+    });
+    const decision = botThink(view, brain, 50);
+
+    expect(decision.move).toEqual({ mx: 0, mz: 0, jump: false, crouch: true, sprint: false });
+    expect(decision.look).toEqual({ yaw: FACE_YAW, pitch: 0 });
+  });
+
+  it("walk: paces toward the brain's current waypoint, facing its travel direction, no crouch/sprint", () => {
+    const brain = createBotBrain({
+      seed: 1,
+      waypoints: [{ x: 12, y: 19 }, { x: 12, y: 27 }], // home 23 ∓ amp 4
+    });
+    const view = baseView({
+      self: { x: 12, y: 0, z: 23, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
+      showcase: { role: "walk", faceYaw: FACE_YAW },
+    });
+    const decision = botThink(view, brain, 50);
+
+    expect(decision.move.mz).toBeCloseTo(1, 5); // "forward" in its own (travel) facing frame
+    expect(decision.move.mx).toBeCloseTo(0, 5);
+    expect(decision.move.crouch).toBe(false);
+    expect(decision.move.sprint).toBe(false);
+    expect(decision.fire).toBe(false);
+  });
+
+  it("sprint: same pacing pattern as walk, but sprint=true", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 18 }, { x: 12, y: 38 }] });
+    const view = baseView({
+      self: { x: 12, y: 0, z: 28, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
+      showcase: { role: "sprint", faceYaw: FACE_YAW },
+    });
+    const decision = botThink(view, brain, 50);
+
+    expect(decision.move.mz).toBeCloseTo(1, 5);
+    expect(decision.move.crouch).toBe(false);
+    expect(decision.move.sprint).toBe(true);
+  });
+
+  it("sneak: same pacing pattern as walk, but crouched (not sprinting)", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 12 }, { x: 12, y: 18 }] });
+    const view = baseView({
+      self: { x: 12, y: 0, z: 15, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
+      showcase: { role: "sneak", faceYaw: FACE_YAW },
+    });
+    const decision = botThink(view, brain, 50);
+
+    expect(decision.move.mz).toBeCloseTo(1, 5);
+    expect(decision.move.crouch).toBe(true);
+    expect(decision.move.sprint).toBe(false);
   });
 });
