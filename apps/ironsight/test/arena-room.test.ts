@@ -58,6 +58,9 @@ class VoteArena extends ArenaRoomImpl {
 
 /** Pitch that aims the shooter's eye-height muzzle at an enemy's chest 10 m away. */
 const BODY_PITCH = Math.atan2(1.0 - PLAYER.standEye, 10);
+/** Pitch that aims at the target's head-sphere centre (standHeight − headRadius,
+ *  same derivation hitscan.ts's headCentre uses) instead of the chest. */
+const HEAD_PITCH = Math.atan2(PLAYER.standHeight - PLAYER.headRadius - PLAYER.standEye, 10);
 
 function liveState(h: TestRoomHandle<ArenaState>): ArenaState {
   return (h.room as unknown as { state: ArenaState }).state;
@@ -201,6 +204,57 @@ describe("arena room — weapon (server-authoritative)", () => {
     const refilled = ammoFrames(a).at(-1)!.payload as { mag: number; reserve: number };
     expect(refilled.mag).toBe(AR.mag); // topped back to 30
     expect(refilled.reserve).toBe(AR.reserve - 3); // 3 rounds came from the reserve
+  });
+});
+
+describe("arena room — shot event's per-victim hits (remote hit-reaction trigger)", () => {
+  it("a body hit reports the victim id with head=false", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire");
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean; hits: { id: string; head: boolean }[] };
+    expect(payload.hit).toBe(true);
+    expect(payload.hits).toEqual([{ id: target.id, head: false }]);
+  });
+
+  it("a headshot reports head=true", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: HEAD_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire");
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hits: { id: string; head: boolean }[] };
+    expect(payload.hits).toEqual([{ id: target.id, head: true }]);
+  });
+
+  it("a miss reports an empty hits array", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    await tick(h, 2);
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH }); // nothing downrange
+
+    await shooter.send("fire");
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean; hits: unknown[] };
+    expect(payload.hit).toBe(false);
+    expect(payload.hits).toEqual([]);
   });
 });
 

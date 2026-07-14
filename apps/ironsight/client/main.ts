@@ -195,6 +195,13 @@ async function main(): Promise<void> {
       dir,
       e.hit,
     );
+    // Remote hit-reaction: never the local player (no first-person body model) —
+    // whoever fired, either shooter or victim can be self, so this checks the
+    // VICTIM id specifically, not e.from. `?? []` guards the deploy-transition
+    // window where a not-yet-updated server emits shots without `hits`.
+    for (const h of e.hits ?? []) {
+      if (h.id !== net.myId) scene.playHitReaction(h.id, h.head);
+    }
   });
   net.onMatchEnd((e) => {
     matchEnd = { winner: e.winner, red: e.red, blue: e.blue };

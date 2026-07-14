@@ -587,6 +587,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         dz: baseDir.z,
         dist,
         hit: victims.length > 0,
+        // Per-victim id + headshot flag, appended for the client's remote
+        // hit-reaction animation (rig-loader.ts/scene.ts) — `hit` above is
+        // unchanged (the tracer color still reads that plain aggregate).
+        hits: victims.map((vid) => ({ id: vid, head: dmgByVictim.get(vid)!.head })),
       },
       origin.x,
       origin.z,

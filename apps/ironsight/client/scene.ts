@@ -175,6 +175,10 @@ interface PlayerRig {
   /** performance.now() deadline until which a just-died model rig stays visible
    *  playing its death clip; undefined when not mid-death-hold. */
   deadHoldUntil?: number;
+  /** performance.now() deadline until which a hit_chest/hit_head one-shot is
+   *  still playing — syncModelRig skips its own locomotion setState() call
+   *  until this passes; undefined when no hit reaction is in progress. */
+  hitReactionUntil?: number;
   prevX?: number;
   prevZ?: number;
   /** Local Y (relative to `group`, i.e. relative to the feet) of the head/eye
@@ -686,6 +690,24 @@ export class SceneRig {
     }
   }
 
+  /** Plays a one-shot hit-reaction clip on remote player `id` — headshot uses
+   *  "hit_head" if the GLB has it, else falls back to "hit_chest" same as a body
+   *  hit; a true no-op (unchanged behavior) if the rig has neither clip (capsule
+   *  fallback, or an older/backup GLB without them) — see rig-loader.ts's
+   *  hasHitChestClip/hasHitHeadClip. Never called for the local player (main.ts
+   *  guards `e.from`/`h.id !== net.myId`) since first-person has no body model. */
+  playHitReaction(id: string, headshot: boolean): void {
+    const rig = this.players.get(id);
+    if (!rig || rig.kind !== "model") return;
+    const model = rig.model!;
+    const state: LocomotionState | undefined =
+      headshot && model.hasHitHeadClip ? "hit_head" : model.hasHitChestClip ? "hit_chest" : undefined;
+    if (!state) return;
+    model.setState(state);
+    const dur = (state === "hit_head" ? model.hitHeadDuration : model.hitChestDuration) ?? 0;
+    rig.hitReactionUntil = performance.now() + dur * 1000;
+  }
+
   private syncCapsuleRig(rig: PlayerRig, pose: PlayerPose): void {
     rig.group.visible = pose.alive;
     if (!pose.alive) return;
@@ -707,10 +729,13 @@ export class SceneRig {
     if (!pose.alive) {
       if (wasAlive) {
         // Death edge: play the clip once, hold the rig visible for the shorter of
-        // the clip's own length or DEATH_HOLD_MS, then hide it.
+        // the clip's own length or DEATH_HOLD_MS, then hide it. Death always wins
+        // over a hit reaction in progress — setState("death") below crossfades
+        // away from it unconditionally (no reacting/interrupt check needed here).
         model.setState("death");
         const clipMs = (model.deathDuration ?? DEATH_HOLD_MS / 1000) * 1000;
         rig.deadHoldUntil = now + Math.min(DEATH_HOLD_MS, clipMs);
+        rig.hitReactionUntil = undefined;
       }
       const holding = rig.deadHoldUntil !== undefined && now < rig.deadHoldUntil;
       rig.group.visible = holding;
@@ -724,6 +749,7 @@ export class SceneRig {
       // teleport-to-spawn jump isn't read as an instantaneous sprint next frame.
       model.forceIdle();
       rig.deadHoldUntil = undefined;
+      rig.hitReactionUntil = undefined;
       rig.prevX = pose.x;
       rig.prevZ = pose.z;
     }
@@ -751,7 +777,14 @@ export class SceneRig {
       locomotion =
         speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : model.hasSprintClip ? "sprint" : "run";
     }
-    model.setState(locomotion);
+    // A hit_chest/hit_head one-shot in progress pushes locomotion selection aside
+    // until its own duration elapses (playHitReaction sets this deadline) — at
+    // which point setState(locomotion) resumes into whatever's CURRENT (not
+    // whatever it was interrupted from), matching pose/speed same as any other frame.
+    if (rig.hitReactionUntil === undefined || now >= rig.hitReactionUntil) {
+      rig.hitReactionUntil = undefined;
+      model.setState(locomotion);
+    }
     model.update(dtSec);
   }
 

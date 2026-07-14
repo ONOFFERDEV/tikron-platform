@@ -52,6 +52,10 @@ export interface ShotEvent {
   dz: number;
   dist: number;
   hit: boolean;
+  /** Per-victim id + headshot flag, for remote hit-reaction animations (scene.ts's
+   *  playHitReaction) — appended after the M0-M3 fields above; `hit` above is
+   *  unchanged (still the plain aggregate the tracer color reads). */
+  hits: { id: string; head: boolean }[];
 }
 export interface NadeSpawnEvent {
   id: string;
