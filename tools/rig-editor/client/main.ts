@@ -18,6 +18,7 @@ import { loadRigFromFile, composeCorrections, type LoadedRig, type CorrectionMap
 import { listKeyTicks, findKeyIndexAtTime, findQuaternionTrack, readKeyQuaternion, writeKeyQuaternion, keyEditId } from "./keyframes.js";
 import { buildCorrectionJson, downloadText, exportBakedGlb } from "./export.js";
 import { UndoStack } from "./undo.js";
+import { runGenerate } from "./generate.js";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("#app mount point missing");
@@ -32,6 +33,10 @@ let playing = false;
 let loop = true;
 let speed = 1;
 let pendingBaseRefresh = false;
+/** Client-side guard against double-submitting Generate — the server's own
+ *  409 lock is authoritative; this just avoids firing a request we already
+ *  know will bounce. */
+let generating = false;
 
 /** Set right when a drag starts, from mouseDown — kept only for symmetry/
  *  documentation; the actual delta is derived from the bone's live quaternion
@@ -320,6 +325,20 @@ const callbacks: Callbacks = {
     ui.setKeySelectionActive(false);
     refreshBoneInfo();
     refreshKeyTicks();
+  },
+  onGenerate(params) {
+    if (generating) return;
+    generating = true;
+    ui.setGenerating(true);
+    ui.clearGenerateLog();
+    void runGenerate(params, {
+      onLog: (line) => ui.appendGenerateLog(line),
+      onError: (message) => ui.setGenerateError(message),
+    }).then((file) => {
+      generating = false;
+      ui.setGenerating(false);
+      if (file) void loadFile(file);
+    });
   },
 };
 

@@ -15,6 +15,9 @@ examples/discord-activity/public/client.js
 examples/discord-activity/public/client.js.map
 apps/ironsight/public/client.js
 apps/ironsight/public/client.js.map
+tools/rig-editor/public/client.js
+tools/rig-editor/public/client.js.map
+tools/rig-editor/.cache/
 coverage/
 *.log
 .dev.vars

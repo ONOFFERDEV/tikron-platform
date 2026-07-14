@@ -7,6 +7,7 @@
  */
 import type { BoneNode } from "./rig.js";
 import type { KeyTick } from "./keyframes.js";
+import { slugify, type GenerateParams } from "./generate.js";
 
 const css = `
 #rig-ui { position: fixed; inset: 0; display: grid; grid-template-columns: 240px 1fr 300px; grid-template-rows: 1fr 96px; font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #dfe4ee; }
@@ -37,6 +38,11 @@ const css = `
 #ticks i.edited { background: #ffd24a; }
 #ticks i.active { background: #59c1ff; width: 3px; }
 #quantize-note { font-size: 10px; opacity: 0.65; margin-top: 4px; }
+#rig-ui textarea, #rig-ui input[type=text], #rig-ui input[type=number] { font: inherit; background: #12151c; color: #dfe4ee; border: 1px solid #3a4152; border-radius: 4px; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+#gen-prompt { resize: vertical; min-height: 40px; }
+#gen-fields label.inline { display: flex; flex-direction: column; gap: 2px; font-size: 11px; opacity: 0.8; flex: 1; }
+#gen-log { background: #0d0f14; border: 1px solid #2a2f3a; border-radius: 4px; padding: 6px; font-size: 10.5px; height: 130px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+#gen-error { color: #e08a6a; font-size: 11px; white-space: pre-wrap; }
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -64,6 +70,7 @@ export interface Callbacks {
   onExportGlb(): void;
   onKeyTickClick(time: number): void;
   onClearKeySelection(): void;
+  onGenerate(params: GenerateParams): void;
 }
 
 export class RigUi {
@@ -82,8 +89,18 @@ export class RigUi {
   private readonly undoBtn: HTMLButtonElement;
   private readonly redoBtn: HTMLButtonElement;
   private readonly clearKeyBtn: HTMLButtonElement;
+  private readonly genPromptEl: HTMLTextAreaElement;
+  private readonly genNameEl: HTMLInputElement;
+  private readonly genSeedEl: HTMLInputElement;
+  private readonly genBackendEl: HTMLSelectElement;
+  private readonly genSlimEl: HTMLInputElement;
+  private readonly genBtn: HTMLButtonElement;
+  private readonly genLogEl: HTMLElement;
+  private readonly genErrorEl: HTMLElement;
   private readonly cb: Callbacks;
   private scrubbing = false;
+  /** Once the user hand-edits the name field, prompt changes stop overwriting it. */
+  private genNameTouched = false;
 
   constructor(container: HTMLElement, cb: Callbacks) {
     this.cb = cb;
@@ -104,6 +121,61 @@ export class RigUi {
 
     // --- right: side panel ---
     this.sideEl = el("div", "rig-side");
+
+    this.sideEl.appendChild(el("h2", undefined, "Generate"));
+    this.genPromptEl = el("textarea", "gen-prompt");
+    this.genPromptEl.placeholder = "armored space marine, battle-worn, ...";
+    this.genPromptEl.addEventListener("input", () => {
+      if (!this.genNameTouched) this.genNameEl.value = slugify(this.genPromptEl.value);
+    });
+    this.sideEl.appendChild(this.genPromptEl);
+
+    const genFields = el("div", "gen-fields"); genFields.className = "row";
+    const nameLabel = el("label"); nameLabel.className = "inline";
+    nameLabel.append("name");
+    this.genNameEl = el("input"); this.genNameEl.type = "text"; this.genNameEl.placeholder = "auto from prompt";
+    this.genNameEl.addEventListener("input", () => { this.genNameTouched = this.genNameEl.value.length > 0; });
+    nameLabel.appendChild(this.genNameEl);
+
+    const seedLabel = el("label"); seedLabel.className = "inline";
+    seedLabel.append("seed");
+    this.genSeedEl = el("input"); this.genSeedEl.type = "number"; this.genSeedEl.placeholder = "random";
+    seedLabel.appendChild(this.genSeedEl);
+    genFields.append(nameLabel, seedLabel);
+    this.sideEl.appendChild(genFields);
+
+    const genFields2 = el("div", undefined); genFields2.className = "row";
+    const backendLabel = el("label"); backendLabel.className = "inline";
+    backendLabel.append("backend");
+    this.genBackendEl = el("select", "gen-backend");
+    this.genBackendEl.append(el("option", undefined, "hunyuan"), el("option", undefined, "trellis"));
+    backendLabel.appendChild(this.genBackendEl);
+    const slimLabel = el("label");
+    this.genSlimEl = el("input"); this.genSlimEl.type = "checkbox";
+    slimLabel.append(this.genSlimEl, document.createTextNode(" game-slim"));
+    genFields2.append(backendLabel, slimLabel);
+    this.sideEl.appendChild(genFields2);
+
+    this.genBtn = el("button", "generate-btn", "Generate");
+    this.genBtn.className = "primary";
+    this.genBtn.addEventListener("click", () => {
+      const prompt = this.genPromptEl.value.trim();
+      const name = this.genNameEl.value.trim() || slugify(prompt);
+      const seedRaw = this.genSeedEl.value.trim();
+      cb.onGenerate({
+        prompt,
+        name,
+        seed: seedRaw ? Number(seedRaw) : undefined,
+        backend: this.genBackendEl.value === "trellis" ? "trellis" : "hunyuan",
+        gameSlim: this.genSlimEl.checked,
+      });
+    });
+    this.sideEl.appendChild(this.genBtn);
+
+    this.genErrorEl = el("div", "gen-error");
+    this.sideEl.appendChild(this.genErrorEl);
+    this.genLogEl = el("div", "gen-log");
+    this.sideEl.appendChild(this.genLogEl);
 
     this.sideEl.appendChild(el("h2", undefined, "Load"));
     this.dropEl = el("div", "rig-drop", "Drag &amp; drop a GLB here");
@@ -282,6 +354,27 @@ export class RigUi {
 
   setKeySelectionActive(active: boolean): void {
     this.clearKeyBtn.disabled = !active;
+  }
+
+  // --- generate panel ----------------------------------------------------
+
+  setGenerating(active: boolean): void {
+    this.genBtn.disabled = active;
+    this.genBtn.textContent = active ? "Generating…" : "Generate";
+  }
+
+  clearGenerateLog(): void {
+    this.genLogEl.textContent = "";
+    this.genErrorEl.textContent = "";
+  }
+
+  appendGenerateLog(line: string): void {
+    this.genLogEl.textContent += (this.genLogEl.textContent ? "\n" : "") + line;
+    this.genLogEl.scrollTop = this.genLogEl.scrollHeight;
+  }
+
+  setGenerateError(message: string | undefined): void {
+    this.genErrorEl.textContent = message ?? "";
   }
 
   // --- playback bar updates ----------------------------------------------------

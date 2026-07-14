@@ -51,6 +51,24 @@ pnpm --filter rig-editor typecheck
     전역 보정 합성).
 12. (여유 시) 선택 키 복제/삭제.
 
+### M3 — 자동 생성 연결 (Generate 패널)
+13. **UI**: LOAD 패널 위에 GENERATE 패널 — 프롬프트(영문, 파이프라인 Flux 템플릿에 조각으로
+    들어감), 이름(프롬프트에서 슬러그 자동 생성, 수정 가능), 시드(빈칸=서버측 랜덤), 백엔드
+    선택(hunyuan 기본 | trellis), game-slim 체크(기본 해제 — 캐릭터는 비-slim 관례),
+    [Generate] 버튼, 진행 로그 패널(파이프라인 stdout 라인 실시간 표시).
+14. **로컬 API**(scripts/dev.mjs 확장 — esbuild serve 앞단에 node http 핸들러):
+    - `POST /api/generate` {prompt,name,seed?,backend,gameSlim} → 202 {jobId}. 동시 1작업 락(409).
+    - `GET /api/generate/:jobId/events` → SSE: 파이프라인 stdout/stderr 라인 + 종료 이벤트(성공/실패).
+    - `GET /api/generate/:jobId/result.glb` → 완료 시 GLB 서빙.
+    - 구현: `child_process.spawn("ssh", ["onofferserver", <원커맨드>])`로
+      `bash ~/assetgen/unirig_pipeline.sh "<prompt>" <name> [seed] [--game-slim] [--backend ...]`
+      실행, 완료 후 `scp onofferserver:~/unirig/poc_out/<name>/rigged-animated.glb` →
+      `tools/rig-editor/.cache/<name>.glb`(디렉토리 gitignore). 타임아웃 10분.
+    - **셸 인젝션 방어**: prompt/name은 화이트리스트(`[A-Za-z0-9 ,.'-]` / `[a-z0-9-]`)로 검증,
+      불통과 시 400. 로컬 전용(127.0.0.1 바인딩)이어도 방어는 정식으로.
+15. **클라 연결**: 완료 이벤트 수신 → result.glb fetch → 기존 GLB 로드 경로로 자동 로드.
+    실패 시 로그 패널에 원문 그대로(파이프라인 게이트 FAIL 메시지 포함).
+
 ### 나이스투해브 (시간 남을 때만)
 - 레퍼런스 고스트: 두 번째 GLB(KayKit 레퍼런스 등)를 옆에 반투명 로드, 같은 클립명 동기 재생.
 - 인브라우저 quantize: `@gltf-transform/core`+`functions`를 번들해 export 시 재양자화(용량 복원).
