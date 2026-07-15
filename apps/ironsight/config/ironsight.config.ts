@@ -269,6 +269,20 @@ export const ironsightConfig: GameConfig = defineConfig({
       3: "/assets/models/weapons/sniper.glb",
       4: "/assets/models/weapons/pistol.glb",
     },
+    // Synty viewmodel weapon bundle: five muzzle-normalized (+Z), grip-origined
+    // weapons merged into one texture-deduped GLB. Must stay a SINGLE-scene GLB —
+    // a multi-scene merge makes GLTFLoader expose only the default scene, so the
+    // other nodes silently resolve to the procedural fallback.
+    bundle: {
+      url: "/assets/models/weapons-vm.glb",
+      nodes: {
+        0: "wep_ar",
+        1: "wep_smg",
+        2: "wep_shotgun",
+        3: "wep_sniper",
+        4: "wep_pistol",
+      },
+    },
   },
 
   // --- models: rigged remote-player GLB (client/rig-loader.ts) ----------------

@@ -18,7 +18,7 @@ import { ARENA, PLAYER } from "../src/config.js";
 import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
-import { loadWeaponModel, cloneWeaponMesh } from "./weapon-loader.js";
+import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
@@ -75,34 +75,36 @@ interface WeaponVmTransform {
 }
 
 /**
- * Empirically-tuned per-weapon-slot scale/position/muzzle-tip offsets for the
- * cyber-trooper viewmodel GLBs (weaponVis.models — index matches WEAPONS'
- * AR/SMG/Shotgun/Sniper/Pistol order).
+ * Empirically-tuned per-weapon-slot scale/position/muzzle-tip offsets — index
+ * matches WEAPONS' AR/SMG/Shotgun/Sniper/Pistol order. Applies identically to
+ * either weaponVis source (a bundle node or a per-file model — see
+ * setWeaponVisual): `scale`/`posZ` are visually tuned per slot, then
+ * `muzzleZ` is DERIVED (not guessed) from the relationship this file's own
+ * transform pipeline creates — `rotation.y = Math.PI` flips local Z, so a
+ * model's own measured local max-Z (the muzzle tip, now confirmed at local
+ * +Z for every asset — see the bore-test note below) ends up at world
+ * `posZ - localMaxZ * scale`.
  *
- * The rotation direction was independently re-verified after a review flagged
- * the rendered weapons as looking backwards: rendering each raw GLB's two Z
- * extremes close-up (looking straight down the bore) shows a clear circular
- * muzzle opening at local +Z and a smooth, closed stock/butt face at local
- * -Z, for every one of the 5 assets — confirming +Z really is the muzzle, so
- * the shared `rotation.y = Math.PI` flip (this viewmodel's own forward is -Z)
- * is correct and untouched. The actual defect was `posZ`: the original values
- * placed each model's near (stock) end only ~0.05-0.1 units from the camera —
- * close enough to the near-clip plane to produce a heavily distorted,
- * unrecognizable close-up blob that read as "wrong orientation" even though
- * the rotation itself was fine. Reset here so every weapon's near point sits
- * ~0.3 units out (matching the procedural weapons' own depth), and `muzzleZ`
- * re-derived from each model's own measured bounding box at that new depth
- * (not guessed) so the muzzle flash/tracer origin still lands on the visible
- * barrel tip. A reported ~45° pistol grip tilt did not reproduce in this or
- * the original pass, at any scale/rotation tried — flagged, not "fixed",
- * since it was never observed here.
+ * Synty replacement (current values): re-derived for the new
+ * SM_Wep_Rifle_Base_01/SMG_01/Shotgun_Plasma_01/Sniper_01/Pistol_01 meshes,
+ * replacing the cyber-trooper set entirely (same 5 slots, different source
+ * geometry). `posZ` keeps the same ~0.3-unit-out convention the cyber-trooper pass
+ * established (close enough to the camera to read at a natural FPS size,
+ * far enough to clear the near-clip plane) and the shared rest yaw (+0.35,
+ * buildViewmodel) is unchanged.
+ *
+ * Bore test (confirms rotation, not just assumed): is-armfix's own per-asset
+ * red/blue marker renders (muzzle vs stock ends, from their orientation
+ * pipeline) plus in-game front-on captures of all 5 muzzle tips agree that
+ * local +Z is the muzzle for every asset, so the existing `rotation.y =
+ * Math.PI` flip (this viewmodel's own forward is -Z) needs no change.
  */
 const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
-  0: { scale: 0.4, posZ: -0.196, muzzleZ: -0.603 }, // AR
-  1: { scale: 0.35, posZ: -0.119, muzzleZ: -0.513 }, // SMG
-  2: { scale: 0.42, posZ: -0.204, muzzleZ: -0.65 }, // Shotgun
-  3: { scale: 0.45, posZ: -0.167, muzzleZ: -0.715 }, // Sniper
-  4: { scale: 0.3, posZ: -0.117, muzzleZ: -0.486 }, // Pistol
+  0: { scale: 0.45, posZ: -0.3, muzzleZ: -0.543 }, // AR — SM_Wep_Rifle_Base_01 (localMaxZ 0.54)
+  1: { scale: 0.7, posZ: -0.3, muzzleZ: -0.461 }, // SMG — SM_Wep_SMG_01 (localMaxZ 0.23)
+  2: { scale: 0.5, posZ: -0.3, muzzleZ: -0.525 }, // Shotgun — SM_Wep_Shotgun_Plasma_01 (localMaxZ 0.45)
+  3: { scale: 0.38, posZ: -0.3, muzzleZ: -0.631 }, // Sniper — SM_Wep_Sniper_01 (localMaxZ 0.87)
+  4: { scale: 0.85, posZ: -0.3, muzzleZ: -0.47 }, // Pistol — SM_Wep_Pistol_01 (localMaxZ 0.2)
 };
 
 /**
@@ -474,7 +476,11 @@ export class SceneRig {
    *  configured or its load fails), then swaps in the GLB — with its own
    *  scale/position/muzzle-tip offset from VM_WEAPON_TRANSFORMS — once loaded.
    *  Guards against a stale load resolving after the player has since switched
-   *  to a different weapon. */
+   *  to a different weapon. Bundle mode (`weaponVis.bundle`) takes priority
+   *  over a per-slot single file for any slot it covers; a slot absent from
+   *  the bundle's `nodes` map falls back to `weaponVis.models`, then to the
+   *  procedural mesh — same 2-tier "try once, else stay procedural" pattern
+   *  either way, just a different source URL/extraction step. */
   private setWeaponVisual(index: number): void {
     this.disposeCurrentWeaponMesh();
     this.weaponHolder.add(buildWeaponMesh(index));
@@ -482,21 +488,32 @@ export class SceneRig {
     this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
     this.muzzleLight.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
 
-    const url = GAME.weaponVis.models?.[index];
     const transform = VM_WEAPON_TRANSFORMS[index];
-    if (!url || !transform) return;
+    if (!transform) return;
+    const bundle = GAME.weaponVis.bundle;
+    const nodeName = bundle?.nodes[index];
+    const url = nodeName ? bundle!.url : GAME.weaponVis.models?.[index];
+    if (!url) return;
+
     loadWeaponModel(url).then((gltf) => {
       if (!gltf) return; // load failed — weapon-loader already warned once, stay procedural
       if (this.weaponIndex !== index) return; // player swapped away again before this resolved
 
+      const obj = nodeName ? cloneWeaponBundleNode(gltf, nodeName) : cloneWeaponMesh(gltf);
+      if (!obj) return; // bundle loaded but this slot's node is missing — stay procedural
+
       this.disposeCurrentWeaponMesh();
-      const obj = cloneWeaponMesh(gltf);
       obj.scale.setScalar(transform.scale);
       obj.rotation.y = Math.PI; // this asset family's +Z-is-muzzle -> this viewmodel's -Z-is-forward
       obj.position.set(0, 0, transform.posZ);
-      obj.traverse((n) => {
-        if (n instanceof THREE.Mesh) n.material = VM_MODEL_MATERIAL;
-      });
+      // Legacy single-file cyber-trooper GLBs are untextured (shape-only) and
+      // need the shared flat material; bundle-mode Synty weapons ship their
+      // own dedup'd textured material (is-armfix's bundle pipeline) — keep it.
+      if (!nodeName) {
+        obj.traverse((n) => {
+          if (n instanceof THREE.Mesh) n.material = VM_MODEL_MATERIAL;
+        });
+      }
       this.weaponHolder.add(obj);
       this.weaponIsModel = true;
       this.muzzle.position.set(0, 0.02, transform.muzzleZ);

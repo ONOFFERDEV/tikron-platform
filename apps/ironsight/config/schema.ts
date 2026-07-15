@@ -345,9 +345,9 @@ export interface AudioConfig {
 // ── weapon visuals ────────────────────────────────────────────────────────────
 
 /** Viewmodel visuals (client/scene.ts's `VM_RECOIL`/`SWAP_DOWN_MS`/`SWAP_UP_MS`).
- *  `models` is optional — ironsight's weapons are procedural low-poly meshes built
- *  by `buildWeaponMesh(index)`; a future model swap would key off this map, with no
- *  loading logic implied by its mere presence in this wave. */
+ *  `models`/`bundle` are optional — ironsight's weapons are procedural low-poly
+ *  meshes built by `buildWeaponMesh(index)`; either model source is a visual
+ *  override only, with no loading logic implied by its mere presence. */
 export interface WeaponVisConfig {
   /** Per-weapon recoil kick, indexed like {@link GameConfig.weapons}. */
   recoil: readonly number[];
@@ -356,7 +356,17 @@ export interface WeaponVisConfig {
   swapDownMs: number;
   /** Raise-holder phase duration. */
   swapUpMs: number;
+  /** Legacy per-weapon single-file GLBs (untextured, one file per slot). */
   models?: Record<number, string>;
+  /** All 5 weapons merged into one GLB (is-armfix's manifest→bundle tool),
+   *  each its own named node — takes priority over `models` for any slot it
+   *  covers (client/weapon-loader.ts's cloneWeaponBundleNode); a slot absent
+   *  from `nodes` falls back to `models`, then to the procedural mesh. */
+  bundle?: {
+    url: string;
+    /** Slot index (matches {@link GameConfig.weapons}) → node name in the bundle. */
+    nodes: Record<number, string>;
+  };
 }
 
 // ── models (optional visual asset overrides) ─────────────────────────────────
