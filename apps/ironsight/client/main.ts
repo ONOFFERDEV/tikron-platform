@@ -117,6 +117,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
   };
 
   // --- discrete event + state edge handling ---------------------------------

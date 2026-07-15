@@ -32,6 +32,19 @@ export class Predictor {
   private accMs = 0;
   private seeded = false;
   private respawnSnap = false;
+  // `pos` only advances in fixed TICK_MS (20 Hz) steps — matching the server's
+  // own integration exactly is the whole point (see this file's header), but
+  // rendering `pos` directly means the camera visibly holds still for several
+  // 144 Hz render frames between ticks, then jumps a whole tick's movement in
+  // one frame (measured: ~7 static frames then a 0.45 m jump while sprinting —
+  // "moves in steps" report). `prevPos` is the position from just before the
+  // most recent tick; `eye()` interpolates between the two using how far into
+  // the NEXT tick `accMs` has already accumulated, so the camera moves a little
+  // every render frame instead of only on tick boundaries. Rotation was never
+  // affected — it's driven straight from mouse input every render frame, no
+  // fixed-step gate.
+  private prevPos: Vec3 = { x: 0, y: 0, z: 0 };
+  private primed = false;
 
   constructor(map: MapDef) {
     this.boxes = map.boxes;
@@ -41,11 +54,20 @@ export class Predictor {
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
    *  rate, buffering the jump edge across frames, then decay the render offset. */
   frame(dtMs: number, intent: MoveIntent, yaw: number): void {
+    if (!this.primed) {
+      // First call after construction, or after main.ts seeds `pos` directly
+      // (pre-game-loop spawn placement) — without this, the very first
+      // interpolated eye() would blend from the constructor's {0,0,0} default
+      // toward the real spawn position instead of starting there.
+      this.prevPos = { ...this.pos };
+      this.primed = true;
+    }
     if (intent.jump) this.pendingJump = true;
     if (this.alive) {
       this.accMs += Math.min(dtMs, MOVE.maxDtMs);
       while (this.accMs >= TICK_MS) {
         this.accMs -= TICK_MS;
+        this.prevPos = this.pos;
         this.step(intent, yaw);
       }
     }
@@ -111,16 +133,21 @@ export class Predictor {
     } else if (d > RECONCILE_SOFT_M) {
       // Absorb a fraction of the error into position, and push the same amount into
       // the render offset so `pos + offset` doesn't jump — the offset then decays out.
+      // `prevPos` moves by the same nudge so the tick-interpolation in eye() keeps
+      // spanning "pure movement" between the two — otherwise this correction would
+      // leak into the interpolated blend as an extra, un-cancelled partial jump.
       const cx = ex * RECONCILE_FRAC;
       const cy = ey * RECONCILE_FRAC;
       const cz = ez * RECONCILE_FRAC;
       this.pos = { x: this.pos.x + cx, y: this.pos.y + cy, z: this.pos.z + cz };
+      this.prevPos = { x: this.prevPos.x + cx, y: this.prevPos.y + cy, z: this.prevPos.z + cz };
       this.offset = { x: this.offset.x - cx, y: this.offset.y - cy, z: this.offset.z - cz };
     }
   }
 
   private snapTo(p: Vec3): void {
     this.pos = { x: p.x, y: p.y, z: p.z };
+    this.prevPos = { x: p.x, y: p.y, z: p.z };
     this.vy = 0;
     this.grounded = true;
     this.offset = { x: 0, y: 0, z: 0 };
@@ -134,13 +161,21 @@ export class Predictor {
     this.alive = a;
   }
 
-  /** Camera eye position (feet + offset + eye height for the current stance). */
+  /** Camera eye position (feet + offset + eye height for the current stance).
+   *  Feet are `prevPos` blended toward `pos` by how far into the next tick
+   *  `accMs` has already accumulated — smooths the fixed-tick-rate `pos`
+   *  updates out over every render frame instead of only on tick boundaries
+   *  (see this class's header comment on `prevPos`). */
   eye(): Vec3 {
+    const alpha = TICK_MS > 0 ? Math.min(1, this.accMs / TICK_MS) : 1;
+    const fx = this.prevPos.x + (this.pos.x - this.prevPos.x) * alpha;
+    const fy = this.prevPos.y + (this.pos.y - this.prevPos.y) * alpha;
+    const fz = this.prevPos.z + (this.pos.z - this.prevPos.z) * alpha;
     const h = this.crouch ? PLAYER.crouchEye : PLAYER.standEye;
     return {
-      x: this.pos.x + this.offset.x,
-      y: this.pos.y + this.offset.y + h,
-      z: this.pos.z + this.offset.z,
+      x: fx + this.offset.x,
+      y: fy + this.offset.y + h,
+      z: fz + this.offset.z,
     };
   }
 
