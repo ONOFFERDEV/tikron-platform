@@ -72,6 +72,13 @@ interface WeaponVmTransform {
   /** Local Z of this model's own muzzle tip — this.muzzle/muzzleLight move here
    *  (X/Y stay 0/0.02, matching the procedural convention) while it's held. */
   muzzleZ: number;
+  /** Correction around the model's own bore axis (applied as `rotation.z`,
+   *  after the shared `rotation.y = Math.PI` flip) — most assets need none;
+   *  is-armfix's muzzle-normalization pipeline (+Z-alignment only) can leave a
+   *  residual roll on asymmetric silhouettes (see VM_WEAPON_TRANSFORMS's SMG/
+   *  Pistol entries), invisible to their 2-point muzzle/stock marker check
+   *  since that only fixes the bore AXIS, not rotation around it. */
+  roll?: number;
 }
 
 /**
@@ -101,10 +108,10 @@ interface WeaponVmTransform {
  */
 const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
   0: { scale: 0.45, posZ: -0.3, muzzleZ: -0.543 }, // AR — SM_Wep_Rifle_Base_01 (localMaxZ 0.54)
-  1: { scale: 0.7, posZ: -0.3, muzzleZ: -0.461 }, // SMG — SM_Wep_SMG_01 (localMaxZ 0.23)
+  1: { scale: 0.75, posZ: -0.3, muzzleZ: -0.552 }, // SMG — swapped to SM_Wep_MachinePistol_Gen1_01 (localMaxZ 0.336): the original SM_Wep_SMG_01's open carry-handle silhouette didn't read as a weapon at a glance; is-armfix independently re-measured (not just eyeballed) and found no real roll defect on either candidate, so the swap is purely a readability call. Scale started from this asset's own bounds (closer to Pistol's than to a long gun) rather than reused from the old SMG_01 entry — different mesh, not comparable.
   2: { scale: 0.5, posZ: -0.3, muzzleZ: -0.525 }, // Shotgun — SM_Wep_Shotgun_Plasma_01 (localMaxZ 0.45)
   3: { scale: 0.38, posZ: -0.3, muzzleZ: -0.631 }, // Sniper — SM_Wep_Sniper_01 (localMaxZ 0.87)
-  4: { scale: 0.85, posZ: -0.3, muzzleZ: -0.47 }, // Pistol — SM_Wep_Pistol_01 (localMaxZ 0.2)
+  4: { scale: 0.85, posZ: -0.3, muzzleZ: -0.47 }, // Pistol — SM_Wep_Pistol_01 (localMaxZ 0.2); roll: is-armfix re-measured properly (not by eye) and found ~0 on every asset — my -0.2 guess earlier was a false positive, left at 0
 };
 
 /**
@@ -505,6 +512,7 @@ export class SceneRig {
       this.disposeCurrentWeaponMesh();
       obj.scale.setScalar(transform.scale);
       obj.rotation.y = Math.PI; // this asset family's +Z-is-muzzle -> this viewmodel's -Z-is-forward
+      if (transform.roll) obj.rotation.z = transform.roll; // bore-axis roll correction, see WeaponVmTransform
       obj.position.set(0, 0, transform.posZ);
       // Legacy single-file cyber-trooper GLBs are untextured (shape-only) and
       // need the shared flat material; bundle-mode Synty weapons ship their

@@ -259,16 +259,13 @@ export const ironsightConfig: GameConfig = defineConfig({
     recoil: [0.4, 0.2, 0.7, 0.9, 0.3], // scene.ts's VM_RECOIL
     swapDownMs: 120, // scene.ts's SWAP_DOWN_MS
     swapUpMs: 230, // scene.ts's SWAP_UP_MS
-    // Cyber-trooper-era viewmodel weapon GLBs (slot index matches `weapons`'s
-    // AR/SMG/Shotgun/Sniper/Pistol order) — see client/weapon-loader.ts. Absent
-    // slots (none, here — all 5 are covered) fall back to buildWeaponMesh().
-    models: {
-      0: "/assets/models/weapons/ar.glb",
-      1: "/assets/models/weapons/smg.glb",
-      2: "/assets/models/weapons/shotgun.glb",
-      3: "/assets/models/weapons/sniper.glb",
-      4: "/assets/models/weapons/pistol.glb",
-    },
+    // No `models` (legacy per-file GLBs) — the cyber-trooper set is fully
+    // superseded by `bundle` below, which now covers all 5 slots. Leaving a
+    // populated `models` here would be a latent hazard, not a safety net: if
+    // `bundle` ever failed to load, VM_WEAPON_TRANSFORMS (tuned for the Synty
+    // meshes) would apply to the wrong geometry instead of the safe
+    // procedural fallback. A future re-add is fine if a slot genuinely needs
+    // a single-file override again.
     // Synty viewmodel weapon bundle: five muzzle-normalized (+Z), grip-origined
     // weapons merged into one texture-deduped GLB. Must stay a SINGLE-scene GLB —
     // a multi-scene merge makes GLTFLoader expose only the default scene, so the
