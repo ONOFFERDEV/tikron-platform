@@ -14,7 +14,7 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef } from "../src/map/types.js";
-import { ARENA, PLAYER } from "../src/config.js";
+import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
@@ -44,6 +44,22 @@ const DRESSING_MANIFESTS: Record<string, DressingManifest> = {
 // falls short of pokes its wireframe out into open space — a one-screenshot
 // visual-vs-collision height check.
 const DEBUG_BOXES = new URLSearchParams(location.search).get("debugBoxes") === "1";
+// ?debugHitbox=1 — permanent gate tool (hitbox-visual audit): overlays each
+// remote player's SERVER-ASSUMED hit volumes (body cylinder + head sphere,
+// the exact shapes resolveHitscan/hitscan.ts raycasts against) as translucent
+// wireframes on top of whatever rig is rendered — a one-screenshot check of
+// how far the visible model strays from what the server actually shoots at.
+const DEBUG_HITBOX = new URLSearchParams(location.search).get("debugHitbox") === "1";
+// Shared across every rig's overlay (wireframe has no per-instance state) —
+// unit-sized geometry, rescaled per-frame in updateHitboxOverlay() below so
+// crouch's height change never needs a geometry rebuild. Cyan is distinct from
+// both debugBoxes' magenta and every TEAM_COLOR in this palette.
+const HITBOX_MAT = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0.9 });
+function buildHitboxOverlay(): { cylinder: THREE.Mesh; head: THREE.Mesh } {
+  const cylinder = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16, 1), HITBOX_MAT);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), HITBOX_MAT);
+  return { cylinder, head };
+}
 const TEAM_COLOR = GAME.teams.colors;
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
@@ -215,6 +231,11 @@ interface PlayerRig {
    *  anchor point, refreshed each sync — kept uniform across both kinds so
    *  {@link SceneRig.getRemoteMuzzleAnchor} doesn't need to know which one it has. */
   headY?: number;
+  /** ?debugHitbox=1 only: wireframes of the server's assumed hit volumes,
+   *  repositioned/rescaled every sync alongside `headY` (crouch changes both
+   *  the cylinder's height and the head sphere's height identically to how
+   *  hitscan.ts derives them from the same feetY/headY pair). */
+  hitboxOverlay?: { cylinder: THREE.Mesh; head: THREE.Mesh };
 }
 
 interface Tracer {
@@ -286,6 +307,7 @@ export class SceneRig {
   private lastFx = performance.now();
   private readonly vfx: Vfx;
   private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
+  private readonly diagScratch = new THREE.Vector3(); // reused by getHitboxDiagnostics, diagnostic-only
 
   constructor(map: MapDef, container: HTMLElement = document.body) {
     this.boxes = map.boxes;
@@ -804,14 +826,18 @@ export class SceneRig {
   private syncCapsuleRig(rig: PlayerRig, pose: PlayerPose): void {
     rig.group.visible = pose.alive;
     if (!pose.alive) return;
-    const stance = pose.crouch ? PLAYER.crouchHeight / PLAYER.standHeight : 1;
-    const h = pose.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
+    // A primitive capsule has no independent "real" crouch pose to audit against
+    // (unlike the animated model) — sized directly off HIT so there's no
+    // visual/assumed gap to have in the first place.
+    const stance = pose.crouch ? HIT.crouchHeight / HIT.standHeight : 1;
+    const h = pose.crouch ? HIT.crouchHeight : HIT.standHeight;
     rig.body!.scale.y = stance;
     rig.body!.position.y = h / 2;
-    rig.head!.position.y = h - PLAYER.headRadius;
+    rig.head!.position.y = h - HIT.headRadius;
     rig.headY = rig.head!.position.y;
     rig.group.position.set(pose.x, pose.y, pose.z);
     // (capsule + head sphere are radially symmetric, so yaw needs no cosmetic rotation)
+    this.updateHitboxOverlay(rig, rig.headY);
   }
 
   private syncModelRig(rig: PlayerRig, pose: PlayerPose, dtMs: number, now: number): void {
@@ -855,7 +881,11 @@ export class SceneRig {
     rig.group.rotation.y = pose.yaw + MODEL_YAW_OFFSET;
     // Mirrors the capsule rig's head-sphere formula so getRemoteMuzzleAnchor's
     // anchor height is consistent regardless of which rig kind a player has.
-    rig.headY = (pose.crouch ? PLAYER.crouchHeight : PLAYER.standHeight) - PLAYER.headRadius;
+    // Uses HIT (not PLAYER) — this is the server's assumed hit-sphere centre,
+    // not the animation's own actual head height (which hitscan.ts can't read
+    // and doesn't need to; see the hitbox/visual audit's findings on HIT.crouchHeight).
+    rig.headY = (pose.crouch ? HIT.crouchHeight : HIT.standHeight) - HIT.headRadius;
+    this.updateHitboxOverlay(rig, rig.headY);
 
     const dtSec = dtMs / 1000;
     const dx = pose.x - (rig.prevX ?? pose.x);
@@ -908,7 +938,12 @@ export class SceneRig {
     group.add(body);
     group.add(head);
     this.scene.add(group);
-    return { group, team, kind: "capsule", body, head };
+    let hitboxOverlay: { cylinder: THREE.Mesh; head: THREE.Mesh } | undefined;
+    if (DEBUG_HITBOX) {
+      hitboxOverlay = buildHitboxOverlay();
+      group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
+    }
+    return { group, team, kind: "capsule", body, head, hitboxOverlay };
   }
 
   private makeModelRig(team: number, gltf: GLTF): PlayerRig {
@@ -935,6 +970,11 @@ export class SceneRig {
 
     group.add(object);
     this.scene.add(group);
+    let hitboxOverlay: { cylinder: THREE.Mesh; head: THREE.Mesh } | undefined;
+    if (DEBUG_HITBOX) {
+      hitboxOverlay = buildHitboxOverlay();
+      group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
+    }
     return {
       group,
       team,
@@ -944,11 +984,34 @@ export class SceneRig {
       baseScale,
       localMinY: box.min.y,
       aliveWas: true,
+      hitboxOverlay,
     };
+  }
+
+  /** Repositions/rescales a rig's `?debugHitbox=1` overlay to match the exact
+   *  volumes hitscan.ts would raycast against right now — same feetY/headY
+   *  pair syncCapsuleRig/syncModelRig just derived, same HIT.radius/headRadius
+   *  resolveHitscan is called with (server/client share this one config
+   *  module, so there's no separate "wire" value to fall out of sync with —
+   *  see this file's header). `headY` is feet-relative, matching the field's
+   *  existing convention. */
+  private updateHitboxOverlay(rig: PlayerRig, headY: number): void {
+    if (!rig.hitboxOverlay) return;
+    const yTop = headY - 2 * HIT.headRadius; // hitscan.ts's cylinder top = neck, where the head sphere's underside begins
+    const { cylinder, head } = rig.hitboxOverlay;
+    cylinder.scale.set(HIT.radius, Math.max(0.001, yTop), HIT.radius);
+    cylinder.position.y = yTop / 2;
+    head.scale.setScalar(HIT.headRadius);
+    head.position.y = headY - HIT.headRadius;
   }
 
   private disposeRig(rig: PlayerRig): void {
     this.scene.remove(rig.group);
+    if (rig.hitboxOverlay) {
+      rig.hitboxOverlay.cylinder.geometry.dispose();
+      rig.hitboxOverlay.head.geometry.dispose();
+      // HITBOX_MAT is shared across every rig's overlay — never disposed here.
+    }
     if (rig.kind === "capsule") {
       rig.body!.geometry.dispose();
       rig.head!.geometry.dispose();
@@ -1026,6 +1089,76 @@ export class SceneRig {
     const rig = this.players.get(id);
     if (!rig) return undefined;
     return { x: rig.group.position.x, y: rig.group.position.y + (rig.headY ?? 0), z: rig.group.position.z };
+  }
+
+  /** Diagnostic-only (hitbox/visual audit): for every currently-tracked remote
+   *  rig, the server-assumed head-sphere-centre world Y (same formula
+   *  resolveHitscan uses) alongside where the rig is ACTUALLY rendered right
+   *  now — the "head" bone's real world position for a model rig (reflects
+   *  whatever pose/state is currently playing, crouch/hit-reaction included),
+   *  or exactly the assumed value for a capsule rig (a primitive sphere IS its
+   *  own hit volume, so there's no visual/assumed gap to measure there — kept
+   *  for a sane zero-error baseline). `bodyHalfX`/`bodyHalfZ` are the rig's
+   *  current animated bounding-box half-extents (a silhouette-width proxy for
+   *  the body cylinder's radius); `crownWorldY` is the same box's top, for
+   *  checking the crouch stance's actual height against `crouchHeight`. */
+  getHitboxDiagnostics(): Array<{
+    id: string;
+    kind: "capsule" | "model";
+    renderedX: number;
+    renderedZ: number;
+    feetWorldY: number;
+    assumedHeadWorldY: number;
+    visualHeadWorldY: number;
+    bodyHalfX: number;
+    bodyHalfZ: number;
+    crownWorldY: number;
+  }> {
+    const out: Array<{
+      id: string;
+      kind: "capsule" | "model";
+      renderedX: number;
+      renderedZ: number;
+      feetWorldY: number;
+      assumedHeadWorldY: number;
+      visualHeadWorldY: number;
+      bodyHalfX: number;
+      bodyHalfZ: number;
+      crownWorldY: number;
+    }> = [];
+    for (const [id, rig] of this.players) {
+      const feetWorldY = rig.group.position.y;
+      const assumedHeadWorldY = feetWorldY + (rig.headY ?? 0);
+      let visualHeadWorldY = assumedHeadWorldY;
+      let box: THREE.Box3;
+      if (rig.kind === "model" && rig.modelRoot && rig.model) {
+        rig.model.getHeadWorldPos(this.diagScratch);
+        // A rig with no "head" bone leaves diagScratch untouched by
+        // getHeadWorldPos — guard against reporting a stale (0,0,0)-ish value
+        // as if it were real by falling back to the assumed height instead.
+        if (this.diagScratch.lengthSq() > 0) visualHeadWorldY = this.diagScratch.y;
+        box = new THREE.Box3().setFromObject(rig.modelRoot);
+      } else {
+        box = new THREE.Box3().setFromObject(rig.group);
+      }
+      out.push({
+        id,
+        kind: rig.kind,
+        // rig.group.position is the render-INTERPOLATED pose (main.ts's
+        // sampleRemotes(), ~INTERP_DELAY_MS behind the wire) — what a real
+        // shooter's crosshair actually tracks for a moving target, unlike
+        // net.state's raw un-interpolated x/z (Stage 3 time-domain re-test).
+        renderedX: rig.group.position.x,
+        renderedZ: rig.group.position.z,
+        feetWorldY,
+        assumedHeadWorldY,
+        visualHeadWorldY,
+        bodyHalfX: (box.max.x - box.min.x) / 2,
+        bodyHalfZ: (box.max.z - box.min.z) / 2,
+        crownWorldY: box.max.y,
+      });
+    }
+    return out;
   }
 
   spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {

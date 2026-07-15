@@ -117,6 +117,29 @@ export function assertRespawnCoupling(cfg: GameConfig): string[] {
   return [];
 }
 
+// ── #6b — hit-volume/player dimension coupling ───────────────────────────────
+
+/** `hit`'s `radius`/`headRadius`/`standHeight` must stay identical to `player`'s
+ *  own — the hitbox/visual audit (is-anim) measured those three as accurate and
+ *  split `hit` out ONLY so `crouchHeight` could diverge (the one dimension the
+ *  audit found genuinely wrong — see src/config.ts's `HIT` doc comment). This
+ *  guards that a future retune of one doesn't silently drift the other back
+ *  out of the audit's findings without a matching, deliberate edit here. */
+export function assertHitPlayerCoupling(cfg: GameConfig): string[] {
+  const errs: string[] = [];
+  const pairs: [string, number, number][] = [
+    ["radius", cfg.hit.radius, cfg.player.radius],
+    ["headRadius", cfg.hit.headRadius, cfg.player.headRadius],
+    ["standHeight", cfg.hit.standHeight, cfg.player.standHeight],
+  ];
+  for (const [name, hitVal, playerVal] of pairs) {
+    if (hitVal !== playerVal) {
+      errs.push(`hit.${name} (${hitVal}) must equal player.${name} (${playerVal}) — only hit.crouchHeight may diverge`);
+    }
+  }
+  return errs;
+}
+
 // ── #6 — interpolation delay lockstep ────────────────────────────────────────
 
 /** `feel.interpDelayMs` (how far in the past the client renders remotes) equals
@@ -214,6 +237,7 @@ const ERROR_ASSERTS: readonly ((cfg: GameConfig) => string[])[] = [
   assertInterpCoupling,
   assertWeaponIndices,
   assertModesWireOrder,
+  assertHitPlayerCoupling,
 ];
 
 export interface ValidationResult {

@@ -20,7 +20,7 @@
  * exercise (see the swap procedure recorded in the W3 report).
  */
 
-import { ARENA, PLAYER, MOVE, GRENADE, MATCH, LAG } from "../src/config.js";
+import { ARENA, PLAYER, HIT, MOVE, GRENADE, MATCH, LAG } from "../src/config.js";
 import { MODE_ORDER } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
@@ -39,6 +39,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
   // Reused verbatim — not part of this theme's identity (see file doc comment).
   arena: ARENA,
   player: PLAYER,
+  hit: HIT,
   move: MOVE,
 
   // --- weapons: full retune, 5 slots, new names + stats -----------------------

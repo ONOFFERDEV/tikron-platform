@@ -118,6 +118,7 @@ async function main(): Promise<void> {
     },
     renderInfo: () => scene.getRenderInfo(),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
+    hitboxDiag: () => scene.getHitboxDiagnostics(),
   };
 
   // --- discrete event + state edge handling ---------------------------------

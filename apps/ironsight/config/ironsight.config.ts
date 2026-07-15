@@ -22,6 +22,7 @@
 import {
   ARENA,
   PLAYER,
+  HIT,
   MOVE,
   WEAPONS,
   WEAPON,
@@ -66,6 +67,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   // --- imported verbatim from src/config.ts -----------------------------------
   arena: ARENA,
   player: PLAYER,
+  hit: HIT,
   move: MOVE,
   weapons: WEAPONS,
   weaponMeta: {

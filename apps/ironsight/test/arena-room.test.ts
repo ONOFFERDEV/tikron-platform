@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR, GRENADE, MODES, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
+import { AR, GRENADE, HIT, MODES, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
 
 const SHOTGUN = WEAPONS.find((w) => w.name === "Shotgun")!;
 /** Pitch that drops the eye-height muzzle onto an enemy's chest `dist` m away. */
@@ -61,6 +61,12 @@ const BODY_PITCH = Math.atan2(1.0 - PLAYER.standEye, 10);
 /** Pitch that aims at the target's head-sphere centre (standHeight − headRadius,
  *  same derivation hitscan.ts's headCentre uses) instead of the chest. */
 const HEAD_PITCH = Math.atan2(PLAYER.standHeight - PLAYER.headRadius - PLAYER.standEye, 10);
+/** Pitch that aims at a CROUCHING target's head-sphere centre, using HIT.crouchHeight
+ *  (not PLAYER.crouchHeight — see src/config.ts's HIT doc comment) — the hitbox/
+ *  visual audit's E2E gate: a shot at where the crouching rig actually renders
+ *  its head must land as a headshot post-fix. Shooter's own eye stays standEye
+ *  (crouch here is the TARGET's pose, not the shooter's). */
+const CROUCH_HEAD_PITCH = Math.atan2(HIT.crouchHeight - HIT.headRadius - PLAYER.standEye, 10);
 
 function liveState(h: TestRoomHandle<ArenaState>): ArenaState {
   return (h.room as unknown as { state: ArenaState }).state;
@@ -70,7 +76,11 @@ async function tick(h: TestRoomHandle<ArenaState>, n = 1): Promise<void> {
   for (let i = 0; i < n; i++) await h.advance(TICK_MS);
 }
 
-/** Place a live, unprotected player at a spot in the clear top lane (z = 6). */
+/** Place a live, unprotected player at a spot in the clear top lane (z = 6).
+ *  Crouch isn't a `place()` option on purpose: `p.crouch` is overwritten by
+ *  the room's own `integrate()` from the player's actual move INPUT on the
+ *  very next tick, so a direct write here wouldn't stick — send a real
+ *  `move({crouch: true})` instead (see the crouching-headshot test below). */
 function place(
   h: TestRoomHandle<ArenaState>,
   id: string,
@@ -234,6 +244,32 @@ describe("arena room — shot event's per-victim hits (remote hit-reaction trigg
 
     place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: HEAD_PITCH });
     place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire");
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hits: { id: string; head: boolean }[] };
+    expect(payload.hits).toEqual([{ id: target.id, head: true }]);
+  });
+
+  // Hitbox/visual audit E2E gate (is-anim): a shot at where a CROUCHING
+  // target's rig actually renders its head lands as a headshot — pre-fix
+  // (HIT.crouchHeight === PLAYER.crouchHeight === 1.1) this exact shot would
+  // have missed entirely (the assumed head sphere sat ~45cm below the
+  // animated rig's real head — see src/config.ts's HIT doc comment).
+  it("a headshot on a CROUCHING target reports head=true (hitbox/visual audit fix)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: CROUCH_HEAD_PITCH });
+    place(h, target.id, 20);
+    // integrate()'s own crouch transition reads the target's INPUT each tick
+    // (place()'s direct p.crouch write would just be overwritten back to
+    // false by the next tick) — a real "move" intent is what actually sticks.
+    await target.send("move", { crouch: true });
     await tick(h, 3);
 
     await shooter.send("fire");

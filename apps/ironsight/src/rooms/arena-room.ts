@@ -10,6 +10,7 @@ import { ArenaSchema, type ArenaState, type ArenaPlayer } from "../schema.js";
 import {
   ARENA,
   GRENADE,
+  HIT,
   LAG,
   MATCH,
   MOVE,
@@ -375,10 +376,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (this.grenades.length > 0) this.stepGrenades(dt, now);
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
-    // preset right after this returns — same cadence, same Date.now()).
+    // preset right after this returns — same cadence, same Date.now()). Uses
+    // hitHeight(), NOT height() — this feeds resolveHitscan's target headY
+    // (via rewind below), the one consumer HIT's crouchHeight split applies to.
     const vsnap = new Map<string, Vec2>();
     for (const [id, p] of Object.entries(this.state.players)) {
-      if (p.alive && !p.prot) vsnap.set(id, { x: p.y, y: p.y + this.height(p) });
+      if (p.alive && !p.prot) vsnap.set(id, { x: p.y, y: p.y + this.hitHeight(p) });
     }
     this.vertLag.record(this.currentTick, now, vsnap);
   }
@@ -446,6 +449,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private height(p: ArenaPlayer): number {
     return p.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
+  }
+
+  /** Crown height per {@link HIT}'s dimensions, NOT {@link height}'s — feeds the
+   *  vertical lag-comp channel resolveHitscan's target headY ultimately reads.
+   *  Movement collision (moveAndSlide via `height()`) and eye/muzzle height
+   *  (`eyeHeight()`) are unaffected by HIT's crouchHeight override on purpose. */
+  private hitHeight(p: ArenaPlayer): number {
+    return p.crouch ? HIT.crouchHeight : HIT.standHeight;
   }
 
   private eyeHeight(p: ArenaPlayer): number {
@@ -520,8 +531,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const origin: Vec3 = { x: shooter.x, y: shooter.y + this.eyeHeight(shooter), z: shooter.z };
 
     // Rewind both channels to the same instant: the subtick ts when the client
-    // supplied one, else the RTT + interpolation estimate.
-    const at = input?.ts ?? now - client.rttMs - this.lagInterpolationMs;
+    // supplied one (Tikron's `rewind()` treats this as "the exact moment the
+    // shooter aimed" — see packages/server/src/presets.ts's doc comment), else
+    // the RTT estimate. Either way, `lagInterpolationMs` is subtracted
+    // UNCONDITIONALLY on top — Tikron's timing only accounts for network RTT/
+    // subtick precision, not ironsight's own choice to render remote players
+    // INTERP_DELAY_MS behind real time for smoothing (client/config.ts), so
+    // without this term a shot resolves against the target's position at
+    // roughly "now," not what the shooter's screen actually showed at the
+    // moment they fired (hitbox/visual audit, is-anim: moving targets missed
+    // consistently despite an accurate spatial hit-volume — see LAG.interpolationMs's
+    // doc comment in src/config.ts for the measured before/after).
+    const at = (input?.ts ?? now - client.rttMs) - this.lagInterpolationMs;
     const horizontal = this.rewind(client, at);
     const vertical = this.vertLag.atTime(at);
 
@@ -541,7 +562,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const grounded = this.grounded.get(id) ?? true;
     const moving = inp ? inp.mx !== 0 || inp.mz !== 0 : false;
     const acc = accuracySpread(spec, moving, grounded);
-    const cfg = { radius: PLAYER.radius, headRadius: PLAYER.headRadius };
+    const cfg = { radius: HIT.radius, headRadius: HIT.headRadius };
 
     const dmgByVictim = new Map<string, { dmg: number; head: boolean }>();
     let nearestHitT = Infinity;

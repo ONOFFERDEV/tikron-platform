@@ -80,6 +80,13 @@ export interface PlayerRigModel {
    *  where the rig is about to become visible again and a lingering fade would show. */
   forceIdle(): void;
   update(dt: number): void;
+  /** Writes the "head" bone's CURRENT world position (post-mixer-update, so it
+   *  reflects whatever pose/state is playing right now) into `out`. A no-op if
+   *  the GLB has no bone named "head" (older/backup GLBs) — `out` is left
+   *  unchanged, same "stay on the fallback" contract as this file's loader.
+   *  Diagnostic-only: for comparing the server's assumed hit-volume placement
+   *  against where the rig is actually rendered (hitbox/visual audit). */
+  getHeadWorldPos(out: THREE.Vector3): void;
 }
 
 /** Clones a fresh, independently-posable instance of `gltf` (SkeletonUtils.clone,
@@ -90,6 +97,7 @@ export interface PlayerRigModel {
  *  without the newer clips keep working). */
 export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const object = cloneSkeleton(gltf.scene) as THREE.Object3D;
+  const headBone = object.getObjectByName("head"); // Synty/UAL Epic-style skeleton naming
   const mixer = new THREE.AnimationMixer(object);
   const actions = new Map<LocomotionState, THREE.AnimationAction>();
   for (const s of [
@@ -161,6 +169,9 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     },
     update(dt: number): void {
       mixer.update(dt);
+    },
+    getHeadWorldPos(out: THREE.Vector3): void {
+      headBone?.getWorldPosition(out);
     },
   };
 }

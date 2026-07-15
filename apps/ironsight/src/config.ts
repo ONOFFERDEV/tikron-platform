@@ -29,7 +29,12 @@ export const ARENA = {
   ceiling: 16, // y (headroom cap for jumps / raised platforms)
 } as const;
 
-/** Player capsule + head sphere (metres). The hit volume the server raycasts. */
+/** Player capsule + head sphere (metres) — movement collision, camera/muzzle
+ *  eye height, and physics. NOT what the server raycasts against — see
+ *  {@link HIT} below, split out once the hitbox/visual audit found the
+ *  animated rig's actual crouch pose doesn't match `crouchHeight` here (this
+ *  block stays exactly as tuned for movement FEEL, unrelated to how far down
+ *  a crouching rig actually LOOKS). */
 export const PLAYER = {
   radius: 0.4, // capsule radius (also the horizontal collision half-extent)
   standHeight: 1.8, // feet→crown standing
@@ -38,6 +43,35 @@ export const PLAYER = {
   crouchEye: 0.95, // camera/muzzle height crouched
   headRadius: 0.22, // head sphere radius (centre just under the crown)
   maxHp: 100,
+} as const;
+
+/**
+ * The hit volume `resolveHitscan`/the room's vertical lag-comp channel
+ * actually raycast against — kept separate from {@link PLAYER} so retuning one
+ * never silently retunes the other (`config/load.ts`'s `assertHitPlayerCoupling`
+ * guards that `radius`/`headRadius`/`standHeight` stay identical to `PLAYER`'s;
+ * only `crouchHeight` is allowed to diverge).
+ *
+ * `radius`/`headRadius`/`standHeight` were measured against the live CyborgNinja
+ * rig (hitbox/visual audit, is-anim) and found accurate to within a few
+ * centimetres — left equal to `PLAYER`'s values, not because they're the same
+ * field, but because the audit found no reason to change them.
+ *
+ * `crouchHeight` is the one real miss: `PLAYER.crouchHeight` (1.1 m) assumes the
+ * crouch pose drops the crown by 0.7 m (1.8→1.1); the actual crouch_idle/
+ * crouch_walk clips only dip the head bone ~25 cm (measured world head-bone Y:
+ * standing ≈1.58 m, crouched ≈1.32-1.33 m across both the stationary and
+ * pacing crouch bots) — a >0.4 m gap that put the assumed head sphere and body
+ * cylinder entirely below where a crouching model is actually rendered (a
+ * headshot or even most bodyshots on a crouching target would sail through
+ * empty air). Re-derived from the measured head height plus `headRadius`
+ * (1.32 + 0.22 ≈ 1.54), not the old feet→crown convention.
+ */
+export const HIT = {
+  radius: PLAYER.radius,
+  headRadius: PLAYER.headRadius,
+  standHeight: PLAYER.standHeight,
+  crouchHeight: 1.54, // was PLAYER.crouchHeight (1.1) — see doc comment above
 } as const;
 
 /** Movement model (server-integrated from WASD intents). */
@@ -279,8 +313,23 @@ export const MATCH = {
 
 /** Server-side lag compensation (PLAN §2: hit judgement via server rewind). */
 export const LAG = {
-  depthMs: 200, // rewind history retention (peeker's-advantage ceiling)
-  interpolationMs: 100, // extra rewind on top of RTT when a shot carries no subtick ts
+  // Rewind history retention (peeker's-advantage ceiling). 200 (RTT+interpolationMs
+  // budget) → 300 for the time-domain fix below: rewind now always goes an extra
+  // interpolationMs deeper, so a high-RTT shooter's rewind depth needs the same
+  // headroom to avoid clamping to the oldest snapshot instead of the true instant.
+  depthMs: 300,
+  // Always subtracted from the rewind instant (both the subtick-timestamp path AND
+  // the no-timestamp RTT-estimate path — see arena-room.ts's `at` derivation) to
+  // correct for the SHOOTER's own client-side render delay: ironsight renders
+  // remote players `client/config.ts`'s INTERP_DELAY_MS behind real time for
+  // smoothing (assertInterpCoupling in config/load.ts keeps the two locked
+  // together), independent of network RTT — Tikron's `rewind(client, input.ts)`
+  // only knows about RTT/subtick timing, not this app-level rendering choice, so
+  // resolving a shot without this term checks the target's position at roughly
+  // "now" instead of what the shooter's screen actually showed (hitbox/visual
+  // audit, is-anim — moving targets missed consistently despite an accurate
+  // spatial hit-volume; walk/sprint hit rate measured before/after in the audit).
+  interpolationMs: 100,
 } as const;
 
 /** Teams. Index 0 = red, 1 = blue (u8 in the codec). */

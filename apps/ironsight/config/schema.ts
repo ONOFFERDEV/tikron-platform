@@ -47,7 +47,9 @@ export interface ArenaConfig {
   ceiling: number;
 }
 
-/** Player capsule + head sphere, metres (src/config.ts's `PLAYER`). */
+/** Player capsule + head sphere, metres (src/config.ts's `PLAYER`). Movement
+ *  collision + camera/muzzle eye height only — see {@link HitConfig} for what
+ *  the server actually raycasts against. */
 export interface PlayerConfig {
   radius: number;
   standHeight: number;
@@ -56,6 +58,19 @@ export interface PlayerConfig {
   crouchEye: number;
   headRadius: number;
   maxHp: number;
+}
+
+/** The hit volume `resolveHitscan` actually raycasts against, metres
+ *  (src/config.ts's `HIT`) — split from {@link PlayerConfig} so retuning
+ *  movement feel can never silently retune hit registration. `radius`/
+ *  `headRadius`/`standHeight` are asserted equal to `player`'s own (see
+ *  `assertHitPlayerCoupling` in load.ts); only `crouchHeight` is allowed to
+ *  diverge. */
+export interface HitConfig {
+  radius: number;
+  headRadius: number;
+  standHeight: number;
+  crouchHeight: number;
 }
 
 /** Movement model (src/config.ts's `MOVE`; `maxDtMs` is derived from the tick
@@ -400,6 +415,7 @@ export interface GameConfig {
   meta: MetaConfig;
   arena: ArenaConfig;
   player: PlayerConfig;
+  hit: HitConfig;
   move: MoveConfig;
   weapons: readonly WeaponSpec[];
   weaponMeta: WeaponMetaConfig;
