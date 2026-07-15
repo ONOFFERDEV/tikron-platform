@@ -116,10 +116,17 @@ async function main(): Promise<void> {
       input.yaw = yaw;
       input.pitch = pitch;
     },
+    renderInfo: () => scene.getRenderInfo(),
   };
 
   // --- discrete event + state edge handling ---------------------------------
   const buf: Snap[] = [];
+  // Reused across every render frame's sampleRemotes() call (up to 144/s) — the
+  // interpolated result is consumed and discarded within the same frame, so
+  // mutating pooled Pose objects in place avoids allocating a fresh Map + one
+  // object literal per remote player every frame (see perf investigation notes
+  // on sampleRemotes below).
+  const interpScratch = new Map<string, Pose>();
   let prevHp = me0?.hp ?? 100;
   let wasAlive = me0?.alive ?? true;
   let deathAt = -1;
@@ -356,7 +363,7 @@ async function main(): Promise<void> {
     scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);
 
     // Remote players interpolated in the past.
-    const poses = sampleRemotes(buf, now - INTERP_DELAY_MS);
+    const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
     scene.syncPlayers(poses, net.myId, dt);
     for (const [id, p] of poses) {
       if (id !== net.myId && p.alive) scene.stepFootRemote(id, p, dt, eye);
@@ -427,9 +434,19 @@ async function waitForSelf(net: Net): Promise<ArenaPlayer | undefined> {
   return undefined;
 }
 
-/** Interpolate every player's pose at `renderTime` from the snapshot buffer. */
-function sampleRemotes(buf: Snap[], renderTime: number): Map<string, Pose> {
-  if (buf.length === 0) return new Map();
+/** Interpolate every player's pose at `renderTime` from the snapshot buffer.
+ *  `scratch` is mutated and returned in the interpolation case — the caller
+ *  uses the result within the same frame and never holds onto it across
+ *  frames, so reusing pooled Pose objects here (instead of a fresh Map + one
+ *  object literal per remote player) avoids allocating garbage every single
+ *  render frame (up to 144/s) purely to be dropped a moment later. The two
+ *  early-return cases below already alias an existing buffered snapshot's Map
+ *  (no interpolation needed, so no new object to build either way). */
+function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pose>): Map<string, Pose> {
+  if (buf.length === 0) {
+    scratch.clear(); // only true at startup, before the first snapshot arrives
+    return scratch;
+  }
   if (buf.length === 1 || renderTime <= buf[0]!.time) return buf[0]!.players;
   const lastSnap = buf[buf.length - 1]!;
   if (renderTime >= lastSnap.time) return lastSnap.players;
@@ -444,21 +461,26 @@ function sampleRemotes(buf: Snap[], renderTime: number): Map<string, Pose> {
   }
   const span = b.time - a.time;
   const t = span <= 0 ? 1 : (renderTime - a.time) / span;
-  const out = new Map<string, Pose>();
+  for (const id of scratch.keys()) {
+    if (!b.players.has(id)) scratch.delete(id);
+  }
   for (const [id, pb] of b.players) {
     const pa = a.players.get(id) ?? pb;
-    out.set(id, {
-      x: lerp(pa.x, pb.x, t),
-      y: lerp(pa.y, pb.y, t),
-      z: lerp(pa.z, pb.z, t),
-      yaw: lerpAngle(pa.yaw, pb.yaw, t),
-      pitch: lerp(pa.pitch, pb.pitch, t),
-      crouch: pb.crouch,
-      team: pb.team,
-      alive: pb.alive,
-    });
+    let pose = scratch.get(id);
+    if (!pose) {
+      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false };
+      scratch.set(id, pose);
+    }
+    pose.x = lerp(pa.x, pb.x, t);
+    pose.y = lerp(pa.y, pb.y, t);
+    pose.z = lerp(pa.z, pb.z, t);
+    pose.yaw = lerpAngle(pa.yaw, pb.yaw, t);
+    pose.pitch = lerp(pa.pitch, pb.pitch, t);
+    pose.crouch = pb.crouch;
+    pose.team = pb.team;
+    pose.alive = pb.alive;
   }
-  return out;
+  return scratch;
 }
 
 function lerp(a: number, b: number, t: number): number {

@@ -235,6 +235,9 @@ export class SceneRig {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly boxes: readonly Box[];
   private readonly players = new Map<string, PlayerRig>();
+  // Reused across every syncPlayers() call (once per render frame) instead of
+  // allocating a fresh Set each time purely to track "seen this frame" ids.
+  private readonly seenPlayers = new Set<string>();
   private readonly tracers: Tracer[] = [];
   // Rigged remote-player model: kicked off once in the constructor (if configured),
   // resolved asynchronously — see makeRig()/upgradeCapsuleRigs(). "absent" covers
@@ -756,7 +759,8 @@ export class SceneRig {
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
   syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number): void {
     const now = performance.now();
-    const seen = new Set<string>();
+    const seen = this.seenPlayers;
+    seen.clear();
     for (const [id, pose] of poses) {
       if (id === selfId) continue;
       seen.add(id);
@@ -769,7 +773,9 @@ export class SceneRig {
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now);
       else this.syncCapsuleRig(rig, pose);
     }
-    for (const [id, rig] of [...this.players]) {
+    // Map iterators tolerate deleting the current/already-visited key mid-loop
+    // (spec-guaranteed), so this needs no defensive array copy.
+    for (const [id, rig] of this.players) {
       if (!seen.has(id)) {
         this.disposeRig(rig);
         this.players.delete(id);
@@ -1083,6 +1089,15 @@ export class SceneRig {
     this.stepFx(now);
     this.vfx.update(now);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Read-only renderer.info snapshot for perf diagnostics/E2E tooling — draw
+   *  calls and triangles reset every render() call (three.js's own semantics,
+   *  so this is "last frame"), programs accumulate for the renderer's
+   *  lifetime (one per unique material/defines combination compiled so far). */
+  getRenderInfo(): { calls: number; triangles: number; programs: number } {
+    const info = this.renderer.info;
+    return { calls: info.render.calls, triangles: info.render.triangles, programs: info.programs?.length ?? 0 };
   }
 
   private resize(): void {
