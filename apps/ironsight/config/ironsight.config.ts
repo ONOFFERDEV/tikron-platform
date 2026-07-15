@@ -275,4 +275,12 @@ export const ironsightConfig: GameConfig = defineConfig({
   models: {
     player: "/assets/models/player.glb",
   },
+
+  // --- mapDressing: baked Synty visual-only bundles (client/dressing-loader.ts,
+  // client/dressing/arena{1,2}.manifest.json) — absent/load-failure falls back
+  // to the procedural box/wall render (client/scene.ts's buildArena).
+  mapDressing: {
+    arena1: "/assets/maps/arena1-dressing.glb",
+    arena2: "/assets/maps/arena2-dressing.glb",
+  },
 });

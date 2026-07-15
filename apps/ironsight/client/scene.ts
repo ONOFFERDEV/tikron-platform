@@ -19,10 +19,31 @@ import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
 import { loadWeaponModel, cloneWeaponMesh } from "./weapon-loader.js";
+import { loadMapDressing } from "./dressing-loader.js";
+import arena1Manifest from "./dressing/arena1.manifest.json";
+import arena2Manifest from "./dressing/arena2.manifest.json";
 
 const PALETTE = GAME.palette;
 const ADS_FOV = GAME.camera.adsFov;
 const HIP_FOV = GAME.camera.hipFov;
+// Map-dressing manifests (committed JSON, client/dressing/*.manifest.json — see
+// generate-manifests.mjs). Only `hiddenBoxIndices` matters at runtime: which of
+// this map's src/map/*.ts collision boxes the dressing bundle visually covers,
+// so buildArena() can skip their procedural render once the bundle actually
+// loads (never before — see the constructor's dressing load).
+interface DressingManifest {
+  readonly hiddenBoxIndices: readonly number[];
+}
+const DRESSING_MANIFESTS: Record<string, DressingManifest> = {
+  arena1: arena1Manifest,
+  arena2: arena2Manifest,
+};
+// ?debugBoxes=1 — permanent gate tool (not tied to any one dressing pass):
+// overlays every collision box's true wireframe on top of whatever's rendered
+// (dressing or procedural fallback), normal-depth-tested so a box the visual
+// falls short of pokes its wireframe out into open space — a one-screenshot
+// visual-vs-collision height check.
+const DEBUG_BOXES = new URLSearchParams(location.search).get("debugBoxes") === "1";
 const TEAM_COLOR = GAME.teams.colors;
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
@@ -216,6 +237,13 @@ export class SceneRig {
   private modelState: "loading" | "ready" | "absent" = "absent";
   private modelGltf: GLTF | undefined;
 
+  // Map dressing: every procedural box's mesh+edges, keyed by its index in
+  // `this.boxes` — buildArena() populates this for every box unconditionally
+  // (so the box/wall render never regresses if the bundle fails), and the
+  // constructor's dressing load hides only the manifest's hiddenBoxIndices
+  // once (and only once) the real bundle has actually loaded successfully.
+  private readonly boxRenders = new Map<number, { mesh: THREE.Mesh; edges: THREE.LineSegments }>();
+
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
@@ -298,6 +326,26 @@ export class SceneRig {
       });
     }
 
+    // Map dressing: `map`'s id ("arena1"/"arena2") isn't on MapDef itself
+    // (src/map/*.ts is collision-only, untouched by this feature) — recovered
+    // by matching object identity against GAME.maps, which is keyed by exactly
+    // those ids and holds the same ARENA1/ARENA2 references mapForMode returns.
+    const mapId = Object.keys(GAME.maps).find((k) => GAME.maps[k] === map);
+    const dressingUrl = mapId ? GAME.mapDressing?.[mapId] : undefined;
+    if (dressingUrl) {
+      loadMapDressing(dressingUrl).then((gltf) => {
+        if (!gltf) return; // load failed — stay on the procedural box/wall render permanently
+        this.scene.add(gltf.scene);
+        const hidden = mapId ? DRESSING_MANIFESTS[mapId]?.hiddenBoxIndices : undefined;
+        for (const idx of hidden ?? []) {
+          const render = this.boxRenders.get(idx);
+          if (!render) continue;
+          render.mesh.visible = false;
+          render.edges.visible = false;
+        }
+      });
+    }
+
     this.resize();
     window.addEventListener("resize", () => this.resize());
   }
@@ -343,10 +391,16 @@ export class SceneRig {
     wall(0.4, depth, 0, depth / 2);
     wall(0.4, depth, width, depth / 2);
 
-    // Cover / dividers / platforms from the shared map.
+    // Cover / dividers / platforms from the shared map. Rendered unconditionally
+    // here regardless of dressing — every box is tracked in `boxRenders` so the
+    // constructor's dressing load can hide specific ones once (and only once)
+    // a real bundle has actually loaded, never based on the manifest alone.
     const boxMat = new THREE.MeshStandardMaterial({ color: PALETTE.coverBox, roughness: 0.85, metalness: 0.05 });
     const edgeMat = new THREE.LineBasicMaterial({ color: PALETTE.coverEdge });
-    for (const b of this.boxes) {
+    // ?debugBoxes=1 overlay material — bright magenta, distinct from both the
+    // procedural fallback edges (coverEdge) and any dressing mesh's own colors.
+    const debugMat = new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.85 });
+    this.boxes.forEach((b, i) => {
       const w = b.max.x - b.min.x;
       const h = b.max.y - b.min.y;
       const d = b.max.z - b.min.z;
@@ -357,7 +411,15 @@ export class SceneRig {
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
       edges.position.copy(mesh.position);
       this.scene.add(edges);
-    }
+      this.boxRenders.set(i, { mesh, edges });
+      if (DEBUG_BOXES) {
+        // Separate from `boxRenders` on purpose — never hidden by the dressing
+        // load, so it stays the ground truth overlay regardless of dressing state.
+        const debugEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), debugMat);
+        debugEdges.position.copy(mesh.position);
+        this.scene.add(debugEdges);
+      }
+    });
   }
 
   // --- viewmodel --------------------------------------------------------------

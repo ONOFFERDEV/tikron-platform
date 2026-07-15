@@ -370,6 +370,19 @@ export interface ModelsConfig {
   player?: string;
 }
 
+// ── map dressing (optional visual-only Synty bundles) ────────────────────────
+
+/** Optional per-map visual-dressing bundle GLBs (client/dressing-loader.ts +
+ *  client/scene.ts), keyed by the same map id used in `MapsConfig` (e.g.
+ *  "arena1"). Each bundle's own node transforms already place every object in
+ *  world space (baked by is-armfix's manifest→bundle CLI from
+ *  client/dressing/arena{1,2}.manifest.json — see that file's `hiddenBoxIndices`
+ *  for which of the map's collision boxes it visually covers), so the client
+ *  just adds the loaded scene at the origin. Absent (or a load failure) falls
+ *  back to the existing procedural box/wall render — src/map/* collision data
+ *  is never touched by this feature. */
+export type MapDressingConfig = Record<string, string>;
+
 // ── root ──────────────────────────────────────────────────────────────────────
 
 /** The full data surface of one ironsight game. */
@@ -394,6 +407,7 @@ export interface GameConfig {
   audio: AudioConfig;
   weaponVis: WeaponVisConfig;
   models?: ModelsConfig;
+  mapDressing?: MapDressingConfig;
 }
 
 /** Identity helper: authors a `GameConfig` with full inference + excess-property

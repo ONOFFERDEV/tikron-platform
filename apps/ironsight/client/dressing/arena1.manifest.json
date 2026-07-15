@@ -1,0 +1,771 @@
+{
+  "map": "arena1",
+  "hiddenBoxIndices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "placements": [
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 16,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 1/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 20,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 2/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 24,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 3/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 28,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 4/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 32,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 5/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 36,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 6/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 40,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 7/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 44,
+        "y": 0.09999999999999964,
+        "z": 13.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 0 segment 8/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 16,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 1/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 20,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 2/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 24,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 3/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 28,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 4/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 32,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 5/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 36,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 6/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 40,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 7/8"
+    },
+    {
+      "asset": "buildings/SM_Bld_Advanced_01.glb",
+      "position": {
+        "x": 44,
+        "y": 0.09999999999999964,
+        "z": 26.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.8
+      },
+      "note": "divider 1 segment 8/8"
+    },
+    {
+      "asset": "props/SM_Prop_Crate_Large_01.glb",
+      "position": {
+        "x": 30,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.8927444794952681,
+        "y": 1.8927444794952681,
+        "z": 1.8927444794952681
+      },
+      "note": "central cover — bottom layer"
+    },
+    {
+      "asset": "props/SM_Prop_Crate_Large_01.glb",
+      "position": {
+        "x": 30,
+        "y": 1.0410094637223977,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.8927444794952681,
+        "y": 1.8927444794952681,
+        "z": 1.8927444794952681
+      },
+      "note": "central cover — top layer (stacked to reach ~2.08m of the 2.2m box)"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 23.480890410958903,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.36986301369863,
+        "y": 1.36986301369863,
+        "z": 1.36986301369863
+      },
+      "note": "flanking crate 3 — left"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 24.519109589041097,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.36986301369863,
+        "y": 1.36986301369863,
+        "z": 1.36986301369863
+      },
+      "note": "flanking crate 3 — right"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 35.48089041095891,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.36986301369863,
+        "y": 1.36986301369863,
+        "z": 1.36986301369863
+      },
+      "note": "flanking crate 4 — left"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 36.51910958904109,
+        "y": 0,
+        "z": 20
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.36986301369863,
+        "y": 1.36986301369863,
+        "z": 1.36986301369863
+      },
+      "note": "flanking crate 4 — right"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
+        "x": 30,
+        "y": 0.447305009511731,
+        "z": 6.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.6341154090044389,
+        "y": 0.6341154090044389,
+        "z": 0.6341154090044389
+      },
+      "note": "raised platform 5 — landing pad reads as intentionally hovering above ground (scifi), top-anchored to y=1.2"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
+        "x": 30,
+        "y": 0.447305009511731,
+        "z": 33.5
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.6341154090044389,
+        "y": 0.6341154090044389,
+        "z": 0.6341154090044389
+      },
+      "note": "raised platform 6 — landing pad reads as intentionally hovering above ground (scifi), top-anchored to y=1.2"
+    }
+  ],
+  "skyline": [
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": -15.131498000118881,
+        "y": 0,
+        "z": 6.618091162759811
+      },
+      "rotationY": 0.04346545247627615,
+      "scale": {
+        "x": 0.9084928850410506,
+        "y": 0.9084928850410506,
+        "z": 0.9084928850410506
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": -14.062686099205166,
+        "y": 0,
+        "z": 21.76386356493458
+      },
+      "rotationY": 2.7965770370473613,
+      "scale": {
+        "x": 0.9972932894248515,
+        "y": 0.9972932894248515,
+        "z": 0.9972932894248515
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": -13.389998327940702,
+        "y": 0,
+        "z": 37.46104966662824
+      },
+      "rotationY": 5.820724182697476,
+      "scale": {
+        "x": 1.003983544674702,
+        "y": 1.003983544674702,
+        "z": 1.003983544674702
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": -3.338404819369316,
+        "y": 0,
+        "z": 5.337040095590055
+      },
+      "rotationY": 2.20539940494891,
+      "scale": {
+        "x": 1.0647280901204794,
+        "y": 1.0647280901204794,
+        "z": 1.0647280901204794
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": -5.536398310679942,
+        "y": 0,
+        "z": 18.72974704252556
+      },
+      "rotationY": 0.34231247308851415,
+      "scale": {
+        "x": 1.002895132265985,
+        "y": 1.002895132265985,
+        "z": 1.002895132265985
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": -6.104829046409577,
+        "y": 0,
+        "z": 32.26162054669112
+      },
+      "rotationY": 5.786422558788585,
+      "scale": {
+        "x": 0.9283956188475713,
+        "y": 0.9283956188475713,
+        "z": 0.9283956188475713
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 66.96977614192292,
+        "y": 0,
+        "z": 7.159772438928485
+      },
+      "rotationY": 6.090725299773475,
+      "scale": {
+        "x": 1.1098828249145298,
+        "y": 1.1098828249145298,
+        "z": 1.1098828249145298
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 64.08880628319457,
+        "y": 0,
+        "z": 22.479985176585615
+      },
+      "rotationY": 2.1907058499090786,
+      "scale": {
+        "x": 1.0113137748558074,
+        "y": 1.0113137748558074,
+        "z": 1.0113137748558074
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 63.69467416172847,
+        "y": 0,
+        "z": 32.144669079687446
+      },
+      "rotationY": 5.518050715521237,
+      "scale": {
+        "x": 0.9431857128161937,
+        "y": 0.9431857128161937,
+        "z": 0.9431857128161937
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 74.73212205385789,
+        "y": 0,
+        "z": 4.514559025410563
+      },
+      "rotationY": 0.7179381728923514,
+      "scale": {
+        "x": 1.0871151862898842,
+        "y": 1.0871151862898842,
+        "z": 1.0871151862898842
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 77.17946491297334,
+        "y": 0,
+        "z": 19.11349954875186
+      },
+      "rotationY": 1.61610765273064,
+      "scale": {
+        "x": 1.1304450560128316,
+        "y": 1.1304450560128316,
+        "z": 1.1304450560128316
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 72.7733647073619,
+        "y": 0,
+        "z": 33.83675617678091
+      },
+      "rotationY": 4.392239705956646,
+      "scale": {
+        "x": 0.8939996765460819,
+        "y": 0.8939996765460819,
+        "z": 0.8939996765460819
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 12.924218284431845,
+        "y": 0,
+        "z": -17.736955732572824
+      },
+      "rotationY": 4.883649705852759,
+      "scale": {
+        "x": 1.002695948909968,
+        "y": 1.002695948909968,
+        "z": 1.002695948909968
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 7.207132156472653,
+        "y": 0,
+        "z": -2.2358989333733916
+      },
+      "rotationY": 4.893138839124676,
+      "scale": {
+        "x": 1.0973526584217326,
+        "y": 1.0973526584217326,
+        "z": 1.0973526584217326
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 10.616217855829746,
+        "y": 0,
+        "z": 45.41068858187646
+      },
+      "rotationY": 3.7310423877943615,
+      "scale": {
+        "x": 0.9390636259689927,
+        "y": 0.9390636259689927,
+        "z": 0.9390636259689927
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 10.345959840342402,
+        "y": 0,
+        "z": 57.73599159298465
+      },
+      "rotationY": 2.5737847984106406,
+      "scale": {
+        "x": 0.881804344872944,
+        "y": 0.881804344872944,
+        "z": 0.881804344872944
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 31.429019410628825,
+        "y": 0,
+        "z": -14.198267846368253
+      },
+      "rotationY": 5.006324038496831,
+      "scale": {
+        "x": 1.1326689725974575,
+        "y": 1.1326689725974575,
+        "z": 1.1326689725974575
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 27.706174101680517,
+        "y": 0,
+        "z": -5.993526134174317
+      },
+      "rotationY": 3.841814516961027,
+      "scale": {
+        "x": 0.9310725803719834,
+        "y": 0.9310725803719834,
+        "z": 0.9310725803719834
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 28.761514484882355,
+        "y": 0,
+        "z": 46.680322766304016
+      },
+      "rotationY": 0.3138147923314379,
+      "scale": {
+        "x": 1.0113976646447553,
+        "y": 1.0113976646447553,
+        "z": 1.0113976646447553
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 29.227762376423925,
+        "y": 0,
+        "z": 55.26838723756373
+      },
+      "rotationY": 5.460437762659069,
+      "scale": {
+        "x": 0.8846655940636993,
+        "y": 0.8846655940636993,
+        "z": 0.8846655940636993
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 47.327834248542786,
+        "y": 0,
+        "z": -15.48686042893678
+      },
+      "rotationY": 1.3052854319546765,
+      "scale": {
+        "x": 1.0765401932876557,
+        "y": 1.0765401932876557,
+        "z": 1.0765401932876557
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 48.70751247415319,
+        "y": 0,
+        "z": -7.176526298746467
+      },
+      "rotationY": 2.6072535479469705,
+      "scale": {
+        "x": 0.8614659937797114,
+        "y": 0.8614659937797114,
+        "z": 0.8614659937797114
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Lrg_01.glb",
+      "position": {
+        "x": 52.698602345306426,
+        "y": 0,
+        "z": 44.72061744052917
+      },
+      "rotationY": 2.3570548981460755,
+      "scale": {
+        "x": 0.9222773955203593,
+        "y": 0.9222773955203593,
+        "z": 0.9222773955203593
+      }
+    },
+    {
+      "asset": "buildings/SM_Bld_Background_Med_01.glb",
+      "position": {
+        "x": 49.07532540289685,
+        "y": 0,
+        "z": 57.282326916232705
+      },
+      "rotationY": 3.5849729960807446,
+      "scale": {
+        "x": 0.9988141328794882,
+        "y": 0.9988141328794882,
+        "z": 0.9988141328794882
+      }
+    }
+  ],
+  "wallDecor": [
+    {
+      "asset": "props/SM_Prop_AirConditioningUnit_01.glb",
+      "position": {
+        "x": 10,
+        "y": 1.5,
+        "z": 0.25
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "asset": "props/SM_Prop_AirConditioningUnit_01.glb",
+      "position": {
+        "x": 50,
+        "y": 1.5,
+        "z": 39.75
+      },
+      "rotationY": 3.141592653589793,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "asset": "props/SM_Prop_Pipes_01.glb",
+      "position": {
+        "x": 0.25,
+        "y": 1.8,
+        "z": 15
+      },
+      "rotationY": 1.5707963267948966,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    },
+    {
+      "asset": "misc/SM_Sign_Neon_01.glb",
+      "position": {
+        "x": 59.75,
+        "y": 2.2,
+        "z": 25
+      },
+      "rotationY": -1.5707963267948966,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  ],
+  "capProps": []
+}
