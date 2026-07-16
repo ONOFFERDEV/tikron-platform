@@ -8,6 +8,7 @@
 import { GameClient, type Room } from "@tikron/client";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
 import type { ModeId } from "../src/modes.js";
+import type { FireClaim } from "../src/hitscan.js";
 import { LOOK_SEND_MS, MOVE_KEEPALIVE_MS } from "./config.js";
 import { GAME } from "../src/game-config.js";
 
@@ -224,10 +225,22 @@ export class Net {
     this.fireIntervalMs = WEAPONS[weaponIndex]?.fireIntervalMs ?? DEFAULT_WEAPON_SPEC.fireIntervalMs;
   }
 
-  tryFire(now: number): boolean {
+  /**
+   * `computeClaim` (hybrid hit registration — see hitscan.ts's `FireClaim`) is
+   * only invoked once the fire-rate gate above has actually passed, so a
+   * held-trigger frame that gets dropped by the gate never pays for a scene
+   * raycast it won't use. Its three possible returns are distinguished on the
+   * wire (arena-room.ts's `readClaim`): `undefined` omits the `claim` field
+   * entirely (this weapon didn't attempt one — e.g. the shotgun), `null` sends
+   * `claim: null` (client raycast the scene and found nothing — an explicit,
+   * trusted miss), and a `FireClaim` sends `claim: {id, part}` for the server
+   * to plausibility-check.
+   */
+  tryFire(now: number, computeClaim?: () => FireClaim | null | undefined): boolean {
     if (now - this.lastFireAt < this.fireIntervalMs) return false;
     this.lastFireAt = now;
-    this.room.send("fire", {});
+    const claim = computeClaim?.();
+    this.room.send("fire", claim === undefined ? {} : { claim });
     return true;
   }
 

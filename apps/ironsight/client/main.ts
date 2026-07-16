@@ -20,7 +20,8 @@ import { wireQuitConfirm } from "./quit-confirm.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
-import { dirFromAngles } from "../src/weapons.js";
+import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
+import type { FireClaim } from "../src/hitscan.js";
 import { MODE_ORDER, mapForMode, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 import { GAME } from "../src/game-config.js";
@@ -312,7 +313,33 @@ async function main(): Promise<void> {
       // fire sound, and the self-authoritative tracer/casing below — never shows
       // for a shot the server will silently drop; it never touches the network
       // send itself.
-      if (net.tryFire(now) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
+      // Hybrid hit registration (hitscan.ts's FireClaim): the raycast itself is
+      // cheap, but it's still deferred inside this lambda so it only runs once
+      // net.tryFire's own fire-rate gate has actually passed (a held trigger
+      // renders far more often than the weapon can fire). Multi-pellet weapons
+      // (the shotgun) send no claim at all — one claim can't represent several
+      // simultaneous pellet hits (see arena-room.ts's handleFire).
+      const computeClaim = (): FireClaim | null | undefined => {
+        const spec = WEAPONS[curWeapon];
+        if (!spec || spec.pellets !== 1) return undefined;
+        // Client-side spread roll (team-lead's balance requirement): the
+        // server's own accuracy-cone movement penalty (accuracySpread) must
+        // ALSO degrade the claim ray, or a hybrid-capable client would fire
+        // pinpoint-accurate SMG/Sniper/Pistol shots while moving — a
+        // rebalance affecting every player, unlike the already-accepted
+        // "aimbot-tier claim passes plausibility" cheat surface (a client that
+        // skips this roll just gets that same surface, nothing new). One roll
+        // per shot, same distribution as arena-room.ts's server-side jitter()
+        // (weapons.ts's shared `jitter`) — this client's own Math.random(), not
+        // trying to predict the server's secret seeded RNG (validateClaim
+        // widens its own cone tolerance by this same accuracySpread value to
+        // accept either side's independent roll).
+        const moving = intent.mx !== 0 || intent.mz !== 0;
+        const acc = accuracySpread(spec, moving, predictor.isGrounded);
+        const claimDir = dirFromAngles(input.yaw + jitter(acc, Math.random), input.pitch + jitter(acc, Math.random));
+        return scene.raycastHitClaim(eye, claimDir, spec.range) ?? null;
+      };
+      if (net.tryFire(now, computeClaim) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
         scene.fireRecoil(curWeapon);
         playFire(curWeapon);
         if (mag !== null) mag -= 1; // predicted decrement; the next "ammo" resyncs it

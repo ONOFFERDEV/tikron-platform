@@ -12,6 +12,7 @@ import {
   accuracySpread,
   dirFromAngles,
   falloffMul,
+  jitter,
   pelletPattern,
 } from "../src/weapons.js";
 import { stepGrenade, blastDamage, type GrenadeBody } from "../src/grenade.js";
@@ -70,6 +71,35 @@ describe("weapons — accuracy spread by movement state", () => {
     expect(air).toBe(AR.spreadStill + AR.spreadAir);
     expect(still).toBeLessThanOrEqual(moving);
     expect(moving).toBeLessThanOrEqual(air);
+  });
+});
+
+// Hybrid hit registration's client-side spread roll (team-lead's balance
+// requirement, is-anim): main.ts's computeClaim uses this SAME jitter() to
+// degrade the claim ray by accuracySpread before raycasting, so a moving
+// shooter's hybrid claim carries the identical movement penalty the analytic
+// pellet loop already has — arena-room.ts's private jitter() is the
+// server-side twin (own seeded RNG; same formula).
+describe("weapons — jitter (hybrid-hit client-side spread roll)", () => {
+  it("is exactly 0 when spread is 0 (pinpoint — stationary AR's regression case)", () => {
+    expect(jitter(0, Math.random)).toBe(0);
+    expect(jitter(0, () => 0.9999)).toBe(0); // not just "small" — the random source is never even consulted
+  });
+
+  it("is bounded within [-spread, +spread] across the random source's full [0,1) domain", () => {
+    const spread = 0.05;
+    expect(jitter(spread, () => 0)).toBeCloseTo(-spread, 9);
+    expect(jitter(spread, () => 0.5)).toBeCloseTo(0, 9);
+    expect(jitter(spread, () => 1)).toBeCloseTo(spread, 9);
+  });
+
+  it("draws a non-constant value across repeated calls (an actual roll, not a fixed offset)", () => {
+    const spread = 0.1;
+    const samples = new Set(Array.from({ length: 20 }, () => jitter(spread, Math.random)));
+    expect(samples.size).toBeGreaterThan(1);
+    for (const v of samples) {
+      expect(Math.abs(v)).toBeLessThanOrEqual(spread);
+    }
   });
 });
 

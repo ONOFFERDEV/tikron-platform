@@ -47,6 +47,21 @@ export interface Hit {
 }
 
 /**
+ * A client's hit claim (hybrid hit registration — PLAN "모양 100%"): the
+ * shooter's OWN raycast against its actually-rendered scene (the remote rig's
+ * real mesh in its current animated pose, not this file's capsule+sphere
+ * approximation) — see client/scene.ts's `raycastHitClaim`. The server
+ * (arena-room.ts's `validateClaim`) plausibility-checks a claim before
+ * trusting it for damage; on any failure the existing {@link resolveHitscan}
+ * path is the fallback, unchanged. Shared between client and server so the
+ * wire shape can't drift between the two independent implementations.
+ */
+export interface FireClaim {
+  id: string;
+  part: HitPart;
+}
+
+/**
  * The nearest enemy hit along `origin + t·dir` within `range`, or `null`. Ray
  * direction must be unit length. Targets on `shooterTeam` are ignored (no friendly
  * fire and teammates never block your bullets in M0) UNLESS `teamless` is set (FFA:

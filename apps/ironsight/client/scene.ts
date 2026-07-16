@@ -14,6 +14,7 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef } from "../src/map/types.js";
+import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { Vfx } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
@@ -44,11 +45,13 @@ const DRESSING_MANIFESTS: Record<string, DressingManifest> = {
 // falls short of pokes its wireframe out into open space — a one-screenshot
 // visual-vs-collision height check.
 const DEBUG_BOXES = new URLSearchParams(location.search).get("debugBoxes") === "1";
-// ?debugHitbox=1 — permanent gate tool (hitbox-visual audit): overlays each
-// remote player's SERVER-ASSUMED hit volumes (body cylinder + head sphere,
-// the exact shapes resolveHitscan/hitscan.ts raycasts against) as translucent
-// wireframes on top of whatever rig is rendered — a one-screenshot check of
-// how far the visible model strays from what the server actually shoots at.
+// ?debugHitbox=1 — permanent gate tool. Originally visualized the server's
+// analytic hit volumes against the rendered model (the hitbox/visual audit);
+// since the hybrid-hit fix (raycastHitClaim below), the analytic capsule/
+// sphere this draws is no longer what a shot is normally judged against — it's
+// the FALLBACK path (an old client, a multi-pellet weapon, or a rejected
+// claim), so this overlay now shows what a shot would be judged against if the
+// hybrid claim path didn't apply, not the primary hit shape.
 const DEBUG_HITBOX = new URLSearchParams(location.search).get("debugHitbox") === "1";
 // Shared across every rig's overlay (wireframe has no per-instance state) —
 // unit-sized geometry, rescaled per-frame in updateHitboxOverlay() below so
@@ -308,6 +311,14 @@ export class SceneRig {
   private readonly vfx: Vfx;
   private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
   private readonly diagScratch = new THREE.Vector3(); // reused by getHitboxDiagnostics, diagnostic-only
+  // Hybrid hit registration (raycastHitClaim) — reused across every fire attempt
+  // instead of allocating fresh; a shot is at most a few times/sec, so this is
+  // about not leaving one-shot garbage behind, not a hot-path concern.
+  private readonly claimRaycaster = new THREE.Raycaster();
+  private readonly claimOrigin = new THREE.Vector3();
+  private readonly claimDir = new THREE.Vector3();
+  private readonly claimTargets: THREE.Object3D[] = [];
+  private readonly claimScratch = new THREE.Vector3();
 
   constructor(map: MapDef, container: HTMLElement = document.body) {
     this.boxes = map.boxes;
@@ -789,7 +800,7 @@ export class SceneRig {
       let rig = this.players.get(id);
       if (!rig || rig.team !== pose.team) {
         if (rig) this.disposeRig(rig);
-        rig = this.makeRig(pose.team);
+        rig = this.makeRig(id, pose.team);
         this.players.set(id, rig);
       }
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now);
@@ -911,9 +922,9 @@ export class SceneRig {
     model.update(dtSec);
   }
 
-  private makeRig(team: number): PlayerRig {
-    if (this.modelState === "ready" && this.modelGltf) return this.makeModelRig(team, this.modelGltf);
-    return this.makeCapsuleRig(team);
+  private makeRig(id: string, team: number): PlayerRig {
+    if (this.modelState === "ready" && this.modelGltf) return this.makeModelRig(id, team, this.modelGltf);
+    return this.makeCapsuleRig(id, team);
   }
 
   /** Runs once, right after the player model finishes loading: swaps every
@@ -924,17 +935,24 @@ export class SceneRig {
     for (const [id, rig] of this.players) {
       if (rig.kind !== "capsule") continue;
       this.disposeRig(rig);
-      this.players.set(id, this.makeModelRig(rig.team, this.modelGltf!));
+      this.players.set(id, this.makeModelRig(id, rig.team, this.modelGltf!));
     }
   }
 
-  private makeCapsuleRig(team: number): PlayerRig {
+  private makeCapsuleRig(id: string, team: number): PlayerRig {
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: TEAM_COLOR[team] ?? 0xaaaaaa, roughness: 0.7 });
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(PLAYER.radius, CAP_LEN, 4, 10), mat);
     body.position.y = PLAYER.standHeight / 2;
     const head = new THREE.Mesh(new THREE.SphereGeometry(PLAYER.headRadius, 12, 10), mat);
     head.position.y = PLAYER.standHeight - PLAYER.headRadius;
+    // Hybrid hit registration (raycastHitClaim): a capsule rig's primitives ARE
+    // its own exact hit shape (no visual/assumed gap to bridge), so ownership +
+    // part are tagged directly rather than derived from a hit point's height.
+    body.userData.victimId = id;
+    body.userData.part = "body" satisfies HitPart;
+    head.userData.victimId = id;
+    head.userData.part = "head" satisfies HitPart;
     group.add(body);
     group.add(head);
     this.scene.add(group);
@@ -946,10 +964,15 @@ export class SceneRig {
     return { group, team, kind: "capsule", body, head, hitboxOverlay };
   }
 
-  private makeModelRig(team: number, gltf: GLTF): PlayerRig {
+  private makeModelRig(id: string, team: number, gltf: GLTF): PlayerRig {
     const group = new THREE.Group();
     const model = clonePlayerRig(gltf);
     const object = model.object;
+    // Hybrid hit registration (raycastHitClaim): tags the WHOLE skinned-mesh
+    // hierarchy as belonging to `id` — a raycast hit lands on some nested mesh
+    // under `object`, and userData doesn't inherit, so the claim lookup walks
+    // up parents until it finds this tag (see raycastHitClaim).
+    object.userData.victimId = id;
 
     // Normalize scale from the model's own (unknown) authored bbox to
     // PLAYER.standHeight, then position it so its feet sit at the group's local
@@ -1159,6 +1182,64 @@ export class SceneRig {
       });
     }
     return out;
+  }
+
+  /**
+   * Hybrid hit registration (PLAN "모양 100%"): raycasts the shooter's aim ray
+   * against the ACTUALLY RENDERED scene — every remote rig's real mesh in its
+   * current animated pose (or the capsule/head primitives when no model
+   * loaded), plus every map box for occlusion — instead of the server's
+   * analytic capsule/sphere approximation. `intersectObjects` sorts by
+   * distance, so a nearer box beats a farther rig for free (natural
+   * occlusion): the nearest hit decides the outcome.
+   *
+   * Returns `undefined` when the raycast finds nothing (used range is capped
+   * at `maxRange`) OR when the nearest hit is a map box (occluded) — either
+   * way the caller (net.ts's `tryFire`) sends an explicit `claim: null`, not
+   * this `undefined` — see net.ts's doc comment on the 3-way distinction.
+   *
+   * Head/body classification: a capsule rig's hit primitives ARE the exact
+   * shape (tagged `userData.part` at creation — see makeCapsuleRig). A model
+   * rig has no such split, so this classifies by the hit point's world Y
+   * against the actual head bone's CURRENT world Y minus 2×headRadius (the
+   * same "neck" convention hitscan.ts's resolveHitscan uses) — real animated
+   * geometry, not the assumed constant, so a crouching or mid-hit-reaction rig
+   * classifies correctly regardless of pose. Falls back to the assumed
+   * `headY` if this GLB has no "head" bone (same contract as
+   * getHitboxDiagnostics's `visualHeadWorldY`).
+   */
+  raycastHitClaim(
+    eye: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+    maxRange: number,
+  ): FireClaim | undefined {
+    this.claimRaycaster.far = maxRange;
+    this.claimRaycaster.set(this.claimOrigin.set(eye.x, eye.y, eye.z), this.claimDir.set(dir.x, dir.y, dir.z));
+    this.claimTargets.length = 0;
+    for (const { mesh } of this.boxRenders.values()) this.claimTargets.push(mesh);
+    for (const rig of this.players.values()) {
+      if (rig.kind === "model" && rig.modelRoot) this.claimTargets.push(rig.modelRoot);
+      else if (rig.body && rig.head) this.claimTargets.push(rig.body, rig.head);
+    }
+    const nearest = this.claimRaycaster.intersectObjects(this.claimTargets, true)[0];
+    if (!nearest) return undefined;
+
+    let owner: THREE.Object3D | null = nearest.object;
+    while (owner && owner.userData.victimId === undefined) owner = owner.parent;
+    const victimId = owner?.userData.victimId as string | undefined;
+    if (!victimId) return undefined; // nearest hit was a map box — occluded, no claim
+
+    const taggedPart = owner!.userData.part as HitPart | undefined;
+    if (taggedPart === "head" || taggedPart === "body") return { id: victimId, part: taggedPart };
+
+    const rig = this.players.get(victimId);
+    if (!rig) return undefined;
+    this.claimScratch.set(0, 0, 0);
+    rig.model?.getHeadWorldPos(this.claimScratch);
+    const headWorldY =
+      this.claimScratch.lengthSq() > 0 ? this.claimScratch.y : rig.group.position.y + (rig.headY ?? 0);
+    const neckY = headWorldY - 2 * HIT.headRadius;
+    return { id: victimId, part: nearest.point.y >= neckY ? "head" : "body" };
   }
 
   spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {

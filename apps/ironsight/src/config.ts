@@ -332,6 +332,41 @@ export const LAG = {
   interpolationMs: 100,
 } as const;
 
+/**
+ * Hybrid hit registration (user-confirmed "모양 100%": hit registration must
+ * match the VISIBLE model, not this file's analytic capsule/sphere approximation
+ * — see hitscan.ts's `FireClaim` and client/scene.ts's `raycastHitClaim`). The
+ * client raycasts its own rendered scene (the remote rig's real mesh, in
+ * whatever pose is actually on screen) and reports a `{victim, part}` claim;
+ * the server (arena-room.ts's `validateClaim`) runs a coarse plausibility gate
+ * — existence/team/range/aim-cone/occlusion — before trusting it for damage.
+ * Failing that gate (or an old client sending no claim at all) falls back to
+ * `resolveHitscan` unchanged, so this can never make a hit registration WORSE
+ * than today's analytic path, only better-shaped. Single-pellet weapons only —
+ * the shotgun's 8 simultaneous pellets can't collapse into one claim, so it
+ * always uses the analytic path regardless of this flag.
+ */
+export const HYBRID = {
+  /** Safety switch — false makes the server ignore every claim unconditionally
+   *  (today's analytic-only behavior), regardless of what a client sends. */
+  enabled: true,
+  /**
+   * Extra positional slack (m) added to {@link HIT}'s body radius before
+   * converting to the cone half-angle a claim's shooter→victim direction must
+   * fall within — the BASE term of `validateClaim`'s tolerance (before the
+   * shooter's own accuracy-spread widening, see arena-room.ts): covers the
+   * 2 cm position-quant grid, subtick/rewind timing slop between when the
+   * client computed its claim and the server's rewind instant, and normal aim
+   * jitter. Using the target's own radius (not a flat angle) makes this base
+   * term shrink with distance automatically — the same way a target's true
+   * angular size does — matching "casual-tolerant, not degree-perfect" without
+   * a magic per-range table. Tuned empirically (is-anim's report) against a
+   * battery of legitimate aimed shots at combat ranges until false-positive
+   * plausibility rejections hit zero.
+   */
+  coneMarginM: 0.3,
+} as const;
+
 /** Teams. Index 0 = red, 1 = blue (u8 in the codec). */
 export const TEAM = { red: 0, blue: 1 } as const;
 export type TeamId = (typeof TEAM)[keyof typeof TEAM];

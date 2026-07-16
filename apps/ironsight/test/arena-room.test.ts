@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestRoom, type TestRoomHandle } from "@tikron/server/testing";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
-import { AR, GRENADE, HIT, MODES, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
+import { AR, GRENADE, HIT, HYBRID, MODES, PLAYER, TICK_MS, WEAPON, WEAPONS } from "../src/config.js";
 
 const SHOTGUN = WEAPONS.find((w) => w.name === "Shotgun")!;
 /** Pitch that drops the eye-height muzzle onto an enemy's chest `dist` m away. */
@@ -613,5 +613,188 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     await a.send("nade");
     await tick(h, Math.ceil(GRENADE.fuseMs / TICK_MS) + 2);
     expect(h.snapshot().players[b.id]!.hp).toBe(PLAYER.maxHp); // wall between them absorbed it
+  });
+});
+
+// Hybrid hit registration (PLAN "모양 100%", is-anim): the client's own raycast
+// against its rendered scene (client/scene.ts's raycastHitClaim) is sent as a
+// `claim` on the `fire` payload; arena-room.ts's `validateClaim` plausibility-
+// gates it before trusting it for damage, falling back to the existing
+// analytic `resolveHitscan` on any failure. These tests exercise that gate at
+// the room level — a real client's mesh raycast can't be reproduced here, but
+// every claim these tests send is exactly what `readClaim` would parse off the
+// wire, and `validateClaim` doesn't care where the claim came from.
+describe("arena room — hybrid hit registration (claim + server plausibility gate)", () => {
+  afterEach(() => {
+    // The "safety switch" test below flips this at runtime — always restore it
+    // so a failure mid-test can't leak into later tests/files.
+    (HYBRID as { enabled: boolean }).enabled = true;
+  });
+
+  it("an accepted claim registers damage per the claim's part — including a shot the analytic ray alone would miss (outstretched-limb gate case)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    // Aim 0.6 m to the side of the target's true centre at 10 m range: inside
+    // HYBRID's cone tolerance (atan2(HIT.radius + coneMarginM, 10) ≈ 4.0°,
+    // i.e. ~0.7 m of slack at this range) but outside HIT.radius (0.4 m) — the
+    // analytic cylinder test alone misses this exact ray (see the very next
+    // test), the same kind of gap the real animated rig's outstretched-limb
+    // geometry opens up against the analytic capsule (the original hitbox/
+    // visual audit finding this whole feature answers).
+    const offZ = 0.6;
+    const neckY = HIT.standHeight - 2 * HIT.headRadius;
+    const bodyCenterY = neckY / 2; // feetY = 0
+    const yaw = Math.atan2(10, offZ);
+    const pitch = Math.atan2(bodyCenterY - PLAYER.standEye, Math.hypot(10, offZ));
+    place(h, shooter.id, 10, { yaw, pitch, z: 6 });
+    place(h, target.id, 20, { z: 6 });
+    await tick(h, 3);
+
+    await shooter.send("fire", { claim: { id: target.id, part: "body" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean; hits: { id: string; head: boolean }[] };
+    expect(payload.hit).toBe(true);
+    expect(payload.hits).toEqual([{ id: target.id, head: false }]);
+  });
+
+  it("the identical shot with no claim misses via the analytic path alone (confirms the gate case above is real, not a fluke)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    const offZ = 0.6;
+    const neckY = HIT.standHeight - 2 * HIT.headRadius;
+    const bodyCenterY = neckY / 2;
+    const yaw = Math.atan2(10, offZ);
+    const pitch = Math.atan2(bodyCenterY - PLAYER.standEye, Math.hypot(10, offZ));
+    place(h, shooter.id, 10, { yaw, pitch, z: 6 });
+    place(h, target.id, 20, { z: 6 });
+    await tick(h, 3);
+
+    await shooter.send("fire"); // no claim — old client / hybrid-off behavior
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean };
+    expect(payload.hit).toBe(false);
+  });
+
+  it("a null claim (client raycast found nothing) is trusted as a miss and does NOT fall back to the analytic hitscan (gap-between-limbs gate case)", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    // Dead-on body aim — the analytic path alone would definitely hit here
+    // (same setup as the plain "a body hit..." test above); the explicit
+    // `claim: null` must still win over it.
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire", { claim: null });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean; hits: unknown[] };
+    expect(payload.hit).toBe(false);
+    expect(payload.hits).toEqual([]);
+  });
+
+  it("a claim whose reported aim points nowhere near the claimed victim is rejected (forged aim) and falls back to the analytic hitscan", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    // Actually facing +z (yaw 0, nothing downrange) while claiming a hit on
+    // `target`, which sits 10 m away along +x (yaw π/2 would be dead-on) — a
+    // real client's claim always matches its own reported aim; this simulates
+    // a forged/corrupted one.
+    place(h, shooter.id, 10, { yaw: 0, pitch: 0 });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    await shooter.send("fire", { claim: { id: target.id, part: "body" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean };
+    expect(payload.hit).toBe(false);
+  });
+
+  it("a claim for a target behind map cover is rejected (occlusion) and falls back to the analytic hitscan", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    // x=20 sits inside the arena1 lane-divider box's x-range [14,46]; the
+    // divider spans z∈[13,14], y∈[0,2.5] — directly on the line between the
+    // two players placed 19 m apart along z.
+    place(h, shooter.id, 20, { yaw: 0, pitch: Math.atan2(1.0 - PLAYER.standEye, 19), z: 6 });
+    place(h, target.id, 20, { z: 25 });
+    await tick(h, 3);
+
+    await shooter.send("fire", { claim: { id: target.id, part: "body" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean };
+    expect(payload.hit).toBe(false);
+  });
+
+  it("a claim referencing a nonexistent victim is rejected and falls back to the analytic hitscan", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    await tick(h, 2);
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH }); // nothing downrange
+
+    await shooter.send("fire", { claim: { id: "ghost", part: "body" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean };
+    expect(payload.hit).toBe(false);
+  });
+
+  it("a claim for a target beyond weapon range is rejected and falls back to the analytic hitscan", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: 0 });
+    // Direct state write bypasses the normal arena/wire bounds — every
+    // single-pellet weapon's range (80-100 m) already exceeds the arena's own
+    // diagonal (~72 m), so an out-of-range target can't be reached by placing
+    // one inside real map bounds at all.
+    place(h, target.id, 10, { z: 5000 });
+    await tick(h, 3);
+
+    await shooter.send("fire", { claim: { id: target.id, part: "body" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean };
+    expect(payload.hit).toBe(false);
+  });
+
+  it("HYBRID.enabled=false ignores every claim unconditionally, matching today's analytic-only behavior", async () => {
+    (HYBRID as { enabled: boolean }).enabled = false;
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema, sync: "throttled" });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    // A claim with the WRONG part on purpose — if honored this would read
+    // head:true; with the flag off it must be ignored outright and the
+    // analytic path (a real body-height aim) reports the true body hit.
+    await shooter.send("fire", { claim: { id: target.id, part: "head" } });
+    await tick(h, 1);
+
+    const payload = shotFrames(shooter).at(-1)!.payload as { hits: { id: string; head: boolean }[] };
+    expect(payload.hits).toEqual([{ id: target.id, head: false }]);
   });
 });

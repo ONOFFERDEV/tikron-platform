@@ -11,6 +11,7 @@ import {
   ARENA,
   GRENADE,
   HIT,
+  HYBRID,
   LAG,
   MATCH,
   MOVE,
@@ -21,7 +22,7 @@ import {
   type WeaponSpec,
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
-import { resolveHitscan, type HitTarget } from "../hitscan.js";
+import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
@@ -81,6 +82,34 @@ function readNum(o: unknown, key: string): number | undefined {
 
 function readBool(o: unknown, key: string): boolean {
   return isObj(o) && o[key] === true;
+}
+
+/**
+ * Reads a hybrid hit-registration claim off a `fire` payload's `claim` field.
+ * Three states, distinguished on purpose (see `handleFire`):
+ * - field absent → `{ present: false }` (old client, or the client didn't
+ *   attempt a claim for this shot — e.g. a multi-pellet weapon) → the existing
+ *   analytic hitscan is the fallback, unchanged.
+ * - `claim: null` → `{ present: true, value: null }` — the client raycast its
+ *   own rendered scene and found nothing (occluded or a genuine miss); trusted
+ *   outright, no plausibility check needed (a forged "miss" only disadvantages
+ *   the claimer, never a cheat vector) and — critically — NOT treated the same
+ *   as "absent," or the analytic capsule could still register a hit through a
+ *   gap the real mesh doesn't cover, defeating the point of the feature.
+ * - `claim: {id, part}` → `{ present: true, value: {id, part} }`, validated by
+ *   `validateClaim` before being trusted for damage.
+ * Anything malformed (wrong field types) reads as absent — fails open to
+ * today's behavior rather than throwing on a bad client payload.
+ */
+function readClaim(o: unknown, key: string): { present: false } | { present: true; value: FireClaim | null } {
+  if (!isObj(o) || !(key in o)) return { present: false };
+  const c = o[key];
+  if (c === null) return { present: true, value: null };
+  if (!isObj(c)) return { present: false };
+  const claimId = c["id"];
+  const part = c["part"];
+  if (typeof claimId !== "string" || (part !== "head" && part !== "body")) return { present: false };
+  return { present: true, value: { id: claimId, part } };
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -229,7 +258,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
-    this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, input));
+    this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
     this.onMessage("reload", (client) => this.handleReload(client));
     this.onMessage("switch", (client, payload) => this.handleSwitch(client, payload));
     this.onMessage("nade", (client) => this.handleNade(client));
@@ -490,7 +519,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   // --- shooting ---------------------------------------------------------------
 
-  private handleFire(client: Client, input?: InputMeta): void {
+  private handleFire(client: Client, payload: unknown, input?: InputMeta): void {
     const id = client.id;
     const shooter = this.state.players[id];
     if (!shooter || !shooter.alive) return;
@@ -555,6 +584,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       targets.push({ id: tid, x: h.x, z: h.y, feetY: v.x, headY: v.y, team: tp.team });
     }
 
+    // One shot event per trigger pull (base aim ray → muzzle flash + tracer); the
+    // tracer reaches the nearest pellet impact, else the map-occlusion distance.
+    // Also the reference direction hybrid claims are validated against below —
+    // a claim reflects where the client's crosshair pointed, not the analytic
+    // path's per-pellet jittered ray (the client can't predict the server's
+    // secret spread RNG), so it's checked against this raw aim, not `dir`.
+    const baseDir = dirFromAngles(shooter.yaw, shooter.pitch);
+
     // Fire the weapon's pellets: a fixed pattern (the shotgun's spread) plus a
     // per-ray accuracy-cone jitter (movement penalty). Per-pellet damage scales
     // with range (falloff), and pellets on the same victim stack into one hit.
@@ -566,30 +603,92 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     const dmgByVictim = new Map<string, { dmg: number; head: boolean }>();
     let nearestHitT = Infinity;
-    for (const off of pelletPattern(spec)) {
-      const dir = dirFromAngles(shooter.yaw + off.dyaw + this.jitter(acc), shooter.pitch + off.dpitch + this.jitter(acc));
-      const hit = resolveHitscan(
-        origin,
-        dir,
-        spec.range,
-        shooter.team,
-        targets,
-        this.boxes,
-        cfg,
-        !this.gameMode.teams,
-      );
-      if (!hit) continue;
-      if (hit.t < nearestHitT) nearestHitT = hit.t;
-      const base = hit.part === "head" ? spec.damageHead : spec.damageBody;
-      const agg = dmgByVictim.get(hit.id) ?? { dmg: 0, head: false };
-      agg.dmg += base * falloffMul(spec, hit.t);
-      agg.head = agg.head || hit.part === "head";
-      dmgByVictim.set(hit.id, agg);
+
+    // Hybrid hit registration (HYBRID, hitscan.ts's FireClaim) — single-pellet
+    // weapons only; a shotgun's 8 simultaneous pellets can't collapse into one
+    // claim, so it always falls through to the analytic loop below untouched.
+    let usedClaim = false;
+    const claimRead = HYBRID.enabled && spec.pellets === 1 ? readClaim(payload, "claim") : ({ present: false } as const);
+    if (claimRead.present) {
+      if (claimRead.value === null) {
+        // The client raycast its own rendered scene and found nothing — trusted
+        // outright, no plausibility check needed (a forged "miss" only ever
+        // disadvantages the claimer, never a cheat vector). Deliberately NOT
+        // routed into the analytic fallback below: that capsule can still cover
+        // a gap (e.g. between the legs) the real mesh doesn't, which would
+        // silently re-introduce the exact false-hit this feature exists to fix.
+        usedClaim = true;
+        console.log(JSON.stringify({ tag: "hybridHit", shooter: id, result: "trusted-miss" }));
+      } else {
+        const claimed = claimRead.value;
+        const result = this.validateClaim(claimed, shooter, targets, origin, baseDir, spec.range, acc);
+        if (result.accepted) {
+          usedClaim = true;
+          const base = claimed.part === "head" ? spec.damageHead : spec.damageBody;
+          dmgByVictim.set(claimed.id, { dmg: base * falloffMul(spec, result.t), head: claimed.part === "head" });
+          nearestHitT = result.t;
+          console.log(
+            JSON.stringify({
+              tag: "hybridHit",
+              shooter: id,
+              victim: claimed.id,
+              part: claimed.part,
+              angleErrDeg: result.angleErrDeg,
+              result: "accepted",
+            }),
+          );
+        } else {
+          console.warn(
+            JSON.stringify({
+              tag: "hybridHit",
+              shooter: id,
+              victim: claimed.id,
+              part: claimed.part,
+              angleErrDeg: result.angleErrDeg,
+              reason: result.reason,
+              result: "rejected",
+            }),
+          );
+        }
+      }
     }
 
-    // One shot event per trigger pull (base aim ray → muzzle flash + tracer); the
-    // tracer reaches the nearest pellet impact, else the map-occlusion distance.
-    const baseDir = dirFromAngles(shooter.yaw, shooter.pitch);
+    if (!usedClaim) {
+      // Third branch of the 3-way split (team-lead's wire-spec correction): no
+      // claim was attempted at all — a genuinely old client, a multi-pellet
+      // weapon, or HYBRID.enabled=false. Logged too, at the same tag, so a
+      // Workers log review can tell "no claim offered" apart from "trusted
+      // miss" and "rejected claim" without gaps in the audit trail. Bots are
+      // excluded on purpose (team-lead): the logging exists for post-hoc CHEAT
+      // review, and a bot (botFire always sends no payload/claim) can never be
+      // a cheat suspect — every bot shot would otherwise log this line at the
+      // bot's full fire cadence (down to 65ms for a filler-bot SMG), drowning
+      // the real per-human audit trail in zero-forensic-value noise.
+      if (HYBRID.enabled && !this.botBrains.has(id)) {
+        console.log(JSON.stringify({ tag: "hybridHit", shooter: id, result: "no-claim" }));
+      }
+      for (const off of pelletPattern(spec)) {
+        const dir = dirFromAngles(shooter.yaw + off.dyaw + this.jitter(acc), shooter.pitch + off.dpitch + this.jitter(acc));
+        const hit = resolveHitscan(
+          origin,
+          dir,
+          spec.range,
+          shooter.team,
+          targets,
+          this.boxes,
+          cfg,
+          !this.gameMode.teams,
+        );
+        if (!hit) continue;
+        if (hit.t < nearestHitT) nearestHitT = hit.t;
+        const base = hit.part === "head" ? spec.damageHead : spec.damageBody;
+        const agg = dmgByVictim.get(hit.id) ?? { dmg: 0, head: false };
+        agg.dmg += base * falloffMul(spec, hit.t);
+        agg.head = agg.head || hit.part === "head";
+        dmgByVictim.set(hit.id, agg);
+      }
+    }
+
     const dist =
       nearestHitT < Infinity
         ? nearestHitT
@@ -627,6 +726,73 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.markStateChanged();
   }
 
+  /**
+   * Hybrid hit registration's server-side plausibility gate (PLAN "모양 100%",
+   * user-confirmed casual-tolerant premise). The client's raycast-against-its-
+   * actual-rendered-scene claim is trusted for DAMAGE — skipping the analytic
+   * capsule/sphere approximation entirely — only if this coarse check passes;
+   * any failure falls back to the existing `resolveHitscan` pellet loop
+   * unchanged, so a forged or stale claim can never register a hit the
+   * analytic path wouldn't already have allowed — only fail to improve on it.
+   *
+   * Deliberately coarse: this does NOT re-derive whether the claimed point is
+   * really "head" vs "body" (the client's own mesh raycast already decided
+   * that, more precisely than this file's capsule/sphere ever could) — it only
+   * asks "could this shot plausibly have been aimed at this target," the same
+   * question a human reviewing a replay log would ask.
+   */
+  private validateClaim(
+    claim: FireClaim,
+    shooter: ArenaPlayer,
+    targets: readonly HitTarget[],
+    origin: Vec3,
+    aimDir: Vec3,
+    range: number,
+    acc: number,
+  ): { accepted: true; t: number; angleErrDeg: number } | { accepted: false; reason: string; angleErrDeg?: number } {
+    // Not found in `targets` covers dead/protected/self/nonexistent in one
+    // check — that array was already filtered down to the valid victim set
+    // (see handleFire's rewind loop right above).
+    const tgt = targets.find((t) => t.id === claim.id);
+    if (!tgt) return { accepted: false, reason: "no-target" };
+    if (this.gameMode.teams && tgt.team === shooter.team) return { accepted: false, reason: "friendly" };
+
+    // Same headCentre/neck convention hitscan.ts's resolveHitscan uses, so the
+    // reference point a "head" or "body" claim is checked against matches what
+    // the analytic path would have aimed at for the same target.
+    const neckY = tgt.headY - 2 * HIT.headRadius;
+    const refPoint: Vec3 =
+      claim.part === "head"
+        ? { x: tgt.x, y: tgt.headY - HIT.headRadius, z: tgt.z }
+        : { x: tgt.x, y: (tgt.feetY + neckY) / 2, z: tgt.z };
+
+    const toRef: Vec3 = { x: refPoint.x - origin.x, y: refPoint.y - origin.y, z: refPoint.z - origin.z };
+    const dist = Math.hypot(toRef.x, toRef.y, toRef.z);
+    if (dist < 1e-6 || dist > range) return { accepted: false, reason: "range" };
+
+    const toRefDir: Vec3 = { x: toRef.x / dist, y: toRef.y / dist, z: toRef.z / dist };
+    const cos = clamp(aimDir.x * toRefDir.x + aimDir.y * toRefDir.y + aimDir.z * toRefDir.z, -1, 1);
+    const angleErr = Math.acos(cos);
+    const angleErrDeg = (angleErr * 180) / Math.PI;
+    // See HYBRID.coneMarginM's doc comment (src/config.ts) for why the base
+    // term scales with distance instead of a flat degree figure. `acc` (the
+    // shooter's CURRENT accuracySpread, moving/airborne included) is added on
+    // top as its worst-case combined angle: yaw and pitch jitter are each drawn
+    // independently and uniformly in [-acc, +acc] (weapons.ts's `jitter`, one
+    // roll client-side for the claim ray, a separate roll server-side for the
+    // analytic pellet), so the two axes' worst-case combined magnitude is
+    // acc·√2 — without this term, a moving shooter's client-rolled jitter
+    // (correctly reproducing the accuracy-cone movement penalty) would get
+    // its own honest claims rejected as "forged."
+    const tolerance = Math.atan2(HIT.radius + HYBRID.coneMarginM, dist) + acc * Math.SQRT2;
+    if (angleErr > tolerance) return { accepted: false, reason: "cone", angleErrDeg };
+
+    const occludeT = nearestBox(origin, toRefDir, this.boxes, dist);
+    if (occludeT < dist) return { accepted: false, reason: "occluded", angleErrDeg };
+
+    return { accepted: true, t: dist, angleErrDeg };
+  }
+
   private weaponOf(p: ArenaPlayer): WeaponSpec {
     return WEAPONS[p.weapon] ?? WEAPONS[DEFAULT_WEAPON]!;
   }
@@ -651,7 +817,11 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return a;
   }
 
-  /** Symmetric spread offset (rad) for a cone half-angle; 0 → pinpoint (deterministic). */
+  /** Symmetric spread offset (rad) for a cone half-angle; 0 → pinpoint (deterministic).
+   *  Same formula as weapons.ts's exported `jitter()` (which main.ts's hybrid-hit
+   *  claim roll uses with its own `Math.random()`) — kept as a separate method
+   *  here rather than switched to call the shared one, so this room's seeded
+   *  `spreadRng` (secret, reproducible-per-room) stays untouched. */
   private jitter(spread: number): number {
     return spread > 0 ? (this.spreadRng() / 0xffffffff - 0.5) * 2 * spread : 0;
   }
@@ -1200,7 +1370,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
    *  the subtick instant instead of estimating from RTT). */
   private botFire(id: string): void {
     const client = { id, rttMs: 0, send: () => {} } as unknown as Client;
-    this.handleFire(client, { ts: Date.now() } as unknown as InputMeta);
+    // Bots have no rendered scene to raycast — no `payload`/claim, so this
+    // always takes the analytic `resolveHitscan` path, unchanged from before.
+    this.handleFire(client, undefined, { ts: Date.now() } as unknown as InputMeta);
   }
 
   private botSwitch(id: string, slot: number): void {

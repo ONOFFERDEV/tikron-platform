@@ -65,3 +65,21 @@ export function accuracySpread(spec: WeaponSpec, moving: boolean, grounded: bool
   if (moving) return spec.spreadStill + spec.spreadMove;
   return spec.spreadStill;
 }
+
+/**
+ * Symmetric uniform jitter in `[-spread, +spread]`, `0` when `spread` is `0`
+ * (pinpoint — matches `accuracySpread`'s "stationary AR" case exactly). The
+ * SAME distribution arena-room.ts's private `jitter()` applies server-side for
+ * pellet spread — shared here so the client's hybrid-hit claim ray (main.ts's
+ * `computeClaim`) degrades by the identical movement-penalty model instead of
+ * a hand-copied one that could drift. Takes its random source as a parameter
+ * on purpose: the server supplies its seeded per-room PRNG (secret, so a
+ * client can't predict the exact pellet ray), the client supplies `Math.random`
+ * for its own claim roll — the two are independent draws from the same
+ * distribution, not a synchronized sequence (see arena-room.ts's `validateClaim`,
+ * which widens its cone tolerance by the same `accuracySpread` value to accept
+ * either side's independent roll).
+ */
+export function jitter(spread: number, random01: () => number): number {
+  return spread > 0 ? (random01() - 0.5) * 2 * spread : 0;
+}
