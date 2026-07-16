@@ -8,5 +8,8 @@
     "noEmit": true
   },
   "include": ["src", "test", "config"],
-  "exclude": ["dist", "node_modules"]
+  // settings.test.ts imports client/settings.ts, which defaults to
+  // `window.localStorage` (a DOM global) — it's typechecked under
+  // tsconfig.client.json's DOM lib instead, see that file's include.
+  "exclude": ["dist", "node_modules", "test/settings.test.ts"]
 }

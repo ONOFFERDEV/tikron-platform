@@ -5,10 +5,12 @@
  * sees — mouse feel, interpolation delay, correction thresholds, and colours.
  */
 
-/** Mouse look sensitivity (rad per pixel of pointer-lock movement). */
+/**
+ * Base mouse look sensitivity (rad per pixel of pointer-lock movement) before
+ * the player's `Settings.sensitivity` multiplier and ADS `sensScale` are
+ * applied — see `input.ts`'s mousemove handler.
+ */
 export const MOUSE_SENSITIVITY = 0.0022;
-/** Invert the vertical look axis. */
-export const INVERT_Y = false;
 
 /**
  * Input rate budget (server caps at 90/s — see the room's `maxInputsPerSecond`).

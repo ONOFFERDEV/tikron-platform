@@ -7,9 +7,17 @@
  * resolving, so `net.ts`'s own `modeFromLocation()` — which reads
  * `location.search` independently — picks it up unchanged. This module never
  * talks to `Net` directly.
+ *
+ * A small "설정" button in the bottom-right corner opens the same settings
+ * panel `quit-confirm.ts` uses. This menu hides its own DOM (rather than
+ * relying on z-index — the menu is 200, the settings panel is 160, so a
+ * naive stack would put the panel behind it) before opening settings, and
+ * restores it in the `onClose` callback.
  */
 import { MODE_ORDER, type ModeId } from "../src/modes.js";
 import { GAME } from "../src/game-config.js";
+import { openSettings } from "./settings-ui.js";
+import type { SettingsStore } from "./settings.js";
 
 const css = `
 #modeMenu { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
@@ -22,6 +30,8 @@ const css = `
 #modeMenu button:hover { background: rgba(70,130,220,0.25); border-color: rgba(156,196,255,0.6); }
 #modeMenu button .ko { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
 #modeMenu button .en { display: block; margin-top: 3px; font-size: 11px; letter-spacing: 2px; opacity: 0.55; }
+#modeMenu .settingsBtn { position: absolute; right: 24px; bottom: 24px; width: auto; padding: 10px 18px;
+  text-align: center; }
 `;
 
 function isModeId(v: string | null): v is ModeId {
@@ -33,13 +43,13 @@ function isModeId(v: string | null): v is ModeId {
  * no menu shown). Otherwise shows the fullscreen menu and resolves once a button
  * is picked.
  */
-export async function resolveMode(): Promise<ModeId> {
+export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
   const fromUrl = new URLSearchParams(location.search).get("mode");
   if (isModeId(fromUrl)) return fromUrl;
-  return showMenu();
+  return showMenu(settings);
 }
 
-function showMenu(): Promise<ModeId> {
+function showMenu(settings: SettingsStore): Promise<ModeId> {
   return new Promise((resolve) => {
     const style = document.createElement("style");
     style.textContent = css;
@@ -65,6 +75,17 @@ function showMenu(): Promise<ModeId> {
       });
       root.appendChild(btn);
     }
+
+    const settingsBtn = document.createElement("button");
+    settingsBtn.className = "settingsBtn";
+    settingsBtn.textContent = GAME.text.settings.openLabel;
+    settingsBtn.addEventListener("click", () => {
+      root.style.display = "none";
+      openSettings(settings, () => {
+        root.style.display = "";
+      });
+    });
+    root.appendChild(settingsBtn);
 
     document.body.appendChild(root);
   });

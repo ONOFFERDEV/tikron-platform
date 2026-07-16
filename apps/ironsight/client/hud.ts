@@ -6,6 +6,7 @@
  */
 import { MODE_ORDER, isTeamless } from "../src/modes.js";
 import { GAME } from "../src/game-config.js";
+import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
 const T = GAME.text;
@@ -99,6 +100,7 @@ export class Hud {
   private readonly overlay: HTMLElement;
   private readonly wslots: HTMLElement[];
   private readonly nadeCount: HTMLElement;
+  private readonly settings: SettingsStore;
 
   private reloadStart = -1;
   private reloadMs = 0;
@@ -110,7 +112,11 @@ export class Hud {
   private voteCount = -1;
   private voteNeed = 0;
 
-  constructor(container: HTMLElement = document.body) {
+  /** `settings` drives the click-to-play overlay's controls hint, which is
+   *  filled in from the player's live keybindings on every `showLockPrompt`
+   *  call rather than baked in once. */
+  constructor(settings: SettingsStore, container: HTMLElement = document.body) {
+    this.settings = settings;
     const style = el("style");
     style.textContent = css;
     document.head.appendChild(style);
@@ -367,11 +373,29 @@ export class Hud {
     this.fps = Math.round(n);
   }
 
+  /** Fills `T.controlsHintFmt`'s `{move}/{sprint}/{crouch}/{jump}/{reload}`
+   *  placeholders from the player's current keybindings (client/settings.ts),
+   *  so a rebind in the settings panel shows up here immediately. Digit1-5,
+   *  mouse buttons, and the M mute toggle are fixed (never rebindable — see
+   *  client/settings.ts's `BindAction` doc comment), so "LMB fire" and
+   *  "M mute" stay literal in the template itself. */
+  private controlsHintText(): string {
+    const { binds } = this.settings.get();
+    const keyOf = (a: BindAction): string => (binds[a][0] ? formatKeyLabel(binds[a][0]!) : "—");
+    return fmt(T.controlsHintFmt, {
+      move: `${keyOf("forward")}${keyOf("left")}${keyOf("back")}${keyOf("right")}`,
+      sprint: formatBinding(binds.sprint),
+      crouch: formatBinding(binds.crouch),
+      jump: formatBinding(binds.jump),
+      reload: formatBinding(binds.reload),
+    });
+  }
+
   /** The click-to-play / ESC prompt. */
   showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
     if (show) {
       this.overlay.style.display = "flex";
-      this.overlay.innerHTML = `<h1>${T.hud.gameTitle}</h1><p>${text}</p><p class="hint">${T.controlsHint}</p>`;
+      this.overlay.innerHTML = `<h1>${T.hud.gameTitle}</h1><p>${text}</p><p class="hint">${this.controlsHintText()}</p>`;
     } else {
       this.overlay.style.display = "none";
     }

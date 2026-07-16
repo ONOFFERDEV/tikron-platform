@@ -24,7 +24,7 @@ import { ARENA, PLAYER, HIT, MOVE, GRENADE, MATCH, LAG } from "../src/config.js"
 import { MODE_ORDER } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
-import { MOUSE_SENSITIVITY, INVERT_Y, LOOK_SEND_MS, MOVE_KEEPALIVE_MS, INTERP_DELAY_MS, RECONCILE_SOFT_M, RECONCILE_SNAP_M, RECONCILE_FRAC, RECONCILE_TAU_MS, HIP_FOV, ADS_FOV } from "../client/config.js";
+import { MOUSE_SENSITIVITY, LOOK_SEND_MS, MOVE_KEEPALIVE_MS, INTERP_DELAY_MS, RECONCILE_SOFT_M, RECONCILE_SNAP_M, RECONCILE_FRAC, RECONCILE_TAU_MS, HIP_FOV, ADS_FOV } from "../client/config.js";
 import { defineConfig, type GameConfig } from "./schema.js";
 
 export const neonstrikeConfig: GameConfig = defineConfig({
@@ -122,7 +122,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
 
   text: {
     title: "NEONSTRIKE",
-    controlsHint: "WASD move · Shift sprint · Ctrl/C crouch · Space jump · R reload · LMB fire · M mute",
+    controlsHintFmt: "{move} move · {sprint} sprint · {crouch} crouch · {jump} jump · {reload} reload · LMB fire · M mute",
     modeLabels: {
       tdm: { ko: "팀전", en: "TEAM CLASH" },
       ffa: { ko: "개인전", en: "FREE-FOR-ALL" },
@@ -157,6 +157,27 @@ export const neonstrikeConfig: GameConfig = defineConfig({
     nadeIcon: "💠",
     botNameFmt: "NPC{n}",
     selfName: "You",
+    settings: {
+      title: "설정",
+      sensitivityLabel: "마우스 감도",
+      invertYLabel: "상하 시점 반전",
+      keybindingsTitle: "키 설정",
+      actionLabels: {
+        forward: "앞으로",
+        back: "뒤로",
+        left: "왼쪽",
+        right: "오른쪽",
+        jump: "점프",
+        crouch: "앉기",
+        sprint: "달리기",
+        reload: "재장전",
+        grenade: "수류탄",
+      },
+      captureHint: "아무 키나 누르세요…",
+      resetAllLabel: "기본값 복원",
+      closeLabel: "닫기",
+      openLabel: "설정",
+    },
   },
 
   palette: {
@@ -183,7 +204,9 @@ export const neonstrikeConfig: GameConfig = defineConfig({
 
   feel: {
     mouseSensitivity: MOUSE_SENSITIVITY,
-    invertY: INVERT_Y,
+    // See ironsight.config.ts's matching comment — invertY is now player-owned
+    // via client/settings.ts, this static field is unused schema filler.
+    invertY: false,
     lookSendMs: LOOK_SEND_MS,
     moveKeepaliveMs: MOVE_KEEPALIVE_MS,
     interpDelayMs: INTERP_DELAY_MS,

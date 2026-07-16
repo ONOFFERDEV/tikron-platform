@@ -17,6 +17,7 @@ import { SceneRig } from "./scene.js";
 import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
+import { SettingsStore } from "./settings.js";
 import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
@@ -43,13 +44,18 @@ const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (clien
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
-  const hud = new Hud();
+  // Single shared store: Input reads live sensitivity/invertY/binds from it every
+  // event, and both settings-panel entry points (quit-confirm, mode-select) mutate
+  // this SAME instance so a change made in the panel takes effect immediately.
+  // Constructed before Hud since Hud's controls-hint reads live binds from it.
+  const settings = new SettingsStore();
+  const hud = new Hud(settings);
   initAudio();
 
   // Shows the fullscreen mode menu (and awaits a pick) only when the page has no
   // valid `?mode=` — a deep link resolves immediately with no menu. Either way,
   // `location.search` carries the chosen mode by the time Net.connect() reads it.
-  await resolveMode();
+  await resolveMode(settings);
   hud.showLockPrompt(true, GAME.text.hud.connecting);
 
   const net = await Net.connect();
@@ -78,7 +84,8 @@ async function main(): Promise<void> {
   const input = new Input(
     scene.canvas,
     me0?.yaw ?? 0,
-    wireQuitConfirm(() => input.lock()),
+    settings,
+    wireQuitConfirm(settings, () => input.lock()),
     (slot) => net.sendSwitch(slot),
     (dir) => {
       const cur = net.state?.players[net.myId]?.weapon ?? 0;

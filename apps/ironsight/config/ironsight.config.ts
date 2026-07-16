@@ -38,7 +38,6 @@ import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import {
   MOUSE_SENSITIVITY,
-  INVERT_Y,
   LOOK_SEND_MS,
   MOVE_KEEPALIVE_MS,
   INTERP_DELAY_MS,
@@ -139,7 +138,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   // --- text: transcribed verbatim (no exported strings in any client module) --
   text: {
     title: "IRONSIGHT", // client/mode-select.ts's fullscreen menu <h1>
-    controlsHint: "WASD move · Shift sprint · Ctrl/C crouch · Space jump · R reload · LMB fire · M mute", // client/hud.ts showLockPrompt
+    controlsHintFmt: "{move} move · {sprint} sprint · {crouch} crouch · {jump} jump · {reload} reload · LMB fire · M mute", // client/hud.ts showLockPrompt
     modeLabels: {
       tdm: { ko: "팀 데스매치", en: "TEAM DEATHMATCH" },
       ffa: { ko: "개인전", en: "FREE-FOR-ALL" },
@@ -174,6 +173,27 @@ export const ironsightConfig: GameConfig = defineConfig({
     nadeIcon: "💣", // client/hud.ts setNades
     botNameFmt: "BOT{n}", // client/main.ts's name()
     selfName: "You", // client/main.ts's name()
+    settings: {
+      title: "설정",
+      sensitivityLabel: "마우스 감도",
+      invertYLabel: "상하 시점 반전",
+      keybindingsTitle: "키 설정",
+      actionLabels: {
+        forward: "앞으로",
+        back: "뒤로",
+        left: "왼쪽",
+        right: "오른쪽",
+        jump: "점프",
+        crouch: "앉기",
+        sprint: "달리기",
+        reload: "재장전",
+        grenade: "수류탄",
+      },
+      captureHint: "아무 키나 누르세요…",
+      resetAllLabel: "기본값 복원",
+      closeLabel: "닫기",
+      openLabel: "설정",
+    },
   },
 
   // --- palette: transcribed verbatim from client/scene.ts + client/vfx.ts -----
@@ -208,7 +228,10 @@ export const ironsightConfig: GameConfig = defineConfig({
   // --- feel: imported from client/config.ts + respawnDisplayMs transcribed ----
   feel: {
     mouseSensitivity: MOUSE_SENSITIVITY,
-    invertY: INVERT_Y,
+    // Runtime invert-Y is now player-controlled via client/settings.ts's
+    // Settings.invertY (localStorage-backed), not this static config field —
+    // FeelConfig.invertY is unused dead weight kept only for schema parity.
+    invertY: false,
     lookSendMs: LOOK_SEND_MS,
     moveKeepaliveMs: MOVE_KEEPALIVE_MS,
     interpDelayMs: INTERP_DELAY_MS,

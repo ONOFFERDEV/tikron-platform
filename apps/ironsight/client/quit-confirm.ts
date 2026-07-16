@@ -17,8 +17,18 @@
  * "계속하기" does, MINUS the re-lock: a second Escape can't reliably reclaim
  * pointer lock (browsers guard against instant reclaim-after-release), so it
  * falls back to the ordinary unlocked "CLICK TO PLAY" prompt instead.
+ *
+ * The "설정" button hides this modal's own DOM (`display: none`, not removal —
+ * the panel and its state stay put) and detaches its Escape-dismiss listener
+ * before handing off to {@link openSettings}, then restores both once the
+ * settings panel's `onClose` fires. This sidesteps an Escape-keydown collision
+ * between this modal's dismiss-on-Escape and the settings panel's
+ * cancel-capture-on-Escape, without either module needing to know about the
+ * other's internals.
  */
 import { GAME } from "../src/game-config.js";
+import { openSettings } from "./settings-ui.js";
+import type { SettingsStore } from "./settings.js";
 
 const css = `
 #quitConfirm { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center;
@@ -44,7 +54,7 @@ function quitToMenu(): void {
   location.replace(url.toString());
 }
 
-function showQuitConfirm(relock: () => void): void {
+function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
   if (root) return; // already open
 
   const style = document.createElement("style");
@@ -71,12 +81,22 @@ function showQuitConfirm(relock: () => void): void {
   const continueBtn = document.createElement("button");
   continueBtn.textContent = GAME.text.quit.continueLabel;
   continueBtn.addEventListener("click", () => dismiss(true));
+  const settingsBtn = document.createElement("button");
+  settingsBtn.textContent = GAME.text.settings.openLabel;
+  settingsBtn.addEventListener("click", () => {
+    window.removeEventListener("keydown", onKeydown);
+    dlg.style.display = "none";
+    openSettings(settings, () => {
+      dlg.style.display = "";
+      window.addEventListener("keydown", onKeydown);
+    });
+  });
   const quitBtn = document.createElement("button");
   quitBtn.className = "quit";
   quitBtn.textContent = GAME.text.quit.quitLabel;
   quitBtn.addEventListener("click", () => quitToMenu());
 
-  rowEl.append(continueBtn, quitBtn);
+  rowEl.append(continueBtn, settingsBtn, quitBtn);
   panel.appendChild(rowEl);
   dlg.append(style, panel);
   document.body.appendChild(dlg);
@@ -90,7 +110,10 @@ function showQuitConfirm(relock: () => void): void {
  * "CLICK TO PLAY" screen never triggers it). `relock` is called (from within
  * the "계속하기" button's own click handler) to re-request pointer lock.
  */
-export function wireQuitConfirm(relock: () => void): (locked: boolean) => void {
+export function wireQuitConfirm(
+  settings: SettingsStore,
+  relock: () => void,
+): (locked: boolean) => void {
   let everLocked = false;
   return (locked: boolean): void => {
     if (locked) {
@@ -98,6 +121,6 @@ export function wireQuitConfirm(relock: () => void): (locked: boolean) => void {
       return;
     }
     if (!everLocked) return;
-    showQuitConfirm(relock);
+    showQuitConfirm(settings, relock);
   };
 }

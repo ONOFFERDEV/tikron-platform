@@ -202,8 +202,12 @@ export interface TeamsConfig {
 export interface TextConfig {
   /** mode-select.ts's fullscreen menu heading. */
   title: string;
-  /** hud.ts's "CLICK TO PLAY" overlay hint line. */
-  controlsHint: string;
+  /** hud.ts's "CLICK TO PLAY" overlay hint line. A `{move}/{sprint}/{crouch}/
+   *  {jump}/{reload}` template (hud.ts's `fmt()` helper) filled in from the
+   *  player's live keybindings (client/settings.ts) on every render — "LMB
+   *  fire" and "M mute" stay literal since neither is a rebindable
+   *  `BindAction` (mute is a separate fixed toggle owned by client/audio.ts). */
+  controlsHintFmt: string;
   modeLabels: Record<ModeId, { ko: string; en: string }>;
   /** `continueLabel`/`quitLabel` name the BUTTON's action, not a generic dialog
    *  verb — a W3 finding: the original `confirm`/`cancel` field names read
@@ -234,6 +238,35 @@ export interface TextConfig {
   nadeIcon: string;
   botNameFmt: string;
   selfName: string;
+  /** Settings panel (client/settings-ui.ts) plus its two "설정" open-buttons
+   *  (client/quit-confirm.ts, client/mode-select.ts). `actionLabels`'s key
+   *  union mirrors client/settings.ts's `BindAction` type but is duplicated
+   *  here rather than imported — this file only ever imports from `../src/*`,
+   *  never `../client/*`. */
+  settings: {
+    title: string;
+    sensitivityLabel: string;
+    invertYLabel: string;
+    keybindingsTitle: string;
+    actionLabels: Record<
+      | "forward"
+      | "back"
+      | "left"
+      | "right"
+      | "jump"
+      | "crouch"
+      | "sprint"
+      | "reload"
+      | "grenade",
+      string
+    >;
+    /** Shown on a key button while it's waiting for the next keypress. */
+    captureHint: string;
+    resetAllLabel: string;
+    closeLabel: string;
+    /** Label for the small button that opens this panel from elsewhere. */
+    openLabel: string;
+  };
 }
 
 // ── palette ───────────────────────────────────────────────────────────────────

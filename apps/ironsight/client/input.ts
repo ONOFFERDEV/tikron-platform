@@ -6,11 +6,24 @@
  * Strafe is inverted on purpose: with a three.js `lookAt` camera built from the
  * server's yaw, screen-right maps to the server's −x strafe, so D → mx = −1 makes
  * "press right, move right" true. Forward (W → mz = +1) already matches.
+ *
+ * Movement/jump/crouch/sprint/reload/grenade are all keybind-driven via the
+ * injected {@link SettingsStore} — every check below reads `settings.get()`
+ * fresh rather than snapshotting binds once, so a rebind made in the settings
+ * panel applies to the very next keydown/frame with no reload needed. Slot
+ * select (Digit1-5), mouse buttons, and scroll-wheel cycling are NOT
+ * rebindable and stay as literal codes, per spec.
  */
-import { MOUSE_SENSITIVITY, INVERT_Y } from "./config.js";
+import { MOUSE_SENSITIVITY } from "./config.js";
 import type { MoveIntent } from "./net.js";
+import type { BindAction, SettingsStore } from "./settings.js";
 
 const PITCH_LIMIT = Math.PI / 2 - 0.01; // matches the server's clamp
+
+/** True if `code` is bound to any of the 9 rebindable actions right now. */
+function isBoundKey(code: string, binds: Record<BindAction, string[]>): boolean {
+  return Object.values(binds).some((codes) => codes.includes(code));
+}
 
 export class Input {
   /** Accumulated aim, server convention: yaw 0 → +z, increasing yaw → +x; pitch + = up. */
@@ -29,6 +42,7 @@ export class Input {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     initialYaw: number,
+    private readonly settings: SettingsStore,
     private readonly onLockChange?: (locked: boolean) => void,
     /** Digit1–5 pressed: switch to that loadout slot. */
     private readonly onSwitch?: (slot: number) => void,
@@ -44,16 +58,29 @@ export class Input {
   private bind(): void {
     window.addEventListener("keydown", (e) => {
       if (this.isTyping(e)) return;
-      if (e.code === "Space") {
-        if (!e.repeat) this.jumpEdge = true;
-        e.preventDefault();
-      } else if (e.code === "KeyR") {
-        if (!e.repeat) this.reloadEdge = true;
-      } else if (e.code === "KeyG") {
-        if (!e.repeat) this.onNade?.();
-      } else if (e.code.startsWith("Digit")) {
-        const slot = Number(e.code.slice(5));
-        if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
+      const binds = this.settings.get().binds;
+      if (this.locked && isBoundKey(e.code, binds)) e.preventDefault();
+
+      // Action edges only fire while pointer-locked in an active match — this stops
+      // menu/settings-panel keydowns (including the settings panel's own key-capture
+      // mode) from leaking into gameplay: capturing a rebind onto grenade's current
+      // key must not ALSO throw a live grenade, and Digit1-5 during capture must not
+      // ALSO swap loadout slots. `held` bookkeeping below stays unconditional so a
+      // key held across a lock/unlock boundary is still tracked (intent() already
+      // returns neutral while unlocked), and this also drops any jumpEdge/reloadEdge
+      // that would otherwise accumulate while unlocked and fire the instant the
+      // player relocks.
+      if (this.locked) {
+        if (binds.jump.includes(e.code)) {
+          if (!e.repeat) this.jumpEdge = true;
+        } else if (binds.reload.includes(e.code)) {
+          if (!e.repeat) this.reloadEdge = true;
+        } else if (binds.grenade.includes(e.code)) {
+          if (!e.repeat) this.onNade?.();
+        } else if (e.code.startsWith("Digit")) {
+          const slot = Number(e.code.slice(5));
+          if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
+        }
       }
       this.held.add(e.code);
     });
@@ -102,11 +129,13 @@ export class Input {
 
     document.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
+      const s = this.settings.get();
+      const sens = MOUSE_SENSITIVITY * s.sensitivity * this.sensScale;
       // Mouse-right must turn the view right: with forward=(sin yaw, cos yaw) and the FPS
       // camera's screen-x axis, that means yaw DECREASES as movementX grows (user report:
       // left/right was inverted).
-      this.yaw -= e.movementX * MOUSE_SENSITIVITY * this.sensScale;
-      const dp = e.movementY * MOUSE_SENSITIVITY * this.sensScale * (INVERT_Y ? 1 : -1);
+      this.yaw -= e.movementX * sens;
+      const dp = e.movementY * sens * (s.invertY ? 1 : -1);
       this.pitch = clamp(this.pitch + dp, -PITCH_LIMIT, PITCH_LIMIT);
       this.yaw = wrapTau(this.yaw);
     });
@@ -135,10 +164,13 @@ export class Input {
     if (!this.locked) {
       return { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
     }
-    const mz = (this.held.has("KeyW") ? 1 : 0) - (this.held.has("KeyS") ? 1 : 0);
-    const mx = (this.held.has("KeyA") ? 1 : 0) - (this.held.has("KeyD") ? 1 : 0);
-    const crouch = this.held.has("ControlLeft") || this.held.has("KeyC");
-    const sprint = this.held.has("ShiftLeft") || this.held.has("ShiftRight");
+    const binds = this.settings.get().binds;
+    const held = (action: BindAction): boolean =>
+      binds[action].some((code) => this.held.has(code));
+    const mz = (held("forward") ? 1 : 0) - (held("back") ? 1 : 0);
+    const mx = (held("left") ? 1 : 0) - (held("right") ? 1 : 0);
+    const crouch = held("crouch");
+    const sprint = held("sprint");
     return { mx, mz, jump: this.jumpEdge, crouch, sprint };
   }
 
