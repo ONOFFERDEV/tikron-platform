@@ -59,6 +59,12 @@ export interface MoveResult {
  * `vyIn` is the incoming vertical velocity; the returned `vy` is zeroed when the
  * player lands or hits a ceiling. Horizontal speed is expected to already bake the
  * per-tick budget into `delta` (the caller integrates velocity × dt).
+ *
+ * `stepUp` (default 0, fully backward compatible) lets a resting player auto-climb
+ * a low lip instead of bonking into it: if the ordinary horizontal pass above gets
+ * meaningfully blocked, {@link tryStepUp} retries it with feet raised by `stepUp`
+ * and adopts that result when it makes real progress and clears headroom. See
+ * `config.ts`'s `MOVE.stepUp` for why 0.45 clears ramp steps but not crates.
  */
 export function moveAndSlide(
   pos: Vec3,
@@ -68,6 +74,7 @@ export function moveAndSlide(
   vyIn: number,
   boxes: readonly Box[],
   bounds: Bounds,
+  stepUp = 0,
 ): MoveResult {
   let { x, y, z } = pos;
   let vy = vyIn;
@@ -91,6 +98,21 @@ export function moveAndSlide(
     const settled = pushOutOfObstacles({ x, y: z }, radius, obstacles);
     x = clamp(settled.x, radius, bounds.width - radius);
     z = clamp(settled.y, radius, bounds.depth - radius);
+  }
+
+  // --- step-up retry: only for a player already resting on a surface (never mid-air —
+  //     `vyIn` alone can't tell "grounded, gravity ticking down" from "genuinely
+  //     falling", so this also checks `restingAt` the START position) whose horizontal
+  //     move above got meaningfully blocked. Retries the horizontal pass with feet
+  //     raised by `stepUp`; adopted only if it makes strictly more progress AND the
+  //     raised spot has headroom (canStand) — otherwise the blocked result above stands. ---
+  if (stepUp > 0 && vyIn <= 0 && restingAt(pos.x, pos.y, pos.z, radius, boxes)) {
+    const intendedDist = Math.hypot(delta.x, delta.z);
+    const actualDist = Math.hypot(x - pos.x, z - pos.z);
+    if (intendedDist > 1e-6 && actualDist < intendedDist - 1e-3) {
+      const stepped = tryStepUp(pos, radius, height, delta, boxes, bounds, stepUp, x, z);
+      if (stepped) return stepped;
+    }
   }
 
   // --- vertical ---
@@ -162,6 +184,68 @@ export function canStand(
     }
   }
   return true;
+}
+
+/**
+ * Is the player already resting on a surface at `(x, y, z)` — the floor, or exactly
+ * the top of some box? Used to gate {@link moveAndSlide}'s step-up retry: geometry-
+ * only (physics.ts takes no config; see header) because `vyIn` alone can't
+ * distinguish "grounded, gravity just ticked negative" from "genuinely airborne" —
+ * only a player already planted on something should auto-climb a step.
+ */
+function restingAt(x: number, y: number, z: number, radius: number, boxes: readonly Box[]): boolean {
+  if (y <= 1e-3) return true;
+  return boxes.some((b) => overlapsXZ(x, z, radius, b) && Math.abs(y - b.max.y) <= 1e-3);
+}
+
+/**
+ * The step-up retry itself: redo the horizontal pass with feet raised by `stepUp`
+ * from the ORIGINAL `pos`, then require it to (a) make strictly more horizontal
+ * progress than the base (blocked) attempt at `(baseX, baseZ)`, and (b) clear
+ * headroom at the raised spot ({@link canStand}). On success, snap down onto the
+ * highest box top at/below the raised height beneath the new (x,z) — a stepped-up
+ * player stands ON the step, not floating at `pos.y + stepUp` — and returns a
+ * grounded result with `vy` zeroed. Returns `null` if the retry doesn't qualify,
+ * leaving {@link moveAndSlide}'s normal (blocked) resolution in place.
+ */
+function tryStepUp(
+  pos: Vec3,
+  radius: number,
+  height: number,
+  delta: Vec3,
+  boxes: readonly Box[],
+  bounds: Bounds,
+  stepUp: number,
+  baseX: number,
+  baseZ: number,
+): MoveResult | null {
+  const raisedY = pos.y + stepUp;
+  let rx = clamp(pos.x + delta.x, radius, bounds.width - radius);
+  let rz = clamp(pos.z + delta.z, radius, bounds.depth - radius);
+
+  const obstacles: Obstacle[] = [];
+  for (const b of boxes) {
+    if (overlapsY(raisedY, height, b)) obstacles.push(boxToObstacle(b));
+  }
+  if (obstacles.length > 0) {
+    const settled = pushOutOfObstacles({ x: rx, y: rz }, radius, obstacles);
+    rx = clamp(settled.x, radius, bounds.width - radius);
+    rz = clamp(settled.y, radius, bounds.depth - radius);
+  }
+
+  const raisedDist = Math.hypot(rx - pos.x, rz - pos.z);
+  const baseDist = Math.hypot(baseX - pos.x, baseZ - pos.z);
+  if (raisedDist <= baseDist + 1e-4) return null; // no real progress over the blocked attempt
+
+  if (!canStand(rx, raisedY, rz, radius, height, boxes, bounds)) return null;
+
+  let landY = 0;
+  for (const b of boxes) {
+    if (!overlapsXZ(rx, rz, radius, b)) continue;
+    if (b.max.y <= raisedY + 1e-6 && b.max.y > landY) landY = b.max.y;
+  }
+
+  return { pos: { x: rx, y: landY, z: rz }, vy: 0, grounded: true };
 }
 
 /**

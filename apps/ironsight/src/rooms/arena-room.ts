@@ -468,6 +468,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       vy,
       this.boxes,
       this.map.bounds,
+      MOVE.stepUp,
     );
     p.x = res.pos.x;
     p.y = res.pos.y;

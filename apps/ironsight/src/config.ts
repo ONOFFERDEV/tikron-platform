@@ -82,6 +82,10 @@ export const MOVE = {
   gravity: 20, // m/s² downward
   jumpSpeed: 7, // m/s initial upward (jump height ≈ v²/2g ≈ 1.22 m)
   maxDtMs: TICK_MS * 2, // integration dt clamp (a GC/tab-out hitch can't fling a player)
+  // Auto-climb height for moveAndSlide's step-up retry: above a ramp's 0.4 m per-step
+  // rise (so ramps read as smoothly walkable) but below a crate's 1.1 m height (so
+  // crates still require a jump) — see tilemap.ts's legend for both figures.
+  stepUp: 0.45,
 } as const;
 
 /**

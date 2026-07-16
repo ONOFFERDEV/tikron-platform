@@ -110,7 +110,7 @@ export class Predictor {
 
     const height = this.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
     const delta: Vec3 = { x: wx * speed * TICK_S, y: this.vy * TICK_S, z: wz * speed * TICK_S };
-    const res = moveAndSlide(this.pos, PLAYER.radius, height, delta, this.vy, this.boxes, this.bounds);
+    const res = moveAndSlide(this.pos, PLAYER.radius, height, delta, this.vy, this.boxes, this.bounds, MOVE.stepUp);
     this.pos = res.pos;
     this.vy = res.vy;
     this.grounded = res.grounded;
