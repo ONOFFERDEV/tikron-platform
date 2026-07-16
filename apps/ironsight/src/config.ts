@@ -137,6 +137,14 @@ export interface WeaponSpec {
   readonly falloffEnd: number;
   /** Damage multiplier floor (0–1) past `falloffEnd`. */
   readonly falloffMin: number;
+  /** Tracer travel speed (m/s) — PURELY the visible beam's speed
+   *  (client/scene.ts's addTracer/updateTracers); hit registration is
+   *  hitscan (instant) regardless of this value, so retuning it can never
+   *  change who gets hit, only how the shot LOOKS. Per-weapon so a heavy
+   *  round (sniper) can read as faster than a shotgun's spread of pellets,
+   *  instead of every weapon sharing one flat speed (user report: "총알 속도가
+   *  느린 것 같다" — the shared constant this replaced was 300 for all five). */
+  readonly tracerSpeed: number;
 }
 
 /** AR — the all-rounder baseline (PLAN §4: body 25 / head 50, 100 ms, 30-mag, 1.8 s). */
@@ -158,6 +166,7 @@ const AR_SPEC: WeaponSpec = {
   falloffStart: 30,
   falloffEnd: 65,
   falloffMin: 0.7,
+  tracerSpeed: 800,
 };
 
 /** SMG — higher close-range DPS, cliffs off past mid (owns the 15 m band). */
@@ -179,6 +188,7 @@ const SMG_SPEC: WeaponSpec = {
   falloffStart: 16,
   falloffEnd: 36,
   falloffMin: 0.5,
+  tracerSpeed: 700,
 };
 
 /** Shotgun — 8 pellets: a point-blank one-shot that decays to nothing past ~20 m. */
@@ -200,6 +210,7 @@ const SHOTGUN_SPEC: WeaponSpec = {
   falloffStart: 6,
   falloffEnd: 22,
   falloffMin: 0.25,
+  tracerSpeed: 500,
 };
 
 /** Sniper — bolt-action: body chunk (2-shot), head one-shot, no falloff, huge move penalty. */
@@ -221,6 +232,7 @@ const SNIPER_SPEC: WeaponSpec = {
   falloffStart: 100, // ≥ range → full damage everywhere in reach
   falloffEnd: 101,
   falloffMin: 1,
+  tracerSpeed: 1200,
 };
 
 /** Pistol — the reliable semi-auto sidearm every loadout carries (slot 5). */
@@ -242,6 +254,7 @@ const PISTOL_SPEC: WeaponSpec = {
   falloffStart: 20,
   falloffEnd: 45,
   falloffMin: 0.7,
+  tracerSpeed: 600,
 };
 
 /**

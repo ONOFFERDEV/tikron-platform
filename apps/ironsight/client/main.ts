@@ -28,6 +28,7 @@ import { GAME } from "../src/game-config.js";
 
 const WEAPONS = GAME.weapons;
 const WEAPON = { swapMs: GAME.weaponMeta.swapMs };
+const DEFAULT_WEAPON_SPEC = WEAPONS[GAME.weaponMeta.defaultIndex]!;
 
 interface Pose {
   x: number; y: number; z: number; yaw: number; pitch: number;
@@ -193,7 +194,10 @@ async function main(): Promise<void> {
     // delayed by our own render-interpolation) wire origin.
     if (e.from !== net.myId) {
       const anchor = scene.getRemoteMuzzleAnchor(e.from) ?? { x: e.ox, y: e.oy, z: e.oz };
-      scene.addTracer(anchor, dir, e.dist, e.hit);
+      // e.weapon is the SLOT (1-5, WeaponSpec.slot) — same conversion the
+      // "ammo" handler above already uses for this shooter's OWN weapon.
+      const tracerSpeed = WEAPONS[e.weapon - 1]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed;
+      scene.addTracer(anchor, dir, e.dist, e.hit, tracerSpeed);
       scene.spawnCasing(anchor, dir);
       scene.spawnMuzzleFlash(anchor, dir);
     }
@@ -370,7 +374,7 @@ async function main(): Promise<void> {
         const muzzleDir = muzzleDist > 1e-6
           ? { x: toEnd.x / muzzleDist, y: toEnd.y / muzzleDist, z: toEnd.z / muzzleDist }
           : aimDir;
-        scene.addTracer(muzzle, muzzleDir, muzzleDist, false);
+        scene.addTracer(muzzle, muzzleDir, muzzleDist, false, WEAPONS[curWeapon]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed);
         scene.spawnCasing(muzzle, muzzleDir);
       }
     }

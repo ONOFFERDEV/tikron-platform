@@ -202,6 +202,22 @@ export function assertModesWireOrder(cfg: GameConfig): string[] {
   return errs;
 }
 
+// ── #9 — per-weapon tracerSpeed is a positive number ─────────────────────────
+
+/** Every weapon's `tracerSpeed` (client/scene.ts's addTracer/updateTracers —
+ *  the visible beam's travel speed; hit registration is instant hitscan
+ *  regardless of this value) must be a positive number. `!(v > 0)` also
+ *  catches `undefined`/`NaN`, not just `0`/negative. */
+export function assertTracerSpeedPositive(cfg: GameConfig): string[] {
+  const errs: string[] = [];
+  for (const w of cfg.weapons) {
+    if (!(w.tracerSpeed > 0)) {
+      errs.push(`weapon "${w.name}".tracerSpeed must be a positive number, got ${w.tracerSpeed}`);
+    }
+  }
+  return errs;
+}
+
 // ── warnings tier — suspicious but legal values ──────────────────────────────
 
 /** Values that typecheck and load fine but are probably a typo (an absurdly high
@@ -238,6 +254,7 @@ const ERROR_ASSERTS: readonly ((cfg: GameConfig) => string[])[] = [
   assertWeaponIndices,
   assertModesWireOrder,
   assertHitPlayerCoupling,
+  assertTracerSpeedPositive,
 ];
 
 export interface ValidationResult {

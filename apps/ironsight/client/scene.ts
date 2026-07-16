@@ -68,8 +68,10 @@ const TEAM_COLOR = GAME.teams.colors;
 const EYE_UP = new THREE.Vector3(0, 1, 0);
 const FWD_Z = new THREE.Vector3(0, 0, 1);
 // Tracer = a short segment travelling from the muzzle to the impact point (not a
-// static beam) — see addTracer/updateTracers.
-const TRACER_SPEED = 300; // world units/sec the visible segment travels at
+// static beam) — see addTracer/updateTracers. Speed is PER-WEAPON now (each
+// Tracer instance carries its own `speed`, from WeaponSpec.tracerSpeed — user
+// report: "총알 속도가 느린 것 같다," and every weapon sharing one flat 300 m/s
+// was exactly why) — no shared module-level constant anymore.
 const TRACER_SEG_FRAC = 0.15; // segment length as a fraction of the shot's travel distance
 const TRACER_SEG_MAX = 8; // segment length cap (world units) so long shots don't streak forever
 const TRACER_FADE_MS = 25; // brief opacity fade in the final stretch before the head arrives
@@ -250,6 +252,10 @@ interface Tracer {
   segLen: number;
   born: number;
   baseOpacity: number;
+  /** m/s this tracer's segment travels at — WeaponSpec.tracerSpeed at the
+   *  instant addTracer was called, fixed for this tracer's whole lifetime
+   *  (a weapon swap mid-flight can't retroactively speed up an already-fired shot). */
+  speed: number;
 }
 
 export class SceneRig {
@@ -1055,9 +1061,17 @@ export class SceneRig {
   // --- tracers ----------------------------------------------------------------
 
   /** Spawn a tracer that TRAVELS from `origin` to `origin + dir*dist` at
-   *  {@link TRACER_SPEED} (a moving segment, not a static beam) — see
-   *  {@link updateTracers}, which owns the per-frame position/opacity. */
-  addTracer(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, dist: number, hit: boolean): void {
+   *  `speed` m/s (WeaponSpec.tracerSpeed — a moving segment, not a static
+   *  beam) — see {@link updateTracers}, which owns the per-frame
+   *  position/opacity. Cosmetic only: this speed never touches hit
+   *  registration (hitscan is instant), only how long the beam is visible. */
+  addTracer(
+    origin: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+    dist: number,
+    hit: boolean,
+    speed: number,
+  ): void {
     const travelDist = Math.max(0.5, dist);
     const segLen = Math.min(travelDist * TRACER_SEG_FRAC, TRACER_SEG_MAX);
     const d = new THREE.Vector3(dir.x, dir.y, dir.z).normalize();
@@ -1080,6 +1094,7 @@ export class SceneRig {
       segLen,
       born: performance.now(),
       baseOpacity: 0.85,
+      speed,
     });
   }
 
@@ -1265,17 +1280,18 @@ export class SceneRig {
   }
 
   /** Advance each tracer's travelling segment: `headDist` is how far its leading
-   *  edge has moved from `origin` at {@link TRACER_SPEED}; the segment is the
+   *  edge has moved from `origin` at this tracer's OWN `speed` (WeaponSpec.
+   *  tracerSpeed, fixed per-tracer at spawn — see addTracer); the segment is the
    *  [headDist − segLen, headDist] window (clamped to not go behind the muzzle),
-   *  so it grows out of the muzzle over the first `segLen / TRACER_SPEED`
-   *  seconds, then cruises at a constant on-screen length. Brightness stays flat
-   *  until the last {@link TRACER_FADE_MS} before the head reaches `dist`, then a
-   *  short fade; once it arrives, the tracer is removed outright (no beam left
+   *  so it grows out of the muzzle over the first `segLen / speed` seconds, then
+   *  cruises at a constant on-screen length. Brightness stays flat until the
+   *  last {@link TRACER_FADE_MS} before the head reaches `dist`, then a short
+   *  fade; once it arrives, the tracer is removed outright (no beam left
    *  hanging at the impact point). */
   private updateTracers(now: number): void {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i]!;
-      const headDist = TRACER_SPEED * ((now - t.born) / 1000);
+      const headDist = t.speed * ((now - t.born) / 1000);
       if (headDist >= t.dist) {
         this.scene.remove(t.mesh);
         t.mesh.geometry.dispose();
@@ -1292,7 +1308,7 @@ export class SceneRig {
         t.origin.z + t.dir.z * midDist,
       );
       t.mesh.scale.z = visibleLen / t.segLen;
-      const remainingMs = ((t.dist - headDist) / TRACER_SPEED) * 1000;
+      const remainingMs = ((t.dist - headDist) / t.speed) * 1000;
       t.mat.opacity = remainingMs < TRACER_FADE_MS ? t.baseOpacity * (remainingMs / TRACER_FADE_MS) : t.baseOpacity;
     }
   }

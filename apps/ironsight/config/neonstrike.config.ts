@@ -46,31 +46,39 @@ export const neonstrikeConfig: GameConfig = defineConfig({
   // Validated against test/ttk-lib.ts's balance heuristic before shipping here:
   // Scatter Cannon owns 5m, an automatic owns 15m, Pulse Rifle owns 30m, Ion
   // Railgun one-shots headshots at every range, ≥3 killers per band.
+  // tracerSpeed: same series as ironsight's corresponding slot (AR-like/SMG/
+  // shotgun-like/sniper-like/pistol) — this is a visual-only tuning axis, not
+  // part of this theme's balance identity, so it's reused rather than retuned.
   weapons: [
     {
       slot: 1, name: "Pulse Rifle", damageBody: 30, damageHead: 58, fireIntervalMs: 95,
       mag: 32, reserve: 96, reloadMs: 1650, range: 105, pellets: 1, pelletSpread: 0,
       spreadStill: 0, spreadMove: 0.018, spreadAir: 0.045, falloffStart: 34, falloffEnd: 70, falloffMin: 0.72,
+      tracerSpeed: 800,
     },
     {
       slot: 2, name: "Voltage SMG", damageBody: 23, damageHead: 34, fireIntervalMs: 58,
       mag: 27, reserve: 108, reloadMs: 1450, range: 78, pellets: 1, pelletSpread: 0,
       spreadStill: 0.004, spreadMove: 0.028, spreadAir: 0.058, falloffStart: 15, falloffEnd: 34, falloffMin: 0.5,
+      tracerSpeed: 700,
     },
     {
       slot: 3, name: "Scatter Cannon", damageBody: 16, damageHead: 22, fireIntervalMs: 780,
       mag: 6, reserve: 24, reloadMs: 2500, range: 42, pellets: 8, pelletSpread: 0.05,
       spreadStill: 0, spreadMove: 0.02, spreadAir: 0.05, falloffStart: 7, falloffEnd: 24, falloffMin: 0.28,
+      tracerSpeed: 500,
     },
     {
       slot: 4, name: "Ion Railgun", damageBody: 82, damageHead: 155, fireIntervalMs: 1350,
       mag: 5, reserve: 20, reloadMs: 3100, range: 105, pellets: 1, pelletSpread: 0,
       spreadStill: 0.0005, spreadMove: 0.125, spreadAir: 0.2, falloffStart: 105, falloffEnd: 106, falloffMin: 1,
+      tracerSpeed: 1200,
     },
     {
       slot: 5, name: "Stinger Pistol", damageBody: 32, damageHead: 58, fireIntervalMs: 155,
       mag: 13, reserve: 52, reloadMs: 1350, range: 92, pellets: 1, pelletSpread: 0,
       spreadStill: 0.0018, spreadMove: 0.018, spreadAir: 0.045, falloffStart: 22, falloffEnd: 46, falloffMin: 0.72,
+      tracerSpeed: 600,
     },
   ],
   weaponMeta: {

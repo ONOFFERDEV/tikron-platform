@@ -11,6 +11,7 @@ import {
   assertInterpCoupling,
   assertWeaponIndices,
   assertModesWireOrder,
+  assertTracerSpeedPositive,
 } from "../config/load.js";
 import type { GameConfig } from "../config/schema.js";
 import { ironsightConfig } from "../config/ironsight.config.js";
@@ -125,6 +126,28 @@ describe("validateConfig — negative cases (one per coupling assert) [blueprint
     bad.modes.mapFor = { ...bad.modes.mapFor, dom: "arena99" };
     const errs = assertModesWireOrder(bad);
     expect(errs.some((e) => e.includes('references missing map "arena99"'))).toBe(true);
+  });
+
+  // Tracer speed (client/scene.ts's addTracer) is cosmetic-only — this guard is
+  // purely defense-in-depth against a missing/degenerate value, not a coupling
+  // check against anything else, unlike this describe's other entries.
+  it("assertTracerSpeedPositive fires when a weapon's tracerSpeed is missing, 0, or negative", () => {
+    const missing = clone(ironsightConfig);
+    missing.weapons = missing.weapons.map((w, i) => (i === 0 ? { ...w, tracerSpeed: undefined as unknown as number } : w));
+    expect(assertTracerSpeedPositive(missing).length).toBeGreaterThan(0);
+
+    const zero = clone(ironsightConfig);
+    zero.weapons = zero.weapons.map((w, i) => (i === 1 ? { ...w, tracerSpeed: 0 } : w));
+    const zeroErrs = assertTracerSpeedPositive(zero);
+    expect(zeroErrs.length).toBe(1);
+    expect(zeroErrs[0]).toMatch(/tracerSpeed/);
+
+    const negative = clone(ironsightConfig);
+    negative.weapons = negative.weapons.map((w, i) => (i === 2 ? { ...w, tracerSpeed: -500 } : w));
+    expect(assertTracerSpeedPositive(negative).length).toBe(1);
+
+    // Positive control: the live config itself has zero tracerSpeed errors.
+    expect(assertTracerSpeedPositive(ironsightConfig)).toEqual([]);
   });
 
   it("loadConfig throws ConfigError (not a generic Error) when validation fails", () => {

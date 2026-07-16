@@ -103,6 +103,32 @@ describe("weapons — jitter (hybrid-hit client-side spread roll)", () => {
   });
 });
 
+// Tracer speed (client/scene.ts's addTracer/updateTracers) is a client-only
+// THREE.js rendering concern with no WebGL-free unit surface — this instead
+// checks the arithmetic scene.ts's updateTracers actually runs on the config
+// data (headDist = speed·t, so flight time for a fixed distance is dist/speed):
+// confirms tracerSpeed genuinely varies per weapon (the user report this fixes:
+// every weapon used to share one flat 300 m/s) and that faster weapons visibly
+// cross the same distance sooner.
+describe("weapons — tracerSpeed (per-weapon tracer flight time)", () => {
+  it("every weapon has a distinct, positive tracerSpeed — not the old shared constant", () => {
+    const speeds = WEAPONS.map((w) => w.tracerSpeed);
+    for (const s of speeds) expect(s).toBeGreaterThan(0);
+    expect(new Set(speeds).size).toBe(WEAPONS.length); // all 5 distinct
+  });
+
+  it("flight time to a fixed 30 m target (dist/speed) differs per weapon, fastest-round-first", () => {
+    const flightTime = (w: WeaponSpec) => 30 / w.tracerSpeed;
+    const sniper = byName("Sniper");
+    const ar = byName("AR");
+    const shotgun = byName("Shotgun");
+    // Sniper's round is the fastest-reading (tracerSpeed 1200) → shortest
+    // flight time; the shotgun's (500) is the slowest-reading → longest.
+    expect(flightTime(sniper)).toBeLessThan(flightTime(ar));
+    expect(flightTime(ar)).toBeLessThan(flightTime(shotgun));
+  });
+});
+
 describe("weapons — dirFromAngles", () => {
   it("yaw 0 faces +z; +yaw turns toward +x; +pitch looks up; unit length", () => {
     const fwd = dirFromAngles(0, 0);
