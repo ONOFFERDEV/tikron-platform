@@ -100,6 +100,26 @@ export function moveAndSlide(
     z = clamp(settled.y, radius, bounds.depth - radius);
   }
 
+  // --- fail-closed penetration guard: pushOutOfObstacles resolves overlaps against
+  //     each box in sequence with no global "never increases penetration" invariant,
+  //     so a player wedged into a sub-capsule-width slot between two boxes (e.g. a
+  //     ramp step flush against a wall) can get shoved through the FAR side of one box
+  //     while escaping the other — tunneling. The invariant enforced here instead:
+  //     a horizontal move may never leave the player MORE embedded than it found
+  //     them — accept the resolved (x,z) only if it ends clean, or at strictly
+  //     shallower max penetration than the tick started with. Passing THROUGH a box
+  //     requires penetration depth to rise to a peak at its midplane, which a
+  //     monotonic-decrease rule can never permit — while a player who spawned or
+  //     teleported inside geometry still escapes (every step of a genuine ejection
+  //     reduces depth, and a full single-box ejection ends clean in one tick). ---
+  {
+    const endPen = maxPenetration(x, pos.y, z, radius, height, boxes);
+    if (endPen > 1e-3 && endPen >= maxPenetration(pos.x, pos.y, pos.z, radius, height, boxes) - 1e-4) {
+      x = pos.x;
+      z = pos.z;
+    }
+  }
+
   // --- step-up retry: only for a player already resting on a surface (never mid-air —
   //     `vyIn` alone can't tell "grounded, gravity ticking down" from "genuinely
   //     falling", so this also checks `restingAt` the START position) whose horizontal
@@ -162,6 +182,31 @@ function overlapsXZ(x: number, z: number, radius: number, b: Box): boolean {
 /** Does the capsule's vertical span [feet, feet+height] overlap the box's y range? */
 function overlapsY(feet: number, height: number, b: Box): boolean {
   return feet < b.max.y && feet + height > b.min.y;
+}
+
+/** The capsule's deepest TRUE penetration (metres past grazing contact) into any
+ *  box, or 0 when clean. Unlike {@link overlapsXZ} — a boundary-inclusive-ish `<`
+ *  test used for landing/canStand/restingAt, where near-tangent contact is the
+ *  expected steady state — flush resting against a face reports 0 here. Used only
+ *  by {@link moveAndSlide}'s fail-closed monotonic-penetration guard and
+ *  {@link tryStepUp}'s landing check. */
+function maxPenetration(
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  height: number,
+  boxes: readonly Box[],
+): number {
+  let worst = 0;
+  for (const b of boxes) {
+    if (!overlapsY(y, height, b)) continue;
+    const nx = clamp(x, b.min.x, b.max.x);
+    const nz = clamp(z, b.min.z, b.max.z);
+    const pen = radius - Math.hypot(x - nx, z - nz);
+    if (pen > worst) worst = pen;
+  }
+  return worst;
 }
 
 /**
@@ -244,6 +289,13 @@ function tryStepUp(
     if (!overlapsXZ(rx, rz, radius, b)) continue;
     if (b.max.y <= raisedY + 1e-6 && b.max.y > landY) landY = b.max.y;
   }
+
+  // Same fail-closed defense as moveAndSlide's base pass, applied to the step-up's
+  // own adopted landing spot: a wedged slot can make the raised push-out resolve
+  // through the far side of a box just as easily as the un-raised one does. Step-up
+  // is stricter than the base guard — an adopted landing must be fully clean, since
+  // unlike a base move it can teleport the feet upward into new surroundings.
+  if (maxPenetration(rx, landY, rz, radius, height, boxes) > 1e-3) return null;
 
   return { pos: { x: rx, y: landY, z: rz }, vy: 0, grounded: true };
 }

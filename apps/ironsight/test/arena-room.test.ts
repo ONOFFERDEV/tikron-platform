@@ -165,7 +165,10 @@ describe("arena room — teams & movement", () => {
 
   it("map cover blocks horizontal movement (no tunnelling through a box)", async () => {
     const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
-    const a = await h.connect(); // red spawn, facing +x toward the platform box front at x=26
+    const a = await h.connect(); // red spawn faces +x; keep that yaw but shift to z=9 —
+    // the walk-up ramp added at z6-8 (the spawn row) would legitimately carry the
+    // player onto the platform, so aim at a bare stretch of the platform's west face.
+    place(h, a.id, 20, { z: 9 });
     await a.send("move", { mz: 1 });
     await tick(h, 100);
     const p = h.snapshot().players[a.id]!;

@@ -248,3 +248,114 @@ describe("hitscan — head/body/occlusion", () => {
     expect(resolveHitscan({ x: 0, y: 1.0, z: 0 }, { x: 1, y: 0, z: 0 }, 40, 0, [standing("t", 50, 0)], [], CFG)).toBeNull();
   });
 });
+
+describe("physics — fail-closed penetration guard (sub-capsule-width slot)", () => {
+  // Reproduces the live incident (2026-07-17 user report: "rubbing climbs over /
+  // walls sometimes don't block"): a ramp tile compiled flush against a 2.5 m wall
+  // leaves the 0.4-step band as a 0.667 m slot between the 0.8-step's face and the
+  // wall's face — narrower than the player's 0.8 m diameter. A player standing on
+  // the low step and rubbing into the wall overlaps BOTH boxes; sequential MTV
+  // push-out could then resolve one overlap INTO the other box and, once past the
+  // wall's midplane, eject out the FAR side (through-wall). The guard reverts any
+  // horizontal move that would newly penetrate; these walkers must never cross.
+  const wall: Box = { min: { x: 14, y: 0, z: 12 }, max: { x: 46, y: 2.5, z: 14 } };
+  const slotSteps: Box[] = [
+    { min: { x: 30, y: 0, z: 11 + 1 / 3 }, max: { x: 32, y: 0.4, z: 12 } },
+    { min: { x: 30, y: 0, z: 10 + 2 / 3 }, max: { x: 32, y: 0.8, z: 11 + 1 / 3 } },
+    { min: { x: 30, y: 0, z: 10 }, max: { x: 32, y: 1.2, z: 10 + 2 / 3 } },
+  ];
+  const slotBoxes = [wall, ...slotSteps];
+  const R = PLAYER.radius;
+  const H = PLAYER.standHeight;
+  const DT = 1 / 20;
+
+  function truePenetration(x: number, y: number, z: number): boolean {
+    for (const b of slotBoxes) {
+      if (!(y < b.max.y && y + H > b.min.y)) continue;
+      const nx = Math.max(b.min.x, Math.min(x, b.max.x));
+      const nz = Math.max(b.min.z, Math.min(z, b.max.z));
+      if (Math.hypot(x - nx, z - nz) < R - 5e-3) return true;
+    }
+    return false;
+  }
+
+  const rubDirs: readonly [number, number, string][] = [
+    [1, 0, "straight +x into the ramp's side"],
+    [0.7, 0.7, "diagonal +x+z into the wall/ramp corner"],
+    [0.3, 0.95, "mostly into the wall, drifting +x"],
+    [0.9, 0.44, "shallow along the wall toward the ramp"],
+  ];
+
+  for (const [dx, dz, name] of rubDirs) {
+    it(`a clean walker in the corridor rubbing ${name} never penetrates or crosses`, () => {
+      // Reachable, non-penetrating start: on the corridor floor hugging the wall,
+      // just west of the ramp tile (the state a real player is actually in right
+      // before the pre-fix step-up used to hoist them into the wedge).
+      let pos = { x: 29, y: 0, z: 11.55 };
+      let vy = 0;
+      for (let t = 0; t < 120; t++) {
+        vy -= MOVE.gravity * DT;
+        const delta = { x: dx * MOVE.sprint * DT, y: vy * DT, z: dz * MOVE.sprint * DT };
+        const res = moveAndSlide(pos, R, H, delta, vy, slotBoxes, BOUNDS, MOVE.stepUp);
+        pos = res.pos;
+        vy = res.vy;
+        // Never on the far side of the wall (near face z=12, far face z=14) and
+        // never truly interpenetrating — the two pre-guard failure modes (the
+        // un-guarded resolver crossed at t55-t115 from this same approach).
+        // z is only bounded while still alongside the wall (x span 14-46) — a
+        // walker that slides past its open east end and turns the corner is
+        // walking AROUND the wall, which is legitimate.
+        if (pos.x <= 45.5) expect(pos.z).toBeLessThan(12.5);
+        expect(truePenetration(pos.x, pos.y, pos.z)).toBe(false);
+      }
+      // Climbing the ramp steps themselves stays legitimate (max top 1.2).
+      expect(pos.y).toBeLessThanOrEqual(1.2 + 1e-6);
+    });
+  }
+
+  it("even from the (now-unreachable) wedged state, penetration only ever decreases — no far-side ejection", () => {
+    // The pre-fix step-up could deposit a player ON the low step at z≈11.6, where a
+    // 0.8 m capsule geometrically cannot fit clean (slot is 0.667 m) — every tick
+    // starts already-penetrating, which is exactly the state that used to bypass a
+    // naive "only guard NEW penetration" rule and tunnel through the wall. The
+    // monotonic guard instead lets such a player only shed embedding: depth must
+    // never rise, and crossing the wall (depth peaking at its midplane) is impossible.
+    const startPen = (p: { x: number; y: number; z: number }): number => {
+      let worst = 0;
+      for (const b of slotBoxes) {
+        if (!(p.y < b.max.y && p.y + H > b.min.y)) continue;
+        const nx = Math.max(b.min.x, Math.min(p.x, b.max.x));
+        const nz = Math.max(b.min.z, Math.min(p.z, b.max.z));
+        worst = Math.max(worst, R - Math.hypot(p.x - nx, p.z - nz));
+      }
+      return worst;
+    };
+    let pos = { x: 31, y: 0.4, z: 11.6 };
+    let vy = 0;
+    let prevPen = startPen(pos);
+    for (let t = 0; t < 120; t++) {
+      vy -= MOVE.gravity * DT;
+      const delta = { x: 0.3 * MOVE.sprint * DT, y: vy * DT, z: 0.95 * MOVE.sprint * DT };
+      const res = moveAndSlide(pos, R, H, delta, vy, slotBoxes, BOUNDS, MOVE.stepUp);
+      pos = res.pos;
+      vy = res.vy;
+      const pen = startPen(pos);
+      expect(pen).toBeLessThanOrEqual(prevPen + 1e-6); // monotonic — embedding never deepens
+      prevPen = pen;
+      if (pos.x <= 45.5) expect(pos.z).toBeLessThan(12.5); // never THROUGH the wall (around its open end is fine)
+    }
+  });
+
+  it("a player already inside geometry (teleport/respawn) can still escape — guard only fires on NEW penetration", () => {
+    // Start embedded in the wall; the ejection path must keep working.
+    let pos = { x: 30, y: 0, z: 13 };
+    let vy = 0;
+    for (let t = 0; t < 30; t++) {
+      vy -= MOVE.gravity * DT;
+      const res = moveAndSlide(pos, R, H, { x: 0, y: vy * DT, z: 0 }, vy, slotBoxes, BOUNDS, MOVE.stepUp);
+      pos = res.pos;
+      vy = res.vy;
+    }
+    expect(truePenetration(pos.x, pos.y, pos.z)).toBe(false); // ejected, not frozen inside
+  });
+});

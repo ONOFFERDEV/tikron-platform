@@ -5,6 +5,7 @@
 // covered for the hand-authored arenas by map-invariants.test.ts).
 import { describe, it, expect } from "vitest";
 import { compileTileMap, TILE } from "../src/map/tilemap.js";
+import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
 
@@ -310,5 +311,59 @@ describe("compileTileMap - invariants (representative map)", () => {
       expect(inBounds(p.x, p.z, map.bounds)).toBe(true);
       expect(onGroundOrBoxTop(p, map.boxes)).toBe(true);
     }
+  });
+});
+
+describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", () => {
+  // A ramp compiled flush against a solid tile on its LOW (entry) side leaves a
+  // 0.667m band between the 0.8-step's face and the neighbor — narrower than the
+  // 0.8m player capsule, i.e. an unfittable wedge slot that drove the live
+  // "rubbing pushes you through the wall" bug. The compiler now refuses it.
+  it("throws when a ramp's entry side is flush with a wall", () => {
+    // '>' climbs +x, so its entry is the west neighbor — put a '#' there.
+    const rows = makeGrid([{ row: 9, col: 5, text: "#>" }]);
+    expect(() => compileTileMap(rows)).toThrow(/ramp '>' at row 9, col 6 has a solid entry \(west side, '#' at row 9, col 5\)/);
+  });
+
+  it("throws for every solid height class on the entry side, not just walls", () => {
+    for (const solid of ["x", "X", "="] as const) {
+      const rows = makeGrid([{ row: 9, col: 5, text: `${solid}>` }]);
+      expect(() => compileTileMap(rows)).toThrow(/has a solid entry/);
+    }
+  });
+
+  it("throws when a ramp's entry side falls off the grid", () => {
+    // '<' climbs -x, so its entry is the EAST neighbor — at the last column
+    // there is none.
+    const rows = makeGrid([{ row: 9, col: COLS - 1, text: "<" }]);
+    expect(() => compileTileMap(rows)).toThrow(/off-grid entry \(east side\)/);
+  });
+
+  it("accepts a ramp whose entry side is open floor or a marker tile", () => {
+    // Entry on floor (the ordinary case) and entry on a cap marker (markers
+    // compile as floor) must both pass.
+    const rows = makeGrid([{ row: 9, col: 5, text: ">" }]);
+    expect(() => compileTileMap(rows)).not.toThrow();
+    const rows2 = paintGrid([
+      { row: ROWS - 1, col: COLS - 5, text: "r" },
+      { row: ROWS - 1, col: COLS - 4, text: "b" },
+      { row: 9, col: 5, text: "1>" }, // cap 'a' directly on the entry side
+      { row: ROWS - 1, col: COLS - 3, text: "2" },
+      { row: ROWS - 1, col: COLS - 2, text: "3" },
+    ]);
+    expect(() => compileTileMap(rows2)).not.toThrow();
+  });
+
+  it("live arena1 compiles with 4 relocated ramps (12 step boxes) and its merged-box prefix intact", () => {
+    // The dressing manifests' hiddenBoxIndices [0..6] are bound to the compiled
+    // box ORDER (merged height-class boxes first, ramp steps appended after) —
+    // this pins that contract so a ramp edit can't silently invalidate them.
+    const nonRamp = ARENA1.boxes.filter((b) => [2.5, 2.2, 1.2, 1.1].includes(b.max.y) && Number.isInteger(b.min.x) && Number.isInteger(b.min.z) && Number.isInteger(b.max.x) && Number.isInteger(b.max.z));
+    expect(ARENA1.boxes.length).toBe(19); // 7 merged + 4 ramps x 3 steps
+    for (let i = 0; i < 7; i++) {
+      const b = ARENA1.boxes[i]!;
+      expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true); // grid-aligned = merged class, not a ramp step
+    }
+    expect(ARENA1.boxes.length - nonRamp.length).toBe(12);
   });
 });

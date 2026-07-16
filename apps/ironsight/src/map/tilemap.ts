@@ -42,7 +42,10 @@ import type { MapDef } from "./types.js";
  * going −z. The top (1.2 m) step must sit flush against an adjacent `=` tile in
  * that same direction of travel — the level author's job; this compiler emits
  * the 3 step boxes for a ramp tile unconditionally and does not verify that
- * adjacency.
+ * adjacency. It DOES verify the opposite (entry/low) side, though: that tile —
+ * off-grid, or a solid height class (`#`/`x`/`X`/`=`) — would either trap the
+ * ramp against a wall (a sub-capsule-width unfittable slot) or place its low
+ * step behind another obstacle; both throw at compile time.
  *
  * Coordinate convention: row `i` is a `TILE`-deep strip z ∈ [i·TILE, (i+1)·TILE);
  * column `j` is a `TILE`-wide strip x ∈ [j·TILE, (j+1)·TILE) — reading the ASCII
@@ -67,6 +70,21 @@ const HEIGHT_CLASSES: readonly HeightClass[] = ["#", "x", "X", "="];
 type RampChar = "<" | ">" | "^" | "v";
 
 const STEP_HEIGHTS = [0.4, 0.8, 1.2] as const;
+
+/** For each ramp char, the (row, col) delta toward its entry (low) side — the
+ *  side opposite its climb direction — and a human name for error messages.
+ *  Mirrors {@link rampSteps}'s own low-step-side comments below. */
+const RAMP_ENTRY_OFFSET: Record<RampChar, { readonly di: number; readonly dj: number; readonly side: string }> = {
+  ">": { di: 0, dj: -1, side: "west" },
+  "<": { di: 0, dj: 1, side: "east" },
+  v: { di: -1, dj: 0, side: "north" },
+  "^": { di: 1, dj: 0, side: "south" },
+};
+
+/** A ramp's entry-adjacent tile may not be one of these — a solid height class
+ *  would wall off the low step from the outside, wedging the ramp against it
+ *  into a sub-capsule-width unfittable slot (see this file's header). */
+const SOLID_ENTRY_BLOCKERS: ReadonlySet<string> = new Set<string>(["#", "x", "X", "="]);
 
 export interface CompileOptions {
   /** Overrides `ARENA.ceiling` for the compiled map's `bounds.ceiling`. */
@@ -128,6 +146,7 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
         case ">":
         case "^":
         case "v":
+          checkRampEntry(rows, i, j, ch, cols);
           rampBoxes.push(...rampSteps(ch, j, i));
           break;
         case "r":
@@ -172,6 +191,29 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
     caps: { a: capA, b: capB, c: capC },
     capWaypoints: opts.capWaypoints,
   };
+}
+
+/** Lints one ramp tile's entry (low) side — the tile adjacent to it, opposite
+ *  the climb direction. Off-grid, or a solid height class (`#`/`x`/`X`/`=`),
+ *  both throw: either traps the ramp's low step against a wall (an unfittable
+ *  slot a capsule can wedge into and tunnel through — the bug this guard exists
+ *  to prevent at author time) or places it behind an obstacle, unreachable.
+ *  `.`, a marker char, or another ramp all pass. */
+function checkRampEntry(rows: readonly string[], i: number, j: number, ch: RampChar, cols: number): void {
+  const { di, dj, side } = RAMP_ENTRY_OFFSET[ch];
+  const ni = i + di;
+  const nj = j + dj;
+  if (ni < 0 || ni >= rows.length || nj < 0 || nj >= cols) {
+    throw new Error(
+      `compileTileMap: ramp '${ch}' at row ${i}, col ${j} has an off-grid entry (${side} side) — its low step is unreachable`,
+    );
+  }
+  const neighbor = rows[ni]![nj]!;
+  if (SOLID_ENTRY_BLOCKERS.has(neighbor)) {
+    throw new Error(
+      `compileTileMap: ramp '${ch}' at row ${i}, col ${j} has a solid entry (${side} side, '${neighbor}' at row ${ni}, col ${nj}) — its low step is unreachable`,
+    );
+  }
 }
 
 /** The 3 step boxes for one ramp tile at grid column `j`, row `i` — see this
