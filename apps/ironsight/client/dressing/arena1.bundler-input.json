@@ -1,0 +1,522 @@
+[
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   16,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   20,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   24,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   28,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   32,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   36,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   40,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   44,
+   0,
+   13
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   16,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   20,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   24,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   28,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   32,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   36,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   40,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "buildings/SM_Bld_Advanced_01.glb",
+  "pos": [
+   44,
+   0,
+   27
+  ],
+  "rotY": 0,
+  "scale": 0.8
+ },
+ {
+  "glb": "props/SM_Prop_Cage_02.glb",
+  "pos": [
+   24.524149543378996,
+   0,
+   17
+  ],
+  "rotY": 0,
+  "scale": 1.2557077625570778
+ },
+ {
+  "glb": "props/SM_Prop_Cage_02.glb",
+  "pos": [
+   25.475850456621004,
+   0,
+   17
+  ],
+  "rotY": 0,
+  "scale": 1.2557077625570778
+ },
+ {
+  "glb": "props/SM_Prop_Cage_02.glb",
+  "pos": [
+   34.524149543378996,
+   0,
+   17
+  ],
+  "rotY": 0,
+  "scale": 1.2557077625570778
+ },
+ {
+  "glb": "props/SM_Prop_Cage_02.glb",
+  "pos": [
+   35.475850456621004,
+   0,
+   17
+  ],
+  "rotY": 0,
+  "scale": 1.2557077625570778
+ },
+ {
+  "glb": "props/SM_Prop_Crate_Large_01.glb",
+  "pos": [
+   30,
+   0,
+   18
+  ],
+  "rotY": 0,
+  "scale": 2
+ },
+ {
+  "glb": "props/SM_Prop_Crate_Large_01.glb",
+  "pos": [
+   30,
+   1.1,
+   18
+  ],
+  "rotY": 0,
+  "scale": 2
+ },
+ {
+  "glb": "buildings/SM_Bld_LandingPad_01.glb",
+  "pos": [
+   30,
+   0.2967660114140772,
+   7
+  ],
+  "rotY": 0,
+  "scale": 0.7609384908053266
+ },
+ {
+  "glb": "buildings/SM_Bld_LandingPad_01.glb",
+  "pos": [
+   30,
+   0.2967660114140772,
+   33
+  ],
+  "rotY": 0,
+  "scale": 0.7609384908053266
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   -15.131498000118881,
+   0,
+   6.618091162759811
+  ],
+  "rotY": 2.4903869815170765,
+  "scale": 0.9084928850410506
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   -14.062686099205166,
+   0,
+   21.76386356493458
+  ],
+  "rotY": 160.23206130601466,
+  "scale": 0.9972932894248515
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   -13.389998327940702,
+   0,
+   37.46104966662824
+  ],
+  "rotY": 333.5029293783009,
+  "scale": 1.003983544674702
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   -3.338404819369316,
+   0,
+   5.337040095590055
+  ],
+  "rotY": 126.36007804423569,
+  "scale": 1.0647280901204794
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   -5.536398310679942,
+   0,
+   18.72974704252556
+  ],
+  "rotY": 19.613059982657433,
+  "scale": 1.002895132265985
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   -6.104829046409577,
+   0,
+   32.26162054669112
+  ],
+  "rotY": 331.53759109787643,
+  "scale": 0.9283956188475713
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   66.96977614192292,
+   0,
+   7.159772438928485
+  ],
+  "rotY": 348.9728538505733,
+  "scale": 1.1098828249145298
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   64.08880628319457,
+   0,
+   22.479985176585615
+  ],
+  "rotY": 125.51819935441019,
+  "scale": 1.0113137748558074
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   63.69467416172847,
+   0,
+   32.144669079687446
+  ],
+  "rotY": 316.16101713851094,
+  "scale": 0.9431857128161937
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   74.73212205385789,
+   0,
+   4.514559025410563
+  ],
+  "rotY": 41.134827258065336,
+  "scale": 1.0871151862898842
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   77.17946491297334,
+   0,
+   19.11349954875186
+  ],
+  "rotY": 92.59614774025975,
+  "scale": 1.1304450560128316
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   72.7733647073619,
+   0,
+   33.83675617678091
+  ],
+  "rotY": 251.65679776109752,
+  "scale": 0.8939996765460819
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   12.924218284431845,
+   0,
+   -17.736955732572824
+  ],
+  "rotY": 279.812516765669,
+  "scale": 1.002695948909968
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   7.207132156472653,
+   0,
+   -2.2358989333733916
+  ],
+  "rotY": 280.35620405338705,
+  "scale": 1.0973526584217326
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   10.616217855829746,
+   0,
+   45.41068858187646
+  ],
+  "rotY": 213.77298200502992,
+  "scale": 0.9390636259689927
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   10.345959840342402,
+   0,
+   57.73599159298465
+  ],
+  "rotY": 147.4670063238591,
+  "scale": 0.881804344872944
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   31.429019410628825,
+   0,
+   -14.198267846368253
+  ],
+  "rotY": 286.84123828075826,
+  "scale": 1.1326689725974575
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   27.706174101680517,
+   0,
+   -5.993526134174317
+  ],
+  "rotY": 220.11975749395788,
+  "scale": 0.9310725803719834
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   28.761514484882355,
+   0,
+   46.680322766304016
+  ],
+  "rotY": 17.980263149365783,
+  "scale": 1.0113976646447553
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   29.227762376423925,
+   0,
+   55.26838723756373
+  ],
+  "rotY": 312.86003809422255,
+  "scale": 0.8846655940636993
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   47.327834248542786,
+   0,
+   -15.48686042893678
+  ],
+  "rotY": 74.78734631091356,
+  "scale": 1.0765401932876557
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   48.70751247415319,
+   0,
+   -7.176526298746467
+  ],
+  "rotY": 149.38462441787124,
+  "scale": 0.8614659937797114
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Lrg_01.glb",
+  "pos": [
+   52.698602345306426,
+   0,
+   44.72061744052917
+  ],
+  "rotY": 135.04929774440825,
+  "scale": 0.9222773955203593
+ },
+ {
+  "glb": "buildings/SM_Bld_Background_Med_01.glb",
+  "pos": [
+   49.07532540289685,
+   0,
+   57.282326916232705
+  ],
+  "rotY": 205.40382234379646,
+  "scale": 0.9988141328794882
+ },
+ {
+  "glb": "props/SM_Prop_AirConditioningUnit_01.glb",
+  "pos": [
+   10,
+   1.5,
+   0.25
+  ],
+  "rotY": 0,
+  "scale": 1
+ },
+ {
+  "glb": "props/SM_Prop_AirConditioningUnit_01.glb",
+  "pos": [
+   50,
+   1.5,
+   39.75
+  ],
+  "rotY": 180,
+  "scale": 1
+ },
+ {
+  "glb": "props/SM_Prop_Pipes_01.glb",
+  "pos": [
+   0.25,
+   1.8,
+   15
+  ],
+  "rotY": 90,
+  "scale": 1
+ },
+ {
+  "glb": "misc/SM_Sign_Neon_01.glb",
+  "pos": [
+   59.75,
+   2.2,
+   25
+  ],
+  "rotY": -90,
+  "scale": 1
+ }
+]

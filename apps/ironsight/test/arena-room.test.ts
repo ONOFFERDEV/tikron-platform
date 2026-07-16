@@ -165,12 +165,12 @@ describe("arena room — teams & movement", () => {
 
   it("map cover blocks horizontal movement (no tunnelling through a box)", async () => {
     const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
-    const a = await h.connect(); // red spawn (4,·,6), facing +x toward the platform at x≈27
+    const a = await h.connect(); // red spawn, facing +x toward the platform box front at x=26
     await a.send("move", { mz: 1 });
     await tick(h, 100);
     const p = h.snapshot().players[a.id]!;
-    expect(p.x).toBeGreaterThanOrEqual(26);
-    expect(p.x).toBeLessThanOrEqual(27); // stopped at the platform face, did not pass through
+    expect(p.x).toBeGreaterThanOrEqual(25);
+    expect(p.x).toBeLessThanOrEqual(26); // stopped at the platform face, did not pass through
   });
 
   it("look wraps yaw into [0,2π) and clamps pitch to the vertical limit", async () => {
@@ -604,10 +604,13 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     const b = await h.connect(); // blue
     await tick(h, 2);
 
-    // Throw the grenade straight down at the central 2.2 m cover stack (28.5–31.5),
-    // and stand the enemy on the far side of that wall — the LoS check spares them.
-    place(h, a.id, 30, { yaw: Math.PI / 2, pitch: -1.56, z: 17.5 });
-    place(h, b.id, 30, { z: 23 }); // opposite face of the box at (28.5,·,18.5)-(31.5,·,21.5)
+    // Drop the grenade just north of the north lane divider (a 2.5 m wall at
+    // z 12–14) and stand the enemy just south of it: 3.5 m apart — well inside
+    // GRENADE.radius (5), so without the wall the blast WOULD hurt them (the
+    // old placement was 5.5 m apart, past the radius, which made this test
+    // vacuously pass with or without cover) — but the wall blocks LoS.
+    place(h, a.id, 30, { yaw: Math.PI / 2, pitch: -1.56, z: 11 });
+    place(h, b.id, 30, { z: 14.5 }); // opposite face of the divider (14,·,12)-(46,·,14)
     await tick(h, 2);
 
     await a.send("nade");

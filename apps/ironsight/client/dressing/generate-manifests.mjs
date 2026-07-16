@@ -1,33 +1,97 @@
 // generate-manifests.mjs — regenerates arena1.manifest.json/arena2.manifest.json
 // in this same directory (run: `node client/dressing/generate-manifests.mjs`
 // from the app root). These manifests are the input is-armfix's manifest→bundle
-// CLI bakes into public/assets/maps/arena{1,2}-dressing.glb; src/map/arena1.ts
-// and arena2.ts (the collision data) are NEVER read or written here.
+// CLI bakes into public/assets/maps/arena{1,2}-dressing.glb.
 //
-// Placement principle: scale each asset so NEITHER horizontal (x/z) extent
-// exceeds its target box's footprint (using the MORE constraining of the two
-// ratios) — visual must never stick out past invisible collision (the
-// "looks solid, bullets pass through" bug). Height is allowed to come in
-// under the box's own height (the safe direction — extra invisible collision
-// above a slightly-short model is far less noticeable than a visual
-// overhang with no collision behind it); platforms/crates meant to be stood
-// on are top-anchored to the box's own top so the player's feet line up
-// with the mesh; ground-sitting objects (dividers, cover) are floor-anchored.
+// W2b rewrite: placements are now DERIVED from the live compiled tile-map boxes
+// (src/map/arena{1,2}.ts's ARENA{1,2}_BOXES, via compileTileMap) instead of a
+// hand-maintained per-box-index geometry list — so re-authoring the ASCII tile
+// grid and re-running this generator always produces matching dressing, with no
+// stale hardcoded box coordinates to drift out of sync.
+//
+// Classification: each compiled box is either a genuine tile-class box (wall/
+// stack/platform/crate) or one of a ramp's 3 step-boxes. A ramp's TOP step is
+// 1.2m tall — numerically identical to the platform height — so height alone
+// can't disambiguate. The tiebreaker is footprint grid-alignment: every real
+// tile-class box's x/z footprint is an exact multiple of the TILE=2m grid
+// (tiles merge along grid lines), while ramp steps are always 2m × 0.6667m
+// (verified against the live compiled data for both arenas). A box only gets a
+// height-class recipe if BOTH its x-span and z-span are grid-aligned; anything
+// else is a ramp step and is left procedural (never dressed, no transparent-
+// wall risk on the diagonal ramp faces).
+//
+// Placement principle (unchanged from round 2): scale each asset so NEITHER
+// horizontal (x/z) extent exceeds its target box's footprint (the "looks
+// solid, bullets pass through" bug) — height is allowed to land short of the
+// box's own height, never over. Platforms/stacks meant to be stood on are
+// top-anchored to the box's own top; ground-sitting objects (dividers, cover)
+// are floor-anchored.
 //
 // DIMS below are each asset's native [W(x), H(y), D(z)] bounding box in
 // metres, measured with gltf-transform's getBounds() (handles quantized
 // meshes correctly, unlike reading the raw accessor min/max) — re-measure a
 // swapped-in asset with:
 //   node -e "import('@gltf-transform/core').then(async({NodeIO})=>{const io=new NodeIO();const{ALL_EXTENSIONS}=await import('@gltf-transform/extensions');io.registerExtensions(ALL_EXTENSIONS);const{getBounds}=await import('@gltf-transform/functions');const doc=await io.read('<path.glb>');const b=getBounds(doc.getRoot().listScenes()[0]);console.log(b)})"
-import { writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import * as esbuild from "esbuild";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, basename } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const OUT_DIR = dirname(fileURLToPath(import.meta.url)); // always this file's own directory
+const APP_ROOT = join(OUT_DIR, "..", ".."); // apps/ironsight
 
 const ASSET_BASE = "buildings/"; // relative folder inside the bundle source, for is-armfix's CLI to resolve against GLB/
 const PROP_BASE = "props/";
 const MISC_BASE = "misc/";
+
+// --- live map import --------------------------------------------------------
+// arena1.ts/arena2.ts (and their tilemap.ts/config.ts/physics.ts dependencies)
+// use NodeNext-style ".js" import specifiers pointing at sibling ".ts" sources
+// (no compiled output is checked in), so a plain `import()` can't resolve them.
+// Bundle them with esbuild (redirecting ".js" specifiers to the ".ts" sibling
+// when the literal ".js" file doesn't exist) into a throwaway temp file, import
+// THAT, then delete it — this generator always reflects whatever the tile maps
+// currently compile to, with no separate build step to keep in sync.
+const rewriteJsToTs = {
+  name: "rewrite-js-to-ts",
+  setup(build) {
+    build.onResolve({ filter: /\.js$/ }, (args) => {
+      if (args.path.startsWith(".")) {
+        const resolvedDir = dirname(args.importer);
+        const tsPath = join(resolvedDir, args.path.slice(0, -3) + ".ts");
+        if (existsSync(tsPath)) return { path: tsPath };
+      }
+      return null;
+    });
+  },
+};
+
+async function loadLiveMaps() {
+  const result = await esbuild.build({
+    entryPoints: [join(APP_ROOT, "src/map/arena1.ts"), join(APP_ROOT, "src/map/arena2.ts")],
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    write: false,
+    outdir: "virtual", // required by esbuild for multi-entry-point builds even with write:false — nothing is ever written to this path
+    plugins: [rewriteJsToTs],
+  });
+  const tmpDir = mkdtempSync(join(tmpdir(), "ironsight-dressing-"));
+  try {
+    const modules = {};
+    for (const file of result.outputFiles) {
+      const outPath = join(tmpDir, basename(file.path));
+      writeFileSync(outPath, file.contents);
+      modules[basename(file.path, ".js")] = await import(pathToFileURL(outPath).href);
+    }
+    return modules;
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+const { arena1: arena1Mod, arena2: arena2Mod } = await loadLiveMaps();
 
 // Tiny deterministic PRNG (mulberry32) so re-running this generator reproduces
 // the same skyline jitter every time (round 2: gate flagged the grid as
@@ -64,13 +128,11 @@ const DIMS = {
   neon1: [0.843, 0.434, 0.03],
 };
 
-let placements = [];
-let skyline = [];
-let capProps = [];
+const TILE = 2;
 
-function place(asset, dims, scale, cx, topY, cz, rotY = 0, note = "") {
+function place(out, asset, dims, scale, cx, topY, cz, rotY = 0, note = "") {
   const [, h] = dims;
-  placements.push({
+  out.push({
     asset,
     position: { x: cx, y: topY - h * scale, z: cz }, // topY is where the mesh's OWN top should land
     rotationY: rotY,
@@ -79,71 +141,120 @@ function place(asset, dims, scale, cx, topY, cz, rotY = 0, note = "") {
   });
 }
 
-// ---------------------------------------------------------------------------
-// arena1 — box indices match ARENA1_BOXES order in src/map/arena1.ts exactly.
-// ---------------------------------------------------------------------------
-placements = [];
-const hiddenArena1 = [];
+// --- box classification ------------------------------------------------------
+// A ramp's top step is 1.2m tall, colliding with the platform height — the
+// grid-alignment check (both spans exact multiples of TILE) disambiguates:
+// every real tile-class box merges along tile lines, every ramp step doesn't
+// (verified against live data — see the file header).
+function isGridAligned(span) {
+  return Math.abs(span % TILE) < 1e-6;
+}
 
-// Box 0/1: lane dividers, x[14,46] (32m) z[13,14]/[26,27], height 2.5,
-// ground-anchored. Segment width is chosen to tile the FULL 32m span with NO
-// gap (round 2 rejection #3) — 8 segments × exactly 4.0m — then the per-segment
-// scale is derived from THAT width (not a free height-match), so it comes in
-// at height 2.4m (96% of the 2.5m box — comfortably over the ≥85% bar from
-// round 2 rejection #1) while still never exceeding the 4.0m width slot.
-for (const [bi, z0, z1] of [
-  [0, 13, 14],
-  [1, 26, 27],
-]) {
-  const x0 = 14,
-    x1 = 46;
-  const n = 8;
-  const segW = (x1 - x0) / n; // 4.0m exactly — zero gap across the 32m span
-  const scale = segW / DIMS.wallGeneric[0];
-  const cz = (z0 + z1) / 2;
+function classifyBox(box) {
+  const xspan = box.max.x - box.min.x;
+  const zspan = box.max.z - box.min.z;
+  if (!isGridAligned(xspan) || !isGridAligned(zspan)) return null; // ramp step
+  const h = box.max.y;
+  if (Math.abs(h - 2.5) < 1e-6) return "wall";
+  if (Math.abs(h - 2.2) < 1e-6) return "stack";
+  if (Math.abs(h - 1.2) < 1e-6) return "platform";
+  if (Math.abs(h - 1.1) < 1e-6) return "crate";
+  return null; // unrecognized height — left procedural rather than guessed at
+}
+
+// Box 2.5 — lane divider / perimeter wall. Tiles SM_Bld_Advanced_01 along the
+// box's long horizontal axis with NO gap: 4.0m segments when the span divides
+// evenly (matches the original bake's visual density), else falling back to
+// the 2.0m tile grid (always divides, since every box span is a TILE multiple).
+function placeWall(out, box, index) {
+  const xspan = box.max.x - box.min.x;
+  const zspan = box.max.z - box.min.z;
+  const horizontal = xspan >= zspan;
+  const length = horizontal ? xspan : zspan;
+  const segLen = length % 4 === 0 ? 4 : TILE;
+  const n = Math.round(length / segLen);
+  const scale = segLen / DIMS.wallGeneric[0];
+  const cx = (box.min.x + box.max.x) / 2;
+  const cz = (box.min.z + box.max.z) / 2;
   for (let i = 0; i < n; i++) {
-    const cx = x0 + segW / 2 + i * segW;
-    place(ASSET_BASE + "SM_Bld_Advanced_01.glb", DIMS.wallGeneric, scale, cx, 2.5, cz, 0, `divider ${bi} segment ${i + 1}/${n}`);
+    const along = horizontal ? box.min.x + segLen / 2 + i * segLen : box.min.z + segLen / 2 + i * segLen;
+    const px = horizontal ? along : cx;
+    const pz = horizontal ? cz : along;
+    const rotY = horizontal ? 0 : Math.PI / 2;
+    // Floor-anchored, not box.max.y-topped: this recipe's scale is length-matched
+    // (segLen/DIMS.wallGeneric[0]), not height-matched, so top-anchoring at the
+    // box's real height would leave a floor gap (mesh floats above y=0 while the
+    // invisible collision box still extends to it) — any height shortfall from a
+    // non-1:1 aspect ratio lands safely at the wall's top edge instead.
+    place(out, ASSET_BASE + "SM_Bld_Advanced_01.glb", DIMS.wallGeneric, scale, px, DIMS.wallGeneric[1] * scale, pz, rotY, `divider box#${index} segment ${i + 1}/${n}`);
   }
-  hiddenArena1.push(bi);
 }
 
-// Box 2: central cover stack, x[28.5,31.5] z[18.5,21.5], height 2.2,
-// ground-anchored. Round 2 rejection #2: a single crate only reached ~1.0m of
-// the 2.2m box. Stack two width-matched copies (each's own footprint already
-// safely under the 3m×3m box, so stacking doesn't touch the "never exceed
-// horizontal footprint" rule) directly on top of each other — combined height
-// 2.08m (94% of 2.2m), still under so it can't create a shoot-through overhang.
-{
-  const target = [3, 3];
-  const scale = Math.min(target[0] / DIMS.crateLarge[0], target[1] / DIMS.crateLarge[2]);
-  const h = DIMS.crateLarge[1] * scale;
-  place(PROP_BASE + "SM_Prop_Crate_Large_01.glb", DIMS.crateLarge, scale, 30, h, 20, 0, "central cover — bottom layer");
-  place(PROP_BASE + "SM_Prop_Crate_Large_01.glb", DIMS.crateLarge, scale, 30, 2 * h, 20, 0, "central cover — top layer (stacked to reach ~2.08m of the 2.2m box)");
-  hiddenArena1.push(2);
+// Box 2.2 — central cover stack. Stacks the smallest number of SM_Prop_Crate_Large_01
+// copies whose combined height, at the horizontal-footprint-bound scale, reaches
+// the box's real height exactly (never over — n is the smallest layer count for
+// which that scale doesn't exceed the footprint either).
+function placeStack(out, box, index) {
+  const xspan = box.max.x - box.min.x;
+  const zspan = box.max.z - box.min.z;
+  const height = box.max.y;
+  const horizBound = Math.min(xspan / DIMS.crateLarge[0], zspan / DIMS.crateLarge[2]);
+  const n = Math.max(1, Math.ceil(height / (DIMS.crateLarge[1] * horizBound)));
+  const scale = height / (n * DIMS.crateLarge[1]); // exact height match; <= horizBound by construction of n
+  const cx = (box.min.x + box.max.x) / 2;
+  const cz = (box.min.z + box.max.z) / 2;
+  for (let layer = 1; layer <= n; layer++) {
+    place(out, PROP_BASE + "SM_Prop_Crate_Large_01.glb", DIMS.crateLarge, scale, cx, layer * DIMS.crateLarge[1] * scale, cz, 0, `stack box#${index} layer ${layer}/${n}`);
+  }
 }
 
-// Box 3/4: flanking crates, 2x1.2x2 each, ground-anchored — 2 cages side by side.
-for (const [bi, cx0] of [
-  [3, 24],
-  [4, 36],
-]) {
-  const scale = 1.2 / DIMS.cage02[1]; // height-match (low cover you can see over — height matters for LOS)
+// Box 1.2 — raised platform. Single SM_Bld_LandingPad_01, scaled to the box's
+// real footprint, top-anchored to its real height (the walkable surface).
+function placePlatform(out, box, index) {
+  const xspan = box.max.x - box.min.x;
+  const zspan = box.max.z - box.min.z;
+  const scale = Math.min(xspan / DIMS.landingPad[0], zspan / DIMS.landingPad[2]);
+  const cx = (box.min.x + box.max.x) / 2;
+  const cz = (box.min.z + box.max.z) / 2;
+  place(out, ASSET_BASE + "SM_Bld_LandingPad_01.glb", DIMS.landingPad, scale, cx, box.max.y, cz, 0, `platform box#${index} — top-anchored to y=${box.max.y}`);
+}
+
+// Box 1.1 — low crate cover. Height-matched (not footprint-matched — this is
+// jumpable cover you see over, so its height matters more than filling the
+// footprint) SM_Prop_Cage_02, two side by side when the box is wide enough for
+// the pair, else a single centered cage re-scaled to respect the footprint.
+function placeCrate(out, box, index) {
+  const xspan = box.max.x - box.min.x;
+  const zspan = box.max.z - box.min.z;
+  const height = box.max.y;
+  const scale = height / DIMS.cage02[1];
   const w = DIMS.cage02[0] * scale;
-  place(PROP_BASE + "SM_Prop_Cage_02.glb", DIMS.cage02, scale, cx0 - w * 0.55, DIMS.cage02[1] * scale, 20, 0, `flanking crate ${bi} — left`);
-  place(PROP_BASE + "SM_Prop_Cage_02.glb", DIMS.cage02, scale, cx0 + w * 0.55, DIMS.cage02[1] * scale, 20, 0, `flanking crate ${bi} — right`);
-  hiddenArena1.push(bi);
+  const cx = (box.min.x + box.max.x) / 2;
+  const cz = (box.min.z + box.max.z) / 2;
+  const pairSpan = w * 0.55 * 2 + w; // outer-edge-to-outer-edge span of the 2-cage layout
+  if (pairSpan <= xspan + 1e-6) {
+    place(out, PROP_BASE + "SM_Prop_Cage_02.glb", DIMS.cage02, scale, cx - w * 0.55, height, cz, 0, `crate box#${index} — left`);
+    place(out, PROP_BASE + "SM_Prop_Cage_02.glb", DIMS.cage02, scale, cx + w * 0.55, height, cz, 0, `crate box#${index} — right`);
+  } else {
+    // Never hit by either current map's crate boxes (both 2x2) — kept as a safe
+    // fallback for any future crate box too narrow for the 2-cage layout.
+    const safeScale = Math.min(scale, xspan / DIMS.cage02[0], zspan / DIMS.cage02[2]);
+    place(out, PROP_BASE + "SM_Prop_Cage_02.glb", DIMS.cage02, safeScale, cx, height, cz, 0, `crate box#${index} — single (footprint too tight for the 2-cage layout)`);
+  }
 }
 
-// Box 5/6: raised platforms, 6x1.2x5, TOP-anchored (walkable surface at y=1.2).
-for (const [bi, cz] of [
-  [5, 6.5],
-  [6, 33.5],
-]) {
-  const target = [6, 5];
-  const scale = Math.min(target[0] / DIMS.landingPad[0], target[1] / DIMS.landingPad[2]);
-  place(ASSET_BASE + "SM_Bld_LandingPad_01.glb", DIMS.landingPad, scale, 30, 1.2, cz, 0, `raised platform ${bi} — landing pad reads as intentionally hovering above ground (scifi), top-anchored to y=1.2`);
-  hiddenArena1.push(bi);
+const RECIPES = { wall: placeWall, stack: placeStack, platform: placePlatform, crate: placeCrate };
+
+function dressBoxes(boxes) {
+  const placements = [];
+  const hidden = [];
+  boxes.forEach((box, index) => {
+    const cls = classifyBox(box);
+    if (!cls) return; // ramp step or unrecognized — stays procedural
+    RECIPES[cls](placements, box, index);
+    hidden.push(index);
+  });
+  return { placements, hidden };
 }
 
 // Skyline: background buildings ringing the map outside its bounds (0..60 x,
@@ -151,7 +262,6 @@ for (const [bi, cz] of [
 // position (±3m), rotation (fully random, not a fixed increment), and scale
 // (±15%, reads as a height variation across the skyline) via the seeded PRNG
 // above so re-running this generator still reproduces the same skyline.
-skyline = [];
 const skylineAssets = [
   ["SM_Bld_Background_Lrg_01.glb", DIMS.bgLrg1],
   ["SM_Bld_Background_Med_01.glb", DIMS.bgMed1],
@@ -173,78 +283,73 @@ function pushSkylineRing(out, gridX, gridZ, startIdx) {
   }
   return si;
 }
-let si = pushSkylineRing(skyline, [-15, -5, 65, 75], [5, 20, 35], 0);
-pushSkylineRing(skyline, [10, 30, 50], [-15, -5, 45, 55], si);
+
+// ---------------------------------------------------------------------------
+// arena1
+// ---------------------------------------------------------------------------
+const { placements: placementsArena1, hidden: hiddenArena1 } = dressBoxes(arena1Mod.ARENA1_BOXES);
+
+const skylineArena1 = [];
+let si = pushSkylineRing(skylineArena1, [-15, -5, 65, 75], [5, 20, 35], 0);
+pushSkylineRing(skylineArena1, [10, 30, 50], [-15, -5, 45, 55], si);
 
 // Wall decor: AC units + pipes + neon signs on the perimeter walls (client renders
 // these regardless of dressing — walls stay procedural; decor just attaches visually).
-const wallDecor = [
+// Tied to the map's own bounds (0..60 x, 0..40 z), unchanged by the box rewrite.
+const wallDecorArena1 = [
   { asset: PROP_BASE + "SM_Prop_AirConditioningUnit_01.glb", position: { x: 10, y: 1.5, z: 0.25 }, rotationY: 0, scale: { x: 1, y: 1, z: 1 } },
   { asset: PROP_BASE + "SM_Prop_AirConditioningUnit_01.glb", position: { x: 50, y: 1.5, z: 39.75 }, rotationY: Math.PI, scale: { x: 1, y: 1, z: 1 } },
   { asset: PROP_BASE + "SM_Prop_Pipes_01.glb", position: { x: 0.25, y: 1.8, z: 15 }, rotationY: Math.PI / 2, scale: { x: 1, y: 1, z: 1 } },
   { asset: MISC_BASE + "SM_Sign_Neon_01.glb", position: { x: 59.75, y: 2.2, z: 25 }, rotationY: -Math.PI / 2, scale: { x: 1, y: 1, z: 1 } },
 ];
 
-
 writeFileSync(
   join(OUT_DIR, "arena1.manifest.json"),
   JSON.stringify(
-    { map: "arena1", hiddenBoxIndices: hiddenArena1.sort((a, b) => a - b), placements, skyline, wallDecor, capProps: [] },
+    { map: "arena1", hiddenBoxIndices: hiddenArena1.sort((a, b) => a - b), placements: placementsArena1, skyline: skylineArena1, wallDecor: wallDecorArena1, capProps: [] },
     null,
     2,
   ),
 );
 
 // ---------------------------------------------------------------------------
-// arena2 — box indices match ARENA2_BOXES order exactly.
+// arena2
 // ---------------------------------------------------------------------------
-placements = [];
-const hiddenArena2 = [];
+const { placements: placementsArena2, hidden: hiddenArena2 } = dressBoxes(arena2Mod.ARENA2_BOXES);
 
-// Box 0: central platform (cap B), 6x1.2x4, TOP-anchored to y=1.2.
-{
-  const target = [6, 4];
-  const scale = Math.min(target[0] / DIMS.landingPad[0], target[1] / DIMS.landingPad[2]);
-  place(ASSET_BASE + "SM_Bld_LandingPad_01.glb", DIMS.landingPad, scale, 30, 1.2, 20, 0, "cap B platform — top-anchored to y=1.2");
-  hiddenArena2.push(0);
-}
+// Skyline continues the SAME seeded PRNG stream from arena1 (not reset), so the
+// two maps' skylines don't end up mirror-identical.
+const skylineArena2 = [];
+si = pushSkylineRing(skylineArena2, [-15, -5, 65, 75], [5, 20, 35], si);
+pushSkylineRing(skylineArena2, [10, 30, 50], [-15, -5, 45, 55], si);
 
-// Box 1-4: cap A/C cover crates, 4x1.2x3 each, ground-anchored — 2 crates side by side.
-const coverBoxes = [
-  [1, 15, 11.5],
-  [2, 15, 28.5],
-  [3, 45, 11.5],
-  [4, 45, 28.5],
-];
-for (const [bi, cx0, cz] of coverBoxes) {
-  const target = [2, 3]; // half-width per crate (2 crates fill the 4m box width), full depth 3
-  const scale = Math.min(target[0] / DIMS.crateLarge[0], target[1] / DIMS.crateLarge[2]);
-  const w = DIMS.crateLarge[0] * scale;
-  place(PROP_BASE + "SM_Prop_Crate_Large_01.glb", DIMS.crateLarge, scale, cx0 - w * 0.55, DIMS.crateLarge[1] * scale, cz, 0, `cap cover ${bi} — left`);
-  place(PROP_BASE + "SM_Prop_Crate_Large_01.glb", DIMS.crateLarge, scale, cx0 + w * 0.55, DIMS.crateLarge[1] * scale, cz, 0, `cap cover ${bi} — right`);
-  hiddenArena2.push(bi);
-}
-
-// Skyline (same ring pattern + jitter as arena1 — continues the SAME seeded
-// PRNG stream rather than resetting it, so the two maps' skylines don't end
-// up mirror-identical).
-skyline = [];
-si = pushSkylineRing(skyline, [-15, -5, 65, 75], [5, 20, 35], si);
-pushSkylineRing(skyline, [10, 30, 50], [-15, -5, 45, 55], si);
-
-// DOM cap markers: control-panel "terminal" prop at each cap point's edge,
-// clear of the captureRadius' walkway (offset toward the map's own north/south
-// edge, away from the natural approach lanes).
-capProps = [
-  { asset: PROP_BASE + "SM_Prop_ControlPanel_01.glb", position: { x: 15, y: 0, z: 22.8 }, rotationY: 0, scale: { x: 1.3, y: 1.3, z: 1.3 }, note: "cap A marker" },
-  { asset: PROP_BASE + "SM_Prop_ControlPanel_01.glb", position: { x: 32.8, y: 1.2, z: 20 }, rotationY: -Math.PI / 2, scale: { x: 1.3, y: 1.3, z: 1.3 }, note: "cap B marker (on the platform itself)" },
-  { asset: PROP_BASE + "SM_Prop_ControlPanel_01.glb", position: { x: 45, y: 0, z: 22.8 }, rotationY: 0, scale: { x: 1.3, y: 1.3, z: 1.3 }, note: "cap C marker" },
-];
+// DOM cap markers: control-panel "terminal" prop at each cap point's edge, offset
+// clear of the captureRadius' walkway. Offsets are the original hand-tuned deltas
+// (cap A/C: +3.8 north/south of the raw cap point; cap B: +1.8/-3, on the platform
+// itself at y=1.2), now applied to the LIVE ARENA2_CAPS coordinates rather than a
+// hardcoded literal — numerically unchanged since arena2.ts's caps didn't move,
+// but no longer able to silently drift out of sync if they ever do.
+const capOffsets = {
+  a: { dx: 0, dz: 3.8, y: 0, rotY: 0, note: "cap A marker" },
+  b: { dx: 1.8, dz: -3, y: 1.2, rotY: -Math.PI / 2, note: "cap B marker (on the platform itself)" },
+  c: { dx: 0, dz: 3.8, y: 0, rotY: 0, note: "cap C marker" },
+};
+const capPropsArena2 = ["a", "b", "c"].map((key) => {
+  const cap = arena2Mod.ARENA2_CAPS[key];
+  const off = capOffsets[key];
+  return {
+    asset: PROP_BASE + "SM_Prop_ControlPanel_01.glb",
+    position: { x: cap.x + off.dx, y: off.y, z: cap.z + off.dz },
+    rotationY: off.rotY,
+    scale: { x: 1.3, y: 1.3, z: 1.3 },
+    note: off.note,
+  };
+});
 
 writeFileSync(
   join(OUT_DIR, "arena2.manifest.json"),
   JSON.stringify(
-    { map: "arena2", hiddenBoxIndices: hiddenArena2.sort((a, b) => a - b), placements, skyline, wallDecor: [], capProps },
+    { map: "arena2", hiddenBoxIndices: hiddenArena2.sort((a, b) => a - b), placements: placementsArena2, skyline: skylineArena2, wallDecor: [], capProps: capPropsArena2 },
     null,
     2,
   ),

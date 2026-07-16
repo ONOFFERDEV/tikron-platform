@@ -11,6 +11,66 @@
     {
       "asset": "buildings/SM_Bld_LandingPad_01.glb",
       "position": {
+        "x": 15,
+        "y": 0.8989220038046923,
+        "z": 15
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.25364616360177555,
+        "y": 0.25364616360177555,
+        "z": 0.25364616360177555
+      },
+      "note": "platform box#0 — top-anchored to y=1.2"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
+        "x": 15,
+        "y": 0.8989220038046923,
+        "z": 23
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.25364616360177555,
+        "y": 0.25364616360177555,
+        "z": 0.25364616360177555
+      },
+      "note": "platform box#1 — top-anchored to y=1.2"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
+        "x": 45,
+        "y": 0.8989220038046923,
+        "z": 15
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.25364616360177555,
+        "y": 0.25364616360177555,
+        "z": 0.25364616360177555
+      },
+      "note": "platform box#2 — top-anchored to y=1.2"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
+        "x": 45,
+        "y": 0.8989220038046923,
+        "z": 23
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 0.25364616360177555,
+        "y": 0.25364616360177555,
+        "z": 0.25364616360177555
+      },
+      "note": "platform box#3 — top-anchored to y=1.2"
+    },
+    {
+      "asset": "buildings/SM_Bld_LandingPad_01.glb",
+      "position": {
         "x": 30,
         "y": 0.5978440076093847,
         "z": 20
@@ -21,127 +81,7 @@
         "y": 0.5072923272035511,
         "z": 0.5072923272035511
       },
-      "note": "cap B platform — top-anchored to y=1.2"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 13.9,
-        "y": 0,
-        "z": 11.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 1 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 16.1,
-        "y": 0,
-        "z": 11.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 1 — right"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 13.9,
-        "y": 0,
-        "z": 28.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 2 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 16.1,
-        "y": 0,
-        "z": 28.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 2 — right"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 43.9,
-        "y": 0,
-        "z": 11.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 3 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 46.1,
-        "y": 0,
-        "z": 11.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 3 — right"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 43.9,
-        "y": 0,
-        "z": 28.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 4 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Crate_Large_01.glb",
-      "position": {
-        "x": 46.1,
-        "y": 0,
-        "z": 28.5
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.2618296529968454,
-        "y": 1.2618296529968454,
-        "z": 1.2618296529968454
-      },
-      "note": "cap cover 4 — right"
+      "note": "platform box#4 — top-anchored to y=1.2"
     }
   ],
   "skyline": [

@@ -14,8 +14,8 @@
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 16,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -23,14 +23,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 1/8"
+      "note": "divider box#0 segment 1/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 20,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -38,14 +38,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 2/8"
+      "note": "divider box#0 segment 2/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 24,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -53,14 +53,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 3/8"
+      "note": "divider box#0 segment 3/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 28,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -68,14 +68,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 4/8"
+      "note": "divider box#0 segment 4/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 32,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -83,14 +83,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 5/8"
+      "note": "divider box#0 segment 5/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 36,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -98,14 +98,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 6/8"
+      "note": "divider box#0 segment 6/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 40,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -113,14 +113,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 7/8"
+      "note": "divider box#0 segment 7/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 44,
-        "y": 0.09999999999999964,
-        "z": 13.5
+        "y": 0,
+        "z": 13
       },
       "rotationY": 0,
       "scale": {
@@ -128,14 +128,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 0 segment 8/8"
+      "note": "divider box#0 segment 8/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 16,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -143,14 +143,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 1/8"
+      "note": "divider box#1 segment 1/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 20,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -158,14 +158,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 2/8"
+      "note": "divider box#1 segment 2/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 24,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -173,14 +173,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 3/8"
+      "note": "divider box#1 segment 3/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 28,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -188,14 +188,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 4/8"
+      "note": "divider box#1 segment 4/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 32,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -203,14 +203,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 5/8"
+      "note": "divider box#1 segment 5/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 36,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -218,14 +218,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 6/8"
+      "note": "divider box#1 segment 6/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 40,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -233,14 +233,14 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 7/8"
+      "note": "divider box#1 segment 7/8"
     },
     {
       "asset": "buildings/SM_Bld_Advanced_01.glb",
       "position": {
         "x": 44,
-        "y": 0.09999999999999964,
-        "z": 26.5
+        "y": 0,
+        "z": 27
       },
       "rotationY": 0,
       "scale": {
@@ -248,127 +248,127 @@
         "y": 0.8,
         "z": 0.8
       },
-      "note": "divider 1 segment 8/8"
+      "note": "divider box#1 segment 8/8"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 24.524149543378996,
+        "y": 0,
+        "z": 17
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.2557077625570778,
+        "y": 1.2557077625570778,
+        "z": 1.2557077625570778
+      },
+      "note": "crate box#2 — left"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 25.475850456621004,
+        "y": 0,
+        "z": 17
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.2557077625570778,
+        "y": 1.2557077625570778,
+        "z": 1.2557077625570778
+      },
+      "note": "crate box#2 — right"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 34.524149543378996,
+        "y": 0,
+        "z": 17
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.2557077625570778,
+        "y": 1.2557077625570778,
+        "z": 1.2557077625570778
+      },
+      "note": "crate box#3 — left"
+    },
+    {
+      "asset": "props/SM_Prop_Cage_02.glb",
+      "position": {
+        "x": 35.475850456621004,
+        "y": 0,
+        "z": 17
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.2557077625570778,
+        "y": 1.2557077625570778,
+        "z": 1.2557077625570778
+      },
+      "note": "crate box#3 — right"
     },
     {
       "asset": "props/SM_Prop_Crate_Large_01.glb",
       "position": {
         "x": 30,
         "y": 0,
-        "z": 20
+        "z": 18
       },
       "rotationY": 0,
       "scale": {
-        "x": 1.8927444794952681,
-        "y": 1.8927444794952681,
-        "z": 1.8927444794952681
+        "x": 2,
+        "y": 2,
+        "z": 2
       },
-      "note": "central cover — bottom layer"
+      "note": "stack box#4 layer 1/2"
     },
     {
       "asset": "props/SM_Prop_Crate_Large_01.glb",
       "position": {
         "x": 30,
-        "y": 1.0410094637223977,
-        "z": 20
+        "y": 1.1,
+        "z": 18
       },
       "rotationY": 0,
       "scale": {
-        "x": 1.8927444794952681,
-        "y": 1.8927444794952681,
-        "z": 1.8927444794952681
+        "x": 2,
+        "y": 2,
+        "z": 2
       },
-      "note": "central cover — top layer (stacked to reach ~2.08m of the 2.2m box)"
-    },
-    {
-      "asset": "props/SM_Prop_Cage_02.glb",
-      "position": {
-        "x": 23.480890410958903,
-        "y": 0,
-        "z": 20
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.36986301369863,
-        "y": 1.36986301369863,
-        "z": 1.36986301369863
-      },
-      "note": "flanking crate 3 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Cage_02.glb",
-      "position": {
-        "x": 24.519109589041097,
-        "y": 0,
-        "z": 20
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.36986301369863,
-        "y": 1.36986301369863,
-        "z": 1.36986301369863
-      },
-      "note": "flanking crate 3 — right"
-    },
-    {
-      "asset": "props/SM_Prop_Cage_02.glb",
-      "position": {
-        "x": 35.48089041095891,
-        "y": 0,
-        "z": 20
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.36986301369863,
-        "y": 1.36986301369863,
-        "z": 1.36986301369863
-      },
-      "note": "flanking crate 4 — left"
-    },
-    {
-      "asset": "props/SM_Prop_Cage_02.glb",
-      "position": {
-        "x": 36.51910958904109,
-        "y": 0,
-        "z": 20
-      },
-      "rotationY": 0,
-      "scale": {
-        "x": 1.36986301369863,
-        "y": 1.36986301369863,
-        "z": 1.36986301369863
-      },
-      "note": "flanking crate 4 — right"
+      "note": "stack box#4 layer 2/2"
     },
     {
       "asset": "buildings/SM_Bld_LandingPad_01.glb",
       "position": {
         "x": 30,
-        "y": 0.447305009511731,
-        "z": 6.5
+        "y": 0.2967660114140772,
+        "z": 7
       },
       "rotationY": 0,
       "scale": {
-        "x": 0.6341154090044389,
-        "y": 0.6341154090044389,
-        "z": 0.6341154090044389
+        "x": 0.7609384908053266,
+        "y": 0.7609384908053266,
+        "z": 0.7609384908053266
       },
-      "note": "raised platform 5 — landing pad reads as intentionally hovering above ground (scifi), top-anchored to y=1.2"
+      "note": "platform box#5 — top-anchored to y=1.2"
     },
     {
       "asset": "buildings/SM_Bld_LandingPad_01.glb",
       "position": {
         "x": 30,
-        "y": 0.447305009511731,
-        "z": 33.5
+        "y": 0.2967660114140772,
+        "z": 33
       },
       "rotationY": 0,
       "scale": {
-        "x": 0.6341154090044389,
-        "y": 0.6341154090044389,
-        "z": 0.6341154090044389
+        "x": 0.7609384908053266,
+        "y": 0.7609384908053266,
+        "z": 0.7609384908053266
       },
-      "note": "raised platform 6 — landing pad reads as intentionally hovering above ground (scifi), top-anchored to y=1.2"
+      "note": "platform box#6 — top-anchored to y=1.2"
     }
   ],
   "skyline": [
