@@ -26,6 +26,7 @@ import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
+import { rampOccluderBoxes } from "../map/tilemap.js";
 import {
   modeFromRoomId,
   modeIndex,
@@ -217,6 +218,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** This room's map, resolved once from its mode (tdm/ffa → arena1, dom → arena2). */
   private readonly map: MapDef = mapForMode(this.gameMode.id);
   private readonly boxes: readonly Box[] = this.map.boxes;
+  /** `boxes` plus each ramp's old step-box approximation (see
+   *  {@link rampOccluderBoxes}) — used ONLY for hit-scan/LoS occlusion, never
+   *  for movement. Movement (moveAndSlide/canStand) collides against a ramp's
+   *  true sloped surface instead (moveAndSlide's `ramps` param); occlusion
+   *  keeps the coarser step approximation since a wedge-accurate raycast
+   *  isn't worth the added cost for "is this shot/blast blocked." */
+  private readonly hitBoxes: readonly Box[] = [
+    ...this.map.boxes,
+    ...(this.map.ramps ?? []).flatMap(rampOccluderBoxes),
+  ];
 
   protected override onReady(): void {
     this.maxClients = MATCH.maxClients;
@@ -469,6 +480,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.boxes,
       this.map.bounds,
       MOVE.stepUp,
+      this.map.ramps ?? [],
     );
     p.x = res.pos.x;
     p.y = res.pos.y;
@@ -676,7 +688,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           spec.range,
           shooter.team,
           targets,
-          this.boxes,
+          this.hitBoxes,
           cfg,
           !this.gameMode.teams,
         );
@@ -693,7 +705,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const dist =
       nearestHitT < Infinity
         ? nearestHitT
-        : Math.min(spec.range, nearestBox(origin, baseDir, this.boxes, spec.range));
+        : Math.min(spec.range, nearestBox(origin, baseDir, this.hitBoxes, spec.range));
     const victims = [...dmgByVictim.keys()];
     this.sendNear(
       "shot",
@@ -788,7 +800,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const tolerance = Math.atan2(HIT.radius + HYBRID.coneMarginM, dist) + acc * Math.SQRT2;
     if (angleErr > tolerance) return { accepted: false, reason: "cone", angleErrDeg };
 
-    const occludeT = nearestBox(origin, toRefDir, this.boxes, dist);
+    const occludeT = nearestBox(origin, toRefDir, this.hitBoxes, dist);
     if (occludeT < dist) return { accepted: false, reason: "occluded", angleErrDeg };
 
     return { accepted: true, t: dist, angleErrDeg };
@@ -993,7 +1005,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       // Cover between the blast and the victim shields them.
       if (dist > 1e-3) {
         const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
-        if (nearestBox(c, dir, this.boxes, dist) < dist) continue;
+        if (nearestBox(c, dir, this.hitBoxes, dist) < dist) continue;
       }
       const dmg = Math.round(blastDamage(GRENADE.maxDamage, GRENADE.radius, dist));
       if (dmg > 0) this.applyDamage(pid, dmg, g.owner, "blast");
@@ -1322,7 +1334,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       },
       enemies,
       teamless: ffa,
-      boxes: this.boxes,
+      boxes: this.hitBoxes,
       objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
       showcase: this.gameMode.id === "practice" ? this.showcaseViewFor(id) : undefined,
     };

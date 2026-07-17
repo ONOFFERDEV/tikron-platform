@@ -1,6 +1,6 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
 import { ARENA } from "../config.js";
-import type { MapDef } from "./types.js";
+import type { MapDef, RampDef } from "./types.js";
 
 /**
  * ASCII tilemap compiler — turns a level author's plain grid of characters into a
@@ -36,16 +36,20 @@ import type { MapDef } from "./types.js";
  * | `r` / `b` | red / blue team spawn — compiles as floor; position extracted   |
  * | `1`/`2`/`3` | domination cap a / b / c — compiles as floor; position extracted |
  *
- * Ramps: each step is `TILE/3` (≈0.667 m) deep along the direction of travel and
- * TILE (2 m) wide across it, at heights 0.4 / 0.8 / 1.2 m. The arrow names the
- * direction that climbs: `>` climbs going +x, `<` going −x, `v` going +z, `^`
- * going −z. The top (1.2 m) step must sit flush against an adjacent `=` tile in
- * that same direction of travel — the level author's job; this compiler emits
- * the 3 step boxes for a ramp tile unconditionally and does not verify that
- * adjacency. It DOES verify the opposite (entry/low) side, though: that tile —
- * off-grid, or a solid height class (`#`/`x`/`X`/`=`) — would either trap the
- * ramp against a wall (a sub-capsule-width unfittable slot) or place its low
- * step behind another obstacle; both throw at compile time.
+ * Ramps: a ramp tile compiles to one {@link RampDef} — a true sloped surface
+ * spanning the whole tile footprint, rising 0→1.2 m linearly along the
+ * direction of travel (movement uses `physics.ts`'s `rampSurfaceY`/
+ * `moveAndSlide` against this directly; no boxes are involved). The arrow
+ * names the direction that climbs: `>` climbs going +x, `<` going −x, `v`
+ * going +z, `^` going −z. The top (1.2 m) end must sit flush against an
+ * adjacent `=` tile in that same direction of travel — the level author's
+ * job; this compiler does not verify that adjacency. It DOES verify the
+ * opposite (entry/low) side, though: that tile — off-grid, or a solid height
+ * class (`#`/`x`/`X`/`=`) — would either trap the ramp against a wall (a
+ * sub-capsule-width unfittable slot) or place its low end behind another
+ * obstacle; both throw at compile time. {@link rampOccluderBoxes} still
+ * derives the old 3-step (0.4/0.8/1.2 m) box approximation from a `RampDef`,
+ * but strictly for hit-scan occlusion — never for movement.
  *
  * Coordinate convention: row `i` is a `TILE`-deep strip z ∈ [i·TILE, (i+1)·TILE);
  * column `j` is a `TILE`-wide strip x ∈ [j·TILE, (j+1)·TILE) — reading the ASCII
@@ -119,7 +123,7 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
   // Height-class grid for the rectangle merge below; ramps are handled
   // separately (never merged — each ramp tile always emits exactly 3 boxes).
   const grid: (HeightClass | null)[][] = rows.map(() => new Array<HeightClass | null>(cols).fill(null));
-  const rampBoxes: Box[] = [];
+  const ramps: RampDef[] = [];
   const spawnsRed: Vec3[] = [];
   const spawnsBlue: Vec3[] = [];
   let capA: Vec3 | undefined;
@@ -147,7 +151,7 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
         case "^":
         case "v":
           checkRampEntry(rows, i, j, ch, cols);
-          rampBoxes.push(...rampSteps(ch, j, i));
+          ramps.push(rampDefFor(ch, j, i));
           break;
         case "r":
           spawnsRed.push({ x: cx, y: 0, z: cz });
@@ -186,7 +190,8 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
 
   return {
     bounds: { width, depth, ceiling: opts.ceiling ?? ARENA.ceiling },
-    boxes: [...mergedBoxes, ...rampBoxes],
+    boxes: mergedBoxes,
+    ramps,
     spawns: { red: spawnsRed, blue: spawnsBlue },
     caps: { a: capA, b: capB, c: capC },
     capWaypoints: opts.capWaypoints,
@@ -216,45 +221,54 @@ function checkRampEntry(rows: readonly string[], i: number, j: number, ch: RampC
   }
 }
 
-/** The 3 step boxes for one ramp tile at grid column `j`, row `i` — see this
- *  file's header for the step depth/height/direction convention. Boundaries are
- *  computed as `(k·TILE)/3` (k = 0..3) rather than accumulating a rounded 2/3 m
- *  constant, so the first and last boundary land exactly on the tile's edges. */
-function rampSteps(ch: RampChar, j: number, i: number): Box[] {
+/** Builds the {@link RampDef} for one ramp tile at grid column `j`, row `i` —
+ *  footprint is the full tile rectangle; `axis`/`dir` follow this file
+ *  header's arrow convention. */
+function rampDefFor(ch: RampChar, j: number, i: number): RampDef {
   const x0 = j * TILE;
   const z0 = i * TILE;
-  const along = (base: number, k: number) => base + (k * TILE) / 3;
+  const axis: "x" | "z" = ch === ">" || ch === "<" ? "x" : "z";
+  const dir: 1 | -1 = ch === ">" || ch === "v" ? 1 : -1;
+  return {
+    minX: x0,
+    maxX: x0 + TILE,
+    minZ: z0,
+    maxZ: z0 + TILE,
+    axis,
+    dir,
+    topY: STEP_HEIGHTS[2],
+  };
+}
+
+/** The old 3-step (0.4/0.8/1.2 m) AABB approximation of a ramp, derived from
+ *  its {@link RampDef} — kept strictly for hit-scan occlusion (a sloped
+ *  surface is expensive to line-intersect exactly; three boxes are a cheap,
+ *  close-enough stand-in for "does this ramp block line of sight"). NEVER use
+ *  this for movement — `physics.ts`'s `moveAndSlide` collides against the
+ *  `RampDef`'s true slope via `rampSurfaceY` instead. Boundaries are computed
+ *  as `(k·range)/3` (k = 0..3) rather than accumulating a rounded 2/3 m
+ *  constant, so the first and last boundary land exactly on the footprint's
+ *  edges. */
+export function rampOccluderBoxes(r: RampDef): Box[] {
+  const isX = r.axis === "x";
+  const minCoord = isX ? r.minX : r.minZ;
+  const maxCoord = isX ? r.maxX : r.maxZ;
+  const range = maxCoord - minCoord;
+  const along = (k: number) => minCoord + (k * range) / 3;
 
   const boxes: Box[] = [];
   for (let s = 0; s < 3; s++) {
     const h = STEP_HEIGHTS[s]!;
-    let minX: number, maxX: number, minZ: number, maxZ: number;
-    if (ch === ">") {
-      // Climbs going +x: low step at the −x (entry) end, high step flush with +x neighbor.
-      minX = along(x0, s);
-      maxX = along(x0, s + 1);
-      minZ = z0;
-      maxZ = z0 + TILE;
-    } else if (ch === "<") {
-      // Climbs going −x: low step at the +x end, high step flush with −x neighbor.
-      minX = along(x0, 2 - s);
-      maxX = along(x0, 3 - s);
-      minZ = z0;
-      maxZ = z0 + TILE;
-    } else if (ch === "v") {
-      // Climbs going +z: low step at the −z (entry) end, high step flush with +z neighbor.
-      minX = x0;
-      maxX = x0 + TILE;
-      minZ = along(z0, s);
-      maxZ = along(z0, s + 1);
-    } else {
-      // "^" — climbs going −z: low step at the +z end, high step flush with −z neighbor.
-      minX = x0;
-      maxX = x0 + TILE;
-      minZ = along(z0, 2 - s);
-      maxZ = along(z0, 3 - s);
-    }
-    boxes.push({ min: { x: minX, y: 0, z: minZ }, max: { x: maxX, y: h, z: maxZ } });
+    // dir=+1: height rises toward maxCoord, so step s's segment is at index s.
+    // dir=-1: height rises toward minCoord, so step s's segment is mirrored (2-s).
+    const k = r.dir === 1 ? s : 2 - s;
+    const segMin = along(k);
+    const segMax = along(k + 1);
+    boxes.push(
+      isX
+        ? { min: { x: segMin, y: 0, z: r.minZ }, max: { x: segMax, y: h, z: r.maxZ } }
+        : { min: { x: r.minX, y: 0, z: segMin }, max: { x: r.maxX, y: h, z: segMax } },
+    );
   }
   return boxes;
 }

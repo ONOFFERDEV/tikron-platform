@@ -4,7 +4,7 @@
 // only — pairwise cap separation and bot-waypoint reachability are already
 // covered for the hand-authored arenas by map-invariants.test.ts).
 import { describe, it, expect } from "vitest";
-import { compileTileMap, TILE } from "../src/map/tilemap.js";
+import { compileTileMap, rampOccluderBoxes, TILE } from "../src/map/tilemap.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
@@ -132,47 +132,90 @@ describe("compileTileMap - height classes", () => {
 });
 
 describe("compileTileMap - ramps", () => {
-  it("emits 3 step boxes for a '>' ramp climbing +x, with heights 0.4/0.8/1.2 and TILE/3-exact boundaries", () => {
+  it("'>' ramp climbs +x: a single whole-tile RampDef, axis x, dir 1, topY 1.2", () => {
     const rows = makeGrid([{ row: 2, col: 5, text: ">" }]);
     const map = compileTileMap(rows);
-    expect(map.boxes.length).toBe(3);
+    expect(map.ramps!.length).toBe(1);
+    const r = map.ramps![0]!;
+    const x0 = 5 * TILE;
+    const z0 = 2 * TILE;
+    expect(r.minX).toBe(x0);
+    expect(r.maxX).toBe(x0 + TILE);
+    expect(r.minZ).toBe(z0);
+    expect(r.maxZ).toBe(z0 + TILE);
+    expect(r.axis).toBe("x");
+    expect(r.dir).toBe(1);
+    expect(r.topY).toBe(1.2);
+  });
+
+  it("'<' ramp climbs -x: axis x, dir -1", () => {
+    const rows = makeGrid([{ row: 2, col: 5, text: "<" }]);
+    const map = compileTileMap(rows);
+    expect(map.ramps![0]!.axis).toBe("x");
+    expect(map.ramps![0]!.dir).toBe(-1);
+    expect(map.ramps![0]!.topY).toBe(1.2);
+  });
+
+  it("'v' ramp climbs +z: axis z, dir 1", () => {
+    const rows = makeGrid([{ row: 2, col: 5, text: "v" }]);
+    const map = compileTileMap(rows);
+    expect(map.ramps![0]!.axis).toBe("z");
+    expect(map.ramps![0]!.dir).toBe(1);
+  });
+
+  it("'^' ramp climbs -z: axis z, dir -1", () => {
+    const rows = makeGrid([{ row: 2, col: 5, text: "^" }]);
+    const map = compileTileMap(rows);
+    expect(map.ramps![0]!.axis).toBe("z");
+    expect(map.ramps![0]!.dir).toBe(-1);
+  });
+
+  it("a ramp tile emits no boxes at all — only merged height-class tiles do", () => {
+    const rows = makeGrid([{ row: 2, col: 5, text: ">" }]);
+    const map = compileTileMap(rows);
+    const x0 = 5 * TILE;
+    const z0 = 2 * TILE;
+    const overlapsRampTile = map.boxes.some(
+      (b) => b.min.x < x0 + TILE && b.max.x > x0 && b.min.z < z0 + TILE && b.max.z > z0,
+    );
+    expect(overlapsRampTile).toBe(false);
+  });
+
+  it("rampOccluderBoxes reproduces the old 3-step hit-scan geometry (heights 0.4/0.8/1.2, TILE/3-exact boundaries)", () => {
+    const rows = makeGrid([{ row: 2, col: 5, text: ">" }]);
+    const map = compileTileMap(rows);
+    const steps = rampOccluderBoxes(map.ramps![0]!);
+    expect(steps.length).toBe(3);
 
     const x0 = 5 * TILE;
     const z0 = 2 * TILE;
     const along = (k: number) => x0 + (k * TILE) / 3;
-    const steps = [...map.boxes].sort((a, b) => a.min.x - b.min.x);
+    const sorted = [...steps].sort((a, b) => a.min.x - b.min.x);
     const heights = [0.4, 0.8, 1.2] as const;
     for (let s = 0; s < 3; s++) {
-      expect(steps[s]!.min.x).toBe(along(s));
-      expect(steps[s]!.max.x).toBe(along(s + 1));
-      expect(steps[s]!.min.z).toBe(z0);
-      expect(steps[s]!.max.z).toBe(z0 + TILE);
-      expect(steps[s]!.max.y).toBe(heights[s]);
+      expect(sorted[s]!.min.x).toBe(along(s));
+      expect(sorted[s]!.max.x).toBe(along(s + 1));
+      expect(sorted[s]!.min.z).toBe(z0);
+      expect(sorted[s]!.max.z).toBe(z0 + TILE);
+      expect(sorted[s]!.max.y).toBe(heights[s]);
     }
   });
 
-  it("'<' ramp (climbs -x) puts its lowest step at the +x (entry) end", () => {
-    const rows = makeGrid([{ row: 2, col: 5, text: "<" }]);
-    const map = compileTileMap(rows);
-    const x0 = 5 * TILE;
-    const low = map.boxes.find((b) => b.max.y === 0.4);
-    expect(low?.max.x).toBe(x0 + TILE);
-  });
+  it("rampOccluderBoxes puts the lowest step at the entry (low) end for '<', '^', 'v'", () => {
+    // '<' climbs -x (dir -1): entry is the +x end, so the lowest (0.4) step sits there.
+    const lt = compileTileMap(makeGrid([{ row: 2, col: 5, text: "<" }]));
+    const ltLow = rampOccluderBoxes(lt.ramps![0]!).find((b) => b.max.y === 0.4);
+    expect(ltLow?.max.x).toBe(5 * TILE + TILE);
 
-  it("'^' ramp (climbs -z) puts its lowest step at the +z (entry) end", () => {
-    const rows = makeGrid([{ row: 2, col: 5, text: "^" }]);
-    const map = compileTileMap(rows);
-    const z0 = 2 * TILE;
-    const low = map.boxes.find((b) => b.max.y === 0.4);
-    expect(low?.max.z).toBe(z0 + TILE);
-  });
+    // '^' climbs -z (dir -1): entry is the +z end.
+    const up = compileTileMap(makeGrid([{ row: 2, col: 5, text: "^" }]));
+    const upLow = rampOccluderBoxes(up.ramps![0]!).find((b) => b.max.y === 0.4);
+    expect(upLow?.max.z).toBe(2 * TILE + TILE);
 
-  it("'v' ramp (climbs +z) puts its lowest step at the -z (entry) end", () => {
-    const rows = makeGrid([{ row: 2, col: 5, text: "v" }]);
-    const map = compileTileMap(rows);
-    const z0 = 2 * TILE;
-    const low = map.boxes.find((b) => b.max.y === 0.4);
-    expect(low?.min.z).toBe(z0);
+    // 'v' climbs +z (dir 1): entry is the -z end.
+    const down = compileTileMap(makeGrid([{ row: 2, col: 5, text: "v" }]));
+    const downLow = rampOccluderBoxes(down.ramps![0]!).find((b) => b.max.y === 0.4);
+    expect(downLow?.min.z).toBe(2 * TILE);
   });
 });
 
@@ -354,16 +397,16 @@ describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", 
     expect(() => compileTileMap(rows2)).not.toThrow();
   });
 
-  it("live arena1 compiles with 4 relocated ramps (12 step boxes) and its merged-box prefix intact", () => {
+  it("live arena1 compiles with 4 relocated ramps and its merged-box set untouched by them", () => {
     // The dressing manifests' hiddenBoxIndices [0..6] are bound to the compiled
-    // box ORDER (merged height-class boxes first, ramp steps appended after) —
-    // this pins that contract so a ramp edit can't silently invalidate them.
-    const nonRamp = ARENA1.boxes.filter((b) => [2.5, 2.2, 1.2, 1.1].includes(b.max.y) && Number.isInteger(b.min.x) && Number.isInteger(b.min.z) && Number.isInteger(b.max.x) && Number.isInteger(b.max.z));
-    expect(ARENA1.boxes.length).toBe(19); // 7 merged + 4 ramps x 3 steps
+    // `boxes` array ORDER (merged height-class boxes only — ramps no longer
+    // contribute anything to `boxes`, they live entirely in their own `ramps`
+    // array) — this pins that contract so a ramp edit can't silently invalidate them.
+    expect(ARENA1.boxes.length).toBe(7);
+    expect(ARENA1.ramps!.length).toBe(4);
     for (let i = 0; i < 7; i++) {
       const b = ARENA1.boxes[i]!;
-      expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true); // grid-aligned = merged class, not a ramp step
+      expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true); // grid-aligned = merged class
     }
-    expect(ARENA1.boxes.length - nonRamp.length).toBe(12);
   });
 });

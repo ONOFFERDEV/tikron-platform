@@ -359,3 +359,144 @@ describe("physics — fail-closed penetration guard (sub-capsule-width slot)", (
     expect(truePenetration(pos.x, pos.y, pos.z)).toBe(false); // ejected, not frozen inside
   });
 });
+
+describe("physics — smooth ramp colliders (2026-07-17 rework: no more 3-box steps)", () => {
+  // One '>'-style ramp: footprint x [24,26], z [6,8], rising +x from 0 to 1.2,
+  // flush against a 1.2m platform box to its east — the live arena1 shape.
+  const ramp = { minX: 24, maxX: 26, minZ: 6, maxZ: 8, axis: "x" as const, dir: 1 as const, topY: 1.2 };
+  const platform: Box = { min: { x: 26, y: 0, z: 4 }, max: { x: 34, y: 1.2, z: 10 } };
+  const R = PLAYER.radius;
+  const H = PLAYER.standHeight;
+  const DT = 1 / 20;
+
+  function step(pos: Vec3, vy: number, dx: number, dz: number, jump = false) {
+    if (jump) vy = MOVE.jumpSpeed;
+    vy -= MOVE.gravity * DT;
+    const delta = { x: dx * MOVE.walk * DT, y: vy * DT, z: dz * MOVE.walk * DT };
+    return moveAndSlide(pos, R, H, delta, vy, [platform], BOUNDS, MOVE.stepUp, [ramp]);
+  }
+
+  it("walking up is glued: grounded every tick, y monotonically non-decreasing, tops out at 1.2 onto the platform", () => {
+    let pos: Vec3 = { x: 23, y: 0, z: 7 };
+    let vy = 0;
+    let lastY = 0;
+    // 30 ticks: floor → ramp → platform, stopping well before the platform's
+    // far edge (walking off it at t≈37 would legitimately un-ground the walker).
+    for (let t = 0; t < 30; t++) {
+      const r = step(pos, vy, 1, 0);
+      pos = r.pos;
+      vy = r.vy;
+      expect(r.grounded).toBe(true); // never an airborne flicker mid-climb
+      expect(pos.y).toBeGreaterThanOrEqual(lastY - 1e-9); // monotonic ascent
+      lastY = pos.y;
+    }
+    expect(pos.x).toBeGreaterThan(26); // carried onto the platform
+    expect(pos.y).toBeCloseTo(1.2, 5); // at platform height, flush hand-off
+  });
+
+  it("standing still mid-slope is perfectly stable — zero drift over 60 ticks (the jitter regression)", () => {
+    // Start ON the surface at the ramp's middle (x=25 → t=0.5 → y=0.6).
+    let pos: Vec3 = { x: 25, y: 0.6, z: 7 };
+    let vy = 0;
+    for (let t = 0; t < 60; t++) {
+      const r = step(pos, vy, 0, 0);
+      expect(r.pos.x).toBe(pos.x);
+      expect(r.pos.z).toBe(pos.z);
+      expect(r.pos.y).toBeCloseTo(0.6, 6);
+      expect(r.grounded).toBe(true);
+      pos = r.pos;
+      vy = r.vy;
+    }
+  });
+
+  it("walking down stays grounded every tick (no land/fall alternation)", () => {
+    let pos: Vec3 = { x: 25.5, y: rampY(25.5), z: 7 };
+    let vy = 0;
+    for (let t = 0; t < 40 && pos.x > 24.6; t++) {
+      const r = step(pos, vy, -1, 0);
+      pos = r.pos;
+      vy = r.vy;
+      expect(r.grounded).toBe(true);
+      expect(Math.abs(pos.y - rampY(pos.x))).toBeLessThan(0.02); // glued to the surface
+    }
+  });
+
+  it("side entry: allowed where the surface is within stepUp of the feet, blocked (like a wall) where it is not", () => {
+    // Low part: x=24.5 → surface 0.3 ≤ 0.45 — walking in from the side works.
+    // Several ticks so the capsule CENTER actually crosses into the footprint
+    // (entry is judged at the center, and glue only applies inside it).
+    let low: Vec3 = { x: 24.5, y: 0, z: 8.6 };
+    let lowVy = 0;
+    for (let t = 0; t < 6; t++) {
+      const r = step(low, lowVy, 0, -1);
+      low = r.pos;
+      lowVy = r.vy;
+    }
+    expect(low.z).toBeLessThan(8); // center entered the footprint
+    expect(low.y).toBeCloseTo(rampY(low.x), 2); // glued onto the slope
+
+    // High part: x=25.8 → surface 1.08 > 0.45 → blocked like a wall, held outside.
+    let high: Vec3 = { x: 25.8, y: 0, z: 8.55 };
+    let highVy = 0;
+    for (let t = 0; t < 6; t++) {
+      const r = step(high, highVy, 0, -1);
+      high = r.pos;
+      highVy = r.vy;
+    }
+    expect(high.z).toBeGreaterThan(7.95); // center never swallowed into the footprint
+    expect(high.y).toBe(0);
+  });
+
+  it("rubbing the high side diagonally SLIDES along it instead of freezing (sticky-edge regression)", () => {
+    // Ramp alone (no platform box) — pure ramp-side behavior: pushing diagonally
+    // into the high side must keep the tangential component moving.
+    let pos: Vec3 = { x: 24.9, y: 0, z: 8.55 };
+    let vy = 0;
+    let minZWhileAlongside = pos.z;
+    for (let t = 0; t < 20; t++) {
+      vy -= MOVE.gravity * DT;
+      const delta = { x: 0.7 * MOVE.walk * DT, y: vy * DT, z: -0.7 * MOVE.walk * DT };
+      const r = moveAndSlide(pos, R, H, delta, vy, [], BOUNDS, MOVE.stepUp, [ramp]);
+      pos = r.pos;
+      vy = r.vy;
+      // Only bounded while still alongside the high side — once past x=26 the
+      // space behind the ramp's back face is open floor and -z is legitimate.
+      if (pos.x <= ramp.maxX) minZWhileAlongside = Math.min(minZWhileAlongside, pos.z);
+    }
+    expect(pos.x).toBeGreaterThan(26.2); // real tangential progress past the ramp
+    expect(minZWhileAlongside).toBeGreaterThan(7.9); // never swallowed into the blocked footprint while alongside
+  });
+
+  it("a jump from the slope rises freely (no glue while ascending) and lands back on the surface", () => {
+    let pos: Vec3 = { x: 25, y: 0.6, z: 7 };
+    let vy = 0;
+    let r = step(pos, vy, 0, 0, true); // jump
+    pos = r.pos;
+    vy = r.vy;
+    expect(pos.y).toBeGreaterThan(0.6 + 0.2); // left the surface
+    expect(r.grounded).toBe(false);
+    let peak = pos.y;
+    for (let t = 0; t < 40; t++) {
+      r = step(pos, vy, 0, 0);
+      pos = r.pos;
+      vy = r.vy;
+      if (pos.y > peak) peak = pos.y;
+      if (r.grounded) break;
+    }
+    expect(peak).toBeGreaterThan(1.2); // genuinely airborne past the ramp top
+    expect(pos.y).toBeCloseTo(0.6, 2); // came back down onto the slope, glued
+  });
+
+  it("fast fall spanning two overlapping tops lands on the HIGHER one (order-independence fix)", () => {
+    const lowBox: Box = { min: { x: 40, y: 0, z: 20 }, max: { x: 42, y: 0.5, z: 22 } };
+    const highBox: Box = { min: { x: 41, y: 0, z: 20 }, max: { x: 43, y: 1.0, z: 22 } };
+    // Falling fast enough that one tick passes BOTH tops: pos.y 1.3 → 0.3.
+    const r = moveAndSlide({ x: 41.5, y: 1.3, z: 21 }, R, H, { x: 0, y: -1.0, z: 0 }, -20, [lowBox, highBox], BOUNDS, MOVE.stepUp, []);
+    expect(r.pos.y).toBe(1.0); // the higher qualifying top, regardless of array order
+    expect(r.grounded).toBe(true);
+  });
+
+  function rampY(x: number): number {
+    return ((x - ramp.minX) / (ramp.maxX - ramp.minX)) * ramp.topY;
+  }
+});

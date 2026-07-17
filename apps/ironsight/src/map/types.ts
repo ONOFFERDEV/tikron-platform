@@ -7,9 +7,33 @@ import type { Box, Bounds, Vec3 } from "../physics.js";
  * that single object everywhere, instead of each consumer importing one
  * specific arena's named constants directly.
  */
+/**
+ * A true sloped-surface collider for a ramp/staircase footprint, replacing the
+ * old approximation of three stacked AABB "steps" (which produced seam bugs at
+ * corners and edges — half-overlapping boxes causing landing/falling/step-up
+ * ticks to alternate, inconsistent side-entry, and occasional pass-through in
+ * narrow gaps). The footprint is the full tile rectangle; height rises
+ * linearly along `axis` in direction `dir` from 0 at the low end to `topY` at
+ * the high end.
+ */
+export interface RampDef {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minZ: number;
+  readonly maxZ: number;
+  readonly axis: "x" | "z";
+  /** +1 = rises toward increasing axis coordinate, -1 = toward decreasing. */
+  readonly dir: 1 | -1;
+  /** Height at the high end (always 1.2 for the current tile set). */
+  readonly topY: number;
+}
+
 export interface MapDef {
   readonly bounds: Bounds;
   readonly boxes: readonly Box[];
+  /** Sloped-surface colliders — see {@link RampDef}. Optional for backward
+   *  compatibility with existing fixtures/blueprints that predate ramps. */
+  readonly ramps?: readonly RampDef[];
   readonly spawns: { readonly red: readonly Vec3[]; readonly blue: readonly Vec3[] };
   /** Domination capture points. Every map defines them (even a tdm/ffa-only
    *  map) so `mapForMode` never has to special-case a missing field. */

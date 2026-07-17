@@ -13,7 +13,8 @@
 import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
-import type { MapDef } from "../src/map/types.js";
+import type { MapDef, RampDef } from "../src/map/types.js";
+import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { Vfx } from "./vfx.js";
@@ -258,12 +259,62 @@ interface Tracer {
   speed: number;
 }
 
+/** Wedge (triangular-prism) mesh geometry for a ramp's true sloped footprint —
+ *  three has no built-in primitive for this, so it's built by hand as 5 flat
+ *  faces (bottom, back, slope, two triangular ends). `DoubleSide` is used on
+ *  the mesh material (see buildArena) rather than fussing over exact winding
+ *  per face by hand — three flips the shading normal for back-facing
+ *  triangles under DoubleSide, so lighting reads correctly and no face can
+ *  end up invisibly culled regardless of the order below. */
+function buildWedgeGeometry(r: RampDef): THREE.BufferGeometry {
+  const isX = r.axis === "x";
+  const riseMin = isX ? r.minX : r.minZ;
+  const riseMax = isX ? r.maxX : r.maxZ;
+  const low = r.dir === 1 ? riseMin : riseMax;
+  const high = r.dir === 1 ? riseMax : riseMin;
+  const perpMin = isX ? r.minZ : r.minX;
+  const perpMax = isX ? r.maxZ : r.maxX;
+  const at = (rise: number, y: number, perp: number): number[] => (isX ? [rise, y, perp] : [perp, y, rise]);
+
+  const A0 = at(low, 0, perpMin);
+  const B0 = at(high, 0, perpMin);
+  const C0 = at(high, r.topY, perpMin);
+  const A1 = at(low, 0, perpMax);
+  const B1 = at(high, 0, perpMax);
+  const C1 = at(high, r.topY, perpMax);
+
+  const quad = (p1: number[], p2: number[], p3: number[], p4: number[]): number[] => [
+    ...p1, ...p2, ...p3,
+    ...p1, ...p3, ...p4,
+  ];
+  const tri = (p1: number[], p2: number[], p3: number[]): number[] => [...p1, ...p2, ...p3];
+  const positions = [
+    ...quad(A0, B0, B1, A1), // bottom, flush with the floor
+    ...quad(B0, C0, C1, B1), // back, vertical, full height at the high end
+    ...quad(A0, C0, C1, A1), // slope — the walkable surface, matches rampSurfaceY's lerp
+    ...tri(A0, B0, C0), // low-perp end cap
+    ...tri(A1, B1, C1), // high-perp end cap
+  ];
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export class SceneRig {
   readonly canvas: HTMLCanvasElement;
   readonly camera: THREE.PerspectiveCamera;
   private readonly scene = new THREE.Scene();
   private readonly renderer: THREE.WebGLRenderer;
   private readonly boxes: readonly Box[];
+  private readonly ramps: readonly RampDef[];
+  /** `boxes` plus each ramp's old step-box approximation (see
+   *  `rampOccluderBoxes` in ../src/map/tilemap.ts) — used only by the
+   *  box-array-based `wallDistance` check. `raycastHitClaim` needs no
+   *  equivalent: it raycasts real scene meshes, and ramps get their own wedge
+   *  mesh added to `claimTargets` alongside `boxRenders` (see `rampRenders`). */
+  private readonly hitBoxes: readonly Box[];
   private readonly players = new Map<string, PlayerRig>();
   // Reused across every syncPlayers() call (once per render frame) instead of
   // allocating a fresh Set each time purely to track "seen this frame" ids.
@@ -285,6 +336,11 @@ export class SceneRig {
   // constructor's dressing load hides only the manifest's hiddenBoxIndices
   // once (and only once) the real bundle has actually loaded successfully.
   private readonly boxRenders = new Map<number, { mesh: THREE.Mesh; edges: THREE.LineSegments }>();
+  // Ramp wedge renders, keyed by index into `this.ramps` — kept separate from
+  // `boxRenders` on purpose: ramps have no dressing-manifest hidden-index
+  // entry and a different collider shape, so they're tracked and hit-tested
+  // independently (see raycastHitClaim).
+  private readonly rampRenders = new Map<number, { mesh: THREE.Mesh; edges: THREE.LineSegments }>();
 
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
@@ -328,6 +384,8 @@ export class SceneRig {
 
   constructor(map: MapDef, container: HTMLElement = document.body) {
     this.boxes = map.boxes;
+    this.ramps = map.ramps ?? [];
+    this.hitBoxes = [...map.boxes, ...this.ramps.flatMap(rampOccluderBoxes)];
     this.canvas = document.createElement("canvas");
     this.canvas.style.display = "block";
     this.canvas.style.width = "100%";
@@ -468,6 +526,26 @@ export class SceneRig {
         // load, so it stays the ground truth overlay regardless of dressing state.
         const debugEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), debugMat);
         debugEdges.position.copy(mesh.position);
+        this.scene.add(debugEdges);
+      }
+    });
+
+    // Ramps: true sloped-surface colliders (see ../src/physics.ts), rendered as
+    // hand-built wedge meshes — never as the old 3-step-box approximation (that
+    // now only survives inside rampOccluderBoxes, for hit-scan occlusion). Reuses
+    // boxMat's look via a clone rather than the shared object itself, since this
+    // one needs `side: DoubleSide` — see buildWedgeGeometry's comment for why.
+    const rampMat = boxMat.clone();
+    rampMat.side = THREE.DoubleSide;
+    this.ramps.forEach((r, i) => {
+      const geo = buildWedgeGeometry(r);
+      const mesh = new THREE.Mesh(geo, rampMat);
+      this.scene.add(mesh);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+      this.scene.add(edges);
+      this.rampRenders.set(i, { mesh, edges });
+      if (DEBUG_BOXES) {
+        const debugEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), debugMat);
         this.scene.add(debugEdges);
       }
     });
@@ -1105,7 +1183,7 @@ export class SceneRig {
    *  if none (a pure client-side wall stop — used by main.ts to give a
    *  self-authoritative tracer a plausible endpoint without server round-trip). */
   wallDistance(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, maxT: number): number {
-    return Math.min(maxT, nearestBox(origin, dir, this.boxes, maxT));
+    return Math.min(maxT, nearestBox(origin, dir, this.hitBoxes, maxT));
   }
 
   /** World-space position of the LOCAL player's own viewmodel muzzle right now —
@@ -1232,6 +1310,7 @@ export class SceneRig {
     this.claimRaycaster.set(this.claimOrigin.set(eye.x, eye.y, eye.z), this.claimDir.set(dir.x, dir.y, dir.z));
     this.claimTargets.length = 0;
     for (const { mesh } of this.boxRenders.values()) this.claimTargets.push(mesh);
+    for (const { mesh } of this.rampRenders.values()) this.claimTargets.push(mesh);
     for (const rig of this.players.values()) {
       if (rig.kind === "model" && rig.modelRoot) this.claimTargets.push(rig.modelRoot);
       else if (rig.body && rig.head) this.claimTargets.push(rig.body, rig.head);

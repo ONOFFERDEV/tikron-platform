@@ -18,6 +18,7 @@
  */
 
 import { pushOutOfObstacles, type Obstacle } from "@tikron/sim";
+import type { RampDef } from "./map/types.js";
 
 export interface Vec3 {
   x: number;
@@ -65,6 +66,15 @@ export interface MoveResult {
  * meaningfully blocked, {@link tryStepUp} retries it with feet raised by `stepUp`
  * and adopts that result when it makes real progress and clears headroom. See
  * `config.ts`'s `MOVE.stepUp` for why 0.45 clears ramp steps but not crates.
+ *
+ * `ramps` (default `[]`, backward compatible) are sloped-surface colliders, kept
+ * entirely separate from `boxes` — a ramp's footprint is never in `boxes`, so the
+ * push-out/step-up logic above never sees it. Instead: a move that would land
+ * inside a ramp's footprint more than `stepUp` below its surface reverts, like
+ * hitting a wall (the ramp's high side/back); otherwise, once inside the
+ * footprint and not rising, `y` glues to the sloped surface every tick instead
+ * of alternating land/fall states across ticks (the jitter the old 3-box-step
+ * approximation produced at corners and edges).
  */
 export function moveAndSlide(
   pos: Vec3,
@@ -75,6 +85,7 @@ export function moveAndSlide(
   boxes: readonly Box[],
   bounds: Bounds,
   stepUp = 0,
+  ramps: readonly RampDef[] = [],
 ): MoveResult {
   let { x, y, z } = pos;
   let vy = vyIn;
@@ -126,13 +137,48 @@ export function moveAndSlide(
   //     move above got meaningfully blocked. Retries the horizontal pass with feet
   //     raised by `stepUp`; adopted only if it makes strictly more progress AND the
   //     raised spot has headroom (canStand) — otherwise the blocked result above stands. ---
-  if (stepUp > 0 && vyIn <= 0 && restingAt(pos.x, pos.y, pos.z, radius, boxes)) {
+  if (stepUp > 0 && vyIn <= 0 && restingAt(pos.x, pos.y, pos.z, radius, boxes, ramps)) {
     const intendedDist = Math.hypot(delta.x, delta.z);
     const actualDist = Math.hypot(x - pos.x, z - pos.z);
     if (intendedDist > 1e-6 && actualDist < intendedDist - 1e-3) {
       const stepped = tryStepUp(pos, radius, height, delta, boxes, bounds, stepUp, x, z);
-      if (stepped) return stepped;
+      if (stepped && !rampBlocksEntry(stepped.pos.x, stepped.pos.z, stepped.pos.y, stepUp, ramps)) {
+        return stepped;
+      }
     }
+  }
+
+  // --- ramp horizontal block: a ramp's high side/back acts like a wall — if the
+  //     capsule center's final (x,z) sits inside a ramp footprint at a point whose
+  //     sloped surface is more than `stepUp` above the player's CURRENT y, the move
+  //     can't be taken as-is. Like a wall, it should still SLIDE: try keeping each
+  //     axis alone (rubbing diagonally along the high side must not freeze the
+  //     player — that sticky-edge feel is exactly what this rework is removing),
+  //     falling back to a full revert only when both axes independently enter the
+  //     blocked region (a square-on push into the high face/corner). A low-side
+  //     entry (surface within `stepUp`) is never blocked; it glues to the slope. ---
+  for (const r of ramps) {
+    if (!insideRampFootprint(x, z, r)) continue;
+    if (rampSurfaceY(r, x, z) - pos.y > stepUp) {
+      const okAt = (px: number, pz: number): boolean =>
+        !insideRampFootprint(px, pz, r) || rampSurfaceY(r, px, pz) - pos.y <= stepUp;
+      if (okAt(x, pos.z)) {
+        z = pos.z; // slide along x, give up the blocked z component
+      } else if (okAt(pos.x, z)) {
+        x = pos.x; // slide along z
+      } else {
+        x = pos.x;
+        z = pos.z;
+      }
+      // The axis-mix can recombine a resolved coordinate with a pre-resolution
+      // one — keep the box no-new/deeper-penetration invariant airtight.
+      const pen = maxPenetration(x, pos.y, z, radius, height, boxes);
+      if (pen > 1e-3 && pen >= maxPenetration(pos.x, pos.y, pos.z, radius, height, boxes) - 1e-4) {
+        x = pos.x;
+        z = pos.z;
+      }
+    }
+    break;
   }
 
   // --- vertical ---
@@ -147,20 +193,102 @@ export function moveAndSlide(
     if (vy > 0) vy = 0;
   }
   // Box tops / undersides: land when descending onto a top the feet were above,
-  // bonk when rising into an underside the head was below.
+  // bonk when rising into an underside the head was below. Picks the highest
+  // qualifying top / lowest qualifying underside across ALL matching boxes this
+  // tick rather than letting iteration order decide — two boxes overlapping in
+  // xz with different heights used to let whichever the loop visited last win.
+  let landTop: number | null = null;
+  let bonkBottom: number | null = null;
   for (const b of boxes) {
     if (!overlapsXZ(x, z, radius, b)) continue;
     if (vy <= 0 && pos.y >= b.max.y - 1e-3 && y < b.max.y) {
-      y = b.max.y;
+      if (landTop === null || b.max.y > landTop) landTop = b.max.y;
+    } else if (vy > 0 && pos.y + height <= b.min.y + 1e-3 && y + height > b.min.y) {
+      const bottom = b.min.y - height;
+      if (bonkBottom === null || bottom < bonkBottom) bonkBottom = bottom;
+    }
+  }
+  if (landTop !== null) {
+    y = landTop;
+    vy = 0;
+    grounded = true;
+  } else if (bonkBottom !== null) {
+    y = bonkBottom;
+    vy = 0;
+  }
+
+  // --- ramp surface glue: keeps a walking/falling player glued to the slope every
+  //     tick instead of oscillating a hair above/below it — the dominant jitter
+  //     source with the old 3-box-step approximation (half-overlapping boxes made
+  //     landing/falling/step-up ticks alternate). Skipped while genuinely airborne
+  //     and ascending (vy > 0, e.g. jump apex); a descent that overshoots the
+  //     near-surface snap band in one tick still lands via the surface-crossing
+  //     check below. ---
+  for (const r of ramps) {
+    if (!insideRampFootprint(x, z, r)) continue;
+    const surface = rampSurfaceY(r, x, z);
+    // Uphill / from below: feet at or under the surface and not rising — pull up.
+    const nearSurface = y <= surface + 0.01 && (vy <= 0 || grounded);
+    // Fast descent through the surface in one tick — land on it.
+    const crossedDescending =
+      insideRampFootprint(pos.x, pos.z, r) && pos.y >= rampSurfaceY(r, pos.x, pos.z) - 1e-3 && y < surface;
+    // Downhill: a walker who STARTED this tick standing on this ramp's surface
+    // and is now a little above it (the slope fell away under a horizontal step)
+    // snaps back down — without this, walking downhill alternates one airborne
+    // tick per contact tick (land/fall/land), which is exactly the jitter this
+    // rework exists to kill. Never while ascending from a jump (vyIn > 0), and
+    // never further than a stepUp's worth of drop in one tick.
+    const walkedDownSlope =
+      vyIn <= 0 &&
+      y > surface &&
+      y - surface <= stepUp &&
+      insideRampFootprint(pos.x, pos.z, r) &&
+      Math.abs(pos.y - rampSurfaceY(r, pos.x, pos.z)) <= 0.02;
+    if (nearSurface || crossedDescending || walkedDownSlope) {
+      y = surface;
       vy = 0;
       grounded = true;
-    } else if (vy > 0 && pos.y + height <= b.min.y + 1e-3 && y + height > b.min.y) {
-      y = b.min.y - height;
-      vy = 0;
     }
+    break;
   }
 
   return { pos: { x, y, z }, vy, grounded };
+}
+
+/** Is `(x, z)` — the capsule's horizontal center — inside ramp `r`'s footprint? */
+function insideRampFootprint(x: number, z: number, r: RampDef): boolean {
+  return x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
+}
+
+/**
+ * A ramp's sloped surface height at `(x, z)` — linear from 0 at the low end to
+ * `r.topY` at the high end along `r.axis`, climbing toward `r.dir`. Callers are
+ * expected to only ask this for a point inside `r`'s footprint (see
+ * {@link insideRampFootprint}).
+ */
+export function rampSurfaceY(r: RampDef, x: number, z: number): number {
+  const isX = r.axis === "x";
+  const coord = isX ? x : z;
+  const min = isX ? r.minX : r.minZ;
+  const max = isX ? r.maxX : r.maxZ;
+  const range = max - min;
+  const t = range > 1e-9 ? clamp((coord - min) / range, 0, 1) : 0;
+  const progress = r.dir === 1 ? t : 1 - t;
+  return progress * r.topY;
+}
+
+/**
+ * Would landing at `(x, z, y)` put the capsule center inside a ramp's footprint
+ * at a height its sloped surface is more than `stepUp` above — i.e. would this
+ * position have needed to pass through the ramp's wall-like high side to reach?
+ * Used to veto a step-up candidate the same way the ordinary horizontal move
+ * above is vetoed by the ramp block, so a step-up retry can't sneak past it.
+ */
+function rampBlocksEntry(x: number, z: number, y: number, stepUp: number, ramps: readonly RampDef[]): boolean {
+  for (const r of ramps) {
+    if (insideRampFootprint(x, z, r) && rampSurfaceY(r, x, z) - y > stepUp) return true;
+  }
+  return false;
 }
 
 const boxToObstacle = (b: Box): Obstacle => ({
@@ -238,9 +366,23 @@ export function canStand(
  * distinguish "grounded, gravity just ticked negative" from "genuinely airborne" —
  * only a player already planted on something should auto-climb a step.
  */
-function restingAt(x: number, y: number, z: number, radius: number, boxes: readonly Box[]): boolean {
+function restingAt(
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  boxes: readonly Box[],
+  ramps: readonly RampDef[] = [],
+): boolean {
   if (y <= 1e-3) return true;
-  return boxes.some((b) => overlapsXZ(x, z, radius, b) && Math.abs(y - b.max.y) <= 1e-3);
+  if (boxes.some((b) => overlapsXZ(x, z, radius, b) && Math.abs(y - b.max.y) <= 1e-3)) return true;
+  // Standing glued to a ramp's sloped surface counts as resting too — without
+  // this, a player climbing a ramp could never step-up over the small lip where
+  // the slope meets its flush platform (the surface sits a hair below the
+  // platform top for the entire final stretch of the climb).
+  return ramps.some(
+    (r) => insideRampFootprint(x, z, r) && Math.abs(y - rampSurfaceY(r, x, z)) <= 0.02,
+  );
 }
 
 /**

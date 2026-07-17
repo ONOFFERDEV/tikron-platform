@@ -7,7 +7,7 @@
  * a teleport-sized gap snaps). See `../src/rooms/arena-room.ts` `integrate()`.
  */
 import { moveAndSlide, canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
-import type { MapDef } from "../src/map/types.js";
+import type { MapDef, RampDef } from "../src/map/types.js";
 import { MOVE, PLAYER, TICK_MS } from "../src/config.js";
 import {
   RECONCILE_SOFT_M,
@@ -24,6 +24,7 @@ export class Predictor {
   crouch = false;
   alive = true;
   private readonly boxes: readonly Box[];
+  private readonly ramps: readonly RampDef[];
   private readonly bounds: Bounds;
   private vy = 0;
   private grounded = true;
@@ -48,6 +49,7 @@ export class Predictor {
 
   constructor(map: MapDef) {
     this.boxes = map.boxes;
+    this.ramps = map.ramps ?? [];
     this.bounds = map.bounds;
   }
 
@@ -110,7 +112,17 @@ export class Predictor {
 
     const height = this.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
     const delta: Vec3 = { x: wx * speed * TICK_S, y: this.vy * TICK_S, z: wz * speed * TICK_S };
-    const res = moveAndSlide(this.pos, PLAYER.radius, height, delta, this.vy, this.boxes, this.bounds, MOVE.stepUp);
+    const res = moveAndSlide(
+      this.pos,
+      PLAYER.radius,
+      height,
+      delta,
+      this.vy,
+      this.boxes,
+      this.bounds,
+      MOVE.stepUp,
+      this.ramps,
+    );
     this.pos = res.pos;
     this.vy = res.vy;
     this.grounded = res.grounded;
