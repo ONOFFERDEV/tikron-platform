@@ -733,7 +733,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     for (const [vid, agg] of dmgByVictim) {
       const dmg = Math.round(agg.dmg);
       if (dmg <= 0) continue;
-      this.applyDamage(vid, dmg, id, agg.head ? "head" : "body");
+      this.applyDamage(vid, dmg, id, agg.head ? "head" : "body", spec.slot);
       client.send("hit", { victim: vid, dmg, head: agg.head });
     }
     this.markStateChanged();
@@ -1014,7 +1014,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   // --- damage / kills ---------------------------------------------------------
 
-  private applyDamage(victimId: string, dmg: number, killerId: string, part: string): void {
+  private applyDamage(
+    victimId: string,
+    dmg: number,
+    killerId: string,
+    part: string,
+    weaponSlot?: number,
+  ): void {
     const victim = this.state.players[victimId];
     if (!victim || !victim.alive || victim.prot) return;
     victim.hp = Math.max(0, victim.hp - dmg);
@@ -1045,6 +1051,26 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
     this.hits.delete(victimId);
     this.streaks.delete(victimId);
+
+    // Structured log for offline map-timing/heatmap analysis (map-metrics tool test) —
+    // collectible live via `wrangler tail` the same way hybridHit already is. Coordinates
+    // rounded to 1 decimal to keep this cheap even if tail volume ever grows; kills are
+    // low-frequency, so this is never spam.
+    const killerP = this.state.players[killerId];
+    console.log(
+      JSON.stringify({
+        tag: "killPos",
+        mode: this.gameMode.id,
+        weapon: weaponSlot ?? null,
+        head: part === "head",
+        vx: Math.round(victim.x * 10) / 10,
+        vz: Math.round(victim.z * 10) / 10,
+        kx: killerP ? Math.round(killerP.x * 10) / 10 : null,
+        kz: killerP ? Math.round(killerP.z * 10) / 10 : null,
+        vBot: this.botBrains.has(victimId),
+        kBot: this.botBrains.has(killerId),
+      }),
+    );
 
     this.broadcast("kill", {
       killer: killerId,
