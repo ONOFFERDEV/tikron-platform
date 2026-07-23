@@ -217,6 +217,30 @@ export function mapForMode(mode: ModeId): MapDef {
   return mode === "dom" ? ARENA2 : mode === "ffa" ? ARENA3 : ARENA1;
 }
 
+/** Which practice map a room id encodes: `arena-practice-arena2-<rand>` → "arena2",
+ *  `arena-practice-arena3-<rand>` → "arena3", anything else (including the plain
+ *  `arena-practice-<rand>` every pre-existing practice session already uses) →
+ *  "arena1". Matched by prefix, same as {@link modeFromRoomId}. */
+export function practiceMapKeyFromRoomId(roomId: string): "arena1" | "arena2" | "arena3" {
+  if (roomId.startsWith("arena-practice-arena2-")) return "arena2";
+  if (roomId.startsWith("arena-practice-arena3-")) return "arena3";
+  return "arena1";
+}
+
+/** The map a (mode, room id) pair is played on — the single source of truth for
+ *  practice map selection. Every non-practice mode still has exactly one map
+ *  ({@link mapForMode} decides it); practice is the one mode with more than
+ *  one, resolved from the room id via {@link practiceMapKeyFromRoomId}. Both
+ *  the server (arena-room.ts, from its own `this.id`) and the client
+ *  (main.ts, from the matchmake response's `room`) feed the same string into
+ *  this function, so they can never resolve different maps for the same
+ *  session. */
+export function mapForRoom(mode: ModeId, roomId: string): MapDef {
+  if (mode !== "practice") return mapForMode(mode);
+  const key = practiceMapKeyFromRoomId(roomId);
+  return key === "arena2" ? ARENA2 : key === "arena3" ? ARENA3 : ARENA1;
+}
+
 const TEAMS_BY_ID = new Map<ModeId, boolean>(
   [TDM_MODE, FFA_MODE, DOM_MODE, PRACTICE_MODE].map((m) => [m.id, m.teams]),
 );

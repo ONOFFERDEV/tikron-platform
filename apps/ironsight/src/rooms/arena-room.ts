@@ -27,10 +27,11 @@ import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../wea
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
 import { rampOccluderBoxes } from "../map/tilemap.js";
+import { ARENA1 } from "../map/arena1.js";
 import {
   modeFromRoomId,
   modeIndex,
-  mapForMode,
+  mapForRoom,
   PRACTICE_SHOWCASE_BOTS,
   PRACTICE_SHOWCASE_FACE_YAW,
   type GameMode,
@@ -215,8 +216,11 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
   private readonly gameMode: GameMode = modeFromRoomId(this.id);
 
-  /** This room's map, resolved once from its mode (tdm/ffa → arena1, dom → arena2). */
-  private readonly map: MapDef = mapForMode(this.gameMode.id);
+  /** This room's map, resolved once from its mode + room id (tdm → arena1, ffa → arena3, dom
+   *  → arena2, practice → arena1/2/3 per the room id's `map` suffix — see
+   *  modes.ts's `mapForRoom`, the single source of truth both this room and the
+   *  client resolve the practice map through). */
+  private readonly map: MapDef = mapForRoom(this.gameMode.id, this.id);
   private readonly boxes: readonly Box[] = this.map.boxes;
   /** `boxes` plus each ramp's old step-box approximation (see
    *  {@link rampOccluderBoxes}) — used ONLY for hit-scan/LoS occlusion, never
@@ -228,6 +232,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     ...this.map.boxes,
     ...(this.map.ramps ?? []).flatMap(rampOccluderBoxes),
   ];
+
+  /** True only for practice-on-arena1 — the single gate every showcase-roster
+   *  code path (spawn pin, bot fill, view exposure) must check, so map
+   *  selection can never leave arena2/arena3 practice half-showing the arena1-
+   *  specific demo roster (its coordinates, PRACTICE_SHOWCASE_BOTS in
+   *  modes.ts, are placement baked for arena1 only — per-map showcase
+   *  placement is out of scope here). `this.map === ARENA1` is a safe
+   *  reference-equality check since mapForRoom always returns the same
+   *  module-singleton MapDef object for a given map. */
+  private get showcaseActive(): boolean {
+    return this.gameMode.id === "practice" && this.map === ARENA1;
+  }
 
   protected override onReady(): void {
     this.maxClients = MATCH.maxClients;
@@ -1173,7 +1189,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // is the one spawn path both addShowcaseBot and the tick's respawn loop share)
     // so the layout never drifts. Facing/crouch settle themselves: showcaseThink
     // drives both continuously via the normal input path (see bots.ts).
-    const showcase = PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id);
+    const showcase = this.showcaseActive ? PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id) : undefined;
     if (showcase) {
       p.x = showcase.x;
       p.z = showcase.z;
@@ -1240,7 +1256,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const ids = Object.keys(this.state.players);
     const botIds = ids.filter((id) => id.startsWith("bot-"));
     const target = this.fillToPlayers;
-    const showcase = this.gameMode.id === "practice";
+    const showcase = this.showcaseActive;
 
     let deficit = target - ids.length;
     while (deficit > 0) {
@@ -1362,7 +1378,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.hitBoxes,
       objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
-      showcase: this.gameMode.id === "practice" ? this.showcaseViewFor(id) : undefined,
+      showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };
   }
 

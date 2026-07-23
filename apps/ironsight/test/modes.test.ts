@@ -10,6 +10,8 @@ import {
   modeFromRoomId,
   modeIndex,
   mapForMode,
+  practiceMapKeyFromRoomId,
+  mapForRoom,
   isTeamless,
   type ModeCtx,
 } from "../src/modes.js";
@@ -280,5 +282,34 @@ describe("isTeamless", () => {
     expect(isTeamless("practice")).toBe(true);
     expect(isTeamless("tdm")).toBe(false);
     expect(isTeamless("dom")).toBe(false);
+  });
+});
+
+describe("practiceMapKeyFromRoomId", () => {
+  it("reads arena2/arena3 out of a practice room id's map segment", () => {
+    expect(practiceMapKeyFromRoomId("arena-practice-arena2-abcd1234")).toBe("arena2");
+    expect(practiceMapKeyFromRoomId("arena-practice-arena3-abcd1234")).toBe("arena3");
+  });
+
+  it("falls back to arena1 for the plain (no map segment) practice room id", () => {
+    expect(practiceMapKeyFromRoomId("arena-practice-abcd1234")).toBe("arena1");
+  });
+
+  it("falls back to arena1 for a non-practice room id", () => {
+    expect(practiceMapKeyFromRoomId("arena-tdm")).toBe("arena1");
+  });
+});
+
+describe("mapForRoom", () => {
+  it("resolves practice's map straight off the room id, independent of mapForMode", () => {
+    expect(mapForRoom("practice", "arena-practice-abcd1234")).toBe(ARENA1);
+    expect(mapForRoom("practice", "arena-practice-arena2-abcd1234")).toBe(ARENA2);
+    expect(mapForRoom("practice", "arena-practice-arena3-abcd1234")).toBe(ARENA3);
+  });
+
+  it("delegates to mapForMode for non-practice modes, ignoring the room id", () => {
+    expect(mapForRoom("tdm", "arena-tdm")).toBe(mapForMode("tdm"));
+    expect(mapForRoom("ffa", "arena-ffa")).toBe(mapForMode("ffa"));
+    expect(mapForRoom("dom", "arena-dom")).toBe(mapForMode("dom"));
   });
 });

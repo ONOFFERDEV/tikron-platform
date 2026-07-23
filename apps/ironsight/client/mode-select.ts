@@ -61,21 +61,6 @@ function showMenu(settings: SettingsStore): Promise<ModeId> {
     title.textContent = GAME.text.title;
     root.appendChild(title);
 
-    for (const id of MODE_ORDER) {
-      const { ko, en } = GAME.text.modeLabels[id];
-      const btn = document.createElement("button");
-      btn.innerHTML = `<span class="ko">${ko}</span><span class="en">${en}</span>`;
-      btn.addEventListener("click", () => {
-        const url = new URL(location.href);
-        url.searchParams.set("mode", id);
-        history.replaceState(null, "", url);
-        root.remove();
-        style.remove();
-        resolve(id);
-      });
-      root.appendChild(btn);
-    }
-
     const settingsBtn = document.createElement("button");
     settingsBtn.className = "settingsBtn";
     settingsBtn.textContent = GAME.text.settings.openLabel;
@@ -87,6 +72,56 @@ function showMenu(settings: SettingsStore): Promise<ModeId> {
     });
     root.appendChild(settingsBtn);
 
+    const finish = (id: ModeId, map?: "arena2" | "arena3") => {
+      const url = new URL(location.href);
+      url.searchParams.set("mode", id);
+      // Non-practice picks and practice's own "arena 1" (default) option carry
+      // no `map` param — net.ts's matchmake() only ever forwards one for
+      // practice + arena2/arena3, mirroring index.ts's handleMatchmake whitelist.
+      if (map) url.searchParams.set("map", map);
+      else url.searchParams.delete("map");
+      history.replaceState(null, "", url);
+      root.remove();
+      style.remove();
+      resolve(id);
+    };
+
+    function makeButton(ko: string, en: string, onClick: () => void): HTMLButtonElement {
+      const btn = document.createElement("button");
+      btn.innerHTML = `<span class="ko">${ko}</span><span class="en">${en}</span>`;
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    let modeButtons: HTMLButtonElement[] = [];
+    const setModeButtons = (buttons: HTMLButtonElement[]) => {
+      for (const b of modeButtons) b.remove();
+      modeButtons = buttons;
+      for (const b of buttons) root.insertBefore(b, settingsBtn);
+    };
+
+    // Practice's map sub-menu is local-only UI copy — never added to
+    // GAME.text, since it's a client menu detail rather than shared game text
+    // (map names elsewhere come from src/map/*, not a text catalog entry).
+    function showPracticeMenu(): void {
+      setModeButtons([
+        makeButton("아레나 1", "ARENA 1", () => finish("practice")),
+        makeButton("아레나 2", "ARENA 2", () => finish("practice", "arena2")),
+        makeButton("크로스야드", "CROSSYARD", () => finish("practice", "arena3")),
+        makeButton("뒤로", "BACK", () => showMainMenu()),
+      ]);
+    }
+
+    function showMainMenu(): void {
+      setModeButtons(
+        MODE_ORDER.map((id) => {
+          const { ko, en } = GAME.text.modeLabels[id];
+          return makeButton(ko, en, () => (id === "practice" ? showPracticeMenu() : finish(id)));
+        }),
+      );
+    }
+
+    showMainMenu();
     document.body.appendChild(root);
   });
 }

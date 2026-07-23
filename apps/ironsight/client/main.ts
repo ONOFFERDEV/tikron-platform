@@ -23,7 +23,7 @@ import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
 import type { FireClaim } from "../src/hitscan.js";
-import { MODE_ORDER, mapForMode, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
+import { MODE_ORDER, mapForRoom, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 import { GAME } from "../src/game-config.js";
 
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
   const me0 = await waitForSelf(net);
   if (!me0) {
     // waitForSelf timed out: state (or our own player entry in it) never arrived,
-    // so mapForMode below would fall back to mode 0's map even in a dom/ffa room —
+    // so mapForRoom below would fall back to mode 0's map even in a dom/ffa room —
     // client and server would render different geometry for an already-broken
     // session. Net.connect() itself never surfaces a fatal error (it retries with
     // backoff forever), so mirror that "keep the user informed, don't proceed"
@@ -72,9 +72,10 @@ async function main(): Promise<void> {
     return;
   }
   // The map is derived from the mode the server actually placed us in (state.mode,
-  // synced on join) rather than guessed client-side — same single source of truth
-  // (mapForMode) the room itself resolves from modeFromRoomId.
-  const map = mapForMode(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm");
+  // synced on join) plus the matchmake response's own room id — same single
+  // source of truth (mapForRoom) the room itself resolves from its own id, so
+  // a practice session's arena2/arena3 pick can never diverge from the server.
+  const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
 
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;

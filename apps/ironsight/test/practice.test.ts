@@ -215,6 +215,51 @@ describe("practice room — showcase bots", () => {
   });
 });
 
+describe("practice room — map selection", () => {
+  it("an arena3-encoded practice room actually plays on ARENA3 (geometry, not reference equality)", async () => {
+    // Same shooter/target coordinates as the plain ARENA1 duel test above, where
+    // the shot lands — here it must NOT, because ARENA3's north diagonal wall
+    // (x16-32 at z6-8) occludes this z=6 line of sight (see arena-room.test.ts's
+    // ffa test for the same landmark). A blocked shot is the behavioral proof
+    // that mapForRoom actually resolved ARENA3 from this room id, not ARENA1.
+    const h = await createTestRoom(PracticeDuelArena, {
+      id: "arena-practice-arena3-occl1",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    const shooter = await h.connect();
+    const target = await h.connect();
+    await tick(h, 2);
+
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
+    place(h, target.id, 20);
+    await tick(h, 3);
+
+    for (let i = 0; i < 4; i++) {
+      await shooter.send("fire");
+      await tick(h, 3);
+    }
+    const s = h.snapshot();
+    expect(s.players[target.id]!.alive).toBe(true);
+    expect(h.broadcastsOf("s:msg").some((f) => (f.data as { type?: string }).type === "kill")).toBe(false);
+  });
+
+  it("the showcase roster (ARENA1-specific) never spawns in an arena2/arena3 practice room", async () => {
+    const h = await createTestRoom(ArenaRoomImpl, {
+      id: "arena-practice-arena2-noshow1",
+      codec: ArenaSchema,
+      sync: "throttled",
+    });
+    await h.connect();
+    await tick(h, 2); // let the deficit-fill run, same window the arena1 showcase test uses
+
+    const ids = Object.keys(liveState(h).players);
+    for (const id of ["bot-idle", "bot-crouch", "bot-sneak", "bot-walk", "bot-sprint"]) {
+      expect(ids).not.toContain(id);
+    }
+  });
+});
+
 describe("handleMatchmake — practice", () => {
   it("issues a unique private arena-practice-<random> room id per request", async () => {
     const res1 = handleMatchmake(new URL("http://test.local/api/matchmake?mode=practice"));
@@ -224,5 +269,17 @@ describe("handleMatchmake — practice", () => {
     expect(body1.room).toMatch(/^arena-practice-[0-9a-f]{8}$/);
     expect(body2.room).toMatch(/^arena-practice-[0-9a-f]{8}$/);
     expect(body1.room).not.toBe(body2.room);
+  });
+
+  it("encodes a valid map param into the room id, and ignores an invalid one", async () => {
+    const arena2 = handleMatchmake(new URL("http://test.local/api/matchmake?mode=practice&map=arena2"));
+    const arena3 = handleMatchmake(new URL("http://test.local/api/matchmake?mode=practice&map=arena3"));
+    const bogus = handleMatchmake(new URL("http://test.local/api/matchmake?mode=practice&map=nope"));
+    const body2 = (await arena2.json()) as { room: string };
+    const body3 = (await arena3.json()) as { room: string };
+    const bodyBogus = (await bogus.json()) as { room: string };
+    expect(body2.room).toMatch(/^arena-practice-arena2-[0-9a-f]{8}$/);
+    expect(body3.room).toMatch(/^arena-practice-arena3-[0-9a-f]{8}$/);
+    expect(bodyBogus.room).toMatch(/^arena-practice-[0-9a-f]{8}$/); // falls back to arena1's plain format
   });
 });

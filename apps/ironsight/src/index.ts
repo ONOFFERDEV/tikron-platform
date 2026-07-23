@@ -22,17 +22,28 @@ export const ArenaRoom = defineRoom(ArenaRoomImpl);
  * join. `practice` is the one exception to the shared-room-per-mode rule: every
  * request gets its OWN private room (`arena-practice-<random>`, matched by
  * prefix in modes.ts's `modeFromRoomId`), so practice sessions never share a
- * seat with unrelated players. (A real matchmaker DO — multiple rooms per mode,
- * reservations, region hints — is the gateway pattern to graft in later; the
- * client contract here, `{ party, room, session }`, stays the same.)
+ * seat with unrelated players. Practice also accepts `&map=arena2|arena3` to
+ * pick which map that private room plays on — encoded straight into the room
+ * id (`arena-practice-<map>-<random>`) rather than passed out-of-band, so the
+ * room (from its own id) and the client (from this response's `room`) always
+ * agree on the map via modes.ts's single-source-of-truth `mapForRoom`. Any
+ * other/missing `map` value keeps today's plain `arena-practice-<random>`
+ * (arena1). (A real matchmaker DO — multiple rooms per mode, reservations,
+ * region hints — is the gateway pattern to graft in later; the client
+ * contract here, `{ party, room, session }`, stays the same.)
  */
 export function handleMatchmake(url: URL): Response {
   const modeParam = url.searchParams.get("mode");
   if (modeParam === "practice") {
     const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const mapParam = url.searchParams.get("map");
+    const room =
+      mapParam === "arena2" || mapParam === "arena3"
+        ? `arena-practice-${mapParam}-${rand}`
+        : `arena-practice-${rand}`;
     return Response.json({
       party: GAME.meta.party,
-      room: `arena-practice-${rand}`,
+      room,
       session: crypto.randomUUID(),
     });
   }

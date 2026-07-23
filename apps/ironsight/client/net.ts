@@ -111,9 +111,17 @@ function modeFromLocation(): ModeId {
 /** Fetch a room + session, retrying with backoff until the worker answers. */
 async function matchmake(): Promise<Matchmake> {
   const mode = modeFromLocation();
+  // Practice's map sub-selection (mode-select.ts) only ever sets `?map=` to
+  // arena2/arena3 — anything else (including a non-practice mode) is ignored
+  // here exactly like index.ts's handleMatchmake ignores it server-side.
+  const mapParam = new URLSearchParams(location.search).get("map");
+  const query =
+    mode === "practice" && (mapParam === "arena2" || mapParam === "arena3")
+      ? `mode=${mode}&map=${mapParam}`
+      : `mode=${mode}`;
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await fetch(`/api/matchmake?mode=${mode}`);
+      const res = await fetch(`/api/matchmake?${query}`);
       if (res.ok) return (await res.json()) as Matchmake;
     } catch {
       // network hiccup — fall through to the backoff
@@ -132,6 +140,10 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  */
 export class Net {
   readonly room: Room;
+  /** The matchmake response's own room id — for practice, main.ts feeds this
+   *  into modes.ts's `mapForRoom` alongside the mode, since that id (not just
+   *  the mode) is what picks the map (see modes.ts's `practiceMapKeyFromRoomId`). */
+  readonly roomId: string;
   readonly myId: string;
 
   private last: MoveIntent = { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
@@ -141,8 +153,9 @@ export class Net {
   private lastPitch = NaN;
   private lastFireAt = 0;
 
-  private constructor(room: Room) {
+  private constructor(room: Room, roomId: string) {
     this.room = room;
+    this.roomId = roomId;
     this.myId = room.connectionId ?? "";
   }
 
@@ -157,7 +170,7 @@ export class Net {
           subtickTimestamps: true, // FPS-grade hit registration (server rewinds to input ts)
         });
         const room = await client.joinOrCreate(mm.room, { _session: mm.session });
-        return new Net(room);
+        return new Net(room, mm.room);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn(`[net] join failed (attempt ${attempt + 1})`, err);
