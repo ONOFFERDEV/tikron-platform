@@ -217,19 +217,23 @@ describe("practice room — map selection", () => {
     expect(h.broadcastsOf("s:msg").some((f) => (f.data as { type?: string }).type === "kill")).toBe(false);
   });
 
-  it("the showcase roster (ARENA1-specific) never spawns in an arena2/arena3 practice room", async () => {
+  it("an arena2/arena3 practice room gets NO bots of any kind — an empty map, not just no showcase", async () => {
+    // Checking only for the showcase ids was how the live bug slipped through:
+    // with the roster gated off but the raised practice fill target (6) still in
+    // place, reconcileBots quietly backfilled the deficit with REGULAR combat
+    // bots ("아레나 2/크로스야드 연습에 봇이 활동 중"). The contract is stronger:
+    // a non-arena1 practice room is a solo empty map — the human is the only
+    // player, across a long window.
     const h = await createTestRoom(ArenaRoomImpl, {
       id: "arena-practice-arena2-noshow1",
       codec: ArenaSchema,
       sync: "throttled",
     });
-    await h.connect();
-    await tick(h, 2); // let the deficit-fill run, same window the arena1 showcase test uses
+    const solo = await h.connect();
+    await tick(h, 150); // far past any deficit-fill window
 
     const ids = Object.keys(liveState(h).players);
-    for (const id of ["bot-idle", "bot-crouch", "bot-sneak", "bot-walk", "bot-sprint"]) {
-      expect(ids).not.toContain(id);
-    }
+    expect(ids).toEqual([solo.id]);
   });
 });
 

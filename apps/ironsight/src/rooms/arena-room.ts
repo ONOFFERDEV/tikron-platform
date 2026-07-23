@@ -261,8 +261,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       // 1 solo player + the full showcase roster (see reconcileBots/addShowcaseBot) —
       // unless a subclass already overrode fillToPlayers itself (e.g. a scripted-duel
       // test room that wants zero filler bots), which this must not stomp.
+      // Only when the showcase is actually active (practice on ARENA1): on an
+      // arena2/arena3 practice room the roster is gated off, and leaving the
+      // raised fill target in place would quietly backfill the deficit with
+      // REGULAR combat bots instead — exactly the live bug report ("아레나 2,
+      // 크로스야드 연습에 봇이 활동 중"): map-exploration practice must be an
+      // empty map, so the fill target drops to 0 there.
       if (this.fillToPlayers === MATCH.fillToPlayers) {
-        this.fillToPlayers = PRACTICE_SHOWCASE_BOTS.length + 1;
+        this.fillToPlayers = this.showcaseActive ? PRACTICE_SHOWCASE_BOTS.length + 1 : 0;
       }
     }
 
