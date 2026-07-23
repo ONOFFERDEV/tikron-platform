@@ -16,6 +16,7 @@ import {
 import { MODES, TEAM } from "../src/config.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import type { ArenaState } from "../src/schema.js";
 
 /**
@@ -265,9 +266,9 @@ describe("MODE_ORDER & modeIndex", () => {
 });
 
 describe("mapForMode", () => {
-  it("routes tdm, ffa, and practice to ARENA1, and dom to ARENA2", () => {
+  it("routes tdm/practice to ARENA1, dom to ARENA2, and ffa to ARENA3 (crossyard)", () => {
     expect(mapForMode("tdm")).toBe(ARENA1);
-    expect(mapForMode("ffa")).toBe(ARENA1);
+    expect(mapForMode("ffa")).toBe(ARENA3);
     expect(mapForMode("dom")).toBe(ARENA2);
     expect(mapForMode("practice")).toBe(ARENA1);
   });

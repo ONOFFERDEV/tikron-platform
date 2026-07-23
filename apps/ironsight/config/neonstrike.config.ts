@@ -24,6 +24,7 @@ import { ARENA, PLAYER, HIT, MOVE, GRENADE, MATCH, LAG } from "../src/config.js"
 import { MODE_ORDER } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import { MOUSE_SENSITIVITY, LOOK_SEND_MS, MOVE_KEEPALIVE_MS, INTERP_DELAY_MS, RECONCILE_SOFT_M, RECONCILE_SNAP_M, RECONCILE_FRAC, RECONCILE_TAU_MS, HIP_FOV, ADS_FOV } from "../client/config.js";
 import { defineConfig, type GameConfig } from "./schema.js";
 
@@ -98,9 +99,9 @@ export const neonstrikeConfig: GameConfig = defineConfig({
     tdm: { killTarget: 50 },
     ffa: { killTarget: 30 },
     dom: { captureRadius: 4, capturePerSec: 25, pointsPer2s: 1, scoreTarget: 200 },
-    mapFor: { tdm: "arena1", ffa: "arena1", dom: "arena2", practice: "arena1" },
+    mapFor: { tdm: "arena1", ffa: "arena3", dom: "arena2", practice: "arena1" },
   },
-  maps: { arena1: ARENA1, arena2: ARENA2 }, // reused — bounds are wire-frozen
+  maps: { arena1: ARENA1, arena2: ARENA2, arena3: ARENA3 }, // reused — bounds are wire-frozen
 
   bots: {
     aimNoiseRad: 0.012,

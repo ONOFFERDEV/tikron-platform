@@ -8,6 +8,7 @@
 import { MODES, TEAM } from "./config.js";
 import { ARENA1 } from "./map/arena1.js";
 import { ARENA2 } from "./map/arena2.js";
+import { ARENA3 } from "./map/arena3.js";
 import type { MapDef } from "./map/types.js";
 import type { ArenaState } from "./schema.js";
 import type { ShowcaseRole } from "./bots.js";
@@ -204,7 +205,16 @@ export function modeIndex(m: ModeId): number {
  *  room resolves it once from `modeFromRoomId(this.id)`) and the client (resolves
  *  it from `MODE_ORDER[state.mode]` once the first synced state arrives). */
 export function mapForMode(mode: ModeId): MapDef {
-  return mode === "dom" ? ARENA2 : ARENA1;
+  // Hardcoded on purpose: modes.ts cannot import GAME (game-config) without a
+  // module cycle (ironsight.config imports MODE_ORDER from here at eval time —
+  // the W2 revert), so the config's `mapFor` record is documentation/blueprint
+  // data and THIS ternary is the app's live authority. Keep the two in sync —
+  // the arena3 wiring shipped with only the config edited, which silently left
+  // ffa running on arena1 while every arena3-coordinate consumer (bots,
+  // metrics, spawn seeding) assumed arena3: invisible-wall wedges + shots
+  // eaten by arena1's lane dividers, all with individually-correct-looking
+  // forensics.
+  return mode === "dom" ? ARENA2 : mode === "ffa" ? ARENA3 : ARENA1;
 }
 
 const TEAMS_BY_ID = new Map<ModeId, boolean>(

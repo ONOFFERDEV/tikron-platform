@@ -8,6 +8,7 @@ import { PLAYER, MODES } from "../src/config.js";
 import { MODE_ORDER, mapForMode } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import type { MapDef } from "../src/map/types.js";
 import { ArenaRoomImpl } from "../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
@@ -23,6 +24,7 @@ import { ArenaSchema, type ArenaState } from "../src/schema.js";
 const MAPS: { readonly name: string; readonly map: MapDef }[] = [
   { name: "arena1 (tdm/ffa)", map: ARENA1 },
   { name: "arena2 (dom)", map: ARENA2 },
+  { name: "arena3 (ffa)", map: ARENA3 },
 ];
 
 /** Mirrors arena-room.ts's private `botWaypoints()` — spawns + each cap's

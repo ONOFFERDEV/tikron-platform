@@ -15,6 +15,7 @@ import { LAG, TICK_MS } from "../src/config.js";
 import { ArenaBot, applyIntents } from "../tools/bots/arena-bot.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import type { MapDef } from "../src/map/types.js";
 import { walkSeconds } from "../src/map/nav.js";
 import type { Vec3 } from "../src/physics.js";
@@ -59,6 +60,17 @@ interface MapConfig {
 const MAP_CONFIGS: readonly MapConfig[] = [
   { name: "arena1", id: "arena-tdm", mode: "tdm", map: ARENA1 },
   { name: "arena2", id: "arena-dom", mode: "dom", map: ARENA2 },
+  // arena3's zero-kill run was a map-design artifact, not a harness bug: the
+  // original blue spawn pool made spawnNearZ pick a z=17 convergence row that
+  // runs straight through the north ramp's footprint — the bot wedged against
+  // the slope's high side and never engaged. The spawn rebalance that fixed
+  // the rank-0 ETA skew (blue pair moved inboard) also moved blue's pick to
+  // the clean z=23 corridor, so the stock cap-b convergence works again.
+  // id must be EXACTLY "arena-ffa": modeFromRoomId matches ffa/dom by exact id
+  // (anything else falls back to tdm) — an "arena-ffa3" id silently ran a TDM
+  // room on arena1 while the bots pathed arena3 coordinates, wedging them into
+  // arena1's south lane divider (the original zero-kill mystery).
+  { name: "arena3", id: "arena-ffa", mode: "ffa", map: ARENA3 },
 ];
 
 interface KillRecord {

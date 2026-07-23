@@ -4,6 +4,7 @@ import { ARENA1_BOXES } from "../../src/map/arena1.js";
 import { nearestBox, type Box, type Vec3 } from "../../src/physics.js";
 import { PLAYER } from "../../src/config.js";
 import type { ArenaPlayer, ArenaState } from "../../src/schema.js";
+import { MODE_ORDER, isTeamless } from "../../src/modes.js";
 import { GAME } from "../../src/game-config.js";
 
 // The bot models its held weapon's ammo/cadence off the CURRENT theme's default
@@ -208,10 +209,16 @@ export class ArenaBot {
   /** Nearest alive enemy with clear line of sight from the muzzle, else null. */
   private nearestVisibleEnemy(me: ArenaPlayer, state: ArenaState): ArenaPlayer | null {
     const eye: Vec3 = { x: me.x, y: me.y + eyeHeight(me), z: me.z };
+    // In a teamless mode (ffa) everyone shares team 0, so the same-team skip
+    // below would filter out EVERY target and this driver bot would never fire
+    // — the exact bug class M2 fixed in the server-side bots (src/bots.ts),
+    // reproduced here in the test-driver bot the first time an ffa bot match
+    // was ever run (arena3 metrics).
+    const teamless = isTeamless(MODE_ORDER[state.mode] ?? "tdm");
     let best: ArenaPlayer | null = null;
     let bestDist = Infinity;
     for (const [pid, p] of Object.entries(state.players)) {
-      if (pid === this.id || p.team === me.team || !p.alive) continue;
+      if (pid === this.id || (!teamless && p.team === me.team) || !p.alive) continue;
       const aim = this.aimPoint(p);
       const dx = aim.x - eye.x;
       const dy = aim.y - eye.y;

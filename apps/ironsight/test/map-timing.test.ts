@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import type { MapDef } from "../src/map/types.js";
 import { walkSeconds } from "../src/map/nav.js";
 
@@ -13,6 +14,7 @@ import { walkSeconds } from "../src/map/nav.js";
 const MAPS: { readonly name: string; readonly map: MapDef }[] = [
   { name: "arena1 (tdm/ffa)", map: ARENA1 },
   { name: "arena2 (dom)", map: ARENA2 },
+  { name: "arena3 (ffa)", map: ARENA3 },
 ];
 
 const CAP_KEYS = ["a", "b", "c"] as const;

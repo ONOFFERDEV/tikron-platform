@@ -36,6 +36,7 @@ import {
 import { MODE_ORDER } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
 import {
   MOUSE_SENSITIVITY,
   LOOK_SEND_MS,
@@ -109,9 +110,9 @@ export const ironsightConfig: GameConfig = defineConfig({
       scoreTarget: MODES.dom.scoreTarget,
     },
     // The data half of modes.ts's mapForMode(): dom → arena2, everything else → arena1.
-    mapFor: { tdm: "arena1", ffa: "arena1", dom: "arena2", practice: "arena1" },
+    mapFor: { tdm: "arena1", ffa: "arena3", dom: "arena2", practice: "arena1" },
   },
-  maps: { arena1: ARENA1, arena2: ARENA2 },
+  maps: { arena1: ARENA1, arena2: ARENA2, arena3: ARENA3 },
 
   // bots: src/bots.ts's BotBrainOptions defaults + its module-private
   // CLOSE_THREAT_M/OBJECTIVE_ARRIVE_M dom-only constants (neither is exported).
