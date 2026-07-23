@@ -108,25 +108,26 @@ describe("botThink — practice showcase bots", () => {
     expect(decision.look).toEqual({ yaw: FACE_YAW, pitch: 0 });
   });
 
-  it("walk: paces toward the brain's current waypoint, facing its travel direction, no crouch/sprint", () => {
-    const brain = createBotBrain({
-      seed: 1,
-      waypoints: [{ x: 12, y: 19 }, { x: 12, y: 27 }], // home 23 ∓ amp 4
-    });
+  // Since the 2026-07-23 stand-still change, EVERY showcase role holds its
+  // position (target dummies first) — walk/sprint stand upright, sneak keeps
+  // the crouched pose, and none of them steers toward waypoints anymore.
+  it("walk: stands still facing the player, no crouch/sprint", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 19 }, { x: 12, y: 27 }] });
     const view = baseView({
       self: { x: 12, y: 0, z: 23, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
       showcase: { role: "walk", faceYaw: FACE_YAW },
     });
     const decision = botThink(view, brain, 50);
 
-    expect(decision.move.mz).toBeCloseTo(1, 5); // "forward" in its own (travel) facing frame
-    expect(decision.move.mx).toBeCloseTo(0, 5);
+    expect(decision.move.mz).toBe(0);
+    expect(decision.move.mx).toBe(0);
     expect(decision.move.crouch).toBe(false);
     expect(decision.move.sprint).toBe(false);
+    expect(decision.look?.yaw).toBe(FACE_YAW);
     expect(decision.fire).toBe(false);
   });
 
-  it("sprint: same pacing pattern as walk, but sprint=true", () => {
+  it("sprint: stands still too - the role no longer sprints anywhere", () => {
     const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 18 }, { x: 12, y: 38 }] });
     const view = baseView({
       self: { x: 12, y: 0, z: 28, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
@@ -134,12 +135,12 @@ describe("botThink — practice showcase bots", () => {
     });
     const decision = botThink(view, brain, 50);
 
-    expect(decision.move.mz).toBeCloseTo(1, 5);
+    expect(decision.move.mz).toBe(0);
     expect(decision.move.crouch).toBe(false);
-    expect(decision.move.sprint).toBe(true);
+    expect(decision.move.sprint).toBe(false);
   });
 
-  it("sneak: same pacing pattern as walk, but crouched (not sprinting)", () => {
+  it("sneak: stands still but keeps the crouched pose", () => {
     const brain = createBotBrain({ seed: 1, waypoints: [{ x: 12, y: 12 }, { x: 12, y: 18 }] });
     const view = baseView({
       self: { x: 12, y: 0, z: 15, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
@@ -147,7 +148,7 @@ describe("botThink — practice showcase bots", () => {
     });
     const decision = botThink(view, brain, 50);
 
-    expect(decision.move.mz).toBeCloseTo(1, 5);
+    expect(decision.move.mz).toBe(0);
     expect(decision.move.crouch).toBe(true);
     expect(decision.move.sprint).toBe(false);
   });

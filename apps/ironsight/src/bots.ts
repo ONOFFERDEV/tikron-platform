@@ -300,19 +300,22 @@ function advanceWaypoint(brain: BotBrain, self: BotPlayerView): Vec2 {
  * direction of travel, so a player looking down the map's X axis sees a natural
  * profile-view gait rather than a sideways slide.
  */
-function showcaseThink(view: ShowcaseView, self: BotPlayerView, brain: BotBrain): BotDecision {
-  if (view.role === "idle" || view.role === "crouch") {
-    return {
-      move: { mx: 0, mz: 0, jump: false, crouch: view.role === "crouch", sprint: false },
-      look: { yaw: view.faceYaw, pitch: 0 },
-      fire: false,
-    };
-  }
-  const wp = advanceWaypoint(brain, self);
-  const yaw = Math.atan2(wp.x - self.x, wp.y - self.z);
+function showcaseThink(view: ShowcaseView, _self: BotPlayerView, _brain: BotBrain): BotDecision {
+  // Every showcase role now holds its pinned position (user request 2026-07-23:
+  // practice bots must stand still — they serve as target dummies first). The
+  // crouching roles (crouch/sneak) keep their low pose so the roster still shows
+  // both stances; the old walk/sneak/sprint waypoint-pacing branch — the roster's
+  // original animation-demo purpose, already served during the locomotion
+  // milestones — is gone, so a practice player is never tracking a mover.
   return {
-    look: { yaw, pitch: 0 },
-    move: { mx: 0, mz: 1, jump: false, crouch: view.role === "sneak", sprint: view.role === "sprint" },
+    move: {
+      mx: 0,
+      mz: 0,
+      jump: false,
+      crouch: view.role === "crouch" || view.role === "sneak",
+      sprint: false,
+    },
+    look: { yaw: view.faceYaw, pitch: 0 },
     fire: false,
   };
 }

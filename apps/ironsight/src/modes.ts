@@ -169,12 +169,17 @@ export interface ShowcaseBotDef {
  * spawn faces yaw=π/2 (+x, see GAME.teams.spawnFacingYaw), so Z is what reads as
  * left-right on screen — a profile-view gait, not a toward/away foreshortened one.
  */
+// All amps are 0 since the stand-still change (2026-07-23, user request): every
+// role now holds its position — bots.ts's showcaseThink no longer has a pacing
+// branch, so a non-zero amp would be inert anyway. The field stays on
+// ShowcaseBotDef (and arena-room still builds the waypoints) so restoring
+// movement later is a data-only change back here.
 export const PRACTICE_SHOWCASE_BOTS: readonly ShowcaseBotDef[] = [
   { id: "bot-idle", role: "idle", label: "IDLE", x: 12, z: 6, amp: 0 },
   { id: "bot-crouch", role: "crouch", label: "CROUCH", x: 12, z: 10, amp: 0 },
-  { id: "bot-sneak", role: "sneak", label: "SNEAK", x: 12, z: 15, amp: 3 },
-  { id: "bot-walk", role: "walk", label: "WALK", x: 12, z: 23, amp: 4 },
-  { id: "bot-sprint", role: "sprint", label: "SPRINT", x: 12, z: 28, amp: 10 },
+  { id: "bot-sneak", role: "sneak", label: "SNEAK", x: 12, z: 15, amp: 0 },
+  { id: "bot-walk", role: "walk", label: "WALK", x: 12, z: 23, amp: 0 },
+  { id: "bot-sprint", role: "sprint", label: "SPRINT", x: 12, z: 28, amp: 0 },
 ];
 
 /** The stationary showcase roles face back along this yaw so their pose reads

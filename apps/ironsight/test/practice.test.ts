@@ -145,32 +145,11 @@ describe("practice room — showcase bots", () => {
     expect(after["bot-sprint"]!.crouch).toBe(false);
   });
 
-  it("walk/sprint/sneak bots pace back and forth — position reverses direction, proving it's not a one-way drift", async () => {
-    const h = await createTestRoom(ArenaRoomImpl, {
-      id: "arena-practice-showcase3",
-      codec: ArenaSchema,
-      sync: "throttled",
-    });
-    await h.connect();
-    await tick(h, 2);
-
-    for (const id of ["bot-walk", "bot-sprint", "bot-sneak"]) {
-      let z = liveState(h).players[id]!.z;
-      let sawIncrease = false;
-      let sawDecrease = false;
-      for (let i = 0; i < 200 && !(sawIncrease && sawDecrease); i++) {
-        await tick(h, 5);
-        const nz = liveState(h).players[id]!.z;
-        if (nz > z) sawIncrease = true;
-        if (nz < z) sawDecrease = true;
-        z = nz;
-      }
-      expect(sawIncrease).toBe(true);
-      expect(sawDecrease).toBe(true);
-    }
-  });
-
-  it("the sprint bot covers more ground than the walk bot over the same window", async () => {
+  it("every showcase bot holds its pinned position — no role paces anymore (stand-still change)", async () => {
+    // Replaces the old "sprint covers more ground than walk" test: since the
+    // 2026-07-23 stand-still change, showcaseThink has no pacing branch — every
+    // role is a stationary target dummy, so the regression to catch is ANY
+    // accumulated drift, for all five bots, over the same window.
     const h = await createTestRoom(ArenaRoomImpl, {
       id: "arena-practice-showcase4",
       codec: ArenaSchema,
@@ -179,20 +158,14 @@ describe("practice room — showcase bots", () => {
     await h.connect();
     await tick(h, 2);
 
-    let walkTravel = 0;
-    let sprintTravel = 0;
-    let prevWalkZ = liveState(h).players["bot-walk"]!.z;
-    let prevSprintZ = liveState(h).players["bot-sprint"]!.z;
-    for (let i = 0; i < 150; i++) {
-      await tick(h, 2);
-      const wz = liveState(h).players["bot-walk"]!.z;
-      const sz = liveState(h).players["bot-sprint"]!.z;
-      walkTravel += Math.abs(wz - prevWalkZ);
-      sprintTravel += Math.abs(sz - prevSprintZ);
-      prevWalkZ = wz;
-      prevSprintZ = sz;
+    const ids = ["bot-idle", "bot-crouch", "bot-sneak", "bot-walk", "bot-sprint"] as const;
+    const before = Object.fromEntries(ids.map((id) => [id, { x: liveState(h).players[id]!.x, z: liveState(h).players[id]!.z }]));
+    await tick(h, 300);
+    for (const id of ids) {
+      const p = liveState(h).players[id]!;
+      expect(Math.abs(p.x - before[id]!.x)).toBeLessThan(0.01);
+      expect(Math.abs(p.z - before[id]!.z)).toBeLessThan(0.01);
     }
-    expect(sprintTravel).toBeGreaterThan(walkTravel);
   });
 
   it("no showcase bot ever fires, across many ticks", async () => {
