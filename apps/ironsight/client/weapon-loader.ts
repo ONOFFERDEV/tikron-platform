@@ -58,6 +58,7 @@ export function cloneWeaponBundleNode(gltf: GLTF, nodeName: string): THREE.Objec
 export function weaponMuzzle(object: THREE.Object3D): THREE.Vector3 {
   object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object);
+  if (box.isEmpty()) return new THREE.Vector3(); // mesh-less node: no bore to measure (avoids a -Infinity tip)
   const tip = new THREE.Box3();
   const point = new THREE.Vector3();
   const threshold = box.max.z - (box.max.z - box.min.z) * 0.015;

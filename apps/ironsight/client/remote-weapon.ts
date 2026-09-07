@@ -95,6 +95,11 @@ export class RemoteWeapon {
       this.mount.rotation.x = -pitch;
       return;
     }
+    // Cancel the rig's scale per axis every frame — the landing squash (scene.ts modelRoot
+    // scale.set(base, sy, base)) is non-uniform, so a one-time uniform inverse would let
+    // the gun stretch/squash with the body.
+    this.hand.getWorldScale(this.a);
+    this.mount.scale.set(1 / Math.max(0.001, this.a.x), 1 / Math.max(0.001, this.a.y), 1 / Math.max(0.001, this.a.z));
     const blend = holding ? THREE.MathUtils.clamp(CONFIG.holdBlend, 0, 1) : 0;
     if (!blend) return;
     this.animatedHand.copy(this.hand.quaternion);
