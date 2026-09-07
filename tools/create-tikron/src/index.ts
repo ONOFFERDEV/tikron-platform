@@ -26,7 +26,7 @@ const TEMPLATES_DIR = join(__dirname, "..", "templates");
  * ^0.6.0: the scaffold's pre-wired `platformLeaderboard` (src/index.ts template)
  * ships in the 0.6.0 lockstep release. Keep this in step with the SDK release.
  */
-const TIKRON_VERSION = "^0.6.0";
+const TIKRON_VERSION = "^0.7.0";
 
 interface Options {
   name: string;
@@ -116,7 +116,7 @@ function packageJson(name: string): string {
       partyserver: "^0.5.10",
     },
     devDependencies: {
-      "@cloudflare/workers-types": "^4.20260701.1",
+      "@cloudflare/workers-types": "^5.20260903.1",
       esbuild: "^0.28.1",
       typescript: "^5.7.3",
       vitest: "^4.1.0",

@@ -81,7 +81,7 @@ jobs:
           set -e
           mkdir -p /tmp/tik-tars
           for p in schema protocol sim client server; do
-            ( cd packages/$p && npm pack --pack-destination /tmp/tik-tars )
+            ( cd packages/$p && pnpm pack --pack-destination /tmp/tik-tars )   # pnpm pack rewrites workspace:* pins; npm pack does not
           done
           node tools/create-tikron/dist/index.js smoke-app --into /tmp
       # Override the ^0.6.0 pins with the local tarballs, then the real smoke.
