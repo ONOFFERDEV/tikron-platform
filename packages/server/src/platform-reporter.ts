@@ -10,6 +10,14 @@ export interface PlatformReporterOptions {
   apiKey: (env: unknown) => string | undefined;
   /** Ingest endpoint. Defaults to the hosted Tikron dashboard. */
   endpoint?: string;
+  /**
+   * Public origin players reach this game on (e.g. `https://play.mygame.com`),
+   * used as the `baseUrl` the platform hands out for self-hosted matchmaking.
+   * Defaults to the origin the room's first connection arrived on — set this only
+   * when that is wrong, i.e. the worker sits behind a proxy or a custom domain
+   * that rewrites the Host header.
+   */
+  publicUrl?: string | ((env: unknown) => string | undefined);
 }
 
 /** The hosted Tikron usage-ingest endpoint. */
@@ -63,7 +71,9 @@ export function platformReporter(
     if (isFinal) lastSentAt.delete(report.roomId); // room closed → a re-open reports immediately
     else lastSentAt.set(report.roomId, now);
 
-    send(endpoint, apiKey, report);
+    const override =
+      typeof options.publicUrl === "function" ? options.publicUrl(env) : options.publicUrl;
+    send(endpoint, apiKey, override ? { ...report, baseUrl: override } : report);
   };
 }
 
@@ -75,6 +85,13 @@ function send(endpoint: string, apiKey: string, report: OccupancyReport): void {
     sessions: report.sessions,
     seq: report.seq,
     messages: report.messages,
+    // Self-hosted matchmaking registration. All four are undefined (and so
+    // dropped by JSON.stringify) for a room that declares no seat cap or never
+    // saw a connect URL, keeping the body identical to pre-0.7 reports.
+    type: report.type,
+    filter: report.filter,
+    maxClients: report.maxClients,
+    baseUrl: report.baseUrl,
   });
   try {
     const res = fetch(endpoint, {

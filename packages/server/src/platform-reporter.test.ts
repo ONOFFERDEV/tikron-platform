@@ -110,4 +110,58 @@ describe("platformReporter", () => {
 
     expect(() => hook({}, report())).not.toThrow();
   });
+
+  it("forwards the self-hosted matchmaking fields when the room reports them", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const hook = platformReporter({ apiKey: () => "tk_live_abc" });
+
+    hook(
+      {},
+      report({
+        type: "arena-room",
+        filter: "ranked",
+        maxClients: 8,
+        baseUrl: "https://my-game.example.workers.dev",
+      }),
+    );
+
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body as string)).toMatchObject({
+      type: "arena-room",
+      filter: "ranked",
+      maxClients: 8,
+      baseUrl: "https://my-game.example.workers.dev",
+    });
+  });
+
+  it("publicUrl overrides the captured origin (proxy / custom domain)", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const hook = platformReporter({
+      apiKey: () => "tk_live_abc",
+      publicUrl: (env) => (env as { PUBLIC_URL?: string }).PUBLIC_URL,
+    });
+
+    hook({ PUBLIC_URL: "https://play.mygame.com" }, report({ baseUrl: "https://worker.dev" }));
+
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body as string).baseUrl).toBe(
+      "https://play.mygame.com",
+    );
+  });
+
+  it("a room that reports none of them sends the pre-0.7 body verbatim", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const hook = platformReporter({ apiKey: () => "tk_live_abc" });
+
+    hook({}, report({ roomId: "r", count: 1, sessions: ["a"], seq: 1, messages: 0 }));
+
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body as string)).toEqual({
+      roomId: "r",
+      count: 1,
+      sessions: ["a"],
+      seq: 1,
+      messages: 0,
+    });
+  });
 });

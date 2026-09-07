@@ -19,7 +19,7 @@ import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
 import { AgarRoomImpl } from "./rooms/agar-room.js";
 import { ShooterRoomImpl } from "./rooms/shooter-room.js";
 import { MmoRoomImpl } from "./rooms/mmo-room.js";
-import { Matchmaker } from "./matchmaker.js";
+import { Matchmaker, isExternalRoom, unprefixExternalRoom } from "./matchmaker.js";
 import {
   enforceConnection,
   handleLeaderboard,
@@ -209,35 +209,91 @@ export const ShooterRoom = defineRoom(ShooterRoomImpl, roomOptions);
 /** MMORPG example — integrates the @tikron/rpg combat engine (skills, buffs, aggro, XP). */
 export const MmoRoom = defineRoom(MmoRoomImpl, roomOptions);
 
+/** Largest party `/api/matchmake?party=` will place in one call. */
+const MAX_PARTY = 16;
+
+/**
+ * The room (Durable Object) name in `/parties/<party>/<room>`, decoded — the
+ * router decodes it too, so a guard reading the raw segment could be slipped a
+ * percent-encoded name. Malformed escapes fall back to the raw segment.
+ */
+function roomNameOf(url: URL): string {
+  const raw = url.pathname.split("/")[3] ?? "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Matchmaking is reachable CROSS-ORIGIN: a self-hosted game served from the
+ * developer's own domain calls tikron.dev with `?apiKey=tk_pub_…` to get a room
+ * on its own worker. The rest of the JSON API stays same-origin-only.
+ */
+const MATCHMAKE_CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Max-Age": "86400",
+};
+const CORS_ROUTES = new Set(["/api/matchmake", "/api/release"]);
+
 /** REST matchmaking API: place players into rooms and browse the lobby. */
-async function handleApi(url: URL, env: Env): Promise<Response> {
+export async function handleApi(request: Request, url: URL, env: Env): Promise<Response> {
   const mm = matchmaker(env);
+  const cors = CORS_ROUTES.has(url.pathname) ? MATCHMAKE_CORS : undefined;
+  const json = (body: unknown, status = 200) =>
+    Response.json(body, cors ? { status, headers: cors } : { status });
+  if (cors && request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: cors });
+  }
 
   if (url.pathname === "/api/matchmake") {
     const resolved = await resolveProject(env, url);
-    if (!resolved.ok) return Response.json({ error: resolved.code }, { status: resolved.status });
+    if (!resolved.ok) return json({ error: resolved.code }, resolved.status);
     const type = url.searchParams.get("type") ?? "agar-room";
     const mode = url.searchParams.get("mode") ?? "";
     const max = Number(url.searchParams.get("max") ?? "8");
+    const maxClients = Number.isFinite(max) ? max : 8;
     const region = url.searchParams.get("region") ?? undefined;
     if (region && !isLocationHint(region)) {
-      return Response.json(
+      return json(
         { error: "invalid_region", message: `region must be one of: ${LOCATION_HINTS_LIST}` },
-        { status: 400 },
+        400,
       );
+    }
+    // Party matchmaking: reserve N seats in ONE room atomically. Absent → 1, and
+    // the response keeps its single-player shape. The seat bound is the same
+    // floor `reserve()` has always applied, so a nonsense `?max=` (0, negative,
+    // fractional) still yields a 1-seat room instead of failing as a bad party.
+    const partyParam = url.searchParams.get("party");
+    const party = partyParam === null ? 1 : Number(partyParam);
+    if (!Number.isInteger(party) || party < 1 || party > MAX_PARTY || party > Math.max(1, maxClients)) {
+      return json({ error: "invalid_party" }, 400);
     }
     if (resolved.projectId) {
       const cap = await mm.checkCaps(resolved.projectId, true);
-      if (cap) return Response.json({ error: cap }, { status: 403 });
+      if (cap) return json({ error: cap }, 403);
     }
-    const result = await mm.reserve(
+    const result = await mm.reserveMany(
       type,
       mode,
-      Number.isFinite(max) ? max : 8,
+      maxClients,
+      party,
       resolved.projectId ?? undefined,
       region,
     );
-    return Response.json(result);
+    // A self-hosted room lives on the customer's worker: hand back its PLAIN id
+    // (the `ext:{project}:` namespacing is a gateway internal) plus where to
+    // reach it. Gateway-hosted rooms are unchanged, with no roomUrl.
+    const body: Record<string, unknown> = {
+      roomId: unprefixExternalRoom(resolved.projectId ?? "", result.roomId),
+      sessionId: result.sessionIds[0],
+    };
+    if (party > 1) body.sessionIds = result.sessionIds;
+    if (result.region) body.region = result.region;
+    if (result.roomUrl) body.roomUrl = result.roomUrl;
+    return json(body);
   }
   if (url.pathname === "/api/leaderboard") {
     return handleLeaderboard(env, url);
@@ -249,7 +305,7 @@ async function handleApi(url: URL, env: Env): Promise<Response> {
   if (url.pathname === "/api/release") {
     const session = url.searchParams.get("session");
     if (session) await mm.release(session);
-    return Response.json({ ok: true });
+    return json({ ok: true });
   }
   return new Response("not found", { status: 404 });
 }
@@ -272,8 +328,16 @@ export default {
     if (url.pathname === "/api/ingest/occupancy") return handleIngest(request, env);
     // Self-hosted leaderboard score ingest — twin of occupancy, but tk_live_ only.
     if (url.pathname === "/api/ingest/score") return handleScoreIngest(request, env);
-    if (url.pathname.startsWith("/api/")) return handleApi(url, env);
+    if (url.pathname.startsWith("/api/")) return handleApi(request, url, env);
     if (url.pathname.startsWith("/parties/")) {
+      // A gateway-hosted room may never take a self-hosted room's key. Without this
+      // anyone could connect to `/parties/<type>/ext:{victim}:{room}`, and the
+      // hosted room it creates would report under the victim's registry entry —
+      // pushing reportSeq past theirs so their real reports are dropped as stale.
+      // Checked BEFORE enforceConnection so no dev-mode key bypass can reach it.
+      if (isExternalRoom(roomNameOf(url))) {
+        return Response.json({ error: "invalid_room" }, { status: 400 });
+      }
       // Enforce API keys (unless dev-bypassed) and forward the project to the room.
       const gate = await enforceConnection(env, request, url);
       if (!gate.ok) return Response.json({ error: gate.code }, { status: gate.status });

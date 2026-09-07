@@ -43,6 +43,11 @@ interface RoomEntry {
   reportSeq: number;
   /** Wall-clock time of the last live report; drives staleness pruning. */
   lastReportAt: number;
+  /**
+   * Self-hosted rooms only (`ext:` keys): the origin the customer's worker serves
+   * this room on, echoed to the client as `roomUrl`. Null/absent = gateway-hosted.
+   */
+  baseUrl?: string | null;
 }
 interface Reservation {
   roomId: string;
@@ -94,6 +99,26 @@ interface MatchmakerEnv {
   DB?: D1Database;
 }
 
+/**
+ * Namespaced key for a self-hosted room. Keeps a customer's room id from ever
+ * colliding with a gateway room id (a UUID) or another project's, and marks the
+ * entry as external everywhere the ledger is walked.
+ */
+export function externalRoomKey(projectId: string, roomId: string): string {
+  return `ext:${projectId}:${roomId}`;
+}
+
+/** True for a key minted by {@link externalRoomKey} (a self-hosted room). */
+export function isExternalRoom(roomId: string): boolean {
+  return roomId.startsWith("ext:");
+}
+
+/** Inverse of {@link externalRoomKey}: the customer's own room id, for the client. */
+export function unprefixExternalRoom(projectId: string, roomKey: string): string {
+  const prefix = externalRoomKey(projectId, "");
+  return roomKey.startsWith(prefix) ? roomKey.slice(prefix.length) : roomKey;
+}
+
 const RESERVATION_TTL_MS = 15_000;
 /**
  * How long after its last report a live room is considered a phantom (its DO
@@ -119,6 +144,15 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
    * {@link MAX_ISSUED} to avoid unbounded growth.
    */
   private readonly issued = new Map<string, IssuedSession>();
+  /**
+   * Where each project's self-hosted rooms live (latest occupancy report wins).
+   * Lets the matchmaker mint a BRAND-NEW room id on the customer's own worker —
+   * their Durable Object is created by the first client that connects.
+   *
+   * ponytail: one origin per project, last report wins. Key it by (project, type)
+   * if a customer ever needs to serve two room types from separate deployments.
+   */
+  private readonly projectBaseUrl = new Map<string, string>();
 
   // --- M5 metering state ---
   private readonly metered = new Map<string, MeteredRoom>();
@@ -131,7 +165,8 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
    * Persistence: the whole ledger (rooms/reservations/issued) and the metering
    * accumulators (metered/usage) live in DO storage, one key per entry under a
    * short prefix — `r:` rooms, `v:` reservations, `i:` issued, `m:` metered,
-   * `u:` usage. Per-key (not one big snapshot) bounds each write to the few
+   * `u:` usage, `p:` per-project self-host base URLs. Per-key (not one big
+   * snapshot) bounds each write to the few
    * entries a hot-path call actually touches; multiple puts within one RPC turn
    * coalesce into a single storage transaction (~1 write per reserve/report).
    * Without this the DO's in-memory maps evaporate on idle eviction, so a room
@@ -151,6 +186,7 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
           case "i": issuedEntries.push([id, val as IssuedSession]); break;
           case "m": this.metered.set(id, val as MeteredRoom); break;
           case "u": this.usage.set(id, val as ProjectUsage); break;
+          case "p": this.projectBaseUrl.set(id, val as string); break;
         }
       }
       // Reinsert issued in expiry order: expiresAt == insertion time + a fixed
@@ -208,8 +244,13 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     return (room.reported ?? 0) + this.pendingFor(roomId);
   }
 
+  /** Seats neither live nor held. `isLocked` is just `freeSeats <= 0`. */
+  private freeSeats(roomId: string, room: RoomEntry): number {
+    return room.maxClients - this.occupancy(roomId, room);
+  }
+
   private isLocked(roomId: string, room: RoomEntry): boolean {
-    return this.occupancy(roomId, room) >= room.maxClients;
+    return this.freeSeats(roomId, room) <= 0;
   }
 
   private prune(now: number): void {
@@ -223,11 +264,19 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     // silent past STALE_MS (its heartbeat stopped — the DO likely died without a
     // clean final leave). Reservation-only rooms (never reported) are governed by
     // their reservations' TTL above, not by staleness.
+    let retiredHosts: Set<string> | undefined;
     for (const [id, room] of this.rooms) {
       if (room.reported !== null && now - room.lastReportAt >= STALE_MS) {
         this.forgetRoom(id);
+        // A silent self-hosted room may mean the whole deployment is gone; once
+        // the last one lapses, drop the origin too, so matchmaking stops minting
+        // rooms on a host that no longer answers.
+        if (room.projectId && isExternalRoom(id)) {
+          (retiredHosts ??= new Set()).add(room.projectId);
+        }
       }
     }
+    if (retiredHosts) for (const pid of retiredHosts) this.forgetBaseUrlIfUnused(pid);
     for (const [sid, sess] of this.issued) {
       if (sess.expiresAt <= now) this.forgetIssued(sid);
     }
@@ -253,9 +302,32 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     projectId?: string,
     region?: string,
   ): { roomId: string; sessionId: string; region?: string } {
+    const many = this.reserveMany(type, filter, maxClients, 1, projectId, region);
+    const sessionId = many.sessionIds[0]!;
+    return many.region
+      ? { roomId: many.roomId, sessionId, region: many.region }
+      : { roomId: many.roomId, sessionId };
+  }
+
+  /**
+   * Party variant of {@link reserve}: place `n` players into ONE room and hold all
+   * `n` seats in a single call, so a party is never split across rooms by a
+   * concurrent reserve landing between two single holds. A room qualifies only if
+   * its free seats (`maxClients − reported − pending`) cover the whole party;
+   * otherwise a new room is created (the caller has already checked `n <= max`).
+   */
+  reserveMany(
+    type: string,
+    filter: string,
+    maxClients: number,
+    n: number,
+    projectId?: string,
+    region?: string,
+  ): { roomId: string; sessionIds: string[]; region?: string; roomUrl?: string } {
     const now = Date.now();
     this.prune(now);
 
+    const party = Math.max(1, Math.floor(n));
     const pid = projectId ?? null;
     // Defensive: an unknown hint reserves a default-placed room rather than
     // failing (the /api/matchmake boundary already returns a 400 for bad input).
@@ -266,35 +338,50 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
         room.type === type &&
         room.filter === filter &&
         room.projectId === pid &&
-        !this.isLocked(id, room)
+        this.freeSeats(id, room) >= party
       ) {
         target = id;
         break;
       }
     }
     if (target === undefined) {
-      target = crypto.randomUUID();
+      // A project whose rooms are self-hosted gets a room id on ITS OWN worker —
+      // the Durable Object is created there by the first client to connect. Only
+      // projects that have reported a base URL (see `registerExternal`) qualify.
+      const selfHost = pid ? this.projectBaseUrl.get(pid) : undefined;
+      target = selfHost ? externalRoomKey(pid!, crypto.randomUUID()) : crypto.randomUUID();
       this.rooms.set(target, {
         type,
         filter,
-        maxClients: Math.max(1, maxClients),
+        maxClients: Math.max(party, maxClients),
         projectId: pid,
         locationHint: hint,
         reported: null,
         reportSeq: 0,
         lastReportAt: now,
+        baseUrl: selfHost ?? null,
       });
       this.saveRoom(target);
     }
 
-    const sessionId = crypto.randomUUID();
-    this.reservations.set(sessionId, { roomId: target, expiresAt: now + RESERVATION_TTL_MS });
-    this.saveRes(sessionId);
-    this.rememberIssued(sessionId, target, now);
+    const sessionIds: string[] = [];
+    for (let i = 0; i < party; i++) {
+      const sessionId = crypto.randomUUID();
+      this.reservations.set(sessionId, { roomId: target, expiresAt: now + RESERVATION_TTL_MS });
+      this.saveRes(sessionId);
+      this.rememberIssued(sessionId, target, now);
+      sessionIds.push(sessionId);
+    }
     // Echo the room's recorded hint (a reused room keeps its original placement)
     // so the client forwards it on connect.
-    const roomHint = this.rooms.get(target)?.locationHint ?? undefined;
-    return roomHint ? { roomId: target, sessionId, region: roomHint } : { roomId: target, sessionId };
+    const room = this.rooms.get(target);
+    const out: { roomId: string; sessionIds: string[]; region?: string; roomUrl?: string } = {
+      roomId: target,
+      sessionIds,
+    };
+    if (room?.locationHint) out.region = room.locationHint;
+    if (room?.baseUrl) out.roomUrl = room.baseUrl;
+    return out;
   }
 
   /** Record an issued session, evicting the oldest when at capacity. */
@@ -368,6 +455,61 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     this.dropIfEmpty(roomId);
   }
 
+  /**
+   * Promote a self-hosted room (an `ext:` key, already metered by {@link report})
+   * into the matchmaking registry, so `/api/matchmake` can seat players in rooms
+   * running on the CUSTOMER's Cloudflare account. Called by the occupancy-ingest
+   * route once a report carries the room's type + seat cap + public origin —
+   * registration is zero-config, a by-product of metering.
+   *
+   * External entries then match exactly like hosted ones (same type/filter/project
+   * equality, same lock check, same staleness prune). They differ only in that
+   * their seats are ADVISORY: the customer's worker never validates our sessions.
+   */
+  registerExternal(
+    roomId: string,
+    info: {
+      type: string;
+      filter: string;
+      maxClients: number;
+      baseUrl: string;
+      projectId: string;
+    },
+  ): void {
+    const existing = this.rooms.get(roomId);
+    // `report()` ran first and already knows this room's live count (it meters
+    // every ext report, registered or not) — seed from there so a freshly
+    // registered room isn't briefly advertised as empty.
+    const metered = this.metered.get(roomId);
+    this.rooms.set(roomId, {
+      type: info.type,
+      filter: info.filter,
+      maxClients: Math.max(1, info.maxClients),
+      projectId: info.projectId,
+      locationHint: existing?.locationHint ?? null,
+      reported: existing?.reported ?? metered?.reported ?? null,
+      reportSeq: existing?.reportSeq ?? metered?.reportSeq ?? 0,
+      lastReportAt: Date.now(),
+      baseUrl: info.baseUrl,
+    });
+    this.saveRoom(roomId);
+    // Every heartbeat re-reports the same origin; only write when it actually
+    // changes so a busy project isn't billed a storage write per report.
+    if (this.projectBaseUrl.get(info.projectId) !== info.baseUrl) {
+      this.projectBaseUrl.set(info.projectId, info.baseUrl);
+      void this.ctx.storage.put(`p:${info.projectId}`, info.baseUrl);
+    }
+  }
+
+  /** Forget a project's self-host origin once none of its ext rooms remain. */
+  private forgetBaseUrlIfUnused(projectId: string): void {
+    for (const [id, room] of this.rooms) {
+      if (room.projectId === projectId && isExternalRoom(id)) return;
+    }
+    this.projectBaseUrl.delete(projectId);
+    void this.ctx.storage.delete(`p:${projectId}`);
+  }
+
   /** Release a pending seat hold (reservation abandoned before connecting). */
   release(sessionId: string): void {
     const res = this.reservations.get(sessionId);
@@ -376,11 +518,16 @@ export class Matchmaker extends DurableObject<MatchmakerEnv> {
     this.dropIfEmpty(res.roomId);
   }
 
-  /** List rooms (optionally filtered by type) for a lobby browser. */
+  /**
+   * List rooms (optionally filtered by type) for a lobby browser. Self-hosted
+   * (`ext:`) rooms are excluded: the public lobby is a gateway-hosted surface, and
+   * their ids are namespaced internals a client must never see.
+   */
   list(type?: string): RoomInfo[] {
     this.prune(Date.now());
     const out: RoomInfo[] = [];
     for (const [id, room] of this.rooms) {
+      if (isExternalRoom(id)) continue;
       if (type && room.type !== type) continue;
       out.push(this.roomInfo(id, room));
     }

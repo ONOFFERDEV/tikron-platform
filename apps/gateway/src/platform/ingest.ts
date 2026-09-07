@@ -1,6 +1,6 @@
 import type { ScoreMode } from "@tikron/server";
 import type { Env } from "../index.js";
-import type { Matchmaker } from "../matchmaker.js";
+import { externalRoomKey, type Matchmaker } from "../matchmaker.js";
 import { resolveProjectId, scopeForKey } from "./apikeys.js";
 import {
   boardCount,
@@ -22,11 +22,13 @@ import {
  * The report is forwarded into the SAME metering path gateway rooms use
  * (`Matchmaker.report()`), under a namespaced room id (`ext:{projectId}:{roomId}`)
  * so a self-hosted room can never collide with a gateway room id (a UUID) or with
- * another project's room id in the metering ledger. Namespacing also keeps
- * self-hosted rooms OUT of the lobby / matchmaking for free: `report()` only
- * registers a matchmakable room for ids the matchmaker itself created via
- * `reserve()`; an unknown id is metered and then returns, so it never lands in
- * the `rooms` map that `/api/rooms` and `reserve()` enumerate.
+ * another project's room id in the metering ledger.
+ *
+ * F3: a report that also carries `type` + `maxClients` + `baseUrl` additionally
+ * REGISTERS the room for matchmaking (`Matchmaker.registerExternal`), so
+ * `/api/matchmake` can seat players in rooms running on the customer's own
+ * account. Reports without those three stay metering-only, exactly as before.
+ * `ext:` rooms remain excluded from the public lobby (`/api/rooms`).
  */
 
 const BEARER = "Bearer ";
@@ -41,6 +43,40 @@ interface OccupancyInput {
   sessions: string[];
   seq: number;
   messages: number;
+  /** Self-hosted matchmaking registration (F3); each is absent unless reported. */
+  type?: string;
+  filter?: string;
+  maxClients?: number;
+  baseUrl?: string;
+}
+
+// Registration fields are ADDITIVE and best-effort: a malformed one is dropped
+// (the room simply isn't matchmakable) rather than failing the usage report,
+// which must keep metering an older/odd client.
+const MAX_TYPE = 64;
+const MAX_FILTER = 64;
+const MAX_BASE_URL = 256;
+const MAX_ROOM_SEATS = 10_000;
+
+/** A bounded, non-empty string field, or undefined when absent/malformed. */
+function optionalString(v: unknown, max: number): string | undefined {
+  return typeof v === "string" && v.length >= 1 && v.length <= max ? v : undefined;
+}
+
+/**
+ * An `https://` origin the platform is willing to hand out as a `roomUrl`.
+ * Normalized to the bare origin so a trailing slash or a path can't make two
+ * reports of the same host look like different origins.
+ */
+function optionalHttpsUrl(v: unknown): string | undefined {
+  const s = optionalString(v, MAX_BASE_URL);
+  if (s === undefined) return undefined;
+  try {
+    const url = new URL(s);
+    return url.protocol === "https:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -108,7 +144,25 @@ function parseReport(body: unknown): OccupancyInput | null {
     sessions = b.sessions.filter((s): s is string => typeof s === "string").slice(0, MAX_SESSIONS);
   }
 
-  return { roomId, count, sessions, seq, messages };
+  const maxClients =
+    typeof b.maxClients === "number" &&
+    Number.isInteger(b.maxClients) &&
+    b.maxClients >= 1 &&
+    b.maxClients <= MAX_ROOM_SEATS
+      ? b.maxClients
+      : undefined;
+
+  return {
+    roomId,
+    count,
+    sessions,
+    seq,
+    messages,
+    type: optionalString(b.type, MAX_TYPE),
+    filter: optionalString(b.filter, MAX_FILTER),
+    maxClients,
+    baseUrl: optionalHttpsUrl(b.baseUrl),
+  };
 }
 
 /** Handle `POST /api/ingest/occupancy` (and its CORS preflight). */
@@ -121,6 +175,16 @@ export async function handleIngest(request: Request, env: Env): Promise<Response
   // report has no other way to attribute usage, so it is ALWAYS key-authenticated.
   const apiKey = bearer(request);
   if (!apiKey) return error("missing_api_key", 401);
+
+  // Reporting usage is a SECRET-key action, like score ingest. A tk_pub_ key ships
+  // in the game's client bundle and (since F3) travels cross-origin, so honoring it
+  // here would let anyone forge occupancy for the project: fake room-hours to burn
+  // its cap, or a `baseUrl` that redirects the project's own players — with their
+  // session ids and player tokens — to an attacker's host. Scope comes from the
+  // presented key's prefix (hash-bound, unforgeable), so this needs no DB.
+  if (scopeForKey(apiKey) !== "secret") {
+    return error("key_scope_forbidden", 403, MSG_SCOPE_FORBIDDEN);
+  }
 
   // Resolve the key → project (cached, same lookup as /parties enforcement). With
   // no platform DB there is nothing to meter against, so accept and no-op rather
@@ -135,10 +199,11 @@ export async function handleIngest(request: Request, env: Env): Promise<Response
   if (!report) return error("bad_request", 400);
 
   if (projectId) {
-    const roomKey = `ext:${projectId}:${report.roomId}`;
+    const roomKey = externalRoomKey(projectId, report.roomId);
+    const mm = matchmaker(env);
     // Fire the report through the shared metering path, attributed to the KEY's
     // project. Awaited so the RPC (and its storage write) completes before 204.
-    await matchmaker(env).report(
+    await mm.report(
       roomKey,
       report.count,
       report.sessions,
@@ -146,6 +211,22 @@ export async function handleIngest(request: Request, env: Env): Promise<Response
       projectId,
       report.messages,
     );
+    // Zero-config matchmaking registration (F3): a report that says WHERE the room
+    // is (origin), WHAT it is (party name), and HOW BIG it is promotes the room to
+    // a matchmakable entry. Without all three it stays metering-only, exactly as
+    // pre-0.7 reports did.
+    // ponytail: a second RPC to the same DO rather than widening `report()`, which
+    // the hosted room path also calls. Reports are throttled to one per room per
+    // 10s, so the extra hop is cheap; fold it in if ingest ever gets hot.
+    if (report.type && report.baseUrl && report.maxClients !== undefined) {
+      await mm.registerExternal(roomKey, {
+        type: report.type,
+        filter: report.filter ?? "",
+        maxClients: report.maxClients,
+        baseUrl: report.baseUrl,
+        projectId,
+      });
+    }
   }
 
   return new Response(null, { status: 204, headers: CORS });

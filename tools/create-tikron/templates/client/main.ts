@@ -15,6 +15,13 @@ const statusEl = document.getElementById("status")!;
 // ?room=my-room lets any number of isolated rooms share one deployment.
 const roomName = new URLSearchParams(location.search).get("room") ?? "lobby";
 
+// Optional hosted matchmaking: paste a `tk_pub_…` key from the tikron.dev
+// dashboard and the platform picks the room instead — filling one before opening
+// the next, and seating a whole group at once with `party: N`. Your rooms still
+// run on THIS worker; the platform only assigns seats (they are advisory — it
+// never validates sessions against a self-hosted room). Empty = plain ?room=.
+const TIKRON_PUBLIC_KEY = "";
+
 // A per-tab session key: reconnects (tab switch, network blip, reload) with
 // the same key reclaim the same seat — the server holds it for 30 seconds.
 let session = sessionStorage.getItem("tikron-session");
@@ -23,7 +30,10 @@ if (!session) {
   sessionStorage.setItem("tikron-session", session);
 }
 
-const client = new GameClient(location.host, { party: "arena-room" });
+const client = new GameClient(location.host, {
+  party: "arena-room",
+  apiKey: TIKRON_PUBLIC_KEY,
+});
 
 function resize() {
   canvas.width = window.innerWidth;
@@ -33,9 +43,13 @@ window.addEventListener("resize", resize);
 resize();
 
 async function main() {
-  const room = await client.joinOrCreate(roomName, { _session: session! });
+  const match = TIKRON_PUBLIC_KEY
+    ? await client.matchmake({ endpoint: "https://tikron.dev/api/matchmake", maxClients: 8 })
+    : null;
+  const joined = match?.roomId ?? roomName;
+  const room = await client.joinOrCreate(joined, { _session: match?.sessionId ?? session! });
   const myId = room.connectionId!;
-  statusEl.textContent = `room "${roomName}" · you are the ringed dot · drag to move, tap to splat`;
+  statusEl.textContent = `room "${joined}" · you are the ringed dot · drag to move, tap to splat`;
 
   let state: ArenaState | undefined;
   room.onStateChange((s) => {

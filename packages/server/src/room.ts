@@ -141,8 +141,17 @@ export interface RoomContext {
    * room so receivers can discard reports delivered out of order (reports are
    * fire-and-forget RPCs with no ordering guarantee). `messages` is the count of
    * developer messages processed since the previous report (usage metering).
+   * `meta` carries the room's own matchmaking knobs ({@link Room.matchFilter},
+   * {@link Room.maxClients}) so a host that registers self-hosted rooms with a
+   * matchmaker can forward them; hosts that don't care simply ignore it.
    */
-  reportOccupancy?(count: number, sessions: string[], seq: number, messages?: number): void;
+  reportOccupancy?(
+    count: number,
+    sessions: string[],
+    seq: number,
+    messages?: number,
+    meta?: { filter?: string; maxClients?: number },
+  ): void;
   /**
    * Optional durable storage (the room's DO storage). When present the room
    * persists its state + seats so it can be restored after eviction, and uses
@@ -560,6 +569,14 @@ export abstract class Room<TState = unknown> {
    * reattaching/taking over an existing seat is always allowed. Default: no cap.
    */
   protected maxClients = Infinity;
+
+  /**
+   * Matchmaking bucket for this room, reported alongside occupancy. Only rooms
+   * declaring the SAME filter are matched together, so it is the self-hosted twin
+   * of the matchmaker's `mode` (`filterBy`) — e.g. `"ranked"` or `"eu-casual"`.
+   * Empty (default) = one undifferentiated pool.
+   */
+  protected matchFilter = "";
 
   /**
    * Interval for periodic occupancy heartbeats while the room holds any seats.
@@ -1577,6 +1594,12 @@ export abstract class Room<TState = unknown> {
       [...this.records.keys()],
       ++this.occupancySeq,
       this.messagesSinceReport,
+      // Omit the defaults so a room that declares neither reports exactly what it
+      // reported before these knobs existed (JSON.stringify drops undefined).
+      {
+        filter: this.matchFilter || undefined,
+        maxClients: Number.isFinite(this.maxClients) ? this.maxClients : undefined,
+      },
     );
     this.messagesSinceReport = 0;
     this.syncHeartbeat();

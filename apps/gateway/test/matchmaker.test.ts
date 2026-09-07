@@ -113,3 +113,101 @@ describe("Matchmaker persistence across Durable Object eviction", () => {
     expect(ok).toBe(true);
   });
 });
+
+// F5: a party is placed into ONE room, all N seats held in a single call.
+describe("Party matchmaking", () => {
+  async function raw(path: string): Promise<Response> {
+    return SELF.fetch(`https://example.com${path}`);
+  }
+
+  it("places a party of 3 in one room and holds all 3 seats", async () => {
+    const p = await api("/api/matchmake?type=t-party&mode=&max=3&party=3");
+    expect(p.sessionIds).toHaveLength(3);
+    expect(new Set(p.sessionIds).size).toBe(3); // distinct
+    expect(p.sessionId).toBe(p.sessionIds[0]); // superset of the single shape
+
+    // The invariant: all 3 are real reservations on that room, so it is full.
+    await runInDurableObject(mmStub(), async (_mm, state) => {
+      for (const sid of p.sessionIds as string[]) {
+        expect(await state.storage.get(`v:${sid}`)).toMatchObject({ roomId: p.roomId });
+      }
+    });
+    for (const sid of p.sessionIds as string[]) {
+      expect(await runInDurableObject(mmStub(), (mm) => mm.isIssued(p.roomId, sid))).toBe(true);
+    }
+
+    const rooms = await api("/api/rooms?type=t-party");
+    const room = rooms.find((r: any) => r.roomId === p.roomId);
+    expect(room.count).toBe(3);
+    expect(room.locked).toBe(true);
+
+    const solo = await api("/api/matchmake?type=t-party&mode=&max=3");
+    expect(solo.roomId).not.toBe(p.roomId); // no seat left -> new room
+  });
+
+  it("skips a room that cannot seat the whole party", async () => {
+    const solo = await api("/api/matchmake?type=t-party-skip&mode=&max=4"); // 3 free seats left
+    const pair = await api("/api/matchmake?type=t-party-skip&mode=&max=4&party=2");
+    expect(pair.roomId).toBe(solo.roomId); // 2 <= 3 free -> same room (now 3/4)
+
+    const trio = await api("/api/matchmake?type=t-party-skip&mode=&max=4&party=3");
+    expect(trio.roomId).not.toBe(solo.roomId); // only 1 free seat -> fresh room
+    expect(trio.sessionIds).toHaveLength(3);
+  });
+
+  it("party=1 keeps the single-player response shape", async () => {
+    const one = await api("/api/matchmake?type=t-party-one&mode=&max=4&party=1");
+    expect(one.sessionIds).toBeUndefined();
+    expect(typeof one.sessionId).toBe("string");
+  });
+
+  it("rejects a party that is not an integer in 1..16 and <= max", async () => {
+    for (const q of ["party=0", "party=17", "party=5&max=4", "party=abc", "party=2.5"]) {
+      const res = await raw(`/api/matchmake?type=t-party-bad&mode=&${q}`);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_party" });
+    }
+  });
+
+  it("counts a partially-arrived party exactly once", async () => {
+    const p = await api("/api/matchmake?type=t-party-partial&mode=&max=3&party=3");
+    const ids = p.sessionIds as string[];
+
+    // One of the three connected; the room reports 1 live seat naming that session.
+    // Its hold is consumed, the other two still stand: 1 live + 2 held = 3, not 4
+    // (double count) and not 1 (holds freed early).
+    await runInDurableObject(mmStub(), (mm) => mm.report(p.roomId, 1, [ids[0]!], 1));
+
+    const room = (await api("/api/rooms?type=t-party-partial")).find(
+      (r: any) => r.roomId === p.roomId,
+    );
+    expect(room.count).toBe(3);
+    expect(room.locked).toBe(true);
+  });
+
+  it("a nonsense ?max= still reserves a 1-seat room, not a bad-party error", async () => {
+    for (const max of ["0", "-5"]) {
+      const res = await raw(`/api/matchmake?type=t-party-max&mode=&max=${max}`);
+      expect(res.status).toBe(200);
+      expect(typeof (await res.json()).sessionId).toBe("string");
+    }
+  });
+
+  it("keeps a party's held seats across Durable Object eviction", async () => {
+    const stub = mmStub();
+    const p = await runInDurableObject(stub, (mm) => mm.reserveMany("t-party-evict", "", 4, 2));
+    await runInDurableObject(stub, async (_mm, state) => {
+      for (const sid of p.sessionIds) expect(await state.storage.get(`v:${sid}`)).toBeTruthy();
+    });
+    await abortAllDurableObjects();
+
+    // Cold start rehydrates both holds: 2 of 4 seats are still taken, so the next
+    // single player joins that room and a party of 3 no longer fits.
+    const solo = await runInDurableObject(mmStub(), (mm) => mm.reserve("t-party-evict", "", 4));
+    expect(solo.roomId).toBe(p.roomId);
+    const trio = await runInDurableObject(mmStub(), (mm) =>
+      mm.reserveMany("t-party-evict", "", 4, 3),
+    );
+    expect(trio.roomId).not.toBe(p.roomId);
+  });
+});

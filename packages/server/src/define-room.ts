@@ -56,6 +56,19 @@ export interface OccupancyReport {
   projectId?: string | null;
   /** Developer messages processed since the previous report (usage metering). */
   messages?: number;
+  /**
+   * Party (Durable Object binding) name this room is served under, captured from
+   * the first accepted connection's URL (`/parties/<type>/<room>`). With
+   * {@link baseUrl} + {@link maxClients} it is what lets a self-hosted room
+   * register itself as matchmakable on the platform.
+   */
+  type?: string;
+  /** The room's {@link Room.matchFilter} matchmaking bucket; omitted when empty. */
+  filter?: string;
+  /** The room's own seat cap; omitted when uncapped (`Infinity`). */
+  maxClients?: number;
+  /** Public origin the room answers on, e.g. `https://my-game.workers.dev`. */
+  baseUrl?: string;
 }
 
 export interface DefineRoomOptions {
@@ -129,6 +142,7 @@ function makeContext(
   host: PartyHost,
   getEnv: () => unknown,
   getProjectId: () => string | null,
+  getOrigin: () => { type?: string; baseUrl?: string },
   storage: RoomStorage | undefined,
   options?: DefineRoomOptions,
 ): RoomContext {
@@ -144,7 +158,7 @@ function makeContext(
     connection: (id) => host.getConnection(id),
     broadcastRaw: (data, exceptIds) => host.broadcast(data, exceptIds),
     reportOccupancy: report
-      ? (count, sessions, seq, messages) => {
+      ? (count, sessions, seq, messages, meta) => {
           void Promise.resolve(
             report(getEnv(), {
               roomId: host.name,
@@ -153,6 +167,8 @@ function makeContext(
               seq,
               projectId: getProjectId(),
               messages,
+              ...getOrigin(), // type + baseUrl, from the first accepted connect
+              ...meta, // filter + maxClients, from the room itself
             }),
           ).catch(() => {});
         }
@@ -185,6 +201,24 @@ function sessionFrom(ctx: ConnectionContext): string | undefined {
 }
 
 /**
+ * Where this room is reachable, read off a connect request: the party (binding)
+ * name from `/parties/<type>/<room>` and the worker's public origin. Both are
+ * only knowable from a real connection, so they are captured once — on the first
+ * ACCEPTED connect — and then reported with every occupancy report.
+ *
+ * @internal Exported for tests; not re-exported from the package entry point.
+ */
+export function originFrom(ctx: ConnectionContext): { type?: string; baseUrl?: string } {
+  try {
+    const url = new URL(ctx.request.url);
+    const parts = url.pathname.split("/"); // ["", "parties", <type>, <room>, ...]
+    return { type: parts[1] === "parties" ? parts[2] : undefined, baseUrl: url.origin };
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Wrap a {@link Room} subclass into a partyserver Durable Object class suitable
  * for a wrangler `class_name` binding.
  *
@@ -214,6 +248,8 @@ export function defineRoom<TState>(
     #room: Room<TState> | null = null;
     /** Owning project (from `_project`), captured from the first connection. */
     #projectId: string | null = null;
+    /** Party name + public origin, captured from the first ACCEPTED connection. */
+    #origin: { type?: string; baseUrl?: string } = {};
 
     async #ensure(): Promise<Room<TState>> {
       if (!this.#room) {
@@ -221,7 +257,14 @@ export function defineRoom<TState>(
           id: this.name,
           // `this.ctx.storage` is the DO's durable storage (structurally a
           // RoomStorage); it lets the room persist state + reconnection windows.
-          ctx: makeContext(this, () => this.env, () => this.#projectId, this.ctx.storage, options),
+          ctx: makeContext(
+            this,
+            () => this.env,
+            () => this.#projectId,
+            () => this.#origin,
+            this.ctx.storage,
+            options,
+          ),
         });
         // _create() restores any persisted snapshot, so the room is whole before
         // the first _connect / _alarm below runs against it.
@@ -291,6 +334,9 @@ export function defineRoom<TState>(
           return;
         }
       }
+      // Accepted: remember where this room is reachable (party name + origin) so
+      // occupancy reports can register it as matchmakable. First connect wins.
+      if (this.#origin.baseUrl === undefined) this.#origin = originFrom(ctx);
       await room._connect(conn, session, auth);
     }
 

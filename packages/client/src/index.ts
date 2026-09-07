@@ -577,19 +577,54 @@ export class GameClient {
    * carries the placement hint:
    * `client.joinOrCreate(m.roomId, { _session: m.sessionId, ...(m.region ? { region: m.region } : {}) })`
    * (Browser-oriented: uses a same-origin `/api/matchmake` request.)
+   *
+   * `party: N` (1–16, N ≤ maxClients) reserves N seats in ONE room atomically and
+   * returns them as `sessionIds`; the leader hands the extra session ids to its
+   * party over its own channel (Tikron holds no party state).
+   *
+   * `endpoint` points matchmaking at a DIFFERENT origin than the game — a
+   * self-hosted game asks `https://tikron.dev/api/matchmake` (authenticated with
+   * this client's `apiKey`) for a room that runs on its OWN worker, and the
+   * response's `roomUrl` says where to connect:
+   * ```ts
+   * const m = await client.matchmake({ endpoint: "https://tikron.dev/api/matchmake" });
+   * const room = await new GameClient(new URL(m.roomUrl ?? location.origin).host, { apiKey })
+   *   .joinOrCreate(m.roomId, { _session: m.sessionId });
+   * ```
    */
   async matchmake(
-    opts: { type?: string; mode?: string; maxClients?: number; region?: string } = {},
-  ): Promise<{ roomId: string; sessionId: string; region?: string }> {
+    opts: {
+      type?: string;
+      mode?: string;
+      maxClients?: number;
+      region?: string;
+      party?: number;
+      endpoint?: string;
+    } = {},
+  ): Promise<{
+    roomId: string;
+    sessionId: string;
+    sessionIds?: string[];
+    region?: string;
+    roomUrl?: string;
+  }> {
     const query = new URLSearchParams({
       type: opts.type ?? this.party,
       mode: opts.mode ?? "",
       max: String(opts.maxClients ?? 8),
     });
     if (opts.region) query.set("region", opts.region);
-    const res = await fetch(`/api/matchmake?${query.toString()}`);
+    if (opts.party !== undefined) query.set("party", String(opts.party));
+    if (this.options.apiKey) query.set("apiKey", this.options.apiKey);
+    const res = await fetch(`${opts.endpoint ?? "/api/matchmake"}?${query.toString()}`);
     if (!res.ok) throw new Error(`matchmake failed: HTTP ${res.status}`);
-    return (await res.json()) as { roomId: string; sessionId: string; region?: string };
+    return (await res.json()) as {
+      roomId: string;
+      sessionId: string;
+      sessionIds?: string[];
+      region?: string;
+      roomUrl?: string;
+    };
   }
 
   /**

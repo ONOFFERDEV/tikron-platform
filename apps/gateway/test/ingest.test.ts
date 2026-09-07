@@ -74,7 +74,7 @@ function ingest(apiKey: string | null, body: unknown): Promise<Response> {
 describe("self-hosted occupancy ingest", () => {
   it("valid key → 204, and usage accrues to the dashboard after a flush", async () => {
     const cookie = await devLogin("ext-owner");
-    const { projectId, apiKey } = await projectWithKey(cookie, "SelfHosted");
+    const { projectId, apiKey } = await projectWithKey(cookie, "SelfHosted", "secret");
 
     const res = await ingest(apiKey, {
       roomId: "lobby-1",
@@ -116,9 +116,35 @@ describe("self-hosted occupancy ingest", () => {
     expect(await res.json()).toEqual({ error: "invalid_api_key" });
   });
 
+  it("publishable key → 403, and nothing is metered or registered", async () => {
+    const cookie = await devLogin("ext-pub");
+    // Default scope = tk_pub_: a key that ships in the game's client bundle.
+    const { projectId, apiKey } = await projectWithKey(cookie, "PubOccupancy");
+
+    const res = await ingest(apiKey, {
+      roomId: "r",
+      count: 5,
+      sessions: ["a"],
+      seq: 1,
+      type: "arena-room",
+      maxClients: 8,
+      baseUrl: "https://evil.example",
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "key_scope_forbidden" });
+    // Forged usage never reached the ledger, and the origin was never recorded —
+    // otherwise a public key could burn the project's cap or redirect its players.
+    await runInDurableObject(globalMatchmaker(), async (_mm, state) => {
+      expect(await state.storage.get(`m:ext:${projectId}:r`)).toBeUndefined();
+      expect(await state.storage.get(`r:ext:${projectId}:r`)).toBeUndefined();
+      expect(await state.storage.get(`p:${projectId}`)).toBeUndefined();
+    });
+  });
+
   it("malformed bodies → 400", async () => {
     const cookie = await devLogin("ext-bad");
-    const { apiKey } = await projectWithKey(cookie, "BadBodies");
+    const { apiKey } = await projectWithKey(cookie, "BadBodies", "secret");
 
     const cases: unknown[] = [
       { count: 1, seq: 1 }, // missing roomId
@@ -140,14 +166,14 @@ describe("self-hosted occupancy ingest", () => {
 
   it("rejects count over the abuse cap (>1024) with 400", async () => {
     const cookie = await devLogin("ext-abuse");
-    const { apiKey } = await projectWithKey(cookie, "Abuse");
+    const { apiKey } = await projectWithKey(cookie, "Abuse", "secret");
     const res = await ingest(apiKey, { roomId: "r", count: 1025, seq: 1 });
     expect(res.status).toBe(400);
   });
 
   it("does NOT pollute the /api/rooms lobby or matchmaking", async () => {
     const cookie = await devLogin("ext-lobby");
-    const { projectId, apiKey } = await projectWithKey(cookie, "Lobby");
+    const { projectId, apiKey } = await projectWithKey(cookie, "Lobby", "secret");
 
     const res = await ingest(apiKey, { roomId: "solo-1", count: 2, seq: 1 });
     expect(res.status).toBe(204);

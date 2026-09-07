@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   GameClient,
   RoomJoinError,
@@ -670,5 +670,67 @@ describe("Welcome handshake validation (F003/F099/F128)", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+});
+
+describe("GameClient.matchmake", () => {
+  function stubFetch(body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("forwards party as a query param and returns sessionIds", async () => {
+    const fetchMock = stubFetch({ roomId: "r1", sessionId: "s1", sessionIds: ["s1", "s2", "s3"] });
+    const client = new GameClient("localhost:8787", { party: "agar-room" });
+
+    const m = await client.matchmake({ party: 3, maxClients: 8 });
+
+    const url = new URL(String(fetchMock.mock.calls[0]![0]), "https://example.com");
+    expect(url.searchParams.get("party")).toBe("3");
+    expect(url.searchParams.get("type")).toBe("agar-room");
+    expect(m.sessionIds).toEqual(["s1", "s2", "s3"]);
+    expect(m.sessionId).toBe("s1");
+  });
+
+  it("omits party when not requested", async () => {
+    const fetchMock = stubFetch({ roomId: "r1", sessionId: "s1" });
+    await new GameClient("localhost:8787").matchmake();
+    const url = new URL(String(fetchMock.mock.calls[0]![0]), "https://example.com");
+    expect(url.searchParams.has("party")).toBe(false);
+  });
+
+  it("calls a cross-origin endpoint with the client's apiKey and returns roomUrl", async () => {
+    const fetchMock = stubFetch({
+      roomId: "lobby-7",
+      sessionId: "s1",
+      roomUrl: "https://my-game.example.workers.dev",
+    });
+    const client = new GameClient("localhost:8787", {
+      party: "arena-room",
+      apiKey: "tk_pub_abc",
+    });
+
+    const m = await client.matchmake({ endpoint: "https://tikron.dev/api/matchmake" });
+
+    const url = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(url.origin + url.pathname).toBe("https://tikron.dev/api/matchmake");
+    expect(url.searchParams.get("apiKey")).toBe("tk_pub_abc");
+    // The room runs on the developer's own worker; this is where to connect.
+    expect(new URL(m.roomUrl!).host).toBe("my-game.example.workers.dev");
+    expect(m.roomId).toBe("lobby-7");
+  });
+
+  it("defaults to a same-origin /api/matchmake with no apiKey", async () => {
+    const fetchMock = stubFetch({ roomId: "r1", sessionId: "s1" });
+    await new GameClient("localhost:8787").matchmake();
+    const call = String(fetchMock.mock.calls[0]![0]);
+    expect(call.startsWith("/api/matchmake?")).toBe(true);
+    expect(call).not.toContain("apiKey");
   });
 });
