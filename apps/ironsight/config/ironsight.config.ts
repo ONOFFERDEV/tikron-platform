@@ -119,7 +119,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   // CLOSE_THREAT_M/OBJECTIVE_ARRIVE_M dom-only constants (neither is exported).
   bots: {
     aimNoiseRad: 0.045, // was 0.012 (0.7°) — owner: "bots are too good" (2026-09-07); 2.6° ≈ 0.9 m std-dev at 20 m
-    reactionMs: 400, // was 150 — human-ish target lag instead of near-instant
+    reactionMs: 200, // 150 → 400 felt too easy → 200 (owner, 2026-09-07)
     aimHeight: 1.0,
     strafeZ: 11,
     strafeAmp: 1.2,
