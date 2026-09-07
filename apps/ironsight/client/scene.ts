@@ -917,7 +917,7 @@ export class SceneRig {
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
    *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
-  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number): void {
+  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState): void {
     const now = performance.now();
     const seen = this.seenPlayers;
     seen.clear();
@@ -933,7 +933,7 @@ export class SceneRig {
       rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
       rig.weapon.setWeapon(pose.weapon);
       rig.weapon.beforeAnimation();
-      if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now);
+      if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now, clip);
       else this.syncCapsuleRig(rig, pose);
       rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined);
     }
@@ -945,6 +945,20 @@ export class SceneRig {
         this.players.delete(id);
       }
     }
+  }
+
+  /** Network-free preview: same factory, mixer and weapon update as syncPlayers. */
+  inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean): boolean {
+    this.viewmodel.visible = false;
+    this.syncPlayers(new Map([["inspect", pose]]), "", 0, clip);
+    const rig = this.players.get("inspect")!;
+    if (!rig.model || !rig.weapon) return false;
+    rig.weapon.beforeAnimation();
+    rig.model.forceIdle();
+    rig.model.setState(clip);
+    rig.model.update(0.75); // repeatable clip sample for every camera angle
+    rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms);
+    return rig.weapon.loaded;
   }
 
   /** Plays a one-shot hit-reaction clip on remote player `id` — headshot uses
@@ -982,7 +996,7 @@ export class SceneRig {
     this.updateHitboxOverlay(rig, rig.headY);
   }
 
-  private syncModelRig(rig: PlayerRig, pose: PlayerPose, dtMs: number, now: number): void {
+  private syncModelRig(rig: PlayerRig, pose: PlayerPose, dtMs: number, now: number, clip?: LocomotionState): void {
     const model = rig.model!;
     const wasAlive = rig.aliveWas ?? true;
     rig.aliveWas = pose.alive;
@@ -1048,7 +1062,7 @@ export class SceneRig {
     // whatever it was interrupted from), matching pose/speed same as any other frame.
     if (rig.hitReactionUntil === undefined || now >= rig.hitReactionUntil) {
       rig.hitReactionUntil = undefined;
-      model.setState(locomotion);
+      model.setState(clip ?? locomotion);
     }
     model.update(dtSec);
   }

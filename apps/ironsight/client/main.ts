@@ -10,6 +10,8 @@
  * The auto-nickname quick-join is implicit: `Net.connect()` funnels straight into
  * the single arena room; the lobby UI is an M2 concern.
  */
+import { parseRigInspect } from "./rig-inspect-query.js";
+import { startRigInspector } from "./rig-inspect.js";
 import { Net, type ShotEvent } from "./net.js";
 import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
@@ -44,6 +46,8 @@ const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (clien
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
+  const inspect = parseRigInspect(location.search);
+  if (inspect) { startRigInspector(inspect); return; }
   // Single shared store: Input reads live sensitivity/invertY/binds from it every
   // event, and both settings-panel entry points (quit-confirm, mode-select) mutate
   // this SAME instance so a change made in the panel takes effect immediately.

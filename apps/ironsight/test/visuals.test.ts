@@ -21,6 +21,33 @@ function fixture() {
 }
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
 describe("remote weapon presentation", () => {
+  it("preserves animated wrists, restores arms, and never accumulates the hold", () => {
+    const group = new THREE.Group();
+    const bones: THREE.Bone[] = [];
+    for (const [side, suffix] of [[-1, "R"], [1, "L"]] as const) {
+      const upper = new THREE.Bone(); upper.name = `UpperArm_${suffix}`;
+      upper.position.set(side * 0.2, 1.4, 0);
+      const lower = new THREE.Bone(); lower.name = `lowerarm_${suffix.toLowerCase()}`;
+      lower.position.y = -0.3;
+      const hand = new THREE.Bone(); hand.name = `Hand_${suffix}`; hand.position.y = -0.25;
+      hand.rotation.set(0.1, 0.2, -0.1);
+      group.add(upper); upper.add(lower); lower.add(hand); bones.push(upper, lower, hand);
+    }
+    const animated = bones.map(b => b.quaternion.clone());
+    const weapon = new RemoteWeapon(group, group);
+    weapon.update(1.58, 0, true, 0.85);
+    const first = bones.map(b => b.quaternion.clone());
+    expect(bones[2]!.quaternion.equals(animated[2]!)).toBe(true);
+    expect(bones[5]!.quaternion.equals(animated[5]!)).toBe(true);
+    expect(bones[2]!.getWorldPosition(new THREE.Vector3()).x).toBeLessThan(0);
+    weapon.beforeAnimation();
+    bones.forEach((b, i) => expect(b.quaternion.angleTo(animated[i]!)).toBeCloseTo(0));
+    weapon.update(1.58, 0, true, 0.85);
+    bones.forEach((b, i) => expect(b.quaternion.angleTo(first[i]!)).toBeCloseTo(0));
+    weapon.beforeAnimation(); weapon.update(1.58, 0, true, 1, false);
+    bones.forEach((b, i) => expect(b.quaternion.angleTo(animated[i]!)).toBeCloseTo(0));
+    weapon.dispose();
+  });
   it("fits world length independently of player scale, follows the hand, and never becomes a hit target", async () => {
     const f = fixture(); vi.mocked(loadWeaponModel).mockResolvedValue(f.gltf);
     const weapon = new RemoteWeapon(f.group, f.root); weapon.setWeapon(0); await flush();

@@ -19,5 +19,7 @@ export const VISUALS = {
     swapDrop: 0.42, swapPitch: -0.65,
     breathAmplitude: 0.0015, breathRate: 1.8, hands: false,
   },
-  remote: { holdBlend: 0.85, lengths: [0.72, 0.46, 0.82, 1.0, 0.30] },
+  // Attachment-only fallback: current locomotion clips have open, unarmed hands.
+  // Enable the bounded reach explicitly in the inspector with &blend=0.85.
+  remote: { holdBlend: 0, lengths: [0.72, 0.46, 0.82, 1.0, 0.30] },
 };

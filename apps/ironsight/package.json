@@ -10,7 +10,8 @@
     "build": "pnpm build:client && wrangler deploy --dry-run --outdir dist",
     "build:client": "esbuild client/main.ts --bundle --format=esm --outfile=public/client.js --sourcemap",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "inspect:rig": "node scripts/inspect-rig.mjs --url http://localhost:8787"
   },
   "dependencies": {
     "@tikron/protocol": "workspace:*",

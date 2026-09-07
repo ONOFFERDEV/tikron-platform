@@ -9,18 +9,23 @@ const CONFIG = (GAME.weaponVis.presentation ?? VISUALS).remote;
 export class RemoteWeapon {
   readonly mount = new THREE.Group();
   readonly muzzle = new THREE.Object3D();
+  loaded = false;
   private index = -1;
   private generation = 0;
   private fallback?: THREE.Mesh;
   private readonly hand?: THREE.Object3D;
-  private readonly arms: { bone: THREE.Object3D; child: THREE.Object3D; side: number; upper: boolean; saved: THREE.Quaternion }[] = [];
-  private readonly handRest = new THREE.Quaternion();
-  private readonly animatedHand = new THREE.Quaternion();
+  private readonly arms: { upper: THREE.Object3D; lower: THREE.Object3D; hand: THREE.Object3D;
+    side: number; upperPose: THREE.Quaternion; lowerPose: THREE.Quaternion }[] = [];
   private overridden = false;
   private readonly pitchAxis = new THREE.Vector3(1, 0, 0);
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
   private readonly target = new THREE.Vector3();
+  private readonly shoulder = new THREE.Vector3();
+  private readonly direction = new THREE.Vector3();
+  private readonly pole = new THREE.Vector3();
+  private readonly elbow = new THREE.Vector3();
+  private readonly wrist = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
   private readonly parentQ = new THREE.Quaternion();
 
@@ -28,21 +33,17 @@ export class RemoteWeapon {
     this.hand = root?.getObjectByName("Hand_R");
     group.updateWorldMatrix(true, true);
     if (this.hand) {
-      // Preserve the authored palm orientation, then fit +Z bore in group space.
-      this.hand.getWorldQuaternion(this.handRest);
-      group.getWorldQuaternion(this.q).invert();
-      this.handRest.premultiply(this.q);
-      this.mount.quaternion.copy(this.handRest).invert();
       this.hand.add(this.mount);
-      for (const [side, suffix] of [[-1, "L"], [1, "R"]] as const) {
+      // The asset faces +Z: its anatomical RIGHT is -X, LEFT is +X.
+      // Solve the gun arm first, then derive support reach from the actual gun.
+      for (const [side, suffix] of [[-1, "R"], [1, "L"]] as const) {
         const upper = root?.getObjectByName(`UpperArm_${suffix}`);
         const lower = root?.getObjectByName(`lowerarm_${suffix.toLowerCase()}`);
         const hand = root?.getObjectByName(`Hand_${suffix}`);
-        if (upper && lower && hand) {
-          this.arms.push({ bone: upper, child: lower, side, upper: true, saved: upper.quaternion.clone() });
-          this.arms.push({ bone: lower, child: hand, side, upper: false, saved: lower.quaternion.clone() });
-        }
+        if (upper && lower && hand) this.arms.push({ upper, lower, hand, side,
+          upperPose: upper.quaternion.clone(), lowerPose: lower.quaternion.clone() });
       }
+      this.orientMount(0);
       this.hand.getWorldScale(this.a);
       this.mount.scale.setScalar(1 / Math.max(0.001, this.a.x));
     } else group.add(this.mount);
@@ -51,6 +52,7 @@ export class RemoteWeapon {
 
   setWeapon(index: number): void {
     if (this.index === index) return;
+    this.loaded = false;
     this.index = index;
     const generation = ++this.generation;
     this.clear();
@@ -77,6 +79,7 @@ export class RemoteWeapon {
       mesh.position.multiplyScalar(scale); // preserve grip-origin asset convention
       mesh.traverse(n => { n.raycast = () => {}; });
       this.mount.add(mesh);
+      this.loaded = true;
       this.muzzle.position.copy(tip).multiplyScalar(scale);
     });
   }
@@ -84,51 +87,91 @@ export class RemoteWeapon {
   /** Undo last frame before mixer.update, including bones absent from a clip. */
   beforeAnimation(): void {
     if (!this.overridden) return;
-    for (const arm of this.arms) arm.bone.quaternion.copy(arm.saved);
-    this.hand?.quaternion.copy(this.animatedHand);
+    for (const arm of this.arms) {
+      arm.upper.quaternion.copy(arm.upperPose);
+      arm.lower.quaternion.copy(arm.lowerPose);
+    }
     this.overridden = false;
   }
 
-  update(height: number, pitch: number, holding: boolean): void {
+  update(height: number, pitch: number, holding: boolean, holdBlend = CONFIG.holdBlend, arms = true): void {
     if (!this.hand) {
       this.mount.position.set(0.22, height - 0.3, 0.24);
       this.mount.rotation.x = -pitch;
       return;
     }
-    // Cancel the rig's scale per axis every frame — the landing squash (scene.ts modelRoot
-    // scale.set(base, sy, base)) is non-uniform, so a one-time uniform inverse would let
-    // the gun stretch/squash with the body.
-    this.hand.getWorldScale(this.a);
-    this.mount.scale.set(1 / Math.max(0.001, this.a.x), 1 / Math.max(0.001, this.a.y), 1 / Math.max(0.001, this.a.z));
-    const blend = holding ? THREE.MathUtils.clamp(CONFIG.holdBlend, 0, 1) : 0;
-    if (!blend) return;
-    this.animatedHand.copy(this.hand.quaternion);
-    for (const arm of this.arms) {
-      arm.saved.copy(arm.bone.quaternion);
-      // Modest bent elbows and a support hand under the fore-end, in player space.
-      this.target.set(arm.upper ? arm.side * 0.33 : arm.side === 1 ? 0.18 : 0.10,
-        height - (arm.upper ? 0.49 : 0.29), arm.upper ? 0.12 : arm.side === 1 ? 0.32 : 0.57);
-      this.target.y += Math.sin(pitch) * this.target.z;
-      this.group.localToWorld(this.target);
-      arm.bone.getWorldPosition(this.a);
-      arm.child.getWorldPosition(this.b);
-      this.b.sub(this.a).normalize();
-      this.target.sub(this.a).normalize();
-      this.q.setFromUnitVectors(this.b, this.target);
-      arm.bone.getWorldQuaternion(this.parentQ);
-      this.q.multiply(this.parentQ);
-      arm.bone.parent!.getWorldQuaternion(this.parentQ).invert();
-      this.q.premultiply(this.parentQ);
-      arm.bone.quaternion.slerp(this.q, blend);
-      arm.bone.updateWorldMatrix(false, true);
+    // Only the attachment cancels hand orientation; never force a wrist into bind roll.
+    const blend = holding && arms ? THREE.MathUtils.clamp(holdBlend, 0, 0.9) : 0;
+    if (blend) {
+      for (const arm of this.arms) {
+        arm.upperPose.copy(arm.upper.quaternion);
+        arm.lowerPose.copy(arm.lower.quaternion);
+        if (arm.side < 0) {
+          this.target.set(-0.20, height - 0.34, 0.28);
+          this.target.y += Math.sin(pitch) * 0.28;
+          this.group.localToWorld(this.target);
+        } else {
+          // Outside/below the fore-end, measured in the fitted weapon's metre space.
+          this.orientMount(pitch);
+          const length = CONFIG.lengths[this.index] ?? CONFIG.lengths[0]!;
+          this.target.set(0.035, -0.045, length * 0.38);
+          this.mount.localToWorld(this.target);
+        }
+        this.reach(arm, blend);
+      }
+      this.overridden = true;
     }
+    this.orientMount(pitch);
+  }
+
+  private orientMount(pitch: number): void {
+    if (!this.hand) return;
     this.group.getWorldQuaternion(this.q);
     this.parentQ.setFromAxisAngle(this.pitchAxis, -pitch);
-    this.q.multiply(this.parentQ).multiply(this.handRest);
-    this.hand.parent!.getWorldQuaternion(this.parentQ).invert();
+    this.q.multiply(this.parentQ);
+    this.hand.getWorldQuaternion(this.parentQ).invert();
+    this.mount.quaternion.copy(this.parentQ).multiply(this.q);
+    this.hand.getWorldScale(this.a);
+    this.mount.scale.set(1 / Math.max(0.001, this.a.x), 1 / Math.max(0.001, this.a.y), 1 / Math.max(0.001, this.a.z));
+    this.mount.updateWorldMatrix(true, true);
+  }
+
+  private reach(arm: (typeof this.arms)[number], blend: number): void {
+    arm.upper.getWorldPosition(this.shoulder);
+    arm.lower.getWorldPosition(this.elbow);
+    arm.hand.getWorldPosition(this.wrist);
+    const upper = this.shoulder.distanceTo(this.elbow), lower = this.elbow.distanceTo(this.wrist);
+    if (upper < 0.001 || lower < 0.001) return;
+    this.direction.subVectors(this.target, this.shoulder);
+    // Law of cosines: keep elbow flexion in [25, 135] degrees, never hyperextend.
+    const reachAt = (degrees: number) => Math.sqrt(upper * upper + lower * lower +
+      2 * upper * lower * Math.cos(THREE.MathUtils.degToRad(degrees)));
+    const distance = THREE.MathUtils.clamp(this.direction.length(), reachAt(135), reachAt(25));
+    this.direction.normalize();
+    this.wrist.copy(this.shoulder).addScaledVector(this.direction, distance);
+    this.group.getWorldQuaternion(this.q);
+    this.pole.set(arm.side * 0.65, -1, -0.15).applyQuaternion(this.q);
+    this.pole.addScaledVector(this.direction, -this.pole.dot(this.direction)).normalize();
+    const along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
+    this.elbow.copy(this.shoulder).addScaledVector(this.direction, along)
+      .addScaledVector(this.pole, Math.sqrt(Math.max(0, upper * upper - along * along)));
+    this.aim(arm.upper, arm.lower, this.elbow, blend);
+    this.aim(arm.lower, arm.hand, this.wrist, blend);
+  }
+
+  /** Minimal world-space swing composed onto CURRENT animation preserves its axial roll.
+   * No absolute look quaternion, no bind-pose inversion, and no hand-bone writes. */
+  private aim(bone: THREE.Object3D, child: THREE.Object3D, target: THREE.Vector3, blend: number): void {
+    bone.getWorldPosition(this.a);
+    child.getWorldPosition(this.b).sub(this.a).normalize();
+    this.a.subVectors(target, this.a).normalize();
+    this.q.setFromUnitVectors(this.b, this.a);
+    bone.getWorldQuaternion(this.parentQ);
+    this.q.multiply(this.parentQ);
+    bone.parent!.getWorldQuaternion(this.parentQ).invert();
     this.q.premultiply(this.parentQ);
-    this.hand.quaternion.slerp(this.q, blend);
-    this.overridden = true;
+    bone.quaternion.slerp(this.q, blend);
+    bone.updateWorldMatrix(false, true);
   }
 
   private clear(): void {
