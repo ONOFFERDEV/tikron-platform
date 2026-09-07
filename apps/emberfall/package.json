@@ -18,7 +18,7 @@
     "@tikron/schema": "workspace:*",
     "@tikron/server": "workspace:*",
     "@tikron/sim": "workspace:*",
-    "partyserver": "^0.5.8"
+    "partyserver": "^0.5.10"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.17.0",

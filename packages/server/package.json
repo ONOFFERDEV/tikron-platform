@@ -37,7 +37,7 @@
     "@tikron/protocol": "workspace:*",
     "@tikron/schema": "workspace:*",
     "@tikron/sim": "workspace:*",
-    "partyserver": "^0.5.8"
+    "partyserver": "^0.5.10"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260701.1",

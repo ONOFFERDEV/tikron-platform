@@ -15,7 +15,7 @@
   "dependencies": {
     "@tikron/client": "workspace:*",
     "@tikron/server": "workspace:*",
-    "partyserver": "^0.5.8"
+    "partyserver": "^0.5.10"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260701.1",

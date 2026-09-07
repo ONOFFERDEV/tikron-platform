@@ -15,7 +15,7 @@
     "@discord/embedded-app-sdk": "^2.5.0",
     "@tikron/client": "workspace:*",
     "@tikron/server": "workspace:*",
-    "partyserver": "^0.5.8",
+    "partyserver": "^0.5.10",
     "partysocket": "^1.3.0"
   },
   "devDependencies": {

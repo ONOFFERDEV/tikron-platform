@@ -113,7 +113,7 @@ function packageJson(name: string): string {
       "@tikron/schema": TIKRON_VERSION,
       "@tikron/server": TIKRON_VERSION,
       "@tikron/sim": TIKRON_VERSION,
-      partyserver: "^0.5.8",
+      partyserver: "^0.5.10",
     },
     devDependencies: {
       "@cloudflare/workers-types": "^4.20260701.1",
