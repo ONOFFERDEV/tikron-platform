@@ -29,3 +29,10 @@ coverage/
 
 # Internal dev notes/plans — never tracked (kept in the private tikron-internal repo)
 internal/
+
+# ironsight: Synty-derived GLBs are unversioned — the Synty EULA forbids sharing
+# source files outside the team (shipping them inside the deployed worker is fine).
+# Canonical private copy: D:\game-assets\ironsight-synty-derived (see apps/ironsight/public/assets/README.md)
+apps/ironsight/public/assets/models/player.glb
+apps/ironsight/public/assets/models/weapons-vm.glb
+apps/ironsight/public/assets/maps/*-dressing.glb
