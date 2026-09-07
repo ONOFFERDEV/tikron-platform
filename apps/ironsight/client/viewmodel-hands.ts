@@ -2,6 +2,15 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { reloadPose } from './reload-presentation.js';
 
+// Camera-local wrist frames for the five fitted weapon meshes. The pistol's
+// support palm wraps the firing grip; long guns support the underside fore-end.
+const WRISTS = [
+  { right: [0.021, -0.057, -0.17], left: [-0.014, -0.043, -0.51] },
+  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.40] },
+  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.43] },
+  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.45] },
+  { right: [0.021, -0.057, -0.28], left: [-0.020, -0.058, -0.30] },
+] as const;
 const gloveMaterial = new T.MeshStandardMaterial({ color: 0x253035, roughness: 0.9 });
 const armorMaterial = new T.MeshStandardMaterial({ color: 0x506968, roughness: 0.82, metalness: 0.08, flatShading: true });
 const cuffMaterial = new T.MeshStandardMaterial({ color: 0xc09654, roughness: 0.8 });
@@ -34,9 +43,10 @@ export class ViewmodelHands {
     const pose = reloadPose(progress);
     for (const { palm, sleeve, cuff, side } of this.hands) {
       const right = side === 1;
-      this.wrist.set(right ? 0.021 : -0.014, right ? -0.057 : -0.043,
-        right ? (index === 0 ? -0.17 : -0.28) : index === 4 ? -0.27 : index === 0 ? -0.51 : -0.40);
-      if (!right) {
+      const fit = WRISTS[index] ?? WRISTS[0]!;
+      const wrist = right ? fit.right : fit.left;
+      this.wrist.set(wrist[0], wrist[1], wrist[2]);
+      if (!right && index === 0) {
         this.wrist.z += pose.reach * 0.15 + pose.bolt * 0.28;
         this.wrist.y -= pose.reach * 0.07 + pose.magazine * 0.20;
         this.wrist.x += pose.magazine * 0.052;

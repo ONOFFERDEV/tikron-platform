@@ -29,6 +29,13 @@ let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let muted = false;
+let volume = 1;
+
+export function setMasterVolume(value: number): void {
+  const next = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+  if (next === volume) return;
+  volume = next; applyMute();
+}
 
 type WebkitWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
 
@@ -39,7 +46,7 @@ function ensure(): AudioContext | null {
   if (!Ctor) return null;
   ctx = new Ctor();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : A.masterGain;
+  master.gain.value = muted ? 0 : A.masterGain * volume;
   master.connect(ctx.destination);
   // One second of white noise, reused for every gunshot.
   const buf = ctx.createBuffer(1, ctx.sampleRate * A.noiseBufferSec, ctx.sampleRate);
@@ -237,7 +244,7 @@ export function isMuted(): boolean {
 }
 
 function applyMute(): void {
-  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : A.masterGain, ctx.currentTime, 0.01);
+  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : A.masterGain * volume, ctx.currentTime, 0.01);
 }
 
 /** Self-wire gesture-resume + the M mute toggle. Returns the mute state on toggle. */
@@ -255,7 +262,7 @@ export function initAudio(onToggle?: (muted: boolean) => void): void {
   window.addEventListener("pointerdown", resume);
   window.addEventListener("keydown", resume);
   window.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyM" || e.repeat) return;
+    if (e.code !== "KeyM" || e.repeat || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
     muted = !muted;
     try {
       localStorage.setItem(MUTED_KEY, muted ? "1" : "0");

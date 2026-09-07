@@ -214,3 +214,24 @@ describe("formatBinding", () => {
     expect(formatBinding(["KeyR"])).toBe("R");
   });
 });
+
+
+describe("presentation accessibility settings", () => {
+  it("persists reduced motion and volume across sessions", () => {
+    const storage = new FakeStorage(), store = new SettingsStore(storage);
+    store.setReducedMotion(true); store.setVolume(0.35);
+    const restored = new SettingsStore(storage).get();
+    expect(restored.reducedMotion).toBe(true); expect(restored.volume).toBe(0.35);
+    store.resetAll();
+    expect(store.get().reducedMotion).toBe(false); expect(store.get().volume).toBe(1);
+  });
+  it("clamps corrupt volume and preserves older settings", () => {
+    const storage = new FakeStorage();
+    storage.setItem("ironsight.settings.v1", JSON.stringify({ sensitivity: 1.5, volume: 100, reducedMotion: "yes" }));
+    const store = new SettingsStore(storage);
+    expect(store.get().sensitivity).toBe(1.5); expect(store.get().volume).toBe(1);
+    expect(store.get().reducedMotion).toBe(false);
+    store.setVolume(-2); expect(store.get().volume).toBe(0);
+    store.setVolume(NaN); expect(store.get().volume).toBe(1);
+  });
+});

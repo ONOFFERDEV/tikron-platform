@@ -12,12 +12,13 @@ export function startWeaponInspector(): void {
   const weapon = Math.min(4, Math.max(0, Math.floor(Number(query.get('weapon')) || 0)));
   scene.setWeapon(weapon);
   const phases: Record<string, number> = { 'reload-out': 0.40, 'reload-in': 0.58, 'reload-bolt': 0.78, 'reload-return': 0.94 };
-  const progress = phases[shot ?? ''] ?? null;
+  const phase = Object.keys(phases).find(p => shot?.endsWith(p));
+  const progress = phases[phase ?? ''] ?? null;
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
   flags.__inspectReady = false;
   let frames = 0;
   const tick = () => {
-    const ready = scene.inspectViewmodel(progress, shot === 'weapon-ads');
+    const ready = scene.inspectViewmodel(progress, shot?.endsWith('-ads') ?? false);
     scene.render();
     if (!ready || ++frames < 20 || !scene.readyForInspection(0)) { requestAnimationFrame(tick); return; }
     flags.__mapInspect = scene.viewmodelDiagnostics(); flags.__inspectReady = true;

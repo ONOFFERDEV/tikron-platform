@@ -192,10 +192,10 @@ interface NadeFx {
 }
 
 interface BoomFx {
-  light: THREE.PointLight;
   ring: THREE.Mesh;
   ringMat: THREE.MeshBasicMaterial;
-  parts: THREE.Mesh[];
+  parts: THREE.InstancedMesh;
+  positions: THREE.Vector3[];
   vels: THREE.Vector3[];
   partMat: THREE.MeshBasicMaterial;
   born: number;
@@ -391,7 +391,11 @@ export class SceneRig {
   // Grenade + explosion effects, stepped in render().
   private readonly nades = new Map<string, NadeFx>();
   private readonly booms: BoomFx[] = [];
+  private readonly blastLights: { light: THREE.PointLight; born: number }[] = [];
+  private blastLightCursor = 0;
+  private readonly debrisMatrix = new THREE.Matrix4();
   private shakeAmp = 0;
+  reducedMotion = false;
   private lastFx = performance.now();
   private readonly vfx: Vfx;
   private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
@@ -411,6 +415,12 @@ export class SceneRig {
 
   constructor(map: MapDef, container: HTMLElement = document.body,
     options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
+    // Keep the light count stable: adding/removing a light recompiles every
+    // lit material. Newest four blasts share a fixed budget, like muzzle flashes.
+    for (let i = 0; i < 4; i++) {
+      const light = new THREE.PointLight(PALETTE.boom.light, 0, 20, 2);
+      this.scene.add(light); this.blastLights.push({ light, born: -Infinity });
+    }
     const relay = !!map.presentation; // shared industrial daylight lighting
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
@@ -787,10 +797,10 @@ export class SceneRig {
   inspectViewmodel(progress: number | null, ads: boolean): boolean {
     this.inspectionReload = progress; this.adsHeld = ads;
     this.updateViewmodel(100, 0, 0, 0, true);
-    return this.weaponIsModel;
+    return this.weaponIsModel && this.pendingWeapon < 0;
   }
   viewmodelDiagnostics() {
-    return { phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
+    return { weapon: this.weaponIndex, phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
       magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT,
       hands: this.hands.group.visible, ...this.getRenderInfo() };
   }
@@ -825,9 +835,10 @@ export class SceneRig {
       this.nades.delete(e.id);
     }
     // Flash + expanding ring + debris burst.
-    const light = new THREE.PointLight(PALETTE.boom.light, 60, e.r * 4, 2);
-    light.position.set(e.x, e.y + 0.3, e.z);
-    this.scene.add(light);
+    const slot = this.blastLights[this.blastLightCursor]!;
+    this.blastLightCursor = (this.blastLightCursor + 1) % this.blastLights.length;
+    slot.born = performance.now(); slot.light.intensity = 60; slot.light.distance = e.r * 4;
+    slot.light.position.set(e.x, e.y + 0.3, e.z);
     const ringMat = new THREE.MeshBasicMaterial({
       color: PALETTE.boom.ring, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending, depthWrite: false,
@@ -839,17 +850,21 @@ export class SceneRig {
     const partMat = new THREE.MeshBasicMaterial({
       color: PALETTE.boom.parts, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    const parts: THREE.Mesh[] = [];
-    const vels: THREE.Vector3[] = [];
+    // Each burst shares geometry/material: 18 debris pieces cost one draw call.
+    const parts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), partMat, 18);
+    parts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // The tiny moving burst has no stable static bounds. Avoid stale frustum culling.
+    parts.frustumCulled = false;
+    const positions: THREE.Vector3[] = [], vels: THREE.Vector3[] = [];
     for (let i = 0; i < 18; i++) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), partMat);
-      p.position.set(e.x, e.y + 0.2, e.z);
+      const position = new THREE.Vector3(e.x, e.y + 0.2, e.z);
+      positions.push(position);
+      parts.setMatrixAt(i, this.debrisMatrix.makeTranslation(position.x, position.y, position.z));
       const a = (i / 18) * Math.PI * 2;
       vels.push(new THREE.Vector3(Math.cos(a) * (3 + Math.random() * 5), 4 + Math.random() * 6, Math.sin(a) * (3 + Math.random() * 5)));
-      this.scene.add(p);
-      parts.push(p);
     }
-    this.booms.push({ light, ring, ringMat, parts, vels, partMat, born: performance.now() });
+    this.scene.add(parts);
+    this.booms.push({ ring, ringMat, parts, positions, vels, partMat, born: performance.now() });
     // Camera shake, attenuated by distance to the blast.
     const d = this.camera.position.distanceTo(new THREE.Vector3(e.x, e.y, e.z));
     this.shakeAmp = Math.min(0.6, this.shakeAmp + Math.max(0, 1 - d / 30) * 0.45);
@@ -865,28 +880,30 @@ export class SceneRig {
       n.mesh.position.z += n.vz * dt;
       n.mesh.rotation.x += dt * 6;
     }
+    for (const slot of this.blastLights) slot.light.intensity = 60 * Math.max(0, 1 - (now - slot.born) / BOOM_LIFE_MS);
     for (let i = this.booms.length - 1; i >= 0; i--) {
       const b = this.booms[i]!;
       const t01 = (now - b.born) / BOOM_LIFE_MS;
       if (t01 >= 1) {
-        this.scene.remove(b.light, b.ring);
-        for (const p of b.parts) { this.scene.remove(p); p.geometry.dispose(); }
+        this.scene.remove(b.ring);
+        this.scene.remove(b.parts); b.parts.geometry.dispose(); b.parts.dispose();
         b.ring.geometry.dispose();
         b.ringMat.dispose();
         b.partMat.dispose();
         this.booms.splice(i, 1);
         continue;
       }
-      b.light.intensity = 60 * (1 - t01);
       const s = 1 + t01 * 14;
       b.ring.scale.set(s, s, 1);
       b.ringMat.opacity = 0.9 * (1 - t01);
       b.partMat.opacity = 1 - t01;
-      for (const [j, p] of b.parts.entries()) {
+      for (const [j, p] of b.positions.entries()) {
         const v = b.vels[j]!;
         v.y += NADE_GRAVITY * 0.6 * dt;
-        p.position.addScaledVector(v, dt);
+        p.addScaledVector(v, dt);
+        b.parts.setMatrixAt(j, this.debrisMatrix.makeTranslation(p.x, p.y, p.z));
       }
+      b.parts.instanceMatrix.needsUpdate = true;
     }
     this.shakeAmp *= Math.exp(-dt * 6);
   }
@@ -906,7 +923,7 @@ export class SceneRig {
       if (this.inspectionReload === undefined) this.reloadCue?.(reload.phase);
     }
     this.hands.update(this.weaponIndex, progress);
-    this.hands.group.visible = MOTION.hands && this.weaponIndex === 0;
+    this.hands.group.visible = MOTION.hands;
     if (this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
     if (this.magazine) {
       this.magazine.position.y = -reload.magazine * 0.34;
@@ -915,12 +932,14 @@ export class SceneRig {
     const response = 1 - Math.exp(-dt * MOTION.speedResponse);
     this.motionSpeed += ((grounded ? clamp(speed01, 0, 1) : 0) - this.motionSpeed) * response;
     this.bobPhase += dt * MOTION.bobRate * this.motionSpeed;
-    const bobAmt = this.motionSpeed * MOTION.bobAmplitude;
+    const bobAmt = this.reducedMotion ? 0 : this.motionSpeed * MOTION.bobAmplitude;
     const bx = Math.cos(this.bobPhase) * bobAmt;
     const by = Math.sin(this.bobPhase * 2) * bobAmt * 0.6;
     const swayResponse = 1 - Math.exp(-dt * MOTION.swayResponse);
     this.swayX += (clamp(-dYaw / Math.max(dt, 0.001) * MOTION.swayGain, -MOTION.swayLimit, MOTION.swayLimit) - this.swayX) * swayResponse;
     this.swayY += (clamp(dPitch / Math.max(dt, 0.001) * MOTION.swayGain, -MOTION.swayLimit, MOTION.swayLimit) - this.swayY) * swayResponse;
+
+    if (this.reducedMotion) { this.swayX = 0; this.swayY = 0; }
 
     // Weapon swap: dip the holder, replace the mesh at the bottom, raise back up.
     let swapDip = 0;
@@ -962,13 +981,13 @@ export class SceneRig {
     this.viewmodel.position.set(
       lerp(pose.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady,
       lerp(pose.y, -this.sightHeight - (this.weaponIndex === 0 && this.weaponIsModel ? 0 : MOTION.adsSightClearance), ads) +
-        (by + this.swayY + Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
+        (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
       lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
     this.viewmodel.rotation.set(
       pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch + reload.tilt * 0.20,
       pose.yaw * (1 - ads) + this.swayX * steady,
-      Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady - reload.tilt * 0.40,
+      (this.reducedMotion ? 0 : Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady) - reload.tilt * 0.40,
     );
 
     if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
@@ -1001,8 +1020,8 @@ export class SceneRig {
   // --- camera -----------------------------------------------------------------
 
   setView(eye: { x: number; y: number; z: number }, yaw: number, pitch: number): void {
-    const sx = this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
-    const sy = this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
+    const sx = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
+    const sy = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
     this.camera.position.set(eye.x + sx, eye.y + sy, eye.z);
     const cp = Math.cos(pitch);
     this.camera.up.copy(EYE_UP);
@@ -1624,6 +1643,8 @@ export class SceneRig {
    *  calls and triangles reset every render() call (three.js's own semantics,
    *  so this is "last frame"), programs accumulate for the renderer's
    *  lifetime (one per unique material/defines combination compiled so far). */
+  getEffectInfo() { return { explosions: this.booms.length, tracers: this.tracers.length, blastLights: this.blastLights.length }; }
+
   getRenderInfo(): { calls: number; triangles: number; programs: number; textures: number; geometries: number } {
     const info = this.renderer.info;
     return { calls: info.render.calls, triangles: info.render.triangles, programs: info.programs?.length ?? 0,

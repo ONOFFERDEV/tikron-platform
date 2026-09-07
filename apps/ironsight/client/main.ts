@@ -1,3 +1,4 @@
+import { setMasterVolume } from "./audio.js";
 /**
  * ironsight client entry point (W-B). Wires the network layer, input, local
  * prediction, the three.js scene, the DOM HUD, and synth audio into one frame
@@ -447,6 +448,8 @@ async function main(): Promise<void> {
     const speed01 = alive && dt > 0 && travelled < 1
       ? Math.min(1, travelled / (dt / 1000) / GAME.move.sprint) : 0;
     motionX = eye.x; motionZ = eye.z;
+    scene.reducedMotion = settings.get().reducedMotion;
+    setMasterVolume(settings.get().volume);
     scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
     if (!alive) scene.hideViewmodel();
     scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);

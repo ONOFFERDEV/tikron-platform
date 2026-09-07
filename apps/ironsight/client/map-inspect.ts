@@ -9,9 +9,10 @@ export function startMapInspector(): void {
   const host = document.getElementById("app") ?? document.body;
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
+  const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
   const actorCount = params.get("shot")?.endsWith('stress') ? 11 : 0;
-  const scene = new SceneRig(map, host, { loadActors: actorCount > 0, loadViewmodel: false });
-  scene.hideViewmodel();
+  const scene = new SceneRig(map, host, { loadActors: actorCount > 0, loadViewmodel: effects });
+  if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [51, 33, 52, 28, 0, 16],
     cooling: [20, 1.65, 9, 34, 2.3, 3],
@@ -28,7 +29,8 @@ export function startMapInspector(): void {
     'undertow-maintenance': [36, 1.65, 35, 23, 2.5, 28],
     'undertow-stress': [14, 1.65, 16, 33, 1.5, 19],
   };
-  const shot = shots[params.get("shot") ?? "overview"] ?? shots.overview!;
+  const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
+  const shot = shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
   scene.camera.lookAt(shot[3], shot[4], shot[5]);
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
@@ -43,22 +45,66 @@ export function startMapInspector(): void {
     alive: true, weapon: 0,
   }] as const));
   let frameCount = 0, last = performance.now(), peakCalls = 0, peakTriangles = 0;
+  const firstFrames: number[] = [];
+  let drained: unknown;
+  let started = 0, volleyAt = 0, blastAt = 0, volleys = 0, explosions = 0;
+  const calls: number[] = [], triangles: number[] = [];
+  let peakTextureMiB = 0, peakTextures = 0;
   const tick = (now: number) => {
-    if (frameCount > 30) samples.push(now - last);
+    const ready = scene.readyForInspection(actorCount) && (!effects || scene.inspectViewmodel(null, false));
+    if (ready && !started) { started = now; volleyAt = now; blastAt = now; }
+    if (ready) firstFrames.push(now - last);
+    if (effects && ready && now - started < 15000) {
+      // Twelve rifles at 10 shots/s, pooled flashes/casings/impacts, and a
+      // synchronized twelve-grenade burst every 2 seconds. Render load only:
+      // this deliberately exceeds normal grenade availability; no server claims.
+      if (now >= volleyAt) {
+        volleyAt = now + 100; volleys++;
+        for (let i = 0; i < 12; i++) {
+          const origin = i === 11 ? scene.getSelfMuzzlePos() : scene.getRemoteMuzzleAnchor(`inspect-${i}`);
+          if (!origin) continue;
+          const dir = { x: -1, y: 0, z: 0 };
+          scene.spawnMuzzleFlash(origin, dir); scene.spawnCasing(origin, dir);
+          scene.addTracer(origin, dir, 12, false, 300);
+          scene.spawnImpact({ x: origin.x - 8, y: 1, z: origin.z }, dir, i % 2 === 0);
+        }
+        scene.fireRecoil();
+      }
+      if (now >= blastAt) {
+        blastAt = now + 2000;
+        for (let i = 0; i < 12; i++) {
+          scene.boomNade({ id: `stress-${explosions++}`, x: 17 + i % 4 * 2,
+            y: 0.2, z: (map === ARENA2 ? 16 : 10) + Math.floor(i / 4) * 0.7, r: 5 });
+        }
+      }
+    }
+    if (frameCount > 30 && (!effects || now - started < 15000)) samples.push(now - last);
     if (actorCount) scene.syncPlayers(actors, "local-inspector", Math.min(50, now - last));
     last = now;
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
-    if (!scene.readyForInspection(actorCount)) { frameCount = 0; samples.length = 0; requestAnimationFrame(tick); return; }
-    if (++frameCount < 151) { requestAnimationFrame(tick); return; }
+    if (!ready) { frameCount = 0; samples.length = 0; requestAnimationFrame(tick); return; }
+    if (frameCount > 30 && (!effects || now - started < 15000)) { calls.push(info.calls); triangles.push(info.triangles); }
+    peakTextureMiB = Math.max(peakTextureMiB, scene.textureBytesEstimate() / (1024 * 1024));
+    peakTextures = Math.max(peakTextures, info.textures);
+    ++frameCount;
+    if (effects && now - started >= 18000) drained = { ...scene.getEffectInfo(), ...scene.getRenderInfo() };
+    if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
-      actorCount,
+      actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
+        rifles: 12, targetShotsPerRiflePerSecond: 10, observedShotsPerRiflePerSecond: volleys / 15, grenadesPerBurst: 12, burstIntervalMs: 2000 } : null,
+      medianCalls: [...calls].sort((a,b) => a-b)[Math.floor(calls.length / 2)],
+      peakMeasuredCalls: Math.max(...calls), peakMeasuredTriangles: Math.max(...triangles),
+      peakTextureMiB, peakTextures,
       peakCallsIncludingShadowBake: peakCalls, peakTrianglesIncludingShadowBake: peakTriangles,
       estimatedTextureMiB: scene.textureBytesEstimate() / (1024 * 1024),
+      firstFramesMaxMs: Math.max(...firstFrames.slice(0, 30)),
       samples: samples.length, medianMs: sorted[Math.floor(sorted.length / 2)],
+      maxMs: Math.max(...samples), overBudgetFrames: samples.filter(ms => ms > 16.7).length,
+      p99Ms: sorted[Math.floor(sorted.length * 0.99)],
       p95Ms: sorted[Math.floor(sorted.length * 0.95)],
       note: "Frame intervals on this GPU; not proof of the 60 fps laptop iGPU floor. Static shadows are cached after load.",
     };

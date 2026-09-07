@@ -44,6 +44,8 @@ export interface Settings {
   /** Multiplier applied on top of the base `MOUSE_SENSITIVITY` rad/px constant. */
   sensitivity: number;
   invertY: boolean;
+  reducedMotion: boolean;
+  volume: number;
   binds: Record<BindAction, string[]>;
 }
 
@@ -91,7 +93,7 @@ const DEFAULT_INVERT_Y = false;
 function defaultSettings(): Settings {
   const binds = {} as Record<BindAction, string[]>;
   for (const action of BIND_ACTIONS) binds[action] = [...DEFAULT_BINDS[action]];
-  return { sensitivity: DEFAULT_SENSITIVITY, invertY: DEFAULT_INVERT_Y, binds };
+  return { sensitivity: DEFAULT_SENSITIVITY, invertY: DEFAULT_INVERT_Y, reducedMotion: false, volume: 1, binds };
 }
 
 function clampSensitivity(value: number): number {
@@ -114,6 +116,8 @@ function mergeWithDefaults(raw: unknown): Settings {
 
   if (typeof r.sensitivity === "number") out.sensitivity = clampSensitivity(r.sensitivity);
   if (typeof r.invertY === "boolean") out.invertY = r.invertY;
+  if (typeof r.reducedMotion === "boolean") out.reducedMotion = r.reducedMotion;
+  if (typeof r.volume === "number" && Number.isFinite(r.volume)) out.volume = Math.max(0, Math.min(1, r.volume));
 
   if (r.binds !== null && typeof r.binds === "object") {
     const rb = r.binds as Record<string, unknown>;
@@ -165,6 +169,16 @@ export class SettingsStore {
 
   setInvertY(value: boolean): void {
     this.current = { ...this.current, invertY: value };
+    save(this.storage, this.current);
+  }
+
+  setReducedMotion(value: boolean): void {
+    this.current = { ...this.current, reducedMotion: value };
+    save(this.storage, this.current);
+  }
+
+  setVolume(value: number): void {
+    this.current = { ...this.current, volume: Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1 };
     save(this.storage, this.current);
   }
 

@@ -76,6 +76,7 @@ try {
   await send('Network.enable');
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  const browserVersion = await send('Browser.getVersion');
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
@@ -88,7 +89,7 @@ try {
       url.searchParams.set('inspect', name.startsWith('match-') ? 'match' : name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
       url.searchParams.set('shot', name);
       if (name.startsWith('weapon-')) {
-        const weapon = ['weapon', 'weapon-smg', 'weapon-shotgun', 'weapon-sniper', 'weapon-pistol'].indexOf(name);
+        const weapon = ['ar', 'smg', 'shotgun', 'sniper', 'pistol'].indexOf(name.split('-')[1]);
         if (weapon > 0) url.searchParams.set('weapon', String(weapon));
       }
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
@@ -116,6 +117,30 @@ try {
       }
       await evaluate('Promise.all([...document.images].map(i => i.decode().catch(()=>{})))');
       await delay(350);
+    }
+    if (name === 'menu-settings' || name === 'menu-settings-mobile') {
+      await click('.settingsBtn');
+      const key = async (code, modifiers = 0) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: code, code, modifiers });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: code, code, modifiers });
+      };
+      if (!(await evaluate('document.activeElement === document.querySelector("#settingsPanel input") && document.querySelector("#settingsPanel").getAttribute("role") === "dialog"'))) throw Error('Settings dialog focus/semantics missing');
+      await key('Tab', 8);
+      if (!(await evaluate('document.activeElement === document.querySelector("#settingsPanel .bottomRow button:last-child")'))) throw Error('Settings backward focus wrap failed');
+      await key('Tab');
+      if (!(await evaluate('document.activeElement === document.querySelector("#settingsPanel input")'))) throw Error('Settings forward focus wrap failed');
+      await evaluate('document.querySelector("#settingsPanel input").value="1.35"; document.querySelector("#settingsPanel input").dispatchEvent(new Event("input",{bubbles:true}))');
+      await evaluate('const motion=document.querySelector("[data-setting=reduced-motion]"); motion.checked=true; motion.dispatchEvent(new Event("change",{bubbles:true})); const volume=document.querySelector("[data-setting=volume]"); volume.value="0.35"; volume.dispatchEvent(new Event("input",{bubbles:true}));');
+      await click('#settingsPanel .keyBtn'); await key('Escape');
+      if (!(await evaluate('!!document.querySelector("#settingsPanel") && !document.querySelector(".capturing")'))) throw Error('Escape did not cancel key capture');
+      await key('Escape');
+      if (!(await evaluate('!document.querySelector("#settingsPanel") && document.activeElement === document.querySelector(".settingsBtn")'))) throw Error('Settings close/focus restoration failed');
+      await click('.settingsBtn');
+      if (!(await evaluate('document.querySelector("#settingsPanel input").value === "1.35"'))) throw Error('Settings value did not persist');
+      if (!(await evaluate('document.querySelector("[data-setting=reduced-motion]").checked && document.querySelector("[data-setting=volume]").value === "0.35" && document.querySelector("#settingsPanel").textContent.includes("움직임 줄이기")'))) throw Error('Presentation settings/translated labels failed');
+      const accessibility = await evaluate('({ dialog:document.querySelector("#settingsPanel").getAttribute("role"), sensitivity:document.querySelector("#settingsPanel input").value, fits:document.querySelector("#settingsPanel .panel").getBoundingClientRect().right <= innerWidth, namedControls:[...document.querySelectorAll("#settingsPanel .keyBtn,#settingsPanel .resetBtn")].every(n=>!!n.getAttribute("aria-label")) })');
+      if (!accessibility.fits || !accessibility.namedControls) throw Error('Settings accessibility/layout check failed');
+      await evaluate(`window.__mapInspect = ${JSON.stringify(accessibility)}`);
     }
     if (name === 'match-vote') {
       await click('[data-action="restart"]');
@@ -217,6 +242,12 @@ try {
       }
     }
     const report = (await send('Runtime.evaluate', { expression: gameplay ? '({ ...window.ironsight.renderInfo(), players: Object.keys(window.ironsight.state().players).length, hp: window.ironsight.state().players[window.ironsight.myId].hp })' : 'window.__mapInspect ?? null', returnByValue: true })).result?.value;
+    if (args.includes('--assert-budgets') && name.endsWith('effects-stress')) {
+      if (report.peakCallsIncludingShadowBake > 240 || report.peakTrianglesIncludingShadowBake > 500000 ||
+          report.peakTextureMiB > 64 || report.peakTextures > 32 || report.effects.drained.explosions !== 0 || report.effects.drained.tracers !== 0)
+        throw Error(`Renderer resource budget or effect cleanup failed: ${JSON.stringify(report)}`);
+      // Frame timing is deliberately not an automated hardware acceptance gate.
+    }
     reports.push({ shot: name, report, combat });
     const capture = await send('Page.captureScreenshot', { format: 'png' });
     const file = join(output, `${prefix}-${name}.png`);
@@ -227,7 +258,7 @@ try {
     }
     console.log(file, JSON.stringify(report));
   }
-  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reports, errors, forbiddenNetwork }, null, 2));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ browserVersion, reports, errors, forbiddenNetwork }, null, 2));
   if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (forbiddenNetwork.length) throw Error('Offline inspector opened gameplay network connections');
 } catch (error) {

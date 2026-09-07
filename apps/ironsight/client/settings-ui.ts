@@ -41,7 +41,7 @@ const css = `
   justify-content: center; background: rgba(6,8,12,0.7); font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
   color: #eef; pointer-events: auto; }
 #settingsPanel .panel { display: flex; flex-direction: column; gap: 16px; width: 420px;
-  max-height: 80vh; overflow-y: auto; padding: 28px 32px; border: 1px solid rgba(255,255,255,0.12);
+  max-width: calc(100vw - 80px); max-height: 80vh; overflow-y: auto; padding: 28px 32px; border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px; background: rgba(20,24,32,0.92); }
 #settingsPanel h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
 #settingsPanel h3 { margin: 8px 0 0; font-size: 13px; letter-spacing: 1px; opacity: 0.7; }
@@ -55,6 +55,7 @@ const css = `
 #settingsPanel button { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
   background: rgba(255,255,255,0.06); color: #eef; font: inherit; cursor: pointer;
   transition: background 120ms, border-color 120ms; }
+#settingsPanel :focus-visible { outline: 2px solid #edaa52; outline-offset: 3px; }
 #settingsPanel button:hover { background: rgba(70,130,220,0.25); border-color: rgba(156,196,255,0.6); }
 #settingsPanel .keyBtn { min-width: 96px; }
 #settingsPanel .keyBtn.capturing { background: rgba(220,180,70,0.25); border-color: rgba(255,220,140,0.7); }
@@ -77,13 +78,17 @@ function formatSens(value: number): string {
 export function openSettings(settings: SettingsStore, onClose: () => void): void {
   if (root) return; // already open
 
+  const previousFocus = document.activeElement;
   const style = document.createElement("style");
   style.textContent = css;
   const dlg = document.createElement("div");
   dlg.id = "settingsPanel";
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-labelledby", "settingsTitle");
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.innerHTML = `<h2>${T.title}</h2>`;
+  panel.innerHTML = `<h2 id="settingsTitle">${T.title}</h2>`;
 
   // -- Sensitivity slider -----------------------------------------------
   const sensRow = document.createElement("div");
@@ -92,6 +97,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   sensLabel.textContent = T.sensitivityLabel;
   const sensInput = document.createElement("input");
   sensInput.type = "range";
+  sensInput.setAttribute("aria-label", T.sensitivityLabel);
   sensInput.min = "0.1";
   sensInput.max = "3.0";
   sensInput.step = "0.05";
@@ -124,6 +130,36 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   invertText.textContent = T.invertYLabel;
   invertRow.append(invertInput, invertText);
   panel.appendChild(invertRow);
+
+  const motionRow = document.createElement("label");
+  motionRow.className = "checkRow";
+  const motionInput = document.createElement("input");
+  motionInput.type = "checkbox";
+  motionInput.dataset.setting = "reduced-motion";
+  motionInput.checked = settings.get().reducedMotion;
+  motionInput.addEventListener("change", () => {
+    if (capturingAction !== null) { motionInput.checked = settings.get().reducedMotion; return; }
+    settings.setReducedMotion(motionInput.checked);
+  });
+  motionRow.append(motionInput, "Reduced motion / 움직임 줄이기");
+  const motionHint = document.createElement("small");
+  motionHint.textContent = "Removes weapon bob, sway, breathing and blast shake. Aim, recoil and reload cues remain.";
+  panel.append(motionRow, motionHint);
+  const volumeRow = document.createElement("label");
+  volumeRow.className = "row sensRow";
+  const volumeInput = document.createElement("input");
+  volumeInput.type = "range"; volumeInput.min = "0"; volumeInput.max = "1"; volumeInput.step = "0.05";
+  volumeInput.dataset.setting = "volume";
+  volumeInput.value = String(settings.get().volume);
+  const volumeValue = document.createElement("span");
+  volumeValue.textContent = `${Math.round(settings.get().volume * 100)}%`;
+  volumeInput.addEventListener("input", () => {
+    if (capturingAction !== null) return;
+    settings.setVolume(Number(volumeInput.value));
+    volumeValue.textContent = `${Math.round(settings.get().volume * 100)}%`;
+  });
+  volumeRow.append("Master volume / 음량", volumeInput, volumeValue);
+  panel.append(volumeRow);
 
   // -- Keybinding table -----------------------------------------------------
   const bindsTitle = document.createElement("h3");
@@ -167,6 +203,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
 
     const keyBtn = document.createElement("button");
     keyBtn.className = "keyBtn";
+    keyBtn.setAttribute("aria-label", `Rebind ${T.actionLabels[action]}`);
     keyBtn.textContent = formatBinding(settings.get().binds[action]);
     keyBtn.addEventListener("click", () => {
       if (capturingAction !== null) return;
@@ -176,6 +213,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
 
     const resetBtn = document.createElement("button");
     resetBtn.className = "resetBtn";
+    resetBtn.setAttribute("aria-label", `Reset ${T.actionLabels[action]}`);
     resetBtn.textContent = "↺";
     resetBtn.addEventListener("click", () => {
       if (capturingAction !== null) return;
@@ -193,7 +231,16 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   // point already detaches its own Escape listener before opening this panel
   // so the two never actually race, but this keeps the module safe on its own.
   const onKeydown = (e: KeyboardEvent): void => {
-    if (capturingAction === null) return;
+    if (capturingAction === null) {
+      if (e.code === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+      if (e.code === "Tab") {
+        const controls = Array.from(panel.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
+        const first = controls[0], last = controls.at(-1);
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (e.code === "Escape") {
@@ -222,6 +269,8 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     sensInput.value = String(settings.get().sensitivity);
     sensValue.textContent = formatSens(settings.get().sensitivity);
     invertInput.checked = settings.get().invertY;
+    motionInput.checked = settings.get().reducedMotion;
+    volumeInput.value = String(settings.get().volume); volumeValue.textContent = "100%";
     for (const a of BIND_ACTIONS) refreshKeyButton(a);
   });
 
@@ -238,9 +287,11 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     dlg.remove();
     root = null;
     onClose();
+    if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
   }
 
   dlg.append(style, panel);
   document.body.appendChild(dlg);
   root = dlg;
+  sensInput.focus();
 }

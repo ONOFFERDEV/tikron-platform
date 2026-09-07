@@ -1,5 +1,49 @@
 # IRONSIGHT / RELAY — rebuild plan
 
+## OWNER PLAYTEST GUIDE
+
+**Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
+Supervisor reports sessions 1-4 are deployed there. Session 5 is a local candidate
+until the supervisor publishes it; its new hands/settings/effects are not yet on
+that preview. **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
+
+Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
+
+| Time | Try | Look for |
+|---|---|---|
+| 0-1 min | Open Settings using Tab/Enter; adjust sensitivity, rebind a key, close with Escape. After session 5 lands, try volume and Reduced motion. | Clear focus, readable labels, saved choices; no unwanted movement while in a menu. |
+| 1-3 min | Training / Relay: sprint all three lanes, climb both decks, crouch at cover. Fire, aim, reload and switch all five weapons (1-5); throw G away from yourself. | Solid visible cover, readable enemies/exits, comfortable aim, no first-shot/blast freeze; stable grip and unobstructed sights. |
+| 3-5 min | Return to deployment, choose Training / Undertow. Visit A/B/C and both control ledges; die and respawn once. | Distinct routes, no snagged ramps/invisible walls, readable health/ammo and safe respawn. |
+| 5-10 min | Join a running Relay TDM with the other player. Fight across cover, open Escape/settings, return, then vote rematch if the round ends. | Correct team/result, hits that agree for both players, clear death/recovery, preserved controls after menus and rematch. |
+
+A solo warmup or bots do **not** validate 6v6. If no round finishes within the ten
+minutes, record rematch as untested. Report browser/GPU, map, weapon and the exact
+trigger for any hitch, clipping, confusing UI or disagreeing hit; a short clip helps.
+
+**Before switching live, still required:**
+
+- Representative mid-laptop iGPU: 1920x1080, balanced/DPR 1, twelve real players,
+  both maps, sustained shooting/blasts and a full-match/thermal soak. Confirm
+  median <=16.7 ms / >=60 fps, record p95/p99, cold first-use stalls and recovery.
+  RTX 5070 render fixtures do not establish this or network/room capacity.
+- Owner/players: real 6v6 spawn/route fairness, hit feel across actual RTT, full
+  round/results/rematch, audio comfort/direction, mouse controls and visual approval.
+- Firefox and Safari/WebKit on supported real devices; pointer lock, audio gesture,
+  reconnect, browser zoom and keyboard/screen-reader settings review. Local matrix
+  covers only Windows Blink browsers. Controller support is not implemented;
+  implement and test real hardware before claiming controller compatibility.
+- Supervisor: publish this candidate to preview, exercise real deployed Durable
+  Object cold eviction (expected NEW round), short reconnect and lost-seat timeout,
+  then verify the reviewed private asset set is present. No deployment done here.
+- Remaining engineering/art blockers: cold first-use stutter (83-347 ms first-ready
+  effects samples here; one Chrome map boot reached 653 ms), alternate third-person
+  authored holds/aim contact and detailed alternate reloads, followed by human
+  animation acceptance. Session 5 first-person grips are an improvement, not full M2.
+- Owner explicitly approves the final preview and these remaining gates before the
+  supervisor changes the live worker. Defaults remain industrial daylight, 6v6 TDM,
+  stylized sci-fi. No new owner decision is needed to continue development.
+
+
 ## Vision and pillars
 
 A compact, confident science-fiction FPS about taking control of abandoned relay
@@ -197,6 +241,9 @@ and health, map callout, clear pause/reconnect/death states, reduced clutter.
 - **M5 — performance and release candidate:** representative iGPU 1080p 12-player
   test, effects stress, asset audit, browser matrix, accessibility settings. Preview
   deploy by supervisor only; owner approves live. No live release claims before this.
+  **Session 5: local effects/resource gates, Blink matrix, settings accessibility and
+  first-person alternate grips delivered. Laptop/real-match/cold-start and remaining
+  animation acceptance stay pending; see owner guide and session 5 evidence.**
 
 Every session: `pnpm --filter ironsight typecheck`, `test`, `build:client`, `build`;
 headless boot zero console errors, inspect saved screenshots, close owned processes.
@@ -575,3 +622,119 @@ accessibility, and a deployed cold-eviction drill through the supervisor. Full
 scoreboard/team roster polish and staged onboarding can follow human feedback.
 Do not claim finished animation or hardware release acceptance. Defaults unchanged;
 no new owner blockers or SDK requests.
+
+
+### Session 5 - 2026-09-07
+
+M5 local release-candidate work, same owner defaults and apps/ironsight-only scope.
+No git commands, deployments, SDK changes, dependencies or purchased-asset writes.
+The required Worker build uses its existing dry-run. The owner guide above explicitly
+separates the supervisor's sessions 1-4 preview from this unpublished candidate.
+
+Delivered:
+- Repeatable 1080p renderer workload: eleven remote operators plus local AR/hands,
+  twelve rifles targeting 10 shots/s, pooled flashes/casings/impacts/tracers and
+  twelve simultaneous grenade explosions every two seconds, for 15 seconds.
+  Three-second cooldown reports zero remaining explosions/tracers. This is an
+  intentionally excessive render fixture, not twelve network clients or a room
+  capacity benchmark. Production particle directions retain their randomness.
+- Initial bursts exceeded the 240-call budget: Relay 401, Undertow 404 calls.
+  Replaced eighteen individual debris meshes per grenade with one InstancedMesh;
+  kept trajectories, fade and lifetime, and dispose instance buffers on expiry.
+  Four fixed reusable blast lights replace changing light counts, avoiding new
+  lit-material variants for each simultaneous blast count. All twelve rings and
+  debris bursts still render; only the newest four supply point lighting.
+- Inspector records actual shot rate, peak resource use, p95/p99/max frame intervals,
+  first-ready-frame spikes and effect cleanup. `--assert-budgets` enforces 240 calls,
+  500k triangles, 32 textures, estimated 64 MiB and expired transient cleanup.
+  It deliberately does not grant laptop acceptance from desktop frame timing.
+- Settings: named dialog and controls, initial focus, Tab/Shift-Tab wrapping,
+  Escape capture cancellation/close, focus restoration, narrow-panel fit and focus
+  outline. Persisted master volume and Reduced motion remove bob/sway/breathing/
+  blast shake while retaining aim, recoil and reload cues. Master mute remains M;
+  typing/rebinding in controls no longer also toggles mute. Two store tests cover
+  persistence/reset, old settings and invalid volume. Keyboard smoke exercises
+  both new controls plus sensitivity, focus wrapping and translated labels.
+- First-person SMG/shotgun/sniper/pistol now use original gloves with per-weapon
+  wrist fits. Pistol supports the firing grip; long guns support the fore-end.
+  All four have inspected hip, settled ADS and reload-tilt views; sniper scope
+  hides its model as before. Only AR has separated magazine/bolt choreography;
+  alternatives keep their support hand attached through a simplified reload tilt.
+  Inspector now waits for weapon swaps to finish before measuring ADS (early
+  candidate captures exposed ads=0 despite the requested ADS view; rejected).
+- Twelve alternate third-person aim captures (-89/0/+89 degrees, four weapons)
+  confirm the unchanged attachment fallback is still visibly unarmed. It was not
+  relabelled as a finished grip. Authored alternative holds/reloads remain work.
+
+Final serial gates: typecheck PASS; test PASS **292 passed + 3 existing opt-in
+skips** (25 passed files, one skipped); build:client PASS; Worker build/dry-run PASS
+**233.53 KiB / gzip 69.43 KiB**. A tuple-spread type error during hand authoring was
+fixed before these final gates. Server combat/movement/hit validation is unchanged.
+
+Final Edge 152 / RTX 5070 Direct3D11, 1920x1080, balanced / DPR 1:
+
+| 15-second effects fixture | Median / peak calls | Peak triangles | Peak textures / estimated MiB | Sampled median / p95 / p99 ms |
+|---|---|---|---|---|
+| Relay, 11 remote + local | 160 / 197 | 81,962 | 22 / 60.08 | 6.9 / 7.1 / 7.1 |
+| Undertow, 11 remote + local | 163 / 200 | 76,456 | 21 / 57.42 | 6.9 / 7.1 / 7.1 |
+
+`session5-budget-gate-report.json`: 2,108 / 2,128 steady samples; max 7.3 / 7.8 ms,
+zero sampled intervals over 16.7 ms. Actual rates 9.60 / 9.67 volleys/s (all twelve
+rifles per volley), 96 explosions/map. After cooldown: 68 / 71 calls, zero active
+explosions/tracers. Peak counts include the initial static-shadow work. Both
+resource gates pass. These are rAF intervals, not GPU timer-query measurements.
+
+**Cold-start qualification is still open.** First thirty ready frames are reported
+separately rather than hidden in the steady median: final runs max 347.2 / 83.3 ms;
+prior same-build effects runs 305.6 / 215.3 ms. Chrome Undertow map boot max 652.8 ms.
+Profile shader/material initialization and uploads, then prewarm during a deliberate
+loading phase before release. No representative laptop or sustained thermal/network
+6v6 acceptance was performed, and these steady measurements do not erase the spikes.
+
+Browser matrix (all local, headless, Windows):
+
+| Browser | Evidence | Result |
+|---|---|---|
+| Edge 152.0.4191.62 | session5-edge (9 flows), budget-gate (3), final-visual (16) | Zero console/runtime/HTTP errors; real combat and same-seat reconnect passed. |
+| Chrome 151.0.7922.174 | session5-chrome (5 flows) | Zero errors; settings, real combat, Undertow render and pistol ADS passed. |
+| Chromium 151.0.7922.34 | session5-chromium (4 flows) | Zero errors; settings, real Undertow deployment and AR ADS passed. |
+| Cached Chromium 131.0.6778.33 | session5-chromium-legacy | Settings passed; headless pointer lock FAILED on gameplay click, zero console errors. Not accepted; distinguish old-engine/headless limitation with a real browser test. |
+| Firefox / WebKit | Not installed in available browser cache/program paths | Untested; requires other environment/real devices. |
+
+Edge and Chrome combat each moved 2.7 m, scored one server-verified kill, reloaded
+26 -> 30 through all six phases, blocked fire during reload and confirmed target
+respawn. Chromium's Undertow flow is a real deployment/boot, not a combat assertion.
+All offline accepted inspections recorded zero forbidden gameplay-network requests.
+The cached Chromium 131 pointer-lock failure is retained; it is not counted green.
+
+Visual review opened final first-person fits/ADS/reload, the unchanged third-person
+pistol fallback and narrow settings. Rejected damaged Korean settings labels from
+shell encoding, corrected the source, then asserted/reviewed the correct labels in
+Chrome and current Chromium. First-person grips are improved; alternate third-person
+poses and full animation acceptance are not complete. No raw/derived mesh was edited.
+
+Asset audit PASS: **4,969,991 asset bytes**, **10,755,939 public bytes**, largest file
+**4,021,453 bytes**; only 416 provenance-text bytes added to assets, no raw source files, five documented private
+GLBs under the unchanged ignore rule. Asset SHA-256 inventory is recorded locally in
+`.inspect/session5-asset-hashes.json`. Private rifle audit PASS: 19,768 unit quaternion
+samples, nine original and eleven rifle clips, source geometry/original clips and
+base lower body preserved. Derived operator still 1,705,400 bytes. Rebuild provenance
+is unchanged; runtime gloves/debris remain original code, no purchased export.
+
+Next: profile/prewarm first-use stalls; author and inspect alternate third-person
+holds and detailed reloads; arrange representative laptop, real 6v6 and owner visual/
+controls acceptance. Controller input is absent in the current client; do not claim
+it works from keyboard smoke. Supervisor owns preview publication and deployed
+cold-eviction drill; owner owns live approval. No new SDK request or owner default
+question. Full M2/M5 and live-release acceptance remain pending, as listed at top.
+
+Final additional boot: `session5-death-report.json` passes self-grenade death during
+reload and recovery to 100 HP / idle reload, with zero console/runtime/HTTP errors.
+Local Wrangler logged a tick-backlog warning during this session; it is retained in
+session5-preview-error.log. This local mixed workload is not deployed capacity
+acceptance; no latency/capacity claim is derived from local workerd.
+
+Cleanup verified in `.inspect/session5-cleanup.json`: all 12 owned preview root/
+descendant processes stopped, no port 8796 listener and no inspection Chrome/Edge
+processes remain. Inspection profiles were removed by their owning scripts. All
+session temporary reports/screenshots remain in the ignored .inspect directory.

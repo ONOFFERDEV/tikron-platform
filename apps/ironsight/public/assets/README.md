@@ -79,3 +79,9 @@ wrist roll. It restores all owned bone rotations before locomotion/reaction upda
 The rifle bake stabilizes clavicles in the authored idle frame while preserving
 torso/head tracks, and fits the support hand to the measured rear fore-end contact
 for every sampled locomotion pose. The source fallback clips remain untouched.
+
+Session 5 adds no asset files or purchased derivatives. First-person procedural
+hands now have individual fits for all five slots; alternate reloads use an attached
+support hand and the existing tilt, not AR magazine/bolt choreography. Third-person
+alternatives still use the original attachment fallback. Explosion debris is
+instanced at runtime from original box geometry; four pooled lights bound shading.
