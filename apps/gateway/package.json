@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tikron/client": "workspace:*",
     "@tikron/protocol": "workspace:*",
     "@tikron/rpg": "workspace:*",
     "@tikron/schema": "workspace:*",

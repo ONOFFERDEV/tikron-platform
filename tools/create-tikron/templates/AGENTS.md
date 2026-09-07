@@ -141,6 +141,23 @@ players who left) so they glide. The **local** player renders straight from your
 zero added latency. For a casual room this one helper is all you need: no `SnapshotBuffer` or
 `RenderPredictor` (those are for the client-authoritative shooter model — see the full brief).
 
+## Room placement (optional region pin)
+
+A room's Durable Object is created **near whoever connects first** and stays there for its
+life — players far from the creator pay the distance. To pin a new room to a geography, the
+CREATING client passes a region on join and `src/index.ts` forwards it as a Cloudflare
+`locationHint`:
+
+```ts
+await client.joinOrCreate(roomId, { region: "apac" });
+// one of: wnam, enam, weur, eeur, apac, oc, afr, me
+```
+
+The hint only matters on the connect that creates the room (later joins with a different
+hint are ignored by the platform), placement is best-effort, and an existing room never
+moves. An invalid value logs a warning (`wrangler tail`) and falls back to default
+placement — it never fails the join.
+
 ## Hosted leaderboards (optional)
 
 `src/index.ts` pre-wires `platformReporter` (usage metering) and `platformLeaderboard` (score

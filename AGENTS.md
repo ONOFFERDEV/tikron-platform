@@ -724,7 +724,10 @@ what is in progress — pick your genre and architecture accordingly.
   place the room's Durable Object near a chosen geography on first contact — the hint is
   recorded at reservation and applied when the first client connects. Still **matchmake by
   region** (bucket players with the matchmaker `mode`/`filterBy`) so a room's members are near
-  each other and near its placement.
+  each other and near its placement. Self-hosted scaffolds honor the same hint without the
+  matchmaker: the creating client passes `joinOrCreate(roomId, { region: "apac" })` and the
+  scaffold worker forwards it as the `locationHint` on first contact (invalid values warn and
+  fall back to default placement).
 - **Matchmaking scope.** What exists: `joinOrCreate` + reservation + `filterBy` + a live
   lobby list. What does **not** exist yet: skill/MMR rating, parties/pre-made groups, and
   reconnect-into-queue. Build ranked matching or party grouping in your own app layer on top

@@ -315,7 +315,9 @@ an always-on tick. Full math + verified-vs-estimated: docs/COSTS.md.
 - DO placement is fixed near the room's creator; cross-region groups get asymmetric latency.
   Place a room's DO near a geography with a matchmake region hint (region= one of wnam/enam/
   weur/eeur/apac/oc/afr/me, applied when the room is created); still matchmake by region so
-  members are near each other and the placement.
+  members are near each other and the placement. Self-hosted scaffolds: the creating client
+  passes joinOrCreate(roomId, { region }) and the scaffold worker forwards it as locationHint
+  (invalid values warn + default placement).
 - Matchmaking = joinOrCreate + reservation + filterBy + lobby list ONLY. No skill/MMR,
   parties, or reconnect-into-queue — build ranked/party logic in your app layer.
 - Scale: measured comfortable at 20 players/room, 100 in one room, and 128 CCU across rooms

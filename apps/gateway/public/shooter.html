@@ -98,23 +98,81 @@
         top: 84px;
         right: 16px;
         z-index: 2;
-        min-width: 140px;
-        padding: 10px 12px;
+        min-width: 188px;
+        padding: 12px 14px;
         font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: 12.5px;
         line-height: 1.5;
         color: var(--text);
-        background: rgba(16, 21, 29, 0.85);
-        border: 1px solid var(--border);
+        background: rgba(12, 17, 23, 0.82);
+        border: 1px solid rgba(0, 229, 160, 0.22);
         border-radius: var(--radius);
+        backdrop-filter: blur(6px);
       }
-      #lb b {
+      /* two mint corner brackets echo the in-canvas tactical panels */
+      #lb::before,
+      #lb::after {
+        content: "";
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border: 2px solid var(--neon);
+      }
+      #lb::before {
+        top: -1px;
+        right: -1px;
+        border-left: 0;
+        border-bottom: 0;
+        border-top-right-radius: var(--radius);
+      }
+      #lb::after {
+        bottom: -1px;
+        left: -1px;
+        border-right: 0;
+        border-top: 0;
+        border-bottom-left-radius: var(--radius);
+      }
+      .lb-title {
+        color: var(--neon);
+        text-shadow: var(--glow);
+        letter-spacing: 0.14em;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      .lb-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .lb-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 1px 0;
+      }
+      .lb-row .lb-nm {
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lb-row .lb-sc {
+        color: var(--text);
+      }
+      .lb-row.lb-top .lb-nm,
+      .lb-row.lb-top .lb-sc {
         color: var(--neon);
         text-shadow: var(--glow);
       }
-      #lb ol {
-        margin: 6px 0 0;
-        padding-left: 18px;
+      .lb-div {
+        margin: 7px 0 6px;
+        border-top: 1px dashed rgba(139, 152, 168, 0.35);
+      }
+      .lb-you .lb-nm {
+        color: var(--neon-dim);
+      }
+      .lb-you .lb-sc {
+        color: var(--text);
       }
 
       /* The hidden attribute must beat the display rules below (UA default loses). */
@@ -148,6 +206,18 @@
         margin: 10px 0 6px;
       }
       .gate-title .accent {
+        color: var(--neon);
+        text-shadow: var(--glow);
+      }
+      .gate-tagline {
+        margin: 0 0 14px;
+        font-family: var(--font-mono);
+        font-weight: 650;
+        font-size: 15px;
+        letter-spacing: 0.02em;
+        color: var(--text);
+      }
+      .gate-tagline .dot {
         color: var(--neon);
         text-shadow: var(--glow);
       }
@@ -263,13 +333,14 @@
 
     <canvas id="c" width="900" height="640"></canvas>
     <div id="status">connecting…</div>
-    <div id="lb"><b>shooter-top</b></div>
+    <div id="lb"><div class="lb-title">SHOOTER-TOP</div></div>
 
     <div id="gate">
       <div class="gate-card">
         <div id="start-panel">
           <div class="eyebrow">Tikron · live FPS demo</div>
           <h1 class="gate-title">Top-down <span class="accent">arena</span></h1>
+          <p class="gate-tagline">Loot<span class="dot">.</span> Fight<span class="dot">.</span> Survive<span class="dot">.</span></p>
           <p class="gate-sub">
             Server-authoritative hitscan with subtick lag compensation, running on Cloudflare
             Durable Objects. Drop in, drop out — the match is always live.
@@ -291,6 +362,6 @@
       </div>
     </div>
 
-    <script type="module" src="/shooter.js?v=11"></script>
+    <script type="module" src="/shooter.js?v=12"></script>
   </body>
 </html>
