@@ -19,6 +19,19 @@ export interface ZoneObstacle {
   rotation?: number;
 }
 
+/** One purely-cosmetic set piece: a client-rendered prop with NO server collision.
+ *  Unlike `ZoneObstacle` (which the room reads for `pushOutOfObstacles`), the server
+ *  ignores `decorations` entirely — they only exist to place scenery the player can walk
+ *  through, e.g. a portal gate framing a portal marker without blocking approach to it. */
+export interface ZoneDecoration {
+  id: string;
+  pos: { x: number; y: number };
+  /** Logical asset id the client resolves via the manifest (e.g. `"prop.portal_gate"`). */
+  prop: string;
+  /** Y-axis rotation for the client's prop placement (radians); purely cosmetic. */
+  rotation?: number;
+}
+
 /** One monster camp: `count` NPCs of `npcDefId`, scattered around `home`, respawning on death. */
 export interface MobCamp {
   id: string;
@@ -74,4 +87,6 @@ export interface ZoneData {
   /** Shop/dummy markers (optional — additive; M1's `ashen-fields.ts` predates this
    *  field and simply omits it, meaning "no NPC markers in this zone"). */
   npcs?: NpcMarker[];
+  /** Cosmetic, collision-free client props (optional). See {@link ZoneDecoration}. */
+  decorations?: ZoneDecoration[];
 }

@@ -24,8 +24,25 @@ export interface EmberUnit {
   level: number;
   /** Meaningful for players only; monsters carry `"none"`. */
   class: "warrior" | "mage" | "cleric" | "none";
-  /** Sprite/model discriminator — `player`, or the monster species id from the content pack. */
-  kind: "player" | "wolf" | "goblin_scout" | "goblin_thrower" | "boar" | "goblin_shaman" | "boss_chief";
+  /** Sprite/model discriminator — `player`, or the monster species id from the content pack.
+   *  The M3 Ember Depths roster (skeleton/wraith/golem + the two scripted bosses) is appended
+   *  after the M1/M2 field species; the client's `NPC_VISUALS` (net.ts) declares the same set,
+   *  and this codec enum is the wire contract both sides share (a `kind` outside it throws on
+   *  encode — see `enumOf`), so the two lists must stay in lockstep. */
+  kind:
+    | "player"
+    | "wolf"
+    | "goblin_scout"
+    | "goblin_thrower"
+    | "boar"
+    | "goblin_shaman"
+    | "boss_chief"
+    | "skeleton_warrior"
+    | "skeleton_archer"
+    | "wraith"
+    | "golem"
+    | "wraith_commander"
+    | "ember_lord";
   alive: boolean;
   /** Skill id currently being cast/channeled, or `""` when idle. */
   cast: string;
@@ -91,7 +108,21 @@ export const EmberSchema = schema({
       maxMp: "u16",
       level: "u8",
       class: enumOf("warrior", "mage", "cleric", "none"),
-      kind: enumOf("player", "wolf", "goblin_scout", "goblin_thrower", "boar", "goblin_shaman", "boss_chief"),
+      kind: enumOf(
+        "player",
+        "wolf",
+        "goblin_scout",
+        "goblin_thrower",
+        "boar",
+        "goblin_shaman",
+        "boss_chief",
+        "skeleton_warrior",
+        "skeleton_archer",
+        "wraith",
+        "golem",
+        "wraith_commander",
+        "ember_lord",
+      ),
       alive: "bool",
       cast: str(24),
       castEnd: "f64",

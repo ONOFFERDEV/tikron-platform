@@ -1,6 +1,6 @@
 import { env as workerEnv } from "cloudflare:workers";
 import { IoArenaRoom, type Client } from "@tikron/server";
-import { stepToward, pushOutOfObstacles, type Obstacle } from "@tikron/sim";
+import { stepToward, pushOutOfObstacles, rayObstacleHit, type Obstacle } from "@tikron/sim";
 import { RpgEngine, makeRng, type CombatEvent, type Modifier, type TargetRef, type UnitView } from "@tikron/rpg";
 import { EMBERFALL_CONTENT } from "../content/emberfall-content.js";
 import { CLASS_HOTBAR, CLASS_STATS, CLASS_WEAPON, isSkillUnlocked, type EmberClass } from "../content/hotbar.js";
@@ -11,6 +11,7 @@ import { rollLoot } from "../systems/loot.js";
 import * as persist from "../persist.js";
 import type { EquipSlot, ItemModifier, SavedCharacter, SavedZone } from "../types.js";
 import type { ZoneData } from "../zones/types.js";
+import { resolveTransfer } from "./zone-transition.js";
 import {
   EmberSchema,
   MAP,
@@ -124,6 +125,12 @@ const SAVE_EVERY_TICKS = Math.round(60_000 / TICK_MS);
 const SAFE_ZONE: SavedZone = "emberhold";
 const SAFE_SPAWN = { x: 30, y: 30 };
 
+/** Space-dash tuning. The client sends only a target POINT; the server trusts its direction
+ *  but caps the lunge at `DASH_DISTANCE` units (anti-teleport), gates re-use per client by
+ *  `DASH_COOLDOWN_MS`, and stops the lunge short of the first wall it would cross. */
+const DASH_DISTANCE = 5;
+const DASH_COOLDOWN_MS = 4000;
+
 function isVec2(v: unknown): v is { x: number; y: number } {
   return (
     typeof v === "object" &&
@@ -206,17 +213,25 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
    *  M1 join behavior; tests override this field directly before connecting a client. */
   protected db: D1Database | null = (workerEnv as Partial<{ DB: D1Database }>).DB ?? null;
 
-  private engine!: RpgEngine;
+  /** The combat engine. `protected` so a zone subclass's `onZoneTick` can read boss hp,
+   *  force phase casts, and spawn adds; the base still owns its whole lifecycle. */
+  protected engine!: RpgEngine;
   /** Engine-clock base; bumped to the snapshot's `nowMs` on restore so time never rewinds. */
   private clockBaseMs = 0;
   /** playerId -> click-to-move destination; consumed a step per tick until reached. */
   private readonly moveDest = new Map<string, { x: number; y: number }>();
+  /** clientId -> engine time (ms) at which this client may dash again (DASH_COOLDOWN_MS gate). */
+  private readonly dashReadyAt = new Map<string, number>();
   /** playerId -> selected class (in-memory only in M1; D1-backed for a loaded character). */
   private readonly classById = new Map<string, EmberClass>();
   /** monster slot id -> where/what to respawn (built once from `this.zone`'s spawn tables). */
   private readonly slotHome = new Map<string, SlotHome>();
   /** monster slot id -> simulation tick at which it re-spawns after death. */
   private readonly respawnAt = new Map<string, number>();
+  /** One-off summon (`spawnSummonNpc`) unit id -> its npcDefId, for the kill-loot roll only.
+   *  NOT a respawn slot (never re-spawns) and in-memory only (an eviction between spawn and
+   *  death forfeits the roll — same accepted tradeoff as `lootRng`). */
+  private readonly summonLoot = new Map<string, string>();
   /** `zone.obstacles` cached as `@tikron/sim` AABBs (built once; obstacles are static). */
   private obstacles: Obstacle[] = [];
   /** clientId -> character session, for every seated player with a loaded character. */
@@ -243,10 +258,12 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
     this.state.engine = this.engine.serialize();
 
     this.onMessage("move", (client, payload) => this.handleMove(client, payload));
+    this.onMessage("dash", (client, payload) => this.handleDash(client, payload));
     this.onMessage("cast", (client, payload) => this.handleCast(client, payload));
     this.onMessage("stopCast", (client) => this.handleStopCast(client));
     this.onMessage("attack", (client, payload) => this.handleAttack(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
+    this.onMessage("respawnVillage", (client) => this.handleRespawnVillage(client));
     this.onMessage("selectClass", (client, payload) => this.handleSelectClass(client, payload));
 
     this.registerZoneIntents();
@@ -255,6 +272,24 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
 
   /** Extension point — override in a zone subclass. See this file's top docblock. */
   protected registerZoneIntents(): void {}
+
+  /** Per-tick zone-script hook (default no-op). A zone subclass overrides this to run
+   *  boss phase scripts etc. off this tick's drained combat `events` and the current
+   *  engine `now` (ms), after the base has reaped/respawned. `dungeon-room.ts` is the only
+   *  user in M3. Any engine mutation here (forced casts, summons) buffers its own events
+   *  for the NEXT tick's broadcast; broadcasts the hook sends itself (`bossEvent`,
+   *  `telegraph`) go out immediately. */
+  protected onZoneTick(_events: readonly CombatEvent[], _now: number): void {}
+
+  /** Spawn a one-off NPC that is NOT a respawning camp slot — e.g. a boss's summoned adds.
+   *  It's reaped like any mob (loot rolls to its killer, PLAN §3) but never respawns, and is
+   *  tracked only in memory (see {@link summonLoot}). Returns the engine-assigned unit id, or
+   *  `null` at the `maxUnits` cap. Intended for `onZoneTick` phase scripts. */
+  protected spawnSummonNpc(npcDefId: string, pos: { x: number; y: number }): string | null {
+    const id = this.engine.spawnNpc(npcDefId, pos, { home: pos });
+    if (id) this.summonLoot.set(id, npcDefId);
+    return id;
+  }
 
   /** Extension point — see docblock. Every handler no-ops (silently) on a missing
    *  character session (persistence disabled, or unauthenticated) or a malformed
@@ -531,8 +566,16 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
    *  (falling back to the cached snapshot's own fields when the unit is already gone,
    *  e.g. a save racing a seat-expiry cleanup), normalize dungeon zones to the village
    *  safe spawn, and write it to D1 — skipping the write (FIX-2's optimistic
-   *  concurrency) if `clientId`'s session claim has since been superseded. */
-  private async persistSession(session: CharSession, clientId: string): Promise<void> {
+   *  concurrency) if `clientId`'s session claim has since been superseded. `override`
+   *  (used by `handleRespawnVillage`'s cross-zone case) forces the saved zone/position
+   *  instead of deriving them from `this.zone`/the live unit — needed because a
+   *  village-respawn from a non-village zone must record `emberhold` + the village spawn
+   *  even though the unit is still physically standing in the room it died in. */
+  private async persistSession(
+    session: CharSession,
+    clientId: string,
+    override?: { zone: SavedZone; pos: { x: number; y: number } },
+  ): Promise<void> {
     const db = this.db;
     if (!db) return;
     const unit = this.engine.getUnit(clientId);
@@ -540,8 +583,14 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
     const elapsedMs = Math.max(0, now - session.sessionStartedAt);
 
     const inDungeon = this.zone.id === "ember-depths";
-    const zone: SavedZone = inDungeon ? SAFE_ZONE : (this.zone.id as SavedZone);
-    const pos = inDungeon ? { ...SAFE_SPAWN } : unit ? { x: unit.pos.x, y: unit.pos.y } : { x: session.character.x, y: session.character.y };
+    const zone: SavedZone = override ? override.zone : inDungeon ? SAFE_ZONE : (this.zone.id as SavedZone);
+    const pos = override
+      ? override.pos
+      : inDungeon
+        ? { ...SAFE_SPAWN }
+        : unit
+          ? { x: unit.pos.x, y: unit.pos.y }
+          : { x: session.character.x, y: session.character.y };
 
     const updated: SavedCharacter = {
       ...session.character,
@@ -606,6 +655,10 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
     this.reapDeadNpcs(events);
     this.processRespawns();
     this.trackXpEvents(events);
+    // Zone-script hook (boss phases etc.) runs BEFORE syncUnits so any add it spawns this
+    // tick is mirrored into state this tick; its own engine mutations buffer their events
+    // for next tick's broadcast (same trade-off as reap/respawn above).
+    this.onZoneTick(events, now);
     this.syncUnits();
     if (this.currentTick % SNAPSHOT_EVERY === 0) {
       this.state.engine = this.engine.serialize();
@@ -624,6 +677,56 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
     const dest = { x: clamp(payload.x, 0, this.zone.width), y: clamp(payload.y, 0, this.zone.height) };
     if (me.casting) this.engine.stopCast(client.id, this.now()); // a move cancels a cast
     this.moveDest.set(client.id, dest);
+  }
+
+  /** Space-dash — a short server-authoritative lunge. The client sends a target POINT
+   *  (`{x, y}`, its cursor's ground raycast); the server trusts only its DIRECTION and caps
+   *  the distance at DASH_DISTANCE (never teleport where the client asked), stops short of
+   *  the first wall the lunge crosses (no dashing through cover), clamps to the world/obstacles,
+   *  gates re-use by DASH_COOLDOWN_MS, and applies it with the same instant-reposition
+   *  primitive (`moveUnit`, which also fires the engine's cancel-on-move buffs) that
+   *  `stepMovement` uses. Dead/stunned/rooted/sleeping can't dash; a cast is cancelled like
+   *  an ordinary move. On success, broadcasts a `"dash"` event to nearby clients (+ the dasher)
+   *  for the client-side trail/snap. */
+  private handleDash(client: Client, payload: unknown): void {
+    const me = this.engine.getUnit(client.id);
+    if (!me || !me.alive || !me.canMove || !isVec2(payload)) return; // dead/CC'd — silently ignore
+    const now = this.now();
+    if (now < (this.dashReadyAt.get(client.id) ?? 0)) return; // cooldown — silently ignore
+    const from = { x: me.pos.x, y: me.pos.y };
+    // Direction to the requested point; fall back to the unit's facing when it coincides with us.
+    let dx = payload.x - from.x;
+    let dy = payload.y - from.y;
+    const len = Math.hypot(dx, dy);
+    let dist: number;
+    if (len < 1e-6) {
+      dx = Math.cos(me.facing);
+      dy = Math.sin(me.facing);
+      dist = DASH_DISTANCE;
+    } else {
+      dx /= len;
+      dy /= len;
+      dist = Math.min(len, DASH_DISTANCE); // cap at DASH_DISTANCE; a nearer request lands at the point
+    }
+    // Stop just short of the first wall the lunge would cross (keep the player circle clear of it).
+    const hit = rayObstacleHit(this.obstacles, from.x, from.y, dx, dy, dist);
+    if (hit) dist = Math.max(0, hit.t - PLAYER_RADIUS);
+    const land = pushOutOfObstacles(
+      { x: clamp(from.x + dx * dist, 0, this.zone.width), y: clamp(from.y + dy * dist, 0, this.zone.height) },
+      PLAYER_RADIUS,
+      this.obstacles,
+    );
+    if (me.casting) this.engine.stopCast(client.id, now); // a dash cancels a cast, like a move
+    this.moveDest.delete(client.id); // land and stop; drop any in-progress click-move
+    this.engine.moveUnit(client.id, land, Math.atan2(dy, dx));
+    this.dashReadyAt.set(client.id, now + DASH_COOLDOWN_MS);
+    this.sendNear(
+      "dash",
+      { unit: client.id, fromX: from.x, fromY: from.y, toX: land.x, toY: land.y },
+      land.x,
+      land.y,
+      { always: [client.id] },
+    );
   }
 
   private handleCast(client: Client, payload: unknown): void {
@@ -661,6 +764,39 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
     if (!me || me.alive) return; // only the dead respawn
     this.moveDest.delete(client.id);
     this.engine.resurrect(client.id, { hpPct: 50, mpPct: 50, pos: { ...this.zone.playerSpawn } }, this.now());
+  }
+
+  /** "마을에서 부활" — like {@link handleRespawn} but always lands the character at
+   *  Emberhold's safe spawn, no matter which zone they died in. Only the dead can call
+   *  this (same anti-teleport gate as `handleRespawn`), and it no-ops without a loaded
+   *  character session (persistence disabled, or unauthenticated — matches every other
+   *  handler's persistence gate). Already-home case: identical to `handleRespawn` at the
+   *  village's own spawn point. Cross-zone case: revive in place (so `persistSession`
+   *  below reads live post-resurrect hp/mp off the engine unit), force-save the
+   *  character as alive + `emberhold` + the village spawn point (an `override`, since
+   *  the plain `persistSession` normally records THIS room's own zone/position), then
+   *  hand off to the client via the exact same `"transfer"` message a village portal
+   *  sends (`zone-transition.ts`'s `resolveTransfer` — byte-identical wire contract, see
+   *  `field-room.ts`'s `transferOut`). No explicit unit removal here: a portal transfer
+   *  doesn't remove the unit from this room either — the client disconnects itself on
+   *  receiving `"transfer"` and reconnects to the destination room, and this room's own
+   *  `onSeatExpired` cleans up from there, exactly as it already does for a portal exit. */
+  private handleRespawnVillage(client: Client): void {
+    const me = this.engine.getUnit(client.id);
+    if (!me || me.alive) return; // only the dead respawn
+    const session = this.charByClient.get(client.id);
+    if (!session) return; // no character session — matches other handlers' persistence gate
+    this.moveDest.delete(client.id);
+
+    if (this.zone.id === "emberhold") {
+      this.engine.resurrect(client.id, { hpPct: 50, mpPct: 50, pos: { ...this.zone.playerSpawn } }, this.now());
+      return;
+    }
+
+    this.engine.resurrect(client.id, { hpPct: 50, mpPct: 50, pos: { ...me.pos } }, this.now());
+    void this.persistSession(session, client.id, { zone: SAFE_ZONE, pos: { ...SAFE_SPAWN } }).finally(() =>
+      client.send("transfer", resolveTransfer("village")),
+    );
   }
 
   private handleSelectClass(client: Client, payload: unknown): void {
@@ -770,6 +906,13 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
       if (home) {
         this.respawnAt.set(ev.unit, this.currentTick + Math.ceil(home.respawnMs / TICK_MS));
         if (ev.killer) this.grantLoot(ev.killer, home.npcDefId);
+      } else {
+        // A one-off summon (boss add): loot like a trash mob, but no respawn slot to refill.
+        const summonDef = this.summonLoot.get(ev.unit);
+        if (summonDef) {
+          this.summonLoot.delete(ev.unit);
+          if (ev.killer) this.grantLoot(ev.killer, summonDef);
+        }
       }
       this.engine.removeUnit(ev.unit); // clear the corpse; a slot refills on its timer
     }
@@ -875,17 +1018,31 @@ export abstract class EmberRoomBase extends IoArenaRoom<EmberState> {
    */
   private broadcastCombatEvents(events: readonly CombatEvent[]): void {
     for (const ev of events) {
+      // `skillStarted`/`skillFired` carry the engine's cast `target` as a `TargetRef`
+      // (`{unitId}` | `{pos}`). The client only needs a unit id to fly a projectile toward it,
+      // so relay that as a plain string (additive — the client's `CombatEventLite.skillFired`
+      // reads `target?: string`); point-/self-casts drop the field and the client falls back to
+      // the caster's facing. Cloned, never mutating the shared engine event other consumers read.
+      const relayed =
+        ev.t === "skillStarted" || ev.t === "skillFired" ? { ...ev, target: this.skillTargetId(ev.target) } : ev;
       if (ev.t === "death" || ev.t === "levelUp") {
-        this.broadcast("combat", [ev]);
+        this.broadcast("combat", [relayed]);
         continue;
       }
       const { pos, always } = this.routeFor(ev);
       if (!pos) {
-        this.broadcast("combat", [ev]);
+        this.broadcast("combat", [relayed]);
         continue;
       }
-      this.sendNear("combat", [ev], pos.x, pos.y, { always });
+      this.sendNear("combat", [relayed], pos.x, pos.y, { always });
     }
+  }
+
+  /** The unit id a skill was cast at, from the engine event's own `target` ref when it names a
+   *  unit. Point-casts (`{pos}`) and self/untargeted casts yield `undefined` (JSON drops the
+   *  field). */
+  private skillTargetId(target: TargetRef | undefined): string | undefined {
+    return target && "unitId" in target ? target.unitId : undefined;
   }
 
   // --- state mirror ------------------------------------------------------------------

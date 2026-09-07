@@ -186,6 +186,69 @@ describe("zone-transition — portal touch triggers save + transfer", () => {
   });
 });
 
+describe("zone-transition — respawnVillage (village-respawn choice from another zone)", () => {
+  it("field death -> respawnVillage: sends the village transfer and persists zone/spawn/alive", async () => {
+    const { db } = createFakeD1();
+    const created = await createCharacter(db, { nickname: "AshWalker", class: "warrior" });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    // Start this character already in the field so onJoin doesn't fight moveTo's target.
+    await import("../src/persist.js").then(({ saveCharacter }) =>
+      saveCharacter(db, created.token, { ...created.character, zone: "ashen-fields", x: 100, y: 100 }),
+    );
+
+    const h = await makeRoom(FieldRoomImpl, db);
+    const conn = await connectAsChar(h, db, created);
+    await h.flush();
+
+    const boss = ASHEN_FIELDS.fieldBoss!;
+    const bossSlot = `boss:${boss.npcDefId}`;
+    await moveTo(h, conn, conn.id, boss.pos, 40000);
+
+    await conn.send("attack", { unitId: bossSlot });
+    let dead = false;
+    for (let i = 0; i < 30 && !dead; i++) {
+      await h.advance(2000);
+      dead = h.snapshot().units[conn.id]?.alive === false;
+    }
+    expect(dead).toBe(true);
+
+    await conn.send("respawnVillage");
+    await h.advance(200);
+
+    const msgs = transferMessages(conn);
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toEqual(resolveTransfer("village"));
+
+    const saved = await loadCharacter(db, created.token);
+    expect(saved).not.toBeNull();
+    expect(saved!.zone).toBe("emberhold");
+    expect(Math.hypot(saved!.x - EMBERHOLD.playerSpawn.x, saved!.y - EMBERHOLD.playerSpawn.y)).toBeLessThan(1);
+    expect(saved!.hp).toBeGreaterThan(0);
+  });
+
+  it("respawnVillage while alive is a no-op: no transfer message, character untouched", async () => {
+    const { db } = createFakeD1();
+    const created = await createCharacter(db, { nickname: "StillAlive", class: "mage" });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    await import("../src/persist.js").then(({ saveCharacter }) =>
+      saveCharacter(db, created.token, { ...created.character, zone: "ashen-fields", x: 100, y: 100 }),
+    );
+
+    const h = await makeRoom(FieldRoomImpl, db);
+    const conn = await connectAsChar(h, db, created);
+    await h.flush();
+
+    await conn.send("respawnVillage");
+    await h.advance(200);
+
+    expect(transferMessages(conn)).toHaveLength(0);
+    const saved = await loadCharacter(db, created.token);
+    expect(saved!.zone).toBe("ashen-fields");
+  });
+});
+
 describe("zone-transition — dungeon private instances", () => {
   it("two different invite codes are two fully independent room instances", async () => {
     const a = await makeRoom(DungeonRoomImpl, null, "code-a");

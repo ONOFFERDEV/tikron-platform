@@ -171,7 +171,7 @@ describe("inventory — useConsumable", () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.inventory).toEqual([{ defId: "potion-hp", qty: 2 }]);
-    expect(res.heal).toEqual({ hp: 60, mp: 0 });
+    expect(res.heal).toEqual({ hp: 90, mp: 0 }); // matches potion-hp.consume.hp (M3-tuned to 90)
   });
 
   it("removes the slot entirely when the last unit is consumed", () => {

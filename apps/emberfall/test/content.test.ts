@@ -3,19 +3,24 @@ import { validateContent } from "@tikron/rpg";
 import { EMBERFALL_CONTENT } from "../src/content/emberfall-content.js";
 import { CLASS_HOTBAR, CLASS_STATS, CLASS_WEAPON, SKILL_UNLOCKS, isSkillUnlocked } from "../src/content/hotbar.js";
 import { ASHEN_FIELDS } from "../src/zones/ashen-fields.js";
+import { LOOT_TABLES } from "../src/systems/loot.js";
+import { ITEMS } from "../src/content/items.js";
 
 const CLASSES = ["warrior", "mage", "cleric"] as const;
 const UNLOCK_LEVELS = [1, 3, 5, 8, 11, 14];
 const FIELD_NPC_IDS = ["wolf", "goblin_scout", "goblin_thrower", "boar", "goblin_shaman", "boss_chief"];
+// M3 Ember Depths roster — these ids are a cross-agent contract (zone camps + room scripts
+// reference them by exactly these strings). Do not rename without updating those callers.
+const DUNGEON_NPC_IDS = ["skeleton_warrior", "skeleton_archer", "wraith", "golem", "wraith_commander", "ember_lord"];
 
 describe("emberfall-content — validateContent", () => {
   it("has no dangling skill/buff/npc/weapon references", () => {
     expect(() => validateContent(EMBERFALL_CONTENT)).not.toThrow();
   });
 
-  it("defines exactly the 6 M1 field monster species + field boss (no dungeon mobs yet)", () => {
+  it("defines the 6 field species + boss and the 6 M3 dungeon mobs (12 total)", () => {
     const ids = EMBERFALL_CONTENT.npcs.map((n) => n.id).sort();
-    expect(ids).toEqual([...FIELD_NPC_IDS].sort());
+    expect(ids).toEqual([...FIELD_NPC_IDS, ...DUNGEON_NPC_IDS].sort());
   });
 
   it("gives every class weapon a matching WeaponDef", () => {
@@ -28,6 +33,56 @@ describe("emberfall-content — validateContent", () => {
     expect(curve.length).toBeGreaterThanOrEqual(16); // index 0..15
     expect(curve[1]).toBe(0);
     for (let l = 2; l <= 15; l++) expect(curve[l]!).toBeGreaterThan(curve[l - 1]!);
+  });
+});
+
+describe("emberfall-content — M3 dungeon roster", () => {
+  const npcById = new Map(EMBERFALL_CONTENT.npcs.map((n) => [n.id, n]));
+
+  it("every dungeon mob has a positive level/exp and only positive stat overrides", () => {
+    for (const id of DUNGEON_NPC_IDS) {
+      const npc = npcById.get(id)!;
+      expect(npc, id).toBeDefined();
+      expect(npc.level, id).toBeGreaterThan(0);
+      expect(npc.expMultiplier ?? 1, id).toBeGreaterThan(0);
+      for (const [k, v] of Object.entries(npc.stats ?? {})) {
+        expect(v, `${id}.${k}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("every dungeon mob has a loot table whose item ids all resolve in ITEMS", () => {
+    for (const id of DUNGEON_NPC_IDS) {
+      const table = LOOT_TABLES[id];
+      expect(table, `loot table for ${id}`).toBeDefined();
+      const ids = [
+        ...table!.drops.map((d) => d.defId),
+        ...(table!.guaranteedRare ?? []),
+        ...(table!.epicPool ?? []),
+      ];
+      for (const defId of ids) expect(ITEMS[defId], `${id}: ${defId}`).toBeDefined();
+    }
+  });
+
+  it("the Stone Guardian is a physical wall: its armor is >= 3x a dungeon trash mob's", () => {
+    const golemArmor = npcById.get("golem")!.stats!.armor!;
+    const trashArmor = npcById.get("skeleton_warrior")!.stats!.armor!;
+    expect(golemArmor).toBeGreaterThanOrEqual(trashArmor * 3);
+  });
+
+  it("ember-lord-eruption is defined but left OFF ember_lord's skill list (room-script fires it)", () => {
+    const skillIds = new Set(EMBERFALL_CONTENT.skills.map((s) => s.id));
+    expect(skillIds.has("ember-lord-eruption")).toBe(true);
+    const lordSkills = (npcById.get("ember_lord")!.skills ?? []).map((s) => s.skillId);
+    expect(lordSkills).not.toContain("ember-lord-eruption");
+    // The hp-phase enrage buff must stay reusable by the room script.
+    expect(EMBERFALL_CONTENT.buffs.some((b) => b.id === "boss-chief-enrage-buff")).toBe(true);
+  });
+
+  it("the wraith carries a move-speed slow debuff", () => {
+    const slow = EMBERFALL_CONTENT.buffs.find((b) => b.id === "wraith-slow");
+    expect(slow?.kind).toBe("bad");
+    expect(slow?.modifiers?.some((m) => m.stat === "moveSpeedMul" && m.value < 0)).toBe(true);
   });
 });
 

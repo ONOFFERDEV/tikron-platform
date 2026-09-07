@@ -122,6 +122,18 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20260701.1
         version: 4.20260701.1
+      '@tikron/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.0
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
       vitest:
         specifier: ^4.1.0
         version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
@@ -278,6 +290,21 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.22.4
+
+  tools/rig-editor:
+    devDependencies:
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.0
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
 packages:
 

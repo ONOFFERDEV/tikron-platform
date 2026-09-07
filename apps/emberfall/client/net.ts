@@ -20,6 +20,20 @@ import { EMBERFALL_CONTENT } from "../src/content/emberfall-content.js";
 import type { ItemInstance, EquipSlot, SavedZone } from "../src/types.js";
 import type { UnitData } from "./units.js";
 import type { UnitRenderer } from "./units.js";
+import { MOB_KOREAN_NAMES, LEVEL_UP_FLAVOR, VILLAGE_RESPAWN_TEXT, randomLine, BOSS_LINES, type BossEvent } from "./lore.js";
+import {
+  setDeathOverlay,
+  showToast,
+  showBossBar,
+  updateBossBar,
+  hideBossBar,
+  showBossLine,
+  showBossBanner,
+  runEndingBanners,
+  showPhaseFlash,
+} from "./ui.js";
+import { createVfxSystem, type VfxSystem } from "./vfx.js";
+import { playSfx } from "./audio.js";
 
 /** Party (kebab-case of the Durable Object binding — AGENTS.md rule 4), one per zone room. */
 export const FIELD_PARTY = "field-room";
@@ -50,6 +64,13 @@ const NPC_VISUALS: Readonly<Record<string, string>> = {
   boar: "unit.boar",
   goblin_shaman: "unit.goblin_shaman",
   boss_chief: "unit.boss_chief",
+  // M3 dungeon roster (§3.3): commander shares the wraith mesh, ember_lord the boss_lord mesh.
+  skeleton_warrior: "unit.skeleton",
+  skeleton_archer: "unit.skeleton_archer",
+  wraith: "unit.wraith",
+  golem: "unit.golem",
+  wraith_commander: "unit.wraith",
+  ember_lord: "unit.boss_lord",
 };
 
 /** skillId -> SkillDef, for hotbar display (name/cooldownMs/manaCost/targetType). */
@@ -72,7 +93,7 @@ export function unitDisplayName(id: string, u: Pick<EmberUnit, "kind" | "class">
     if (id === myId) return "You";
     return u.class === "none" ? "Player" : u.class[0]!.toUpperCase() + u.class.slice(1);
   }
-  return NPC_NAMES[u.kind] ?? u.kind;
+  return MOB_KOREAN_NAMES[u.kind] ?? NPC_NAMES[u.kind] ?? u.kind;
 }
 
 /** Optional gear fields Wave B2 will add to `EmberUnit` (`ember-schema.ts` §7 — "weapon:
@@ -220,7 +241,7 @@ export function pruneFloatingNumbers(queue: readonly FloatingNumber[], nowMs: nu
 
 export type CombatEventLite =
   | { t: "skillStarted"; caster: string; skillId: string }
-  | { t: "skillFired"; caster: string; skillId: string }
+  | { t: "skillFired"; caster: string; skillId: string; target?: string }
   | { t: "damaged"; source: string; target: string; amount: number }
   | { t: "healed"; source: string; target: string; amount: number }
   | { t: "death"; unit: string; killer?: string }
@@ -298,6 +319,83 @@ export function parseLootOverflow(raw: unknown): number | null {
   return typeof overflow === "number" && overflow > 0 ? overflow : null;
 }
 
+// --- pure: boss-event + telegraph messages (M3 §7 — server send side lands next wave) -----
+
+/** The two bosses the room drives via `"bossEvent"` (§7.2/§7.3). `boss_chief` (§7.1) still
+ *  runs off the existing Enrage hook and sends no `bossEvent`, so it is not a wire value. */
+export type WireBoss = "wraith_commander" | "ember_lord";
+
+export interface BossEventMsg {
+  boss: WireBoss;
+  unitId: string;
+  ev: BossEvent;
+}
+
+const WIRE_BOSSES: readonly WireBoss[] = ["wraith_commander", "ember_lord"];
+const BOSS_EVENTS: readonly BossEvent[] = ["engage", "half", "phase_summon", "phase_aoe", "enrage", "defeated"];
+
+/** Validates a `"bossEvent" {boss, unitId, ev}` payload against the §7 contract. Defensive
+ *  (the server send side isn't wired yet) — returns `null` for any unknown boss/event. */
+export function parseBossEvent(raw: unknown): BossEventMsg | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.unitId !== "string" || o.unitId.length === 0) return null;
+  if (typeof o.boss !== "string" || !(WIRE_BOSSES as readonly string[]).includes(o.boss)) return null;
+  if (typeof o.ev !== "string" || !(BOSS_EVENTS as readonly string[]).includes(o.ev)) return null;
+  return { boss: o.boss as WireBoss, unitId: o.unitId, ev: o.ev as BossEvent };
+}
+
+export interface TelegraphMsg {
+  x: number;
+  y: number;
+  r: number;
+  ms: number;
+}
+
+/** Validates a `"telegraph" {x, y, r, ms}` AOE-warning payload. Returns `null` unless the
+ *  radius is positive and the delay non-negative (a zero/negative decal is never useful). */
+export function parseTelegraph(raw: unknown): TelegraphMsg | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.x !== "number" || typeof o.y !== "number") return null;
+  if (typeof o.r !== "number" || !(o.r > 0)) return null;
+  if (typeof o.ms !== "number" || !(o.ms >= 0)) return null;
+  return { x: o.x, y: o.y, r: o.r, ms: o.ms };
+}
+
+/** After a connect/zone-transfer the server restores the local unit's hp with a resurrect,
+ *  so my own unit gets a spurious `"resurrected"` combat event on join. Its presentation
+ *  (toast/float/vfx/sfx) is suppressed for this window after connect — a real post-death
+ *  revive always happens well after this. Other units' resurrects are never suppressed. */
+const RESURRECT_SUPPRESS_MS = 3000;
+
+/** Client-side anti-spam gate for the Space dash (ms). The SERVER owns the real 4s cooldown;
+ *  this only swallows key-repeat so a held Space doesn't flood intents. Kept a touch under the
+ *  server's window so a legitimately-ready dash is never dropped by the local gate. */
+const DASH_MIN_INTERVAL_MS = 3500;
+/** Full lunge distance (units) — mirrors the server's `DASH_DISTANCE`. Used only to build the
+ *  fallback target aimed along the unit's heading when the cursor isn't over the ground. */
+const DASH_DISTANCE = 5;
+
+interface DashEvent {
+  unit: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+/** Validates a `"dash"` broadcast (`ember-room-base.ts` `handleDash`) — the dashing unit and
+ *  its from/to sim-plane coordinates, for the client trail + self-snap. */
+export function parseDashEvent(raw: unknown): DashEvent | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.unit !== "string") return null;
+  const { fromX, fromY, toX, toY } = o;
+  if (![fromX, fromY, toX, toY].every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  return { unit: o.unit, fromX: fromX as number, fromY: fromY as number, toX: toX as number, toY: toY as number };
+}
+
 // --- NetSession: DOM/three-touching glue (not unit-tested; covered by the WS smoke test) --
 
 export interface NetCallbacks {
@@ -306,6 +404,11 @@ export interface NetCallbacks {
   /** Own-caster skillStarted/skillFired events, pre-filtered, for the cooldown sweep. */
   onOwnCast(skillId: string): void;
   onLevelUp(unitId: string, level: number, isSelf: boolean): void;
+  /** This client's own unit took a `"damaged"` combat event, pre-filtered to
+   *  `target === this.myId` — the attacker's unit id. The caller decides whether to
+   *  actually switch its current target (a live, manually-selected target should never
+   *  be stolen by this). */
+  onDamaged(source: string): void;
   /** Owner-only inventory/equipment/gold snapshot (§7) — render from this, not synced state. */
   onInventory(view: InventoryView): void;
   /** Portal-contact zone transfer (§6) — the caller owns the fade/reconnect dance. */
@@ -334,11 +437,22 @@ export class NetSession {
    *  as `client.id`/`PeerJoined.connectionId` (peer-visible — but it's just a random id,
    *  never the character's save token). */
   private playSessionId: string | null = null;
+  /** The unit id of the boss whose top HP bar is currently shown (E2), or `null`. Set on a
+   *  `"bossEvent"` engage, cleared on defeat; drives the per-frame `updateBossBar` in `tick`. */
+  private bossUnitId: string | null = null;
+  /** `performance.now()` at the last successful `connect()` (join/zone-transfer), gating the
+   *  spurious join-time `"resurrected"` self-event — see `RESURRECT_SUPPRESS_MS`. */
+  private connectedAtMs = 0;
+  /** `performance.now()` of the last dash intent sent — the local anti-spam gate (DASH_MIN_INTERVAL_MS). */
+  private lastDashAt = Number.NEGATIVE_INFINITY;
+  private readonly vfx: VfxSystem;
 
   constructor(
     private readonly units: UnitRenderer,
     private readonly callbacks: NetCallbacks,
-  ) {}
+  ) {
+    this.vfx = createVfxSystem(this.units.getScene(), this.units);
+  }
 
   get id(): string {
     return this.myId;
@@ -368,11 +482,18 @@ export class NetSession {
     }
     this.knownIds = new Set();
     this.latestUnits = {};
+    this.vfx.reset();
+    // A prior room's boss bar must not survive a zone transfer (new room = fresh state stream).
+    this.bossUnitId = null;
+    hideBossBar();
     if (!this.playSessionId) this.playSessionId = crypto.randomUUID();
     const client = new GameClient(host, { party, stateCodec: EmberSchema, authToken: charToken });
     const room = await client.joinOrCreate(roomId, { _session: this.playSessionId });
     this.room = room;
     this.myId = room.connectionId ?? "";
+    // Start the join-time resurrect-suppression window now (post-join), so the hp-restore
+    // resurrect the server sends right after we enter the room doesn't play a revive cue.
+    this.connectedAtMs = performance.now();
     room.onStateChange((s) => this.handleState(s as EmberState));
     room.onMessage("combat", (payload) => this.handleCombat(payload as CombatEventLite[]));
     room.onMessage("inv", (payload) => {
@@ -387,6 +508,15 @@ export class NetSession {
       const code = typeof payload === "object" && payload !== null ? (payload as { code?: unknown }).code : undefined;
       this.callbacks.onCharError(typeof code === "string" ? code : "unknown");
     });
+    room.onMessage("bossEvent", (payload) => {
+      const msg = parseBossEvent(payload);
+      if (msg) this.handleBossEvent(msg);
+    });
+    room.onMessage("telegraph", (payload) => {
+      const t = parseTelegraph(payload);
+      if (t) this.vfx.showTelegraph(t.x, t.y, t.r, t.ms);
+    });
+    room.onMessage("dash", (payload) => this.handleDash(payload));
     // FIX-5: no dedicated toast UI exists yet — a floating "Inventory full!" over the
     // local unit (the same mechanism `resurrected`'s "Revived" text uses) is the minimal
     // way to surface it instead of the drop silently vanishing.
@@ -418,32 +548,105 @@ export class NetSession {
         case "skillStarted":
           this.units.trigger(ev.caster, "cast");
           if (ev.caster === this.myId) this.callbacks.onOwnCast(ev.skillId);
+          this.vfx.startCast(ev.caster, ev.skillId, SKILL_BY_ID[ev.skillId]?.castTimeMs ?? 0);
+          playSfx("castStart");
           break;
         case "skillFired":
           this.units.trigger(ev.caster, "attack");
           if (ev.caster === this.myId) this.callbacks.onOwnCast(ev.skillId);
+          this.vfx.endCast(ev.caster);
+          this.vfx.fireProjectile(ev.caster, ev.skillId, ev.target);
+          this.vfx.meleeSwing(ev.caster, ev.skillId);
+          playSfx(SKILL_BY_ID[ev.skillId]?.school === "ranged" ? "arrow" : "castFire");
           break;
         case "damaged":
           this.units.trigger(ev.target, "hit");
           if (ev.amount > 0) this.pushFloat(ev.target, `-${Math.round(ev.amount)}`, "damage", now);
+          this.vfx.damageSpark(ev.target, ev.amount);
+          if (ev.target === this.myId) {
+            playSfx("hurt"); // distinct tone when it's my unit taking the hit
+            this.callbacks.onDamaged(ev.source);
+          } else {
+            playSfx("hit");
+          }
           break;
         case "healed":
           if (ev.amount > 0) this.pushFloat(ev.target, `+${Math.round(ev.amount)}`, "heal", now);
+          this.vfx.healMote(ev.target, ev.amount);
           break;
         case "death":
           this.units.trigger(ev.unit, "death");
+          if (ev.unit === this.myId) setDeathOverlay(true);
+          this.vfx.deathPuff(ev.unit);
+          playSfx("death");
           break;
-        case "resurrected":
+        case "resurrected": {
+          const isSelf = ev.unit === this.myId;
+          // Suppress the spurious join-time self-resurrect (server restores my hp on join)
+          // for a short window after connect — see RESURRECT_SUPPRESS_MS. Real revives land
+          // well after connect; other units' resurrects are never suppressed.
+          if (isSelf && now - this.connectedAtMs < RESURRECT_SUPPRESS_MS) break;
           this.pushFloat(ev.unit, "Revived", "info", now);
+          if (isSelf) {
+            setDeathOverlay(false);
+            // No zone/respawn-cause signal reaches this event (E4) — always show the
+            // village-hearth flavor line rather than guessing field vs. village.
+            showToast(VILLAGE_RESPAWN_TEXT);
+            playSfx("resurrect");
+          }
+          this.vfx.resurrectFlash(ev.unit);
           break;
+        }
         case "xpGained":
           if (ev.unit === this.myId) this.pushFloat(ev.unit, `+${ev.amount} xp`, "xp", now);
           break;
         case "levelUp":
+          if (ev.unit === this.myId) {
+            this.pushFloat(ev.unit, randomLine(LEVEL_UP_FLAVOR), "info", now);
+            playSfx("levelup");
+          }
           this.callbacks.onLevelUp(ev.unit, ev.level, ev.unit === this.myId);
+          this.vfx.levelUpBurst(ev.unit);
           break;
         default:
           break;
+      }
+    }
+  }
+
+  /** Maps a `"bossEvent"` (§7) to its on-screen dramatization: engage raises the boss bar and
+   *  the entrance/aggro text; the phase beats flash the screen edge and show the phase line;
+   *  defeat drops the bar and runs the closing dialogue (발렌) or the ending sequence (군주). */
+  private handleBossEvent(msg: BossEventMsg): void {
+    const lines = BOSS_LINES[msg.boss]?.[msg.ev];
+    switch (msg.ev) {
+      case "engage": {
+        this.bossUnitId = msg.unitId;
+        showBossBar(msg.unitId, MOB_KOREAN_NAMES[msg.boss] ?? NPC_NAMES[msg.boss] ?? msg.boss);
+        if (lines?.banner) showBossBanner(lines.banner); // ember_lord 입장 배너
+        if (lines?.line) showBossLine(lines.line); // 어그로 대사
+        break;
+      }
+      case "half":
+      case "phase_summon":
+      case "phase_aoe":
+      case "enrage": {
+        // 발렌 hp50%는 대사(line), 군주 페이즈는 §7.3 배너 문구(banner) — 둘 다 보스 라인으로.
+        const text = lines?.line ?? lines?.banner;
+        if (text) showBossLine(text);
+        showPhaseFlash();
+        break;
+      }
+      case "defeated": {
+        this.bossUnitId = null;
+        hideBossBar();
+        if (lines?.ending) {
+          runEndingBanners(lines.ending); // 군주 엔딩 3연
+        } else {
+          if (lines?.line) showBossLine(lines.line); // 발렌 처치 대사
+          if (lines?.banner) showBossBanner(lines.banner); // 발렌 초소 배너
+        }
+        break;
       }
     }
   }
@@ -465,8 +668,12 @@ export class NetSession {
       const eased = this.smoother.update(id, { x: u.x, y: u.y, angle: u.facing }, dtMs);
       this.units.update(toUnitData(id, u, this.myId, eased));
       if (id === this.myId) local = { x: eased.x, y: eased.y };
+      // E2: keep the boss bar's fill in sync with the boss's live hp, piggybacking the
+      // existing per-frame smoothing pass rather than adding a second traversal.
+      if (id === this.bossUnitId) updateBossBar(id, u.maxHp > 0 ? u.hp / u.maxHp : 0);
     }
     this.smoother.prune(this.knownIds);
+    this.vfx.tick(dtMs / 1000);
     return local;
   }
 
@@ -478,6 +685,36 @@ export class NetSession {
 
   send(type: string, payload?: unknown): void {
     this.room?.send(type, payload);
+  }
+
+  /** Space-dash intent. `target` is the ground point under the cursor (from `input.ts`), or
+   *  `null` when the cursor isn't over the ground — then aim a full lunge along the local
+   *  unit's heading. Only a POINT goes to the server; it caps the distance and resolves walls
+   *  (`ember-room-base.ts` `handleDash`). Locally gated by `DASH_MIN_INTERVAL_MS` to swallow
+   *  key-repeat (the server owns the real cooldown). */
+  dash(target: { x: number; y: number } | null): void {
+    const me = this.latestUnits[this.myId];
+    if (!me || !me.alive) return; // dead players don't dash (the server enforces this too)
+    const now = performance.now();
+    if (now - this.lastDashAt < DASH_MIN_INTERVAL_MS) return;
+    this.lastDashAt = now;
+    const point = target ?? {
+      x: me.x + Math.cos(me.facing) * DASH_DISTANCE,
+      y: me.y + Math.sin(me.facing) * DASH_DISTANCE,
+    };
+    this.send("dash", { x: point.x, y: point.y });
+  }
+
+  /** A `"dash"` broadcast landed: paint the from->to trail, play the whoosh, and — for my own
+   *  unit — drop its `EntitySmoother` sample so the next `tick()` snaps me to the new spot
+   *  instead of gliding (a 5-unit hop is under the 25-unit snap threshold, so it would
+   *  otherwise rubber-band; same "forget to snap" trick used on AOI re-entry / removal). */
+  private handleDash(payload: unknown): void {
+    const ev = parseDashEvent(payload);
+    if (!ev) return;
+    if (ev.unit === this.myId) this.smoother.delete(ev.unit);
+    this.vfx.dashTrail(ev.fromX, ev.fromY, ev.toX, ev.toY);
+    playSfx("dash");
   }
 
   leave(): void {

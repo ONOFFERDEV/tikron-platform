@@ -22,10 +22,10 @@ export interface UnitData {
   maxHp: number;
   name: string;
   dead: boolean;
-  /** Equipped weapon/armor manifest logical id (PLAN-EMBERFALL-M2 §7), when the unit
-   *  has a gear override — omitted entirely for class-default appearance. Best-effort:
-   *  attaches a small prop near the hand/torso (primitive fallback is fine — see
-   *  `syncGearProp`). */
+  /** Equipped weapon/armor manifest logical id (PLAN-EMBERFALL-M2 §7) — an explicit
+   *  gear override. Omitted for the class-default appearance, in which case the renderer
+   *  falls back to `DEFAULT_GEAR` keyed by class/kind (see `gearVisual`). Rigged units
+   *  socket the prop onto a hand bone; others get a best-effort root-space prop. */
   weaponVisual?: string;
   armorVisual?: string;
 }
@@ -48,18 +48,90 @@ interface UnitEntry {
   moveState: "idle" | "walk";
   weapon: GearProp | null;
   armor: GearProp | null;
+  /** B1: per-unit cloned flash materials, built lazily on first hit; null until then. */
+  flashTargets: FlashTarget[] | null;
+  /** B1: seconds since the current pulse started; >= FLASH_DURATION means inactive. */
+  flashElapsed: number;
 }
 
-/** Best-effort attach offsets (local to the unit root) — a generic hand/torso position
- *  that reads reasonably for both the procedural humanoid and a future GLB rig, since
- *  neither exposes a bone attach point to this renderer. */
+/** Fallback attach offsets (local to the unit root) — a generic hand/torso position
+ *  used only for units whose visual has no hand bone to socket onto (the procedural
+ *  capsule and the Quaternius/AI GLBs). Rigged KayKit units attach to a real hand bone
+ *  instead (see `SLOT_BONE`), at native scale, so these offsets/`GEAR_SCALE` don't apply. */
 const WEAPON_OFFSET = new THREE.Vector3(0.4, 1.0, 0.15);
 const ARMOR_OFFSET = new THREE.Vector3(0, 0.75, 0);
 const GEAR_SCALE = 0.35;
 
+/** KayKit rig sockets: the main-hand weapon rides `handslot.r`, the off-hand prop
+ *  (shield) rides `handslot.l`. Every KayKit Adventurers/Skeletons rig in this game
+ *  exposes both (verified against the 23-joint hero and skeleton skeletons). Parenting
+ *  to the bone makes the prop follow the arm animation for free. Units without these
+ *  bones fall back to the root-space offsets above. */
+const SLOT_BONE: Readonly<Record<"weapon" | "armor", string>> = { weapon: "handslot.r", armor: "handslot.l" };
+
+/** Mirrors three.js `PropertyBinding.sanitizeNodeName`: GLTFLoader runs every node/bone
+ *  name through this, stripping the reserved chars `[ ] . : /` and turning whitespace into
+ *  `_`. The KayKit rig authors its sockets as `handslot.r`/`handslot.l`, so in the loaded
+ *  scene graph the dot is gone and they become `handslotr`/`handslotl` (the original is kept
+ *  only in `node.userData.name`). Without mirroring this, `getObjectByName("handslot.r")`
+ *  never matches and the weapon silently falls back to a root-space prop. */
+export function sanitizeNodeName(name: string): string {
+  return name.replace(/\s/g, "_").replace(/[\[\]\.:\/]/g, "");
+}
+
+/** Finds a rig bone by its authored (file) name, tolerant of GLTFLoader's node-name
+ *  sanitization. Tries the raw name first (procedural sources keep names verbatim), then the
+ *  sanitized form used by GLB/glTF-loaded scene graphs. */
+export function findBoneByName(root: THREE.Object3D, name: string): THREE.Object3D | undefined {
+  return root.getObjectByName(name) ?? root.getObjectByName(sanitizeNodeName(name));
+}
+
+/** Class/kind -> default gear visuals, used when a unit carries no explicit
+ *  `weaponVisual`/`armorVisual` override (the common case — the server ships no gear
+ *  fields yet). Players key by their `visual` id (the class mesh), NPCs by `kind`. Only
+ *  hand-socketed KayKit units appear here; Quaternius/AI mobs stay unarmed, since a
+ *  weapon on them would have no hand bone to ride and would float at the root. */
+const DEFAULT_GEAR: Readonly<Record<string, { weapon?: string; armor?: string }>> = {
+  "unit.warrior": { weapon: "weapon.sword", armor: "weapon.shield" },
+  "unit.mage": { weapon: "weapon.staff" },
+  "unit.cleric": { weapon: "weapon.wand" },
+  skeleton_warrior: { weapon: "weapon.skeleton_blade", armor: "weapon.skeleton_shield" },
+  skeleton_archer: { weapon: "weapon.skeleton_crossbow" },
+  wraith_commander: { weapon: "weapon.greatsword" },
+};
+
+/** The effective gear visual for one slot: an explicit override wins, else the
+ *  class/kind default, else empty (unarmed). */
+function gearVisual(data: UnitData, slot: "weapon" | "armor"): string {
+  const override = slot === "weapon" ? data.weaponVisual : data.armorVisual;
+  if (override) return override;
+  const def = DEFAULT_GEAR[data.kind === "player" ? data.visual : data.kind];
+  return (slot === "weapon" ? def?.weapon : def?.armor) ?? "";
+}
+
 const NAMEPLATE_WIDTH = 256;
 const NAMEPLATE_HEIGHT = 64;
 const MOVE_EPSILON = 1e-4;
+
+// B1 hit flash (POLISH-EMBERFALL): a struck unit's body mesh does a brief hot
+// white-red emissive pulse, distinct from the particle hit VFX ("몸에 맞았다").
+const FLASH_DURATION = 0.1; // seconds
+const FLASH_PEAK = 1.3; // emissiveIntensity at the pulse peak
+const FLASH_COLOR = new THREE.Color(1.0, 0.4, 0.35); // hot white-red
+const FLASH_WHITE = new THREE.Color(1, 1, 1);
+
+/** One material driven by the hit flash, tagged by which channel we can pulse.
+ *  Materials are cloned per unit before driving them (GLB clones share materials —
+ *  mutating one would flash every unit of that kind), and restored to these saved
+ *  base values when the pulse ends. */
+type FlashTarget =
+  | {
+      kind: "emissive";
+      mat: THREE.Material & { emissive: THREE.Color; emissiveIntensity: number };
+      baseColor: THREE.Color;
+      baseIntensity: number;
+    }
+  | { kind: "color"; mat: THREE.Material & { color: THREE.Color }; baseColor: THREE.Color };
 
 export class UnitRenderer {
   private readonly units = new Map<string, UnitEntry>();
@@ -103,6 +175,8 @@ export class UnitRenderer {
       moveState: "idle",
       weapon: null,
       armor: null,
+      flashTargets: null,
+      flashElapsed: FLASH_DURATION,
     };
     this.units.set(data.id, entry);
     drawNameplate(entry);
@@ -116,6 +190,10 @@ export class UnitRenderer {
     if (!entry) return;
     const prev = entry.data;
     const moved = Math.hypot(data.x - prev.x, data.y - prev.y) > MOVE_EPSILON;
+    // B1: hp dropped this sync => took damage; flash the body (material-only, never
+    // touches transform/anim state, so it can't interfere with the death/revive paths).
+    // `!prev.dead` still lets the killing blow flash but skips damage dealt to a corpse.
+    if (data.hp < prev.hp && !prev.dead) this.startFlash(entry);
     entry.data = data;
     entry.root.position.copy(UnitRenderer.toWorld(data.x, data.y));
     entry.root.rotation.y = -data.facing + entry.visual.faceOffset;
@@ -123,8 +201,10 @@ export class UnitRenderer {
     if (data.dead && !prev.dead) {
       entry.visual.anim.setState("death");
     } else if (!data.dead) {
+      const revived = prev.dead;
+      if (revived) entry.visual.anim.revive(); // unlocks the terminal "death" state before syncing move state
       const nextMove: "idle" | "walk" = moved ? "walk" : "idle";
-      if (nextMove !== entry.moveState) {
+      if (revived || nextMove !== entry.moveState) {
         entry.moveState = nextMove;
         entry.visual.anim.setState(nextMove);
       }
@@ -135,7 +215,10 @@ export class UnitRenderer {
     // Fire-and-forget: gear rarely changes and this runs every render frame for every
     // unit, so the async asset fetch must never be awaited here — only kicked off when
     // the equipped visual id actually changed since the last frame.
-    if (data.weaponVisual !== prev.weaponVisual || data.armorVisual !== prev.armorVisual) {
+    if (
+      gearVisual(data, "weapon") !== gearVisual(prev, "weapon") ||
+      gearVisual(data, "armor") !== gearVisual(prev, "armor")
+    ) {
       void this.syncGear(entry);
     }
   }
@@ -157,9 +240,29 @@ export class UnitRenderer {
     this.units.delete(id);
   }
 
-  /** Advances every unit's animation controller. Call once per frame with the clamped frame dt. */
+  /** Advances every unit's animation controller and any active B1 hit flash. Call once
+   *  per frame with the clamped frame dt. */
   tick(dt: number): void {
-    for (const entry of this.units.values()) entry.visual.anim.update(dt);
+    for (const entry of this.units.values()) {
+      entry.visual.anim.update(dt);
+      if (entry.flashTargets && entry.flashElapsed < FLASH_DURATION) {
+        entry.flashElapsed += dt;
+        if (entry.flashElapsed >= FLASH_DURATION) {
+          for (const t of entry.flashTargets) restoreFlash(t);
+        } else {
+          const factor = 1 - entry.flashElapsed / FLASH_DURATION;
+          for (const t of entry.flashTargets) applyFlash(t, factor);
+        }
+      }
+    }
+  }
+
+  /** Starts (or restarts) the B1 hit flash on a unit, cloning its body materials the first
+   *  time so the pulse stays local to this unit. */
+  private startFlash(entry: UnitEntry): void {
+    entry.flashTargets ??= buildFlashTargets(entry.visual.object);
+    entry.flashElapsed = 0;
+    for (const t of entry.flashTargets) applyFlash(t, 1);
   }
 
   /** Root groups tagged with `userData.unitId`, for raycasting (input.ts). */
@@ -169,6 +272,13 @@ export class UnitRenderer {
 
   get(id: string): UnitData | undefined {
     return this.units.get(id)?.data;
+  }
+
+  /** Exposes the scene this renderer draws into — lets `net.ts` wire up `vfx.ts` (which
+   *  needs to add/remove its own particles/meshes) without `main.ts` needing to pass a
+   *  `SceneRig` reference through. */
+  getScene(): THREE.Scene {
+    return this.scene;
   }
 
   /** Syncs both gear slots to `entry.data`'s current `weaponVisual`/`armorVisual`. */
@@ -183,22 +293,30 @@ export class UnitRenderer {
    *  falls back to a procedural primitive when the logical id is unlisted, so this is
    *  "best-effort" by construction: some cosmetic prop always renders, never nothing. */
   private async syncGearSlot(entry: UnitEntry, slot: "weapon" | "armor", offset: THREE.Vector3): Promise<void> {
-    const key = slot === "weapon" ? "weaponVisual" : "armorVisual";
-    const visual = entry.data[key] ?? "";
+    const visual = gearVisual(entry.data, slot);
     const current = entry[slot];
     if ((current?.visual ?? "") === visual) return;
     if (current) {
-      entry.root.remove(current.object);
+      current.object.parent?.remove(current.object); // parent is the hand bone or the root
       disposeObject3D(current.object);
       entry[slot] = null;
     }
     if (!visual) return;
     const object = await this.assets.getPropVisual(visual);
     if (!this.units.has(entry.data.id)) return; // despawned mid-load
-    if ((entry.data[key] ?? "") !== visual) return; // superseded by a newer change
-    object.scale.multiplyScalar(GEAR_SCALE);
-    object.position.copy(offset);
-    entry.root.add(object);
+    if (gearVisual(entry.data, slot) !== visual) return; // superseded by a newer change
+    const bone = findBoneByName(entry.visual.object, SLOT_BONE[slot]);
+    if (bone) {
+      // Rig socket: parent to the hand bone so the prop rides the arm animation. KayKit
+      // weapons are authored native-scale with the grip at the mesh origin for exactly
+      // this socket, so no GEAR_SCALE / root offset is applied.
+      bone.add(object);
+    } else {
+      // No hand bone (procedural capsule, Quaternius/AI GLB): best-effort root-space prop.
+      object.scale.multiplyScalar(GEAR_SCALE);
+      object.position.copy(offset);
+      entry.root.add(object);
+    }
     entry[slot] = { visual, object };
   }
 }
@@ -240,6 +358,55 @@ function drawNameplate(entry: UnitEntry): void {
   ctx.strokeRect(barX, barY, barW, barH);
 
   entry.nameplateTexture.needsUpdate = true;
+}
+
+/** Clones every drivable material under a unit's body model and returns the flash
+ *  targets. Cloning is essential: cached-GLB clones share material instances, so
+ *  mutating them in place would flash every unit of that kind. Only materials with an
+ *  `emissive` (preferred) or a plain `color` (fallback for e.g. MeshBasicMaterial) are
+ *  driven; anything else is left untouched and keeps sharing its material. */
+function buildFlashTargets(object: THREE.Object3D): FlashTarget[] {
+  const targets: FlashTarget[] = [];
+  object.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    const next = mats.map((m) => {
+      const probe = m as THREE.Material & { emissive?: unknown; emissiveIntensity?: number; color?: unknown };
+      if (probe.emissive instanceof THREE.Color) {
+        const clone = m.clone() as THREE.Material & { emissive: THREE.Color; emissiveIntensity: number };
+        targets.push({ kind: "emissive", mat: clone, baseColor: clone.emissive.clone(), baseIntensity: clone.emissiveIntensity ?? 1 });
+        return clone;
+      }
+      if (probe.color instanceof THREE.Color) {
+        const clone = m.clone() as THREE.Material & { color: THREE.Color };
+        targets.push({ kind: "color", mat: clone, baseColor: clone.color.clone() });
+        return clone;
+      }
+      return m;
+    });
+    node.material = Array.isArray(node.material) ? next : next[0];
+  });
+  return targets;
+}
+
+/** Drives one flash target toward its peak by `factor` (1 = full pulse, 0 = base). */
+function applyFlash(t: FlashTarget, factor: number): void {
+  if (t.kind === "emissive") {
+    t.mat.emissive.copy(FLASH_COLOR);
+    t.mat.emissiveIntensity = FLASH_PEAK * factor;
+  } else {
+    t.mat.color.copy(t.baseColor).lerp(FLASH_WHITE, 0.6 * factor);
+  }
+}
+
+/** Restores a flash target to the base values captured when it was cloned. */
+function restoreFlash(t: FlashTarget): void {
+  if (t.kind === "emissive") {
+    t.mat.emissive.copy(t.baseColor);
+    t.mat.emissiveIntensity = t.baseIntensity;
+  } else {
+    t.mat.color.copy(t.baseColor);
+  }
 }
 
 function disposeObject3D(obj: THREE.Object3D): void {

@@ -11,13 +11,31 @@ export type AnimState = "idle" | "walk" | "attack" | "cast" | "hit" | "death";
 /** Code-generated fallback shapes. "capsule" drives the animated humanoid rig; the rest are static props. */
 export type PrimitiveKind = "capsule" | "box" | "tree" | "rock";
 
+/**
+ * Code-driven ambient motion applied to a clip-less GLB unit (an untextured AI
+ * mesh that ships zero animations). "float" = a gentle vertical sine bob plus a
+ * very slow yaw drift. Only honored when the resolved model has no bound anim
+ * clips — a GLB with real clips, and the procedural capsule fallback, ignore it.
+ */
+export type IdleMotion = "float";
+
 export interface ManifestEntry {
   /** glTF path relative to public/, e.g. "models/warrior.glb". Takes priority over `primitive` when present. */
   model?: string;
   /** Procedural fallback shape, used when `model` is absent or its GLB fails to load at runtime. */
   primitive?: PrimitiveKind;
-  /** Hex tint (#rrggbb) applied to the procedural fallback material. */
+  /**
+   * Hex tint (#rrggbb). On a `primitive` entry it colors the fallback material;
+   * on a `model` entry it colors any untextured/default-material mesh of the GLB
+   * (the untextured AI meshes carry no color of their own — see `assets.ts`).
+   */
   tint?: string;
+  /** Hex emissive (#rrggbb) added, alongside `tint`, to a `model`'s untextured meshes (ember glow). */
+  emissive?: string;
+  /** Strength of `emissive` (>= 0). Defaults to 1 when `emissive` is present. Ignored without `emissive`. */
+  emissiveIntensity?: number;
+  /** Ambient motion for a clip-less GLB unit. See {@link IdleMotion}. Ignored on models with clips / primitives. */
+  idleMotion?: IdleMotion;
   /** Uniform scale applied to the resolved visual. Defaults to 1. */
   scale?: number;
   /** Animation-state -> glTF clip name. Only meaningful alongside `model`. */
@@ -46,6 +64,7 @@ const DEFAULT_TINT = "#8899aa";
 const DEFAULT_PRIMITIVE: PrimitiveKind = "capsule";
 const PRIMITIVE_KINDS: readonly PrimitiveKind[] = ["capsule", "box", "tree", "rock"];
 const ANIM_STATES: readonly AnimState[] = ["idle", "walk", "attack", "cast", "hit", "death"];
+const IDLE_MOTIONS: readonly IdleMotion[] = ["float"];
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 export interface ManifestParseResult {
@@ -106,6 +125,30 @@ export function parseManifest(raw: unknown): ManifestParseResult {
       }
     }
 
+    if (v.emissive !== undefined) {
+      if (typeof v.emissive !== "string" || !HEX_COLOR.test(v.emissive)) {
+        errors.push(`"${key}": emissive must be a #rrggbb hex string, ignored`);
+      } else {
+        entry.emissive = v.emissive;
+      }
+    }
+
+    if (v.emissiveIntensity !== undefined) {
+      if (typeof v.emissiveIntensity !== "number" || !Number.isFinite(v.emissiveIntensity) || v.emissiveIntensity < 0) {
+        errors.push(`"${key}": emissiveIntensity must be a number >= 0, ignored`);
+      } else {
+        entry.emissiveIntensity = v.emissiveIntensity;
+      }
+    }
+
+    if (v.idleMotion !== undefined) {
+      if (typeof v.idleMotion !== "string" || !IDLE_MOTIONS.includes(v.idleMotion as IdleMotion)) {
+        errors.push(`"${key}": idleMotion must be one of ${IDLE_MOTIONS.join("|")}, ignored`);
+      } else {
+        entry.idleMotion = v.idleMotion as IdleMotion;
+      }
+    }
+
     if (v.scale !== undefined) {
       if (typeof v.scale !== "number" || !(v.scale > 0)) {
         errors.push(`"${key}": scale must be a positive number, ignored`);
@@ -163,6 +206,14 @@ export type ResolvedSource =
       animSources: string[];
       /** See {@link ManifestEntry.faceOffset}. Defaults to 0. */
       faceOffset: number;
+      /** See {@link ManifestEntry.tint}. Undefined = keep the GLB's own materials untouched. */
+      tint?: string;
+      /** See {@link ManifestEntry.emissive}. */
+      emissive?: string;
+      /** See {@link ManifestEntry.emissiveIntensity}. */
+      emissiveIntensity?: number;
+      /** See {@link ManifestEntry.idleMotion}. */
+      idleMotion?: IdleMotion;
     }
   | { kind: "primitive"; primitive: PrimitiveKind; tint: string; scale: number; faceOffset: number };
 
@@ -185,6 +236,12 @@ export function resolveVisualSource(manifest: Manifest, logicalId: string): Reso
       animSources:
         entry.animSource === undefined ? [] : Array.isArray(entry.animSource) ? entry.animSource : [entry.animSource],
       faceOffset: entry.faceOffset ?? 0,
+      // Left `undefined` when absent so `toEqual` fixtures (and callers that only
+      // tint AI meshes) treat a plain textured model exactly as before.
+      tint: entry.tint,
+      emissive: entry.emissive,
+      emissiveIntensity: entry.emissiveIntensity,
+      idleMotion: entry.idleMotion,
     };
   }
   return {

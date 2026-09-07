@@ -248,7 +248,9 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        background: rgba(11, 15, 21, 0.92);
+        /* H1: translucent vignette so the live Emberhold backdrop shows through, while
+           keeping the centered title/cards readable (darker toward the edges). */
+        background: radial-gradient(ellipse 130% 100% at 50% 44%, rgba(11, 15, 21, 0.34), rgba(11, 15, 21, 0.82) 100%);
         pointer-events: auto;
       }
       .start-title {
@@ -256,6 +258,27 @@
         font-weight: 700;
         color: #c9a86a;
         letter-spacing: 0.14em;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+      }
+      .start-intro {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-width: 640px;
+        text-align: center;
+        color: #c2ccd6;
+        font-size: 13px;
+        line-height: 1.5;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+        /* keep-all wraps Korean at word (어절) boundaries, not mid-word. */
+        word-break: keep-all;
+      }
+      .start-intro-line {
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+      .start-intro-line-visible {
+        opacity: 1;
       }
       .start-status {
         color: #8b949e;
@@ -275,9 +298,11 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        width: 240px;
+        width: 260px;
         padding: 16px;
-        background: #161b22;
+        /* H1: translucent dark card so the live backdrop reads behind it (frosted glass). */
+        background: rgba(22, 27, 34, 0.82);
+        backdrop-filter: blur(3px);
         border: 1px solid #30363d;
         border-radius: 6px;
       }
@@ -314,6 +339,12 @@
         border-color: #c9a86a;
         color: #c9a86a;
       }
+      .start-class-flavor {
+        min-height: 16px;
+        font-size: 12px;
+        color: #8b949e;
+        text-align: center;
+      }
       .start-create-btn,
       .start-continue-btn {
         padding: 10px 0;
@@ -334,6 +365,82 @@
       .start-class-btn:disabled {
         opacity: 0.5;
         cursor: default;
+      }
+
+      /* --- H2 character-select carousel (client/charselect.ts) --- */
+      .charsel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .charsel-stage {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .charsel-canvas {
+        width: 160px;
+        height: 188px;
+        border-radius: 8px;
+        /* Warm ember glow behind the model; the canvas itself is transparent (alpha:true). */
+        background: radial-gradient(ellipse at 50% 38%, rgba(201, 168, 106, 0.16), rgba(11, 15, 21, 0) 68%);
+      }
+      .charsel-arrow {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(11, 15, 21, 0.55);
+        border: 1px solid #30363d;
+        color: #c9a86a;
+        font-size: 17px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .charsel-arrow:hover {
+        border-color: #c9a86a;
+      }
+      .charsel-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #e6edf3;
+        letter-spacing: 0.04em;
+      }
+      .charsel-chip {
+        font-size: 11px;
+        color: #c9a86a;
+        border: 1px solid rgba(201, 168, 106, 0.5);
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+      .charsel-flavor {
+        min-height: 16px;
+        font-size: 12px;
+        color: #8b949e;
+        text-align: center;
+        word-break: keep-all;
+      }
+      .charsel-dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .charsel-dot {
+        width: 8px;
+        height: 8px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: #30363d;
+        cursor: pointer;
+      }
+      .charsel-dot-active {
+        background: #c9a86a;
+      }
+      .charsel-disabled {
+        pointer-events: none;
+        opacity: 0.6;
       }
 
       /* --- HUD menu (☰ button + 이어하기 코드 panel, client/ui.ts) --- */
@@ -607,6 +714,82 @@
       .zone-fade-visible {
         opacity: 1;
         pointer-events: auto;
+      }
+
+      /* --- lore overlays/toasts (client/ui.ts's standalone exports, L-B) --- */
+      .hud-zone-banner {
+        position: fixed;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+        text-align: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+      .hud-zone-banner-show {
+        opacity: 1;
+      }
+      .hud-zone-banner-name {
+        font: 600 26px ui-monospace, monospace;
+        color: #c9a86a;
+        letter-spacing: 0.08em;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      }
+      .hud-zone-banner-flavor {
+        margin-top: 4px;
+        font-size: 13px;
+        color: #e6edf3;
+        opacity: 0.85;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+      }
+
+      canvas.hud-canvas-death {
+        filter: grayscale(1);
+      }
+      .hud-death-flavor {
+        position: fixed;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 3;
+        color: #e6edf3;
+        font-size: 15px;
+        text-align: center;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+        pointer-events: none;
+      }
+
+      .hud-toast-layer {
+        position: fixed;
+        right: 16px;
+        bottom: 90px;
+        z-index: 3;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        pointer-events: none;
+      }
+      .hud-toast {
+        padding: 8px 14px;
+        background: rgba(22, 27, 34, 0.9);
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        color: #e6edf3;
+        font-size: 13px;
+        animation: hud-toast-in 0.2s ease;
+      }
+      @keyframes hud-toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     </style>
   </head>

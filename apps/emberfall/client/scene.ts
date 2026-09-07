@@ -15,9 +15,21 @@ export interface SceneRig {
   target: THREE.Vector3;
   /** Recomputes camera position/orientation from `target` + the current zoom step. Call once per frame. */
   updateCamera(): void;
+  /** Enters a cinematic orbit (H1 live-world landing): the camera ignores `target`/zoom/drag
+   *  and instead slowly auto-orbits `focus` at a fixed `radius`/`pitch`, advancing yaw by
+   *  `yawSpeed` (rad/s) every `updateCamera()`. Used behind the start screen before the
+   *  player connects; `clearCinematic()` restores the normal follow camera. */
+  setCinematic(focus: THREE.Vector3, opts: { radius: number; pitch: number; yawSpeed: number }): void;
+  /** Leaves cinematic orbit, returning to the `target`-following quarter-view camera. */
+  clearCinematic(): void;
   /** Current orbit yaw (radians, around Y) the camera is looking from — read by the minimap
    *  so it can rotate the map to keep the camera's forward direction pointing "up". */
   getYaw(): number;
+  /** Registers a per-frame callback (dt in seconds, timed off `updateCamera()` calls —
+   *  main.ts's frame loop calls it unconditionally every frame) and returns an
+   *  unregister function. Lets systems like `ambient.ts` tick without main.ts needing a
+   *  dedicated per-system call in its frame loop. */
+  onUpdate(cb: (dt: number) => void): () => void;
   dispose(): void;
 }
 
@@ -30,9 +42,14 @@ const PITCH_SENSITIVITY = 0.004;
 const ZOOM_STEPS = [10.5, 16.5, 22.5] as const;
 const DEFAULT_ZOOM_INDEX = 1;
 const GROUND_SIZE = 240;
+/** Sun offset from the camera target, held constant as the target moves (see `updateCamera`). */
+const SUN_OFFSET = new THREE.Vector3(-12, 18, 10);
 /** Bright midday sky — shared by the background, fog, and hemisphere sky tone. */
 const SKY_COLOR = 0xbfe3ff;
-/** Muted grass base for the procedural ground texture. */
+/** Default (emberhold) ground tint applied via `material.color`. The texture itself is a
+ *  neutral white base so `ambient.ts` can retint the ground per zone (ashen/brown) without
+ *  the green fighting the tint — a green-baked map could only ever be darkened, not
+ *  desaturated. White base * this green reproduces the original grass look exactly. */
 const GROUND_BASE_COLOR = "#6a8f5a";
 
 export function createScene(container: HTMLElement = document.body): SceneRig {
@@ -53,22 +70,28 @@ export function createScene(container: HTMLElement = document.body): SceneRig {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // ACES filmic rolloff reads noticeably better on the stylized-lowpoly models than the
+  // flat clamp NoToneMapping does; exposure bumped slightly above 1 so the change stays at
+  // least as bright as before (there was prior "too dark" feedback on this game).
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
 
   // Bright stylized-lowpoly midday look: sky-blue hemisphere fill + warm tan
   // ground bounce, strong warm-white sun. Replaces the earlier dusk-dark rig.
   scene.add(new THREE.HemisphereLight(SKY_COLOR, 0x8a7a55, 1.15));
 
   const sun = new THREE.DirectionalLight(0xffe9c2, 1.8);
-  sun.position.set(-12, 18, 10);
+  sun.position.set(SUN_OFFSET.x, SUN_OFFSET.y, SUN_OFFSET.z);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -30;
-  sun.shadow.camera.right = 30;
-  sun.shadow.camera.top = 30;
-  sun.shadow.camera.bottom = -30;
+  sun.shadow.camera.left = -35;
+  sun.shadow.camera.right = 35;
+  sun.shadow.camera.top = 35;
+  sun.shadow.camera.bottom = -35;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 60;
-  sun.shadow.bias = -0.0015;
+  sun.shadow.bias = -0.0005;
   scene.add(sun);
   scene.add(sun.target);
 
@@ -78,22 +101,69 @@ export function createScene(container: HTMLElement = document.body): SceneRig {
   let zoomIndex: number = DEFAULT_ZOOM_INDEX;
   const target = new THREE.Vector3(0, 0, 0);
 
+  // Per-frame callback registry driving zone-ambient VFX (client/ambient.ts) off
+  // `updateCamera()` — the one call every render frame already makes unconditionally —
+  // instead of main.ts's frame loop needing its own dedicated tick call.
+  const updateCallbacks = new Set<(dt: number) => void>();
+  let lastUpdateMs = performance.now();
+
+  function onUpdate(cb: (dt: number) => void): () => void {
+    updateCallbacks.add(cb);
+    return () => updateCallbacks.delete(cb);
+  }
+
   // Right-drag orbit state (yaw = look direction around Y, pitch = tilt above ground).
   // yaw=0/pitch=INITIAL_PITCH reproduces the original fixed +Z/+Y camera offset exactly.
   let yaw = 0;
   let pitch = INITIAL_PITCH;
 
+  // H1 cinematic-orbit state: when non-null, `updateCamera` orbits `focus` at a fixed
+  // radius/pitch and auto-advances `yaw` by `yawSpeed`, ignoring the follow target/zoom/drag.
+  let cinematic: { focus: THREE.Vector3; radius: number; pitch: number; yawSpeed: number; yaw: number } | null = null;
+
+  function setCinematic(focus: THREE.Vector3, opts: { radius: number; pitch: number; yawSpeed: number }): void {
+    cinematic = { focus: focus.clone(), radius: opts.radius, pitch: opts.pitch, yawSpeed: opts.yawSpeed, yaw: 0 };
+  }
+
+  function clearCinematic(): void {
+    cinematic = null;
+  }
+
   function updateCamera(): void {
-    const distance = ZOOM_STEPS[zoomIndex]!;
-    const horizontal = Math.cos(pitch) * distance;
-    const height = Math.sin(pitch) * distance;
+    const nowMs = performance.now();
+    // Capped like main.ts's own frame dt: guards against a huge first delta (scene is
+    // created well before the frame loop starts — start-screen, asset load, etc. run in between).
+    const dt = Math.min((nowMs - lastUpdateMs) / 1000, 0.1);
+    lastUpdateMs = nowMs;
+    for (const cb of updateCallbacks) cb(dt);
+
+    // The cinematic orbit overrides the follow target, zoom, and drag yaw/pitch entirely.
+    let focus = target;
+    let effYaw = yaw;
+    let effPitch = pitch;
+    let distance: number = ZOOM_STEPS[zoomIndex]!;
+    if (cinematic) {
+      cinematic.yaw += dt * cinematic.yawSpeed;
+      focus = cinematic.focus;
+      effYaw = cinematic.yaw;
+      effPitch = cinematic.pitch;
+      distance = cinematic.radius;
+    }
+
+    const horizontal = Math.cos(effPitch) * distance;
+    const height = Math.sin(effPitch) * distance;
     camera.position.set(
-      target.x + Math.sin(yaw) * horizontal,
-      target.y + height,
-      target.z + Math.cos(yaw) * horizontal,
+      focus.x + Math.sin(effYaw) * horizontal,
+      focus.y + height,
+      focus.z + Math.cos(effYaw) * horizontal,
     );
-    camera.lookAt(target);
-    sun.target.position.copy(target);
+    camera.lookAt(focus);
+    // Recenter the sun (and its shadow frustum, which is anchored at the light's own
+    // position) on the moving focus instead of the world origin — the field zones are
+    // 200x200, and a static light would either clip the focus past its shadow camera's
+    // far plane or force a frustum wide enough to blur the 2048 shadow map into mush.
+    sun.position.set(focus.x + SUN_OFFSET.x, SUN_OFFSET.y, focus.z + SUN_OFFSET.z);
+    sun.target.position.copy(focus);
   }
   updateCamera();
 
@@ -173,7 +243,7 @@ export function createScene(container: HTMLElement = document.body): SceneRig {
     return yaw;
   }
 
-  return { scene, camera, renderer, canvas, ground, target, updateCamera, getYaw, dispose };
+  return { scene, camera, renderer, canvas, ground, target, updateCamera, setCinematic, clearCinematic, getYaw, onUpdate, dispose };
 }
 
 /**
@@ -191,7 +261,12 @@ function createGround(): THREE.Mesh {
   texture.repeat.set(GROUND_SIZE / 8, GROUND_SIZE / 8);
   texture.anisotropy = 4;
 
-  const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.95, metalness: 0 });
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    color: new THREE.Color(GROUND_BASE_COLOR),
+    roughness: 0.95,
+    metalness: 0,
+  });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.receiveShadow = true;
@@ -203,7 +278,9 @@ function createGroundTexture(): THREE.CanvasTexture {
   canvas.width = 128;
   canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = GROUND_BASE_COLOR;
+  // Neutral white base — the grass hue comes from the material's `color` tint (see
+  // GROUND_BASE_COLOR), so the zone tint in ambient.ts can recolor the ground freely.
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "rgba(40,58,34,0.10)";
   ctx.lineWidth = 1;

@@ -21,6 +21,7 @@ import {
   resolveFallbackPrimitive,
   resolveVisualSource,
   type AnimState,
+  type IdleMotion,
   type Manifest,
   type ManifestEntry,
   type ManifestParseResult,
@@ -33,6 +34,7 @@ export {
   resolveFallbackPrimitive,
   resolveVisualSource,
   type AnimState,
+  type IdleMotion,
   type Manifest,
   type ManifestEntry,
   type ManifestParseResult,
@@ -44,6 +46,10 @@ export {
 export interface AnimController {
   setState(state: AnimState): void;
   update(dt: number): void;
+  /** Explicitly reverses a terminal "death" state on unit revival. `setState` alone can't
+   *  do this — death is intentionally terminal there, so a stray idle/walk sync received
+   *  while still dead never overwrites the death pose. Only this call may unlock it. */
+  revive(): void;
 }
 
 /** Model-source-agnostic result: a scene-ready object plus its animation controller. */
@@ -128,8 +134,35 @@ function buildModelVisual(
       node.receiveShadow = true;
     }
   });
-  const anim = new GltfAnimController(object, clips, source.anims);
+  if (source.tint) applyModelTint(object, source.tint, source.emissive, source.emissiveIntensity);
+  const anim = new GltfAnimController(object, clips, source.anims, source.idleMotion);
   return { object, anim, faceOffset: source.faceOffset };
+}
+
+/**
+ * Colors an untextured/default-material GLB (the AI-generated meshes ship with
+ * only POSITION+NORMAL — no materials of their own). Each mesh whose material
+ * carries no texture map gets a fresh flat `MeshStandardMaterial` in `tint`
+ * (plus optional ember `emissive`). Baked normals already read the low-poly
+ * facets, so `flatShading` stays off. Meshes that DO carry a texture map are a
+ * real authored material and are left untouched — this only fills in the blanks.
+ */
+function applyModelTint(object: THREE.Object3D, tint: string, emissive?: string, emissiveIntensity?: number): void {
+  const color = new THREE.Color(tint);
+  const emissiveColor = emissive ? new THREE.Color(emissive) : undefined;
+  object.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const replace = (m: THREE.Material): THREE.Material => {
+      if ((m as { map?: unknown }).map instanceof THREE.Texture) return m; // authored/textured — keep
+      const next = new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0.05 });
+      if (emissiveColor) {
+        next.emissive = emissiveColor.clone();
+        next.emissiveIntensity = emissiveIntensity ?? 1;
+      }
+      return next;
+    };
+    node.material = Array.isArray(node.material) ? node.material.map(replace) : replace(node.material);
+  });
 }
 
 function buildPrimitiveVisual(source: Extract<ResolvedSource, { kind: "primitive" }>): UnitVisual {
@@ -146,6 +179,7 @@ function buildPrimitiveVisual(source: Extract<ResolvedSource, { kind: "primitive
 class NullAnimController implements AnimController {
   setState(): void {}
   update(): void {}
+  revive(): void {}
 }
 
 // ---------------------------------------------------------------------------
@@ -154,14 +188,34 @@ class NullAnimController implements AnimController {
 
 const ONE_SHOT_STATES: readonly AnimState[] = ["attack", "cast", "hit", "death"];
 
+// "float" idleMotion: a ±0.15 vertical sine bob (~2.4s period) plus a very slow
+// yaw drift, applied to the model object itself (a child of the unit root, so it
+// composes with — never fights — the root's facing rotation set in units.ts).
+const FLOAT_AMPLITUDE = 0.15;
+const FLOAT_ANGULAR = (Math.PI * 2) / 2.4;
+const FLOAT_YAW_RATE = 0.25; // rad/s
+
 class GltfAnimController implements AnimController {
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<AnimState, THREE.AnimationAction>();
   private current: THREE.AnimationAction | undefined;
   private state: AnimState = "idle";
+  /** Enabled only for a clip-less GLB whose entry asked for "float" — a model with
+   *  real clips keeps its clips and ignores idleMotion entirely. */
+  private readonly floatEnabled: boolean;
+  private readonly root: THREE.Object3D;
+  private readonly floatBaseY: number;
+  private floatT = 0;
 
-  constructor(root: THREE.Object3D, clips: THREE.AnimationClip[], animMap: Partial<Record<AnimState, string>>) {
+  constructor(
+    root: THREE.Object3D,
+    clips: THREE.AnimationClip[],
+    animMap: Partial<Record<AnimState, string>>,
+    idleMotion?: IdleMotion,
+  ) {
     this.mixer = new THREE.AnimationMixer(root);
+    this.root = root;
+    this.floatBaseY = root.position.y;
     for (const [state, clipName] of Object.entries(animMap) as [AnimState, string][]) {
       const clip = THREE.AnimationClip.findByName(clips, clipName);
       if (!clip) continue;
@@ -172,6 +226,7 @@ class GltfAnimController implements AnimController {
       }
       this.actions.set(state, action);
     }
+    this.floatEnabled = idleMotion === "float" && this.actions.size === 0;
     this.play("idle");
   }
 
@@ -183,12 +238,31 @@ class GltfAnimController implements AnimController {
     this.play(state, restart);
   }
 
+  revive(): void {
+    if (this.state !== "death") return;
+    this.state = "idle";
+    this.play("idle"); // fades out the clamped death action, fades in idle
+  }
+
   update(dt: number): void {
     this.mixer.update(dt);
+    if (this.floatEnabled) this.updateFloat(dt);
     if (this.current && this.state !== "idle" && this.state !== "walk" && this.state !== "death") {
       const clip = this.current.getClip();
       if (this.current.time >= clip.duration - 0.001) this.setState("idle");
     }
+  }
+
+  /** Advances (or, while dead, settles) the "float" idle motion. Death freezes the
+   *  bob and drops the model back to its base height so a corpse doesn't hover. */
+  private updateFloat(dt: number): void {
+    if (this.state === "death") {
+      this.root.position.y = this.floatBaseY;
+      return;
+    }
+    this.floatT += dt;
+    this.root.position.y = this.floatBaseY + Math.sin(this.floatT * FLOAT_ANGULAR) * FLOAT_AMPLITUDE;
+    this.root.rotation.y += dt * FLOAT_YAW_RATE;
   }
 
   private play(state: AnimState, restart = false): void {
@@ -312,6 +386,17 @@ class ProceduralAnimController implements AnimController {
     if (state === this.state && state !== "attack" && state !== "hit") return;
     this.state = state;
     this.t = 0;
+  }
+
+  revive(): void {
+    if (this.state !== "death") return;
+    this.state = "idle";
+    this.t = 0;
+    // Death is the only state that leaves torso rotation/offset non-zero when interrupted
+    // (see the death case below); clear it immediately rather than waiting for the next
+    // update() tick, which would otherwise flash the lying-down pose for one frame.
+    this.parts.torso.rotation.set(0, 0, 0);
+    this.parts.torso.position.set(0, 0, 0);
   }
 
   update(dt: number): void {

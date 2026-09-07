@@ -150,13 +150,80 @@ export const ITEMS: Readonly<Record<string, ItemDef>> = {
     stack: 1,
   },
 
+  // --- dungeon (M3) equipment, level 12-15 — loot-only (absent from SHOP_ITEM_IDS),
+  // still sellable via buyPrice. Same modifier-bundle pattern as the M2 tiers above. ---
+  "trinket-warding-band": {
+    id: "trinket-warding-band",
+    name: "Warding Band",
+    kind: "equip",
+    slot: "trinket",
+    rarity: "rare",
+    levelReq: 12,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 10 },
+      { stat: "magicResist", kind: "flat", value: 14 },
+    ],
+    visual: "trk.ring",
+    buyPrice: 160,
+    stack: 1,
+  },
+  "armor-runed-plate": {
+    id: "armor-runed-plate",
+    name: "Runed Plate",
+    kind: "equip",
+    slot: "armor",
+    rarity: "epic",
+    levelReq: 12,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 34 },
+      { stat: "maxHp", kind: "flat", value: 130 },
+    ],
+    visual: "arm.plate",
+    buyPrice: 340,
+    stack: 1,
+  },
+  "trinket-ember-core": {
+    id: "trinket-ember-core",
+    name: "Ember Core",
+    kind: "equip",
+    slot: "trinket",
+    rarity: "epic",
+    levelReq: 14,
+    modifiers: [
+      { stat: "meleeDamageMul", kind: "percent", value: 12 },
+      { stat: "spellDamageMul", kind: "percent", value: 12 },
+    ],
+    visual: "trk.amulet",
+    buyPrice: 420,
+    stack: 1,
+  },
+  "armor-emberforged": {
+    id: "armor-emberforged",
+    name: "Emberforged Plate",
+    kind: "equip",
+    slot: "armor",
+    rarity: "epic",
+    levelReq: 15,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 42 },
+      { stat: "maxHp", kind: "flat", value: 180 },
+    ],
+    visual: "arm.plate",
+    buyPrice: 480,
+    stack: 1,
+  },
+
   // --- consumables ---
   "potion-hp": {
     id: "potion-hp",
     name: "Health Potion",
     kind: "consumable",
     rarity: "common",
-    consume: { hp: 60 },
+    // M3 balance (T3.2): 60→90. A solo geared level-15 melee has ~760 max hp and can't kite a
+    // boss, so it facetanks and drinks; at 60 (8% of the bar) the potion couldn't out-pace the
+    // Ember Depths damage on any realistic stack. 90 (~12%) makes "포션 쓰며 빡빡하게" (tight,
+    // potion-fed) solo clears possible while staying a chip-heal, not a full restore.
+    consume: { hp: 90 },
     buyPrice: 10,
     stack: 99,
   },

@@ -9,7 +9,9 @@ import { INVENTORY_SLOTS } from "../src/types.js";
 import { ITEMS } from "../src/content/items.js";
 import { shopListing } from "../src/content/shop.js";
 import { el } from "./dom.js";
+import { playSfx } from "./audio.js";
 import type { InventoryView } from "./net.js";
+import { MERCHANT_NAME, ROZA_DIALOGUE, randomLine } from "./lore.js";
 
 // --- pure helpers ---------------------------------------------------------------------
 
@@ -74,7 +76,10 @@ export class InventoryPanel {
     this.goldEl = el("div", "inv-gold");
     const closeBtn = el("button", "panel-close");
     closeBtn.textContent = "✕";
-    closeBtn.addEventListener("click", () => this.toggle(false));
+    closeBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.toggle(false);
+    });
     header.append(title, this.goldEl, closeBtn);
 
     this.equipEl = el("div", "inv-equip-row");
@@ -86,8 +91,10 @@ export class InventoryPanel {
   }
 
   toggle(force?: boolean): void {
+    const wasOpen = this.isOpen();
     if (force === undefined) this.panelEl.classList.toggle("hud-hidden");
     else this.panelEl.classList.toggle("hud-hidden", !force);
+    if (!wasOpen && this.isOpen()) playSfx("invOpen");
   }
 
   isOpen(): boolean {
@@ -111,7 +118,11 @@ export class InventoryPanel {
       btn.className = "inv-equip-slot";
       btn.title = equipSlotLabel(slot);
       btn.textContent = item ? itemLabel(item.defId) : `(${equipSlotLabel(slot)})`;
-      if (item) btn.addEventListener("click", () => this.callbacks.onUnequip(slot));
+      if (item)
+        btn.addEventListener("click", () => {
+          playSfx("unequip");
+          this.callbacks.onUnequip(slot);
+        });
       else btn.disabled = true;
       this.equipEl.appendChild(btn);
     }
@@ -157,11 +168,17 @@ export class InventoryPanel {
     const equipBtn = document.createElement("button");
     equipBtn.className = "inv-action-btn";
     equipBtn.textContent = "장착";
-    equipBtn.addEventListener("click", () => this.callbacks.onEquip(slot));
+    equipBtn.addEventListener("click", () => {
+      playSfx("equip");
+      this.callbacks.onEquip(slot);
+    });
     const useBtn = document.createElement("button");
     useBtn.className = "inv-action-btn";
     useBtn.textContent = "사용";
-    useBtn.addEventListener("click", () => this.callbacks.onUseItem(slot));
+    useBtn.addEventListener("click", () => {
+      playSfx("potion");
+      this.callbacks.onUseItem(slot);
+    });
     this.actionsEl.append(equipBtn, useBtn);
   }
 }
@@ -184,6 +201,7 @@ export class ShopPanel {
 
   private readonly panelEl: HTMLElement;
   private readonly goldEl: HTMLElement;
+  private readonly merchantEl: HTMLElement;
   private readonly sellListEl: HTMLElement;
 
   constructor(
@@ -197,8 +215,13 @@ export class ShopPanel {
     this.goldEl = el("div", "shop-gold");
     const closeBtn = el("button", "panel-close");
     closeBtn.textContent = "✕";
-    closeBtn.addEventListener("click", () => this.callbacks.onClose());
+    closeBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onClose();
+    });
     header.append(title, this.goldEl, closeBtn);
+
+    this.merchantEl = el("div", "shop-merchant");
 
     const buyListEl = el("div", "shop-buy-row");
     for (const listing of shopListing()) {
@@ -208,24 +231,36 @@ export class ShopPanel {
       const btn = document.createElement("button");
       btn.className = "shop-buy-btn";
       btn.textContent = "구매";
-      btn.addEventListener("click", () => this.callbacks.onBuy(listing.defId, 1));
+      btn.addEventListener("click", () => {
+        playSfx("buy");
+        this.callbacks.onBuy(listing.defId, 1);
+      });
       row.append(label, btn);
       buyListEl.appendChild(row);
     }
 
     this.sellListEl = el("div", "shop-sell-list");
 
-    this.panelEl.append(header, buyListEl, this.sellListEl);
+    this.panelEl.append(header, this.merchantEl, buyListEl, this.sellListEl);
     root.appendChild(this.panelEl);
   }
 
   toggle(force?: boolean): void {
+    const wasOpen = this.isOpen();
     if (force === undefined) this.panelEl.classList.toggle("hud-hidden");
     else this.panelEl.classList.toggle("hud-hidden", !force);
+    if (!wasOpen && this.isOpen()) {
+      this.refreshMerchantLine();
+      playSfx("invOpen");
+    }
   }
 
   isOpen(): boolean {
     return !this.panelEl.classList.contains("hud-hidden");
+  }
+
+  private refreshMerchantLine(): void {
+    this.merchantEl.textContent = `${MERCHANT_NAME}: "${randomLine(ROZA_DIALOGUE)}"`;
   }
 
   setView(view: InventoryView): void {
@@ -243,7 +278,10 @@ export class ShopPanel {
       const btn = document.createElement("button");
       btn.className = "shop-sell-btn";
       btn.textContent = "판매 1개";
-      btn.addEventListener("click", () => this.callbacks.onSell(index, 1));
+      btn.addEventListener("click", () => {
+        playSfx("sell");
+        this.callbacks.onSell(index, 1);
+      });
       row.append(label, btn);
       this.sellListEl.appendChild(row);
     });

@@ -97,7 +97,7 @@ describe("unitDisplayName", () => {
   });
 
   it("labels an NPC from the content pack's name", () => {
-    expect(unitDisplayName("wolf-pack-west#0", { kind: "wolf", class: "none" }, "p1")).toBe("Ashen Wolf");
+    expect(unitDisplayName("wolf-pack-west#0", { kind: "wolf", class: "none" }, "p1")).toBe("잿빛늑대");
   });
 });
 

@@ -7,6 +7,9 @@
 import { CLASS_HOTBAR, isSkillUnlocked, type EmberClass, type HotbarSlot } from "../src/content/hotbar.js";
 import { SKILL_BY_ID, cooldownRemainingMs, type CooldownState } from "./net.js";
 import { el } from "./dom.js";
+import { playSfx } from "./audio.js";
+import { ZONE_BANNERS, DEATH_TEXT, FIRST_LOGIN_GUIDE_STEPS, RESPAWN_HERE_TEXT, RESPAWN_VILLAGE_TEXT } from "./lore.js";
+import type { SavedZone } from "../src/types.js";
 
 // --- pure: presentation view models -------------------------------------------------------
 
@@ -47,6 +50,8 @@ export function pct(value: number, max: number): number {
 export interface HudCallbacks {
   onHotbarClick(slot: number): void;
   onRespawn(): void;
+  /** Respawn back at the village (emberhold), possibly from another zone. */
+  onRespawnVillage(): void;
   /** "New Character" from the continue-code menu — clears the saved token and reloads. */
   onNewCharacter(): void;
 }
@@ -163,7 +168,10 @@ export class Hud {
     toggle.className = "hud-menu-toggle";
     toggle.title = "메뉴";
     toggle.textContent = "☰";
-    toggle.addEventListener("click", () => this.menuPanelEl.classList.toggle("hud-hidden"));
+    toggle.addEventListener("click", () => {
+      playSfx("click");
+      this.menuPanelEl.classList.toggle("hud-hidden");
+    });
     wrap.appendChild(toggle);
 
     const panel = el("div", "hud-menu-panel hud-hidden");
@@ -178,13 +186,17 @@ export class Hud {
     copyBtn.className = "hud-menu-copy-btn";
     copyBtn.textContent = "복사";
     copyBtn.addEventListener("click", () => {
+      playSfx("click");
       navigator.clipboard?.writeText(this.menuCodeInputEl.value).catch(() => this.menuCodeInputEl.select());
     });
     codeRow.append(codeInput, copyBtn);
     const newCharBtn = document.createElement("button");
     newCharBtn.className = "hud-menu-newchar-btn";
     newCharBtn.textContent = "새 캐릭터";
-    newCharBtn.addEventListener("click", () => this.callbacks.onNewCharacter());
+    newCharBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onNewCharacter();
+    });
     panel.append(nickname, codeLabel, codeRow, newCharBtn);
     wrap.appendChild(panel);
 
@@ -192,14 +204,25 @@ export class Hud {
   }
 
   private buildDeathOverlay(): HTMLElement {
+    // No title here: the lore death line (DEATH_TEXT) is already shown by the separate
+    // `setDeathOverlay` flavor overlay, so this functional panel is buttons only — a
+    // duplicate "You died"/DEATH_TEXT title would double up over the same death screen.
     const overlay = el("div", "hud-death hud-hidden");
-    const label = el("div", "hud-death-label");
-    label.textContent = "You died";
     const btn = document.createElement("button");
     btn.className = "hud-death-btn";
-    btn.textContent = "Respawn (R)";
-    btn.addEventListener("click", () => this.callbacks.onRespawn());
-    overlay.append(label, btn);
+    btn.textContent = RESPAWN_HERE_TEXT;
+    btn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onRespawn();
+    });
+    const villageBtn = document.createElement("button");
+    villageBtn.className = "hud-death-btn";
+    villageBtn.textContent = RESPAWN_VILLAGE_TEXT;
+    villageBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onRespawnVillage();
+    });
+    overlay.append(btn, villageBtn);
     return overlay;
   }
 
@@ -233,7 +256,10 @@ export class Hud {
       btn.className = "hud-hotbar-slot" + (s.unlocked ? "" : " hud-hotbar-locked");
       btn.disabled = !s.unlocked;
       btn.title = s.name;
-      btn.addEventListener("click", () => this.callbacks.onHotbarClick(s.slot));
+      btn.addEventListener("click", () => {
+        playSfx("click");
+        this.callbacks.onHotbarClick(s.slot);
+      });
 
       const key = el("span", "hud-hotbar-key");
       key.textContent = String(s.slot);
@@ -315,4 +341,296 @@ export class Hud {
       }
     }
   }
+}
+
+// --- lore-driven overlays/toasts (standalone module-level DOM, independent of the `Hud`
+// instance — callable directly from net.ts's event handlers without threading a `Hud`
+// reference through `NetSession`; each lazily creates and reuses its own node) ---------
+
+let zoneBannerEl: HTMLElement | null = null;
+let zoneBannerTimer: ReturnType<typeof setTimeout> | null = null;
+
+function ensureZoneBannerEl(): { root: HTMLElement; name: HTMLElement; flavor: HTMLElement } {
+  if (!zoneBannerEl) {
+    const root = el("div", "hud-zone-banner");
+    const name = el("div", "hud-zone-banner-name");
+    const flavor = el("div", "hud-zone-banner-flavor");
+    root.append(name, flavor);
+    document.body.appendChild(root);
+    zoneBannerEl = root;
+  }
+  const root = zoneBannerEl;
+  return { root, name: root.children[0] as HTMLElement, flavor: root.children[1] as HTMLElement };
+}
+
+/** Zone-entry banner (§2/E1): zone name (large) + one flavor line from `ZONE_BANNERS`,
+ *  fade in -> hold 2.5s -> fade out. Re-triggering while already shown restarts the hold. */
+export function showZoneBanner(zoneId: SavedZone): void {
+  const { root, name, flavor } = ensureZoneBannerEl();
+  const info = ZONE_BANNERS[zoneId];
+  name.textContent = info.name;
+  flavor.textContent = info.flavor;
+
+  if (zoneBannerTimer !== null) clearTimeout(zoneBannerTimer);
+  root.classList.add("hud-zone-banner-show");
+  zoneBannerTimer = setTimeout(() => {
+    root.classList.remove("hud-zone-banner-show");
+    zoneBannerTimer = null;
+  }, 2500);
+}
+
+let deathFlavorEl: HTMLElement | null = null;
+
+function ensureDeathFlavorEl(): HTMLElement {
+  if (!deathFlavorEl) {
+    const flavor = el("div", "hud-death-flavor hud-hidden");
+    flavor.textContent = DEATH_TEXT;
+    document.body.appendChild(flavor);
+    deathFlavorEl = flavor;
+  }
+  return deathFlavorEl;
+}
+
+/** Grayscales the game canvas and shows the lore death line (`DEATH_TEXT`) while `on`;
+ *  both clear together off `off`. Separate from `Hud.showDeath`'s functional
+ *  Respawn-button panel, which keeps its own English label and stays untouched. */
+export function setDeathOverlay(on: boolean): void {
+  document.querySelector("canvas")?.classList.toggle("hud-canvas-death", on);
+  ensureDeathFlavorEl().classList.toggle("hud-hidden", !on);
+}
+
+let toastLayerEl: HTMLElement | null = null;
+
+function ensureToastLayerEl(): HTMLElement {
+  if (!toastLayerEl) {
+    toastLayerEl = el("div", "hud-toast-layer");
+    document.body.appendChild(toastLayerEl);
+  }
+  return toastLayerEl;
+}
+
+/** Bottom-right toast, auto-dismissed after 3s. Stacks — each call adds its own node. */
+export function showToast(text: string): void {
+  const layer = ensureToastLayerEl();
+  const node = el("div", "hud-toast");
+  node.textContent = text;
+  layer.appendChild(node);
+  setTimeout(() => node.remove(), 3000);
+}
+
+const GUIDE_DONE_KEY = "ef_guide_done";
+const GUIDE_STEP_MS = 4000;
+
+/** Shows one `FIRST_LOGIN_GUIDE_STEPS` line as a toast. Exposed separately from
+ *  `runFirstLoginGuide` so a caller could drive the sequence on its own timing if needed. */
+export function showGuideStep(index: number): void {
+  const step = FIRST_LOGIN_GUIDE_STEPS[index];
+  if (step) showToast(step);
+}
+
+/** Runs the 3-step first-login guide (§10) as sequential toasts, 4s apart, once ever per
+ *  browser (gated on `localStorage['ef_guide_done']`). No-op on every call after the first. */
+export function runFirstLoginGuide(): void {
+  if (localStorage.getItem(GUIDE_DONE_KEY)) return;
+  localStorage.setItem(GUIDE_DONE_KEY, "1");
+  FIRST_LOGIN_GUIDE_STEPS.forEach((_, i) => setTimeout(() => showGuideStep(i), i * GUIDE_STEP_MS));
+}
+
+// --- boss drama overlays (E2 boss HP bar + dialogue line, E3 phase flash, E8 ending) — §7.
+// index.html is out of this agent's file boundary, so these inject their own scoped <style>
+// (mirrors hitfeel.ts's precedent) using the HUD palette; the narrative banner reuses the
+// existing `.hud-zone-banner` classes. Module-level singletons like the lore overlays above,
+// driven directly from net.ts's `"bossEvent"` handler. ---------------------------------------
+
+const BOSS_STYLE_ID = "ef-boss-style";
+
+function injectBossStyle(): void {
+  if (document.getElementById(BOSS_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = BOSS_STYLE_ID;
+  style.textContent = `
+.ef-boss-bar {
+  position: fixed;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, 80vw);
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+.ef-boss-bar-name {
+  margin-bottom: 4px;
+  font: 600 17px ui-monospace, monospace;
+  color: #e0563b;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.ef-boss-bar-track {
+  position: relative;
+  height: 16px;
+  background: #161b22;
+  border: 1px solid #5a2020;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ef-boss-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(#ff7a33, #e0563b);
+  transition: width 0.18s ease-out;
+}
+.ef-boss-line {
+  position: fixed;
+  left: 50%;
+  bottom: 168px;
+  transform: translateX(-50%);
+  max-width: min(640px, 88vw);
+  z-index: 3;
+  padding: 8px 18px;
+  background: rgba(11, 15, 21, 0.72);
+  border: 1px solid #5a2020;
+  border-radius: 4px;
+  color: #f0e6d8;
+  font-size: 17px;
+  line-height: 1.4;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.ef-boss-line-show {
+  opacity: 1;
+}
+.ef-phase-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 90, 20, 0.9) 100%);
+}
+`;
+  document.head.appendChild(style);
+}
+
+let bossBarEl: HTMLElement | null = null;
+let bossBarNameEl: HTMLElement | null = null;
+let bossBarFillEl: HTMLElement | null = null;
+let bossBarUnitId: string | null = null;
+
+function ensureBossBarEl(): void {
+  if (bossBarEl) return;
+  injectBossStyle();
+  const root = el("div", "ef-boss-bar hud-hidden");
+  const name = el("div", "ef-boss-bar-name");
+  const track = el("div", "ef-boss-bar-track");
+  const fill = el("div", "ef-boss-bar-fill");
+  track.appendChild(fill);
+  root.append(name, track);
+  document.body.appendChild(root);
+  bossBarEl = root;
+  bossBarNameEl = name;
+  bossBarFillEl = fill;
+}
+
+/** Shows the top-center boss HP frame for `unitId` with display `name` (E2). The fill is
+ *  refreshed every render frame by `updateBossBar` from net.ts's tick loop; `unitId` is
+ *  retained so a stale boss's late `updateBossBar`/`hideBossBar` is ignored. */
+export function showBossBar(unitId: string, name: string): void {
+  ensureBossBarEl();
+  bossBarUnitId = unitId;
+  bossBarNameEl!.textContent = name;
+  bossBarFillEl!.style.width = "100%";
+  bossBarEl!.classList.remove("hud-hidden");
+}
+
+/** Per-frame HP fill update; no-op unless `unitId` is the bar's current boss (guards against
+ *  a lingering AOI unit or a prior boss driving the wrong frame). */
+export function updateBossBar(unitId: string, hpFraction: number): void {
+  if (bossBarUnitId !== unitId || !bossBarFillEl) return;
+  bossBarFillEl.style.width = `${Math.max(0, Math.min(1, hpFraction)) * 100}%`;
+}
+
+export function hideBossBar(): void {
+  bossBarUnitId = null;
+  bossBarEl?.classList.add("hud-hidden");
+}
+
+let bossLineEl: HTMLElement | null = null;
+let bossLineTimer: ReturnType<typeof setTimeout> | null = null;
+
+function ensureBossLineEl(): HTMLElement {
+  if (!bossLineEl) {
+    injectBossStyle();
+    bossLineEl = el("div", "ef-boss-line");
+    document.body.appendChild(bossLineEl);
+  }
+  return bossLineEl;
+}
+
+/** Boss dialogue / phase call-out line (§7), shown mid-lower center for 3.5s — distinct from
+ *  the zone-entry banner. Re-firing before it fades swaps the text and restarts the hold. */
+export function showBossLine(text: string): void {
+  const node = ensureBossLineEl();
+  node.textContent = text;
+  node.classList.add("ef-boss-line-show");
+  if (bossLineTimer !== null) clearTimeout(bossLineTimer);
+  bossLineTimer = setTimeout(() => {
+    node.classList.remove("ef-boss-line-show");
+    bossLineTimer = null;
+  }, 3500);
+}
+
+let bossBannerEl: HTMLElement | null = null;
+let bossBannerTimer: ReturnType<typeof setTimeout> | null = null;
+
+function ensureBossBannerEl(): HTMLElement {
+  if (!bossBannerEl) {
+    // Reuses the zone-banner visual (index.html `.hud-zone-banner`) but as its own node, so a
+    // boss/ending banner and a zone-entry banner never clobber each other's text/timer.
+    const root = el("div", "hud-zone-banner");
+    root.appendChild(el("div", "hud-zone-banner-name"));
+    document.body.appendChild(root);
+    bossBannerEl = root;
+  }
+  return bossBannerEl;
+}
+
+/** Single narrative banner (boss entrance/defeat framing, §7) in the zone-banner style, held
+ *  `holdMs` then faded. Separate element from `showZoneBanner` so the two never collide. */
+export function showBossBanner(text: string, holdMs = 3500): void {
+  const root = ensureBossBannerEl();
+  (root.firstChild as HTMLElement).textContent = text;
+  if (bossBannerTimer !== null) clearTimeout(bossBannerTimer);
+  root.classList.add("hud-zone-banner-show");
+  bossBannerTimer = setTimeout(() => {
+    root.classList.remove("hud-zone-banner-show");
+    bossBannerTimer = null;
+  }, holdMs);
+}
+
+/** Ending sequence (§7.3, E8): the closing banners shown one after another, `stepMs` apart,
+ *  reusing the narrative-banner component. */
+export function runEndingBanners(lines: readonly string[], stepMs = 4000): void {
+  lines.forEach((line, i) => setTimeout(() => showBossBanner(line, stepMs), i * stepMs));
+}
+
+let phaseFlashEl: HTMLElement | null = null;
+let phaseFlashAnim: Animation | null = null;
+
+/** Ember-orange screen-edge vignette flash (E3, ~0.5s) on a boss phase transition — a
+ *  distinct hue/z-index from hitfeel's red damage vignette so the two never read as one cue. */
+export function showPhaseFlash(): void {
+  if (!phaseFlashEl) {
+    injectBossStyle();
+    phaseFlashEl = el("div", "ef-phase-flash");
+    document.body.appendChild(phaseFlashEl);
+  }
+  phaseFlashAnim?.cancel();
+  phaseFlashAnim = phaseFlashEl.animate(
+    [{ opacity: 0 }, { opacity: 0.7, offset: 0.35 }, { opacity: 0 }],
+    { duration: 500, easing: "ease-out" },
+  );
 }

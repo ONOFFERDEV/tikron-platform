@@ -816,7 +816,7 @@ function getTextureTypeByteLength(type) {
   }
   throw new Error(`THREE.TextureUtils: Unknown texture type ${type}.`);
 }
-var REVISION, CullFaceNone, CullFaceBack, CullFaceFront, PCFShadowMap, PCFSoftShadowMap, VSMShadowMap, FrontSide, BackSide, DoubleSide, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, ConstantColorFactor, OneMinusConstantColorFactor, ConstantAlphaFactor, OneMinusConstantAlphaFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, NeutralToneMapping, AttachedBindMode, DetachedBindMode, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, CubeUVReflectionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedInt248Type, UnsignedInt5999Type, UnsignedInt101111Type, AlphaFormat, RGBFormat, RGBAFormat, DepthFormat, DepthStencilFormat, RedFormat, RedIntegerFormat, RGFormat, RGIntegerFormat, RGBAIntegerFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, RGB_ETC2_Format, RGBA_ETC2_EAC_Format, R11_EAC_Format, SIGNED_R11_EAC_Format, RG11_EAC_Format, SIGNED_RG11_EAC_Format, RGBA_ASTC_4x4_Format, RGBA_ASTC_5x4_Format, RGBA_ASTC_5x5_Format, RGBA_ASTC_6x5_Format, RGBA_ASTC_6x6_Format, RGBA_ASTC_8x5_Format, RGBA_ASTC_8x6_Format, RGBA_ASTC_8x8_Format, RGBA_ASTC_10x5_Format, RGBA_ASTC_10x6_Format, RGBA_ASTC_10x8_Format, RGBA_ASTC_10x10_Format, RGBA_ASTC_12x10_Format, RGBA_ASTC_12x12_Format, RGBA_BPTC_Format, RGB_BPTC_SIGNED_Format, RGB_BPTC_UNSIGNED_Format, RED_RGTC1_Format, SIGNED_RED_RGTC1_Format, RED_GREEN_RGTC2_Format, SIGNED_RED_GREEN_RGTC2_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, InterpolateBezier, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, NormalAnimationBlendMode, AdditiveAnimationBlendMode, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, BasicDepthPacking, TangentSpaceNormalMap, ObjectSpaceNormalMap, NoColorSpace, SRGBColorSpace, LinearSRGBColorSpace, LinearTransfer, SRGBTransfer, KeepStencilOp, AlwaysStencilFunc, NeverCompare, LessCompare, EqualCompare, LessEqualCompare, GreaterCompare, NotEqualCompare, GreaterEqualCompare, AlwaysCompare, StaticDrawUsage, GLSL3, WebGLCoordinateSystem, WebGPUCoordinateSystem, _cache, _setConsoleFunction, ReversedDepthFuncs, EventDispatcher, _lut, _seed, DEG2RAD, RAD2DEG, MathUtils, Vector2, Quaternion, Vector3, _vector$c, _quaternion$5, Matrix3, _m3, LINEAR_REC709_TO_XYZ, XYZ_TO_LINEAR_REC709, ColorManagement, _canvas, ImageUtils, _sourceId, Source, _textureId, _tempVec3, Texture, Vector4, RenderTarget, WebGLRenderTarget, DataArrayTexture, Data3DTexture, Matrix4, _v1$7, _m1$2, _zero, _one, _x, _y, _z, _matrix$2, _quaternion$4, Euler, Layers, _object3DId, _v1$6, _q1, _m1$1, _target, _position$4, _scale$3, _quaternion$3, _xAxis, _yAxis, _zAxis, _addedEvent, _removedEvent, _childaddedEvent, _childremovedEvent, Object3D, Group, _moveEvent, WebXRController, _colorKeywords, _hslA, _hslB, Color, _color, Fog, Scene, _v0$2, _v1$5, _v2$4, _v3$2, _vab, _vac, _vbc, _vap, _vbp, _vcp, _v40, _v41, _v42, Triangle, Box3, _points, _vector$b, _box$4, _v0$1, _v1$4, _v2$3, _f0, _f1, _f2, _center, _extents, _triangleNormal, _testAxis, _vector$a, _vector2$1, _id$2, BufferAttribute, Uint16BufferAttribute, Uint32BufferAttribute, Float32BufferAttribute, _box$3, _v1$3, _v2$2, Sphere, _id$1, _m1, _obj, _offset, _box$2, _boxMorphTargets, _vector$9, BufferGeometry, InterleavedBuffer, _vector$8, InterleavedBufferAttribute, _materialId, Material, SpriteMaterial, _geometry, _intersectPoint, _worldScale, _mvPosition, _alignedPosition, _rotatedPosition, _viewWorldMatrix, _vA$1, _vB$1, _vC$1, _uvA, _uvB, _uvC, Sprite, _vector$7, _segCenter, _segDir, _diff, _edge1, _edge2, _normal$1, Ray, MeshBasicMaterial, _inverseMatrix$3, _ray$3, _sphere$6, _sphereHitAt, _vA, _vB, _vC, _tempA, _morphA, _intersectionPoint, _intersectionPointWorld, Mesh, _baseVector, _skinIndex, _skinWeight, _vector4, _matrix4, _vertex, _sphere$5, _inverseMatrix$2, _ray$2, SkinnedMesh, Bone, DataTexture, _offsetMatrix, _identityMatrix, Skeleton, InstancedBufferAttribute, _instanceLocalMatrix, _instanceWorldMatrix, _instanceIntersects, _box3, _identity, _mesh$1, _sphere$4, InstancedMesh, _vector1, _vector2, _normalMatrix, Plane, _sphere$3, _defaultSpriteCenter, _vector$6, Frustum, LineBasicMaterial, _vStart, _vEnd, _inverseMatrix$1, _ray$1, _sphere$1, _intersectPointOnRay, _intersectPointOnSegment, Line, _start, _end, LineSegments, LineLoop, PointsMaterial, _inverseMatrix, _ray, _sphere, _position$3, Points, CubeTexture, CanvasTexture, DepthTexture, CubeDepthTexture, ExternalTexture, BoxGeometry, CapsuleGeometry, CylinderGeometry, ConeGeometry, PolyhedronGeometry, IcosahedronGeometry, PlaneGeometry, SphereGeometry, UniformsUtils, default_vertex, default_fragment, ShaderMaterial, RawShaderMaterial, MeshStandardMaterial, MeshPhysicalMaterial, MeshDepthMaterial, MeshDistanceMaterial, Interpolant, CubicInterpolant, LinearInterpolant, DiscreteInterpolant, BezierInterpolant, KeyframeTrack, BooleanKeyframeTrack, ColorKeyframeTrack, NumberKeyframeTrack, QuaternionLinearInterpolant, QuaternionKeyframeTrack, StringKeyframeTrack, VectorKeyframeTrack, AnimationClip, Cache, LoadingManager, DefaultLoadingManager, Loader, loading, HttpError, FileLoader, _loading, ImageLoader, TextureLoader, Light, HemisphereLight, _projScreenMatrix, _lightPositionWorld, _lookTarget, LightShadow, _position$2, _quaternion$2, _scale$2, Camera, _v3$1, _minTarget, _maxTarget, PerspectiveCamera, SpotLightShadow, SpotLight, PointLightShadow, PointLight, OrthographicCamera, DirectionalLightShadow, DirectionalLight, LoaderUtils, _errorMap, ImageBitmapLoader, fov, aspect, CubeCamera, ArrayCamera, PropertyMixer, _RESERVED_CHARS_RE, _reservedRe, _wordChar, _wordCharOrDot, _directoryRe, _nodeRe, _objectRe, _propertyRe, _trackRe, _supportedObjectNames, Composite, PropertyBinding, AnimationAction, _controlInterpolantsResultBuffer, AnimationMixer, _matrix, Raycaster, Matrix2;
+var REVISION, CullFaceNone, CullFaceBack, CullFaceFront, PCFShadowMap, PCFSoftShadowMap, VSMShadowMap, FrontSide, BackSide, DoubleSide, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, ConstantColorFactor, OneMinusConstantColorFactor, ConstantAlphaFactor, OneMinusConstantAlphaFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, NeutralToneMapping, AttachedBindMode, DetachedBindMode, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, CubeUVReflectionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedInt248Type, UnsignedInt5999Type, UnsignedInt101111Type, AlphaFormat, RGBFormat, RGBAFormat, DepthFormat, DepthStencilFormat, RedFormat, RedIntegerFormat, RGFormat, RGIntegerFormat, RGBAIntegerFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, RGB_ETC2_Format, RGBA_ETC2_EAC_Format, R11_EAC_Format, SIGNED_R11_EAC_Format, RG11_EAC_Format, SIGNED_RG11_EAC_Format, RGBA_ASTC_4x4_Format, RGBA_ASTC_5x4_Format, RGBA_ASTC_5x5_Format, RGBA_ASTC_6x5_Format, RGBA_ASTC_6x6_Format, RGBA_ASTC_8x5_Format, RGBA_ASTC_8x6_Format, RGBA_ASTC_8x8_Format, RGBA_ASTC_10x5_Format, RGBA_ASTC_10x6_Format, RGBA_ASTC_10x8_Format, RGBA_ASTC_10x10_Format, RGBA_ASTC_12x10_Format, RGBA_ASTC_12x12_Format, RGBA_BPTC_Format, RGB_BPTC_SIGNED_Format, RGB_BPTC_UNSIGNED_Format, RED_RGTC1_Format, SIGNED_RED_RGTC1_Format, RED_GREEN_RGTC2_Format, SIGNED_RED_GREEN_RGTC2_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, InterpolateBezier, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, NormalAnimationBlendMode, AdditiveAnimationBlendMode, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, BasicDepthPacking, TangentSpaceNormalMap, ObjectSpaceNormalMap, NoColorSpace, SRGBColorSpace, LinearSRGBColorSpace, LinearTransfer, SRGBTransfer, KeepStencilOp, AlwaysStencilFunc, NeverCompare, LessCompare, EqualCompare, LessEqualCompare, GreaterCompare, NotEqualCompare, GreaterEqualCompare, AlwaysCompare, StaticDrawUsage, GLSL3, WebGLCoordinateSystem, WebGPUCoordinateSystem, _cache, _setConsoleFunction, ReversedDepthFuncs, EventDispatcher, _lut, _seed, DEG2RAD, RAD2DEG, MathUtils, Vector2, Quaternion, Vector3, _vector$c, _quaternion$5, Matrix3, _m3, LINEAR_REC709_TO_XYZ, XYZ_TO_LINEAR_REC709, ColorManagement, _canvas, ImageUtils, _sourceId, Source, _textureId, _tempVec3, Texture, Vector4, RenderTarget, WebGLRenderTarget, DataArrayTexture, Data3DTexture, Matrix4, _v1$7, _m1$2, _zero, _one, _x, _y, _z, _matrix$2, _quaternion$4, Euler, Layers, _object3DId, _v1$6, _q1, _m1$1, _target, _position$4, _scale$3, _quaternion$3, _xAxis, _yAxis, _zAxis, _addedEvent, _removedEvent, _childaddedEvent, _childremovedEvent, Object3D, Group, _moveEvent, WebXRController, _colorKeywords, _hslA, _hslB, Color, _color, Fog, Scene, _v0$2, _v1$5, _v2$4, _v3$2, _vab, _vac, _vbc, _vap, _vbp, _vcp, _v40, _v41, _v42, Triangle, Box3, _points, _vector$b, _box$4, _v0$1, _v1$4, _v2$3, _f0, _f1, _f2, _center, _extents, _triangleNormal, _testAxis, _vector$a, _vector2$1, _id$2, BufferAttribute, Uint16BufferAttribute, Uint32BufferAttribute, Float32BufferAttribute, _box$3, _v1$3, _v2$2, Sphere, _id$1, _m1, _obj, _offset, _box$2, _boxMorphTargets, _vector$9, BufferGeometry, InterleavedBuffer, _vector$8, InterleavedBufferAttribute, _materialId, Material, SpriteMaterial, _geometry, _intersectPoint, _worldScale, _mvPosition, _alignedPosition, _rotatedPosition, _viewWorldMatrix, _vA$1, _vB$1, _vC$1, _uvA, _uvB, _uvC, Sprite, _vector$7, _segCenter, _segDir, _diff, _edge1, _edge2, _normal$1, Ray, MeshBasicMaterial, _inverseMatrix$3, _ray$3, _sphere$6, _sphereHitAt, _vA, _vB, _vC, _tempA, _morphA, _intersectionPoint, _intersectionPointWorld, Mesh, _baseVector, _skinIndex, _skinWeight, _vector4, _matrix4, _vertex, _sphere$5, _inverseMatrix$2, _ray$2, SkinnedMesh, Bone, DataTexture, _offsetMatrix, _identityMatrix, Skeleton, InstancedBufferAttribute, _instanceLocalMatrix, _instanceWorldMatrix, _instanceIntersects, _box3, _identity, _mesh$1, _sphere$4, InstancedMesh, _vector1, _vector2, _normalMatrix, Plane, _sphere$3, _defaultSpriteCenter, _vector$6, Frustum, LineBasicMaterial, _vStart, _vEnd, _inverseMatrix$1, _ray$1, _sphere$1, _intersectPointOnRay, _intersectPointOnSegment, Line, _start, _end, LineSegments, LineLoop, PointsMaterial, _inverseMatrix, _ray, _sphere, _position$3, Points, CubeTexture, CanvasTexture, DepthTexture, CubeDepthTexture, ExternalTexture, BoxGeometry, CapsuleGeometry, CircleGeometry, CylinderGeometry, ConeGeometry, PolyhedronGeometry, IcosahedronGeometry, PlaneGeometry, RingGeometry, SphereGeometry, UniformsUtils, default_vertex, default_fragment, ShaderMaterial, RawShaderMaterial, MeshStandardMaterial, MeshPhysicalMaterial, MeshDepthMaterial, MeshDistanceMaterial, Interpolant, CubicInterpolant, LinearInterpolant, DiscreteInterpolant, BezierInterpolant, KeyframeTrack, BooleanKeyframeTrack, ColorKeyframeTrack, NumberKeyframeTrack, QuaternionLinearInterpolant, QuaternionKeyframeTrack, StringKeyframeTrack, VectorKeyframeTrack, AnimationClip, Cache, LoadingManager, DefaultLoadingManager, Loader, loading, HttpError, FileLoader, _loading, ImageLoader, TextureLoader, Light, HemisphereLight, _projScreenMatrix, _lightPositionWorld, _lookTarget, LightShadow, _position$2, _quaternion$2, _scale$2, Camera, _v3$1, _minTarget, _maxTarget, PerspectiveCamera, SpotLightShadow, SpotLight, PointLightShadow, PointLight, OrthographicCamera, DirectionalLightShadow, DirectionalLight, LoaderUtils, _errorMap, ImageBitmapLoader, fov, aspect, CubeCamera, ArrayCamera, PropertyMixer, _RESERVED_CHARS_RE, _reservedRe, _wordChar, _wordCharOrDot, _directoryRe, _nodeRe, _objectRe, _propertyRe, _trackRe, _supportedObjectNames, Composite, PropertyBinding, AnimationAction, _controlInterpolantsResultBuffer, AnimationMixer, _matrix, Raycaster, Matrix2;
 var init_three_core = __esm({
   "../../node_modules/.pnpm/three@0.185.1/node_modules/three/build/three.core.js"() {
     REVISION = "185";
@@ -14983,6 +14983,69 @@ var init_three_core = __esm({
         return new _CapsuleGeometry(data.radius, data.height, data.capSegments, data.radialSegments, data.heightSegments);
       }
     };
+    CircleGeometry = class _CircleGeometry extends BufferGeometry {
+      /**
+       * Constructs a new circle geometry.
+       *
+       * @param {number} [radius=1] - Radius of the circle.
+       * @param {number} [segments=32] - Number of segments (triangles), minimum = `3`.
+       * @param {number} [thetaStart=0] - Start angle for first segment in radians.
+       * @param {number} [thetaLength=Math.PI*2] - The central angle, often called theta,
+       * of the circular sector in radians. The default value results in a complete circle.
+       */
+      constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
+        super();
+        this.type = "CircleGeometry";
+        this.parameters = {
+          radius,
+          segments,
+          thetaStart,
+          thetaLength
+        };
+        segments = Math.max(3, segments);
+        const indices = [];
+        const vertices = [];
+        const normals = [];
+        const uvs = [];
+        const vertex2 = new Vector3();
+        const uv = new Vector2();
+        vertices.push(0, 0, 0);
+        normals.push(0, 0, 1);
+        uvs.push(0.5, 0.5);
+        for (let s = 0, i = 3; s <= segments; s++, i += 3) {
+          const segment = thetaStart + s / segments * thetaLength;
+          vertex2.x = radius * Math.cos(segment);
+          vertex2.y = radius * Math.sin(segment);
+          vertices.push(vertex2.x, vertex2.y, vertex2.z);
+          normals.push(0, 0, 1);
+          uv.x = (vertices[i] / radius + 1) / 2;
+          uv.y = (vertices[i + 1] / radius + 1) / 2;
+          uvs.push(uv.x, uv.y);
+        }
+        for (let i = 1; i <= segments; i++) {
+          indices.push(i, i + 1, 0);
+        }
+        this.setIndex(indices);
+        this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+        this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+        this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+      }
+      copy(source) {
+        super.copy(source);
+        this.parameters = Object.assign({}, source.parameters);
+        return this;
+      }
+      /**
+       * Factory method for creating an instance of this class from the given
+       * JSON object.
+       *
+       * @param {Object} data - A JSON object representing the serialized geometry.
+       * @return {CircleGeometry} A new instance.
+       */
+      static fromJSON(data) {
+        return new _CircleGeometry(data.radius, data.segments, data.thetaStart, data.thetaLength);
+      }
+    };
     CylinderGeometry = class _CylinderGeometry extends BufferGeometry {
       /**
        * Constructs a new cylinder geometry.
@@ -15540,6 +15603,84 @@ var init_three_core = __esm({
        */
       static fromJSON(data) {
         return new _PlaneGeometry(data.width, data.height, data.widthSegments, data.heightSegments);
+      }
+    };
+    RingGeometry = class _RingGeometry extends BufferGeometry {
+      /**
+       * Constructs a new ring geometry.
+       *
+       * @param {number} [innerRadius=0.5] - The inner radius of the ring.
+       * @param {number} [outerRadius=1] - The outer radius of the ring.
+       * @param {number} [thetaSegments=32] - Number of segments. A higher number means the ring will be more round. Minimum is `3`.
+       * @param {number} [phiSegments=1] - Number of segments per ring segment. Minimum is `1`.
+       * @param {number} [thetaStart=0] - Starting angle in radians.
+       * @param {number} [thetaLength=Math.PI*2] - Central angle in radians.
+       */
+      constructor(innerRadius = 0.5, outerRadius = 1, thetaSegments = 32, phiSegments = 1, thetaStart = 0, thetaLength = Math.PI * 2) {
+        super();
+        this.type = "RingGeometry";
+        this.parameters = {
+          innerRadius,
+          outerRadius,
+          thetaSegments,
+          phiSegments,
+          thetaStart,
+          thetaLength
+        };
+        thetaSegments = Math.max(3, thetaSegments);
+        phiSegments = Math.max(1, phiSegments);
+        const indices = [];
+        const vertices = [];
+        const normals = [];
+        const uvs = [];
+        let radius = innerRadius;
+        const radiusStep = (outerRadius - innerRadius) / phiSegments;
+        const vertex2 = new Vector3();
+        const uv = new Vector2();
+        for (let j = 0; j <= phiSegments; j++) {
+          for (let i = 0; i <= thetaSegments; i++) {
+            const segment = thetaStart + i / thetaSegments * thetaLength;
+            vertex2.x = radius * Math.cos(segment);
+            vertex2.y = radius * Math.sin(segment);
+            vertices.push(vertex2.x, vertex2.y, vertex2.z);
+            normals.push(0, 0, 1);
+            uv.x = (vertex2.x / outerRadius + 1) / 2;
+            uv.y = (vertex2.y / outerRadius + 1) / 2;
+            uvs.push(uv.x, uv.y);
+          }
+          radius += radiusStep;
+        }
+        for (let j = 0; j < phiSegments; j++) {
+          const thetaSegmentLevel = j * (thetaSegments + 1);
+          for (let i = 0; i < thetaSegments; i++) {
+            const segment = i + thetaSegmentLevel;
+            const a = segment;
+            const b = segment + thetaSegments + 1;
+            const c = segment + thetaSegments + 2;
+            const d = segment + 1;
+            indices.push(a, b, d);
+            indices.push(b, c, d);
+          }
+        }
+        this.setIndex(indices);
+        this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+        this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+        this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+      }
+      copy(source) {
+        super.copy(source);
+        this.parameters = Object.assign({}, source.parameters);
+        return this;
+      }
+      /**
+       * Factory method for creating an instance of this class from the given
+       * JSON object.
+       *
+       * @param {Object} data - A JSON object representing the serialized geometry.
+       * @return {RingGeometry} A new instance.
+       */
+      static fromJSON(data) {
+        return new _RingGeometry(data.innerRadius, data.outerRadius, data.thetaSegments, data.phiSegments, data.thetaStart, data.thetaLength);
       }
     };
     SphereGeometry = class _SphereGeometry extends BufferGeometry {
@@ -19925,8 +20066,8 @@ var init_three_core = __esm({
             const loopDelta = Math.floor(time / duration);
             time -= duration * loopDelta;
             loopCount += Math.abs(loopDelta);
-            const pending = this.repetitions - loopCount;
-            if (pending <= 0) {
+            const pending2 = this.repetitions - loopCount;
+            if (pending2 <= 0) {
               if (this.clampWhenFinished) this.paused = true;
               else this.enabled = false;
               time = deltaTime > 0 ? duration : 0;
@@ -19937,7 +20078,7 @@ var init_three_core = __esm({
                 direction: deltaTime > 0 ? 1 : -1
               });
             } else {
-              if (pending === 1) {
+              if (pending2 === 1) {
                 const atStart = deltaTime < 0;
                 this._setEndings(atStart, !atStart, pingPong);
               } else {
@@ -20661,7 +20802,7 @@ function WebGLAnimation() {
   };
 }
 function WebGLAttributes(gl) {
-  const buffers = /* @__PURE__ */ new WeakMap();
+  const buffers2 = /* @__PURE__ */ new WeakMap();
   function createBuffer(attribute, bufferType) {
     const array = attribute.array;
     const usage = attribute.usage;
@@ -20743,22 +20884,22 @@ function WebGLAttributes(gl) {
   }
   function get(attribute) {
     if (attribute.isInterleavedBufferAttribute) attribute = attribute.data;
-    return buffers.get(attribute);
+    return buffers2.get(attribute);
   }
   function remove(attribute) {
     if (attribute.isInterleavedBufferAttribute) attribute = attribute.data;
-    const data = buffers.get(attribute);
+    const data = buffers2.get(attribute);
     if (data) {
       gl.deleteBuffer(data.buffer);
-      buffers.delete(attribute);
+      buffers2.delete(attribute);
     }
   }
   function update(attribute, bufferType) {
     if (attribute.isInterleavedBufferAttribute) attribute = attribute.data;
     if (attribute.isGLBufferAttribute) {
-      const cached = buffers.get(attribute);
+      const cached = buffers2.get(attribute);
       if (!cached || cached.version < attribute.version) {
-        buffers.set(attribute, {
+        buffers2.set(attribute, {
           buffer: attribute.buffer,
           type: attribute.type,
           bytesPerElement: attribute.elementSize,
@@ -20767,9 +20908,9 @@ function WebGLAttributes(gl) {
       }
       return;
     }
-    const data = buffers.get(attribute);
+    const data = buffers2.get(attribute);
     if (data === void 0) {
-      buffers.set(attribute, createBuffer(attribute, bufferType));
+      buffers2.set(attribute, createBuffer(attribute, bufferType));
     } else if (data.version < attribute.version) {
       if (data.size !== attribute.array.byteLength) {
         throw new Error("THREE.WebGLAttributes: The size of the buffer attribute's array buffer does not match the original size. Resizing buffer attributes is not supported.");
@@ -24754,8 +24895,8 @@ function WebGLRenderState(extensions) {
   function pushShadow(shadowLight) {
     shadowsArray.push(shadowLight);
   }
-  function pushLightProbeGrid(volume) {
-    lightProbeGridArray.push(volume);
+  function pushLightProbeGrid(volume2) {
+    lightProbeGridArray.push(volume2);
   }
   function setupLights() {
     lights.setup(lightsArray);
@@ -27636,7 +27777,7 @@ function WebGLMaterials(renderer, properties) {
   };
 }
 function WebGLUniformsGroups(gl, info, capabilities, state) {
-  let buffers = {};
+  let buffers2 = {};
   let updateList = {};
   let allocatedBindingPoints = [];
   const maxBindingPoints = gl.getParameter(gl.MAX_UNIFORM_BUFFER_BINDINGS);
@@ -27645,11 +27786,11 @@ function WebGLUniformsGroups(gl, info, capabilities, state) {
     state.uniformBlockBinding(uniformsGroup, webglProgram);
   }
   function update(uniformsGroup, program) {
-    let buffer = buffers[uniformsGroup.id];
+    let buffer = buffers2[uniformsGroup.id];
     if (buffer === void 0) {
       prepareUniformsGroup(uniformsGroup);
       buffer = createBuffer(uniformsGroup);
-      buffers[uniformsGroup.id] = buffer;
+      buffers2[uniformsGroup.id] = buffer;
       uniformsGroup.addEventListener("dispose", onUniformsGroupsDispose);
     }
     const webglProgram = program.program;
@@ -27683,7 +27824,7 @@ function WebGLUniformsGroups(gl, info, capabilities, state) {
     return 0;
   }
   function updateBufferData(uniformsGroup) {
-    const buffer = buffers[uniformsGroup.id];
+    const buffer = buffers2[uniformsGroup.id];
     const uniforms = uniformsGroup.uniforms;
     const cache = uniformsGroup.__cache;
     gl.bindBuffer(gl.UNIFORM_BUFFER, buffer);
@@ -27842,16 +27983,16 @@ function WebGLUniformsGroups(gl, info, capabilities, state) {
     uniformsGroup.removeEventListener("dispose", onUniformsGroupsDispose);
     const index = allocatedBindingPoints.indexOf(uniformsGroup.__bindingPointIndex);
     allocatedBindingPoints.splice(index, 1);
-    gl.deleteBuffer(buffers[uniformsGroup.id]);
-    delete buffers[uniformsGroup.id];
+    gl.deleteBuffer(buffers2[uniformsGroup.id]);
+    delete buffers2[uniformsGroup.id];
     delete updateList[uniformsGroup.id];
   }
   function dispose() {
-    for (const id in buffers) {
-      gl.deleteBuffer(buffers[id]);
+    for (const id in buffers2) {
+      gl.deleteBuffer(buffers2[id]);
     }
     allocatedBindingPoints = [];
-    buffers = {};
+    buffers2 = {};
     updateList = {};
   }
   return {
@@ -31661,11 +31802,11 @@ void main() {
             }
             materials.refreshMaterialUniforms(m_uniforms, material, _pixelRatio, _height, currentRenderState.state.transmissionRenderTarget[camera.id]);
             if (materialProperties.needsLights && materialProperties.lightProbeGrid) {
-              const volume = materialProperties.lightProbeGrid;
-              m_uniforms.probesSH.value = volume.texture;
-              m_uniforms.probesMin.value.copy(volume.boundingBox.min);
-              m_uniforms.probesMax.value.copy(volume.boundingBox.max);
-              m_uniforms.probesResolution.value.copy(volume.resolution);
+              const volume2 = materialProperties.lightProbeGrid;
+              m_uniforms.probesSH.value = volume2.texture;
+              m_uniforms.probesMin.value.copy(volume2.boundingBox.min);
+              m_uniforms.probesMax.value.copy(volume2.boundingBox.max);
+              m_uniforms.probesResolution.value.copy(volume2.resolution);
             }
             WebGLUniforms.upload(_gl, getUniformList(materialProperties), m_uniforms, textures);
           }
@@ -32105,37 +32246,68 @@ function createScene(container = document.body) {
   const renderer = new WebGLRenderer({ canvas, antialias: true });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
+  renderer.outputColorSpace = SRGBColorSpace;
+  renderer.toneMapping = ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
   scene.add(new HemisphereLight(SKY_COLOR, 9075285, 1.15));
   const sun = new DirectionalLight(16771522, 1.8);
-  sun.position.set(-12, 18, 10);
+  sun.position.set(SUN_OFFSET.x, SUN_OFFSET.y, SUN_OFFSET.z);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -30;
-  sun.shadow.camera.right = 30;
-  sun.shadow.camera.top = 30;
-  sun.shadow.camera.bottom = -30;
+  sun.shadow.camera.left = -35;
+  sun.shadow.camera.right = 35;
+  sun.shadow.camera.top = 35;
+  sun.shadow.camera.bottom = -35;
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 60;
-  sun.shadow.bias = -15e-4;
+  sun.shadow.bias = -5e-4;
   scene.add(sun);
   scene.add(sun.target);
   const ground = createGround();
   scene.add(ground);
   let zoomIndex = DEFAULT_ZOOM_INDEX;
   const target = new Vector3(0, 0, 0);
+  const updateCallbacks = /* @__PURE__ */ new Set();
+  let lastUpdateMs = performance.now();
+  function onUpdate(cb) {
+    updateCallbacks.add(cb);
+    return () => updateCallbacks.delete(cb);
+  }
   let yaw = 0;
   let pitch = INITIAL_PITCH;
+  let cinematic = null;
+  function setCinematic(focus, opts) {
+    cinematic = { focus: focus.clone(), radius: opts.radius, pitch: opts.pitch, yawSpeed: opts.yawSpeed, yaw: 0 };
+  }
+  function clearCinematic() {
+    cinematic = null;
+  }
   function updateCamera() {
-    const distance = ZOOM_STEPS[zoomIndex];
-    const horizontal = Math.cos(pitch) * distance;
-    const height = Math.sin(pitch) * distance;
+    const nowMs2 = performance.now();
+    const dt = Math.min((nowMs2 - lastUpdateMs) / 1e3, 0.1);
+    lastUpdateMs = nowMs2;
+    for (const cb of updateCallbacks) cb(dt);
+    let focus = target;
+    let effYaw = yaw;
+    let effPitch = pitch;
+    let distance = ZOOM_STEPS[zoomIndex];
+    if (cinematic) {
+      cinematic.yaw += dt * cinematic.yawSpeed;
+      focus = cinematic.focus;
+      effYaw = cinematic.yaw;
+      effPitch = cinematic.pitch;
+      distance = cinematic.radius;
+    }
+    const horizontal = Math.cos(effPitch) * distance;
+    const height = Math.sin(effPitch) * distance;
     camera.position.set(
-      target.x + Math.sin(yaw) * horizontal,
-      target.y + height,
-      target.z + Math.cos(yaw) * horizontal
+      focus.x + Math.sin(effYaw) * horizontal,
+      focus.y + height,
+      focus.z + Math.cos(effYaw) * horizontal
     );
-    camera.lookAt(target);
-    sun.target.position.copy(target);
+    camera.lookAt(focus);
+    sun.position.set(focus.x + SUN_OFFSET.x, SUN_OFFSET.y, focus.z + SUN_OFFSET.z);
+    sun.target.position.copy(focus);
   }
   updateCamera();
   function onWheel(e) {
@@ -32201,7 +32373,7 @@ function createScene(container = document.body) {
   function getYaw() {
     return yaw;
   }
-  return { scene, camera, renderer, canvas, ground, target, updateCamera, getYaw, dispose };
+  return { scene, camera, renderer, canvas, ground, target, updateCamera, setCinematic, clearCinematic, getYaw, onUpdate, dispose };
 }
 function createGround() {
   const texture = createGroundTexture();
@@ -32209,7 +32381,12 @@ function createGround() {
   texture.wrapT = RepeatWrapping;
   texture.repeat.set(GROUND_SIZE / 8, GROUND_SIZE / 8);
   texture.anisotropy = 4;
-  const material = new MeshStandardMaterial({ map: texture, roughness: 0.95, metalness: 0 });
+  const material = new MeshStandardMaterial({
+    map: texture,
+    color: new Color(GROUND_BASE_COLOR),
+    roughness: 0.95,
+    metalness: 0
+  });
   const mesh = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.receiveShadow = true;
@@ -32219,22 +32396,22 @@ function createGroundTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 128;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = GROUND_BASE_COLOR;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "rgba(40,58,34,0.10)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, canvas.height / 2);
-  ctx.lineTo(canvas.width, canvas.height / 2);
-  ctx.moveTo(canvas.width / 2, 0);
-  ctx.lineTo(canvas.width / 2, canvas.height);
-  ctx.stroke();
+  const ctx2 = canvas.getContext("2d");
+  ctx2.fillStyle = "#ffffff";
+  ctx2.fillRect(0, 0, canvas.width, canvas.height);
+  ctx2.strokeStyle = "rgba(40,58,34,0.10)";
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.moveTo(0, canvas.height / 2);
+  ctx2.lineTo(canvas.width, canvas.height / 2);
+  ctx2.moveTo(canvas.width / 2, 0);
+  ctx2.lineTo(canvas.width / 2, canvas.height);
+  ctx2.stroke();
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
 }
-var INITIAL_PITCH, MIN_PITCH, MAX_PITCH, YAW_SENSITIVITY, PITCH_SENSITIVITY, ZOOM_STEPS, DEFAULT_ZOOM_INDEX, GROUND_SIZE, SKY_COLOR, GROUND_BASE_COLOR;
+var INITIAL_PITCH, MIN_PITCH, MAX_PITCH, YAW_SENSITIVITY, PITCH_SENSITIVITY, ZOOM_STEPS, DEFAULT_ZOOM_INDEX, GROUND_SIZE, SUN_OFFSET, SKY_COLOR, GROUND_BASE_COLOR;
 var init_scene = __esm({
   "client/scene.ts"() {
     "use strict";
@@ -32247,12 +32424,161 @@ var init_scene = __esm({
     ZOOM_STEPS = [10.5, 16.5, 22.5];
     DEFAULT_ZOOM_INDEX = 1;
     GROUND_SIZE = 240;
+    SUN_OFFSET = new Vector3(-12, 18, 10);
     SKY_COLOR = 12575743;
     GROUND_BASE_COLOR = "#6a8f5a";
   }
 });
 
 // ../../node_modules/.pnpm/three@0.185.1/node_modules/three/examples/jsm/utils/BufferGeometryUtils.js
+function mergeGeometries(geometries, useGroups = false) {
+  const isIndexed = geometries[0].index !== null;
+  const attributesUsed = new Set(Object.keys(geometries[0].attributes));
+  const morphAttributesUsed = new Set(Object.keys(geometries[0].morphAttributes));
+  const attributes = {};
+  const morphAttributes = {};
+  const morphTargetsRelative = geometries[0].morphTargetsRelative;
+  const mergedGeometry = new BufferGeometry();
+  let offset = 0;
+  for (let i = 0; i < geometries.length; ++i) {
+    const geometry = geometries[i];
+    let attributesCount = 0;
+    if (isIndexed !== (geometry.index !== null)) {
+      console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + ". All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.");
+      return null;
+    }
+    for (const name in geometry.attributes) {
+      if (!attributesUsed.has(name)) {
+        console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.');
+        return null;
+      }
+      if (attributes[name] === void 0) attributes[name] = [];
+      attributes[name].push(geometry.attributes[name]);
+      attributesCount++;
+    }
+    if (attributesCount !== attributesUsed.size) {
+      console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + ". Make sure all geometries have the same number of attributes.");
+      return null;
+    }
+    if (morphTargetsRelative !== geometry.morphTargetsRelative) {
+      console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + ". .morphTargetsRelative must be consistent throughout all geometries.");
+      return null;
+    }
+    for (const name in geometry.morphAttributes) {
+      if (!morphAttributesUsed.has(name)) {
+        console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + ".  .morphAttributes must be consistent throughout all geometries.");
+        return null;
+      }
+      if (morphAttributes[name] === void 0) morphAttributes[name] = [];
+      morphAttributes[name].push(geometry.morphAttributes[name]);
+    }
+    if (useGroups) {
+      let count;
+      if (isIndexed) {
+        count = geometry.index.count;
+      } else if (geometry.attributes.position !== void 0) {
+        count = geometry.attributes.position.count;
+      } else {
+        console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + i + ". The geometry must have either an index or a position attribute");
+        return null;
+      }
+      mergedGeometry.addGroup(offset, count, i);
+      offset += count;
+    }
+  }
+  if (isIndexed) {
+    let indexOffset = 0;
+    const mergedIndex = [];
+    for (let i = 0; i < geometries.length; ++i) {
+      const index = geometries[i].index;
+      for (let j = 0; j < index.count; ++j) {
+        mergedIndex.push(index.getX(j) + indexOffset);
+      }
+      indexOffset += geometries[i].attributes.position.count;
+    }
+    mergedGeometry.setIndex(mergedIndex);
+  }
+  for (const name in attributes) {
+    const mergedAttribute = mergeAttributes(attributes[name]);
+    if (!mergedAttribute) {
+      console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the " + name + " attribute.");
+      return null;
+    }
+    mergedGeometry.setAttribute(name, mergedAttribute);
+  }
+  for (const name in morphAttributes) {
+    const numMorphTargets = morphAttributes[name][0].length;
+    if (numMorphTargets === 0) continue;
+    mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
+    mergedGeometry.morphAttributes[name] = [];
+    for (let i = 0; i < numMorphTargets; ++i) {
+      const morphAttributesToMerge = [];
+      for (let j = 0; j < morphAttributes[name].length; ++j) {
+        morphAttributesToMerge.push(morphAttributes[name][j][i]);
+      }
+      const mergedMorphAttribute = mergeAttributes(morphAttributesToMerge);
+      if (!mergedMorphAttribute) {
+        console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the " + name + " morphAttribute.");
+        return null;
+      }
+      mergedGeometry.morphAttributes[name].push(mergedMorphAttribute);
+    }
+  }
+  return mergedGeometry;
+}
+function mergeAttributes(attributes) {
+  let TypedArray;
+  let itemSize;
+  let normalized;
+  let gpuType = -1;
+  let arrayLength = 0;
+  for (let i = 0; i < attributes.length; ++i) {
+    const attribute = attributes[i];
+    if (TypedArray === void 0) TypedArray = attribute.array.constructor;
+    if (TypedArray !== attribute.array.constructor) {
+      console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.");
+      return null;
+    }
+    if (itemSize === void 0) itemSize = attribute.itemSize;
+    if (itemSize !== attribute.itemSize) {
+      console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.");
+      return null;
+    }
+    if (normalized === void 0) normalized = attribute.normalized;
+    if (normalized !== attribute.normalized) {
+      console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.");
+      return null;
+    }
+    if (gpuType === -1) gpuType = attribute.gpuType;
+    if (gpuType !== attribute.gpuType) {
+      console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.gpuType must be consistent across matching attributes.");
+      return null;
+    }
+    arrayLength += attribute.count * itemSize;
+  }
+  const array = new TypedArray(arrayLength);
+  const result = new BufferAttribute(array, itemSize, normalized);
+  let offset = 0;
+  for (let i = 0; i < attributes.length; ++i) {
+    const attribute = attributes[i];
+    if (attribute.isInterleavedBufferAttribute) {
+      const tupleOffset = offset / itemSize;
+      for (let j = 0, l = attribute.count; j < l; j++) {
+        for (let c = 0; c < itemSize; c++) {
+          const value = attribute.getComponent(j, c);
+          result.setComponent(j + tupleOffset, c, value);
+        }
+      }
+    } else {
+      array.set(attribute.array, offset);
+    }
+    offset += attribute.count * itemSize;
+  }
+  if (gpuType !== void 0) {
+    result.gpuType = gpuType;
+  }
+  return result;
+}
 function toTrianglesDrawMode(geometry, drawMode) {
   if (drawMode === TrianglesDrawMode) {
     console.warn("THREE.BufferGeometryUtils.toTrianglesDrawMode(): Geometry already defined as triangles.");
@@ -32568,7 +32894,7 @@ function computeBounds(geometry, primitiveDef, parser) {
 }
 function addPrimitiveAttributes(geometry, primitiveDef, parser) {
   const attributes = primitiveDef.attributes;
-  const pending = [];
+  const pending2 = [];
   function assignAttributeAccessor(accessorIndex, attributeName) {
     return parser.getDependency("accessor", accessorIndex).then(function(accessor) {
       geometry.setAttribute(attributeName, accessor);
@@ -32577,20 +32903,20 @@ function addPrimitiveAttributes(geometry, primitiveDef, parser) {
   for (const gltfAttributeName in attributes) {
     const threeAttributeName = ATTRIBUTES[gltfAttributeName] || gltfAttributeName.toLowerCase();
     if (threeAttributeName in geometry.attributes) continue;
-    pending.push(assignAttributeAccessor(attributes[gltfAttributeName], threeAttributeName));
+    pending2.push(assignAttributeAccessor(attributes[gltfAttributeName], threeAttributeName));
   }
   if (primitiveDef.indices !== void 0 && !geometry.index) {
     const accessor = parser.getDependency("accessor", primitiveDef.indices).then(function(accessor2) {
       geometry.setIndex(accessor2);
     });
-    pending.push(accessor);
+    pending2.push(accessor);
   }
   if (ColorManagement.workingColorSpace !== LinearSRGBColorSpace && "COLOR_0" in attributes) {
     console.warn(`THREE.GLTFLoader: Converting vertex colors from "srgb-linear" to "${ColorManagement.workingColorSpace}" not supported.`);
   }
   assignExtrasToUserData(geometry, primitiveDef);
   computeBounds(geometry, primitiveDef, parser);
-  return Promise.all(pending).then(function() {
+  return Promise.all(pending2).then(function() {
     return primitiveDef.targets !== void 0 ? addMorphTargets(geometry, primitiveDef.targets, parser) : geometry;
   });
 }
@@ -32976,7 +33302,7 @@ var init_GLTFLoader = __esm({
         return MeshBasicMaterial;
       }
       extendParams(materialParams, materialDef, parser) {
-        const pending = [];
+        const pending2 = [];
         materialParams.color = new Color(1, 1, 1);
         materialParams.opacity = 1;
         const metallicRoughness = materialDef.pbrMetallicRoughness;
@@ -32987,10 +33313,10 @@ var init_GLTFLoader = __esm({
             materialParams.opacity = array[3];
           }
           if (metallicRoughness.baseColorTexture !== void 0) {
-            pending.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
+            pending2.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
           }
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsEmissiveStrengthExtension = class {
@@ -33019,27 +33345,27 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         if (extension.clearcoatFactor !== void 0) {
           materialParams.clearcoat = extension.clearcoatFactor;
         }
         if (extension.clearcoatTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "clearcoatMap", extension.clearcoatTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "clearcoatMap", extension.clearcoatTexture));
         }
         if (extension.clearcoatRoughnessFactor !== void 0) {
           materialParams.clearcoatRoughness = extension.clearcoatRoughnessFactor;
         }
         if (extension.clearcoatRoughnessTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "clearcoatRoughnessMap", extension.clearcoatRoughnessTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "clearcoatRoughnessMap", extension.clearcoatRoughnessTexture));
         }
         if (extension.clearcoatNormalTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "clearcoatNormalMap", extension.clearcoatNormalTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "clearcoatNormalMap", extension.clearcoatNormalTexture));
           if (extension.clearcoatNormalTexture.scale !== void 0) {
             const scale = extension.clearcoatNormalTexture.scale;
             materialParams.clearcoatNormalScale = new Vector2(scale, scale);
           }
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsDispersionExtension = class {
@@ -33070,12 +33396,12 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         if (extension.iridescenceFactor !== void 0) {
           materialParams.iridescence = extension.iridescenceFactor;
         }
         if (extension.iridescenceTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "iridescenceMap", extension.iridescenceTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "iridescenceMap", extension.iridescenceTexture));
         }
         if (extension.iridescenceIor !== void 0) {
           materialParams.iridescenceIOR = extension.iridescenceIor;
@@ -33090,9 +33416,9 @@ var init_GLTFLoader = __esm({
           materialParams.iridescenceThicknessRange[1] = extension.iridescenceThicknessMaximum;
         }
         if (extension.iridescenceThicknessTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "iridescenceThicknessMap", extension.iridescenceThicknessTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "iridescenceThicknessMap", extension.iridescenceThicknessTexture));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsSheenExtension = class {
@@ -33107,7 +33433,7 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         materialParams.sheenColor = new Color(0, 0, 0);
         materialParams.sheenRoughness = 0;
         materialParams.sheen = 1;
@@ -33119,12 +33445,12 @@ var init_GLTFLoader = __esm({
           materialParams.sheenRoughness = extension.sheenRoughnessFactor;
         }
         if (extension.sheenColorTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "sheenColorMap", extension.sheenColorTexture, SRGBColorSpace));
+          pending2.push(this.parser.assignTexture(materialParams, "sheenColorMap", extension.sheenColorTexture, SRGBColorSpace));
         }
         if (extension.sheenRoughnessTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "sheenRoughnessMap", extension.sheenRoughnessTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "sheenRoughnessMap", extension.sheenRoughnessTexture));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsTransmissionExtension = class {
@@ -33139,14 +33465,14 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         if (extension.transmissionFactor !== void 0) {
           materialParams.transmission = extension.transmissionFactor;
         }
         if (extension.transmissionTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "transmissionMap", extension.transmissionTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "transmissionMap", extension.transmissionTexture));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsVolumeExtension = class {
@@ -33161,15 +33487,15 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         materialParams.thickness = extension.thicknessFactor !== void 0 ? extension.thicknessFactor : 0;
         if (extension.thicknessTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "thicknessMap", extension.thicknessTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "thicknessMap", extension.thicknessTexture));
         }
         materialParams.attenuationDistance = extension.attenuationDistance || Infinity;
         const colorArray = extension.attenuationColor || [1, 1, 1];
         materialParams.attenuationColor = new Color().setRGB(colorArray[0], colorArray[1], colorArray[2], LinearSRGBColorSpace);
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsIorExtension = class {
@@ -33201,17 +33527,17 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         materialParams.specularIntensity = extension.specularFactor !== void 0 ? extension.specularFactor : 1;
         if (extension.specularTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "specularIntensityMap", extension.specularTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "specularIntensityMap", extension.specularTexture));
         }
         const colorArray = extension.specularColorFactor || [1, 1, 1];
         materialParams.specularColor = new Color().setRGB(colorArray[0], colorArray[1], colorArray[2], LinearSRGBColorSpace);
         if (extension.specularColorTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "specularColorMap", extension.specularColorTexture, SRGBColorSpace));
+          pending2.push(this.parser.assignTexture(materialParams, "specularColorMap", extension.specularColorTexture, SRGBColorSpace));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsBumpExtension = class {
@@ -33226,12 +33552,12 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         materialParams.bumpScale = extension.bumpFactor !== void 0 ? extension.bumpFactor : 1;
         if (extension.bumpTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "bumpMap", extension.bumpTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "bumpMap", extension.bumpTexture));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFMaterialsAnisotropyExtension = class {
@@ -33246,7 +33572,7 @@ var init_GLTFLoader = __esm({
       extendMaterialParams(materialIndex, materialParams) {
         const extension = getMaterialExtension(this.parser, materialIndex, this.name);
         if (extension === null) return Promise.resolve();
-        const pending = [];
+        const pending2 = [];
         if (extension.anisotropyStrength !== void 0) {
           materialParams.anisotropy = extension.anisotropyStrength;
         }
@@ -33254,9 +33580,9 @@ var init_GLTFLoader = __esm({
           materialParams.anisotropyRotation = extension.anisotropyRotation;
         }
         if (extension.anisotropyTexture !== void 0) {
-          pending.push(this.parser.assignTexture(materialParams, "anisotropyMap", extension.anisotropyTexture));
+          pending2.push(this.parser.assignTexture(materialParams, "anisotropyMap", extension.anisotropyTexture));
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
     };
     GLTFTextureBasisUExtension = class {
@@ -33390,19 +33716,19 @@ var init_GLTFLoader = __esm({
         }
         const extensionDef = nodeDef.extensions[this.name];
         const attributesDef = extensionDef.attributes;
-        const pending = [];
+        const pending2 = [];
         const attributes = {};
         for (const key in attributesDef) {
-          pending.push(this.parser.getDependency("accessor", attributesDef[key]).then((accessor) => {
+          pending2.push(this.parser.getDependency("accessor", attributesDef[key]).then((accessor) => {
             attributes[key] = accessor;
             return attributes[key];
           }));
         }
-        if (pending.length < 1) {
+        if (pending2.length < 1) {
           return null;
         }
-        pending.push(this.parser.createNodeMesh(nodeIndex));
-        return Promise.all(pending).then((results) => {
+        pending2.push(this.parser.createNodeMesh(nodeIndex));
+        return Promise.all(pending2).then((results) => {
           const nodeObject = results.pop();
           const meshes = nodeObject.isGroup ? nodeObject.children : [nodeObject];
           const count = results[0].count;
@@ -33861,12 +34187,12 @@ var init_GLTFLoader = __esm({
       _invokeAll(func) {
         const extensions = Object.values(this.plugins);
         extensions.unshift(this);
-        const pending = [];
+        const pending2 = [];
         for (let i = 0; i < extensions.length; i++) {
           const result = func(extensions[i]);
-          if (result) pending.push(result);
+          if (result) pending2.push(result);
         }
-        return pending;
+        return pending2;
       }
       /**
        * Requests the specified dependency asynchronously, with caching.
@@ -34285,11 +34611,11 @@ var init_GLTFLoader = __esm({
         let materialType;
         const materialParams = {};
         const materialExtensions = materialDef.extensions || {};
-        const pending = [];
+        const pending2 = [];
         if (materialExtensions[EXTENSIONS.KHR_MATERIALS_UNLIT]) {
           const kmuExtension = extensions[EXTENSIONS.KHR_MATERIALS_UNLIT];
           materialType = kmuExtension.getMaterialType();
-          pending.push(kmuExtension.extendParams(materialParams, materialDef, parser));
+          pending2.push(kmuExtension.extendParams(materialParams, materialDef, parser));
         } else {
           const metallicRoughness = materialDef.pbrMetallicRoughness || {};
           materialParams.color = new Color(1, 1, 1);
@@ -34300,18 +34626,18 @@ var init_GLTFLoader = __esm({
             materialParams.opacity = array[3];
           }
           if (metallicRoughness.baseColorTexture !== void 0) {
-            pending.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
+            pending2.push(parser.assignTexture(materialParams, "map", metallicRoughness.baseColorTexture, SRGBColorSpace));
           }
           materialParams.metalness = metallicRoughness.metallicFactor !== void 0 ? metallicRoughness.metallicFactor : 1;
           materialParams.roughness = metallicRoughness.roughnessFactor !== void 0 ? metallicRoughness.roughnessFactor : 1;
           if (metallicRoughness.metallicRoughnessTexture !== void 0) {
-            pending.push(parser.assignTexture(materialParams, "metalnessMap", metallicRoughness.metallicRoughnessTexture));
-            pending.push(parser.assignTexture(materialParams, "roughnessMap", metallicRoughness.metallicRoughnessTexture));
+            pending2.push(parser.assignTexture(materialParams, "metalnessMap", metallicRoughness.metallicRoughnessTexture));
+            pending2.push(parser.assignTexture(materialParams, "roughnessMap", metallicRoughness.metallicRoughnessTexture));
           }
           materialType = this._invokeOne(function(ext) {
             return ext.getMaterialType && ext.getMaterialType(materialIndex);
           });
-          pending.push(Promise.all(this._invokeAll(function(ext) {
+          pending2.push(Promise.all(this._invokeAll(function(ext) {
             return ext.extendMaterialParams && ext.extendMaterialParams(materialIndex, materialParams);
           })));
         }
@@ -34329,7 +34655,7 @@ var init_GLTFLoader = __esm({
           }
         }
         if (materialDef.normalTexture !== void 0 && materialType !== MeshBasicMaterial) {
-          pending.push(parser.assignTexture(materialParams, "normalMap", materialDef.normalTexture));
+          pending2.push(parser.assignTexture(materialParams, "normalMap", materialDef.normalTexture));
           materialParams.normalScale = new Vector2(1, 1);
           if (materialDef.normalTexture.scale !== void 0) {
             const scale = materialDef.normalTexture.scale;
@@ -34337,7 +34663,7 @@ var init_GLTFLoader = __esm({
           }
         }
         if (materialDef.occlusionTexture !== void 0 && materialType !== MeshBasicMaterial) {
-          pending.push(parser.assignTexture(materialParams, "aoMap", materialDef.occlusionTexture));
+          pending2.push(parser.assignTexture(materialParams, "aoMap", materialDef.occlusionTexture));
           if (materialDef.occlusionTexture.strength !== void 0) {
             materialParams.aoMapIntensity = materialDef.occlusionTexture.strength;
           }
@@ -34347,9 +34673,9 @@ var init_GLTFLoader = __esm({
           materialParams.emissive = new Color().setRGB(emissiveFactor[0], emissiveFactor[1], emissiveFactor[2], LinearSRGBColorSpace);
         }
         if (materialDef.emissiveTexture !== void 0 && materialType !== MeshBasicMaterial) {
-          pending.push(parser.assignTexture(materialParams, "emissiveMap", materialDef.emissiveTexture, SRGBColorSpace));
+          pending2.push(parser.assignTexture(materialParams, "emissiveMap", materialDef.emissiveTexture, SRGBColorSpace));
         }
-        return Promise.all(pending).then(function() {
+        return Promise.all(pending2).then(function() {
           const material = new materialType(materialParams);
           if (materialDef.name) material.name = materialDef.name;
           assignExtrasToUserData(material, materialDef);
@@ -34392,13 +34718,13 @@ var init_GLTFLoader = __esm({
             return addPrimitiveAttributes(geometry, primitive, parser);
           });
         }
-        const pending = [];
+        const pending2 = [];
         for (let i = 0, il = primitives.length; i < il; i++) {
           const primitive = primitives[i];
           const cacheKey = createPrimitiveKey(primitive);
           const cached = cache[cacheKey];
           if (cached) {
-            pending.push(cached.promise);
+            pending2.push(cached.promise);
           } else {
             let geometryPromise;
             if (primitive.extensions && primitive.extensions[EXTENSIONS.KHR_DRACO_MESH_COMPRESSION]) {
@@ -34407,10 +34733,10 @@ var init_GLTFLoader = __esm({
               geometryPromise = addPrimitiveAttributes(new BufferGeometry(), primitive, parser);
             }
             cache[cacheKey] = { primitive, promise: geometryPromise };
-            pending.push(geometryPromise);
+            pending2.push(geometryPromise);
           }
         }
-        return Promise.all(pending);
+        return Promise.all(pending2);
       }
       /**
        * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
@@ -34425,13 +34751,13 @@ var init_GLTFLoader = __esm({
         const extensions = this.extensions;
         const meshDef = json.meshes[meshIndex];
         const primitives = meshDef.primitives;
-        const pending = [];
+        const pending2 = [];
         for (let i = 0, il = primitives.length; i < il; i++) {
           const material = primitives[i].material === void 0 ? createDefaultMaterial(this.cache) : this.getDependency("material", primitives[i].material);
-          pending.push(material);
+          pending2.push(material);
         }
-        pending.push(parser.loadGeometries(primitives));
-        return Promise.all(pending).then(function(results) {
+        pending2.push(parser.loadGeometries(primitives));
+        return Promise.all(pending2).then(function(results) {
           const materials = results.slice(0, results.length - 1);
           const geometries = results[results.length - 1];
           const meshes = [];
@@ -34522,16 +34848,16 @@ var init_GLTFLoader = __esm({
        */
       loadSkin(skinIndex) {
         const skinDef = this.json.skins[skinIndex];
-        const pending = [];
+        const pending2 = [];
         for (let i = 0, il = skinDef.joints.length; i < il; i++) {
-          pending.push(this._loadNodeShallow(skinDef.joints[i]));
+          pending2.push(this._loadNodeShallow(skinDef.joints[i]));
         }
         if (skinDef.inverseBindMatrices !== void 0) {
-          pending.push(this.getDependency("accessor", skinDef.inverseBindMatrices));
+          pending2.push(this.getDependency("accessor", skinDef.inverseBindMatrices));
         } else {
-          pending.push(null);
+          pending2.push(null);
         }
-        return Promise.all(pending).then(function(results) {
+        return Promise.all(pending2).then(function(results) {
           const inverseBindMatrices = results.pop();
           const jointNodes = results;
           const bones = [];
@@ -34695,24 +35021,24 @@ var init_GLTFLoader = __esm({
         }
         const nodeDef = json.nodes[nodeIndex];
         const nodeName = nodeDef.name ? parser.createUniqueName(nodeDef.name) : "";
-        const pending = [];
+        const pending2 = [];
         const meshPromise = parser._invokeOne(function(ext) {
           return ext.createNodeMesh && ext.createNodeMesh(nodeIndex);
         });
         if (meshPromise) {
-          pending.push(meshPromise);
+          pending2.push(meshPromise);
         }
         if (nodeDef.camera !== void 0) {
-          pending.push(parser.getDependency("camera", nodeDef.camera).then(function(camera) {
+          pending2.push(parser.getDependency("camera", nodeDef.camera).then(function(camera) {
             return parser._getNodeRef(parser.cameraCache, nodeDef.camera, camera);
           }));
         }
         parser._invokeAll(function(ext) {
           return ext.createNodeAttachment && ext.createNodeAttachment(nodeIndex);
         }).forEach(function(promise) {
-          pending.push(promise);
+          pending2.push(promise);
         });
-        this.nodeCache[nodeIndex] = Promise.all(pending).then(function(objects) {
+        this.nodeCache[nodeIndex] = Promise.all(pending2).then(function(objects) {
           let node;
           if (nodeDef.isBone === true) {
             node = new Bone();
@@ -34776,11 +35102,11 @@ var init_GLTFLoader = __esm({
         assignExtrasToUserData(scene, sceneDef);
         if (sceneDef.extensions) addUnknownExtensionsToUserData(extensions, scene, sceneDef);
         const nodeIds = sceneDef.nodes || [];
-        const pending = [];
+        const pending2 = [];
         for (let i = 0, il = nodeIds.length; i < il; i++) {
-          pending.push(parser.getDependency("node", nodeIds[i]));
+          pending2.push(parser.getDependency("node", nodeIds[i]));
         }
-        return Promise.all(pending).then(function(nodes) {
+        return Promise.all(pending2).then(function(nodes) {
           for (let i = 0, il = nodes.length; i < il; i++) {
             const node = nodes[i];
             if (node.parent !== null) {
@@ -34929,6 +35255,27 @@ function parseManifest(raw) {
         entry.tint = v.tint;
       }
     }
+    if (v.emissive !== void 0) {
+      if (typeof v.emissive !== "string" || !HEX_COLOR.test(v.emissive)) {
+        errors.push(`"${key}": emissive must be a #rrggbb hex string, ignored`);
+      } else {
+        entry.emissive = v.emissive;
+      }
+    }
+    if (v.emissiveIntensity !== void 0) {
+      if (typeof v.emissiveIntensity !== "number" || !Number.isFinite(v.emissiveIntensity) || v.emissiveIntensity < 0) {
+        errors.push(`"${key}": emissiveIntensity must be a number >= 0, ignored`);
+      } else {
+        entry.emissiveIntensity = v.emissiveIntensity;
+      }
+    }
+    if (v.idleMotion !== void 0) {
+      if (typeof v.idleMotion !== "string" || !IDLE_MOTIONS.includes(v.idleMotion)) {
+        errors.push(`"${key}": idleMotion must be one of ${IDLE_MOTIONS.join("|")}, ignored`);
+      } else {
+        entry.idleMotion = v.idleMotion;
+      }
+    }
     if (v.scale !== void 0) {
       if (typeof v.scale !== "number" || !(v.scale > 0)) {
         errors.push(`"${key}": scale must be a positive number, ignored`);
@@ -34979,7 +35326,13 @@ function resolveVisualSource(manifest, logicalId) {
       scale: entry.scale ?? 1,
       anims: entry.anims ?? {},
       animSources: entry.animSource === void 0 ? [] : Array.isArray(entry.animSource) ? entry.animSource : [entry.animSource],
-      faceOffset: entry.faceOffset ?? 0
+      faceOffset: entry.faceOffset ?? 0,
+      // Left `undefined` when absent so `toEqual` fixtures (and callers that only
+      // tint AI meshes) treat a plain textured model exactly as before.
+      tint: entry.tint,
+      emissive: entry.emissive,
+      emissiveIntensity: entry.emissiveIntensity,
+      idleMotion: entry.idleMotion
     };
   }
   return {
@@ -34994,7 +35347,7 @@ function resolveFallbackPrimitive(manifest) {
   const source = resolveVisualSource(manifest, "fallback");
   return source.kind === "primitive" ? source : { kind: "primitive", primitive: DEFAULT_PRIMITIVE, tint: DEFAULT_TINT, scale: 1, faceOffset: 0 };
 }
-var DEFAULT_TINT, DEFAULT_PRIMITIVE, PRIMITIVE_KINDS, ANIM_STATES, HEX_COLOR;
+var DEFAULT_TINT, DEFAULT_PRIMITIVE, PRIMITIVE_KINDS, ANIM_STATES, IDLE_MOTIONS, HEX_COLOR;
 var init_manifest = __esm({
   "client/manifest.ts"() {
     "use strict";
@@ -35002,6 +35355,7 @@ var init_manifest = __esm({
     DEFAULT_PRIMITIVE = "capsule";
     PRIMITIVE_KINDS = ["capsule", "box", "tree", "rock"];
     ANIM_STATES = ["idle", "walk", "attack", "cast", "hit", "death"];
+    IDLE_MOTIONS = ["float"];
     HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
   }
 });
@@ -35016,8 +35370,26 @@ function buildModelVisual(gltf, clips, source) {
       node.receiveShadow = true;
     }
   });
-  const anim = new GltfAnimController(object, clips, source.anims);
+  if (source.tint) applyModelTint(object, source.tint, source.emissive, source.emissiveIntensity);
+  const anim = new GltfAnimController(object, clips, source.anims, source.idleMotion);
   return { object, anim, faceOffset: source.faceOffset };
+}
+function applyModelTint(object, tint, emissive, emissiveIntensity) {
+  const color = new Color(tint);
+  const emissiveColor = emissive ? new Color(emissive) : void 0;
+  object.traverse((node) => {
+    if (!(node instanceof Mesh)) return;
+    const replace = (m) => {
+      if (m.map instanceof Texture) return m;
+      const next = new MeshStandardMaterial({ color, roughness: 0.9, metalness: 0.05 });
+      if (emissiveColor) {
+        next.emissive = emissiveColor.clone();
+        next.emissiveIntensity = emissiveIntensity ?? 1;
+      }
+      return next;
+    };
+    node.material = Array.isArray(node.material) ? node.material.map(replace) : replace(node.material);
+  });
 }
 function buildPrimitiveVisual(source) {
   if (source.primitive === "capsule") {
@@ -35098,7 +35470,7 @@ function buildRockPrimitive(tint) {
   mesh.receiveShadow = true;
   return mesh;
 }
-var DEFAULT_MANIFEST_URL, AssetRegistry, NullAnimController, ONE_SHOT_STATES, GltfAnimController, ATTACK_DURATION, HIT_DURATION, DEATH_DURATION, CAST_RAISE_DURATION, ProceduralAnimController;
+var DEFAULT_MANIFEST_URL, AssetRegistry, NullAnimController, ONE_SHOT_STATES, FLOAT_AMPLITUDE, FLOAT_ANGULAR, FLOAT_YAW_RATE, GltfAnimController, ATTACK_DURATION, HIT_DURATION, DEATH_DURATION, CAST_RAISE_DURATION, ProceduralAnimController;
 var init_assets = __esm({
   "client/assets.ts"() {
     "use strict";
@@ -35150,12 +35522,12 @@ var init_assets = __esm({
         return (await this.getUnitVisual(logicalId)).object;
       }
       loadModel(path) {
-        let pending = this.gltfCache.get(path);
-        if (!pending) {
-          pending = this.loader.loadAsync(path);
-          this.gltfCache.set(path, pending);
+        let pending2 = this.gltfCache.get(path);
+        if (!pending2) {
+          pending2 = this.loader.loadAsync(path);
+          this.gltfCache.set(path, pending2);
         }
-        return pending;
+        return pending2;
       }
     };
     NullAnimController = class {
@@ -35163,15 +35535,28 @@ var init_assets = __esm({
       }
       update() {
       }
+      revive() {
+      }
     };
     ONE_SHOT_STATES = ["attack", "cast", "hit", "death"];
+    FLOAT_AMPLITUDE = 0.15;
+    FLOAT_ANGULAR = Math.PI * 2 / 2.4;
+    FLOAT_YAW_RATE = 0.25;
     GltfAnimController = class {
       mixer;
       actions = /* @__PURE__ */ new Map();
       current;
       state = "idle";
-      constructor(root, clips, animMap) {
+      /** Enabled only for a clip-less GLB whose entry asked for "float" — a model with
+       *  real clips keeps its clips and ignores idleMotion entirely. */
+      floatEnabled;
+      root;
+      floatBaseY;
+      floatT = 0;
+      constructor(root, clips, animMap, idleMotion) {
         this.mixer = new AnimationMixer(root);
+        this.root = root;
+        this.floatBaseY = root.position.y;
         for (const [state, clipName] of Object.entries(animMap)) {
           const clip = AnimationClip.findByName(clips, clipName);
           if (!clip) continue;
@@ -35182,6 +35567,7 @@ var init_assets = __esm({
           }
           this.actions.set(state, action);
         }
+        this.floatEnabled = idleMotion === "float" && this.actions.size === 0;
         this.play("idle");
       }
       setState(state) {
@@ -35191,12 +35577,29 @@ var init_assets = __esm({
         this.state = state;
         this.play(state, restart);
       }
+      revive() {
+        if (this.state !== "death") return;
+        this.state = "idle";
+        this.play("idle");
+      }
       update(dt) {
         this.mixer.update(dt);
+        if (this.floatEnabled) this.updateFloat(dt);
         if (this.current && this.state !== "idle" && this.state !== "walk" && this.state !== "death") {
           const clip = this.current.getClip();
           if (this.current.time >= clip.duration - 1e-3) this.setState("idle");
         }
+      }
+      /** Advances (or, while dead, settles) the "float" idle motion. Death freezes the
+       *  bob and drops the model back to its base height so a corpse doesn't hover. */
+      updateFloat(dt) {
+        if (this.state === "death") {
+          this.root.position.y = this.floatBaseY;
+          return;
+        }
+        this.floatT += dt;
+        this.root.position.y = this.floatBaseY + Math.sin(this.floatT * FLOAT_ANGULAR) * FLOAT_AMPLITUDE;
+        this.root.rotation.y += dt * FLOAT_YAW_RATE;
       }
       play(state, restart = false) {
         const next = this.actions.get(state) ?? this.actions.get("idle");
@@ -35223,6 +35626,13 @@ var init_assets = __esm({
         if (state === this.state && state !== "attack" && state !== "hit") return;
         this.state = state;
         this.t = 0;
+      }
+      revive() {
+        if (this.state !== "death") return;
+        this.state = "idle";
+        this.t = 0;
+        this.parts.torso.rotation.set(0, 0, 0);
+        this.parts.torso.position.set(0, 0, 0);
       }
       update(dt) {
         this.t += dt;
@@ -35280,39 +35690,90 @@ var init_assets = __esm({
 });
 
 // client/units.ts
+function sanitizeNodeName(name) {
+  return name.replace(/\s/g, "_").replace(/[\[\]\.:\/]/g, "");
+}
+function findBoneByName(root, name) {
+  return root.getObjectByName(name) ?? root.getObjectByName(sanitizeNodeName(name));
+}
+function gearVisual(data, slot) {
+  const override = slot === "weapon" ? data.weaponVisual : data.armorVisual;
+  if (override) return override;
+  const def = DEFAULT_GEAR[data.kind === "player" ? data.visual : data.kind];
+  return (slot === "weapon" ? def?.weapon : def?.armor) ?? "";
+}
 function createNameplateSprite() {
   const canvas = document.createElement("canvas");
   canvas.width = NAMEPLATE_WIDTH;
   canvas.height = NAMEPLATE_HEIGHT;
-  const ctx = canvas.getContext("2d");
+  const ctx2 = canvas.getContext("2d");
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   const material = new SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
   const sprite = new Sprite(material);
   sprite.scale.set(1.6, 0.4, 1);
-  return { sprite, canvas, ctx, texture };
+  return { sprite, canvas, ctx: ctx2, texture };
 }
 function drawNameplate(entry) {
-  const { nameplateCtx: ctx, nameplateCanvas: canvas, data } = entry;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = "bold 22px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillText(data.name, canvas.width / 2 + 1, 25);
-  ctx.fillStyle = "#e6edf3";
-  ctx.fillText(data.name, canvas.width / 2, 24);
+  const { nameplateCtx: ctx2, nameplateCanvas: canvas, data } = entry;
+  ctx2.clearRect(0, 0, canvas.width, canvas.height);
+  ctx2.font = "bold 22px sans-serif";
+  ctx2.textAlign = "center";
+  ctx2.fillStyle = "rgba(0,0,0,0.55)";
+  ctx2.fillText(data.name, canvas.width / 2 + 1, 25);
+  ctx2.fillStyle = "#e6edf3";
+  ctx2.fillText(data.name, canvas.width / 2, 24);
   const barX = 8;
   const barY = 34;
   const barW = canvas.width - 16;
   const barH = 10;
-  ctx.fillStyle = "#161b22";
-  ctx.fillRect(barX, barY, barW, barH);
+  ctx2.fillStyle = "#161b22";
+  ctx2.fillRect(barX, barY, barW, barH);
   const pct2 = data.maxHp > 0 ? Math.max(0, Math.min(1, data.hp / data.maxHp)) : 0;
-  ctx.fillStyle = pct2 > 0.5 ? "#3fb950" : pct2 > 0.2 ? "#d29922" : "#f85149";
-  ctx.fillRect(barX, barY, barW * pct2, barH);
-  ctx.strokeStyle = "#30363d";
-  ctx.strokeRect(barX, barY, barW, barH);
+  ctx2.fillStyle = pct2 > 0.5 ? "#3fb950" : pct2 > 0.2 ? "#d29922" : "#f85149";
+  ctx2.fillRect(barX, barY, barW * pct2, barH);
+  ctx2.strokeStyle = "#30363d";
+  ctx2.strokeRect(barX, barY, barW, barH);
   entry.nameplateTexture.needsUpdate = true;
+}
+function buildFlashTargets(object) {
+  const targets = [];
+  object.traverse((node) => {
+    if (!(node instanceof Mesh)) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    const next = mats.map((m) => {
+      const probe = m;
+      if (probe.emissive instanceof Color) {
+        const clone2 = m.clone();
+        targets.push({ kind: "emissive", mat: clone2, baseColor: clone2.emissive.clone(), baseIntensity: clone2.emissiveIntensity ?? 1 });
+        return clone2;
+      }
+      if (probe.color instanceof Color) {
+        const clone2 = m.clone();
+        targets.push({ kind: "color", mat: clone2, baseColor: clone2.color.clone() });
+        return clone2;
+      }
+      return m;
+    });
+    node.material = Array.isArray(node.material) ? next : next[0];
+  });
+  return targets;
+}
+function applyFlash(t, factor) {
+  if (t.kind === "emissive") {
+    t.mat.emissive.copy(FLASH_COLOR);
+    t.mat.emissiveIntensity = FLASH_PEAK * factor;
+  } else {
+    t.mat.color.copy(t.baseColor).lerp(FLASH_WHITE, 0.6 * factor);
+  }
+}
+function restoreFlash(t) {
+  if (t.kind === "emissive") {
+    t.mat.emissive.copy(t.baseColor);
+    t.mat.emissiveIntensity = t.baseIntensity;
+  } else {
+    t.mat.color.copy(t.baseColor);
+  }
 }
 function disposeObject3D(obj) {
   obj.traverse((node) => {
@@ -35323,7 +35784,7 @@ function disposeObject3D(obj) {
     }
   });
 }
-var WEAPON_OFFSET, ARMOR_OFFSET, GEAR_SCALE, NAMEPLATE_WIDTH, NAMEPLATE_HEIGHT, MOVE_EPSILON, UnitRenderer;
+var WEAPON_OFFSET, ARMOR_OFFSET, GEAR_SCALE, SLOT_BONE, DEFAULT_GEAR, NAMEPLATE_WIDTH, NAMEPLATE_HEIGHT, MOVE_EPSILON, FLASH_DURATION, FLASH_PEAK, FLASH_COLOR, FLASH_WHITE, UnitRenderer;
 var init_units = __esm({
   "client/units.ts"() {
     "use strict";
@@ -35332,9 +35793,22 @@ var init_units = __esm({
     WEAPON_OFFSET = new Vector3(0.4, 1, 0.15);
     ARMOR_OFFSET = new Vector3(0, 0.75, 0);
     GEAR_SCALE = 0.35;
+    SLOT_BONE = { weapon: "handslot.r", armor: "handslot.l" };
+    DEFAULT_GEAR = {
+      "unit.warrior": { weapon: "weapon.sword", armor: "weapon.shield" },
+      "unit.mage": { weapon: "weapon.staff" },
+      "unit.cleric": { weapon: "weapon.wand" },
+      skeleton_warrior: { weapon: "weapon.skeleton_blade", armor: "weapon.skeleton_shield" },
+      skeleton_archer: { weapon: "weapon.skeleton_crossbow" },
+      wraith_commander: { weapon: "weapon.greatsword" }
+    };
     NAMEPLATE_WIDTH = 256;
     NAMEPLATE_HEIGHT = 64;
     MOVE_EPSILON = 1e-4;
+    FLASH_DURATION = 0.1;
+    FLASH_PEAK = 1.3;
+    FLASH_COLOR = new Color(1, 0.4, 0.35);
+    FLASH_WHITE = new Color(1, 1, 1);
     UnitRenderer = class _UnitRenderer {
       constructor(scene, assets) {
         this.scene = scene;
@@ -35372,7 +35846,9 @@ var init_units = __esm({
           nameplateTexture: nameplate.texture,
           moveState: "idle",
           weapon: null,
-          armor: null
+          armor: null,
+          flashTargets: null,
+          flashElapsed: FLASH_DURATION
         };
         this.units.set(data.id, entry);
         drawNameplate(entry);
@@ -35385,20 +35861,23 @@ var init_units = __esm({
         if (!entry) return;
         const prev = entry.data;
         const moved = Math.hypot(data.x - prev.x, data.y - prev.y) > MOVE_EPSILON;
+        if (data.hp < prev.hp && !prev.dead) this.startFlash(entry);
         entry.data = data;
         entry.root.position.copy(_UnitRenderer.toWorld(data.x, data.y));
         entry.root.rotation.y = -data.facing + entry.visual.faceOffset;
         if (data.dead && !prev.dead) {
           entry.visual.anim.setState("death");
         } else if (!data.dead) {
+          const revived = prev.dead;
+          if (revived) entry.visual.anim.revive();
           const nextMove = moved ? "walk" : "idle";
-          if (nextMove !== entry.moveState) {
+          if (revived || nextMove !== entry.moveState) {
             entry.moveState = nextMove;
             entry.visual.anim.setState(nextMove);
           }
         }
         if (data.hp !== prev.hp || data.maxHp !== prev.maxHp || data.name !== prev.name) drawNameplate(entry);
-        if (data.weaponVisual !== prev.weaponVisual || data.armorVisual !== prev.armorVisual) {
+        if (gearVisual(data, "weapon") !== gearVisual(prev, "weapon") || gearVisual(data, "armor") !== gearVisual(prev, "armor")) {
           void this.syncGear(entry);
         }
       }
@@ -35417,9 +35896,28 @@ var init_units = __esm({
         entry.nameplateTexture.dispose();
         this.units.delete(id);
       }
-      /** Advances every unit's animation controller. Call once per frame with the clamped frame dt. */
+      /** Advances every unit's animation controller and any active B1 hit flash. Call once
+       *  per frame with the clamped frame dt. */
       tick(dt) {
-        for (const entry of this.units.values()) entry.visual.anim.update(dt);
+        for (const entry of this.units.values()) {
+          entry.visual.anim.update(dt);
+          if (entry.flashTargets && entry.flashElapsed < FLASH_DURATION) {
+            entry.flashElapsed += dt;
+            if (entry.flashElapsed >= FLASH_DURATION) {
+              for (const t of entry.flashTargets) restoreFlash(t);
+            } else {
+              const factor = 1 - entry.flashElapsed / FLASH_DURATION;
+              for (const t of entry.flashTargets) applyFlash(t, factor);
+            }
+          }
+        }
+      }
+      /** Starts (or restarts) the B1 hit flash on a unit, cloning its body materials the first
+       *  time so the pulse stays local to this unit. */
+      startFlash(entry) {
+        entry.flashTargets ??= buildFlashTargets(entry.visual.object);
+        entry.flashElapsed = 0;
+        for (const t of entry.flashTargets) applyFlash(t, 1);
       }
       /** Root groups tagged with `userData.unitId`, for raycasting (input.ts). */
       targetables() {
@@ -35427,6 +35925,12 @@ var init_units = __esm({
       }
       get(id) {
         return this.units.get(id)?.data;
+      }
+      /** Exposes the scene this renderer draws into — lets `net.ts` wire up `vfx.ts` (which
+       *  needs to add/remove its own particles/meshes) without `main.ts` needing to pass a
+       *  `SceneRig` reference through. */
+      getScene() {
+        return this.scene;
       }
       /** Syncs both gear slots to `entry.data`'s current `weaponVisual`/`armorVisual`. */
       async syncGear(entry) {
@@ -35439,22 +35943,26 @@ var init_units = __esm({
        *  falls back to a procedural primitive when the logical id is unlisted, so this is
        *  "best-effort" by construction: some cosmetic prop always renders, never nothing. */
       async syncGearSlot(entry, slot, offset) {
-        const key = slot === "weapon" ? "weaponVisual" : "armorVisual";
-        const visual = entry.data[key] ?? "";
+        const visual = gearVisual(entry.data, slot);
         const current = entry[slot];
         if ((current?.visual ?? "") === visual) return;
         if (current) {
-          entry.root.remove(current.object);
+          current.object.parent?.remove(current.object);
           disposeObject3D(current.object);
           entry[slot] = null;
         }
         if (!visual) return;
         const object = await this.assets.getPropVisual(visual);
         if (!this.units.has(entry.data.id)) return;
-        if ((entry.data[key] ?? "") !== visual) return;
-        object.scale.multiplyScalar(GEAR_SCALE);
-        object.position.copy(offset);
-        entry.root.add(object);
+        if (gearVisual(entry.data, slot) !== visual) return;
+        const bone = findBoneByName(entry.visual.object, SLOT_BONE[slot]);
+        if (bone) {
+          bone.add(object);
+        } else {
+          object.scale.multiplyScalar(GEAR_SCALE);
+          object.position.copy(offset);
+          entry.root.add(object);
+        }
         entry[slot] = { visual, object };
       }
     };
@@ -35462,6 +35970,12 @@ var init_units = __esm({
 });
 
 // client/input.ts
+function isTextInputFocused() {
+  const el2 = document.activeElement;
+  if (!el2) return false;
+  const tag = el2.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el2.isContentEditable;
+}
 function findTaggedId(object, key) {
   let node = object;
   while (node) {
@@ -35484,8 +35998,14 @@ var init_input = __esm({
         this.units = units;
         this.callbacks = callbacks;
         this.onPointerDown = (e) => this.handlePointerDown(e);
+        this.onPointerMove = (e) => this.handlePointerMove(e);
+        this.onPointerLeave = () => {
+          this.hasHover = false;
+        };
         this.onKeyDown = (e) => this.handleKeyDown(e);
         domElement.addEventListener("pointerdown", this.onPointerDown);
+        domElement.addEventListener("pointermove", this.onPointerMove);
+        domElement.addEventListener("pointerleave", this.onPointerLeave);
         window.addEventListener("keydown", this.onKeyDown);
       }
       domElement;
@@ -35495,11 +36015,19 @@ var init_input = __esm({
       callbacks;
       raycaster = new Raycaster();
       pointer = new Vector2();
+      /** Latest cursor position over the canvas, in NDC — kept fresh by `pointermove` so a Space
+       *  dash can raycast the ground under the cursor without waiting for a click. */
+      hover = new Vector2();
+      hasHover = false;
       onPointerDown;
+      onPointerMove;
+      onPointerLeave;
       onKeyDown;
       markers = [];
       dispose() {
         this.domElement.removeEventListener("pointerdown", this.onPointerDown);
+        this.domElement.removeEventListener("pointermove", this.onPointerMove);
+        this.domElement.removeEventListener("pointerleave", this.onPointerLeave);
         window.removeEventListener("keydown", this.onKeyDown);
       }
       /** Registers the current zone's clickable static markers (shop/dummy NPC props) for
@@ -35540,13 +36068,33 @@ var init_input = __esm({
         const groundHit = this.raycaster.intersectObject(this.ground, false)[0];
         if (groundHit) this.callbacks.onMoveClick(groundHit.point.x, groundHit.point.z);
       }
+      handlePointerMove(e) {
+        const rect = this.domElement.getBoundingClientRect();
+        this.hover.x = (e.clientX - rect.left) / rect.width * 2 - 1;
+        this.hover.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        this.hasHover = true;
+      }
       handleKeyDown(e) {
         if (e.key === "Escape") {
           this.callbacks.onClearTarget();
           return;
         }
+        if (e.code === "Space") {
+          if (isTextInputFocused()) return;
+          e.preventDefault();
+          this.callbacks.onDash(this.groundUnderCursor());
+          return;
+        }
         const n = Number(e.key);
         if (Number.isInteger(n) && n >= 1 && n <= 6) this.callbacks.onHotbar(n);
+      }
+      /** The sim-plane ground point under the current cursor, or `null` when the cursor isn't
+       *  over the canvas or the ray misses the ground. */
+      groundUnderCursor() {
+        if (!this.hasHover) return null;
+        this.raycaster.setFromCamera(this.hover, this.camera);
+        const hit = this.raycaster.intersectObject(this.ground, false)[0];
+        return hit ? { x: hit.point.x, y: hit.point.z } : null;
       }
     };
   }
@@ -35609,6 +36157,9 @@ async function runSandbox() {
     onClearTarget() {
     },
     onMarkerClick() {
+    },
+    onDash(target) {
+      if (target) moveTarget = target;
     }
   });
   let last = performance.now();
@@ -35652,9 +36203,595 @@ var init_sandbox = __esm({
 // client/main.ts
 init_three_module();
 init_scene();
+
+// client/ambient.ts
+init_three_module();
+init_BufferGeometryUtils();
+
+// src/zones/ember-depths.ts
+var WKIND = ["prop.dungeon_wall", "prop.dungeon_wall", "prop.dungeon_wall_broken"];
+function wall(side, x, i, y) {
+  return { id: `wall-${side}-${i}`, pos: { x, y }, prop: WKIND[i % WKIND.length] };
+}
+var WALL_X = [22, 31, 40, 49, 58, 67, 76, 85, 94, 103];
+var WALLS = [
+  ...WALL_X.map((x, i) => wall("n", x, i, 47)),
+  // north wall line
+  ...WALL_X.map((x, i) => wall("s", x, i, 73))
+  // south wall line
+];
+var EMBER_DEPTHS = {
+  id: "ember-depths",
+  width: 120,
+  height: 120,
+  playerSpawn: { x: 10, y: 60 },
+  obstacles: [
+    { id: "pillar-1", x: 30, y: 45, w: 3, h: 3, prop: "prop.dungeon_pillar" },
+    { id: "pillar-2", x: 30, y: 75, w: 3, h: 3, prop: "prop.dungeon_pillar" },
+    { id: "pillar-3", x: 90, y: 45, w: 3, h: 3, prop: "prop.dungeon_pillar" },
+    { id: "pillar-4", x: 90, y: 75, w: 3, h: 3, prop: "prop.dungeon_pillar" },
+    { id: "brazier-1", x: 55, y: 50, w: 2, h: 2, prop: "prop.brazier" },
+    { id: "brazier-2", x: 55, y: 70, w: 2, h: 2, prop: "prop.brazier" },
+    // Boss-room centerpiece: the pulsing star-heart crystal, off-axis so it clears both the
+    // end-boss home (112,60) and the straight spawn(10,60)->portal(5,60) exit line.
+    { id: "star-heart", x: 116, y: 66, w: 4, h: 4, prop: "prop.star_heart" }
+  ],
+  mobCamps: [
+    // Wave 1 — the warrior+archer opener, split across two co-located camps (a camp is
+    // single-species). The archer sits a few units back off the centerline to read as ranged support.
+    { id: "wave-1", npcDefId: "skeleton_warrior", count: 2, respawnMs: 15e3, home: { x: 35, y: 60 } },
+    { id: "wave-1-archer", npcDefId: "skeleton_archer", count: 1, respawnMs: 15e3, home: { x: 35, y: 66 } },
+    // Mid-boss — Ser Valen (wraith_commander). Long respawn; the room scripts his hp-phase (engage/half/defeated).
+    { id: "mid-boss", npcDefId: "wraith_commander", count: 1, respawnMs: 3e5, home: { x: 55, y: 60 } },
+    // Wave 2 — spell/slow gauntlet: two wraiths (Spectral Bolt + Soul Chill) plus a trailing archer.
+    { id: "wave-2", npcDefId: "wraith", count: 2, respawnMs: 15e3, home: { x: 75, y: 60 } },
+    { id: "wave-2-archer", npcDefId: "skeleton_archer", count: 1, respawnMs: 15e3, home: { x: 75, y: 54 } },
+    // Wave 3 — the elite gate: two Stone Guardians (high armor, slow slam).
+    { id: "wave-3", npcDefId: "golem", count: 2, respawnMs: 15e3, home: { x: 95, y: 60 } },
+    // End-boss — The Ember Lord (ember_lord). Long respawn; the room scripts his full phase ladder
+    // (engage/phase_summon/phase_aoe/enrage/defeated).
+    { id: "end-boss", npcDefId: "ember_lord", count: 1, respawnMs: 6e5, home: { x: 112, y: 60 } }
+  ],
+  portals: [{ id: "to-village", kind: "village", pos: { x: 5, y: 60 } }],
+  decorations: [
+    // Rune arch framing the exit portal, 1.5 units beyond it (toward the west wall).
+    { id: "gate-village", pos: { x: 3.5, y: 60 }, prop: "prop.portal_gate", rotation: Math.PI / 2 },
+    // Corridor wall lining (both sides).
+    ...WALLS,
+    // Mounted wall torches lighting the corridor (just inside the wall lines).
+    { id: "torch-n1", pos: { x: 27, y: 49 }, prop: "prop.wall_torch" },
+    { id: "torch-n2", pos: { x: 54, y: 49 }, prop: "prop.wall_torch" },
+    { id: "torch-n3", pos: { x: 81, y: 49 }, prop: "prop.wall_torch" },
+    { id: "torch-n4", pos: { x: 104, y: 49 }, prop: "prop.wall_torch" },
+    { id: "torch-s1", pos: { x: 40, y: 71 }, prop: "prop.wall_torch" },
+    { id: "torch-s2", pos: { x: 67, y: 71 }, prop: "prop.wall_torch" },
+    { id: "torch-s3", pos: { x: 94, y: 71 }, prop: "prop.wall_torch" },
+    { id: "torch-s4", pos: { x: 18, y: 71 }, prop: "prop.wall_torch" },
+    // Stout columns interspersed for structure.
+    { id: "col-1", pos: { x: 45, y: 52 }, prop: "prop.dungeon_column" },
+    { id: "col-2", pos: { x: 70, y: 52 }, prop: "prop.dungeon_column", rotation: 0.4 },
+    { id: "col-3", pos: { x: 60, y: 68 }, prop: "prop.dungeon_column" },
+    { id: "col-4", pos: { x: 85, y: 68 }, prop: "prop.dungeon_column", rotation: 0.6 },
+    { id: "col-5", pos: { x: 52, y: 68 }, prop: "prop.dungeon_column" },
+    { id: "col-6", pos: { x: 78, y: 52 }, prop: "prop.dungeon_column", rotation: 0.2 },
+    // Corridor debris — rubble, crates/barrels, and battle-remains, off the y=60 home points.
+    { id: "deb-1", pos: { x: 28, y: 56 }, prop: "prop.dungeon_barrel" },
+    { id: "deb-2", pos: { x: 28, y: 64 }, prop: "prop.rubble_small", rotation: 0.7 },
+    { id: "deb-3", pos: { x: 42, y: 64 }, prop: "prop.battle_remains", rotation: 1.2 },
+    { id: "deb-4", pos: { x: 48, y: 56 }, prop: "prop.rubble", rotation: 2 },
+    { id: "deb-5", pos: { x: 58, y: 66 }, prop: "prop.dungeon_crate", rotation: 0.5 },
+    { id: "deb-6", pos: { x: 66, y: 57 }, prop: "prop.dungeon_crate", rotation: 1.1 },
+    { id: "deb-7", pos: { x: 66, y: 63 }, prop: "prop.dungeon_barrel" },
+    { id: "deb-8", pos: { x: 72, y: 66 }, prop: "prop.rubble_small", rotation: 1.6 },
+    { id: "deb-9", pos: { x: 84, y: 56 }, prop: "prop.rubble", rotation: 0.3 },
+    { id: "deb-10", pos: { x: 84, y: 64 }, prop: "prop.dungeon_crate", rotation: 2.4 },
+    { id: "deb-11", pos: { x: 90, y: 54 }, prop: "prop.battle_remains", rotation: 0.9 },
+    { id: "deb-12", pos: { x: 101, y: 55 }, prop: "prop.battle_remains", rotation: 2.7 },
+    // End-boss room (112,60) drama, framing the star-heart (116,66).
+    { id: "boss-banner-1", pos: { x: 108, y: 50 }, prop: "prop.banner", rotation: 0 },
+    { id: "boss-banner-2", pos: { x: 120, y: 50 }, prop: "prop.banner", rotation: 0 },
+    { id: "boss-banner-3", pos: { x: 118, y: 72 }, prop: "prop.banner", rotation: Math.PI },
+    { id: "boss-chest-1", pos: { x: 110, y: 72 }, prop: "prop.dungeon_chest", rotation: 0.5 },
+    { id: "boss-chest-2", pos: { x: 120, y: 66 }, prop: "prop.dungeon_chest", rotation: -0.6 },
+    { id: "boss-remains-1", pos: { x: 106, y: 66 }, prop: "prop.battle_remains", rotation: 1.3 },
+    { id: "boss-remains-2", pos: { x: 118, y: 54 }, prop: "prop.battle_remains", rotation: 2.2 },
+    { id: "boss-rubble-1", pos: { x: 104, y: 54 }, prop: "prop.rubble", rotation: 1 },
+    { id: "boss-rubble-2", pos: { x: 122, y: 60 }, prop: "prop.rubble_small", rotation: 0.4 }
+  ]
+};
+
+// src/zones/emberhold.ts
+var VM = ["prop.mountain_forest", "prop.mountain_forest_lg"];
+function vm(edge, x, y, i) {
+  return { id: `ring-${edge}-${i}`, pos: { x, y }, prop: VM[i % VM.length], rotation: i * 1.3 % (Math.PI * 2) };
+}
+var RING = [
+  ...[-4, 6, 16, 26, 36, 46, 56, 64].map((x, i) => vm("s", x, -4, i)),
+  // south edge
+  ...[-4, 6, 16, 26, 36, 46, 56, 64].map((x, i) => vm("n", x, 63, i)),
+  // north edge
+  ...[8, 20, 32, 44, 56].map((y, i) => vm("w", -4, y, i)),
+  // west edge
+  ...[8, 20, 46, 58].map((y, i) => vm("e", 64, y, i))
+  // east edge — gap around y≈30 (portal side)
+];
+var EMBERHOLD = {
+  id: "emberhold",
+  width: 60,
+  height: 60,
+  playerSpawn: { x: 30, y: 30 },
+  obstacles: [
+    // Houses — a 6-building village (mixed variants). All off the y=30 spawn->portal line
+    // and clear of the two NPC markers.
+    { id: "house-1", x: 15, y: 15, w: 6, h: 6, prop: "prop.house_a" },
+    { id: "house-2", x: 45, y: 15, w: 6, h: 6, prop: "prop.house_b", rotation: Math.PI },
+    { id: "house-3", x: 15, y: 48, w: 6, h: 6, prop: "prop.house_a", rotation: 1.2 },
+    { id: "house-4", x: 47, y: 48, w: 5, h: 5, prop: "prop.house_c", rotation: Math.PI },
+    // tavern (SE)
+    { id: "house-5", x: 48, y: 22, w: 6, h: 6, prop: "prop.house_a", rotation: -1 },
+    { id: "house-6", x: 24, y: 13, w: 6, h: 6, prop: "prop.house_b", rotation: 0.6 },
+    { id: "windmill", x: 52, y: 52, w: 4, h: 4, prop: "prop.windmill" },
+    // corner landmark
+    { id: "well", x: 30, y: 20, w: 3, h: 3, prop: "prop.well" },
+    // The market building stands just behind the Roza vendor marker as her stall. Off the
+    // y=30 travel line.
+    { id: "market-stall", x: 37.5, y: 37.5, w: 3, h: 3, prop: "npc.shopkeeper" },
+    // Village hearth, just south of the spawn plaza (off the travel line).
+    { id: "everhearth", x: 30, y: 38, w: 2, h: 2, prop: "prop.everhearth" },
+    { id: "torch-1", x: 20, y: 24, w: 1, h: 1, prop: "prop.torch" },
+    { id: "torch-2", x: 40, y: 36, w: 1, h: 1, prop: "prop.torch" }
+  ],
+  // Safe zone — no hostile spawns (PLAN §2.5: "몹 없음").
+  mobCamps: [],
+  npcs: [
+    { id: "shop-1", kind: "shop", pos: { x: 35, y: 35 }, prop: "npc.vendor" },
+    { id: "dummy-1", kind: "dummy", pos: { x: 22, y: 42 }, prop: "prop.training_dummy" }
+  ],
+  portals: [{ id: "to-field", kind: "field", pos: { x: 55, y: 30 } }],
+  decorations: [
+    // Rune arch framing the field portal, set 1.5 units beyond it (away from spawn).
+    { id: "gate-field", pos: { x: 56.5, y: 30 }, prop: "prop.portal_gate", rotation: Math.PI / 2 },
+    // Boundary mountain ring (cosmetic, outside play bounds).
+    ...RING,
+    // Market square dressing — crates/barrels around the stall (37.5,37.5) & vendor (35,35).
+    { id: "mkt-crate-1", pos: { x: 40, y: 40 }, prop: "prop.crate", rotation: 0.3 },
+    { id: "mkt-barrel-1", pos: { x: 41, y: 37.5 }, prop: "prop.barrel" },
+    { id: "mkt-crate-2", pos: { x: 34.5, y: 39.5 }, prop: "prop.crate", rotation: 1.1 },
+    { id: "mkt-barrel-2", pos: { x: 39.5, y: 34.5 }, prop: "prop.barrel" },
+    { id: "mkt-crate-3", pos: { x: 42, y: 35.5 }, prop: "prop.crate", rotation: 0.8 },
+    { id: "mkt-barrel-3", pos: { x: 35.5, y: 41 }, prop: "prop.barrel" },
+    { id: "mkt-crate-4", pos: { x: 38, y: 41.5 }, prop: "prop.crate", rotation: 2 },
+    // "Main street" torch line — flanks the y=30 plaza->portal route at y=27 / y=33 (never
+    // on the y=30 line itself), reading as a lit path east.
+    { id: "lamp-s1", pos: { x: 34, y: 27 }, prop: "prop.torch" },
+    { id: "lamp-s2", pos: { x: 41, y: 27 }, prop: "prop.torch" },
+    { id: "lamp-s3", pos: { x: 48, y: 27 }, prop: "prop.torch" },
+    { id: "lamp-n1", pos: { x: 34, y: 33 }, prop: "prop.torch" },
+    { id: "lamp-n2", pos: { x: 41, y: 33 }, prop: "prop.torch" },
+    { id: "lamp-n3", pos: { x: 48, y: 33 }, prop: "prop.torch" },
+    // Yard fences around houses (cosmetic; rot 0 runs along Y, PI/2 along X).
+    { id: "fence-h1a", pos: { x: 15, y: 19 }, prop: "prop.fence", rotation: Math.PI / 2 },
+    { id: "fence-h1b", pos: { x: 19, y: 16 }, prop: "prop.fence" },
+    { id: "fence-h2a", pos: { x: 45, y: 19 }, prop: "prop.fence", rotation: Math.PI / 2 },
+    { id: "fence-h3a", pos: { x: 15, y: 44 }, prop: "prop.fence", rotation: Math.PI / 2 },
+    { id: "fence-h3b", pos: { x: 19, y: 48 }, prop: "prop.fence" },
+    { id: "fence-tav", pos: { x: 43, y: 46 }, prop: "prop.fence", rotation: Math.PI / 2 },
+    // Training ground border (dummy at 22,42) — low fences on three sides, open to the plaza.
+    { id: "train-fence-1", pos: { x: 22, y: 45.5 }, prop: "prop.fence", rotation: Math.PI / 2 },
+    { id: "train-fence-2", pos: { x: 26, y: 42 }, prop: "prop.fence" },
+    { id: "train-fence-3", pos: { x: 18, y: 42 }, prop: "prop.fence" },
+    { id: "train-torch", pos: { x: 26, y: 45 }, prop: "prop.torch" },
+    { id: "train-crate", pos: { x: 18, y: 45 }, prop: "prop.crate", rotation: 0.5 },
+    // Well-side props (well at 30,20).
+    { id: "well-crate-1", pos: { x: 27, y: 22 }, prop: "prop.crate", rotation: 0.9 },
+    { id: "well-barrel-1", pos: { x: 33, y: 22 }, prop: "prop.barrel" },
+    { id: "well-torch", pos: { x: 30, y: 16 }, prop: "prop.torch" },
+    // Plaza/hearth clutter (south of spawn, off the y=30 line).
+    { id: "plaza-barrel-1", pos: { x: 27, y: 40 }, prop: "prop.barrel" },
+    { id: "plaza-crate-1", pos: { x: 33, y: 40 }, prop: "prop.crate", rotation: 1.4 }
+  ]
+};
+
+// src/zones/ashen-fields.ts
+var M = ["prop.mountain_a", "prop.mountain_b", "prop.mountain_lg"];
+function mtn(edge, x, y, i) {
+  return { id: `ring-${edge}-${i}`, pos: { x, y }, prop: M[i % M.length], rotation: i * 0.9 % (Math.PI * 2) };
+}
+var EDGE_X = [-6, 14, 34, 54, 74, 94, 114, 134, 154, 174, 194, 206];
+var RING2 = [
+  ...EDGE_X.map((x, i) => mtn("s", x, -6, i)),
+  // south edge
+  ...EDGE_X.map((x, i) => mtn("n", x, 206, i)),
+  // north edge
+  ...[14, 34, 54, 74, 126, 146, 166, 186].map((y, i) => mtn("w", -6, y, i)),
+  // west — gap ~y88..112 (village portal)
+  ...[14, 34, 54, 74, 126, 146, 166, 186].map((y, i) => mtn("e", 206, y, i))
+  // east — gap ~y88..112 (dungeon portal)
+];
+var ASHEN_FIELDS = {
+  id: "ashen-fields",
+  width: 200,
+  height: 200,
+  playerSpawn: { x: 20, y: 100 },
+  obstacles: [
+    { id: "tree-1", x: 40, y: 40, w: 4, h: 4, prop: "prop.tree_a" },
+    { id: "tree-2", x: 40, y: 160, w: 4, h: 4, prop: "prop.tree_a" },
+    { id: "tree-3", x: 90, y: 20, w: 4, h: 4, prop: "prop.tree_b" },
+    { id: "tree-4", x: 90, y: 180, w: 4, h: 4, prop: "prop.tree_b" },
+    { id: "tree-5", x: 170, y: 130, w: 4, h: 4, prop: "prop.tree_a" },
+    { id: "tree-6", x: 170, y: 170, w: 4, h: 4, prop: "prop.tree_b" },
+    { id: "rock-1", x: 60, y: 90, w: 6, h: 6, prop: "prop.rock_a" },
+    { id: "rock-2", x: 120, y: 110, w: 6, h: 6, prop: "prop.rock_a" },
+    { id: "rock-3", x: 150, y: 50, w: 5, h: 5, prop: "prop.rock_b" },
+    { id: "rock-4", x: 25, y: 60, w: 5, h: 5, prop: "prop.rock_a" },
+    { id: "rock-5", x: 25, y: 140, w: 5, h: 5, prop: "prop.rock_a" },
+    { id: "tent-1", x: 108, y: 35, w: 5, h: 5, prop: "prop.goblin_tent", rotation: 0.3 },
+    { id: "tent-2", x: 112, y: 165, w: 5, h: 5, prop: "prop.goblin_tent", rotation: -0.4 }
+  ],
+  // 6 camps total (PLAN §2.5).
+  mobCamps: [
+    { id: "wolf-pack-west", npcDefId: "wolf", count: 3, respawnMs: 8e3, home: { x: 70, y: 60 } },
+    { id: "wolf-pack-south", npcDefId: "wolf", count: 2, respawnMs: 8e3, home: { x: 70, y: 140 } },
+    { id: "goblin-scout-camp", npcDefId: "goblin_scout", count: 2, respawnMs: 9e3, home: { x: 110, y: 40 } },
+    { id: "goblin-thrower-camp", npcDefId: "goblin_thrower", count: 2, respawnMs: 9e3, home: { x: 110, y: 160 } },
+    { id: "boar-wallow", npcDefId: "boar", count: 2, respawnMs: 1e4, home: { x: 140, y: 100 } },
+    { id: "goblin-shaman-camp", npcDefId: "goblin_shaman", count: 1, respawnMs: 12e3, home: { x: 160, y: 70 } }
+  ],
+  fieldBoss: { npcDefId: "boss_chief", pos: { x: 180, y: 100 }, respawnMs: 18e4 },
+  portals: [
+    { id: "to-village", kind: "village", pos: { x: 10, y: 100 } },
+    { id: "to-dungeon", kind: "dungeon", pos: { x: 190, y: 100 } }
+  ],
+  decorations: [
+    // Rune arches framing each portal, set 1.5 units outward (away from the field interior).
+    { id: "gate-village", pos: { x: 8.5, y: 100 }, prop: "prop.portal_gate", rotation: Math.PI / 2 },
+    { id: "gate-dungeon", pos: { x: 191.5, y: 100 }, prop: "prop.portal_gate", rotation: Math.PI / 2 },
+    // Boundary mountain ring (cosmetic, outside play bounds).
+    ...RING2,
+    // Brandel Keep ruins, flanking the dungeon portal (190,100) — toppled walls/columns/rubble.
+    { id: "fort-wall-1", pos: { x: 180, y: 88 }, prop: "prop.dungeon_wall_broken", rotation: 0.2 },
+    { id: "fort-wall-2", pos: { x: 186, y: 86 }, prop: "prop.dungeon_wall_broken", rotation: 1.4 },
+    { id: "fort-wall-3", pos: { x: 178, y: 112 }, prop: "prop.dungeon_wall_broken", rotation: 2.7 },
+    { id: "fort-col-1", pos: { x: 183, y: 92 }, prop: "prop.dungeon_column" },
+    { id: "fort-col-2", pos: { x: 187, y: 108 }, prop: "prop.dungeon_column", rotation: 0.5 },
+    { id: "fort-col-3", pos: { x: 173, y: 106 }, prop: "prop.dungeon_column" },
+    { id: "fort-rubble-1", pos: { x: 182, y: 110 }, prop: "prop.rubble", rotation: 0.8 },
+    { id: "fort-rubble-2", pos: { x: 184, y: 94 }, prop: "prop.rubble", rotation: 2.1 },
+    { id: "fort-rubble-3", pos: { x: 174, y: 96 }, prop: "prop.rubble", rotation: 1.5 },
+    // Goblin camp #1 (scout, home 110,40) — dressing kept outside the 6-unit home radius.
+    { id: "camp1-fire", pos: { x: 110, y: 48 }, prop: "prop.brazier" },
+    { id: "camp1-tent", pos: { x: 115, y: 45 }, prop: "prop.goblin_tent", rotation: 0.6 },
+    { id: "camp1-totem", pos: { x: 104, y: 45 }, prop: "prop.dungeon_pillar" },
+    // Goblin camp #2 (thrower, home 110,160).
+    { id: "camp2-fire", pos: { x: 110, y: 152 }, prop: "prop.brazier" },
+    { id: "camp2-tent", pos: { x: 105, y: 156 }, prop: "prop.goblin_tent", rotation: -0.4 },
+    { id: "camp2-totem", pos: { x: 116, y: 156 }, prop: "prop.dungeon_pillar" },
+    // Shaman camp (home 160,70).
+    { id: "camp3-fire", pos: { x: 160, y: 78 }, prop: "prop.brazier" },
+    { id: "camp3-totem", pos: { x: 154, y: 66 }, prop: "prop.dungeon_pillar" },
+    { id: "camp3-tent", pos: { x: 166, y: 66 }, prop: "prop.goblin_tent", rotation: 0.8 },
+    // Dead-stump / rock-outcrop clusters (loose 2-4 groupings, empty stretches between).
+    { id: "cl-a-1", pos: { x: 28, y: 48 }, prop: "prop.dead_tree", rotation: 0.4 },
+    { id: "cl-a-2", pos: { x: 31, y: 52 }, prop: "prop.dead_tree_b", rotation: 1.9 },
+    { id: "cl-a-3", pos: { x: 26, y: 53 }, prop: "prop.dead_tree", rotation: 2.6 },
+    { id: "cl-a-4", pos: { x: 30, y: 55 }, prop: "prop.rock_a" },
+    { id: "cl-b-1", pos: { x: 48, y: 148 }, prop: "prop.dead_tree", rotation: 1.1 },
+    { id: "cl-b-2", pos: { x: 52, y: 152 }, prop: "prop.dead_tree_b", rotation: 0.7 },
+    { id: "cl-b-3", pos: { x: 50, y: 155 }, prop: "prop.rock_b" },
+    { id: "cl-c-1", pos: { x: 148, y: 128 }, prop: "prop.dead_tree", rotation: 2.2 },
+    { id: "cl-c-2", pos: { x: 152, y: 132 }, prop: "prop.dead_tree_b", rotation: 0.3 },
+    { id: "cl-c-3", pos: { x: 150, y: 135 }, prop: "prop.rock_a" },
+    { id: "cl-d-1", pos: { x: 38, y: 118 }, prop: "prop.dead_tree", rotation: 1.5 },
+    { id: "cl-d-2", pos: { x: 42, y: 122 }, prop: "prop.rock_b" },
+    { id: "cl-d-3", pos: { x: 40, y: 124 }, prop: "prop.dead_tree_b", rotation: 2.9 },
+    { id: "cl-e-1", pos: { x: 88, y: 88 }, prop: "prop.dead_tree", rotation: 0.6 },
+    { id: "cl-e-2", pos: { x: 92, y: 92 }, prop: "prop.dead_tree_b", rotation: 1.7 },
+    { id: "cl-e-3", pos: { x: 90, y: 94 }, prop: "prop.rock_a" },
+    { id: "cl-f-1", pos: { x: 128, y: 58 }, prop: "prop.dead_tree", rotation: 2 },
+    { id: "cl-f-2", pos: { x: 132, y: 62 }, prop: "prop.dead_tree_b", rotation: 0.9 },
+    { id: "cl-g-1", pos: { x: 58, y: 178 }, prop: "prop.dead_tree", rotation: 1.3 },
+    { id: "cl-g-2", pos: { x: 62, y: 182 }, prop: "prop.rock_b" },
+    { id: "cl-h-1", pos: { x: 168, y: 38 }, prop: "prop.dead_tree", rotation: 0.2 },
+    { id: "cl-h-2", pos: { x: 172, y: 42 }, prop: "prop.dead_tree_b", rotation: 2.4 },
+    { id: "cl-h-3", pos: { x: 170, y: 45 }, prop: "prop.rock_a" },
+    // Sparse stumps near the wolf packs (outside their home radius).
+    { id: "wolf-w-1", pos: { x: 78, y: 66 }, prop: "prop.dead_tree", rotation: 1 },
+    { id: "wolf-w-2", pos: { x: 62, y: 54 }, prop: "prop.dead_tree_b", rotation: 2.3 },
+    { id: "wolf-s-1", pos: { x: 78, y: 146 }, prop: "prop.dead_tree", rotation: 0.5 },
+    { id: "wolf-s-2", pos: { x: 62, y: 134 }, prop: "prop.dead_tree_b", rotation: 1.8 }
+  ]
+};
+
+// client/ambient.ts
+var ASH_COUNT = 60;
+var EMBER_COUNT = 30;
+var GROUND_TINTS = {
+  emberhold: 6983514,
+  "ashen-fields": 9080191,
+  "ember-depths": 4865848
+};
+var softCircleTexture = null;
+function getSoftCircleTexture() {
+  if (softCircleTexture) return softCircleTexture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx2 = canvas.getContext("2d");
+  const gradient = ctx2.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.45, "rgba(255,255,255,0.65)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx2.fillStyle = gradient;
+  ctx2.fillRect(0, 0, size, size);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  softCircleTexture = texture;
+  return texture;
+}
+function createDriftField(rig, opts) {
+  const { count, boxHalf, centerY, vertical, driftAmp } = opts;
+  const positions = new Float32Array(count * 3);
+  const phase = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const ix = i * 3;
+    positions[ix] = (Math.random() * 2 - 1) * boxHalf.x;
+    positions[ix + 1] = (Math.random() * 2 - 1) * boxHalf.y;
+    positions[ix + 2] = (Math.random() * 2 - 1) * boxHalf.z;
+    phase[i] = Math.random() * Math.PI * 2;
+  }
+  const geometry = new BufferGeometry();
+  const posAttr = new BufferAttribute(positions, 3);
+  geometry.setAttribute("position", posAttr);
+  const material = new PointsMaterial({
+    color: opts.color,
+    map: getSoftCircleTexture(),
+    size: opts.size,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: opts.opacity,
+    depthWrite: false,
+    blending: opts.blending ?? NormalBlending
+  });
+  const points = new Points(geometry, material);
+  rig.scene.add(points);
+  let time = 0;
+  function tick(dt) {
+    time += dt;
+    points.position.set(rig.target.x, centerY, rig.target.z);
+    const arr = posAttr.array;
+    for (let i = 0; i < count; i++) {
+      const ix = i * 3;
+      arr[ix + 1] += vertical * dt;
+      arr[ix] += Math.sin(time * 0.6 + phase[i]) * driftAmp * dt;
+      arr[ix + 2] += Math.cos(time * 0.5 + phase[i]) * driftAmp * dt;
+      if (vertical < 0 && arr[ix + 1] < -boxHalf.y) {
+        arr[ix + 1] = boxHalf.y;
+        arr[ix] = (Math.random() * 2 - 1) * boxHalf.x;
+        arr[ix + 2] = (Math.random() * 2 - 1) * boxHalf.z;
+      } else if (vertical > 0 && arr[ix + 1] > boxHalf.y) {
+        arr[ix + 1] = -boxHalf.y;
+        arr[ix] = (Math.random() * 2 - 1) * boxHalf.x;
+        arr[ix + 2] = (Math.random() * 2 - 1) * boxHalf.z;
+      }
+      if (arr[ix] > boxHalf.x) arr[ix] -= boxHalf.x * 2;
+      else if (arr[ix] < -boxHalf.x) arr[ix] += boxHalf.x * 2;
+      if (arr[ix + 2] > boxHalf.z) arr[ix + 2] -= boxHalf.z * 2;
+      else if (arr[ix + 2] < -boxHalf.z) arr[ix + 2] += boxHalf.z * 2;
+    }
+    posAttr.needsUpdate = true;
+  }
+  function dispose() {
+    rig.scene.remove(points);
+    geometry.dispose();
+    material.dispose();
+  }
+  return { tick, dispose };
+}
+function createAshFall(rig) {
+  const field = createDriftField(rig, {
+    count: ASH_COUNT,
+    color: 12105390,
+    size: 0.5,
+    opacity: 0.85,
+    boxHalf: { x: 22, y: 9, z: 22 },
+    centerY: 10,
+    vertical: -1.1,
+    driftAmp: 0.35
+  });
+  const unregister = rig.onUpdate(field.tick);
+  return () => {
+    unregister();
+    field.dispose();
+  };
+}
+function createEmberDepthsAmbient(rig) {
+  const embers = createDriftField(rig, {
+    count: EMBER_COUNT,
+    color: 16747069,
+    size: 0.45,
+    opacity: 0.95,
+    boxHalf: { x: 16, y: 7, z: 16 },
+    centerY: 7,
+    vertical: 1,
+    driftAmp: 0.3,
+    blending: AdditiveBlending
+  });
+  const unregisterEmbers = rig.onUpdate(embers.tick);
+  const brazierPositions = EMBER_DEPTHS.obstacles.filter((o) => o.prop === "prop.brazier").map((o) => new Vector3(o.x, 1.6, o.y));
+  const lights = brazierPositions.map((pos) => {
+    const light = new PointLight(16742958, 1.4, 22, 2);
+    light.position.copy(pos);
+    rig.scene.add(light);
+    return light;
+  });
+  const lightPhase = lights.map(() => Math.random() * Math.PI * 2);
+  let time = 0;
+  function flicker(dt) {
+    time += dt;
+    for (let i = 0; i < lights.length; i++) {
+      const wobble = Math.sin(time * 6 + lightPhase[i]) * 0.25 + Math.sin(time * 13.7 + lightPhase[i] * 1.7) * 0.15;
+      lights[i].intensity = 1.4 + wobble;
+    }
+  }
+  const unregisterFlicker = rig.onUpdate(flicker);
+  return () => {
+    unregisterEmbers();
+    unregisterFlicker();
+    embers.dispose();
+    for (const light of lights) rig.scene.remove(light);
+  };
+}
+var EMBERHOLD_CLOUDS = {
+  count: 5,
+  color: 15263458,
+  yRange: [18, 26],
+  width: EMBERHOLD.width,
+  depth: EMBERHOLD.height,
+  seed: 6221057
+};
+var ASHEN_CLOUDS = {
+  count: 6,
+  color: 10197140,
+  yRange: [15, 22],
+  width: ASHEN_FIELDS.width,
+  depth: ASHEN_FIELDS.height,
+  seed: 6221058
+};
+var CLOUD_WRAP_MARGIN = 24;
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = Math.imul(s, 1664525) + 1013904223 >>> 0;
+    return s / 4294967296;
+  };
+}
+function buildCloudGeometry(rng) {
+  const blobCount = 3 + Math.floor(rng() * 3);
+  const blobs = [];
+  for (let b = 0; b < blobCount; b++) {
+    const radius = 2.4 + rng() * 1.6;
+    const g = new IcosahedronGeometry(radius, 0);
+    g.scale(1.15, 0.62, 0.9);
+    g.translate((rng() * 2 - 1) * 3.8, (rng() * 2 - 1) * 0.7, (rng() * 2 - 1) * 2.4);
+    blobs.push(g);
+  }
+  const merged = mergeGeometries(blobs, false);
+  for (const g of blobs) g.dispose();
+  return merged;
+}
+function createCloudField(rig, opts) {
+  const rng = makeRng(opts.seed);
+  const group = new Group();
+  const material = new MeshStandardMaterial({
+    color: opts.color,
+    // Faint self-illum keeps undersides visible from the low landing-orbit camera.
+    emissive: new Color(opts.color).multiplyScalar(0.18),
+    roughness: 1,
+    metalness: 0,
+    flatShading: true
+  });
+  const clouds = [];
+  for (let i = 0; i < opts.count; i++) {
+    const mesh = new Mesh(buildCloudGeometry(rng), material);
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.scale.setScalar(0.85 + rng() * 0.9);
+    mesh.position.set(
+      rng() * opts.width,
+      opts.yRange[0] + rng() * (opts.yRange[1] - opts.yRange[0]),
+      rng() * opts.depth
+    );
+    group.add(mesh);
+    clouds.push({ mesh, speed: 0.3 + rng() * 0.3 });
+  }
+  rig.scene.add(group);
+  const wrapHigh = opts.width + CLOUD_WRAP_MARGIN;
+  const unregister = rig.onUpdate((dt) => {
+    for (const c of clouds) {
+      c.mesh.position.x += c.speed * dt;
+      if (c.mesh.position.x > wrapHigh) c.mesh.position.x = -CLOUD_WRAP_MARGIN;
+    }
+  });
+  return () => {
+    unregister();
+    rig.scene.remove(group);
+    for (const c of clouds) c.mesh.geometry.dispose();
+    material.dispose();
+  };
+}
+function zoneAtmosphere(zoneId) {
+  if (zoneId === "ashen-fields") {
+    return { background: 11052448, fog: new Fog(11052448, 40, 110) };
+  }
+  if (zoneId === "ember-depths") {
+    return { background: 1707786, fog: new Fog(1707786, 20, 65) };
+  }
+  return { background: 16768942, fog: null };
+}
+var activeTeardown = null;
+function setZoneAmbient(rig, zoneId) {
+  const atmosphere = zoneAtmosphere(zoneId);
+  rig.scene.background = new Color(atmosphere.background);
+  rig.scene.fog = atmosphere.fog;
+  rig.ground.material.color.setHex(GROUND_TINTS[zoneId]);
+  activeTeardown?.();
+  const teardowns = [];
+  if (zoneId === "ashen-fields") {
+    teardowns.push(createAshFall(rig));
+    teardowns.push(createCloudField(rig, ASHEN_CLOUDS));
+  } else if (zoneId === "ember-depths") {
+    teardowns.push(createEmberDepthsAmbient(rig));
+  } else {
+    teardowns.push(createCloudField(rig, EMBERHOLD_CLOUDS));
+  }
+  activeTeardown = teardowns.length ? () => teardowns.forEach((t) => t()) : null;
+}
+
+// client/main.ts
 init_assets();
 init_units();
 init_input();
+
+// client/targeting.ts
+init_three_module();
+var INNER_RADIUS = 0.55;
+var OUTER_RADIUS = 0.75;
+var GROUND_OFFSET = 0.03;
+var SPIN_RATE = 0.6;
+function createTargetRing(scene, units) {
+  const geometry = new RingGeometry(INNER_RADIUS, OUTER_RADIUS, 32);
+  const material = new MeshBasicMaterial({
+    color: 16733491,
+    transparent: true,
+    opacity: 0.75,
+    side: DoubleSide,
+    depthWrite: false
+  });
+  const mesh = new Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.renderOrder = 10;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.visible = false;
+  scene.add(mesh);
+  let targetId = null;
+  return {
+    setTarget(id) {
+      targetId = id;
+    },
+    tick(dt) {
+      const unit = targetId ? units.get(targetId) : void 0;
+      if (!unit || unit.dead) {
+        mesh.visible = false;
+        return;
+      }
+      mesh.visible = true;
+      mesh.position.set(unit.x, GROUND_OFFSET, unit.y);
+      mesh.rotation.z += SPIN_RATE * dt;
+    }
+  };
+}
 
 // src/content/hotbar.ts
 var SKILL_UNLOCKS = {
@@ -35710,6 +36847,7 @@ function isSkillUnlocked(cls, level, skillId) {
 }
 
 // ../../packages/protocol/dist/index.js
+var PROTOCOL_VERSION = 2;
 var ClientMessageType = {
   Hello: "c:hello",
   Echo: "c:echo",
@@ -35842,6 +36980,9 @@ var ByteReader = class {
 };
 
 // ../../packages/schema/dist/schema.js
+function descToken(s) {
+  return `${s.length}#${s}`;
+}
 var PRIM_IO = {
   u8: { write: (w, v) => w.u8(v), read: (r) => r.u8() },
   u16: { write: (w, v) => w.u16(v), read: (r) => r.u16() },
@@ -35862,8 +37003,9 @@ function prim(type) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // primitives are immutable — no copy needed
+    describe: () => type
   };
 }
 function quant(min, max, step) {
@@ -35890,8 +37032,10 @@ function quant(min, max, step) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => read(r),
     equals: (a, b) => quantize(a) === quantize(b),
-    clone: (v) => v
+    clone: (v) => v,
     // numbers are immutable
+    // min/max/step fully determine the wire width and the byte->value mapping.
+    describe: () => `q(${min},${max},${step})`
   };
 }
 function schema(shape) {
@@ -35956,6 +37100,16 @@ function schema(shape) {
       for (const f of fields)
         out[f.name] = f.codec.clone(get(value, f.name));
       return out;
+    },
+    describe() {
+      const parts = [];
+      for (const f of fields) {
+        const childDesc = f.codec.describe?.();
+        if (childDesc === void 0)
+          return void 0;
+        parts.push(`${descToken(f.name)}:${childDesc}`);
+      }
+      return `obj(${parts.join(",")})`;
     }
   };
 }
@@ -36022,6 +37176,10 @@ function mapOf(child) {
       for (const k of keysOf(value))
         out[k] = child.clone(value[k]);
       return out;
+    },
+    describe() {
+      const c = child.describe?.();
+      return c === void 0 ? void 0 : `map(${c})`;
     }
   };
 }
@@ -36044,8 +37202,11 @@ function enumOf(...values) {
     writeDelta: (w, _prev, next) => write(w, next),
     readDelta: (r) => values[r.u8()],
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // enum members are immutable strings
+    // Members + order fix the u8 index of each value. Length-prefix each member so a
+    // "|"-bearing value can't be confused with a member boundary (see descToken).
+    describe: () => `enum(${values.map(descToken).join(",")})`
   };
 }
 function str(maxLen) {
@@ -36066,8 +37227,12 @@ function str(maxLen) {
     },
     readDelta: (r) => r.str(),
     equals: (a, b) => a === b,
-    clone: (v) => v
+    clone: (v) => v,
     // strings are immutable
+    // maxLen is a write-only length check — it does not change the wire format (same
+    // varint-prefixed bytes as prim("str")), so it is excluded and str(n) fingerprints
+    // identically to prim("str"), which is decode-compatible.
+    describe: () => "str"
   };
 }
 function decodeFull(codec, bytes) {
@@ -36075,6 +37240,17 @@ function decodeFull(codec, bytes) {
 }
 function applyDelta(codec, prev, bytes) {
   return codec.readDelta(new ByteReader(bytes), prev);
+}
+function schemaFingerprint(codec) {
+  const desc = codec.describe?.();
+  if (desc === void 0)
+    return null;
+  let h = 2166136261;
+  for (let i = 0; i < desc.length; i++) {
+    h ^= desc.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 // ../../node_modules/.pnpm/partysocket@1.3.0_react@19.2.7/node_modules/partysocket/dist/ws.js
@@ -36940,7 +38116,7 @@ var EntitySmoother = class {
 var networkConditionsWarned = false;
 var subtickClockWarned = false;
 var RoomJoinError = class extends Error {
-  /** Pre-Welcome server Error code (e.g. `"room_full"`), else `"connection-closed"`. */
+  /** See the class doc: a handshake code, a pre-Welcome Error code, or `"connection-closed"`. */
   code;
   constructor(code, message) {
     super(message ?? `room join failed: ${code}`);
@@ -36979,6 +38155,12 @@ var Room = class {
   failWelcome = () => {
   };
   stateCodec;
+  /** This client's own state-codec fingerprint, computed once (null if none/undescribable). */
+  clientFingerprint;
+  /** Guards the one-time "binary frame but no stateCodec" warning (per room). */
+  noCodecWarned = false;
+  /** Guards the one-time "binary state decode failed" error (per room). */
+  decodeErrorWarned = false;
   clockEnabled;
   subtickTimestamps;
   inputBatchMs;
@@ -36990,6 +38172,7 @@ var Room = class {
     this.name = name;
     this.transport = transport;
     this.stateCodec = stateCodec;
+    this.clientFingerprint = stateCodec ? schemaFingerprint(stateCodec) : null;
     this.clockEnabled = !opts.disableClockSync;
     this.subtickTimestamps = opts.subtickTimestamps ?? false;
     this.inputBatchMs = opts.inputBatchMs ?? 0;
@@ -37015,8 +38198,15 @@ var Room = class {
           this.preWelcomeError = msg;
         } else if (msg.t === ServerMessageType.Welcome) {
           this.welcomeSettled = true;
-          this.connectionId = msg.connectionId;
           off();
+          const mismatch = this.validateHandshake(msg);
+          if (mismatch !== null) {
+            this.failWelcome(this.handshakeError(mismatch));
+            this.clock.stop();
+            this.transport.close();
+            return;
+          }
+          this.connectionId = msg.connectionId;
           if (this.clockEnabled)
             this.clock.start();
           resolve(msg);
@@ -37046,6 +38236,44 @@ var Room = class {
     this.clock.stop();
     this.transport.close();
   }
+  /**
+   * Check a Welcome frame for a protocol or state-schema incompatibility, returning the
+   * mismatch (or null if compatible). Protocol is always checked; the schema is checked
+   * only when this client has a codec AND the server advertised a fingerprint (a
+   * pre-0.6 server omits it, so the check is skipped rather than false-firing) AND this
+   * client's own codec is describable (`clientFingerprint !== null`).
+   */
+  validateHandshake(msg) {
+    if (msg.protocol !== PROTOCOL_VERSION) {
+      return { kind: "protocol_mismatch", server: msg.protocol, client: PROTOCOL_VERSION };
+    }
+    if (this.stateCodec && typeof msg.schema === "number" && this.clientFingerprint !== null) {
+      if (msg.schema !== this.clientFingerprint) {
+        return { kind: "schema_mismatch", server: msg.schema, client: this.clientFingerprint };
+      }
+    }
+    return null;
+  }
+  /** The human/agent-actionable message for a handshake mismatch (names BOTH values). */
+  handshakeMessage(m) {
+    return m.kind === "protocol_mismatch" ? `Tikron PROTOCOL_VERSION mismatch: server=${m.server}, client=${m.client}. The wire protocol only guarantees compatibility within a minor \u2014 pin the SAME @tikron/* minor version on both the client and the server, then rebuild both.` : `Tikron state schema fingerprint mismatch: server=${m.server}, client=${m.client}. The server's stateCodec shape differs from the client's \u2014 rebuild and redeploy both sides so they import the IDENTICAL schema({...}) (same fields, same order, same types).`;
+  }
+  handshakeError(m) {
+    return new RoomJoinError(m.kind, this.handshakeMessage(m));
+  }
+  /**
+   * A live reconnect returned a Welcome that no longer matches this client — the server
+   * was redeployed with an incompatible protocol/schema mid-session. The join promise is
+   * long settled, so surface it loudly on the console (structured, actionable) and close
+   * the socket. The close is client-initiated, so it trips PartySocket's `_closeCalled`
+   * guard and does NOT reconnect — stopping the room before it decodes state it can no
+   * longer read.
+   */
+  reportReconnectMismatch(m) {
+    console.error(`[@tikron/client] room=${this.name} live reconnect rejected \u2014 ${this.handshakeMessage(m)} Closing the socket (no auto-retry) to stop decoding stale state.`);
+    this.clock.stop();
+    this.transport.close();
+  }
   dispatch(raw) {
     if (typeof raw !== "string") {
       this.applyBinaryState(raw);
@@ -37058,6 +38286,13 @@ var Room = class {
       return;
     }
     if (msg.t === ServerMessageType.Welcome) {
+      if (this.welcomeSettled) {
+        const mismatch = this.validateHandshake(msg);
+        if (mismatch !== null) {
+          this.reportReconnectMismatch(mismatch);
+          return;
+        }
+      }
       this.connectionId = msg.connectionId;
     } else if (msg.t === ServerMessageType.State) {
       this.state = msg.state;
@@ -37082,8 +38317,13 @@ var Room = class {
       handler(msg);
   }
   applyBinaryState(raw) {
-    if (!this.stateCodec)
+    if (!this.stateCodec) {
+      if (!this.noCodecWarned) {
+        this.noCodecWarned = true;
+        console.warn(`[@tikron/client] room=${this.name} received a binary state frame but no stateCodec is configured, so authoritative state is being ignored. Pass the SAME codec the server uses, e.g. new GameClient(host, { stateCodec: YourState }).`);
+      }
       return;
+    }
     const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
     if (bytes.length < 13)
       return;
@@ -37092,12 +38332,22 @@ var Room = class {
     const tick = view.getUint32(1, true);
     const serverTime = view.getFloat64(5, true);
     const body = bytes.subarray(13);
-    if (tag === 1)
-      this.state = decodeFull(this.stateCodec, body);
-    else if (tag === 2)
-      this.state = applyDelta(this.stateCodec, this.state, body);
-    else
+    let next;
+    try {
+      if (tag === 1)
+        next = decodeFull(this.stateCodec, body);
+      else if (tag === 2)
+        next = applyDelta(this.stateCodec, this.state, body);
+      else
+        return;
+    } catch (err) {
+      if (!this.decodeErrorWarned) {
+        this.decodeErrorWarned = true;
+        console.error(`[@tikron/client] room=${this.name} failed to decode a binary state frame (tag=${tag}). This usually means the client's stateCodec shape does not match the server's \u2014 rebuild both sides with the identical schema({...}) \u2014 or the frame was corrupted. Keeping the last good state and dropping this frame.`, err);
+      }
       return;
+    }
+    this.state = next;
     this.lastStateTick = tick;
     this.lastStateServerTime = serverTime;
     for (const handler of this.stateHandlers)
@@ -37270,7 +38520,21 @@ var EmberSchema = schema({
       maxMp: "u16",
       level: "u8",
       class: enumOf("warrior", "mage", "cleric", "none"),
-      kind: enumOf("player", "wolf", "goblin_scout", "goblin_thrower", "boar", "goblin_shaman", "boss_chief"),
+      kind: enumOf(
+        "player",
+        "wolf",
+        "goblin_scout",
+        "goblin_thrower",
+        "boar",
+        "goblin_shaman",
+        "boss_chief",
+        "skeleton_warrior",
+        "skeleton_archer",
+        "wraith",
+        "golem",
+        "wraith_commander",
+        "ember_lord"
+      ),
       alive: "bool",
       cast: str(24),
       castEnd: "f64",
@@ -37304,7 +38568,18 @@ var EMBERFALL_CONTENT = {
     { id: "goblin-javelin", kind: "ranged", dps: 14, speedMs: 1900, minRange: 0, maxRange: 16 },
     { id: "boar-tusk", kind: "melee", dps: 16, speedMs: 1600, maxRange: 3.5 },
     { id: "shaman-staff", kind: "melee", dps: 6, speedMs: 2e3, maxRange: 4 },
-    { id: "chief-axe", kind: "melee", dps: 26, speedMs: 1500, maxRange: 5 }
+    { id: "chief-axe", kind: "melee", dps: 26, speedMs: 1500, maxRange: 5 },
+    // Dungeon (M3) monster weapons. The wraith is weaponless — it attacks with `wraith-bolt`
+    // (spell, `useLevelDamage`), so it needs no WeaponDef.
+    // M3 balance pass (T3.2): dungeon monster weapon dps trimmed so a solo geared level-15
+    // melee can facetank the long boss/golem fights on a realistic potion budget (~30-38 of a
+    // 40 stack) without wiping — a melee solo can't kite, so per-second incoming damage is the
+    // binding constraint. Values verified against balance-sim.test.ts + dungeon-playthrough.test.ts.
+    { id: "skeleton-blade", kind: "melee", dps: 12, speedMs: 1500, maxRange: 3.5 },
+    { id: "skeleton-bow", kind: "ranged", dps: 12, speedMs: 1900, minRange: 0, maxRange: 18 },
+    { id: "golem-fist", kind: "melee", dps: 12, speedMs: 2200, maxRange: 4 },
+    { id: "valen-blade", kind: "melee", dps: 14, speedMs: 1600, maxRange: 5 },
+    { id: "ember-greataxe", kind: "melee", dps: 16, speedMs: 1700, maxRange: 5 }
   ],
   buffs: [
     // --- Warrior ---
@@ -37381,6 +38656,31 @@ var EMBERFALL_CONTENT = {
       name: "Enrage",
       kind: "good",
       modifiers: [{ stat: "meleeDamageMul", kind: "percent", value: 60 }]
+    },
+    // --- Dungeon (M3) ---
+    // Wraith slow: same `moveSpeedMul` percent modifier family as the warrior's Hamstrung,
+    // slightly softer (−35%) but longer (4s) — dungeon kiting pressure, not a hard snare.
+    {
+      id: "wraith-slow",
+      name: "Soul Chill",
+      kind: "bad",
+      // M3 balance: −35%/4s → −22%/2.5s. Two wraith camps re-apply this every bolt, so at −35%
+      // a solo melee was near-permanently slowed through the whole wave-2/wave-3 corridor —
+      // repositioning collapsed and every fight ran long. Kept as real kiting pressure, not a mire.
+      durationMs: 2500,
+      tags: ["slow"],
+      modifiers: [{ stat: "moveSpeedMul", kind: "percent", value: -22 }]
+    },
+    // The Ember Lord's fire DoT — same shape as the mage's Ignite but boss-tier tick.
+    {
+      id: "ember-burn",
+      name: "Ember Burn",
+      kind: "bad",
+      durationMs: 5e3,
+      tags: ["magic-dot"],
+      // M3 balance: tick 25→10 — this DoT is re-applied by every Ember Bolt AND every eruption,
+      // so its per-second contribution stacked into the largest hidden chunk of the boss's DPS.
+      tick: { intervalMs: 1e3, effects: [{ kind: "damage", school: "spell", fixed: { min: 10, max: 10 } }] }
     }
   ],
   skills: [
@@ -37660,6 +38960,121 @@ var EMBERFALL_CONTENT = {
       cooldownMs: 999999,
       targetType: "self",
       effects: [{ effect: { kind: "buff", buffId: "boss-chief-enrage-buff" }, applyTo: "caster" }]
+    },
+    // --- Dungeon monster skills (M3) ---
+    {
+      id: "skeleton-strike",
+      name: "Bone Cleaver",
+      school: "melee",
+      cooldownMs: 3e3,
+      targetType: "hostile",
+      maxRange: 4,
+      // M3 balance: softened (was ×1.3 +6) — wave 1 is a PAIR of these, so the combined
+      // facetank pressure on a solo player was the harshest trash spike in the run.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.15, flat: 3 } }]
+    },
+    {
+      id: "skeleton-shot",
+      name: "Bone Arrow",
+      school: "ranged",
+      cooldownMs: 2e3,
+      targetType: "hostile",
+      maxRange: 18,
+      projectileSpeed: 20,
+      effects: [{ effect: { kind: "damage", school: "ranged", useWeapon: true, multiplier: 1.1 } }]
+    },
+    // Wraith bolt — spell damage (level-scaled, weaponless) + the slow debuff on hit.
+    {
+      id: "wraith-bolt",
+      name: "Spectral Bolt",
+      school: "spell",
+      cooldownMs: 2600,
+      targetType: "hostile",
+      maxRange: 18,
+      projectileSpeed: 14,
+      effects: [
+        // M3 balance: flat 10→6 — this bolt is fired by BOTH the wave-2 wraith pair and Ser
+        // Valen, so its flat term was double-counted in the two heaviest gauntlet stages.
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 1, flat: 6 } },
+        { effect: { kind: "buff", buffId: "wraith-slow" }, relation: "hostile" }
+      ]
+    },
+    // Stone Guardian's slow, heavy hit — big multiplier + a shove; the "armor wall" is the
+    // NPC's own high `armor` stat, not this skill.
+    {
+      id: "golem-slam",
+      name: "Boulder Smash",
+      school: "melee",
+      cooldownMs: 5e3,
+      targetType: "hostile",
+      maxRange: 5,
+      // M3 balance: softened (was ×1.8 +15) — two Stone Guardians co-aggro (wave 3), so this
+      // slam landed twice a cycle; it was the single scariest per-second facetank source. The
+      // knockback was also cut 4→2: a bigger shove pushed a solo melee out of its own DPS window
+      // AND back into the wave-2 respawn line, stalling the run short of the boss.
+      effects: [
+        { effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.2, flat: 6 } },
+        { effect: { kind: "knockback", distance: 2, mode: "directional" } }
+      ]
+    },
+    {
+      id: "valen-cleave",
+      name: "Sword Sweep",
+      school: "melee",
+      cooldownMs: 4500,
+      targetType: "hostile",
+      maxRange: 6,
+      aoe: { shape: "cone", radius: 6, angleRad: 1.3, anchor: "caster", relation: "hostile", maxTargets: 5 },
+      // M3 balance: cleave ×1.4→×1.0 — trims Ser Valen's sustained DPS over his long solo fight.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1 } }]
+    },
+    {
+      id: "ember-lord-strike",
+      name: "Molten Cleave",
+      school: "melee",
+      cooldownMs: 3500,
+      targetType: "hostile",
+      maxRange: 5,
+      aoe: { shape: "cone", radius: 6, angleRad: 1.4, anchor: "caster", relation: "hostile", maxTargets: 6 },
+      // M3 balance: cleave ×1.5→×1.0 — the end boss's melee overlaps its own summoned adds +
+      // eruption, so its sustained melee had to come down for a solo player to survive the phase.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1 } }]
+    },
+    {
+      id: "ember-lord-flame",
+      name: "Ember Bolt",
+      school: "spell",
+      castTimeMs: 1e3,
+      cooldownMs: 6e3,
+      // Boss casts must not self-cancel from the AI repositioning mid-cast.
+      cancelOnMove: false,
+      targetType: "hostile",
+      maxRange: 25,
+      projectileSpeed: 16,
+      // M3 balance: flat 20→10 — the bolt also applies `ember-burn` (a DoT), so its up-front
+      // term was stacking with the tick over the boss's long fight.
+      effects: [
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 1.4, flat: 10 } },
+        { effect: { kind: "buff", buffId: "ember-burn" }, relation: "hostile" }
+      ]
+    },
+    // Telegraphed point-AoE eruption. DEFINED ONLY — deliberately absent from `ember_lord`'s
+    // skill list: the room script (ember-rooms.ts) fires it in The Ember Lord's hp-phase, and
+    // the client renders the ground warning (M3 T3.1 client half).
+    {
+      id: "ember-lord-eruption",
+      name: "Eruption",
+      school: "spell",
+      castTimeMs: 1800,
+      cooldownMs: 12e3,
+      cancelOnMove: false,
+      targetType: "point",
+      maxRange: 30,
+      aoe: { shape: "circle", radius: 7, anchor: "target", relation: "hostile", maxTargets: 10 },
+      effects: [
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 2.4, flat: 40 } },
+        { effect: { kind: "buff", buffId: "ember-burn" }, relation: "hostile" }
+      ]
     }
   ],
   npcs: [
@@ -37746,9 +39161,942 @@ var EMBERFALL_CONTENT = {
       expMultiplier: 6,
       radius: 1.3,
       ai: { aggroRadius: 18, leashDistance: 70, hardLeashDistance: 250, moveSpeed: 4.5, skillDelayMs: [1400, 1600] }
+    },
+    // === Ember Depths dungeon (M3) ===
+    // Derived hp = 100 + sta*10 + level*20 (stats.ts). sta is picked to hit the target hp;
+    // `armor` is a direct override on top. exp = ~+20% dungeon premium over the field curve.
+    {
+      id: "skeleton_warrior",
+      name: "Skeleton Warrior",
+      level: 9,
+      faction: "monsters",
+      weapon: "skeleton-blade",
+      // M3 balance: hp 440→370. A solo ~64-DPS clear must drop a 2-mob camp inside the zone's
+      // 15s respawn, else a respawn tail piles on indefinitely; trimmed so wave 1 clears clean.
+      stats: { sta: 9, str: 18, armor: 12 },
+      // hp 370
+      baseSkillId: "monster-bite",
+      skills: [{ skillId: "skeleton-strike", maxRange: 4, weight: 2 }],
+      expMultiplier: 1.2,
+      radius: 0.6,
+      ai: { aggroRadius: 10, leashDistance: 50, hardLeashDistance: 180, helpRadius: 6, moveSpeed: 4.5, skillDelayMs: [1100, 1400] }
+    },
+    {
+      id: "skeleton_archer",
+      name: "Skeleton Archer",
+      level: 10,
+      faction: "monsters",
+      weapon: "skeleton-bow",
+      stats: { sta: 3, dex: 16, armor: 5 },
+      // hp 330 (squishy; M3 balance 360→330, the ranged tail in waves 1+2)
+      baseSkillId: "skeleton-shot",
+      skills: [{ skillId: "skeleton-shot", minRange: 0, maxRange: 18, weight: 3 }],
+      expMultiplier: 1.2,
+      radius: 0.55,
+      ai: { aggroRadius: 15, leashDistance: 50, hardLeashDistance: 180, moveSpeed: 4, skillDelayMs: [1300, 1600] }
+    },
+    {
+      id: "wraith",
+      name: "Wraith",
+      level: 11,
+      faction: "monsters",
+      // Weaponless: `wraith-bolt` is a level-scaled spell, so no WeaponDef is needed. Low
+      // armor (4) keeps it soft to physical hits — the opposite feel of the Stone Guardian.
+      stats: { sta: 6, int: 18, armor: 4 },
+      // hp 380 (M3 balance 420→380, wave-2 pair under respawn)
+      baseSkillId: "wraith-bolt",
+      skills: [{ skillId: "wraith-bolt", minRange: 0, maxRange: 18, weight: 3 }],
+      expMultiplier: 1.4,
+      radius: 0.6,
+      ai: { aggroRadius: 13, leashDistance: 50, hardLeashDistance: 180, helpRadius: 8, moveSpeed: 4, skillDelayMs: [1400, 1700] }
+    },
+    {
+      id: "golem",
+      name: "Stone Guardian",
+      level: 12,
+      // armor 48 ≈ 4× the skeleton warrior's 12 (flavor only — at the engine's ARMOR_HALF=5300
+      // this armor mitigates <1%; see the M3 report's armor finding). hp 480 + slow slam + low
+      // moveSpeed is what actually makes it a wall.
+      faction: "monsters",
+      weapon: "golem-fist",
+      stats: { sta: 14, str: 24, armor: 48 },
+      // hp 480 (M3 balance: 900→480, 2 golems clear under the 15s respawn)
+      baseSkillId: "monster-bite",
+      skills: [{ skillId: "golem-slam", maxRange: 5, weight: 2 }],
+      expMultiplier: 2.5,
+      radius: 1.1,
+      ai: { aggroRadius: 11, leashDistance: 55, hardLeashDistance: 200, moveSpeed: 3, skillDelayMs: [1800, 2200] }
+    },
+    {
+      id: "wraith_commander",
+      name: "Ser Valen",
+      level: 12,
+      // Mini-boss: melee cleave + the wraith's spell bolt. hp 1020 ≈ 2.1× the golem's 480.
+      faction: "monsters",
+      weapon: "valen-blade",
+      stats: { sta: 68, str: 22, int: 22, armor: 20 },
+      // hp 1020 (M3 balance: 2250→1020, caps solo fight ~16s)
+      baseSkillId: "monster-bite",
+      skills: [
+        { skillId: "valen-cleave", maxRange: 6, weight: 3 },
+        { skillId: "wraith-bolt", minRange: 6, maxRange: 18, weight: 2 }
+      ],
+      expMultiplier: 4.5,
+      radius: 1.2,
+      ai: { aggroRadius: 18, leashDistance: 70, hardLeashDistance: 250, moveSpeed: 4.5, skillDelayMs: [1300, 1600] }
+    },
+    {
+      id: "ember_lord",
+      name: "The Ember Lord",
+      level: 15,
+      // Final boss: heavy melee cleave + fire bolt (DoT). hp 900 ≈ 1.4× the field boss's 660.
+      // The hp-phase enrage (reuse `boss-chief-enrage-buff`) and `ember-lord-eruption` are
+      // triggered by the room script, NOT listed here (see the eruption skill's comment).
+      faction: "monsters",
+      weapon: "ember-greataxe",
+      stats: { sta: 50, str: 30, int: 26, armor: 28 },
+      // hp 900 (M3 balance: 2640→900, solo-clearable add/eruption phase with margin)
+      baseSkillId: "monster-bite",
+      skills: [
+        { skillId: "ember-lord-strike", maxRange: 5, weight: 3 },
+        { skillId: "ember-lord-flame", minRange: 0, maxRange: 25, weight: 2 }
+      ],
+      expMultiplier: 10,
+      radius: 1.5,
+      ai: { aggroRadius: 20, leashDistance: 80, hardLeashDistance: 300, moveSpeed: 4.5, skillDelayMs: [1500, 1800] }
     }
   ]
 };
+
+// client/lore.ts
+var ZONE_BANNERS = {
+  emberhold: { name: "\uC5E0\uBC84\uD640\uB4DC", flavor: "\uC7AC \uC704\uC5D0 \uC138\uC6B4 \uB9C8\uC9C0\uB9C9 \uB9C8\uC744" },
+  "ashen-fields": { name: "\uC7BF\uBE5B\uB4E4\uD310", flavor: "\uC7AC\uAC00 \uB208\uCC98\uB7FC \uC313\uC778 \uBC8C\uD310" },
+  "ember-depths": { name: "\uC789\uAC78\uBD88 \uC2EC\uC5F0", flavor: "\uBCC4\uC758 \uC2EC\uC7A5\uC774 \uC7A0\uB4E0 \uACF3" }
+};
+var START_INTRO_LINES = [
+  "30\uB144 \uC804, \uD558\uB298\uC774 \uBB34\uB108\uC84C\uB2E4. \uBD88\uD0C0\uB294 \uBCC4\uC758 \uC2EC\uC7A5\uC774 \uC138\uACC4\uB97C \uD0DC\uC6B0\uACE0 \uB545\uC5D0 \uBC15\uD614\uB2E4.",
+  "\uC0AC\uB78C\uB4E4\uC740 \uC7AC \uC704\uC5D0 \uB9C8\uC9C0\uB9C9 \uB9C8\uC744\uC744 \uC138\uC6E0\uB2E4 \u2014 \uC5E0\uBC84\uD640\uB4DC.",
+  "\uADF8\uB9AC\uACE0 \uB2F9\uC2E0\uCC98\uB7FC, \uC8FD\uC5B4\uB3C4 \uB2E4\uC2DC \uC77C\uC5B4\uB098\uB294 \uC790\uB4E4\uC774 \uC7BF\uAE38\uC744 \uB530\uB77C \uAC78\uC5B4\uC624\uAE30 \uC2DC\uC791\uD588\uB2E4."
+];
+var START_BUTTON_TEXT = "\uC7BF\uAE38\uC744 \uAC77\uB294\uB2E4";
+var CLASS_NAMES = {
+  warrior: "\uC804\uC0AC",
+  mage: "\uBA54\uC774\uC9C0",
+  cleric: "\uD074\uB808\uB9AD"
+};
+var CLASS_FLAVOR = {
+  warrior: "\uBC29\uD328\uAC00 \uBC84\uD2F0\uB294 \uB3D9\uC548, \uB9C8\uC744\uC740 \uBB34\uB108\uC9C0\uC9C0 \uC54A\uB294\uB2E4.",
+  mage: "\uBD88\uC740 \uBD88\uB85C \uB2E4\uC2A4\uB9B0\uB2E4.",
+  cleric: "\uAEBC\uC9C4 \uBD88\uC528\uB3C4 \uB2E4\uC2DC \uC9C0\uD544 \uC218 \uC788\uB2E4."
+};
+var CLASS_WEAPON_CHIP = {
+  warrior: "\uAC80 + \uBC29\uD328",
+  mage: "\uC9C0\uD321\uC774",
+  cleric: "\uBA54\uC774\uC2A4"
+};
+var LEVEL_UP_FLAVOR = [
+  "\uBAB8\uC18D \uBD88\uC528\uAC00 \uC870\uAE08 \uB354 \uB728\uAC70\uC6CC\uC84C\uB2E4.",
+  "\uC7AC\uB294 \uBB34\uAC81\uC9C0\uB9CC, \uAC78\uC74C\uC740 \uAC00\uBCBC\uC6CC\uC84C\uB2E4.",
+  "\uD654\uB85C\uC758 \uC628\uAE30\uAC00 \uB4F1\uC744 \uBC00\uC5B4\uC900\uB2E4."
+];
+var DEATH_TEXT = "\uC7AC\uAC00 \uB418\uC5B4 \uC2A4\uB7EC\uC84C\uB2E4\u2026 \uD654\uB85C\uAC00 \uB2F9\uC2E0\uC744 \uBD80\uB978\uB2E4.";
+var RESPAWN_HERE_TEXT = "\uADF8 \uC790\uB9AC\uC5D0\uC11C \uBD80\uD65C (R)";
+var RESPAWN_VILLAGE_TEXT = "\uB9C8\uC744\uC5D0\uC11C \uBD80\uD65C";
+var VILLAGE_RESPAWN_TEXT = "\uAEBC\uC9C0\uC9C0 \uC54A\uB294 \uD654\uB85C \uACC1\uC5D0\uC11C \uB208\uC744 \uB5B4\uB2E4.";
+var MOB_KOREAN_NAMES = {
+  wolf: "\uC7BF\uBE5B\uB291\uB300",
+  goblin_scout: "\uACE0\uBE14\uB9B0 \uC815\uCC30\uAFBC",
+  goblin_thrower: "\uACE0\uBE14\uB9B0 \uD22C\uCC99\uAFBC",
+  boar: "\uC7BF\uBE5B\uBA67\uB3FC\uC9C0",
+  goblin_shaman: "\uACE0\uBE14\uB9B0 \uC8FC\uC220\uC0AC",
+  boss_chief: "\uC871\uC7A5 \uD0C0\uB974\uAC00\uD06C",
+  // M3 content ids (not in the current content pack) — kept ready for when they land.
+  skeleton_warrior: "\uD574\uACE8 \uC804\uC0AC",
+  skeleton_archer: "\uD574\uACE8 \uAD81\uC218",
+  wraith: "\uB9DD\uB839",
+  golem: "\uD30C\uC218\uC11D\uC0C1",
+  wraith_commander: "\uB9DD\uB839 \uC0AC\uB839\uAD00 \uBC1C\uB80C \uACBD",
+  // §3.3 던전 중간보스 (mid-boss)
+  ember_lord: "\uC789\uAC78\uBD88 \uAD70\uC8FC"
+};
+var BOSS_LINES = {
+  // §7.1 족장 타르가크 (필드 — 이벤트 송신은 서버 몫, 지금은 상수만)
+  boss_chief: {
+    engage: { line: "\uD0C0\uB974\uAC00\uD06C: \uB0B4 \uC870\uAC01\uC744\u2026 \uD0D0\uB0B4\uB7EC \uC654\uB098!" },
+    half: { line: "\uD0C0\uB974\uAC00\uD06C: \uC870\uAC01\uC774\uC5EC, \uD0C0\uC62C\uB77C\uB77C!" },
+    defeated: { banner: "\uD0C0\uB294 \uC2EC\uC7A5 \uC870\uAC01\uC744 \uC190\uC5D0 \uB123\uC5C8\uB2E4 \u2014 \uC870\uAC01\uC774 \uB3D9\uCABD\uC744 \uD5A5\uD574 \uB9E5\uB3D9\uD55C\uB2E4." }
+  },
+  // §7.2 망령 사령관 발렌 경 (던전 중간보스): engage/half/defeated
+  wraith_commander: {
+    engage: { line: "\uBC1C\uB80C \uACBD: \uC815\uC9C0. \uC18C\uC18D\uACFC \uC6A9\uAC74\uC744 \uBC1D\uD600\uB77C." },
+    half: { line: "\uBC1C\uB80C \uACBD: \u2026\uBA85\uB839\uC740, \uC544\uC9C1, \uC720\uD6A8\uD558\uB2E4." },
+    defeated: { line: "\uBC1C\uB80C \uACBD: \uAD50\uB300\u2026 \uC778\uAC00. \uB2A6\uC5C8\uAD70.", banner: "\uBC1C\uB80C \uACBD\uC774 30\uB144 \uB9CC\uC5D0 \uCD08\uC18C\uB97C \uB5A0\uB0AC\uB2E4." }
+  },
+  // §7.3 잉걸불 군주 (던전 최종보스): engage/phase_summon(hp70%)/phase_aoe(hp40%)/enrage(hp15%)/defeated
+  ember_lord: {
+    engage: { banner: "\uACF5\uAE30\uAC00 \uD0C4\uB2E4. \uC2EC\uC7A5\uC774 \uB2F9\uC2E0\uC744 \uBCF4\uACE0 \uC788\uB2E4.", line: "\uC789\uAC78\uBD88 \uAD70\uC8FC: \uC7AC\uAC00 \uB418\uC5B4\uB77C." },
+    phase_summon: { banner: "\uAD70\uC8FC\uAC00 \uC8FD\uC740 \uC790\uB4E4\uC744 \uB04C\uC5B4\uC62C\uB9B0\uB2E4!" },
+    phase_aoe: { banner: "\uC2EC\uC7A5\uC774 \uBD88\uAF43\uC744 \uD1A0\uD574\uB0B8\uB2E4 \u2014 \uBC14\uB2E5\uC744 \uBCF4\uB77C!" },
+    enrage: { banner: "\uC2EC\uC7A5\uC774 \uB9C8\uC9C0\uB9C9\uC73C\uB85C \uD0C0\uC624\uB978\uB2E4!" },
+    defeated: {
+      ending: [
+        "\uC2EC\uC7A5\uC758 \uBD88\uAE38\uC774 \uC7A6\uC544\uB4E0\uB2E4. \uC2EC\uC5F0\uC774 \uCC98\uC74C\uC73C\uB85C\u2026 \uC870\uC6A9\uD558\uB2E4.",
+        "\uC5E0\uBC84\uD640\uB4DC\uC758 \uD654\uB85C\uAC00 \uC5B4\uB290 \uB54C\uBCF4\uB2E4 \uBC1D\uAC8C \uD0C0\uC624\uB978\uB2E4. \uB2F9\uC2E0 \uB355\uBD84\uC774\uB2E4, \uBD88\uC528\uC9C0\uAE30\uC5EC.",
+        "\uADF8\uB7EC\uB098 \uC789\uAC78\uBD88\uC740 \uAEBC\uC9C0\uC9C0 \uC54A\uB294\uB2E4. \uC2EC\uC5F0 \uAE4A\uC740 \uACF3\uC5D0\uC11C \u2014 \uC2EC\uC7A5\uC740 \uB2E4\uC2DC \uB6F0\uAE30 \uC2DC\uC791\uD55C\uB2E4."
+      ]
+    }
+  }
+};
+var MERCHANT_NAME = "\uC7BF\uAC00\uB8E8 \uB85C\uC790";
+var ROZA_DIALOGUE = [
+  "\uC5B4\uC11C \uC640. \uC8FD\uAE30 \uC804\uC5D0 \uC0B4 \uAC70\uC57C, \uC8FD\uACE0 \uB098\uC11C \uC0B4 \uAC70\uC57C?",
+  "\uD3EC\uC158\uC740 \uC138 \uAC1C\uC529 \uC0AC. \uB450 \uAC1C \uC0B0 \uC0AC\uB78C\uB4E4\uC740 \uB9D0\uC774 \uC5C6\uB354\uB77C.",
+  "\uADF8 \uAC11\uC637, \uC5B4\uB514\uC11C \uB0AC\uC5B4? \u2026\uC544 \uB0B4\uAC00 \uD310 \uAC70\uAD6C\uB098.",
+  "\uC2EC\uC5F0\uC5D0 \uAC04\uB2E4\uACE0? \uC678\uC0C1\uC740 \uC548 \uB3FC."
+];
+var DUMMY_REACTIONS = ["\uD37D.", "\uBB34\uBA85\uB3C4 \uC774\uAC74 \uC544\uD320\uC744 \uAC70\uB2E4.", "\uD5C8\uC218\uC544\uBE44\uB294 \uB9D0\uC774 \uC5C6\uB2E4."];
+var FIRST_LOGIN_GUIDE_STEPS = ["\uC6B0\uD074\uB9AD \uB4DC\uB798\uADF8=\uC2DC\uC810", "\uD074\uB9AD=\uC774\uB3D9", "\uC801 \uD074\uB9AD=\uACF5\uACA9", "\uC2A4\uD398\uC774\uC2A4=\uB300\uC2DC"];
+function randomLine(pool) {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// client/vfx.ts
+init_three_module();
+init_units();
+var FIRE_SKILLS = /* @__PURE__ */ new Set(["mage-fireball", "mage-flame-pillar", "mage-meteor"]);
+var FROST_SKILLS = /* @__PURE__ */ new Set(["mage-frost-nova"]);
+var HOLY_SKILLS = /* @__PURE__ */ new Set([
+  "cleric-heal",
+  "cleric-regeneration",
+  "cleric-purify",
+  "cleric-holy-strike",
+  "cleric-blessing",
+  "cleric-resurrection",
+  "goblin-shaman-mend"
+]);
+var PROJECTILE_KIND = {
+  "skeleton-shot": "arrow",
+  "goblin-throw": "javelin",
+  "mage-fireball": "fireball",
+  "wraith-bolt": "bolt"
+};
+var PROJECTILE_SPEED = { arrow: 22, javelin: 20, fireball: 16, bolt: 18 };
+var PROJECTILE_ARC = { arrow: 0.13, javelin: 0.06, fireball: 0, bolt: 0 };
+var WHIRL_SKILLS = /* @__PURE__ */ new Set(["warrior-whirlwind"]);
+var MELEE_SKILLS = /* @__PURE__ */ new Set([
+  "melee-basic",
+  "monster-bite",
+  "warrior-strike",
+  "warrior-charge",
+  "boar-charge",
+  "cleric-holy-strike",
+  "goblin-chief-cleave",
+  "skeleton-strike",
+  "golem-slam",
+  "valen-cleave",
+  "ember-lord-strike"
+]);
+var COLOR_FIRE = 16742963;
+var COLOR_FROST = 8378623;
+var COLOR_HOLY = 16766826;
+var COLOR_PHYSICAL = 14210248;
+var COLOR_BOLT = 10116351;
+function colorForSkill(skillId) {
+  if (FIRE_SKILLS.has(skillId)) return COLOR_FIRE;
+  if (FROST_SKILLS.has(skillId)) return COLOR_FROST;
+  if (HOLY_SKILLS.has(skillId)) return COLOR_HOLY;
+  return COLOR_PHYSICAL;
+}
+var COLOR_DAMAGE = 16756838;
+var COLOR_HEAL = 6094730;
+var COLOR_LEVELUP = 16765514;
+var COLOR_DEATH = 10131084;
+var COLOR_RESURRECT = 16755520;
+var COLOR_TELEGRAPH = 16724768;
+var COLOR_DASH_TRAIL = 14673128;
+var PROJECTILE_RANGE = 10;
+var SWING_RADIUS = 1.2;
+function createGlowTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx2 = canvas.getContext("2d");
+  const gradient = ctx2.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.7)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx2.fillStyle = gradient;
+  ctx2.fillRect(0, 0, size, size);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+function createRingTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx2 = canvas.getContext("2d");
+  const gradient = ctx2.createRadialGradient(size / 2, size / 2, size * 0.28, size / 2, size / 2, size * 0.48);
+  gradient.addColorStop(0, "rgba(255,255,255,0)");
+  gradient.addColorStop(0.5, "rgba(255,255,255,0.9)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx2.fillStyle = gradient;
+  ctx2.beginPath();
+  ctx2.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx2.fill();
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+var POOL_SIZE = 480;
+function randomSphereDir() {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  return new Vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+}
+function randomUpConeDir(spread) {
+  return new Vector3((Math.random() * 2 - 1) * spread, 1, (Math.random() * 2 - 1) * spread).normalize();
+}
+function makeSlashGeometry(angleRad, innerR, outerR, segments) {
+  const positions = [];
+  const colors = [];
+  const half = angleRad / 2;
+  const fullTurn = angleRad >= Math.PI * 1.99;
+  for (let i = 0; i <= segments; i++) {
+    const a = -half + angleRad * i / segments;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const taper = fullTurn ? 1 : 1 - Math.abs(2 * i / segments - 1);
+    positions.push(innerR * c, 0, innerR * s);
+    colors.push(taper, taper, taper);
+    positions.push(outerR * c, 0, outerR * s);
+    colors.push(0, 0, 0);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  const index = [];
+  for (let i = 0; i < segments; i++) {
+    const b = i * 2;
+    index.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+  }
+  geometry.setIndex(index);
+  return geometry;
+}
+var ParticlePool = class {
+  positions = new Float32Array(POOL_SIZE * 3);
+  colors = new Float32Array(POOL_SIZE * 3);
+  velocities = new Float32Array(POOL_SIZE * 3);
+  baseColor = new Float32Array(POOL_SIZE * 3);
+  gravity = new Float32Array(POOL_SIZE);
+  age = new Float32Array(POOL_SIZE);
+  life = new Float32Array(POOL_SIZE);
+  active = new Uint8Array(POOL_SIZE);
+  geometry = new BufferGeometry();
+  posAttr;
+  colorAttr;
+  points;
+  constructor(scene, texture) {
+    this.posAttr = new BufferAttribute(this.positions, 3);
+    this.colorAttr = new BufferAttribute(this.colors, 3);
+    this.geometry.setAttribute("position", this.posAttr);
+    this.geometry.setAttribute("color", this.colorAttr);
+    const material = new PointsMaterial({
+      size: 0.35,
+      map: texture,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      sizeAttenuation: true,
+      blending: AdditiveBlending
+    });
+    this.points = new Points(this.geometry, material);
+    scene.add(this.points);
+  }
+  /** Claims up to `count` free slots and bursts them outward from `origin`. Silently spawns
+   *  fewer than `count` if the pool is (very) close to full — never errors. */
+  spawn(origin, count, color, opts) {
+    let spawned = 0;
+    for (let i = 0; i < POOL_SIZE && spawned < count; i++) {
+      if (this.active[i]) continue;
+      const ix = i * 3;
+      this.positions[ix] = origin.x;
+      this.positions[ix + 1] = origin.y;
+      this.positions[ix + 2] = origin.z;
+      const dir = opts.upward ? randomUpConeDir(opts.spread) : randomSphereDir();
+      const speed = opts.speedMin + Math.random() * (opts.speedMax - opts.speedMin);
+      this.velocities[ix] = dir.x * speed;
+      this.velocities[ix + 1] = dir.y * speed;
+      this.velocities[ix + 2] = dir.z * speed;
+      this.gravity[i] = opts.gravity;
+      this.age[i] = 0;
+      this.life[i] = opts.life;
+      this.baseColor[ix] = color.r;
+      this.baseColor[ix + 1] = color.g;
+      this.baseColor[ix + 2] = color.b;
+      this.colors[ix] = color.r;
+      this.colors[ix + 1] = color.g;
+      this.colors[ix + 2] = color.b;
+      this.active[i] = 1;
+      spawned++;
+    }
+    this.posAttr.needsUpdate = true;
+    this.colorAttr.needsUpdate = true;
+  }
+  tick(dt) {
+    let any = false;
+    for (let i = 0; i < POOL_SIZE; i++) {
+      if (!this.active[i]) continue;
+      any = true;
+      const ix = i * 3;
+      this.age[i] += dt;
+      if (this.age[i] >= this.life[i]) {
+        this.active[i] = 0;
+        this.colors[ix] = 0;
+        this.colors[ix + 1] = 0;
+        this.colors[ix + 2] = 0;
+        continue;
+      }
+      this.velocities[ix + 1] += this.gravity[i] * dt;
+      this.positions[ix] += this.velocities[ix] * dt;
+      this.positions[ix + 1] += this.velocities[ix + 1] * dt;
+      this.positions[ix + 2] += this.velocities[ix + 2] * dt;
+      const fade = 1 - this.age[i] / this.life[i];
+      this.colors[ix] = this.baseColor[ix] * fade;
+      this.colors[ix + 1] = this.baseColor[ix + 1] * fade;
+      this.colors[ix + 2] = this.baseColor[ix + 2] * fade;
+    }
+    if (any) {
+      this.posAttr.needsUpdate = true;
+      this.colorAttr.needsUpdate = true;
+    }
+  }
+  /** Clears every active particle immediately, without disposing the pool (zone transfer). */
+  reset() {
+    this.active.fill(0);
+    this.colors.fill(0);
+    this.colorAttr.needsUpdate = true;
+  }
+};
+var RING_FADE_SEC = 0.15;
+var RING_TIMEOUT_SEC = 3;
+var RING_SPIN = 2.4;
+function createVfxSystem(scene, units) {
+  const glowTexture = createGlowTexture();
+  const ringTexture = createRingTexture();
+  const pool = new ParticlePool(scene, glowTexture);
+  const ringGeometry = new PlaneGeometry(1, 1);
+  const arrowShaftGeo = new CylinderGeometry(0.018, 0.018, 0.5, 5).rotateX(Math.PI / 2);
+  const arrowHeadGeo = new ConeGeometry(0.05, 0.14, 6).rotateX(-Math.PI / 2);
+  const fletchGeo = new PlaneGeometry(0.12, 0.1);
+  const javelinShaftGeo = new CylinderGeometry(0.028, 0.022, 0.95, 6).rotateX(Math.PI / 2);
+  const javelinHeadGeo = new ConeGeometry(0.06, 0.18, 6).rotateX(-Math.PI / 2);
+  const arrowShaftMat = new MeshBasicMaterial({ color: 9072712 });
+  const arrowHeadMat = new MeshBasicMaterial({ color: 13157560 });
+  const fletchMat = new MeshBasicMaterial({ color: 15131350, side: DoubleSide, transparent: true, opacity: 0.9 });
+  const javelinShaftMat = new MeshBasicMaterial({ color: 7035460 });
+  const javelinHeadMat = new MeshBasicMaterial({ color: 11578528 });
+  function makeArrow() {
+    const group = new Group();
+    group.add(new Mesh(arrowShaftGeo, arrowShaftMat));
+    const head = new Mesh(arrowHeadGeo, arrowHeadMat);
+    head.position.z = -0.32;
+    const fin1 = new Mesh(fletchGeo, fletchMat);
+    fin1.position.z = 0.18;
+    fin1.rotation.y = Math.PI / 2;
+    const fin2 = new Mesh(fletchGeo, fletchMat);
+    fin2.position.z = 0.18;
+    fin2.rotation.y = Math.PI / 2;
+    fin2.rotation.z = Math.PI / 2;
+    group.add(head, fin1, fin2);
+    return group;
+  }
+  function makeJavelin() {
+    const group = new Group();
+    group.add(new Mesh(javelinShaftGeo, javelinShaftMat));
+    const head = new Mesh(javelinHeadGeo, javelinHeadMat);
+    head.position.z = -0.56;
+    group.add(head);
+    return group;
+  }
+  const slashArcGeo = makeSlashGeometry(Math.PI * (2 / 3), 0.65 * SWING_RADIUS, SWING_RADIUS, 12);
+  const whirlArcGeo = makeSlashGeometry(Math.PI * 2, 0.5 * SWING_RADIUS, SWING_RADIUS, 32);
+  const rings = /* @__PURE__ */ new Map();
+  const transients = [];
+  function worldPos(id) {
+    const data = units.get(id);
+    return data ? UnitRenderer.toWorld(data.x, data.y) : null;
+  }
+  function damageSpark(targetId, amount) {
+    const pos = worldPos(targetId);
+    if (!pos) return;
+    pos.y += 1;
+    const power = Math.min(Math.max(amount, 0) / 50, 1);
+    const count = Math.round(6 + power * 4);
+    const color = new Color(COLOR_DAMAGE).lerp(new Color(16777215), power * 0.35);
+    pool.spawn(pos, count, color, { life: 0.3, speedMin: 2.5, speedMax: 3 + power * 2, gravity: -9, upward: false, spread: 0 });
+  }
+  function healMote(targetId, amount) {
+    const pos = worldPos(targetId);
+    if (!pos) return;
+    pos.y += 0.4;
+    const count = Math.min(5 + Math.floor(Math.max(amount, 0) / 25), 8);
+    pool.spawn(pos, count, new Color(COLOR_HEAL), { life: 0.8, speedMin: 0.8, speedMax: 1.6, gravity: 0.4, upward: true, spread: 0.4 });
+  }
+  function levelUpBurst(unitId) {
+    const pos = worldPos(unitId);
+    if (!pos) return;
+    pool.spawn(pos, 24, new Color(COLOR_LEVELUP), { life: 1, speedMin: 1.5, speedMax: 3, gravity: 0.2, upward: true, spread: 0.25 });
+  }
+  function deathPuff(unitId) {
+    const pos = worldPos(unitId);
+    if (!pos) return;
+    pos.y += 0.6;
+    pool.spawn(pos, 18, new Color(COLOR_DEATH), { life: 0.8, speedMin: 1, speedMax: 2.2, gravity: -1.6, upward: false, spread: 0 });
+  }
+  function resurrectFlash(unitId) {
+    const pos = worldPos(unitId);
+    if (!pos) return;
+    pos.y += 1;
+    const material = new SpriteMaterial({
+      map: glowTexture,
+      color: COLOR_RESURRECT,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      opacity: 1
+    });
+    const sprite = new Sprite(material);
+    sprite.position.copy(pos);
+    sprite.scale.setScalar(0.4);
+    scene.add(sprite);
+    const duration = 0.5;
+    let age = 0;
+    transients.push({
+      update(dt) {
+        age += dt;
+        const t = Math.min(age / duration, 1);
+        sprite.scale.setScalar(MathUtils.lerp(0.4, 3.2, t));
+        material.opacity = 1 - t;
+        return age < duration;
+      },
+      dispose() {
+        scene.remove(sprite);
+        material.dispose();
+      }
+    });
+  }
+  function impactPuff(pos, kind) {
+    const color = kind === "fireball" ? new Color(COLOR_FIRE) : kind === "bolt" ? new Color(COLOR_BOLT) : new Color(COLOR_PHYSICAL);
+    pool.spawn(pos, kind === "fireball" ? 8 : 5, color, { life: 0.3, speedMin: 1.5, speedMax: 3, gravity: -6, upward: false, spread: 0 });
+  }
+  function fireProjectile(casterId, skillId, targetId) {
+    const kind = PROJECTILE_KIND[skillId];
+    if (!kind) return;
+    const caster = units.get(casterId);
+    if (!caster) return;
+    const from = UnitRenderer.toWorld(caster.x, caster.y);
+    from.y += 1.1;
+    const targetWorld = () => {
+      if (!targetId) return null;
+      const t = units.get(targetId);
+      if (!t) return null;
+      const w = UnitRenderer.toWorld(t.x, t.y);
+      w.y += 1;
+      return w;
+    };
+    const facingDir = new Vector3(Math.cos(caster.facing), 0, Math.sin(caster.facing));
+    let dest = targetWorld() ?? from.clone().addScaledVector(facingDir, PROJECTILE_RANGE);
+    const dist = Math.max(from.distanceTo(dest), 0.5);
+    const duration = Math.min(Math.max(dist / PROJECTILE_SPEED[kind], 0.12), 1.2);
+    const arcPeak = Math.min(dist * PROJECTILE_ARC[kind], 2.2);
+    const isMesh = kind === "arrow" || kind === "javelin";
+    const hasTrail = kind === "fireball" || kind === "bolt";
+    const trailColor = new Color(kind === "bolt" ? COLOR_BOLT : COLOR_FIRE);
+    let spriteMat = null;
+    let obj;
+    if (isMesh) {
+      obj = kind === "arrow" ? makeArrow() : makeJavelin();
+    } else {
+      spriteMat = new SpriteMaterial({
+        map: glowTexture,
+        color: kind === "bolt" ? COLOR_BOLT : COLOR_FIRE,
+        transparent: true,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        opacity: 1
+      });
+      const sprite = new Sprite(spriteMat);
+      sprite.scale.setScalar(kind === "bolt" ? 0.42 : 0.55);
+      obj = sprite;
+    }
+    obj.position.copy(from);
+    scene.add(obj);
+    let age = 0;
+    let lastTrail = 0;
+    const cur = new Vector3();
+    transients.push({
+      update(dt) {
+        age += dt;
+        const t = Math.min(age / duration, 1);
+        dest = targetWorld() ?? dest;
+        cur.lerpVectors(from, dest, t);
+        cur.y += arcPeak * 4 * t * (1 - t);
+        obj.position.copy(cur);
+        if (isMesh) {
+          const slope = arcPeak * 4 * (1 - 2 * t);
+          const look = new Vector3(dest.x - from.x, slope, dest.z - from.z);
+          if (look.lengthSq() > 1e-6) obj.lookAt(cur.clone().add(look));
+        } else if (spriteMat) {
+          spriteMat.opacity = t < 0.85 ? 1 : Math.max(0, (1 - t) / 0.15);
+        }
+        if (hasTrail && age - lastTrail >= 0.03) {
+          lastTrail = age;
+          pool.spawn(cur, kind === "fireball" ? 2 : 1, trailColor, {
+            life: 0.35,
+            speedMin: 0.2,
+            speedMax: 0.8,
+            gravity: kind === "fireball" ? 0.6 : 0,
+            upward: false,
+            spread: 0.4
+          });
+        }
+        if (t >= 1) {
+          impactPuff(cur, kind);
+          return false;
+        }
+        return true;
+      },
+      dispose() {
+        scene.remove(obj);
+        if (spriteMat) spriteMat.dispose();
+      }
+    });
+  }
+  function meleeSwing(casterId, skillId) {
+    const whirl = WHIRL_SKILLS.has(skillId);
+    if (!whirl && !MELEE_SKILLS.has(skillId)) return;
+    const caster = units.get(casterId);
+    if (!caster) return;
+    const material = new MeshBasicMaterial({
+      color: colorForSkill(skillId),
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+      opacity: 0.55
+    });
+    const mesh = new Mesh(whirl ? whirlArcGeo : slashArcGeo, material);
+    const start = UnitRenderer.toWorld(caster.x, caster.y);
+    mesh.position.set(start.x, 0.9, start.z);
+    const startRotY = -caster.facing;
+    mesh.rotation.y = startRotY;
+    scene.add(mesh);
+    const duration = 0.25;
+    const sweep = whirl ? Math.PI * 2 : 0.6;
+    let age = 0;
+    transients.push({
+      update(dt) {
+        age += dt;
+        const t = Math.min(age / duration, 1);
+        material.opacity = 0.55 * (1 - t);
+        mesh.rotation.y = startRotY + sweep * t;
+        const c = units.get(casterId);
+        if (c) {
+          const w = UnitRenderer.toWorld(c.x, c.y);
+          mesh.position.set(w.x, 0.9, w.z);
+        }
+        return age < duration;
+      },
+      dispose() {
+        scene.remove(mesh);
+        material.dispose();
+      }
+    });
+  }
+  function dashTrail(fromX, fromY, toX, toY) {
+    const from = UnitRenderer.toWorld(fromX, fromY);
+    const to = UnitRenderer.toWorld(toX, toY);
+    const color = new Color(COLOR_DASH_TRAIL);
+    const samples = 6;
+    for (let i = 0; i <= samples; i++) {
+      const p = from.clone().lerp(to, i / samples);
+      p.y = 0.9;
+      pool.spawn(p, 3, color, { life: 0.3, speedMin: 0.2, speedMax: 0.8, gravity: 0, upward: false, spread: 0.5 });
+    }
+  }
+  function showTelegraph(x, y, r, ms) {
+    const center = UnitRenderer.toWorld(x, y);
+    const duration = Math.max(0.05, ms / 1e3);
+    const diameter = Math.max(0.1, r * 2);
+    const ringMat = new MeshBasicMaterial({
+      map: ringTexture,
+      color: COLOR_TELEGRAPH,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide
+    });
+    const ring = new Mesh(ringGeometry, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(center.x, 0.04, center.z);
+    ring.scale.setScalar(diameter);
+    const fillMat = new MeshBasicMaterial({
+      map: glowTexture,
+      color: COLOR_TELEGRAPH,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+      opacity: 0.2
+    });
+    const fill = new Mesh(ringGeometry, fillMat);
+    fill.rotation.x = -Math.PI / 2;
+    fill.position.set(center.x, 0.03, center.z);
+    fill.scale.setScalar(diameter);
+    scene.add(ring, fill);
+    let age = 0;
+    transients.push({
+      update(dt) {
+        age += dt;
+        const t = Math.min(age / duration, 1);
+        ringMat.opacity = 0.55 + 0.45 * Math.abs(Math.sin(age * 9));
+        fillMat.opacity = 0.18 + 0.32 * t;
+        fill.scale.setScalar(diameter * (1 - t));
+        return age < duration;
+      },
+      dispose() {
+        scene.remove(ring);
+        scene.remove(fill);
+        ringMat.dispose();
+        fillMat.dispose();
+      }
+    });
+  }
+  function startCast(casterId, skillId, castTimeMs) {
+    const pos = worldPos(casterId);
+    if (!pos) return;
+    const existing = rings.get(casterId);
+    if (existing) {
+      scene.remove(existing.mesh);
+      existing.material.dispose();
+      rings.delete(casterId);
+    }
+    const material = new MeshBasicMaterial({
+      map: ringTexture,
+      color: colorForSkill(skillId),
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide
+    });
+    const mesh = new Mesh(ringGeometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(pos.x, 0.05, pos.z);
+    mesh.scale.setScalar(1.3);
+    scene.add(mesh);
+    rings.set(casterId, {
+      mesh,
+      material,
+      age: 0,
+      shrinkDurationSec: castTimeMs > 0 ? castTimeMs / 1e3 : 0.5,
+      removing: false,
+      fadeAge: 0
+    });
+  }
+  function endCast(casterId) {
+    const entry = rings.get(casterId);
+    if (entry) entry.removing = true;
+  }
+  function tickRings(dt) {
+    for (const [casterId, entry] of rings) {
+      if (entry.removing) {
+        entry.fadeAge += dt;
+        entry.material.opacity = Math.max(0, 1 - entry.fadeAge / RING_FADE_SEC);
+        if (entry.fadeAge >= RING_FADE_SEC) {
+          scene.remove(entry.mesh);
+          entry.material.dispose();
+          rings.delete(casterId);
+        }
+        continue;
+      }
+      entry.age += dt;
+      entry.mesh.rotation.z += RING_SPIN * dt;
+      const t = Math.min(entry.age / entry.shrinkDurationSec, 1);
+      entry.mesh.scale.setScalar(MathUtils.lerp(1.3, 0.7, t));
+      const casterPos = worldPos(casterId);
+      if (casterPos) entry.mesh.position.set(casterPos.x, 0.05, casterPos.z);
+      if (entry.age >= RING_TIMEOUT_SEC) entry.removing = true;
+    }
+  }
+  function tickTransients(dt) {
+    for (let i = transients.length - 1; i >= 0; i--) {
+      const t = transients[i];
+      if (!t.update(dt)) {
+        t.dispose();
+        transients.splice(i, 1);
+      }
+    }
+  }
+  function tick(dt) {
+    pool.tick(dt);
+    tickRings(dt);
+    tickTransients(dt);
+  }
+  function reset() {
+    pool.reset();
+    for (const entry of rings.values()) {
+      scene.remove(entry.mesh);
+      entry.material.dispose();
+    }
+    rings.clear();
+    for (const t of transients) t.dispose();
+    transients.length = 0;
+  }
+  return { tick, damageSpark, healMote, startCast, endCast, fireProjectile, meleeSwing, levelUpBurst, deathPuff, resurrectFlash, dashTrail, showTelegraph, reset };
+}
+
+// client/audio.ts
+var AUDIO_BASE = "/assets/audio/";
+var VOLUME_KEY = "ef_volume";
+var MUTED_KEY = "ef_muted";
+var DEFAULT_VOLUME = 0.7;
+var DEBOUNCE_MS = 50;
+var MAX_VOICES = 8;
+var SFX_FILES = {
+  hit: ["knifeSlice.ogg", "knifeSlice2.ogg", "chop.ogg"],
+  hurt: "metalPot1.ogg",
+  castStart: "drawKnife1.ogg",
+  castFire: "cloth3.ogg",
+  arrow: "cloth3.ogg",
+  // Bow/javelin release whoosh — reuses the cloth swish (no new asset)
+  dash: "cloth3.ogg",
+  // Space-dash whoosh — reuses the cloth swish (no new asset)
+  death: "dropLeather.ogg",
+  levelup: "handleCoins.ogg",
+  resurrect: "handleCoins.ogg",
+  click: "click1.ogg",
+  buy: "handleCoins.ogg",
+  sell: "handleCoins2.ogg",
+  equip: "metalClick.ogg",
+  unequip: "cloth1.ogg",
+  potion: "beltHandle1.ogg",
+  invOpen: "bookOpen.ogg"
+};
+var ctx = null;
+var master = null;
+var volume = DEFAULT_VOLUME;
+var muted = false;
+var activeVoices = 0;
+var buffers = /* @__PURE__ */ new Map();
+var pending = /* @__PURE__ */ new Map();
+var lastPlayed = /* @__PURE__ */ new Map();
+function nowMs() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+function readPrefs() {
+  try {
+    const v = localStorage.getItem(VOLUME_KEY);
+    if (v !== null) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0 && n <= 1) volume = n;
+    }
+    muted = localStorage.getItem(MUTED_KEY) === "1";
+  } catch {
+  }
+}
+function ensureContext() {
+  if (ctx) return ctx;
+  if (typeof window === "undefined") return null;
+  const Ctor = window.AudioContext ?? window.webkitAudioContext;
+  if (!Ctor) return null;
+  ctx = new Ctor();
+  master = ctx.createGain();
+  master.gain.value = muted ? 0 : volume;
+  master.connect(ctx.destination);
+  return ctx;
+}
+function loadBuffer(context, url) {
+  const cached = buffers.get(url);
+  if (cached) return Promise.resolve(cached);
+  let p = pending.get(url);
+  if (!p) {
+    p = fetch(url).then((r) => r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status} ${r.statusText}`))).then((data) => context.decodeAudioData(data)).then((buf) => {
+      buffers.set(url, buf);
+      pending.delete(url);
+      return buf;
+    }).catch((err) => {
+      pending.delete(url);
+      console.warn(`[audio] failed to load ${url}`, err);
+      return null;
+    });
+    pending.set(url, p);
+  }
+  return p;
+}
+function pickFile(id) {
+  const f = SFX_FILES[id];
+  if (typeof f === "string") return f;
+  return f[Math.floor(Math.random() * f.length)];
+}
+function playSfx(id) {
+  const context = ensureContext();
+  if (!context || muted || context.state !== "running") return;
+  const t = nowMs();
+  const last = lastPlayed.get(id);
+  if (last !== void 0 && t - last < DEBOUNCE_MS) return;
+  lastPlayed.set(id, t);
+  if (activeVoices >= MAX_VOICES) return;
+  const url = AUDIO_BASE + pickFile(id);
+  void loadBuffer(context, url).then((buf) => {
+    if (!buf || !master || activeVoices >= MAX_VOICES) return;
+    const src = context.createBufferSource();
+    src.buffer = buf;
+    src.connect(master);
+    activeVoices++;
+    src.onended = () => {
+      activeVoices = Math.max(0, activeVoices - 1);
+    };
+    src.start();
+  });
+}
+function applyGain() {
+  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.01);
+}
+function toggleMute() {
+  muted = !muted;
+  try {
+    localStorage.setItem(MUTED_KEY, muted ? "1" : "0");
+  } catch {
+  }
+  applyGain();
+  return muted;
+}
+function isTypingTarget(e) {
+  const t = e.target;
+  return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLElement && t.isContentEditable;
+}
+if (typeof window !== "undefined") {
+  readPrefs();
+  const resume = () => {
+    const context = ensureContext();
+    if (context && context.state === "suspended") void context.resume();
+  };
+  window.addEventListener("pointerdown", resume, { once: true });
+  window.addEventListener("keydown", resume, { once: true });
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() !== "m" || e.repeat || isTypingTarget(e)) return;
+    const nowMuted = toggleMute();
+    try {
+      showToast(nowMuted ? "\u{1F507} \uC74C\uC18C\uAC70" : "\u{1F50A} \uC18C\uB9AC \uCF1C\uC9D0");
+    } catch {
+    }
+  });
+}
 
 // client/net.ts
 var FIELD_PARTY = "field-room";
@@ -37768,7 +40116,14 @@ var NPC_VISUALS = {
   goblin_thrower: "unit.goblin_thrower",
   boar: "unit.boar",
   goblin_shaman: "unit.goblin_shaman",
-  boss_chief: "unit.boss_chief"
+  boss_chief: "unit.boss_chief",
+  // M3 dungeon roster (§3.3): commander shares the wraith mesh, ember_lord the boss_lord mesh.
+  skeleton_warrior: "unit.skeleton",
+  skeleton_archer: "unit.skeleton_archer",
+  wraith: "unit.wraith",
+  golem: "unit.golem",
+  wraith_commander: "unit.wraith",
+  ember_lord: "unit.boss_lord"
 };
 var SKILL_BY_ID = Object.fromEntries(
   EMBERFALL_CONTENT.skills.map((s) => [s.id, s])
@@ -37782,7 +40137,7 @@ function unitDisplayName(id, u, myId) {
     if (id === myId) return "You";
     return u.class === "none" ? "Player" : u.class[0].toUpperCase() + u.class.slice(1);
   }
-  return NPC_NAMES[u.kind] ?? u.kind;
+  return MOB_KOREAN_NAMES[u.kind] ?? NPC_NAMES[u.kind] ?? u.kind;
 }
 function gearOf(u) {
   const g = u;
@@ -37824,26 +40179,26 @@ function resolveCastTarget(skillId, targetId, myId, units) {
   return targetId ? { unitId: targetId } : void 0;
 }
 var NO_COOLDOWNS = {};
-function startCooldown(state, skillId, nowMs, cooldownMs) {
+function startCooldown(state, skillId, nowMs2, cooldownMs) {
   if (!(cooldownMs > 0)) return state;
   const existing = state[skillId];
-  if (existing !== void 0 && existing > nowMs) return state;
-  return { ...state, [skillId]: nowMs + cooldownMs };
+  if (existing !== void 0 && existing > nowMs2) return state;
+  return { ...state, [skillId]: nowMs2 + cooldownMs };
 }
-function cooldownRemainingMs(state, skillId, nowMs) {
+function cooldownRemainingMs(state, skillId, nowMs2) {
   const end = state[skillId];
-  return end === void 0 ? 0 : Math.max(0, end - nowMs);
+  return end === void 0 ? 0 : Math.max(0, end - nowMs2);
 }
-function castProgress(skillId, startMs, nowMs) {
+function castProgress(skillId, startMs, nowMs2) {
   const castTimeMs = SKILL_BY_ID[skillId]?.castTimeMs ?? 0;
   if (castTimeMs <= 0) return 1;
-  return Math.max(0, Math.min(1, (nowMs - startMs) / castTimeMs));
+  return Math.max(0, Math.min(1, (nowMs2 - startMs) / castTimeMs));
 }
 function pushFloatingNumber(queue, nextId, entry) {
   return { queue: [...queue, { ...entry, id: nextId }], nextId: nextId + 1 };
 }
-function pruneFloatingNumbers(queue, nowMs, maxAgeMs) {
-  return queue.filter((f) => nowMs - f.bornMs < maxAgeMs);
+function pruneFloatingNumbers(queue, nowMs2, maxAgeMs) {
+  return queue.filter((f) => nowMs2 - f.bornMs < maxAgeMs);
 }
 function isItemInstance(v) {
   if (typeof v !== "object" || v === null) return false;
@@ -37879,10 +40234,40 @@ function parseLootOverflow(raw) {
   const overflow = raw.overflow;
   return typeof overflow === "number" && overflow > 0 ? overflow : null;
 }
+var WIRE_BOSSES = ["wraith_commander", "ember_lord"];
+var BOSS_EVENTS = ["engage", "half", "phase_summon", "phase_aoe", "enrage", "defeated"];
+function parseBossEvent(raw) {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw;
+  if (typeof o.unitId !== "string" || o.unitId.length === 0) return null;
+  if (typeof o.boss !== "string" || !WIRE_BOSSES.includes(o.boss)) return null;
+  if (typeof o.ev !== "string" || !BOSS_EVENTS.includes(o.ev)) return null;
+  return { boss: o.boss, unitId: o.unitId, ev: o.ev };
+}
+function parseTelegraph(raw) {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw;
+  if (typeof o.x !== "number" || typeof o.y !== "number") return null;
+  if (typeof o.r !== "number" || !(o.r > 0)) return null;
+  if (typeof o.ms !== "number" || !(o.ms >= 0)) return null;
+  return { x: o.x, y: o.y, r: o.r, ms: o.ms };
+}
+var RESURRECT_SUPPRESS_MS = 3e3;
+var DASH_MIN_INTERVAL_MS = 3500;
+var DASH_DISTANCE = 5;
+function parseDashEvent(raw) {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw;
+  if (typeof o.unit !== "string") return null;
+  const { fromX, fromY, toX, toY } = o;
+  if (![fromX, fromY, toX, toY].every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  return { unit: o.unit, fromX, fromY, toX, toY };
+}
 var NetSession = class {
   constructor(units, callbacks) {
     this.units = units;
     this.callbacks = callbacks;
+    this.vfx = createVfxSystem(this.units.getScene(), this.units);
   }
   units;
   callbacks;
@@ -37900,6 +40285,15 @@ var NetSession = class {
    *  as `client.id`/`PeerJoined.connectionId` (peer-visible — but it's just a random id,
    *  never the character's save token). */
   playSessionId = null;
+  /** The unit id of the boss whose top HP bar is currently shown (E2), or `null`. Set on a
+   *  `"bossEvent"` engage, cleared on defeat; drives the per-frame `updateBossBar` in `tick`. */
+  bossUnitId = null;
+  /** `performance.now()` at the last successful `connect()` (join/zone-transfer), gating the
+   *  spurious join-time `"resurrected"` self-event — see `RESURRECT_SUPPRESS_MS`. */
+  connectedAtMs = 0;
+  /** `performance.now()` of the last dash intent sent — the local anti-spam gate (DASH_MIN_INTERVAL_MS). */
+  lastDashAt = Number.NEGATIVE_INFINITY;
+  vfx;
   get id() {
     return this.myId;
   }
@@ -37922,11 +40316,15 @@ var NetSession = class {
     }
     this.knownIds = /* @__PURE__ */ new Set();
     this.latestUnits = {};
+    this.vfx.reset();
+    this.bossUnitId = null;
+    hideBossBar();
     if (!this.playSessionId) this.playSessionId = crypto.randomUUID();
     const client = new GameClient(host, { party, stateCodec: EmberSchema, authToken: charToken });
     const room = await client.joinOrCreate(roomId, { _session: this.playSessionId });
     this.room = room;
     this.myId = room.connectionId ?? "";
+    this.connectedAtMs = performance.now();
     room.onStateChange((s) => this.handleState(s));
     room.onMessage("combat", (payload) => this.handleCombat(payload));
     room.onMessage("inv", (payload) => {
@@ -37941,6 +40339,15 @@ var NetSession = class {
       const code = typeof payload === "object" && payload !== null ? payload.code : void 0;
       this.callbacks.onCharError(typeof code === "string" ? code : "unknown");
     });
+    room.onMessage("bossEvent", (payload) => {
+      const msg = parseBossEvent(payload);
+      if (msg) this.handleBossEvent(msg);
+    });
+    room.onMessage("telegraph", (payload) => {
+      const t = parseTelegraph(payload);
+      if (t) this.vfx.showTelegraph(t.x, t.y, t.r, t.ms);
+    });
+    room.onMessage("dash", (payload) => this.handleDash(payload));
     room.onMessage("lootOverflow", (payload) => {
       if (parseLootOverflow(payload) !== null) this.pushFloat(this.myId, "Inventory full!", "info", performance.now());
     });
@@ -37967,32 +40374,98 @@ var NetSession = class {
         case "skillStarted":
           this.units.trigger(ev.caster, "cast");
           if (ev.caster === this.myId) this.callbacks.onOwnCast(ev.skillId);
+          this.vfx.startCast(ev.caster, ev.skillId, SKILL_BY_ID[ev.skillId]?.castTimeMs ?? 0);
+          playSfx("castStart");
           break;
         case "skillFired":
           this.units.trigger(ev.caster, "attack");
           if (ev.caster === this.myId) this.callbacks.onOwnCast(ev.skillId);
+          this.vfx.endCast(ev.caster);
+          this.vfx.fireProjectile(ev.caster, ev.skillId, ev.target);
+          this.vfx.meleeSwing(ev.caster, ev.skillId);
+          playSfx(SKILL_BY_ID[ev.skillId]?.school === "ranged" ? "arrow" : "castFire");
           break;
         case "damaged":
           this.units.trigger(ev.target, "hit");
           if (ev.amount > 0) this.pushFloat(ev.target, `-${Math.round(ev.amount)}`, "damage", now);
+          this.vfx.damageSpark(ev.target, ev.amount);
+          if (ev.target === this.myId) {
+            playSfx("hurt");
+            this.callbacks.onDamaged(ev.source);
+          } else {
+            playSfx("hit");
+          }
           break;
         case "healed":
           if (ev.amount > 0) this.pushFloat(ev.target, `+${Math.round(ev.amount)}`, "heal", now);
+          this.vfx.healMote(ev.target, ev.amount);
           break;
         case "death":
           this.units.trigger(ev.unit, "death");
+          if (ev.unit === this.myId) setDeathOverlay(true);
+          this.vfx.deathPuff(ev.unit);
+          playSfx("death");
           break;
-        case "resurrected":
+        case "resurrected": {
+          const isSelf = ev.unit === this.myId;
+          if (isSelf && now - this.connectedAtMs < RESURRECT_SUPPRESS_MS) break;
           this.pushFloat(ev.unit, "Revived", "info", now);
+          if (isSelf) {
+            setDeathOverlay(false);
+            showToast(VILLAGE_RESPAWN_TEXT);
+            playSfx("resurrect");
+          }
+          this.vfx.resurrectFlash(ev.unit);
           break;
+        }
         case "xpGained":
           if (ev.unit === this.myId) this.pushFloat(ev.unit, `+${ev.amount} xp`, "xp", now);
           break;
         case "levelUp":
+          if (ev.unit === this.myId) {
+            this.pushFloat(ev.unit, randomLine(LEVEL_UP_FLAVOR), "info", now);
+            playSfx("levelup");
+          }
           this.callbacks.onLevelUp(ev.unit, ev.level, ev.unit === this.myId);
+          this.vfx.levelUpBurst(ev.unit);
           break;
         default:
           break;
+      }
+    }
+  }
+  /** Maps a `"bossEvent"` (§7) to its on-screen dramatization: engage raises the boss bar and
+   *  the entrance/aggro text; the phase beats flash the screen edge and show the phase line;
+   *  defeat drops the bar and runs the closing dialogue (발렌) or the ending sequence (군주). */
+  handleBossEvent(msg) {
+    const lines = BOSS_LINES[msg.boss]?.[msg.ev];
+    switch (msg.ev) {
+      case "engage": {
+        this.bossUnitId = msg.unitId;
+        showBossBar(msg.unitId, MOB_KOREAN_NAMES[msg.boss] ?? NPC_NAMES[msg.boss] ?? msg.boss);
+        if (lines?.banner) showBossBanner(lines.banner);
+        if (lines?.line) showBossLine(lines.line);
+        break;
+      }
+      case "half":
+      case "phase_summon":
+      case "phase_aoe":
+      case "enrage": {
+        const text = lines?.line ?? lines?.banner;
+        if (text) showBossLine(text);
+        showPhaseFlash();
+        break;
+      }
+      case "defeated": {
+        this.bossUnitId = null;
+        hideBossBar();
+        if (lines?.ending) {
+          runEndingBanners(lines.ending);
+        } else {
+          if (lines?.line) showBossLine(lines.line);
+          if (lines?.banner) showBossBanner(lines.banner);
+        }
+        break;
       }
     }
   }
@@ -38012,17 +40485,47 @@ var NetSession = class {
       const eased = this.smoother.update(id, { x: u.x, y: u.y, angle: u.facing }, dtMs);
       this.units.update(toUnitData(id, u, this.myId, eased));
       if (id === this.myId) local = { x: eased.x, y: eased.y };
+      if (id === this.bossUnitId) updateBossBar(id, u.maxHp > 0 ? u.hp / u.maxHp : 0);
     }
     this.smoother.prune(this.knownIds);
+    this.vfx.tick(dtMs / 1e3);
     return local;
   }
   /** Prunes and returns the current floating-number queue. Call once per render frame. */
-  floatingNumbers(nowMs, maxAgeMs = 1100) {
-    this.floating = pruneFloatingNumbers(this.floating, nowMs, maxAgeMs);
+  floatingNumbers(nowMs2, maxAgeMs = 1100) {
+    this.floating = pruneFloatingNumbers(this.floating, nowMs2, maxAgeMs);
     return this.floating;
   }
   send(type, payload) {
     this.room?.send(type, payload);
+  }
+  /** Space-dash intent. `target` is the ground point under the cursor (from `input.ts`), or
+   *  `null` when the cursor isn't over the ground — then aim a full lunge along the local
+   *  unit's heading. Only a POINT goes to the server; it caps the distance and resolves walls
+   *  (`ember-room-base.ts` `handleDash`). Locally gated by `DASH_MIN_INTERVAL_MS` to swallow
+   *  key-repeat (the server owns the real cooldown). */
+  dash(target) {
+    const me = this.latestUnits[this.myId];
+    if (!me || !me.alive) return;
+    const now = performance.now();
+    if (now - this.lastDashAt < DASH_MIN_INTERVAL_MS) return;
+    this.lastDashAt = now;
+    const point = target ?? {
+      x: me.x + Math.cos(me.facing) * DASH_DISTANCE,
+      y: me.y + Math.sin(me.facing) * DASH_DISTANCE
+    };
+    this.send("dash", { x: point.x, y: point.y });
+  }
+  /** A `"dash"` broadcast landed: paint the from->to trail, play the whoosh, and — for my own
+   *  unit — drop its `EntitySmoother` sample so the next `tick()` snaps me to the new spot
+   *  instead of gliding (a 5-unit hop is under the 25-unit snap threshold, so it would
+   *  otherwise rubber-band; same "forget to snap" trick used on AOI re-entry / removal). */
+  handleDash(payload) {
+    const ev = parseDashEvent(payload);
+    if (!ev) return;
+    if (ev.unit === this.myId) this.smoother.delete(ev.unit);
+    this.vfx.dashTrail(ev.fromX, ev.fromY, ev.toX, ev.toY);
+    playSfx("dash");
   }
   leave() {
     this.room?.leave();
@@ -38037,11 +40540,11 @@ function el(tag, className) {
 }
 
 // client/ui.ts
-function hotbarView(cls, level, cooldowns, nowMs) {
+function hotbarView(cls, level, cooldowns, nowMs2) {
   return CLASS_HOTBAR[cls].map((s) => {
     const skill = SKILL_BY_ID[s.skillId];
     const cdMs = skill?.cooldownMs ?? 0;
-    const remaining = cooldownRemainingMs(cooldowns, s.skillId, nowMs);
+    const remaining = cooldownRemainingMs(cooldowns, s.skillId, nowMs2);
     return {
       slot: s.slot,
       skillId: s.skillId,
@@ -38136,7 +40639,10 @@ var Hud = class {
     toggle.className = "hud-menu-toggle";
     toggle.title = "\uBA54\uB274";
     toggle.textContent = "\u2630";
-    toggle.addEventListener("click", () => this.menuPanelEl.classList.toggle("hud-hidden"));
+    toggle.addEventListener("click", () => {
+      playSfx("click");
+      this.menuPanelEl.classList.toggle("hud-hidden");
+    });
     wrap.appendChild(toggle);
     const panel = el("div", "hud-menu-panel hud-hidden");
     const nickname = el("div", "hud-menu-nickname");
@@ -38150,26 +40656,38 @@ var Hud = class {
     copyBtn.className = "hud-menu-copy-btn";
     copyBtn.textContent = "\uBCF5\uC0AC";
     copyBtn.addEventListener("click", () => {
+      playSfx("click");
       navigator.clipboard?.writeText(this.menuCodeInputEl.value).catch(() => this.menuCodeInputEl.select());
     });
     codeRow.append(codeInput, copyBtn);
     const newCharBtn = document.createElement("button");
     newCharBtn.className = "hud-menu-newchar-btn";
     newCharBtn.textContent = "\uC0C8 \uCE90\uB9AD\uD130";
-    newCharBtn.addEventListener("click", () => this.callbacks.onNewCharacter());
+    newCharBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onNewCharacter();
+    });
     panel.append(nickname, codeLabel, codeRow, newCharBtn);
     wrap.appendChild(panel);
     return { wrap, panel, nickname, codeInput };
   }
   buildDeathOverlay() {
     const overlay = el("div", "hud-death hud-hidden");
-    const label = el("div", "hud-death-label");
-    label.textContent = "You died";
     const btn = document.createElement("button");
     btn.className = "hud-death-btn";
-    btn.textContent = "Respawn (R)";
-    btn.addEventListener("click", () => this.callbacks.onRespawn());
-    overlay.append(label, btn);
+    btn.textContent = RESPAWN_HERE_TEXT;
+    btn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onRespawn();
+    });
+    const villageBtn = document.createElement("button");
+    villageBtn.className = "hud-death-btn";
+    villageBtn.textContent = RESPAWN_VILLAGE_TEXT;
+    villageBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onRespawnVillage();
+    });
+    overlay.append(btn, villageBtn);
     return overlay;
   }
   setStatus(text) {
@@ -38199,7 +40717,10 @@ var Hud = class {
       btn.className = "hud-hotbar-slot" + (s.unlocked ? "" : " hud-hotbar-locked");
       btn.disabled = !s.unlocked;
       btn.title = s.name;
-      btn.addEventListener("click", () => this.callbacks.onHotbarClick(s.slot));
+      btn.addEventListener("click", () => {
+        playSfx("click");
+        this.callbacks.onHotbarClick(s.slot);
+      });
       const key = el("span", "hud-hotbar-key");
       key.textContent = String(s.slot);
       const label = el("span", "hud-hotbar-label");
@@ -38244,13 +40765,13 @@ var Hud = class {
   /** Syncs the floating-number DOM layer to `entries` (from `NetSession.floatingNumbers`).
    *  `screenOf(unitId)` projects a unit's current world position to screen space, or
    *  `null` if off-screen/behind the camera (the entry is skipped that frame). */
-  renderFloatingNumbers(entries, nowMs, screenOf2) {
+  renderFloatingNumbers(entries, nowMs2, screenOf2) {
     const seen = /* @__PURE__ */ new Set();
     for (const f of entries) {
       seen.add(f.id);
       const p = screenOf2(f.unitId);
       if (!p) continue;
-      const ageS = (nowMs - f.bornMs) / 1e3;
+      const ageS = (nowMs2 - f.bornMs) / 1e3;
       let node = this.floatNodes.get(f.id);
       if (!node) {
         node = el("div", "hud-float");
@@ -38271,6 +40792,367 @@ var Hud = class {
     }
   }
 };
+var zoneBannerEl = null;
+var zoneBannerTimer = null;
+function ensureZoneBannerEl() {
+  if (!zoneBannerEl) {
+    const root2 = el("div", "hud-zone-banner");
+    const name = el("div", "hud-zone-banner-name");
+    const flavor = el("div", "hud-zone-banner-flavor");
+    root2.append(name, flavor);
+    document.body.appendChild(root2);
+    zoneBannerEl = root2;
+  }
+  const root = zoneBannerEl;
+  return { root, name: root.children[0], flavor: root.children[1] };
+}
+function showZoneBanner(zoneId) {
+  const { root, name, flavor } = ensureZoneBannerEl();
+  const info = ZONE_BANNERS[zoneId];
+  name.textContent = info.name;
+  flavor.textContent = info.flavor;
+  if (zoneBannerTimer !== null) clearTimeout(zoneBannerTimer);
+  root.classList.add("hud-zone-banner-show");
+  zoneBannerTimer = setTimeout(() => {
+    root.classList.remove("hud-zone-banner-show");
+    zoneBannerTimer = null;
+  }, 2500);
+}
+var deathFlavorEl = null;
+function ensureDeathFlavorEl() {
+  if (!deathFlavorEl) {
+    const flavor = el("div", "hud-death-flavor hud-hidden");
+    flavor.textContent = DEATH_TEXT;
+    document.body.appendChild(flavor);
+    deathFlavorEl = flavor;
+  }
+  return deathFlavorEl;
+}
+function setDeathOverlay(on) {
+  document.querySelector("canvas")?.classList.toggle("hud-canvas-death", on);
+  ensureDeathFlavorEl().classList.toggle("hud-hidden", !on);
+}
+var toastLayerEl = null;
+function ensureToastLayerEl() {
+  if (!toastLayerEl) {
+    toastLayerEl = el("div", "hud-toast-layer");
+    document.body.appendChild(toastLayerEl);
+  }
+  return toastLayerEl;
+}
+function showToast(text) {
+  const layer = ensureToastLayerEl();
+  const node = el("div", "hud-toast");
+  node.textContent = text;
+  layer.appendChild(node);
+  setTimeout(() => node.remove(), 3e3);
+}
+var GUIDE_DONE_KEY = "ef_guide_done";
+var GUIDE_STEP_MS = 4e3;
+function showGuideStep(index) {
+  const step = FIRST_LOGIN_GUIDE_STEPS[index];
+  if (step) showToast(step);
+}
+function runFirstLoginGuide() {
+  if (localStorage.getItem(GUIDE_DONE_KEY)) return;
+  localStorage.setItem(GUIDE_DONE_KEY, "1");
+  FIRST_LOGIN_GUIDE_STEPS.forEach((_, i) => setTimeout(() => showGuideStep(i), i * GUIDE_STEP_MS));
+}
+var BOSS_STYLE_ID = "ef-boss-style";
+function injectBossStyle() {
+  if (document.getElementById(BOSS_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = BOSS_STYLE_ID;
+  style.textContent = `
+.ef-boss-bar {
+  position: fixed;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, 80vw);
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+.ef-boss-bar-name {
+  margin-bottom: 4px;
+  font: 600 17px ui-monospace, monospace;
+  color: #e0563b;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.ef-boss-bar-track {
+  position: relative;
+  height: 16px;
+  background: #161b22;
+  border: 1px solid #5a2020;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ef-boss-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(#ff7a33, #e0563b);
+  transition: width 0.18s ease-out;
+}
+.ef-boss-line {
+  position: fixed;
+  left: 50%;
+  bottom: 168px;
+  transform: translateX(-50%);
+  max-width: min(640px, 88vw);
+  z-index: 3;
+  padding: 8px 18px;
+  background: rgba(11, 15, 21, 0.72);
+  border: 1px solid #5a2020;
+  border-radius: 4px;
+  color: #f0e6d8;
+  font-size: 17px;
+  line-height: 1.4;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.ef-boss-line-show {
+  opacity: 1;
+}
+.ef-phase-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(255, 90, 20, 0.9) 100%);
+}
+`;
+  document.head.appendChild(style);
+}
+var bossBarEl = null;
+var bossBarNameEl = null;
+var bossBarFillEl = null;
+var bossBarUnitId = null;
+function ensureBossBarEl() {
+  if (bossBarEl) return;
+  injectBossStyle();
+  const root = el("div", "ef-boss-bar hud-hidden");
+  const name = el("div", "ef-boss-bar-name");
+  const track = el("div", "ef-boss-bar-track");
+  const fill = el("div", "ef-boss-bar-fill");
+  track.appendChild(fill);
+  root.append(name, track);
+  document.body.appendChild(root);
+  bossBarEl = root;
+  bossBarNameEl = name;
+  bossBarFillEl = fill;
+}
+function showBossBar(unitId, name) {
+  ensureBossBarEl();
+  bossBarUnitId = unitId;
+  bossBarNameEl.textContent = name;
+  bossBarFillEl.style.width = "100%";
+  bossBarEl.classList.remove("hud-hidden");
+}
+function updateBossBar(unitId, hpFraction) {
+  if (bossBarUnitId !== unitId || !bossBarFillEl) return;
+  bossBarFillEl.style.width = `${Math.max(0, Math.min(1, hpFraction)) * 100}%`;
+}
+function hideBossBar() {
+  bossBarUnitId = null;
+  bossBarEl?.classList.add("hud-hidden");
+}
+var bossLineEl = null;
+var bossLineTimer = null;
+function ensureBossLineEl() {
+  if (!bossLineEl) {
+    injectBossStyle();
+    bossLineEl = el("div", "ef-boss-line");
+    document.body.appendChild(bossLineEl);
+  }
+  return bossLineEl;
+}
+function showBossLine(text) {
+  const node = ensureBossLineEl();
+  node.textContent = text;
+  node.classList.add("ef-boss-line-show");
+  if (bossLineTimer !== null) clearTimeout(bossLineTimer);
+  bossLineTimer = setTimeout(() => {
+    node.classList.remove("ef-boss-line-show");
+    bossLineTimer = null;
+  }, 3500);
+}
+var bossBannerEl = null;
+var bossBannerTimer = null;
+function ensureBossBannerEl() {
+  if (!bossBannerEl) {
+    const root = el("div", "hud-zone-banner");
+    root.appendChild(el("div", "hud-zone-banner-name"));
+    document.body.appendChild(root);
+    bossBannerEl = root;
+  }
+  return bossBannerEl;
+}
+function showBossBanner(text, holdMs = 3500) {
+  const root = ensureBossBannerEl();
+  root.firstChild.textContent = text;
+  if (bossBannerTimer !== null) clearTimeout(bossBannerTimer);
+  root.classList.add("hud-zone-banner-show");
+  bossBannerTimer = setTimeout(() => {
+    root.classList.remove("hud-zone-banner-show");
+    bossBannerTimer = null;
+  }, holdMs);
+}
+function runEndingBanners(lines, stepMs = 4e3) {
+  lines.forEach((line, i) => setTimeout(() => showBossBanner(line, stepMs), i * stepMs));
+}
+var phaseFlashEl = null;
+var phaseFlashAnim = null;
+function showPhaseFlash() {
+  if (!phaseFlashEl) {
+    injectBossStyle();
+    phaseFlashEl = el("div", "ef-phase-flash");
+    document.body.appendChild(phaseFlashEl);
+  }
+  phaseFlashAnim?.cancel();
+  phaseFlashAnim = phaseFlashEl.animate(
+    [{ opacity: 0 }, { opacity: 0.7, offset: 0.35 }, { opacity: 0 }],
+    { duration: 500, easing: "ease-out" }
+  );
+}
+
+// client/charselect.ts
+init_three_module();
+var CLASSES = ["warrior", "mage", "cleric"];
+var PREVIEW_W = 220;
+var PREVIEW_H = 260;
+var SPIN_RATE2 = 0.8;
+var CharSelectCarousel = class {
+  constructor(assets, callbacks) {
+    this.assets = assets;
+    this.callbacks = callbacks;
+    const canvas = document.createElement("canvas");
+    canvas.className = "charsel-canvas";
+    canvas.width = PREVIEW_W;
+    canvas.height = PREVIEW_H;
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+    this.camera = new PerspectiveCamera(35, PREVIEW_W / PREVIEW_H, 0.1, 50);
+    this.camera.position.set(0, 1.6, 4.5);
+    this.camera.lookAt(0, 0.9, 0);
+    this.scene.add(new HemisphereLight(12572415, 2365970, 1.15));
+    const key = new DirectionalLight(16769981, 1.7);
+    key.position.set(2.5, 4, 3);
+    this.scene.add(key);
+    const disc = new Mesh(
+      new CircleGeometry(0.85, 24),
+      new MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.3 })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.01;
+    this.scene.add(disc);
+    this.root = el("div", "charsel");
+    const stage = el("div", "charsel-stage");
+    const prevBtn = arrowButton("\u2039", () => this.step(-1));
+    const nextBtn = arrowButton("\u203A", () => this.step(1));
+    stage.append(prevBtn, canvas, nextBtn);
+    this.nameEl = el("div", "charsel-name");
+    this.chipEl = el("div", "charsel-chip");
+    this.flavorEl = el("div", "charsel-flavor");
+    const dotRow = el("div", "charsel-dots");
+    this.dots = CLASSES.map((_, i) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "charsel-dot";
+      dot.addEventListener("click", () => this.go(i));
+      dotRow.appendChild(dot);
+      return dot;
+    });
+    this.root.append(stage, this.nameEl, this.chipEl, this.flavorEl, dotRow);
+    void this.preload();
+    this.applySelection();
+    requestAnimationFrame(this.frame);
+  }
+  assets;
+  callbacks;
+  root;
+  index = 0;
+  scene = new Scene();
+  camera;
+  renderer;
+  models = /* @__PURE__ */ new Map();
+  nameEl;
+  chipEl;
+  flavorEl;
+  dots;
+  running = true;
+  lastMs = performance.now();
+  /** The currently-selected class id (server-facing value is unchanged by the carousel). */
+  get current() {
+    return CLASSES[this.index];
+  }
+  /** Loads all three preview models once through the shared registry, each parented to a
+   *  turntable group so the code-driven spin never fights the idle clip's own root motion. */
+  async preload() {
+    for (const cls of CLASSES) {
+      const visual = await this.assets.getUnitVisual(`unit.${cls}`);
+      const turntable = new Group();
+      turntable.add(visual.object);
+      turntable.visible = cls === this.current;
+      this.scene.add(turntable);
+      this.models.set(cls, { turntable, visual });
+    }
+  }
+  step(dir) {
+    this.go((this.index + dir + CLASSES.length) % CLASSES.length);
+  }
+  go(index) {
+    if (index === this.index) return;
+    this.index = index;
+    this.applySelection();
+  }
+  applySelection() {
+    const cls = this.current;
+    for (const [c, m] of this.models) m.turntable.visible = c === cls;
+    this.nameEl.textContent = CLASS_NAMES[cls];
+    this.chipEl.textContent = CLASS_WEAPON_CHIP[cls];
+    this.flavorEl.textContent = CLASS_FLAVOR[cls];
+    this.dots.forEach((dot, i) => dot.classList.toggle("charsel-dot-active", i === this.index));
+    this.callbacks.onSelect(cls);
+  }
+  /** Greys out and disables interaction while a create/continue request is in flight. */
+  setInteractive(on) {
+    this.root.classList.toggle("charsel-disabled", !on);
+  }
+  frame = (now) => {
+    if (!this.running) return;
+    const dt = Math.min((now - this.lastMs) / 1e3, 0.1);
+    this.lastMs = now;
+    const model = this.models.get(this.current);
+    if (model) {
+      model.turntable.rotation.y += dt * SPIN_RATE2;
+      model.visual.anim.update(dt);
+    }
+    this.renderer.render(this.scene, this.camera);
+    requestAnimationFrame(this.frame);
+  };
+  /** Stops the preview loop and frees the WebGL context (called when the start screen closes). */
+  dispose() {
+    this.running = false;
+    this.renderer.dispose();
+  }
+};
+function arrowButton(glyph, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "charsel-arrow";
+  btn.textContent = glyph;
+  btn.addEventListener("click", onClick);
+  return btn;
+}
 
 // client/start-screen.ts
 var TOKEN_KEY = "emberfall:token";
@@ -38333,14 +41215,20 @@ async function apiLoadCharacter(token) {
   const error2 = typeof json?.error === "string" ? json.error : "unknown_error";
   return { ok: false, error: error2 };
 }
-var CLASSES = ["warrior", "mage", "cleric"];
 var NICKNAME_HINT_RE = /^[a-zA-Z0-9가-힣_ ]{3,16}$/;
 var StartScreen = class {
-  constructor(root, callbacks) {
+  constructor(root, assets, callbacks) {
     this.callbacks = callbacks;
     this.overlay = el("div", "start-overlay");
     const title = el("div", "start-title");
     title.textContent = "EMBERFALL";
+    const introEl = el("div", "start-intro");
+    const introLines = START_INTRO_LINES.map((line) => {
+      const lineEl = el("div", "start-intro-line");
+      lineEl.textContent = line;
+      introEl.appendChild(lineEl);
+      return lineEl;
+    });
     this.statusEl = el("div", "start-status hud-hidden");
     this.errorEl = el("div", "start-error hud-hidden");
     this.menuEl = el("div", "start-menu");
@@ -38352,20 +41240,16 @@ var StartScreen = class {
     this.nicknameInput.placeholder = "\uB2C9\uB124\uC784 (3-16\uC790)";
     this.nicknameInput.maxLength = 16;
     this.nicknameInput.addEventListener("input", () => this.refreshCreateEnabled());
-    const classRow = el("div", "start-class-row");
-    this.classButtons = CLASSES.map((cls) => {
-      const btn = document.createElement("button");
-      btn.className = "start-class-btn";
-      btn.textContent = cls[0].toUpperCase() + cls.slice(1);
-      btn.addEventListener("click", () => this.selectClass(cls));
-      classRow.appendChild(btn);
-      return btn;
+    this.carousel = new CharSelectCarousel(assets, {
+      onSelect: (cls) => {
+        this.selectedClass = cls;
+      }
     });
     this.createBtn = document.createElement("button");
     this.createBtn.className = "start-create-btn";
-    this.createBtn.textContent = "\uC0DD\uC131 \uD6C4 \uC811\uC18D";
+    this.createBtn.textContent = START_BUTTON_TEXT;
     this.createBtn.addEventListener("click", () => void this.submitCreate());
-    createSection.append(createLabel, this.nicknameInput, classRow, this.createBtn);
+    createSection.append(createLabel, this.nicknameInput, this.carousel.root, this.createBtn);
     const continueSection = el("div", "start-section");
     const continueLabel = el("div", "start-section-label");
     continueLabel.textContent = "\uC774\uC5B4\uD558\uAE30";
@@ -38378,9 +41262,11 @@ var StartScreen = class {
     this.continueBtn.addEventListener("click", () => void this.submitContinue(this.continueInput.value.trim()));
     continueSection.append(continueLabel, this.continueInput, this.continueBtn);
     this.menuEl.append(createSection, continueSection);
-    this.overlay.append(title, this.statusEl, this.errorEl, this.menuEl);
+    this.overlay.append(title, introEl, this.statusEl, this.errorEl, this.menuEl);
     root.appendChild(this.overlay);
-    this.selectClass(this.selectedClass);
+    introLines.forEach((lineEl, i) => {
+      setTimeout(() => lineEl.classList.add("start-intro-line-visible"), i * 600);
+    });
     this.refreshCreateEnabled();
     void this.tryAutoContinue();
   }
@@ -38392,16 +41278,10 @@ var StartScreen = class {
   errorEl;
   menuEl;
   nicknameInput;
-  classButtons;
+  carousel;
   createBtn;
   continueInput;
   continueBtn;
-  selectClass(cls) {
-    this.selectedClass = cls;
-    for (const [i, btn] of this.classButtons.entries()) {
-      btn.classList.toggle("start-class-btn-selected", CLASSES[i] === cls);
-    }
-  }
   refreshCreateEnabled() {
     this.createBtn.disabled = !NICKNAME_HINT_RE.test(this.nicknameInput.value.trim());
   }
@@ -38446,17 +41326,18 @@ var StartScreen = class {
   finish(token, character) {
     saveToken(token);
     this.applyState(bootReducer(this.state, { type: "success", token, character }));
+    this.carousel.dispose();
     this.overlay.remove();
     this.callbacks.onReady(token, character);
   }
   applyState(next) {
     this.state = next;
-    const pending = next.phase === "pending";
-    this.nicknameInput.disabled = pending;
-    this.createBtn.disabled = pending || !NICKNAME_HINT_RE.test(this.nicknameInput.value.trim());
-    this.continueInput.disabled = pending;
-    this.continueBtn.disabled = pending;
-    for (const btn of this.classButtons) btn.disabled = pending;
+    const pending2 = next.phase === "pending";
+    this.nicknameInput.disabled = pending2;
+    this.createBtn.disabled = pending2 || !NICKNAME_HINT_RE.test(this.nicknameInput.value.trim());
+    this.continueInput.disabled = pending2;
+    this.continueBtn.disabled = pending2;
+    this.carousel.setInteractive(!pending2);
     if (next.phase === "menu" && next.error) {
       this.errorEl.textContent = next.error;
       this.errorEl.classList.remove("hud-hidden");
@@ -38618,13 +41499,79 @@ var ITEMS = {
     buyPrice: 280,
     stack: 1
   },
+  // --- dungeon (M3) equipment, level 12-15 — loot-only (absent from SHOP_ITEM_IDS),
+  // still sellable via buyPrice. Same modifier-bundle pattern as the M2 tiers above. ---
+  "trinket-warding-band": {
+    id: "trinket-warding-band",
+    name: "Warding Band",
+    kind: "equip",
+    slot: "trinket",
+    rarity: "rare",
+    levelReq: 12,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 10 },
+      { stat: "magicResist", kind: "flat", value: 14 }
+    ],
+    visual: "trk.ring",
+    buyPrice: 160,
+    stack: 1
+  },
+  "armor-runed-plate": {
+    id: "armor-runed-plate",
+    name: "Runed Plate",
+    kind: "equip",
+    slot: "armor",
+    rarity: "epic",
+    levelReq: 12,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 34 },
+      { stat: "maxHp", kind: "flat", value: 130 }
+    ],
+    visual: "arm.plate",
+    buyPrice: 340,
+    stack: 1
+  },
+  "trinket-ember-core": {
+    id: "trinket-ember-core",
+    name: "Ember Core",
+    kind: "equip",
+    slot: "trinket",
+    rarity: "epic",
+    levelReq: 14,
+    modifiers: [
+      { stat: "meleeDamageMul", kind: "percent", value: 12 },
+      { stat: "spellDamageMul", kind: "percent", value: 12 }
+    ],
+    visual: "trk.amulet",
+    buyPrice: 420,
+    stack: 1
+  },
+  "armor-emberforged": {
+    id: "armor-emberforged",
+    name: "Emberforged Plate",
+    kind: "equip",
+    slot: "armor",
+    rarity: "epic",
+    levelReq: 15,
+    modifiers: [
+      { stat: "armor", kind: "flat", value: 42 },
+      { stat: "maxHp", kind: "flat", value: 180 }
+    ],
+    visual: "arm.plate",
+    buyPrice: 480,
+    stack: 1
+  },
   // --- consumables ---
   "potion-hp": {
     id: "potion-hp",
     name: "Health Potion",
     kind: "consumable",
     rarity: "common",
-    consume: { hp: 60 },
+    // M3 balance (T3.2): 60→90. A solo geared level-15 melee has ~760 max hp and can't kite a
+    // boss, so it facetanks and drinks; at 60 (8% of the bar) the potion couldn't out-pace the
+    // Ember Depths damage on any realistic stack. 90 (~12%) makes "포션 쓰며 빡빡하게" (tight,
+    // potion-fed) solo clears possible while staying a chip-heal, not a full restore.
+    consume: { hp: 90 },
     buyPrice: 10,
     stack: 99
   },
@@ -38703,7 +41650,10 @@ var InventoryPanel = class {
     this.goldEl = el("div", "inv-gold");
     const closeBtn = el("button", "panel-close");
     closeBtn.textContent = "\u2715";
-    closeBtn.addEventListener("click", () => this.toggle(false));
+    closeBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.toggle(false);
+    });
     header.append(title, this.goldEl, closeBtn);
     this.equipEl = el("div", "inv-equip-row");
     this.gridEl = el("div", "inv-grid");
@@ -38720,8 +41670,10 @@ var InventoryPanel = class {
   gridEl;
   actionsEl;
   toggle(force) {
+    const wasOpen = this.isOpen();
     if (force === void 0) this.panelEl.classList.toggle("hud-hidden");
     else this.panelEl.classList.toggle("hud-hidden", !force);
+    if (!wasOpen && this.isOpen()) playSfx("invOpen");
   }
   isOpen() {
     return !this.panelEl.classList.contains("hud-hidden");
@@ -38742,7 +41694,11 @@ var InventoryPanel = class {
       btn.className = "inv-equip-slot";
       btn.title = equipSlotLabel(slot);
       btn.textContent = item ? itemLabel(item.defId) : `(${equipSlotLabel(slot)})`;
-      if (item) btn.addEventListener("click", () => this.callbacks.onUnequip(slot));
+      if (item)
+        btn.addEventListener("click", () => {
+          playSfx("unequip");
+          this.callbacks.onUnequip(slot);
+        });
       else btn.disabled = true;
       this.equipEl.appendChild(btn);
     }
@@ -38784,11 +41740,17 @@ var InventoryPanel = class {
     const equipBtn = document.createElement("button");
     equipBtn.className = "inv-action-btn";
     equipBtn.textContent = "\uC7A5\uCC29";
-    equipBtn.addEventListener("click", () => this.callbacks.onEquip(slot));
+    equipBtn.addEventListener("click", () => {
+      playSfx("equip");
+      this.callbacks.onEquip(slot);
+    });
     const useBtn = document.createElement("button");
     useBtn.className = "inv-action-btn";
     useBtn.textContent = "\uC0AC\uC6A9";
-    useBtn.addEventListener("click", () => this.callbacks.onUseItem(slot));
+    useBtn.addEventListener("click", () => {
+      playSfx("potion");
+      this.callbacks.onUseItem(slot);
+    });
     this.actionsEl.append(equipBtn, useBtn);
   }
 };
@@ -38802,8 +41764,12 @@ var ShopPanel = class {
     this.goldEl = el("div", "shop-gold");
     const closeBtn = el("button", "panel-close");
     closeBtn.textContent = "\u2715";
-    closeBtn.addEventListener("click", () => this.callbacks.onClose());
+    closeBtn.addEventListener("click", () => {
+      playSfx("click");
+      this.callbacks.onClose();
+    });
     header.append(title, this.goldEl, closeBtn);
+    this.merchantEl = el("div", "shop-merchant");
     const buyListEl = el("div", "shop-buy-row");
     for (const listing of shopListing()) {
       const row = el("div", "shop-sell-row");
@@ -38812,25 +41778,37 @@ var ShopPanel = class {
       const btn = document.createElement("button");
       btn.className = "shop-buy-btn";
       btn.textContent = "\uAD6C\uB9E4";
-      btn.addEventListener("click", () => this.callbacks.onBuy(listing.defId, 1));
+      btn.addEventListener("click", () => {
+        playSfx("buy");
+        this.callbacks.onBuy(listing.defId, 1);
+      });
       row.append(label, btn);
       buyListEl.appendChild(row);
     }
     this.sellListEl = el("div", "shop-sell-list");
-    this.panelEl.append(header, buyListEl, this.sellListEl);
+    this.panelEl.append(header, this.merchantEl, buyListEl, this.sellListEl);
     root.appendChild(this.panelEl);
   }
   callbacks;
   view = EMPTY_VIEW;
   panelEl;
   goldEl;
+  merchantEl;
   sellListEl;
   toggle(force) {
+    const wasOpen = this.isOpen();
     if (force === void 0) this.panelEl.classList.toggle("hud-hidden");
     else this.panelEl.classList.toggle("hud-hidden", !force);
+    if (!wasOpen && this.isOpen()) {
+      this.refreshMerchantLine();
+      playSfx("invOpen");
+    }
   }
   isOpen() {
     return !this.panelEl.classList.contains("hud-hidden");
+  }
+  refreshMerchantLine() {
+    this.merchantEl.textContent = `${MERCHANT_NAME}: "${randomLine(ROZA_DIALOGUE)}"`;
   }
   setView(view) {
     this.view = view;
@@ -38846,7 +41824,10 @@ var ShopPanel = class {
       const btn = document.createElement("button");
       btn.className = "shop-sell-btn";
       btn.textContent = "\uD310\uB9E4 1\uAC1C";
-      btn.addEventListener("click", () => this.callbacks.onSell(index, 1));
+      btn.addEventListener("click", () => {
+        playSfx("sell");
+        this.callbacks.onSell(index, 1);
+      });
       row.append(label, btn);
       this.sellListEl.appendChild(row);
     });
@@ -38875,9 +41856,9 @@ var Minimap = class {
     this.canvas.className = "minimap-canvas";
     this.canvas.width = size;
     this.canvas.height = size;
-    const ctx = this.canvas.getContext("2d");
-    if (!ctx) throw new Error("2d canvas context unavailable");
-    this.ctx = ctx;
+    const ctx2 = this.canvas.getContext("2d");
+    if (!ctx2) throw new Error("2d canvas context unavailable");
+    this.ctx = ctx2;
     wrap.appendChild(this.canvas);
     root.appendChild(wrap);
   }
@@ -38889,149 +41870,108 @@ var Minimap = class {
   /** `cameraYaw` is the scene rig's orbit yaw (radians) — the map is rotated about its
    *  center by that same angle so the camera's look direction always reads as "up". */
   render(units, cameraYaw) {
-    const { ctx, size } = this;
+    const { ctx: ctx2, size } = this;
     const cx = size / 2;
     const cy = size / 2;
-    ctx.clearRect(0, 0, size, size);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.fillStyle = "rgba(11,15,21,0.78)";
-    ctx.fillRect(0, 0, size, size);
+    ctx2.clearRect(0, 0, size, size);
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.arc(cx, cy, size / 2, 0, Math.PI * 2);
+    ctx2.clip();
+    ctx2.fillStyle = "rgba(11,15,21,0.78)";
+    ctx2.fillRect(0, 0, size, size);
     const zone = this.zone;
     if (zone) {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(cameraYaw);
-      ctx.translate(-cx, -cy);
-      ctx.fillStyle = "rgba(139,148,158,0.55)";
+      ctx2.save();
+      ctx2.translate(cx, cy);
+      ctx2.rotate(cameraYaw);
+      ctx2.translate(-cx, -cy);
+      ctx2.fillStyle = "rgba(139,148,158,0.55)";
       for (const o of zone.obstacles) {
         const p = projectToMinimap(o.x, o.y, zone.width, zone.height, size);
-        ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+        ctx2.fillRect(p.x - 1, p.y - 1, 2, 2);
       }
-      ctx.fillStyle = "#c9a86a";
+      ctx2.fillStyle = "#c9a86a";
       for (const portal of zone.portals) {
         const p = projectToMinimap(portal.pos.x, portal.pos.y, zone.width, zone.height, size);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx2.beginPath();
+        ctx2.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx2.fill();
       }
       for (const npc of zone.npcs ?? []) {
         const p = projectToMinimap(npc.pos.x, npc.pos.y, zone.width, zone.height, size);
-        ctx.fillStyle = npc.kind === "shop" ? "#f2cc60" : "#8b949e";
-        ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+        ctx2.fillStyle = npc.kind === "shop" ? "#f2cc60" : "#8b949e";
+        ctx2.fillRect(p.x - 2, p.y - 2, 4, 4);
       }
       for (const u of units) {
         const p = projectToMinimap(u.x, u.y, zone.width, zone.height, size);
-        ctx.fillStyle = u.self ? "#3fb950" : u.hostile ? "#f85149" : "#58a6ff";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, u.self ? 3.5 : 2.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx2.fillStyle = u.self ? "#3fb950" : u.hostile ? "#f85149" : "#58a6ff";
+        ctx2.beginPath();
+        ctx2.arc(p.x, p.y, u.self ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx2.fill();
       }
-      ctx.restore();
+      ctx2.restore();
     }
-    ctx.restore();
-    ctx.strokeStyle = "#30363d";
-    ctx.beginPath();
-    ctx.arc(cx, cy, size / 2 - 0.5, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx2.restore();
+    ctx2.strokeStyle = "#30363d";
+    ctx2.beginPath();
+    ctx2.arc(cx, cy, size / 2 - 0.5, 0, Math.PI * 2);
+    ctx2.stroke();
   }
 };
 
-// src/zones/ashen-fields.ts
-var ASHEN_FIELDS = {
-  id: "ashen-fields",
-  width: 200,
-  height: 200,
-  playerSpawn: { x: 20, y: 100 },
-  obstacles: [
-    { id: "tree-1", x: 40, y: 40, w: 4, h: 4, prop: "prop.tree_a" },
-    { id: "tree-2", x: 40, y: 160, w: 4, h: 4, prop: "prop.tree_a" },
-    { id: "tree-3", x: 90, y: 20, w: 4, h: 4, prop: "prop.tree_b" },
-    { id: "tree-4", x: 90, y: 180, w: 4, h: 4, prop: "prop.tree_b" },
-    { id: "tree-5", x: 170, y: 130, w: 4, h: 4, prop: "prop.tree_a" },
-    { id: "tree-6", x: 170, y: 170, w: 4, h: 4, prop: "prop.tree_b" },
-    { id: "rock-1", x: 60, y: 90, w: 6, h: 6, prop: "prop.rock_a" },
-    { id: "rock-2", x: 120, y: 110, w: 6, h: 6, prop: "prop.rock_a" },
-    { id: "rock-3", x: 150, y: 50, w: 5, h: 5, prop: "prop.rock_b" },
-    { id: "rock-4", x: 25, y: 60, w: 5, h: 5, prop: "prop.rock_a" },
-    { id: "rock-5", x: 25, y: 140, w: 5, h: 5, prop: "prop.rock_a" },
-    { id: "tent-1", x: 108, y: 35, w: 5, h: 5, prop: "prop.goblin_tent", rotation: 0.3 },
-    { id: "tent-2", x: 112, y: 165, w: 5, h: 5, prop: "prop.goblin_tent", rotation: -0.4 }
-  ],
-  // 6 camps total (PLAN §2.5): a two-camp wolf pack (aggro-link within a camp, per
-  // NpcDef.ai.helpRadius in the content pack) plus one camp per remaining field species.
-  mobCamps: [
-    { id: "wolf-pack-west", npcDefId: "wolf", count: 3, respawnMs: 8e3, home: { x: 70, y: 60 } },
-    { id: "wolf-pack-south", npcDefId: "wolf", count: 2, respawnMs: 8e3, home: { x: 70, y: 140 } },
-    { id: "goblin-scout-camp", npcDefId: "goblin_scout", count: 2, respawnMs: 9e3, home: { x: 110, y: 40 } },
-    { id: "goblin-thrower-camp", npcDefId: "goblin_thrower", count: 2, respawnMs: 9e3, home: { x: 110, y: 160 } },
-    { id: "boar-wallow", npcDefId: "boar", count: 2, respawnMs: 1e4, home: { x: 140, y: 100 } },
-    { id: "goblin-shaman-camp", npcDefId: "goblin_shaman", count: 1, respawnMs: 12e3, home: { x: 160, y: 70 } }
-  ],
-  // Open-tagging field boss, 3-minute respawn (PLAN §2.3).
-  fieldBoss: { npcDefId: "boss_chief", pos: { x: 180, y: 100 }, respawnMs: 18e4 },
-  portals: [
-    { id: "to-village", kind: "village", pos: { x: 10, y: 100 } },
-    { id: "to-dungeon", kind: "dungeon", pos: { x: 190, y: 100 } }
-  ]
-};
-
-// src/zones/emberhold.ts
-var EMBERHOLD = {
-  id: "emberhold",
-  width: 60,
-  height: 60,
-  playerSpawn: { x: 30, y: 30 },
-  obstacles: [
-    { id: "house-1", x: 15, y: 15, w: 6, h: 6, prop: "prop.house_a" },
-    { id: "house-2", x: 45, y: 15, w: 6, h: 6, prop: "prop.house_b", rotation: Math.PI },
-    { id: "house-3", x: 15, y: 48, w: 6, h: 6, prop: "prop.house_a", rotation: 1.2 },
-    { id: "well", x: 30, y: 20, w: 3, h: 3, prop: "prop.well" },
-    { id: "fence-1", x: 48, y: 45, w: 8, h: 2, prop: "prop.fence", rotation: Math.PI / 2 },
-    // Off the y=30 spawn->portal travel line (obstacles must never block a straight
-    // path between a zone's own spawn and portal points — see zone-transition.test.ts).
-    { id: "torch-1", x: 20, y: 24, w: 1, h: 1, prop: "prop.torch" },
-    { id: "torch-2", x: 40, y: 36, w: 1, h: 1, prop: "prop.torch" }
-  ],
-  // Safe zone — no hostile spawns (PLAN §2.5: "몹 없음").
-  mobCamps: [],
-  npcs: [
-    { id: "shop-1", kind: "shop", pos: { x: 35, y: 35 }, prop: "npc.shopkeeper" },
-    { id: "dummy-1", kind: "dummy", pos: { x: 22, y: 42 }, prop: "prop.training_dummy" }
-  ],
-  portals: [{ id: "to-field", kind: "field", pos: { x: 55, y: 30 } }]
-};
-
-// src/zones/ember-depths.ts
-var EMBER_DEPTHS = {
-  id: "ember-depths",
-  width: 120,
-  height: 120,
-  playerSpawn: { x: 10, y: 60 },
-  obstacles: [
-    { id: "pillar-1", x: 30, y: 45, w: 3, h: 3, prop: "prop.dungeon_pillar" },
-    { id: "pillar-2", x: 30, y: 75, w: 3, h: 3, prop: "prop.dungeon_pillar" },
-    { id: "pillar-3", x: 90, y: 45, w: 3, h: 3, prop: "prop.dungeon_pillar" },
-    { id: "pillar-4", x: 90, y: 75, w: 3, h: 3, prop: "prop.dungeon_pillar" },
-    { id: "brazier-1", x: 55, y: 50, w: 2, h: 2, prop: "prop.brazier" },
-    { id: "brazier-2", x: 55, y: 70, w: 2, h: 2, prop: "prop.brazier" }
-  ],
-  mobCamps: [
-    // Wave 1 ("skeleton" stand-in — see docblock).
-    { id: "wave-1", npcDefId: "goblin_scout", count: 2, respawnMs: 15e3, home: { x: 35, y: 60 } },
-    // Mid-point boss (single spawn slot, long respawn). Stand-in for M3's real mid-boss.
-    { id: "mid-boss", npcDefId: "boss_chief", count: 1, respawnMs: 3e5, home: { x: 55, y: 60 } },
-    // Wave 2 ("skeleton archer" stand-in).
-    { id: "wave-2", npcDefId: "goblin_thrower", count: 2, respawnMs: 15e3, home: { x: 75, y: 60 } },
-    // Wave 3 ("elite/golem" stand-in).
-    { id: "wave-3", npcDefId: "boar", count: 3, respawnMs: 15e3, home: { x: 95, y: 60 } },
-    // End boss (single spawn slot, long respawn). Stand-in for M3's 잉걸불 군주.
-    { id: "end-boss", npcDefId: "boss_chief", count: 1, respawnMs: 6e5, home: { x: 112, y: 60 } }
-  ],
-  portals: [{ id: "to-village", kind: "village", pos: { x: 5, y: 60 } }]
-};
+// client/hitfeel.ts
+var STYLE_ID = "ef-hitfeel-style";
+var PULSE_MS = 300;
+var PULSE_PEAK = 0.55;
+function createHitFeel() {
+  injectStyle();
+  const root = el("div", "ef-hitfeel");
+  const low = el("div", "ef-hitfeel-layer ef-hitfeel-low");
+  const pulseLayer = el("div", "ef-hitfeel-layer ef-hitfeel-pulse");
+  root.append(low, pulseLayer);
+  document.body.appendChild(root);
+  let pulseAnim = null;
+  return {
+    pulse() {
+      pulseAnim?.cancel();
+      pulseAnim = pulseLayer.animate(
+        [{ opacity: 0 }, { opacity: PULSE_PEAK, offset: 0.25 }, { opacity: 0 }],
+        { duration: PULSE_MS, easing: "ease-out" }
+      );
+    },
+    setLowHp(on) {
+      low.classList.toggle("on", on);
+    }
+  };
+}
+function injectStyle() {
+  if (document.getElementById(STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = `
+.ef-hitfeel {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+}
+.ef-hitfeel-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 48%, rgba(190, 18, 18, 0.85) 100%);
+}
+.ef-hitfeel-low.on {
+  animation: ef-hitfeel-breathe 1.2s ease-in-out infinite;
+}
+@keyframes ef-hitfeel-breathe {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.28; }
+}
+`;
+  document.head.appendChild(style);
+}
 
 // src/rooms/zone-transition.ts
 var VILLAGE_ROOM_ID = "emberhold-1";
@@ -39056,6 +41996,34 @@ function resolveInitialTarget(params, characterZone) {
   if (dungeonCode) return { party: DUNGEON_PARTY, room: dungeonCode, zone: "ember-depths" };
   return { party: ZONE_PARTY[characterZone], room: params.get("room") ?? ZONE_ROOM_ID[characterZone], zone: characterZone };
 }
+async function loadZoneProps(rig, assets, zone, prev) {
+  for (const obj of prev) rig.scene.remove(obj);
+  const props = [];
+  for (const o of zone.obstacles) {
+    const object = await assets.getPropVisual(o.prop);
+    object.position.set(o.x, 0, o.y);
+    if (o.rotation) object.rotation.y = o.rotation;
+    rig.scene.add(object);
+    props.push(object);
+  }
+  const markers = [];
+  for (const npc of zone.npcs ?? []) {
+    if (!npc.prop) continue;
+    const object = await assets.getPropVisual(npc.prop);
+    object.position.set(npc.pos.x, 0, npc.pos.y);
+    rig.scene.add(object);
+    props.push(object);
+    markers.push({ id: npc.id, object });
+  }
+  for (const d of zone.decorations ?? []) {
+    const object = await assets.getPropVisual(d.prop);
+    object.position.set(d.pos.x, 0, d.pos.y);
+    if (d.rotation) object.rotation.y = d.rotation;
+    rig.scene.add(object);
+    props.push(object);
+  }
+  return { props, markers };
+}
 async function main() {
   const params = new URLSearchParams(location.search);
   if (params.get("sandbox") === "1") {
@@ -39068,41 +42036,45 @@ async function main() {
   await assets.load();
   const units = new UnitRenderer(rig.scene, assets);
   const hudRoot = document.getElementById("hud");
-  const { token, character } = await new Promise((resolve) => {
-    new StartScreen(hudRoot, { onReady: (t, c) => resolve({ token: t, character: c }) });
+  setZoneAmbient(rig, "emberhold");
+  rig.setCinematic(UnitRenderer.toWorld(30, 30), {
+    radius: 22,
+    pitch: MathUtils.degToRad(35),
+    yawSpeed: 0.05
   });
-  await bootIntoGame(rig, assets, units, hudRoot, params, token, character);
+  const landingLoad = loadZoneProps(rig, assets, EMBERHOLD, []);
+  let landingActive = true;
+  function landingFrame() {
+    if (!landingActive) return;
+    rig.updateCamera();
+    rig.renderer.render(rig.scene, rig.camera);
+    requestAnimationFrame(landingFrame);
+  }
+  requestAnimationFrame(landingFrame);
+  const { token, character } = await new Promise((resolve) => {
+    new StartScreen(hudRoot, assets, { onReady: (t, c) => resolve({ token: t, character: c }) });
+  });
+  landingActive = false;
+  rig.clearCinematic();
+  const landing = await landingLoad;
+  await bootIntoGame(rig, assets, units, hudRoot, params, token, character, landing.props);
 }
-async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, initialCharacter) {
+async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, initialCharacter, initialProps) {
   const token = initialToken;
   let currentZoneId = initialCharacter.zone;
-  let zoneProps = [];
+  let zoneProps = initialProps;
   let transferring = false;
+  let pendingVillageRespawn = false;
   const fadeEl = document.createElement("div");
   fadeEl.className = "zone-fade";
   document.body.appendChild(fadeEl);
-  async function loadZoneProps(zone) {
-    for (const obj of zoneProps) rig.scene.remove(obj);
-    zoneProps = [];
-    for (const o of zone.obstacles) {
-      const object = await assets.getPropVisual(o.prop);
-      object.position.set(o.x, 0, o.y);
-      if (o.rotation) object.rotation.y = o.rotation;
-      rig.scene.add(object);
-      zoneProps.push(object);
-    }
-    const npcMarkers = [];
-    for (const npc of zone.npcs ?? []) {
-      if (!npc.prop) continue;
-      const object = await assets.getPropVisual(npc.prop);
-      object.position.set(npc.pos.x, 0, npc.pos.y);
-      rig.scene.add(object);
-      zoneProps.push(object);
-      npcMarkers.push({ id: npc.id, object });
-    }
-    input.setMarkers(npcMarkers);
+  async function reloadZone(zone) {
+    const { props, markers } = await loadZoneProps(rig, assets, zone, zoneProps);
+    zoneProps = props;
+    input.setMarkers(markers);
   }
   let targetId = null;
+  const targetRing = createTargetRing(units.getScene(), units);
   let myClass = "none";
   let cooldowns = NO_COOLDOWNS;
   let castTracker = null;
@@ -39123,12 +42095,23 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     const target = resolveCastTarget(entry.skillId, targetId, net.id, net.state);
     net.send("cast", { skillId: entry.skillId, target });
   }
+  function maybeAutoTarget(source) {
+    const attacker = net.state[source];
+    if (!attacker || attacker.kind === "player") return;
+    const current = targetId ? net.state[targetId] : void 0;
+    if (current?.alive) return;
+    targetId = source;
+  }
   hud = new Hud(hudRoot, {
     onHotbarClick(slot) {
       castHotbarSlot(slot);
     },
     onRespawn() {
       net.send("respawn");
+    },
+    onRespawnVillage() {
+      pendingVillageRespawn = true;
+      net.send("respawnVillage");
     },
     onNewCharacter() {
       clearSavedToken();
@@ -39163,6 +42146,7 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     }
   });
   minimap = new Minimap(hudRoot);
+  const hitfeel = createHitFeel();
   net = new NetSession(units, {
     onWelcome(myId) {
       hud.setStatus(`connected as ${myId.slice(0, 6)}`);
@@ -39175,6 +42159,9 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     },
     onLevelUp(_unitId, level, isSelf) {
       if (isSelf) hud.showLevelUp(level);
+    },
+    onDamaged(source) {
+      maybeAutoTarget(source);
     },
     onInventory(view) {
       inventoryPanel.setView(view);
@@ -39195,13 +42182,20 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     net.leave();
     currentZoneId = target.zone;
     targetId = null;
-    await loadZoneProps(ZONE_DATA[target.zone]);
+    await reloadZone(ZONE_DATA[target.zone]);
     minimap.setZone(ZONE_DATA[target.zone]);
+    setZoneAmbient(rig, target.zone);
+    showZoneBanner(target.zone);
     await net.connect(location.host, target.party, target.room, token);
     if (target.party === DUNGEON_PARTY) {
       const url = new URL(location.href);
       url.searchParams.set("dungeon", target.room);
       history.replaceState(null, "", url);
+    }
+    if (pendingVillageRespawn) {
+      pendingVillageRespawn = false;
+      setDeathOverlay(false);
+      showToast(VILLAGE_RESPAWN_TEXT);
     }
     await sleep(120);
     fadeEl.classList.remove("zone-fade-visible");
@@ -39231,6 +42225,10 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     onMarkerClick(id) {
       const npc = ZONE_DATA[currentZoneId].npcs?.find((n) => n.id === id);
       if (npc?.kind === "shop") shopOpen = true;
+      else if (npc?.kind === "dummy") showToast(randomLine(DUMMY_REACTIONS));
+    },
+    onDash(target) {
+      net.dash(target);
     }
   });
   window.addEventListener("keydown", (e) => {
@@ -39249,9 +42247,13 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
   });
   const initialTarget = resolveInitialTarget(params, currentZoneId);
   currentZoneId = initialTarget.zone;
-  await loadZoneProps(ZONE_DATA[currentZoneId]);
+  await reloadZone(ZONE_DATA[currentZoneId]);
   minimap.setZone(ZONE_DATA[currentZoneId]);
+  setZoneAmbient(rig, currentZoneId);
+  showZoneBanner(currentZoneId);
+  setTimeout(() => runFirstLoginGuide(), 3e3);
   await net.connect(location.host, initialTarget.party, initialTarget.room, token);
+  let myPrevHp = null;
   let last = performance.now();
   function frame(now) {
     const dtMs = Math.min(now - last, 100);
@@ -39268,6 +42270,9 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
     if (me) {
       hud.updateVitals({ hp: me.hp, maxHp: me.maxHp, mp: me.mp, maxMp: me.maxMp, level: me.level, class: me.class });
       hud.showDeath(!me.alive);
+      if (myPrevHp !== null && me.alive && me.hp < myPrevHp) hitfeel.pulse();
+      hitfeel.setLowHp(me.alive && me.maxHp > 0 && me.hp / me.maxHp < 0.25);
+      myPrevHp = me.hp;
       hud.updateHotbar(myClass !== "none" ? hotbarView(myClass, me.level, cooldowns, now) : null);
       if (me.cast) {
         if (!castTracker || castTracker.skillId !== me.cast) castTracker = { skillId: me.cast, startMs: now };
@@ -39280,6 +42285,8 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
       hud.updateVitals(null);
       hud.updateHotbar(null);
       hud.updateCastBar(null);
+      hitfeel.setLowHp(false);
+      myPrevHp = null;
     }
     const target = targetId ? net.state[targetId] : void 0;
     if (target && targetId) {
@@ -39288,6 +42295,8 @@ async function bootIntoGame(rig, assets, units, hudRoot, params, initialToken, i
       hud.setTarget(null);
       if (targetId) targetId = null;
     }
+    targetRing.setTarget(targetId);
+    targetRing.tick(dtMs / 1e3);
     hud.renderFloatingNumbers(net.floatingNumbers(now), now, (unitId) => screenOf(rig.camera, rig.canvas, units.get(unitId)));
     const minimapUnits = Object.entries(net.state).map(([id, u]) => ({
       x: u.x,

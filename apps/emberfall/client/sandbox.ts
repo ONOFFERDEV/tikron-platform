@@ -74,6 +74,10 @@ export async function runSandbox(): Promise<void> {
     onMarkerClick() {
       // No zone markers in the sandbox preview.
     },
+    onDash(target) {
+      // No server here — just walk toward the requested point so the key does something visible.
+      if (target) moveTarget = target;
+    },
   });
 
   let last = performance.now();

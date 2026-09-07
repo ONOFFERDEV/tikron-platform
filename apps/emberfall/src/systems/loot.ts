@@ -75,6 +75,54 @@ export const LOOT_TABLES: Readonly<Record<string, LootTable>> = {
     epicChance: 25,
     epicPool: ["armor-plate", "trinket-amulet"],
   },
+
+  // --- Ember Depths dungeon (M3). Trash: field-beating gold + common gear + potions.
+  //     golem: a slight rare chance. wraith_commander (mini-boss): guaranteed rare + big
+  //     gold. ember_lord (final boss): guaranteed rare + ~25% epic + max gold. ---
+  skeleton_warrior: {
+    gold: [8, 14],
+    drops: [
+      { defId: "potion-hp", chance: 16, qtyMin: 1, qtyMax: 1 },
+      { defId: "armor-leather", chance: 6, qtyMin: 1, qtyMax: 1 },
+      { defId: "trinket-charm", chance: 4, qtyMin: 1, qtyMax: 1 },
+    ],
+  },
+  skeleton_archer: {
+    gold: [8, 14],
+    drops: [
+      { defId: "potion-mp", chance: 16, qtyMin: 1, qtyMax: 1 },
+      { defId: "armor-leather", chance: 5, qtyMin: 1, qtyMax: 1 },
+      { defId: "trinket-charm", chance: 5, qtyMin: 1, qtyMax: 1 },
+    ],
+  },
+  wraith: {
+    gold: [11, 18],
+    drops: [
+      { defId: "potion-mp", chance: 18, qtyMin: 1, qtyMax: 2 },
+      { defId: "potion-hp", chance: 10, qtyMin: 1, qtyMax: 1 },
+      { defId: "trinket-ring", chance: 5, qtyMin: 1, qtyMax: 1 },
+    ],
+  },
+  golem: {
+    gold: [18, 30],
+    drops: [
+      { defId: "potion-hp", chance: 22, qtyMin: 1, qtyMax: 2 },
+      { defId: "armor-chain", chance: 8, qtyMin: 1, qtyMax: 1 },
+      { defId: "trinket-warding-band", chance: 6, qtyMin: 1, qtyMax: 1 },
+    ],
+  },
+  wraith_commander: {
+    gold: [80, 130],
+    drops: [{ defId: "potion-hp", chance: 70, qtyMin: 2, qtyMax: 3 }],
+    guaranteedRare: ["trinket-warding-band", "armor-chain"],
+  },
+  ember_lord: {
+    gold: [220, 340],
+    drops: [{ defId: "potion-hp", chance: 80, qtyMin: 2, qtyMax: 3 }],
+    guaranteedRare: ["trinket-warding-band", "armor-chain"],
+    epicChance: 25,
+    epicPool: ["armor-emberforged", "trinket-ember-core", "armor-runed-plate"],
+  },
 };
 
 /** Roll one kill's loot for `npcDefId`. Unknown ids (e.g. a player kill, or a species

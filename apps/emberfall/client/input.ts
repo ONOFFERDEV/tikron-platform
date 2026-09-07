@@ -16,6 +16,10 @@ export interface InputCallbacks {
   onClearTarget(): void;
   /** A registered static marker (see `setMarkers`) was clicked. */
   onMarkerClick(id: string): void;
+  /** Space pressed — dash toward `target`, the ground point under the cursor (sim-plane
+   *  `x/y`), or `null` when the cursor isn't over the ground (off-canvas / no raycast hit),
+   *  in which case the caller falls back to the unit's own heading. */
+  onDash(target: { x: number; y: number } | null): void;
 }
 
 /** One clickable, non-unit prop (a zone's NpcMarker — shop/dummy). */
@@ -27,7 +31,13 @@ export interface ClickableMarker {
 export class InputController {
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
+  /** Latest cursor position over the canvas, in NDC — kept fresh by `pointermove` so a Space
+   *  dash can raycast the ground under the cursor without waiting for a click. */
+  private readonly hover = new THREE.Vector2();
+  private hasHover = false;
   private readonly onPointerDown: (e: PointerEvent) => void;
+  private readonly onPointerMove: (e: PointerEvent) => void;
+  private readonly onPointerLeave: () => void;
   private readonly onKeyDown: (e: KeyboardEvent) => void;
   private markers: readonly ClickableMarker[] = [];
 
@@ -39,13 +49,21 @@ export class InputController {
     private readonly callbacks: InputCallbacks,
   ) {
     this.onPointerDown = (e) => this.handlePointerDown(e);
+    this.onPointerMove = (e) => this.handlePointerMove(e);
+    this.onPointerLeave = () => {
+      this.hasHover = false;
+    };
     this.onKeyDown = (e) => this.handleKeyDown(e);
     domElement.addEventListener("pointerdown", this.onPointerDown);
+    domElement.addEventListener("pointermove", this.onPointerMove);
+    domElement.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("keydown", this.onKeyDown);
   }
 
   dispose(): void {
     this.domElement.removeEventListener("pointerdown", this.onPointerDown);
+    this.domElement.removeEventListener("pointermove", this.onPointerMove);
+    this.domElement.removeEventListener("pointerleave", this.onPointerLeave);
     window.removeEventListener("keydown", this.onKeyDown);
   }
 
@@ -92,14 +110,47 @@ export class InputController {
     if (groundHit) this.callbacks.onMoveClick(groundHit.point.x, groundHit.point.z);
   }
 
+  private handlePointerMove(e: PointerEvent): void {
+    const rect = this.domElement.getBoundingClientRect();
+    this.hover.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.hover.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.hasHover = true;
+  }
+
   private handleKeyDown(e: KeyboardEvent): void {
     if (e.key === "Escape") {
       this.callbacks.onClearTarget();
       return;
     }
+    // Space = dash. Ignore while typing (chat/inventory search etc.) and stop the browser's
+    // default page-scroll so a dash never also scrolls the page.
+    if (e.code === "Space") {
+      if (isTextInputFocused()) return;
+      e.preventDefault();
+      this.callbacks.onDash(this.groundUnderCursor());
+      return;
+    }
     const n = Number(e.key);
     if (Number.isInteger(n) && n >= 1 && n <= 6) this.callbacks.onHotbar(n);
   }
+
+  /** The sim-plane ground point under the current cursor, or `null` when the cursor isn't
+   *  over the canvas or the ray misses the ground. */
+  private groundUnderCursor(): { x: number; y: number } | null {
+    if (!this.hasHover) return null;
+    this.raycaster.setFromCamera(this.hover, this.camera);
+    const hit = this.raycaster.intersectObject(this.ground, false)[0];
+    return hit ? { x: hit.point.x, y: hit.point.z } : null;
+  }
+}
+
+/** True when a text-entry element (input/textarea/contenteditable) has focus — used to let
+ *  Space fall through to typing instead of triggering a dash. */
+function isTextInputFocused(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
 }
 
 /** Walks up from a raycast hit to the nearest ancestor (inclusive) tagged with

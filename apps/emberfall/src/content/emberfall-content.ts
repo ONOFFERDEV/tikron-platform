@@ -1,8 +1,11 @@
 /**
  * Emberfall M1 content pack — the field portion of PLAN-EMBERFALL §2.2/§2.3: 3 classes
  * (18 skills, unlock levels 1/3/5/8/11/14 — see `hotbar.ts` for the per-class layout),
- * their weapons, and the 6 Ashen Fields monster species + the field boss. Dungeon mobs
- * and the final boss (잉걸불 군주) are M3 — omitted here by design.
+ * their weapons, and the 6 Ashen Fields monster species + the field boss. The M3 Ember
+ * Depths dungeon adds 6 more NPCs (skeleton warrior/archer, wraith, stone guardian, the
+ * mini-boss Ser Valen, and the final boss The Ember Lord) — grouped under the
+ * "Dungeon (M3)" blocks below. The Ember Lord's hp-phase enrage/eruption *triggers* live
+ * in the room script (ember-rooms.ts); this file only defines the reusable buff/skill data.
  *
  * Every skill/buff id is kebab-case with a class or species prefix so the two families
  * never collide. `validateContent(EMBERFALL_CONTENT)` must pass (asserted in
@@ -26,6 +29,17 @@ export const EMBERFALL_CONTENT: ContentPack = {
     { id: "boar-tusk", kind: "melee", dps: 16, speedMs: 1600, maxRange: 3.5 },
     { id: "shaman-staff", kind: "melee", dps: 6, speedMs: 2000, maxRange: 4 },
     { id: "chief-axe", kind: "melee", dps: 26, speedMs: 1500, maxRange: 5 },
+    // Dungeon (M3) monster weapons. The wraith is weaponless — it attacks with `wraith-bolt`
+    // (spell, `useLevelDamage`), so it needs no WeaponDef.
+    // M3 balance pass (T3.2): dungeon monster weapon dps trimmed so a solo geared level-15
+    // melee can facetank the long boss/golem fights on a realistic potion budget (~30-38 of a
+    // 40 stack) without wiping — a melee solo can't kite, so per-second incoming damage is the
+    // binding constraint. Values verified against balance-sim.test.ts + dungeon-playthrough.test.ts.
+    { id: "skeleton-blade", kind: "melee", dps: 12, speedMs: 1500, maxRange: 3.5 },
+    { id: "skeleton-bow", kind: "ranged", dps: 12, speedMs: 1900, minRange: 0, maxRange: 18 },
+    { id: "golem-fist", kind: "melee", dps: 12, speedMs: 2200, maxRange: 4 },
+    { id: "valen-blade", kind: "melee", dps: 14, speedMs: 1600, maxRange: 5 },
+    { id: "ember-greataxe", kind: "melee", dps: 16, speedMs: 1700, maxRange: 5 },
   ],
 
   buffs: [
@@ -106,6 +120,32 @@ export const EMBERFALL_CONTENT: ContentPack = {
       name: "Enrage",
       kind: "good",
       modifiers: [{ stat: "meleeDamageMul", kind: "percent", value: 60 }],
+    },
+
+    // --- Dungeon (M3) ---
+    // Wraith slow: same `moveSpeedMul` percent modifier family as the warrior's Hamstrung,
+    // slightly softer (−35%) but longer (4s) — dungeon kiting pressure, not a hard snare.
+    {
+      id: "wraith-slow",
+      name: "Soul Chill",
+      kind: "bad",
+      // M3 balance: −35%/4s → −22%/2.5s. Two wraith camps re-apply this every bolt, so at −35%
+      // a solo melee was near-permanently slowed through the whole wave-2/wave-3 corridor —
+      // repositioning collapsed and every fight ran long. Kept as real kiting pressure, not a mire.
+      durationMs: 2500,
+      tags: ["slow"],
+      modifiers: [{ stat: "moveSpeedMul", kind: "percent", value: -22 }],
+    },
+    // The Ember Lord's fire DoT — same shape as the mage's Ignite but boss-tier tick.
+    {
+      id: "ember-burn",
+      name: "Ember Burn",
+      kind: "bad",
+      durationMs: 5000,
+      tags: ["magic-dot"],
+      // M3 balance: tick 25→10 — this DoT is re-applied by every Ember Bolt AND every eruption,
+      // so its per-second contribution stacked into the largest hidden chunk of the boss's DPS.
+      tick: { intervalMs: 1000, effects: [{ kind: "damage", school: "spell", fixed: { min: 10, max: 10 } }] },
     },
   ],
 
@@ -391,6 +431,122 @@ export const EMBERFALL_CONTENT: ContentPack = {
       targetType: "self",
       effects: [{ effect: { kind: "buff", buffId: "boss-chief-enrage-buff" }, applyTo: "caster" }],
     },
+
+    // --- Dungeon monster skills (M3) ---
+    {
+      id: "skeleton-strike",
+      name: "Bone Cleaver",
+      school: "melee",
+      cooldownMs: 3000,
+      targetType: "hostile",
+      maxRange: 4,
+      // M3 balance: softened (was ×1.3 +6) — wave 1 is a PAIR of these, so the combined
+      // facetank pressure on a solo player was the harshest trash spike in the run.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.15, flat: 3 } }],
+    },
+    {
+      id: "skeleton-shot",
+      name: "Bone Arrow",
+      school: "ranged",
+      cooldownMs: 2000,
+      targetType: "hostile",
+      maxRange: 18,
+      projectileSpeed: 20,
+      effects: [{ effect: { kind: "damage", school: "ranged", useWeapon: true, multiplier: 1.1 } }],
+    },
+    // Wraith bolt — spell damage (level-scaled, weaponless) + the slow debuff on hit.
+    {
+      id: "wraith-bolt",
+      name: "Spectral Bolt",
+      school: "spell",
+      cooldownMs: 2600,
+      targetType: "hostile",
+      maxRange: 18,
+      projectileSpeed: 14,
+      effects: [
+        // M3 balance: flat 10→6 — this bolt is fired by BOTH the wave-2 wraith pair and Ser
+        // Valen, so its flat term was double-counted in the two heaviest gauntlet stages.
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 1, flat: 6 } },
+        { effect: { kind: "buff", buffId: "wraith-slow" }, relation: "hostile" },
+      ],
+    },
+    // Stone Guardian's slow, heavy hit — big multiplier + a shove; the "armor wall" is the
+    // NPC's own high `armor` stat, not this skill.
+    {
+      id: "golem-slam",
+      name: "Boulder Smash",
+      school: "melee",
+      cooldownMs: 5000,
+      targetType: "hostile",
+      maxRange: 5,
+      // M3 balance: softened (was ×1.8 +15) — two Stone Guardians co-aggro (wave 3), so this
+      // slam landed twice a cycle; it was the single scariest per-second facetank source. The
+      // knockback was also cut 4→2: a bigger shove pushed a solo melee out of its own DPS window
+      // AND back into the wave-2 respawn line, stalling the run short of the boss.
+      effects: [
+        { effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.2, flat: 6 } },
+        { effect: { kind: "knockback", distance: 2, mode: "directional" } },
+      ],
+    },
+    {
+      id: "valen-cleave",
+      name: "Sword Sweep",
+      school: "melee",
+      cooldownMs: 4500,
+      targetType: "hostile",
+      maxRange: 6,
+      aoe: { shape: "cone", radius: 6, angleRad: 1.3, anchor: "caster", relation: "hostile", maxTargets: 5 },
+      // M3 balance: cleave ×1.4→×1.0 — trims Ser Valen's sustained DPS over his long solo fight.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.0 } }],
+    },
+    {
+      id: "ember-lord-strike",
+      name: "Molten Cleave",
+      school: "melee",
+      cooldownMs: 3500,
+      targetType: "hostile",
+      maxRange: 5,
+      aoe: { shape: "cone", radius: 6, angleRad: 1.4, anchor: "caster", relation: "hostile", maxTargets: 6 },
+      // M3 balance: cleave ×1.5→×1.0 — the end boss's melee overlaps its own summoned adds +
+      // eruption, so its sustained melee had to come down for a solo player to survive the phase.
+      effects: [{ effect: { kind: "damage", school: "melee", useWeapon: true, multiplier: 1.0 } }],
+    },
+    {
+      id: "ember-lord-flame",
+      name: "Ember Bolt",
+      school: "spell",
+      castTimeMs: 1000,
+      cooldownMs: 6000,
+      // Boss casts must not self-cancel from the AI repositioning mid-cast.
+      cancelOnMove: false,
+      targetType: "hostile",
+      maxRange: 25,
+      projectileSpeed: 16,
+      // M3 balance: flat 20→10 — the bolt also applies `ember-burn` (a DoT), so its up-front
+      // term was stacking with the tick over the boss's long fight.
+      effects: [
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 1.4, flat: 10 } },
+        { effect: { kind: "buff", buffId: "ember-burn" }, relation: "hostile" },
+      ],
+    },
+    // Telegraphed point-AoE eruption. DEFINED ONLY — deliberately absent from `ember_lord`'s
+    // skill list: the room script (ember-rooms.ts) fires it in The Ember Lord's hp-phase, and
+    // the client renders the ground warning (M3 T3.1 client half).
+    {
+      id: "ember-lord-eruption",
+      name: "Eruption",
+      school: "spell",
+      castTimeMs: 1800,
+      cooldownMs: 12000,
+      cancelOnMove: false,
+      targetType: "point",
+      maxRange: 30,
+      aoe: { shape: "circle", radius: 7, anchor: "target", relation: "hostile", maxTargets: 10 },
+      effects: [
+        { effect: { kind: "damage", school: "spell", useLevelDamage: true, multiplier: 2.4, flat: 40 } },
+        { effect: { kind: "buff", buffId: "ember-burn" }, relation: "hostile" },
+      ],
+    },
   ],
 
   npcs: [
@@ -477,6 +633,104 @@ export const EMBERFALL_CONTENT: ContentPack = {
       expMultiplier: 6,
       radius: 1.3,
       ai: { aggroRadius: 18, leashDistance: 70, hardLeashDistance: 250, moveSpeed: 4.5, skillDelayMs: [1400, 1600] },
+    },
+
+    // === Ember Depths dungeon (M3) ===
+    // Derived hp = 100 + sta*10 + level*20 (stats.ts). sta is picked to hit the target hp;
+    // `armor` is a direct override on top. exp = ~+20% dungeon premium over the field curve.
+    {
+      id: "skeleton_warrior",
+      name: "Skeleton Warrior",
+      level: 9,
+      faction: "monsters",
+      weapon: "skeleton-blade",
+      // M3 balance: hp 440→370. A solo ~64-DPS clear must drop a 2-mob camp inside the zone's
+      // 15s respawn, else a respawn tail piles on indefinitely; trimmed so wave 1 clears clean.
+      stats: { sta: 9, str: 18, armor: 12 }, // hp 370
+      baseSkillId: "monster-bite",
+      skills: [{ skillId: "skeleton-strike", maxRange: 4, weight: 2 }],
+      expMultiplier: 1.2,
+      radius: 0.6,
+      ai: { aggroRadius: 10, leashDistance: 50, hardLeashDistance: 180, helpRadius: 6, moveSpeed: 4.5, skillDelayMs: [1100, 1400] },
+    },
+    {
+      id: "skeleton_archer",
+      name: "Skeleton Archer",
+      level: 10,
+      faction: "monsters",
+      weapon: "skeleton-bow",
+      stats: { sta: 3, dex: 16, armor: 5 }, // hp 330 (squishy; M3 balance 360→330, the ranged tail in waves 1+2)
+      baseSkillId: "skeleton-shot",
+      skills: [{ skillId: "skeleton-shot", minRange: 0, maxRange: 18, weight: 3 }],
+      expMultiplier: 1.2,
+      radius: 0.55,
+      ai: { aggroRadius: 15, leashDistance: 50, hardLeashDistance: 180, moveSpeed: 4, skillDelayMs: [1300, 1600] },
+    },
+    {
+      id: "wraith",
+      name: "Wraith",
+      level: 11,
+      faction: "monsters",
+      // Weaponless: `wraith-bolt` is a level-scaled spell, so no WeaponDef is needed. Low
+      // armor (4) keeps it soft to physical hits — the opposite feel of the Stone Guardian.
+      stats: { sta: 6, int: 18, armor: 4 }, // hp 380 (M3 balance 420→380, wave-2 pair under respawn)
+      baseSkillId: "wraith-bolt",
+      skills: [{ skillId: "wraith-bolt", minRange: 0, maxRange: 18, weight: 3 }],
+      expMultiplier: 1.4,
+      radius: 0.6,
+      ai: { aggroRadius: 13, leashDistance: 50, hardLeashDistance: 180, helpRadius: 8, moveSpeed: 4, skillDelayMs: [1400, 1700] },
+    },
+    {
+      id: "golem",
+      name: "Stone Guardian",
+      level: 12,
+      // armor 48 ≈ 4× the skeleton warrior's 12 (flavor only — at the engine's ARMOR_HALF=5300
+      // this armor mitigates <1%; see the M3 report's armor finding). hp 480 + slow slam + low
+      // moveSpeed is what actually makes it a wall.
+      faction: "monsters",
+      weapon: "golem-fist",
+      stats: { sta: 14, str: 24, armor: 48 }, // hp 480 (M3 balance: 900→480, 2 golems clear under the 15s respawn)
+      baseSkillId: "monster-bite",
+      skills: [{ skillId: "golem-slam", maxRange: 5, weight: 2 }],
+      expMultiplier: 2.5,
+      radius: 1.1,
+      ai: { aggroRadius: 11, leashDistance: 55, hardLeashDistance: 200, moveSpeed: 3, skillDelayMs: [1800, 2200] },
+    },
+    {
+      id: "wraith_commander",
+      name: "Ser Valen",
+      level: 12,
+      // Mini-boss: melee cleave + the wraith's spell bolt. hp 1020 ≈ 2.1× the golem's 480.
+      faction: "monsters",
+      weapon: "valen-blade",
+      stats: { sta: 68, str: 22, int: 22, armor: 20 }, // hp 1020 (M3 balance: 2250→1020, caps solo fight ~16s)
+      baseSkillId: "monster-bite",
+      skills: [
+        { skillId: "valen-cleave", maxRange: 6, weight: 3 },
+        { skillId: "wraith-bolt", minRange: 6, maxRange: 18, weight: 2 },
+      ],
+      expMultiplier: 4.5,
+      radius: 1.2,
+      ai: { aggroRadius: 18, leashDistance: 70, hardLeashDistance: 250, moveSpeed: 4.5, skillDelayMs: [1300, 1600] },
+    },
+    {
+      id: "ember_lord",
+      name: "The Ember Lord",
+      level: 15,
+      // Final boss: heavy melee cleave + fire bolt (DoT). hp 900 ≈ 1.4× the field boss's 660.
+      // The hp-phase enrage (reuse `boss-chief-enrage-buff`) and `ember-lord-eruption` are
+      // triggered by the room script, NOT listed here (see the eruption skill's comment).
+      faction: "monsters",
+      weapon: "ember-greataxe",
+      stats: { sta: 50, str: 30, int: 26, armor: 28 }, // hp 900 (M3 balance: 2640→900, solo-clearable add/eruption phase with margin)
+      baseSkillId: "monster-bite",
+      skills: [
+        { skillId: "ember-lord-strike", maxRange: 5, weight: 3 },
+        { skillId: "ember-lord-flame", minRange: 0, maxRange: 25, weight: 2 },
+      ],
+      expMultiplier: 10,
+      radius: 1.5,
+      ai: { aggroRadius: 20, leashDistance: 80, hardLeashDistance: 300, moveSpeed: 4.5, skillDelayMs: [1500, 1800] },
     },
   ],
 };

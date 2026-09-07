@@ -11,7 +11,10 @@
  */
 import type { EmberClass } from "../src/content/hotbar.js";
 import type { SavedCharacter } from "../src/types.js";
+import type { AssetRegistry } from "./assets.js";
+import { CharSelectCarousel } from "./charselect.js";
 import { el } from "./dom.js";
+import { START_BUTTON_TEXT, START_INTRO_LINES } from "./lore.js";
 
 const TOKEN_KEY = "emberfall:token";
 
@@ -111,7 +114,6 @@ export async function apiLoadCharacter(token: string): Promise<CharApiResult> {
 
 // --- DOM-owning overlay --------------------------------------------------------------------
 
-const CLASSES: readonly EmberClass[] = ["warrior", "mage", "cleric"];
 const NICKNAME_HINT_RE = /^[a-zA-Z0-9가-힣_ ]{3,16}$/;
 
 export interface StartScreenCallbacks {
@@ -128,18 +130,26 @@ export class StartScreen {
   private readonly errorEl: HTMLElement;
   private readonly menuEl: HTMLElement;
   private readonly nicknameInput: HTMLInputElement;
-  private readonly classButtons: HTMLButtonElement[];
+  private readonly carousel: CharSelectCarousel;
   private readonly createBtn: HTMLButtonElement;
   private readonly continueInput: HTMLInputElement;
   private readonly continueBtn: HTMLButtonElement;
 
   constructor(
     root: HTMLElement,
+    assets: AssetRegistry,
     private readonly callbacks: StartScreenCallbacks,
   ) {
     this.overlay = el("div", "start-overlay");
     const title = el("div", "start-title");
     title.textContent = "EMBERFALL";
+    const introEl = el("div", "start-intro");
+    const introLines = START_INTRO_LINES.map((line) => {
+      const lineEl = el("div", "start-intro-line");
+      lineEl.textContent = line;
+      introEl.appendChild(lineEl);
+      return lineEl;
+    });
     this.statusEl = el("div", "start-status hud-hidden");
     this.errorEl = el("div", "start-error hud-hidden");
 
@@ -154,22 +164,21 @@ export class StartScreen {
     this.nicknameInput.maxLength = 16;
     this.nicknameInput.addEventListener("input", () => this.refreshCreateEnabled());
 
-    const classRow = el("div", "start-class-row");
-    this.classButtons = CLASSES.map((cls) => {
-      const btn = document.createElement("button");
-      btn.className = "start-class-btn";
-      btn.textContent = cls[0]!.toUpperCase() + cls.slice(1);
-      btn.addEventListener("click", () => this.selectClass(cls));
-      classRow.appendChild(btn);
-      return btn;
+    // H2: the old 3-button class row is replaced by a rotating 3D preview carousel.
+    // Its `onSelect` mirrors the choice into `selectedClass` so the create request still
+    // sends the unchanged server id (warrior/mage/cleric).
+    this.carousel = new CharSelectCarousel(assets, {
+      onSelect: (cls) => {
+        this.selectedClass = cls;
+      },
     });
 
     this.createBtn = document.createElement("button");
     this.createBtn.className = "start-create-btn";
-    this.createBtn.textContent = "생성 후 접속";
+    this.createBtn.textContent = START_BUTTON_TEXT;
     this.createBtn.addEventListener("click", () => void this.submitCreate());
 
-    createSection.append(createLabel, this.nicknameInput, classRow, this.createBtn);
+    createSection.append(createLabel, this.nicknameInput, this.carousel.root, this.createBtn);
 
     const continueSection = el("div", "start-section");
     const continueLabel = el("div", "start-section-label");
@@ -184,19 +193,17 @@ export class StartScreen {
     continueSection.append(continueLabel, this.continueInput, this.continueBtn);
 
     this.menuEl.append(createSection, continueSection);
-    this.overlay.append(title, this.statusEl, this.errorEl, this.menuEl);
+    this.overlay.append(title, introEl, this.statusEl, this.errorEl, this.menuEl);
     root.appendChild(this.overlay);
 
-    this.selectClass(this.selectedClass);
+    introLines.forEach((lineEl, i) => {
+      setTimeout(() => lineEl.classList.add("start-intro-line-visible"), i * 600);
+    });
+
+    // The carousel emits its default (warrior) selection synchronously during construction,
+    // so `this.selectedClass` is already set — no explicit initial selectClass call needed.
     this.refreshCreateEnabled();
     void this.tryAutoContinue();
-  }
-
-  private selectClass(cls: EmberClass): void {
-    this.selectedClass = cls;
-    for (const [i, btn] of this.classButtons.entries()) {
-      btn.classList.toggle("start-class-btn-selected", CLASSES[i] === cls);
-    }
   }
 
   private refreshCreateEnabled(): void {
@@ -248,6 +255,7 @@ export class StartScreen {
   private finish(token: string, character: SavedCharacter): void {
     saveToken(token);
     this.applyState(bootReducer(this.state, { type: "success", token, character }));
+    this.carousel.dispose(); // stop the preview RAF loop + free its WebGL context
     this.overlay.remove();
     this.callbacks.onReady(token, character);
   }
@@ -259,7 +267,7 @@ export class StartScreen {
     this.createBtn.disabled = pending || !NICKNAME_HINT_RE.test(this.nicknameInput.value.trim());
     this.continueInput.disabled = pending;
     this.continueBtn.disabled = pending;
-    for (const btn of this.classButtons) btn.disabled = pending;
+    this.carousel.setInteractive(!pending);
     if (next.phase === "menu" && next.error) {
       this.errorEl.textContent = next.error;
       this.errorEl.classList.remove("hud-hidden");
