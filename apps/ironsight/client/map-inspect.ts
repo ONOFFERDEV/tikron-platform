@@ -9,7 +9,7 @@ export function startMapInspector(): void {
   const host = document.getElementById("app") ?? document.body;
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
-  const actorCount = params.get("shot") === "stress" ? 11 : 0;
+  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0, loadViewmodel: false });
   scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
@@ -24,6 +24,9 @@ export function startMapInspector(): void {
     'undertow-home': [15, 1.65, 21, 28, 1.6, 17],
     'undertow-center': [30, 1.65, 20, 33, 2, 12],
     'undertow-deck': [17, 2.85, 9, 30, 1.6, 20],
+    'undertow-vista': [48, 13, 37, 25, 4.0, 9],
+    'undertow-maintenance': [36, 1.65, 35, 23, 2.5, 28],
+    'undertow-stress': [14, 1.65, 16, 33, 1.5, 19],
   };
   const shot = shots[params.get("shot") ?? "overview"] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
@@ -35,7 +38,7 @@ export function startMapInspector(): void {
   const gpu = gl && debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) as string : "unavailable";
   const samples: number[] = [];
   const actors = new Map(Array.from({ length: actorCount }, (_, i) => [`inspect-${i}`, {
-    x: 20 + Math.floor(i / 3) * 4, y: 0, z: 10 + (i % 3) * 0.6,
+    x: 20 + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 16 : 10) + (i % 3) * 0.6,
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
     alive: true, weapon: 0,
   }] as const));

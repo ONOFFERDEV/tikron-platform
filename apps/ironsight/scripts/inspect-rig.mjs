@@ -12,6 +12,12 @@ const weapons = option('--weapons', '0,3').split(',').map(Number);
 if (weapons.some(w => !Number.isInteger(w) || w < 0 || w > 4)) throw Error('Weapons must be 0..4');
 const prefix = option('--prefix', 'rig');
 const pose = option('--pose', 'idle');
+const aim = Number(option('--aim', '0')), sample = Number(option('--sample', '0.75'));
+const poses = option('--poses', pose).split(','), aims = option('--aims', String(aim)).split(',').map(Number);
+const samples = option('--samples', String(sample)).split(',').map(Number);
+const sweep = poses.length * aims.length * samples.length > 1;
+if (poses.some(p => !['idle', 'walk', 'run', 'sprint', 'crouch', 'crouch_walk', 'strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'].includes(p))) throw Error('Unknown inspection pose');
+if (aims.some(a => !Number.isFinite(a) || Math.abs(a) > 89) || samples.some(s => !Number.isFinite(s) || s < 0.2 || s > 3)) throw Error('Aim must be -89..89 and sample time 0.2..3');
 const selectedAngles = option('--angles', 'front,right,left,back,three-quarter,top-down,hands,hands-right').split(',');
 const armModes = option('--arms', '1,0').split(',').map(Number);
 if (!/^[\w-]+$/.test(prefix)) throw Error('Invalid filename prefix');
@@ -30,6 +36,7 @@ const pending = new Map();
 let sequence = 0;
 const forbiddenNetwork = [];
 const errors = [];
+const measurements = [];
 function send(method, params = {}) {
   return new Promise((resolve, reject) => {
     const id = ++sequence;
@@ -69,9 +76,10 @@ try {
   const angles = [ ['front', 0, 10, 2.2], ['right', 90, 10, 2.2], ['left', -90, 10, 2.2],
     ['back', 180, 10, 2.2], ['three-quarter', 35, 10, 2.2], ['top-down', 0, 80, 2.2], ['hands', 35, 10, 1], ['hands-right', -35, 10, 1] ];
   let timedOut = false;
+  for (const pose of poses) for (const aim of aims) for (const sample of samples)
   for (const weapon of weapons) for (const arms of armModes) for (const [name, yaw, pitch, dist] of angles.filter(a => selectedAngles.includes(a[0]))) {
     const url = new URL(base);
-    for (const [key, value] of Object.entries({ inspect: 'rig', weapon, arms, yaw, pitch, dist, pose })) url.searchParams.set(key, String(value));
+    for (const [key, value] of Object.entries({ inspect: 'rig', weapon, arms, yaw, pitch, dist, pose, aim, sample })) url.searchParams.set(key, String(value));
     await send('Runtime.evaluate', { expression: 'window.__inspectReady = false' });
     await send('Page.navigate', { url: url.href });
     let ready = false;
@@ -84,12 +92,14 @@ try {
     }
     if (!ready) { console.warn(`Readiness timed out: weapon ${weapon}, arms ${arms}, ${name}`); timedOut = true; }
     const shot = await send('Page.captureScreenshot', { format: 'png' });
-    const file = join(output, `${prefix}-w${weapon}-arms${arms}-${name}.png`);
+    const tag = sweep ? `-${pose}-aim${aim}-t${sample}` : '';
+    const file = join(output, `${prefix}${tag}-w${weapon}-arms${arms}-${name}.png`);
     await writeFile(file, Buffer.from(shot.data, 'base64'));
     console.log(file);
+    measurements.push({ name, pose, aim, sample, weapon, arms, metrics: (await send('Runtime.evaluate', { expression: 'window.__rigInspect', returnByValue: true })).result?.value });
   }
   if (forbiddenNetwork.length) throw Error("Inspector opened gameplay network connections");
-  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ pose, weapons, angles: selectedAngles, armModes, errors, forbiddenNetwork }, null, 2));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ poses, aims, samples, weapons, angles: selectedAngles, armModes, measurements, errors, forbiddenNetwork }, null, 2));
   if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (timedOut) process.exitCode = 1;
 } finally {

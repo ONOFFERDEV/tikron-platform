@@ -7,7 +7,7 @@ describe("main entry inspect query", () => {
   });
   it("uses documented rig defaults", () => {
     expect(parseRigInspect("?inspect=rig")).toEqual({ weapon: 0, pose: "idle",
-      yaw: 30, pitch: 10, dist: 2.2, blend: undefined, arms: true });
+      yaw: 30, pitch: 10, dist: 2.2, aim: 0, sample: 0.75, blend: undefined, arms: true });
   });
   it("bounds overrides and rejects non-finite numbers", () => {
     expect(parseRigInspect("?inspect=rig&weapon=9&blend=2&pitch=NaN&arms=0&pose=crouch"))

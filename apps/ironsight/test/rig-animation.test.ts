@@ -31,4 +31,10 @@ describe('authored rifle clip lifecycle', () => {
     expect(rotation(rig)).toBeCloseTo(0); expect(rig.object.userData.rifleHold).toBe(false);
     rig.setState('walk'); rig.update(0.3); expect(rotation(rig)).toBeCloseTo(0.2);
   });
+  it('uses legacy walk for a missing directional clip without inventing reactions', () => {
+    const rig = clonePlayerRig(asset(false));
+    rig.setState('strafe_left'); rig.update(0.3); expect(rotation(rig)).toBeCloseTo(0.2);
+    expect(rig.hasHitChestClip).toBe(false); expect(rig.hasHitHeadClip).toBe(false);
+    expect(rig.hasSprintClip).toBe(false); expect(rig.hasCrouchClips).toBe(false);
+  });
 });

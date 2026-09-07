@@ -1,13 +1,14 @@
 /** Deployment UI. URL selections remain compatible with the existing matchmaker. */
 import { MODE_ORDER, type ModeId } from "../src/modes.js";
+import { SITES, siteBlueprint, type SiteId } from "./map-presentation.js";
 import { openSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
 
 const MODES: Record<ModeId, { label: string; ko: string; map: string; description: string; detail: string }> = {
   tdm: { label: "TEAM DEATHMATCH", ko: "팀 데스매치", map: "RELAY", description: "Take the yard. Hold the advantage.", detail: "6v6 · Team combat · Bots fill open seats" },
-  dom: { label: "DOMINATION", ko: "거점 점령", map: "FOUNDRY", description: "Three objectives. One coordinated team.", detail: "6v6 · Capture and defend · Legacy arena" },
+  dom: { label: "DOMINATION", ko: "거점 점령", map: "UNDERTOW", description: "Three objectives. One coordinated team.", detail: "6v6 · Capture and defend · Three control points" },
   ffa: { label: "FREE FOR ALL", ko: "개인전", map: "CROSSYARD", description: "Every angle is a threat. Trust your aim.", detail: "Solo combat · Fast respawns · Legacy arena" },
-  practice: { label: "FIELD TRAINING", ko: "사격 훈련", map: "RELAY", description: "Learn the routes. Find your weapon.", detail: "Private session · Passive targets · No time limit" },
+  practice: { label: "FIELD TRAINING", ko: "사격 훈련", map: "ALL SITES", description: "Learn the routes. Find your weapon.", detail: "Private session · Passive targets · No time limit" },
 };
 const css = `
 #modeMenu{position:fixed;inset:0;z-index:200;background:#111d23;color:#f0eee5;font:14px/1.5 Arial,"Malgun Gothic",sans-serif;overflow:auto;pointer-events:auto}
@@ -52,6 +53,16 @@ const css = `
 #modeMenu footer a{color:#c6d7d9;text-decoration:none}
 #modeMenu .settingsBtn{padding:8px 0 8px 20px;color:#d5dedb;background:transparent;letter-spacing:2px;font-size:11px}
 #modeMenu .settingsBtn:hover{color:#e9b567}
+#modeMenu .intel .routes{font-size:10px;letter-spacing:1px;color:#afd0d0}
+#modeMenu .blueprint{width:200px;margin:20px 0 0 auto;opacity:.9}
+#modeMenu .sites{margin:22px 0 0;max-width:560px}
+#modeMenu .sites[hidden]{display:none}
+#modeMenu .siteCards{display:flex;gap:8px}
+#modeMenu .siteCard{padding:9px;flex:1;background:#142b35e8;border:1px solid #708d9255;color:#dce9e6;text-align:left}
+#modeMenu .siteCard[aria-pressed="true"]{border-color:#edb467;background:#29464ee8}
+#modeMenu .siteCard svg{height:64px;width:100%;display:block;margin-bottom:7px}
+#modeMenu .siteCard span{display:block;font-size:10px;letter-spacing:1px;font-weight:700}
+#modeMenu .siteCard small{display:block;font-size:8px;color:#a1b9bb;margin-top:3px;letter-spacing:.5px}
 @media(max-width:800px){#modeMenu .intel{display:none}#modeMenu .topline{font-size:9px;letter-spacing:1px}#modeMenu h1{letter-spacing:-3px}#modeMenu .playlists{grid-template-columns:repeat(2,1fr)}#modeMenu .hero{padding-top:34px;padding-bottom:28px}#modeMenu .deploy{width:min(340px,100%)}#modeMenu .playlist{min-height:90px;padding:14px}#modeMenu .subtitle{letter-spacing:6px}#modeMenu footer{font-size:9px;letter-spacing:1px}}
 @media(prefers-reduced-motion:reduce){#modeMenu button{transition:none}}
 `;
@@ -61,6 +72,7 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
   if (fromUrl && (MODE_ORDER as readonly string[]).includes(fromUrl)) return fromUrl as ModeId;
   return new Promise(resolve => {
     let selected: ModeId = "tdm";
+    let trainingSite: SiteId = "arena1";
     const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
     const root = document.createElement("main"); root.id = "modeMenu";
     root.innerHTML = `
@@ -72,20 +84,38 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
           <h1>IRONSIGHT</h1><div class="subtitle">CONTROL THE SIGNAL</div>
           <p class="brief"></p><p class="detail"></p>
           <button class="deploy" type="button"><span>DEPLOY / 출격</span><span aria-hidden="true">↗</span></button>
-          <label class="mapSelect" hidden>TRAINING SITE <select aria-label="Training map"><option value="arena1">Relay</option><option value="arena2">Foundry · Legacy</option><option value="arena3">Crossyard · Legacy</option></select></label>
+          <div class="sites" hidden><div class="playlistLabel">TRAINING SITE / 훈련 장소</div><div class="siteCards" role="group" aria-label="Training map"></div></div>
         </section>
-        <aside class="intel"><small>FEATURED LOCATION / 01</small><strong>RELAY</strong><p>COMMUNICATIONS TRANSFER YARD</p></aside>
+        <aside class="intel"><small></small><strong></strong><p class="siteSubtitle"></p><p class="routes"></p><div class="blueprint"></div></aside>
         <div class="playlistLabel">SELECT OPERATION</div><nav class="playlists" aria-label="Game modes"></nav>
         <footer><a href="https://tikron.dev" target="_blank" rel="noopener">MADE WITH TIKRON ↗</a><span>WASD MOVE · MOUSE AIM</span><button type="button" class="settingsBtn">SETTINGS / 설정</button></footer>
       </div>`;
     const buttons: HTMLButtonElement[] = [];
+    const siteButtons: HTMLButtonElement[] = [];
+    const vista = root.querySelector('.vista') as HTMLElement;
     const update = () => {
       const mode = MODES[selected];
       root.querySelector(".brief")!.textContent = mode.description;
-      root.querySelector(".detail")!.textContent = `${mode.map} / ${mode.detail}`;
-      (root.querySelector(".mapSelect") as HTMLElement).hidden = selected !== "practice";
+      const siteId: SiteId = selected === 'practice' ? trainingSite : selected === 'dom' ? 'arena2' : selected === 'ffa' ? 'arena3' : 'arena1';
+      const site = SITES[siteId];
+      root.querySelector(".detail")!.textContent = `${site.name} / ${mode.detail}`;
+      (root.querySelector(".sites") as HTMLElement).hidden = selected !== "practice";
+      root.querySelector('.intel small')!.textContent = `OPERATION SITE / ${site.number}${site.legacy ? ' / LEGACY' : ''}`;
+      root.querySelector('.intel strong')!.textContent = site.name;
+      root.querySelector('.siteSubtitle')!.textContent = site.subtitle;
+      root.querySelector('.routes')!.textContent = site.routes;
+      root.querySelector('.blueprint')!.innerHTML = siteBlueprint(site.map);
+      vista.style.backgroundImage = site.image ? `url('${site.image}')` : 'linear-gradient(135deg,#162c38,#435963)';
+      vista.dataset.site = siteId;
+      siteButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.map === trainingSite)));
       buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === selected)));
     };
+    for (const [id, site] of Object.entries(SITES)) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'siteCard'; button.dataset.map = id;
+      button.innerHTML = `${siteBlueprint(site.map)}<span>${site.name}<small>${site.legacy ? 'LEGACY' : site.number + ' / FIELD OPERATIONS'}</small></span>`;
+      button.addEventListener('click', () => { trainingSite = id as SiteId; update(); });
+      root.querySelector('.siteCards')!.appendChild(button); siteButtons.push(button);
+    }
     MODE_ORDER.forEach((id, index) => {
       const button = document.createElement("button"); button.type = "button"; button.className = "playlist"; button.dataset.mode = id;
       button.innerHTML = `<span class="number">0${index + 1} / ${MODES[id].map}</span><strong>${MODES[id].label}</strong><span class="ko">${MODES[id].ko}</span>`;
@@ -94,7 +124,7 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
     });
     root.querySelector(".deploy")!.addEventListener("click", () => {
       const url = new URL(location.href); url.searchParams.set("mode", selected);
-      const map = (root.querySelector("select") as HTMLSelectElement).value;
+      const map = trainingSite;
       if (selected === "practice" && map !== "arena1") url.searchParams.set("map", map);
       else url.searchParams.delete("map");
       history.replaceState(null, "", url); root.remove(); style.remove(); resolve(selected);

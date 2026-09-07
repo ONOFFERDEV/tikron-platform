@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { buildSiteGround } from "./site-ground.js";
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from "../src/map/types.js";
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
@@ -27,28 +29,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
     matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(w, h, d));
     const list = activeBatch.get(m) ?? []; list.push(matrix.clone()); activeBatch.set(m, list);
   };
-  // Low-frequency concrete variation avoids a shimmering tile grid at grazing angles.
-  const groundCanvas = document.createElement("canvas");
-  groundCanvas.width = groundCanvas.height = 256;
-  const gc = groundCanvas.getContext("2d")!;
-  gc.fillStyle = "#818b88"; gc.fillRect(0, 0, 256, 256);
-  let seed = 17;
-  for (let i = 0; i < 5000; i++) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    const x = seed & 255, y = (seed >>> 8) & 255;
-    gc.fillStyle = `rgba(20,30,30,${0.015 + ((seed >>> 16) & 7) * 0.005})`;
-    gc.fillRect(x, y, 2, 2);
-  }
-  gc.strokeStyle = "#717d79"; gc.lineWidth = 1;
-  gc.strokeRect(0, 0, 256, 256);
-  const groundTex = new THREE.CanvasTexture(groundCanvas);
-  groundTex.colorSpace = THREE.SRGBColorSpace;
-  groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-  groundTex.repeat.set(15, 10); groundTex.anisotropy = 4;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(180, 160),
-    new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.96 }));
-  ground.rotation.x = -Math.PI / 2; ground.position.set(30, -0.015, 20);
-  ground.receiveShadow = true; scene.add(ground);
+  buildSiteGround(scene, map);
 
   for (const b of map.boxes) {
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
@@ -67,6 +48,22 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
       for (const sx of [-1, 1]) add("metal", x + sx * (w / 2 - 0.06), y + h / 2, z, 0.16, h, d + 0.024);
     } else {
       add(accent, x, y + h - 0.45, z, w + 0.006, 0.38, d + 0.006);
+      if (h > 6) {
+        // The shared 6.4m core is a signal coupler, distinct from service houses.
+        // Cassette depth is in the collider; only millimetre cladding crosses it.
+        for (const side of [-1, 1]) {
+          const face = x + side * (w / 2);
+          add('dark', face, 3.25, z, 0.010, 5.8, d - 0.30);
+          for (const level of [1.25, 2.6, 4.95]) {
+            add('pale', face + side * 0.008, level, z, 0.010, 0.95, d - 0.70);
+            add('metal', face + side * 0.015, level, z, 0.006, 0.65, d - 1.0);
+            for (let k = -2; k <= 2; k++)
+              add('dark', face + side * 0.020, level, z + k * 0.40, 0.005, 0.44, 0.10);
+            add('light', face + side * 0.024, level - 0.28, z, 0.004, 0.035, d - 1.30);
+          }
+          for (const end of [-1, 1]) add('amber', face + side * 0.012, 3.2, z + end * (d / 2 - 0.12), 0.010, 5.65, 0.12);
+        }
+      }
       for (const sx of [-1, 1]) {
         add("dark", x + sx * (w / 2 - 0.09), y + h / 2, z, 0.18, h - 0.32, d + 0.008);
         // End-face machinery panel. All thickness is inside the collider.
@@ -147,6 +144,25 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
   feed.rotation.x = Math.PI / 2; feed.position.z = 1.8; dish.add(feed);
   const receiver = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.6, 12), mats.amber);
   receiver.rotation.x = Math.PI / 2; receiver.position.z = 3.4; dish.add(receiver);
+  // Feed suspension: three authored struts explain how the receiver is held.
+  const braces: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 3; i++) {
+    const angle = i * Math.PI * 2 / 3 + Math.PI / 6;
+    const start = new THREE.Vector3(Math.cos(angle) * 4.65, Math.sin(angle) * 4.65, 1.36);
+    const end = new THREE.Vector3(0, 0, 3.2), axis = end.clone().sub(start);
+    const geometry = new THREE.CylinderGeometry(0.065, 0.065, axis.length(), 6);
+    geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(THREE.Object3D.DEFAULT_UP, axis.normalize()));
+    geometry.translate(...start.add(end).multiplyScalar(0.5).toArray()); braces.push(geometry);
+  }
+  const bracing = new THREE.Mesh(mergeGeometries(braces)!, mats.metal);
+  braces.forEach(g => g.dispose()); bracing.castShadow = true; dish.add(bracing);
+  // Base actuator and service cabinets all remain beyond the north boundary.
+  add('metal', 31, 21.8, -8, 3.2, 2.6, 3.2);
+  add('amber', 31, 22.7, -6.38, 1.7, 0.5, 0.06);
+  for (const side of [-1, 1]) {
+    add('dark', 31 + side * 1.2, 12, -6.79, 0.20, 17, 0.12);
+    add('metal', 31 + side * 3, 1.8, -8, 2, 3.6, 3);
+  }
   scene.add(dish);
   for (const x of [22, 40]) add("amber", x, 8, -3, 0.6, 16, 0.8);
   add("amber", 31, 15.6, -3, 19, 0.8, 1);
@@ -187,6 +203,6 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
   sign(2, 30, 2.1, 39.985, Math.PI, 6);
   sign(3, 31, 21.4, -5.98, 0, 7);
   for (const side of [-1, 1]) {
-    sign(1, 30 + side * 2.005, 3.7, 18, side * Math.PI / 2, 3.5);
+    sign(1, 30 + side * 2.030, 3.7, 18, side * Math.PI / 2, 3.5);
   }
 }

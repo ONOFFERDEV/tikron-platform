@@ -1,3 +1,4 @@
+import { mapCallout } from "./map-presentation.js";
 import type { MapDef } from "../src/map/types.js";
 import type { ArenaState } from "../src/schema.js";
 
@@ -25,6 +26,8 @@ export class TacticalMap {
     ctx.fillStyle = "#132b33"; ctx.fillRect(18, 18, 324, map.bounds.depth * this.scale);
     ctx.strokeStyle = "#759294"; ctx.lineWidth = 1;
     ctx.strokeRect(18, 18, 324, map.bounds.depth * this.scale);
+    ctx.fillStyle = '#b8ccc9'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('N', 5, 13);
     for (const box of map.boxes) {
       ctx.fillStyle = box.max.y > 2 ? "#7d9798" : "#405e66";
       ctx.fillRect(18 + box.min.x * this.scale, 18 + box.min.z * this.scale,
@@ -67,11 +70,7 @@ export class TacticalMap {
       }
     }
     if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
-    const name = this.map.presentation === "relay"
-      ? me.x < 14 ? "WEST SERVICE" : me.x > 46 ? "EAST SERVICE" : me.z < 12 ? "01 / COOLING" : me.z > 28 ? "03 / FREIGHT" : "02 / RELAY"
-      : this.map.presentation === 'undertow'
-        ? me.x < 13 ? 'WEST SERVICE' : me.x > 47 ? 'EAST SERVICE' : me.x < 22 ? 'A / WEST CONTROL' : me.x > 38 ? 'C / EAST CONTROL' : 'B / PUMP HALL'
-        : "FIELD OPERATIONS";
+    const name = mapCallout(this.map, me.x, me.z);
     if (this.label.textContent !== name) this.label.textContent = name;
   }
 }

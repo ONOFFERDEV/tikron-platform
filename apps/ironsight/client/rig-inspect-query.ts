@@ -7,13 +7,14 @@ export function parseRigInspect(search: string) {
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
   };
   const pose = q.get("pose");
-  const locomotion: "idle" | "walk" | "run" | "crouch" =
-    pose === "walk" || pose === "run" || pose === "crouch" ? pose : "idle";
+  const poses = ['idle', 'walk', 'run', 'sprint', 'crouch', 'crouch_walk', 'strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'] as const;
+  const locomotion = poses.find(p => p === pose) ?? 'idle';
   return {
     weapon: Math.floor(num("weapon", 0, 0, 4)),
     pose: locomotion,
     yaw: num("yaw", 30, -360, 360), pitch: num("pitch", 10, -89, 89),
     dist: num("dist", 2.2, 0.2, 20),
+    aim: num('aim', 0, -89, 89), sample: num('sample', 0.75, 0.2, 3),
     blend: q.has("blend") ? num("blend", 0, 0, 1) : undefined,
     arms: q.get("arms") !== "0",
   };

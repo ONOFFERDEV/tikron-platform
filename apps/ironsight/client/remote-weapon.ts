@@ -15,7 +15,7 @@ export class RemoteWeapon {
   private fallback?: THREE.Mesh;
   private readonly hand?: THREE.Object3D;
   private readonly arms: { upper: THREE.Object3D; lower: THREE.Object3D; hand: THREE.Object3D;
-    side: number; upperPose: THREE.Quaternion; lowerPose: THREE.Quaternion }[] = [];
+    side: number; upperPose: THREE.Quaternion; lowerPose: THREE.Quaternion; upperPosition: THREE.Vector3; handPose: THREE.Quaternion; handWorld: THREE.Quaternion; contact: THREE.Vector3; elbowContact: THREE.Vector3 }[] = [];
   private overridden = false;
   private readonly pitchAxis = new THREE.Vector3(1, 0, 0);
   private readonly a = new THREE.Vector3();
@@ -28,6 +28,8 @@ export class RemoteWeapon {
   private readonly wrist = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
   private readonly parentQ = new THREE.Quaternion();
+  private readonly aimPivot = new THREE.Vector3();
+  private readonly aimRotation = new THREE.Quaternion();
 
   constructor(private readonly group: THREE.Group, private readonly root?: THREE.Object3D) {
     this.hand = root?.getObjectByName("Hand_R");
@@ -41,7 +43,7 @@ export class RemoteWeapon {
         const lower = root?.getObjectByName(`lowerarm_${suffix.toLowerCase()}`);
         const hand = root?.getObjectByName(`Hand_${suffix}`);
         if (upper && lower && hand) this.arms.push({ upper, lower, hand, side,
-          upperPose: upper.quaternion.clone(), lowerPose: lower.quaternion.clone() });
+          upperPose: upper.quaternion.clone(), lowerPose: lower.quaternion.clone(), upperPosition: upper.position.clone(), handPose: hand.quaternion.clone(), handWorld: new THREE.Quaternion(), contact: new THREE.Vector3(), elbowContact: new THREE.Vector3() });
       }
       this.orientMount(0);
       this.hand.getWorldScale(this.a);
@@ -90,6 +92,8 @@ export class RemoteWeapon {
     for (const arm of this.arms) {
       arm.upper.quaternion.copy(arm.upperPose);
       arm.lower.quaternion.copy(arm.lowerPose);
+      arm.upper.position.copy(arm.upperPosition);
+      arm.hand.quaternion.copy(arm.handPose);
     }
     this.overridden = false;
   }
@@ -100,19 +104,33 @@ export class RemoteWeapon {
       this.mount.rotation.x = -pitch;
       return;
     }
-    // Baked hold: a bounded additive aim swing preserves the authored wrists and
-    // fingers. No online reach solver is used for this path.
-    if (this.root?.userData.rifleHold && holding && arms) {
-      const aim = THREE.MathUtils.clamp(pitch, -0.65, 0.65);
+    // The neutral hold is baked. Aim uses its measured wrist contact frame;
+    // there are no guessed weapon grip targets. A shorter shoulder arc keeps
+    // downward aim in front of the torso, while both hands follow full pitch.
+    if (this.root?.userData.rifleHold && holding && arms && this.arms.length === 2) {
+      const aim = THREE.MathUtils.clamp(pitch, -Math.PI / 2, Math.PI / 2);
       this.group.getWorldQuaternion(this.q);
       this.direction.copy(this.pitchAxis).applyQuaternion(this.q);
+      this.aimRotation.setFromAxisAngle(this.direction, -aim);
       for (const arm of this.arms) {
         arm.upperPose.copy(arm.upper.quaternion); arm.lowerPose.copy(arm.lower.quaternion);
-        this.q.setFromAxisAngle(this.direction, -aim);
-        arm.upper.getWorldQuaternion(this.parentQ); this.q.multiply(this.parentQ);
-        arm.upper.parent!.getWorldQuaternion(this.parentQ).invert();
-        arm.upper.quaternion.copy(this.parentQ).multiply(this.q);
-        arm.upper.updateWorldMatrix(false, true);
+        arm.upperPosition.copy(arm.upper.position); arm.handPose.copy(arm.hand.quaternion);
+        arm.hand.getWorldPosition(arm.contact); arm.hand.getWorldQuaternion(arm.handWorld);
+        arm.lower.getWorldPosition(arm.elbowContact);
+      }
+      const firing = this.arms[0]!;
+      firing.upper.getWorldPosition(this.shoulder);
+      this.q.setFromAxisAngle(this.direction, -aim * 0.35);
+      this.aimPivot.copy(firing.contact).sub(this.shoulder).applyQuaternion(this.q).add(this.shoulder);
+      this.aimPivot.y += Math.max(0, -Math.sin(aim)) * 0.10;
+      for (const arm of this.arms) {
+        this.target.copy(arm.contact).sub(firing.contact).applyQuaternion(this.aimRotation).add(this.aimPivot);
+        // At zero pitch preserve the authored pose exactly, including elbow roll.
+        if (Math.abs(aim) > 0.0001) this.reach(arm, 1, true);
+        this.q.copy(this.aimRotation).multiply(arm.handWorld);
+        arm.hand.parent!.getWorldQuaternion(this.parentQ).invert();
+        arm.hand.quaternion.copy(this.parentQ).multiply(this.q);
+        arm.hand.updateWorldMatrix(false, true);
       }
       this.overridden = true;
       this.orientMount(aim);
@@ -124,6 +142,7 @@ export class RemoteWeapon {
       for (const arm of this.arms) {
         arm.upperPose.copy(arm.upper.quaternion);
         arm.lowerPose.copy(arm.lower.quaternion);
+        arm.handPose.copy(arm.hand.quaternion); arm.upperPosition.copy(arm.upper.position);
         if (arm.side < 0) {
           this.target.set(-0.20, height - 0.34, 0.28);
           this.target.y += Math.sin(pitch) * 0.28;
@@ -163,7 +182,7 @@ export class RemoteWeapon {
     this.mount.updateWorldMatrix(true, true);
   }
 
-  private reach(arm: (typeof this.arms)[number], blend: number): void {
+  private reach(arm: (typeof this.arms)[number], blend: number, exact = false): void {
     arm.upper.getWorldPosition(this.shoulder);
     arm.lower.getWorldPosition(this.elbow);
     arm.hand.getWorldPosition(this.wrist);
@@ -173,11 +192,14 @@ export class RemoteWeapon {
     // Law of cosines: keep elbow flexion in [25, 135] degrees, never hyperextend.
     const reachAt = (degrees: number) => Math.sqrt(upper * upper + lower * lower +
       2 * upper * lower * Math.cos(THREE.MathUtils.degToRad(degrees)));
-    const distance = THREE.MathUtils.clamp(this.direction.length(), reachAt(135), reachAt(25));
+    const distance = THREE.MathUtils.clamp(this.direction.length(), exact ? Math.abs(upper - lower) + 0.002 : reachAt(135), exact ? upper + lower - 0.002 : reachAt(25));
     this.direction.normalize();
     this.wrist.copy(this.shoulder).addScaledVector(this.direction, distance);
-    this.group.getWorldQuaternion(this.q);
-    this.pole.set(arm.side * 0.65, -1, -0.15).applyQuaternion(this.q);
+    if (exact) this.pole.subVectors(arm.elbowContact, this.shoulder);
+    else {
+      this.group.getWorldQuaternion(this.q);
+      this.pole.set(arm.side * 0.65, -1, -0.15).applyQuaternion(this.q);
+    }
     this.pole.addScaledVector(this.direction, -this.pole.dot(this.direction)).normalize();
     const along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
     this.elbow.copy(this.shoulder).addScaledVector(this.direction, along)

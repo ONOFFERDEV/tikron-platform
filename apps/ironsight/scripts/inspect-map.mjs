@@ -78,26 +78,40 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['game', 'flow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three'].includes(name);
-    if (gameplay && name !== 'flow') {
+    gameplay = ['game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three'].includes(name);
+    if (gameplay && !name.startsWith('flow')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
-    else if (!['menu', 'menu-mobile', 'flow'].includes(name)) {
+    else if (!name.startsWith('menu') && !name.startsWith('flow')) {
       url.searchParams.set('inspect', name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
       url.searchParams.set('shot', name);
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
     }
-    if (name === 'menu-mobile') await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
+    if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
     else await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: url.href });
-    if (name === 'flow') {
+    if (name.startsWith('flow')) {
       await waitFor('!!document.querySelector("#modeMenu")');
-      await click('[data-mode="practice"]'); await click('.deploy');
+      await click('[data-mode="practice"]');
+      if (name === 'flow-undertow') await click('[data-map="arena2"]');
+      await click('.deploy');
+      if (name === 'flow-undertow' && !(await evaluate('new URLSearchParams(location.search).get("map") === "arena2"')))
+        throw Error('Training site did not persist into deployment');
     }
     const expression = gameplay ? '!!window.ironsight?.state()?.players[window.ironsight.myId]'
       : name.startsWith('menu') ? '!!document.querySelector("#modeMenu")' : 'window.__inspectReady === true';
     await waitFor(expression);
+    if (name.startsWith('menu')) {
+      if (name === 'menu-undertow') await click('[data-mode="dom"]');
+      if (name.startsWith('menu-training')) {
+        await click('[data-mode="practice"]'); await click('[data-map="arena2"]');
+        if (!(await evaluate('document.querySelector("[data-map=arena2]").getAttribute("aria-pressed") === "true" && document.querySelector(".vista").dataset.site === "arena2"')))
+          throw Error('Training site selection did not update presentation');
+      }
+      await evaluate('Promise.all([...document.images].map(i => i.decode().catch(()=>{})))');
+      await delay(350);
+    }
     let combat;
     if (gameplay) {
       await delay(1500);
@@ -183,15 +197,21 @@ try {
     const capture = await send('Page.captureScreenshot', { format: 'png' });
     const file = join(output, `${prefix}-${name}.png`);
     await writeFile(file, Buffer.from(capture.data, 'base64'));
-    if (name === 'vista' && args.includes('--write-vista')) {
+    if ((name === 'vista' || name === 'undertow-vista') && args.includes('--write-vista')) {
       const webp = await send('Page.captureScreenshot', { format: 'webp', quality: 88 });
-      await writeFile(fileURLToPath(new URL('../public/assets/relay-vista.webp', import.meta.url)), Buffer.from(webp.data, 'base64'));
+      await writeFile(fileURLToPath(new URL(`../public/assets/${name === 'vista' ? 'relay' : 'undertow'}-vista.webp`, import.meta.url)), Buffer.from(webp.data, 'base64'));
     }
     console.log(file, JSON.stringify(report));
   }
   await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reports, errors, forbiddenNetwork }, null, 2));
   if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (forbiddenNetwork.length) throw Error('Offline inspector opened gameplay network connections');
+} catch (error) {
+  const diagnostics = await evaluate('({ url:location.href, self:window.ironsight?.state()?.players[window.ironsight?.myId], viewmodel:window.ironsight?.viewmodelInfo?.() })').catch(() => null);
+  const capture = await send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
+  if (capture) await writeFile(join(output, `${prefix}-failure.png`), Buffer.from(capture.data, 'base64'));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reports, errors, forbiddenNetwork, failure: String(error), diagnostics }, null, 2));
+  throw error;
 } finally {
   if (ws?.readyState === WebSocket.OPEN) {
     await send('Browser.close').catch(() => {});

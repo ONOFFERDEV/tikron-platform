@@ -13,7 +13,7 @@ export function startRigInspector(options: RigInspectOptions): void {
   // Relay's center is now solid machinery. Use the clear west service pocket
   // so orbit cameras and the operator never intersect the new architecture.
   const x = 10, z = ARENA.depth / 2;
-  const pose = { x, y: 0, z, yaw: 0, pitch: 0, crouch: options.pose === "crouch",
+  const pose = { x, y: 0, z, yaw: 0, pitch: options.aim * Math.PI / 180, crouch: options.pose.startsWith('crouch'),
     alive: true, team: 0, weapon: options.weapon };
   const clip = options.pose === "crouch" ? "crouch_idle" : options.pose;
   const yaw = options.yaw * Math.PI / 180, pitch = options.pitch * Math.PI / 180;
@@ -21,11 +21,11 @@ export function startRigInspector(options: RigInspectOptions): void {
   scene.camera.position.set(x + Math.sin(yaw) * Math.cos(pitch) * options.dist,
     chest + Math.sin(pitch) * options.dist, z + Math.cos(yaw) * Math.cos(pitch) * options.dist);
   scene.camera.lookAt(x, chest, z);
-  const flags = window as unknown as { __inspectReady: boolean };
+  const flags = window as unknown as { __inspectReady: boolean; __rigInspect: unknown };
   flags.__inspectReady = false;
   let frames = 0;
   const frame = () => {
-    const ready = scene.inspectRig(pose, clip, options.blend, options.arms);
+    const ready = scene.inspectRig(pose, clip, options.blend, options.arms, options.sample);
     const focus = options.dist <= 1.1 ? scene.inspectionHandFocus() : undefined;
     if (focus) {
       scene.camera.position.set(focus.x + Math.sin(yaw) * Math.cos(pitch) * options.dist,
@@ -33,7 +33,7 @@ export function startRigInspector(options: RigInspectOptions): void {
       scene.camera.lookAt(focus);
     }
     scene.render();
-    if (ready && ++frames >= 2) flags.__inspectReady = true;
+    if (ready && ++frames >= 2) { flags.__rigInspect = scene.inspectionGrip(); flags.__inspectReady = true; }
     else requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

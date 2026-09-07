@@ -20,6 +20,7 @@ export type LocomotionState =
   | "crouch_idle"
   | "crouch_walk"
   | "sprint"
+  | "strafe_left" | "strafe_right" | "backpedal" | "crouch_left" | "crouch_right"
   | "hit_chest"
   | "hit_head"
   | "death";
@@ -115,13 +116,17 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     "crouch_idle",
     "crouch_walk",
     "sprint",
+    "strafe_left", "strafe_right", "backpedal", "crouch_left", "crouch_right",
     "hit_chest",
     "hit_head",
     "death",
   ] as const) {
     const clip = THREE.AnimationClip.findByName(gltf.animations, s);
-    if (!clip) continue;
-    const action = mixer.clipAction(clip);
+    if (!clip && !['strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'].includes(s)) continue;
+    const fallback = s.startsWith('crouch_') ? 'crouch_walk' : 'walk';
+    const base = clip ?? THREE.AnimationClip.findByName(gltf.animations, fallback);
+    if (!base) continue;
+    const action = mixer.clipAction(base);
     if (ONE_SHOT_STATES.includes(s)) {
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;

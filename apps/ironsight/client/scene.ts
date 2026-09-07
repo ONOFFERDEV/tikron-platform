@@ -11,6 +11,7 @@
  * `aimDir`, which keeps the crosshair (screen centre) honest with hit registration.
  */
 import * as THREE from "three";
+import { rifleSight } from './rifle-sight.js';
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef, RampDef } from "../src/map/types.js";
@@ -369,6 +370,7 @@ export class SceneRig {
   private weaponIsModel = false;
   private weaponGeneration = 0;
   private sightHeight = 0.1;
+  private sightDot?: THREE.Object3D;
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
   private muzzleFiredAt = -1e9;
@@ -738,6 +740,12 @@ export class SceneRig {
       }
       this.sightHeight = sightHeight;
       this.weaponHolder.add(obj);
+      if (index === 0) {
+        const sight = rifleSight(-bore.x * transform.scale, sightHeight);
+        this.weaponHolder.add(sight.object); this.weaponGeometry.push(...sight.geometry);
+        this.sightDot = sight.object.getObjectByName('reflex-dot');
+        this.sightHeight = sight.centerY;
+      }
       this.weaponIsModel = true;
       this.muzzle.position.set(-bore.x * transform.scale, bore.y * transform.scale, transform.posZ - bore.z * transform.scale);
       this.muzzleLight.position.copy(this.muzzle.position);
@@ -749,7 +757,7 @@ export class SceneRig {
    *  be disposed here; only the procedural mesh's fresh-per-call BoxGeometry is. */
   private disposeCurrentWeaponMesh(): void {
     for (const geometry of this.weaponGeometry) geometry.dispose();
-    this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined;
+    this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined; this.sightDot = undefined;
     for (const child of [...this.weaponHolder.children]) {
       this.weaponHolder.remove(child);
       if (!this.weaponIsModel) {
@@ -941,6 +949,7 @@ export class SceneRig {
       this.camera.updateProjectionMatrix();
     }
     const scoped = this.weaponIndex === 3 && this.adsT > 0.7;
+    if (this.sightDot) this.sightDot.visible = aiming && this.adsT > 0.95;
     this.viewmodel.visible = !scoped;
     this.toggleScope(scoped);
 
@@ -952,7 +961,7 @@ export class SceneRig {
     // Centre X on the bore; look just above the sight silhouette, parallel to the barrel.
     this.viewmodel.position.set(
       lerp(pose.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady,
-      lerp(pose.y, -this.sightHeight - MOTION.adsSightClearance, ads) +
+      lerp(pose.y, -this.sightHeight - (this.weaponIndex === 0 && this.weaponIsModel ? 0 : MOTION.adsSightClearance), ads) +
         (by + this.swayY + Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
       lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
@@ -1047,7 +1056,7 @@ export class SceneRig {
   }
 
   /** Network-free preview: same factory, mixer and weapon update as syncPlayers. */
-  inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean): boolean {
+  inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean, sample = 0.75): boolean {
     this.viewmodel.visible = false;
     this.syncPlayers(new Map([["inspect", pose]]), "", 0, clip);
     const rig = this.players.get("inspect")!;
@@ -1056,7 +1065,7 @@ export class SceneRig {
     rig.model.setRifleHold(arms && pose.weapon === 0);
     rig.model.forceIdle();
     rig.model.setState(clip);
-    rig.model.update(0.75); // repeatable clip sample for every camera angle
+    rig.model.update(sample); // repeatable clip sample for every camera angle
     this.groundCrouch(rig, pose.crouch);
     rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms);
     return rig.weapon.loaded;
@@ -1068,6 +1077,18 @@ export class SceneRig {
     if (!left || !right) return undefined;
     const point = left.getWorldPosition(new THREE.Vector3()).add(right.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
     point.y += 0.08; point.z += 0.1; return point;
+  }
+
+  inspectionGrip(): unknown {
+    const rig = this.players.get('inspect');
+    if (!rig?.modelRoot || !rig.weapon) return null;
+    const mount = rig.weapon.mount;
+    const bones: Record<string, number[]> = {};
+    for (const name of ['Hand_R', 'Hand_L', 'thumb_01_l', 'thumb_02_l', 'thumb_03_l', 'indexFinger_01_l', 'indexFinger_04_l', 'finger_01_l', 'finger_04_l', 'indexFinger_01_r', 'indexFinger_04_r', 'finger_01_r', 'finger_04_r']) {
+      const bone = rig.modelRoot.getObjectByName(name);
+      if (bone) bones[name] = mount.worldToLocal(bone.getWorldPosition(new THREE.Vector3())).toArray();
+    }
+    return { bones, muzzle: rig.weapon.muzzle.position.toArray() };
   }
 
   /** Plays a one-shot hit-reaction clip on remote player `id` — headshot uses
@@ -1164,6 +1185,15 @@ export class SceneRig {
     } else {
       locomotion =
         speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : model.hasSprintClip ? "sprint" : "run";
+    }
+    if (speed >= LOCOMOTION_IDLE_MAX && pose.weapon === 0) {
+      // Travel relative to the facing direction, never inferred from aim alone.
+      const lateral = dx * Math.cos(pose.yaw) - dz * Math.sin(pose.yaw);
+      const forward = dx * Math.sin(pose.yaw) + dz * Math.cos(pose.yaw);
+      if (Math.abs(lateral) > Math.abs(forward) * 1.2)
+        locomotion = pose.crouch ? (lateral > 0 ? 'crouch_left' : 'crouch_right')
+          : lateral > 0 ? 'strafe_left' : 'strafe_right';
+      else if (forward < -Math.abs(lateral) && !pose.crouch) locomotion = 'backpedal';
     }
     // A hit_chest/hit_head one-shot in progress pushes locomotion selection aside
     // until its own duration elapses (playHitReaction sets this deadline) — at
