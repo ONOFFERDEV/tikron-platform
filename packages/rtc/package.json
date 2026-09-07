@@ -1,0 +1,52 @@
+{
+  "name": "@tikron/rtc",
+  "version": "0.6.0",
+  "description": "WebRTC helpers for Tikron — RtcLink (perfect negotiation, ICE-restart budget, signal queueing) plus a Worker /api/ice handler that mints TURN credentials from your own Cloudflare key.",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "type": "module",
+  "keywords": [
+    "tikron",
+    "multiplayer",
+    "realtime",
+    "game",
+    "webrtc",
+    "p2p",
+    "turn",
+    "ice",
+    "datachannel"
+  ],
+  "homepage": "https://tikron.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ONOFFERDEV/tikron-platform.git",
+    "directory": "packages/rtc"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260701.1",
+    "vitest": "^4.1.0"
+  }
+}
