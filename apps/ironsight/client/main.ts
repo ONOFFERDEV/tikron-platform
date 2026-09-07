@@ -19,6 +19,7 @@ import { Net, type ShotEvent } from "./net.js";
 import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
+import { startMatchInspector } from "./match-inspect.js";
 import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
@@ -49,6 +50,7 @@ const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (clien
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
+  if (new URLSearchParams(location.search).get("inspect") === "match") { startMatchInspector(); return; }
   if (new URLSearchParams(location.search).get("inspect") === "map") { startMapInspector(); return; }
   if (new URLSearchParams(location.search).get("inspect") === "weapon") { startWeaponInspector(); return; }
   const inspect = parseRigInspect(location.search);
@@ -97,7 +99,7 @@ async function main(): Promise<void> {
     scene.canvas,
     me0?.yaw ?? 0,
     settings,
-    wireQuitConfirm(settings, () => input.lock()),
+    wireQuitConfirm(settings, () => input.lock(), () => net.state?.phase !== "ended" && net.online),
     (slot) => net.sendSwitch(slot),
     (dir) => {
       const cur = net.state?.players[net.myId]?.weapon ?? 0;
@@ -120,11 +122,20 @@ async function main(): Promise<void> {
   // Restart-vote keybind: R while phase==="ended" (input.ts's own KeyR is the
   // live-play reload edge — this is a separate listener gated to the end-of-match
   // overlay, and sends at most once per match end via voteSent).
-  window.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyR" || e.repeat) return;
-    if (net.state?.phase !== "ended" || voteSent) return;
+  const voteRestart = () => {
+    if (net.state?.phase !== "ended" || voteSent || !net.online) return;
     voteSent = true;
+    hud.markVoteSent();
     net.sendVoteRestart();
+  };
+  hud.setMatchActions(voteRestart, () => {
+    net.room.leave();
+    const url = new URL(location.href); url.searchParams.delete('mode');
+    location.replace(url.href);
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyR" || e.repeat || (e.target instanceof HTMLElement && e.target.closest('input,textarea,select,[contenteditable]'))) return;
+    voteRestart();
   });
 
   // Read-only introspection hook for E2E tooling / automated screenshots: the
@@ -168,11 +179,8 @@ async function main(): Promise<void> {
   // for a shot the server will silently drop. All three resync from the "ammo"
   // unicast, which is authoritative, so a wrong prediction is bounded by the
   // shots in flight (~RTT/fireInterval) and self-corrects within about one RTT —
-  // never a lasting desync. `mag` starts `null` (unknown) rather
-  // than 0 — the server never proactively pushes ammo on join/spawn/respawn, only
-  // in reaction to a fire/reload/switch, so a literal 0 default would wrongly gate
-  // out the very first shot after every spawn; `null` means "not yet synced,
-  // assume fireable" (true in practice, since every spawn starts with a full mag).
+  // never a lasting desync. `mag` starts null until the explicit syncView reply;
+  // a fresh spawn has a full mag, while reconnect requests its actual remainder.
   let mag: number | null = null;
   let reloadUntil = -1; // performance.now()-based; -1 = not reloading
   let swapUntil = -1; // performance.now()-based; -1 = no pending swap cooldown
@@ -249,9 +257,15 @@ async function main(): Promise<void> {
     playBoom();
   });
 
-  net.room.onStateChange((raw) => {
+  let previousPhase = net.state?.phase;
+  const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
-    if (state.phase === "live") matchEnd = null;
+    if (state.phase === "live" && previousPhase !== "live") {
+      reloadUntil = -1; swapUntil = -1; mag = null;
+      scene.setReload(0, 1); net.requestSync();
+    }
+    previousPhase = state.phase;
+    if (state.phase !== "ended") matchEnd = null;
     // Re-arm the restart vote once the match is no longer "ended" (routes through
     // "warmup" first on a successful vote — see arena-room's enterWarmup).
     if (state.phase !== "ended") {
@@ -274,13 +288,12 @@ async function main(): Promise<void> {
       if (!wasAlive && me.alive) {
         deathCam = null;
         killerId = undefined;
-        // Mirrors the server clearing reloadUntil/swapUntil on death; mag goes
-        // back to "unknown" since a fresh spawn's mag isn't pushed until the next
-        // fire/reload/switch (see the `mag` declaration above).
+        // Mirrors server death cleanup; syncView supplies the fresh loadout.
         mag = null;
         reloadUntil = -1;
         scene.setReload(0, 1);
         swapUntil = -1;
+        net.requestSync();
       }
       prevHp = me.hp;
       wasAlive = me.alive;
@@ -292,12 +305,17 @@ async function main(): Promise<void> {
     }
     buf.push({ time: performance.now(), players });
     while (buf.length > 24) buf.shift();
-  });
+  };
+  net.room.onStateChange(ingest);
+  if (net.state) ingest(net.state);
+  net.requestSync();
 
   hud.showLockPrompt(true, GAME.text.hud.clickToPlay);
 
   // --- render loop ----------------------------------------------------------
   let last = performance.now();
+  let wasOnline = net.online;
+  let wasEnded = false;
   let motionX = predictor.eye().x;
   let motionZ = predictor.eye().z;
   let prevYaw = input.yaw;
@@ -317,7 +335,17 @@ async function main(): Promise<void> {
     const state = net.state;
 
     // Intents (net enforces the send budget).
-    const intent = input.intent();
+    if (net.online !== wasOnline) {
+      buf.length = 0;
+      if (!net.online && document.pointerLockElement) document.exitPointerLock();
+      if (net.online) {
+        const restored = net.state?.players[net.myId];
+        if (restored) predictor.pos = { x: restored.x, y: restored.y, z: restored.z };
+        net.requestSync();
+      }
+      wasOnline = net.online;
+    }
+    const intent = net.online && state?.phase !== "ended" ? input.intent() : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
     net.setMoveIntent(intent, now);
     net.setLook(input.yaw, input.pitch, now);
     predictor.frame(dt, intent, input.yaw);
@@ -333,7 +361,7 @@ async function main(): Promise<void> {
     const eye = predictor.eye();
 
     // Firing (server fire interval is the truth; net gates, we kick locally).
-    if (input.isFiring && alive && phase === "live") {
+    if (net.online && input.isFiring && alive && phase === "live") {
       // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
       // server (the real authority) can act on it regardless of our own gate
       // below. canPredictFire mirrors the REST of the server's drop conditions
@@ -436,7 +464,7 @@ async function main(): Promise<void> {
       hud.setHp(me.hp);
       hud.setNades(me.nades);
     }
-    if (state) hud.setScores(state.redScore, state.blueScore);
+    if (state) { hud.setScores(state.redScore, state.blueScore); hud.setMatchContext(state, net.serverNow(), net.myId); }
     if (state) tacticalMap.update(state, net.myId, input.yaw, now);
     const mode = state?.mode ?? 0;
     const modeId = MODE_ORDER[mode] ?? "tdm";
@@ -462,11 +490,17 @@ async function main(): Promise<void> {
     hud.setPing(net.rttMs);
 
     // Overlay precedence: match end > death > pointer-lock prompt.
-    if (phase === "ended" && matchEnd) {
+    if (phase === "ended" && !wasEnded && document.pointerLockElement) document.exitPointerLock();
+    wasEnded = phase === "ended";
+    if (!net.online) {
+      hud.showConnection(net.connectionExpired);
+    } else if (phase === "ended" && matchEnd) {
       // "draw" is a literal wire value (the no-score timeout), not a player id — name()
       // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
       const winnerLabel = teamless && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
       hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless);
+    } else if (phase === "ended") {
+      hud.showLockPrompt(true, "ROUND COMPLETE · Receiving results…");
     } else if (me && !me.alive) {
       const left = Math.max(0, RESPAWN_MS - (now - deathAt)) / 1000;
       hud.showDeath(left, killerName);

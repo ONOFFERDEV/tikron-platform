@@ -72,20 +72,25 @@ try {
     else request.resolve(message.result);
   };
   await send('Page.enable');
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__inspectionSockets=[]; const NativeSocket=window.WebSocket; window.WebSocket=class extends NativeSocket { constructor(...args){super(...args);window.__inspectionSockets.push(this);} };` });
   await send('Network.enable');
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three'].includes(name);
+    gameplay = ['game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
     else if (!name.startsWith('menu') && !name.startsWith('flow')) {
-      url.searchParams.set('inspect', name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
+      url.searchParams.set('inspect', name.startsWith('match-') ? 'match' : name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
       url.searchParams.set('shot', name);
+      if (name.startsWith('weapon-')) {
+        const weapon = ['weapon', 'weapon-smg', 'weapon-shotgun', 'weapon-sniper', 'weapon-pistol'].indexOf(name);
+        if (weapon > 0) url.searchParams.set('weapon', String(weapon));
+      }
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
     }
     if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -112,7 +117,16 @@ try {
       await evaluate('Promise.all([...document.images].map(i => i.decode().catch(()=>{})))');
       await delay(350);
     }
+    if (name === 'match-vote') {
+      await click('[data-action="restart"]');
+      if (!(await evaluate('document.querySelector("[data-action=restart]").disabled && document.querySelector("#overlay").textContent.includes("1 / 2")'))) throw Error('Rematch vote UI failed');
+    }
     let combat;
+    if (name === 'onboarding') {
+      await delay(1000);
+      const capture = await send('Page.captureScreenshot', { format: 'png' });
+      await writeFile(join(output, `${prefix}-onboarding-briefing.png`), Buffer.from(capture.data, 'base64'));
+    }
     if (gameplay) {
       await delay(1500);
       await send('Page.bringToFront');
@@ -124,6 +138,16 @@ try {
         const failed = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
+      }
+      if (name === 'reconnect') {
+        const before = await evaluate('window.ironsight.myId');
+        await evaluate('window.__inspectionSockets.at(-1).close(4000,"inspection reconnect")');
+        await waitFor('document.querySelector("#overlay").dataset.kind === "connection"');
+        const dropped = await send('Page.captureScreenshot', { format: 'png' });
+        await writeFile(join(output, `${prefix}-reconnect-disconnected.png`), Buffer.from(dropped.data, 'base64'));
+        await waitFor('window.__inspectionSockets.length >= 2 && window.__inspectionSockets.at(-1).readyState === 1 && document.querySelector("#overlay").dataset.kind !== "connection"');
+        if (before !== await evaluate('window.ironsight.myId')) throw Error('Reconnect changed the held seat');
+        combat = { reconnected: true, sameSeat: true };
       }
       if (name === 'self-respawn') {
         await waitFor('!window.ironsight.state().players[window.ironsight.myId].prot');

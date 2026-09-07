@@ -485,3 +485,93 @@ fits and human controller/animation review, plus any playtest-driven art refinem
 M2 AR requested polish and M3 first art pass are delivered; do not claim full
 animation or hardware release acceptance. Owner questions: no new blockers; retain
 industrial daylight, 6v6 TDM (DOM secondary), stylized sci-fi. SDK requests: none.
+
+### Session 4 — 2026-09-07
+
+Continued M4 under the same defaults, in apps/ironsight only. No git commands,
+commits, deployments, SDK changes, dependencies, or purchased-asset edits.
+The required Worker build ran only its existing dry-run. Supervisor retains
+preview deployment ownership; live release still needs owner acceptance.
+
+Delivered:
+- Mode-specific objective briefing, server-clock round time with a final-30-second
+  accent, explicit team affiliation and honest warmup/training labels. DOM gauges
+  now sit below the objective and name ownership (RED / BLUE / OPEN / TAKING).
+  FFA standings move below the tactical map instead of colliding with the clock.
+  Narrow-screen rules separate these panels. No additional render passes or assets.
+- End-round panel with team result, personal eliminations/deaths, clickable rematch
+  vote and deployment actions, bilingual action labels, visible submitted state
+  and server quorum. R remains a shortcut; typing into controls does not vote.
+  Pointer lock releases on round end without opening the pause dialog. Overlay
+  markup is cached so per-frame rendering no longer destroys focused buttons.
+- Click-to-play onboarding explains the mode, cover, aim/fire, automatic respawn
+  and Escape/settings; movement/reload hints continue to use actual keybindings.
+- Read-only, seated-client `syncView` intent returns authoritative owner ammo,
+  remaining reload duration, retained server round result and vote quorum. It
+  never accepts client ammo/results. Initial subscription, respawn, new round
+  and Welcome after reconnect request it. Initial state is ingested immediately.
+  A late subscriber can recover an ended result without the original broadcast.
+- Connection overlay with deployment exit; gameplay sends stop on disconnect and
+  resume only after room Welcome. Reconnect clears remote interpolation history.
+  Server onLeave clears held movement and retains the preset's 30-second seat.
+  Existing authoritative movement, shot plausibility and hit verification remain.
+- Snapshot review found that runtime ammo/respawn/protection/intermission maps do
+  not persist alongside state. `onRestore` now deliberately starts a NEW round:
+  safe human spawns, full loadouts, zero scores, removed stale bot records, rebuilt
+  timers/PRNG, and warmup for competitive modes (practice remains live). Short
+  transport reconnects keep the existing round. State shape/layout stays version 3;
+  existing incompatible-version discard behavior remains. This is recovery by
+  round reset, not durable continuation of a half-finished fight.
+- Offline match UI fixtures and real WebSocket-interruption browser inspection.
+  Alternate-weapon inspector accepts `weapon=1..4`; saved SMG/shotgun/sniper/pistol
+  baselines explicitly show hands=false. No unproven hand poses were enabled.
+
+Final gates: typecheck PASS; test PASS **290 passed + 3 existing opt-in skips**
+(25 passed files + 1 skipped); build:client PASS; build/dry-run PASS **233.53 KiB,
+gzip 69.43 KiB**. Seven additional tests cover briefing clock/modes, disconnect
+movement/seat preservation, owner-only ammo/reload resync, late round-result
+subscription and cold-restore reset. The restore test exercises the game hook;
+a real deployed Durable Object eviction drill remains pending. The disconnect
+test initially awaited close before reconnecting, deadlocking its own fake-timer
+reconnection window; corrected to reconnect before awaiting close, then passed.
+
+Browser evidence:
+- `.inspect/session4-final-report.json`: 15 views/flows, zero console/runtime/HTTP
+  errors and zero forbidden offline network requests. Includes UI result/draw/vote
+  fixtures, narrow results, real same-seat WebSocket reconnect, all competitive
+  modes, both menu-to-practice routes, AR ADS, Undertow and 11-operator stress.
+- Combat flow: 2.4 m authoritative movement, one server-verified kill, magazine
+  26 -> 30, all six reload phases, no ammo consumed during reload, target respawn.
+- `.inspect/session4-death-report.json`: onboarding and self-grenade death during
+  reload; respawn at 100 HP with reload idle, zero errors. The unlocked onboarding
+  capture is `session4-death-onboarding-briefing.png`.
+- `.inspect/session4-recovery-report.json`: real same-seat reconnect and four
+  alternate-weapon baselines, plus result/onboarding views; zero errors. End/vote
+  browser captures are offline presentation fixtures; authoritative result and
+  quorum delivery are covered by server tests, not a full human match playtest.
+
+Visual review opened final DOM/FFA HUD, vote feedback, narrow result screen,
+reconnect-disconnected, onboarding and death captures, plus the alternate pistol
+baseline. Rejected damaged Korean labels from the initial edit, corrected their
+encoding and recaptured. No map-art changes were justified by this UI playtest.
+
+1920 x 1080 balanced, Edge / RTX 5070 desktop: Relay eleven-remote-operator view
+remains **57 calls / 71,714 triangles**, peak **87 calls**, estimated **60.08 MiB**
+textures. Undertow centre remains **24 calls / 15,888 triangles**, peak **39**,
+estimated **14.69 MiB**. Both sampled 120 frame intervals at median **6.9 ms** /
+p95 **7.1 ms**. These desktop measurements do not establish the laptop iGPU floor.
+Asset audit PASS: **4,969,575 asset bytes**, **10,729,478 public bytes**, largest
+file **4,003,850 bytes**. Purchased GLBs and ignore rules were not changed.
+
+Cleanup verified in `.inspect/session4-cleanup.json`: all **11** owned preview
+root/descendant processes stopped, no port 8796 listener, no inspection Edge
+processes. Reports and screenshots remain under the ignored .inspect directory.
+
+Next session: finish alternate-weapon first/third-person hand fits with explicit
+hip/ADS/reload and aim-range proof; human mouse/controller match and rematch review.
+M4 core presentation/recovery pass is delivered, but human acceptance is open.
+Then M5 representative laptop iGPU 1080p/12-player effects stress, browser matrix,
+accessibility, and a deployed cold-eviction drill through the supervisor. Full
+scoreboard/team roster polish and staged onboarding can follow human feedback.
+Do not claim finished animation or hardware release acceptance. Defaults unchanged;
+no new owner blockers or SDK requests.

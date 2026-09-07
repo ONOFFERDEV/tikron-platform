@@ -210,6 +210,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** Sim tick the warmup countdown elapses (unset while below {@link warmupMinPlayers}). */
   private warmupUntil: number | undefined;
   /** One vote per player id; only meaningful while phase is "ended". */
+  private roundResult: { winner: string; red: number; blue: number } | null = null;
   private readonly restartVotes = new Set<string>();
   /** Recent non-lethal damage per victim, for assist attribution: victim → [{attacker, dmg, at}]. */
   private readonly hits = new Map<string, { attacker: string; dmg: number; at: number }[]>();
@@ -303,6 +304,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.onMessage("nade", (client) => this.handleNade(client));
     this.onMessage("loadout", (client, payload) => this.handleLoadout(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
+    this.onMessage("syncView", (client) => this.syncView(client));
     this.onMessage("voteRestart", (client) => this.handleVoteRestart(client));
   }
 
@@ -311,6 +313,46 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const p = this.initPlayer(client.id, team);
     this.spawnInto(p, client.id);
     this.markStateChanged();
+  }
+
+  /** Runtime combat maps are deliberately not durable. A cold restore starts a
+   * fresh round at safe spawns; it must never resume dead seats without timers,
+   * stale protected flags, or an ended round without an intermission deadline. */
+  protected override onRestore(): void {
+    for (const id of Object.keys(this.state.players)) {
+      if (id.startsWith("bot-") || PRACTICE_SHOWCASE_BOTS.some((bot) => bot.id === id)) {
+        delete this.state.players[id];
+      } else {
+        this.inputs.set(id, { ...NO_INPUT });
+      }
+    }
+    this.spreadRng = xorshift32(this.state.seed || 1);
+    this.resetMatch(Date.now());
+    if (this.gameMode.id !== "practice") this.enterWarmup();
+    this.markStateChanged();
+  }
+
+  /** Clear held intent immediately while preserving the preset's 30-second seat. */
+  override async onLeave(client: Client): Promise<void> {
+    this.inputs.set(client.id, { ...NO_INPUT });
+    await super.onLeave(client);
+  }
+
+  private syncView(client: Client): void {
+    const p = this.state.players[client.id];
+    if (!p) return;
+    const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - Date.now());
+    client.send("ammo", {
+      mag: this.magArr(client.id)[p.weapon] ?? 0,
+      reserve: this.reserveArr(client.id)[p.weapon] ?? 0,
+      weapon: this.weaponOf(p).slot,
+      ...(remaining > 0 ? { reloadMs: remaining } : {}),
+    });
+    if (this.state.phase === "ended" && this.roundResult) client.send("matchEnd", this.roundResult);
+    if (this.state.phase === "ended") {
+      const humans = Object.keys(this.state.players).length - this.botBrains.size;
+      client.send("vote", { count: this.restartVotes.size, need: Math.floor(humans / 2) + 1 });
+    }
   }
 
   /** Shared player-record init for real joins and bot fills (team assignment stays
@@ -1458,7 +1500,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.state.phase = "ended";
     this.endedUntil = this.currentTick + Math.ceil(this.intermissionMs / TICK_MS);
     this.restartVotes.clear();
-    this.broadcast("matchEnd", { winner: w, red: redScore, blue: blueScore });
+    this.roundResult = { winner: w, red: redScore, blue: blueScore };
+    this.broadcast("matchEnd", this.roundResult);
   }
 
   /** Warmup: waits for {@link warmupMinPlayers}, then counts down {@link warmupMs} before a full
@@ -1505,6 +1548,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.roundResult = null;
     this.state.redScore = 0;
     this.state.blueScore = 0;
     this.state.capA = GAME.match.capNeutral;

@@ -806,3 +806,69 @@ describe("arena room — hybrid hit registration (claim + server plausibility ga
     expect(payload.hits).toEqual([{ id: target.id, head: false }]);
   });
 });
+
+
+describe("M4 recovery", () => {
+  it("disconnect stops held movement and preserves the seat on reconnect", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema });
+    const a = await h.connect('recover-seat');
+    place(h, a.id, 8, { yaw: Math.PI / 2 });
+    await a.send('move', { mx: 0, mz: 1, jump: false, crouch: false, sprint: false });
+    await tick(h, 3);
+    const leaving = a.close();
+    await h.flush();
+    const stopped = { ...liveState(h).players[a.id]! };
+    await tick(h, 10);
+    expect(liveState(h).players[a.id]!.x).toBe(stopped.x);
+    const b = await h.connect('recover-seat');
+    await leaving;
+    expect(b.id).toBe(a.id);
+    expect(liveState(h).players[b.id]!.k).toBe(stopped.k);
+  });
+
+  it("resync returns actual owner ammo and remaining reload without granting ammunition", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema });
+    const a = await h.connect();
+    await a.send("fire", {}); await tick(h);
+    await a.send("reload"); await tick(h);
+    await h.advance(300);
+    await a.send("syncView", { mag: 999, weapon: 5 }); await tick(h);
+    const ammo = ammoFrames(a).at(-1)!.payload as { mag: number; reloadMs: number; weapon: number };
+    expect(ammo.mag).toBe(AR.mag - 1);
+    expect(ammo.weapon).toBe(1);
+    expect(ammo.reloadMs).toBeGreaterThan(0);
+    expect(ammo.reloadMs).toBeLessThan(AR.reloadMs);
+  });
+
+  it("a late subscriber receives the authoritative ended result and vote quorum", async () => {
+    const h = await createTestRoom(FastArena, { codec: ArenaSchema });
+    const a = await h.connect();
+    liveState(h).redScore = 2; await tick(h);
+    const b = await h.connect();
+    await b.send("syncView"); await tick(h);
+    const result = b.frames().find(f => f.t === 's:msg' && f.type === 'matchEnd');
+    expect(result?.payload).toEqual({ winner: 'red', red: 2, blue: 0 });
+    const vote = b.frames().find(f => f.t === 's:msg' && f.type === 'vote');
+    expect(vote?.payload).toEqual({ count: 0, need: 2 });
+    expect(liveState(h).players[a.id]).toBeDefined();
+  });
+
+  it("cold snapshots rebuild a safe new round and remove unowned bot records", async () => {
+    class RestoreArena extends FastArena { restoreForTest() { this.onRestore(); } }
+    const h = await createTestRoom(RestoreArena, { codec: ArenaSchema });
+    const a = await h.connect();
+    const s = liveState(h);
+    s.phase = 'ended'; s.redScore = 10;
+    Object.assign(s.players[a.id]!, { alive: false, hp: 0, k: 10, prot: true, x: 30, z: 20 });
+    s.players['bot-stale'] = { ...s.players[a.id]! };
+    (h.room as RestoreArena).restoreForTest();
+    expect(s.phase).toBe('warmup');
+    expect(s.redScore).toBe(0);
+    expect(s.players['bot-stale']).toBeUndefined();
+    expect(s.players[a.id]).toMatchObject({ alive: true, hp: 100, k: 0 });
+    await a.send('syncView'); await tick(h);
+    expect((ammoFrames(a).at(-1)!.payload as { mag: number }).mag).toBe(AR.mag);
+    await tick(h, 10);
+    expect(s.phase).toBe('live');
+  });
+});

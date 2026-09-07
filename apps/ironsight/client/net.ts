@@ -5,7 +5,7 @@
  * re-declared) so the fingerprint handshake passes; game events arrive as
  * developer messages routed by type.
  */
-import { GameClient, type Room } from "@tikron/client";
+import { GameClient, createPartySocketTransport, type Room } from "@tikron/client";
 import { ArenaSchema, type ArenaState } from "../src/schema.js";
 import type { ModeId } from "../src/modes.js";
 import type { FireClaim } from "../src/hitscan.js";
@@ -153,10 +153,18 @@ export class Net {
   private lastPitch = NaN;
   private lastFireAt = 0;
 
-  private constructor(room: Room, roomId: string) {
+  private constructor(room: Room, roomId: string, private readonly link: { open: boolean; lostAt: number }) {
     this.room = room;
     this.roomId = roomId;
     this.myId = room.connectionId ?? "";
+    room.onMessage((message) => {
+      if (message.t === "s:welcome") {
+        this.link.open = true;
+        this.link.lostAt = 0;
+        this.lastYaw = NaN; this.lastPitch = NaN; this.lastMoveAt = 0;
+        this.requestSync();
+      }
+    });
   }
 
   /** Connect (matchmake → join), retrying the initial handshake on failure. */
@@ -164,19 +172,38 @@ export class Net {
     for (let attempt = 0; ; attempt++) {
       try {
         const mm = await matchmake();
+        const link = { open: false, lostAt: 0 };
         const client = new GameClient(location.host, {
           party: mm.party,
+          createTransport: (options) => {
+            const transport = createPartySocketTransport(options);
+            // An open TCP/WebSocket transport is not yet an accepted room seat.
+            // Only Welcome re-enables gameplay after a reconnect.
+            transport.onClose(() => {
+              link.open = false;
+              if (link.lostAt === 0) link.lostAt = performance.now();
+            });
+            return transport;
+          },
           stateCodec: ArenaSchema,
           subtickTimestamps: true, // FPS-grade hit registration (server rewinds to input ts)
         });
         const room = await client.joinOrCreate(mm.room, { _session: mm.session });
-        return new Net(room, mm.room);
+        link.open = true; // joinOrCreate has validated the initial Welcome.
+        return new Net(room, mm.room, link);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn(`[net] join failed (attempt ${attempt + 1})`, err);
         await sleep(Math.min(4000, 500 * 2 ** attempt));
       }
     }
+  }
+
+  get online(): boolean { return this.link.open; }
+  get connectionExpired(): boolean { return !this.online && performance.now() - this.link.lostAt >= 30000; }
+  requestSync(): void { this.send("syncView"); }
+  private send(type: string, payload?: unknown): void {
+    if (this.online) this.room.send(type, payload);
   }
 
   /** Latest authoritative state (undefined until the first sync). */
@@ -211,7 +238,7 @@ export class Net {
       i.crouch !== this.last.crouch ||
       i.sprint !== this.last.sprint;
     if (!changed && !i.jump && now - this.lastMoveAt < MOVE_KEEPALIVE_MS) return;
-    this.room.send("move", { mx: i.mx, mz: i.mz, jump: i.jump, crouch: i.crouch, sprint: i.sprint });
+    this.send("move", { mx: i.mx, mz: i.mz, jump: i.jump, crouch: i.crouch, sprint: i.sprint });
     this.last = { ...i, jump: false };
     this.lastMoveAt = now;
   }
@@ -220,7 +247,7 @@ export class Net {
   setLook(yaw: number, pitch: number, now: number): void {
     if (now - this.lastLookAt < LOOK_SEND_MS) return;
     if (yaw === this.lastYaw && pitch === this.lastPitch) return;
-    this.room.send("look", { yaw, pitch });
+    this.send("look", { yaw, pitch });
     this.lastLookAt = now;
     this.lastYaw = yaw;
     this.lastPitch = pitch;
@@ -253,36 +280,36 @@ export class Net {
     if (now - this.lastFireAt < this.fireIntervalMs) return false;
     this.lastFireAt = now;
     const claim = computeClaim?.();
-    this.room.send("fire", claim === undefined ? {} : { claim });
+    this.send("fire", claim === undefined ? {} : { claim });
     return true;
   }
 
   reload(): void {
-    this.room.send("reload");
+    this.send("reload");
   }
 
   respawn(): void {
-    this.room.send("respawn");
+    this.send("respawn");
   }
 
   /** Switch to loadout slot 1–5 (matches {@link WeaponSpec.slot}). */
   sendSwitch(slot: number): void {
-    this.room.send("switch", { slot });
+    this.send("switch", { slot });
   }
 
   /** Throw the held grenade. */
   sendNade(): void {
-    this.room.send("nade", {});
+    this.send("nade", {});
   }
 
   /** Set the primary weapon for the next loadout (M2 lobby concern; not called yet). */
   sendLoadout(primary: number): void {
-    this.room.send("loadout", { primary });
+    this.send("loadout", { primary });
   }
 
   /** Cast this client's restart vote (only meaningful while phase is "ended"). */
   sendVoteRestart(): void {
-    this.room.send("voteRestart");
+    this.send("voteRestart");
   }
 
   // --- events ----------------------------------------------------------------

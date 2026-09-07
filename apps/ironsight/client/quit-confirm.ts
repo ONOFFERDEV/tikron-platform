@@ -113,6 +113,7 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
 export function wireQuitConfirm(
   settings: SettingsStore,
   relock: () => void,
+  shouldShow: () => boolean = () => true,
 ): (locked: boolean) => void {
   let everLocked = false;
   return (locked: boolean): void => {
@@ -120,7 +121,7 @@ export function wireQuitConfirm(
       everLocked = true;
       return;
     }
-    if (!everLocked) return;
+    if (!everLocked || !shouldShow()) return;
     showQuitConfirm(settings, relock);
   };
 }

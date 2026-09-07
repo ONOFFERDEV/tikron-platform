@@ -9,6 +9,8 @@ export function startWeaponInspector(): void {
   const scene = new SceneRig(ARENA1, host, { loadActors: false });
   scene.setView({ x: 10, y: 1.65, z: 20 }, Math.PI / 2, 0);
   const query = new URLSearchParams(location.search), shot = query.get('shot');
+  const weapon = Math.min(4, Math.max(0, Math.floor(Number(query.get('weapon')) || 0)));
+  scene.setWeapon(weapon);
   const phases: Record<string, number> = { 'reload-out': 0.40, 'reload-in': 0.58, 'reload-bolt': 0.78, 'reload-return': 0.94 };
   const progress = phases[shot ?? ''] ?? null;
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };

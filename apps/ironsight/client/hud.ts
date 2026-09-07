@@ -13,6 +13,9 @@ const T = GAME.text;
 const [UI_RED, UI_BLUE] = GAME.teams.uiText;
 const WEAPONS = GAME.weapons;
 
+import { matchBrief } from "./match-presentation.js";
+import type { ArenaState } from "../src/schema.js";
+
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
 #hud .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
@@ -64,6 +67,22 @@ const css = `
 #wbar .slot.active { opacity: 1; background: rgba(70,130,220,0.65); box-shadow: 0 0 0 1px #9cc4ff; }
 #wbar .nades { padding: 4px 10px; border-radius: 6px; background: rgba(10,13,18,0.55); font-size: 12px; }
 /* Relay HUD pass: readable instrument hierarchy, quiet panels and warm accents. */
+#matchBrief{position:absolute;top:96px;left:50%;transform:translateX(-50%);text-align:center;font-size:11px;letter-spacing:1px;text-shadow:0 2px 4px #000;width:min(90vw,620px)}
+#matchBrief strong{display:block;font-size:17px;font-variant-numeric:tabular-nums;margin-bottom:5px}
+#matchBrief .urgent{color:#edaa52}
+#hud #caps{top:155px;background:#10242bd9}
+#hud #warmup{display:none!important}
+#hud #streak{top:220px}
+#overlay[data-kind="end"],#overlay[data-kind="connection"]{pointer-events:auto;justify-content:center;padding:24px;background:#08191ff0;z-index:10}
+#overlay .result{width:min(640px,90vw);border-top:3px solid #edaa52;background:#152b32;padding:32px;box-sizing:border-box}
+#overlay .eyebrow{color:#edaa52;font-size:11px;letter-spacing:3px;margin-bottom:20px}
+#overlay .resultStats{display:flex;justify-content:center;gap:42px;margin:26px 0;font-size:13px}
+#overlay .resultStats strong{display:block;font-size:38px}
+#overlay button{pointer-events:auto;background:#edaa52;color:#10242b;border:1px solid #edaa52;font:700 13px Arial;padding:14px 22px;margin:8px;cursor:pointer}
+#overlay button.secondary{background:transparent;color:#e2e9e6;border-color:#829c9d}
+#overlay button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#overlay button:disabled{opacity:.6;cursor:default}
+#overlay .briefing{max-width:540px;margin:16px;padding:14px;border-left:2px solid #edaa52;background:#10242bdb;font-size:13px}
 #hud{font-family:Arial,"Malgun Gothic",sans-serif;color:#f1f0e8}
 #hud .panel{background:linear-gradient(110deg,#10242be8,#10242bba);border:1px solid #c3d3ca25;border-radius:0;box-shadow:none}
 #hp{left:28px;bottom:28px;width:190px;padding:12px 15px;border-left:2px solid #e9b567}
@@ -83,11 +102,13 @@ const css = `
 #mode{top:79px;opacity:.9;color:#dce6df;text-shadow:0 1px 3px #000;font-size:10px}
 #ping{top:194px;left:28px;font-size:10px;letter-spacing:1px;background:#10242bd9}
 #lb{background:#10242bdd;border-top:2px solid #edb467;padding:8px;top:28px}
+#hud #lb{top:245px;left:28px;transform:none;min-width:180px}
 #feed{top:28px;right:28px;font-size:12px}
 #overlay{background:linear-gradient(0deg,#06151bc9,transparent 70%);text-shadow:0 2px 12px #000;justify-content:flex-end;padding-bottom:155px;box-sizing:border-box}
 #overlay h1{font-size:25px;letter-spacing:5px}
 #overlay .hint{font-size:11px;letter-spacing:1px}
 @media(max-width:800px){#tacticalMap{transform:scale(.75);transform-origin:top left}#ping{top:155px}#wbar{bottom:115px}#hp{width:150px}#scores{left:auto;right:28px;transform:none}#mode{left:auto;right:28px;transform:none}}
+@media(max-width:800px){#matchBrief{top:202px}#hud #caps{top:270px}#hud #lb{top:290px}#hud #feed{top:335px}#hud #streak{top:310px}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -140,6 +161,34 @@ export class Hud {
   /** Live restart-vote tally shown on the match-end overlay; -1 = no vote yet (show the hint instead). */
   private voteCount = -1;
   private voteNeed = 0;
+  private voteSent = false;
+  private overlayMarkup = "";
+  private briefText = "";
+  private readonly brief = el("div", "matchBrief");
+  private restart: () => void = () => {};
+  private leave: () => void = () => {};
+
+  setMatchActions(restart: () => void, leave: () => void): void { this.restart = restart; this.leave = leave; }
+  markVoteSent(): void { this.voteSent = true; }
+  setMatchContext(state: ArenaState, serverNow: number, myId: string): void {
+    const b = matchBrief(state, serverNow, myId);
+    this.briefText = b.objective;
+    const markup = `<strong class="${b.urgent ? 'urgent' : ''}">${b.clock}</strong>${b.affiliation} · ${b.objective}`;
+    if (this.brief.innerHTML !== markup) this.brief.innerHTML = markup;
+  }
+  private present(kind: string, markup: string): void {
+    this.overlay.style.display = "flex";
+    this.overlay.dataset.kind = kind;
+    // Keep focused buttons alive between frames and vote broadcasts.
+    if (this.overlayMarkup === markup) return;
+    const focused = document.activeElement?.getAttribute('data-action');
+    this.overlayMarkup = markup;
+    this.overlay.innerHTML = markup;
+    if (focused) this.overlay.querySelector<HTMLButtonElement>(`[data-action="${focused}"]`)?.focus();
+  }
+  showConnection(expired: boolean): void {
+    this.present('connection', `<div class="result"><div class="eyebrow">CONNECTION / 연결</div><h1>${expired ? 'CONNECTION LOST' : 'RECONNECTING'}</h1><p>${expired ? 'Return to deployment to join a new room.' : 'Waiting for the room. Your operator remains in the match.'}</p><button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
+  }
 
   /** `settings` drives the click-to-play overlay's controls hint, which is
    *  filled in from the player's live keybindings on every `showLockPrompt`
@@ -251,6 +300,12 @@ export class Hud {
     this.vignette = el("div", "vignette"); this.root.appendChild(this.vignette);
     this.overlay = el("div", "overlay"); this.root.appendChild(this.overlay);
 
+    this.root.appendChild(this.brief);
+    this.overlay.addEventListener('click', (event) => {
+      const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
+      if (action === 'restart') this.restart();
+      if (action === 'leave') this.leave();
+    });
     container.appendChild(this.root);
     this.setSpread(0);
   }
@@ -353,12 +408,19 @@ export class Hud {
   resetVoteStatus(): void {
     this.voteCount = -1;
     this.voteNeed = 0;
+    this.voteSent = false;
   }
 
   /** DOM capture-gauge bars (mode===2 only); a/b/c are 0..200, 100 = neutral. */
   setCaps(a: number, b: number, c: number): void {
     this.caps.style.display = "flex";
-    [a, b, c].forEach((v, i) => this.renderCap(this.capFills[i]!, v));
+    [a, b, c].forEach((v, i) => {
+      const fill = this.capFills[i]!;
+      const label = fill.parentElement?.parentElement?.querySelector('.lbl');
+      const owner = v >= 200 ? 'RED' : v <= 0 ? 'BLUE' : v === 100 ? 'OPEN' : 'TAKING';
+      if (label) label.textContent = `${['A', 'B', 'C'][i]} / ${owner}`;
+      this.renderCap(fill, v);
+    });
   }
 
   hideCaps(): void {
@@ -429,8 +491,7 @@ export class Hud {
   /** The click-to-play / ESC prompt. */
   showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
     if (show) {
-      this.overlay.style.display = "flex";
-      this.overlay.innerHTML = `<h1>${T.hud.gameTitle}</h1><p>${text}</p><p class="hint">${this.controlsHintText()}</p>`;
+      this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
     } else {
       this.overlay.style.display = "none";
     }
@@ -443,7 +504,7 @@ export class Hud {
     const line = secondsLeft > 0
       ? `<p>${fmt(T.hud.respawnInFmt, { s: secondsLeft.toFixed(1) })}</p>`
       : `<p>${T.hud.respawningNow}</p>`;
-    this.overlay.innerHTML = `<h1 style="color:#e05a4a">${T.hud.eliminated}</h1>${sub}${line}`;
+    this.present("death", `<h1 style="color:#e05a4a">${T.hud.eliminated}</h1>${sub}${line}`);
   }
 
   /**
@@ -462,11 +523,12 @@ export class Hud {
       : fmt(T.hud.winsFmt, { winner: teamless ? esc(winner) : winner.toUpperCase() });
     const color = teamless ? "#eee" : winner === "red" ? UI_RED : winner === "blue" ? UI_BLUE : "#eee";
     const scoreLine = teamless ? "" : `<p><span style="color:${UI_RED}">RED ${red}</span> — <span style="color:${UI_BLUE}">BLUE ${blue}</span></p>`;
-    const voteLine = this.voteCount >= 0
-      ? `<p class="hint">${fmt(T.hud.restartVotesFmt, { count: this.voteCount, need: this.voteNeed })}</p>`
-      : `<p class="hint">${T.hud.voteHint}</p>`;
-    this.overlay.innerHTML = `<h1 style="color:${color}">${title}</h1>${scoreLine}`
-      + `<p>${fmt(T.hud.yourScoreFmt, { k: myKills, d: myDeaths })}</p>${voteLine}`;
+    const voteLine = this.voteCount >= 0 ? `${this.voteCount} / ${this.voteNeed} votes to restart` : 'A majority can skip the intermission.';
+    this.present('end', `<div class="result"><div class="eyebrow">RELAY / ROUND COMPLETE</div><h1 style="color:${color}">${title}</h1>${scoreLine}`
+      + `<div class="resultStats"><div><strong>${myKills}</strong>ELIMINATIONS</div><div><strong>${myDeaths}</strong>DEATHS</div></div>`
+      + `<p>${voteLine}</p><p class="hint">The next round starts automatically after intermission.</p>`
+      + `<button data-action="restart" ${this.voteSent ? 'disabled' : ''}>${this.voteSent ? 'VOTE SENT / 대기' : 'REMATCH / 다시 플레이 · R'}</button>`
+      + `<button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
   }
 
   hideOverlay(): void {
