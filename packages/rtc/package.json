@@ -1,6 +1,6 @@
 {
   "name": "@tikron/rtc",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "WebRTC helpers for Tikron — RtcLink (perfect negotiation, ICE-restart budget, signal queueing) plus a Worker /api/ice handler that mints TURN credentials from your own Cloudflare key.",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
