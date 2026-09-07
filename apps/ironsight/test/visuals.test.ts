@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RemoteWeapon } from "../client/remote-weapon.js";
 import { loadWeaponModel, weaponMuzzle } from "../client/weapon-loader.js";
+import { splitRifleMagazine } from '../client/rifle-magazine.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 vi.mock("../client/weapon-loader.js", async importOriginal => ({
   ...await importOriginal<typeof import("../client/weapon-loader.js")>(),
   loadWeaponModel: vi.fn(),
@@ -92,5 +94,27 @@ describe("remote weapon presentation", () => {
     const tip = weaponMuzzle(group);
     expect(tip.x).toBeCloseTo(0.2); expect(tip.y).toBeCloseTo(0.3); expect(tip.z).toBeCloseTo(1.5);
     body.geometry.dispose(); barrel.geometry.dispose();
+  });
+});
+
+describe('reload component ownership', () => {
+  it('extracts whole drum/bolt components across UV seams without dropping triangles', () => {
+    const parts = [new THREE.BoxGeometry(0.15, 0.1, 0.9),
+      new THREE.BoxGeometry(0.1, 0.16, 0.10).translate(0, -0.10, 0.18),
+      new THREE.BoxGeometry(0.05, 0.02, 0.04).translate(-0.03, 0.07, 0)];
+    const source = mergeGeometries(parts)!; const sourceIndices = source.index!.array.slice();
+    const group = new THREE.Group(), mesh = new THREE.Mesh(source); group.add(mesh);
+    const split = splitRifleMagazine(group);
+    expect(split.magazine.children).toHaveLength(1); expect(split.bolt.children).toHaveLength(1);
+    expect(split.owned.reduce((count, g) => count + g.index!.count, 0)).toBe(source.index!.count);
+    expect(source.index!.array).toEqual(sourceIndices);
+    expect((split.magazine.children[0] as THREE.Mesh).geometry.index!.count).toBe(36);
+    split.owned.forEach(g => g.dispose()); parts.forEach(g => g.dispose()); source.dispose();
+  });
+  it('an unfamiliar rifle keeps its complete source geometry', () => {
+    const group = new THREE.Group(), source = new THREE.BoxGeometry(1, 1, 1), mesh = new THREE.Mesh(source); group.add(mesh);
+    const split = splitRifleMagazine(group);
+    expect(split.owned).toHaveLength(0); expect(mesh.geometry).toBe(source);
+    source.dispose();
   });
 });

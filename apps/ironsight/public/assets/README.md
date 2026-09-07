@@ -34,5 +34,27 @@ material and one image. Run `pnpm audit:assets` to verify the deployed size limi
 
 UAL inventory checked in session 1: the installed `UAL1_Standard.glb` contains
 43 animations, including six pistol clips but **no rifle-hold clips**. The active
-player has nine locomotion/reaction clips. Do not claim rifle retargeting is done;
-see `AAA-PLAN.md` for the next session's authored-pose fallback.
+player retains its nine original locomotion/reaction clips. Session 2 adds six original authored rifle
+upper-body tracks over that existing lower-body locomotion; these are not rifle
+clips from UAL. AR uses them; other slots retain the original attachment fallback.
+
+Rebuild and verify the private operator from the original local mirror (run from
+`apps/ironsight`; no Blender/exporter dependency and no source files copied):
+
+```powershell
+node tools/bake-rifle-hold.mjs --source D:/game-assets/ironsight-synty-derived/models/player.glb
+node scripts/audit-rifle.mjs --source D:/game-assets/ironsight-synty-derived/models/player.glb
+```
+
+Source SHA-256: `691a8d8ed1a3d7ef3cc546dd16406b18b36257994a0946e1200349da9dc8f861`.
+The ignored output remains `models/player.glb`: **1,406,708 bytes**, nine original
+clips plus `rifle_idle/walk/run/sprint/crouch_idle/crouch_walk`. The audit verifies
+8,988 unit quaternion samples, unchanged mesh/skin/image data, all original clips
+and all lower-body samplers. Reports are `.inspect/rifle-bake.json` and
+`.inspect/rifle-audit.json`. Never version the output or the inspection backups.
+
+First-person gloves/forearms are original procedural geometry. The AR drum and
+charging handle are separated at runtime into complete welded components, keeping
+the cached purchased mesh immutable. No extra purchased derivative is exported.
+Undertow uses original procedural blockout geometry only; it never requests the
+legacy `arena2-dressing.glb`. That older bundle remains local for rollback.

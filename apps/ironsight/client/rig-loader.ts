@@ -76,6 +76,8 @@ export interface PlayerRigModel {
   readonly hitHeadDuration: number | undefined;
   /** Crossfades to `state`. A no-op once "death" has played (terminal) — see {@link forceIdle}. */
   setState(state: LocomotionState): void;
+  /** Uses private baked rifle clips when present; old assets retain fallback. */
+  setRifleHold(enabled: boolean): void;
   /** Snaps directly back to "idle", bypassing the death lock — used on the respawn edge,
    *  where the rig is about to become visible again and a lingering fade would show. */
   forceIdle(): void;
@@ -87,6 +89,7 @@ export interface PlayerRigModel {
    *  Diagnostic-only: for comparing the server's assumed hit-volume placement
    *  against where the rig is actually rendered (hitbox/visual audit). */
   getHeadWorldPos(out: THREE.Vector3): void;
+  getFootWorldY(): number | undefined;
 }
 
 /** Clones a fresh, independently-posable instance of `gltf` (SkeletonUtils.clone,
@@ -98,8 +101,13 @@ export interface PlayerRigModel {
 export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const object = cloneSkeleton(gltf.scene) as THREE.Object3D;
   const headBone = object.getObjectByName("head"); // Synty/UAL Epic-style skeleton naming
+  const feet = ['Foot_L', 'Foot_R', 'ball_l', 'ball_r', 'toes_l', 'toes_r']
+    .map(name => object.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone);
+  const footPosition = new THREE.Vector3();
   const mixer = new THREE.AnimationMixer(object);
   const actions = new Map<LocomotionState, THREE.AnimationAction>();
+  const rifleActions = new Map<LocomotionState, THREE.AnimationAction>();
+  let rifle = true;
   for (const s of [
     "idle",
     "walk",
@@ -119,6 +127,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
       action.clampWhenFinished = true;
     }
     actions.set(s, action);
+    const hold = THREE.AnimationClip.findByName(gltf.animations, `rifle_${s}`);
+    if (hold) rifleActions.set(s, mixer.clipAction(hold));
   }
   const deathDuration = actions.get("death")?.getClip().duration;
   const hasCrouchClips = actions.has("crouch_idle") || actions.has("crouch_walk");
@@ -132,7 +142,7 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   let state: LocomotionState = "idle";
 
   const play = (next: LocomotionState, restart = false): void => {
-    const action = actions.get(next);
+    const action = (rifle ? rifleActions.get(next) : undefined) ?? actions.get(next);
     if (!action) return;
     if (action === current && !restart) return;
     action.reset().fadeIn(CROSSFADE_SEC).play();
@@ -140,6 +150,7 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     current = action;
   };
   play("idle");
+  object.userData.rifleHold = rifleActions.size > 0;
 
   return {
     object,
@@ -150,6 +161,12 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     hasHitHeadClip,
     hitChestDuration,
     hitHeadDuration,
+    setRifleHold(enabled): void {
+      if (rifle === enabled) return;
+      rifle = enabled;
+      object.userData.rifleHold = rifle && rifleActions.size > 0;
+      play(state);
+    },
     setState(next: LocomotionState): void {
       if (state === "death") return; // terminal until forceIdle()
       const restart = ONE_SHOT_STATES.includes(next);
@@ -159,8 +176,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     },
     forceIdle(): void {
       state = "idle";
-      for (const action of actions.values()) action.stop();
-      const idle = actions.get("idle");
+      for (const action of [...actions.values(), ...rifleActions.values()]) action.stop();
+      const idle = (rifle ? rifleActions.get("idle") : undefined) ?? actions.get("idle");
       if (idle) {
         idle.reset().play();
         idle.weight = 1;
@@ -172,6 +189,12 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     },
     getHeadWorldPos(out: THREE.Vector3): void {
       headBone?.getWorldPosition(out);
+    },
+    getFootWorldY(): number | undefined {
+      if (!feet.length) return undefined;
+      let y = Infinity;
+      for (const bone of feet) { bone.getWorldPosition(footPosition); y = Math.min(y, footPosition.y); }
+      return y;
     },
   };
 }

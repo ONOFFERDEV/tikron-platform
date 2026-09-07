@@ -140,9 +140,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // Relay changes solid geometry. Pre-rebuild snapshots intentionally start a
+  // Relay/Undertow change solid geometry. Pre-rebuild snapshots intentionally start a
   // fresh match via Room's default null migration; old positions may be in walls.
-  protected override stateVersion = 2;
+  protected override stateVersion = 3;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -226,7 +226,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
    *  modes.ts's `mapForRoom`, the single source of truth both this room and the
    *  client resolve the practice map through). */
   private readonly map: MapDef = mapForRoom(this.gameMode.id, this.id);
-  private readonly navigator = this.map.presentation === "relay" ? new GroundNavigator(this.map) : undefined;
+  private readonly navigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
   private readonly boxes: readonly Box[] = this.map.boxes;
   /** `boxes` plus each ramp's old step-box approximation (see
    *  {@link rampOccluderBoxes}) — used ONLY for hit-scan/LoS occlusion, never

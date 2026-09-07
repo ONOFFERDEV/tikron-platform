@@ -29,7 +29,7 @@ export class RemoteWeapon {
   private readonly q = new THREE.Quaternion();
   private readonly parentQ = new THREE.Quaternion();
 
-  constructor(private readonly group: THREE.Group, root?: THREE.Object3D) {
+  constructor(private readonly group: THREE.Group, private readonly root?: THREE.Object3D) {
     this.hand = root?.getObjectByName("Hand_R");
     group.updateWorldMatrix(true, true);
     if (this.hand) {
@@ -100,7 +100,25 @@ export class RemoteWeapon {
       this.mount.rotation.x = -pitch;
       return;
     }
-    // Only the attachment cancels hand orientation; never force a wrist into bind roll.
+    // Baked hold: a bounded additive aim swing preserves the authored wrists and
+    // fingers. No online reach solver is used for this path.
+    if (this.root?.userData.rifleHold && holding && arms) {
+      const aim = THREE.MathUtils.clamp(pitch, -0.65, 0.65);
+      this.group.getWorldQuaternion(this.q);
+      this.direction.copy(this.pitchAxis).applyQuaternion(this.q);
+      for (const arm of this.arms) {
+        arm.upperPose.copy(arm.upper.quaternion); arm.lowerPose.copy(arm.lower.quaternion);
+        this.q.setFromAxisAngle(this.direction, -aim);
+        arm.upper.getWorldQuaternion(this.parentQ); this.q.multiply(this.parentQ);
+        arm.upper.parent!.getWorldQuaternion(this.parentQ).invert();
+        arm.upper.quaternion.copy(this.parentQ).multiply(this.q);
+        arm.upper.updateWorldMatrix(false, true);
+      }
+      this.overridden = true;
+      this.orientMount(aim);
+      return;
+    }
+    // Legacy diagnostic reach is opt-in only; attachment-only remains fallback.
     const blend = holding && arms ? THREE.MathUtils.clamp(holdBlend, 0, 0.9) : 0;
     if (blend) {
       for (const arm of this.arms) {
@@ -133,6 +151,15 @@ export class RemoteWeapon {
     this.mount.quaternion.copy(this.parentQ).multiply(this.q);
     this.hand.getWorldScale(this.a);
     this.mount.scale.set(1 / Math.max(0.001, this.a.x), 1 / Math.max(0.001, this.a.y), 1 / Math.max(0.001, this.a.z));
+    this.mount.position.set(0, 0, 0);
+    if (this.root?.userData.rifleHold) {
+      this.hand.getWorldPosition(this.target);
+      this.group.getWorldQuaternion(this.q);
+      this.parentQ.setFromAxisAngle(this.pitchAxis, -pitch); this.q.multiply(this.parentQ);
+      this.b.set(0.025, 0.14, 0.12).applyQuaternion(this.q);
+      this.target.add(this.b); this.hand.worldToLocal(this.target);
+      this.mount.position.copy(this.target);
+    }
     this.mount.updateWorldMatrix(true, true);
   }
 

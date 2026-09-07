@@ -11,6 +11,9 @@ const base = new URL(option('--url', 'http://localhost:8787'));
 const weapons = option('--weapons', '0,3').split(',').map(Number);
 if (weapons.some(w => !Number.isInteger(w) || w < 0 || w > 4)) throw Error('Weapons must be 0..4');
 const prefix = option('--prefix', 'rig');
+const pose = option('--pose', 'idle');
+const selectedAngles = option('--angles', 'front,right,left,back,three-quarter,top-down,hands,hands-right').split(',');
+const armModes = option('--arms', '1,0').split(',').map(Number);
 if (!/^[\w-]+$/.test(prefix)) throw Error('Invalid filename prefix');
 const output = fileURLToPath(new URL('../.inspect/', import.meta.url));
 await mkdir(output, { recursive: true });
@@ -26,6 +29,7 @@ let ws;
 const pending = new Map();
 let sequence = 0;
 const forbiddenNetwork = [];
+const errors = [];
 function send(method, params = {}) {
   return new Promise((resolve, reject) => {
     const id = ++sequence;
@@ -47,6 +51,9 @@ try {
   await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
   ws.onmessage = event => {
     const message = JSON.parse(event.data), request = pending.get(message.id);
+    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails);
+    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(message.params.args);
+    if (message.method === 'Network.responseReceived' && message.params.response.status >= 400) errors.push(message.params.response);
     if (message.method === "Network.webSocketCreated" ||
         (message.method === "Network.requestWillBeSent" && /\/api\/matchmake/.test(message.params.request.url)))
       forbiddenNetwork.push(message.params);
@@ -57,13 +64,14 @@ try {
   };
   await send('Page.enable');
   await send('Network.enable');
+  await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 900, deviceScaleFactor: 1, mobile: false });
   const angles = [ ['front', 0, 10, 2.2], ['right', 90, 10, 2.2], ['left', -90, 10, 2.2],
     ['back', 180, 10, 2.2], ['three-quarter', 35, 10, 2.2], ['top-down', 0, 80, 2.2], ['hands', 35, 10, 1], ['hands-right', -35, 10, 1] ];
   let timedOut = false;
-  for (const weapon of weapons) for (const arms of [1, 0]) for (const [name, yaw, pitch, dist] of angles) {
+  for (const weapon of weapons) for (const arms of armModes) for (const [name, yaw, pitch, dist] of angles.filter(a => selectedAngles.includes(a[0]))) {
     const url = new URL(base);
-    for (const [key, value] of Object.entries({ inspect: 'rig', weapon, arms, yaw, pitch, dist })) url.searchParams.set(key, String(value));
+    for (const [key, value] of Object.entries({ inspect: 'rig', weapon, arms, yaw, pitch, dist, pose })) url.searchParams.set(key, String(value));
     await send('Runtime.evaluate', { expression: 'window.__inspectReady = false' });
     await send('Page.navigate', { url: url.href });
     let ready = false;
@@ -81,6 +89,8 @@ try {
     console.log(file);
   }
   if (forbiddenNetwork.length) throw Error("Inspector opened gameplay network connections");
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ pose, weapons, angles: selectedAngles, armModes, errors, forbiddenNetwork }, null, 2));
+  if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (timedOut) process.exitCode = 1;
 } finally {
   if (ws?.readyState === WebSocket.OPEN) {

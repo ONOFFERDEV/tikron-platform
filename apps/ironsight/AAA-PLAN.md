@@ -183,6 +183,9 @@ and health, map callout, clear pause/reconnect/death states, reduced clutter.
 - **M2 — authored operator and combat feel:** authored rifle grip proof using available UAL locomotion, viewmodel hand
   setup/reload, muzzle alignment, audio mix, playtest firing/reload/respawn; retain
   verified hit rules. Undertow shared collision blockout + walk/LOS gates.
+  **Session 2: AR hold/first-person/reload proof and Undertow blockout delivered.**
+  Animation acceptance remains open: finger contact, directional strafes, full aim
+  extremes, other weapon fits and ADS framing need a further visual polish pass.
 - **M3 — complete two-map art pass:** Undertow industrial kit, Relay hero prop and
   baked grounding, map callouts/minimap, map selection presentation. Measure both.
 - **M4 — match experience:** redesigned HUD, end round, rematch and onboarding;
@@ -202,6 +205,8 @@ None blocking M1. Hardware perf tooling, map art, snapshot handling and animatio
 are game responsibilities. Do not request UDP or change SDK transport for this plan.
 
 ## Questions for the owner (defaults are active)
+
+Session 2: no new blocking questions; the three defaults below remain active.
 
 1. Visual tone: industrial daylight or neon night? **Default: industrial daylight.**
 2. Primary match: 6v6 respawn or elimination? **Default: 6v6 TDM; DOM secondary.**
@@ -285,3 +290,81 @@ current bot fill is four total combatants, not an automatic 12-player stress mat
 Next session: M2 authored rifle hold and first-person weapon/hand alignment proof,
 then reload/feedback and Undertow shared blockout. Keep the control smoke and all
 server gates green; do not trade verified hit registration for visual plausibility.
+
+### Session 2 — 2026-09-07
+
+Continued M2 in apps/ironsight only. No git commands, real deployments or new
+dependencies. Purchased source remained outside the repository; generated player
+GLB and every purchased derivative remain ignored. Supervisor owns preview release.
+
+Delivered:
+- Original authoring tool appends six baked rifle upper-body clips over the nine
+  intact original locomotion/reaction clips. AR selects the authored actions;
+  other weapons and missing-clip assets retain the original fallback. Authored
+  wrist/finger rotations and additive arm pitch replace guessed default IK.
+  Crouch feet anchor visually to the authoritative floor after animation.
+- Original procedural first-person gloves/forearms, adjusted AR scale and muzzle
+  alignment, server-acknowledged reload presentation, intact removable drum and
+  charging handle, and short synthesized magazine/bolt cues. Complete welded
+  components are copied at runtime; cached purchased geometry stays immutable.
+  Reload cancels on death; dead players hide the viewmodel and leave ADS.
+- Undertow shared mirrored blockout: 22 solid volumes, four traversable ramps,
+  eight spawn positions, two exits per deployment and three capture areas. Both
+  server navigation and rendering use the same map. Procedural daylight blockout
+  and callouts replace legacy dressing; full industrial art is M3 work.
+- Standing sightline sweep through B (720 directions) has a longest chord of
+  17.03 m, below the 28 m target. Symmetric home/center/opposing capture ETAs are
+  2.67/5.33/8.33 s. Added diagonal baffles after an initial sweep found a long lane.
+  Fixed a low ramp-to-floor seam in shared movement without changing high ledge
+  exits or jumping. Snapshot version 3 intentionally resets incompatible matches.
+- Offline first-person/reload inspector, rig pose/close-up controls, and stronger
+  live control smoke covering reload phases, blocked firing, death and respawn.
+  RTT fixture now disables filler bots and seeds spread; all hit assertions remain.
+
+Final serial gates: typecheck PASS; test PASS **278 passed + 3 existing skips**
+(23 passed files + 1 skipped; 18 more passing tests than session 1); build:client
+PASS; build PASS (Worker dry-run 231.77 KiB, gzip 69.01 KiB). Server hit verification
+and combat rules remain authoritative. Asset audit PASS: 4,558,998 asset bytes,
+10,238,904 public bytes, largest file 3,952,174 bytes. Private rig audit verifies
+8,988 unit quaternion samples and unchanged original mesh/skin/image/lower-body data.
+Reproducible commands and source hash are in public/assets/README.md.
+
+Headless acceptance: 21 views/flows, zero console/runtime/HTTP errors and zero
+forbidden offline network requests. Live input moved 2.7 m, scored one verified
+kill, reloaded 26 -> 30 through all phases, blocked firing during reload and saw
+the target respawn. Self-grenade death during reload recovered to 100 HP with
+reload idle. A final center-camera-only rerun also passed after visual review
+found the old inspector viewpoint inside a newly added baffle.
+
+Measured at 1920 x 1080 balanced, Edge/RTX 5070 (desktop, not iGPU acceptance):
+
+| View | Steady calls / triangles | Peak calls | Texture estimate |
+|---|---|---|---|
+| Relay overview | 24 / 20,686 | 42 | 16.35 MiB |
+| Eleven remote operators | 55 / 70,920 | 84 | 59.08 MiB |
+| Undertow overview | 15 / 1,360 | 25 | 10.69 MiB |
+| Undertow center | 12 / 1,348 | 22 | 10.69 MiB |
+
+Stress frame intervals: median 6.9 ms / p95 7.1 ms over 120 samples. First-person
+AR view is 31 calls / 23,002 triangles. M5 still requires actual mid-laptop iGPU
+and 12-player effects stress; no 60 fps hardware acceptance claim is made here.
+
+Opened and reviewed final screenshots in .inspect:
+- session2-accepted-rig-w0-arms1-{front,hands,hands-right}.png
+- session2-accepted-{crouch,walk,run}-w0-arms1-right.png
+- session2-accepted-{weapon,weapon-ads,reload-out,self-death}.png
+- session2-accepted-undertow-overview.png; session2-final-undertow-center.png
+
+Reports: session2-accepted-report.json, session2-final-report.json and corresponding
+rig reports. Rejected sliced-magazine geometry, several wrist/finger iterations,
+floating crouch and the blocked inspector camera before these final captures.
+Remaining: grip fingers are still bulky; directional strafe clips, full aim-range
+contact, other weapon hands, ADS sight framing and refined reload timing are not
+final animation acceptance. Undertow remains a deliberately simple blockout.
+
+Next session: finish M2 animation acceptance (grip/ADS contact, directional strafes
+and aim extremes), then start M3 Undertow industrial art and Relay hero grounding.
+Keep the same three owner defaults. SDK requests: none.
+
+Cleanup verified: owned preview pnpm/Wrangler, both workerd children and esbuild
+services stopped; no inspection Edge processes or port 8796 listener remain.

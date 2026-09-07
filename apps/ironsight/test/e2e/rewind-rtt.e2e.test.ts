@@ -65,6 +65,8 @@ const RTTS = [0, 100, 200] as const;
  */
 function arenaWithRewind(lagInterpMs: number): typeof ArenaRoomImpl {
   return class extends ArenaRoomImpl {
+    protected override fillToPlayers = 0; // no third-party bot damage in the measured cells
+    protected override startInWarmup = false;
     protected override spawnProtectMs = 0; // targets must be hittable immediately
     constructor(...args: ConstructorParameters<typeof ArenaRoomImpl>) {
       super(...args);
@@ -129,8 +131,15 @@ const rate: Record<number, { on: number; off: number }> = {};
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(3_000_000);
+  // Fake timers alone do not seed the weapon spread stream. Each RTT cell must
+  // use the same spread sequence for a controlled ON/OFF comparison.
+  vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => {
+    if (array) new Uint32Array(array.buffer, array.byteOffset, 1)[0] = 0x12345678;
+    return array;
+  });
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 

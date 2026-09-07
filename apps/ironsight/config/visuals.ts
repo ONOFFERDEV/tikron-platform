@@ -17,7 +17,7 @@ export const VISUALS = {
     recoilSettleMs: 95, recoilBack: 0.065, recoilPitch: 0.13,
     adsResponse: 14, adsDepth: -0.40, adsMotion: 0.12, adsSightClearance: 0.012,
     swapDrop: 0.42, swapPitch: -0.65,
-    breathAmplitude: 0.0015, breathRate: 1.8, hands: false,
+    breathAmplitude: 0.0015, breathRate: 1.8, hands: true,
   },
   // Attachment-only fallback: current locomotion clips have open, unarmed hands.
   // Enable the bounded reach explicitly in the inspector with &blend=0.85.

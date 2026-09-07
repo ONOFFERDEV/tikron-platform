@@ -20,6 +20,10 @@ export function startMapInspector(): void {
     spawn: [5, 1.65, 15, 23, 1.8, 20],
     vista: [45, 13, 37, 26, 4.2, 10],
     stress: [8, 1.65, 11, 35, 1.5, 11],
+    'undertow-overview': [52, 38, 57, 29, 0, 19],
+    'undertow-home': [15, 1.65, 21, 28, 1.6, 17],
+    'undertow-center': [30, 1.65, 20, 33, 2, 12],
+    'undertow-deck': [17, 2.85, 9, 30, 1.6, 20],
   };
   const shot = shots[params.get("shot") ?? "overview"] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);

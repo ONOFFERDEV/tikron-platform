@@ -13,6 +13,7 @@
 import { parseRigInspect } from "./rig-inspect-query.js";
 import { startRigInspector } from "./rig-inspect.js";
 import { startMapInspector } from "./map-inspect.js";
+import { startWeaponInspector } from "./weapon-inspect.js";
 import { TacticalMap } from "./tactical-map.js";
 import { Net, type ShotEvent } from "./net.js";
 import { Input } from "./input.js";
@@ -22,7 +23,7 @@ import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
-import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap } from "./audio.js";
+import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
@@ -49,6 +50,7 @@ const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reload
 
 async function main(): Promise<void> {
   if (new URLSearchParams(location.search).get("inspect") === "map") { startMapInspector(); return; }
+  if (new URLSearchParams(location.search).get("inspect") === "weapon") { startWeaponInspector(); return; }
   const inspect = parseRigInspect(location.search);
   if (inspect) { startRigInspector(inspect); return; }
   // Single shared store: Input reads live sensitivity/invertY/binds from it every
@@ -88,6 +90,7 @@ async function main(): Promise<void> {
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
   // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
+  scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map);
 
   const input = new Input(
@@ -135,6 +138,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    viewmodelInfo: () => scene.viewmodelDiagnostics(),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
     hitboxDiag: () => scene.getHitboxDiagnostics(),
   };
@@ -173,6 +177,7 @@ async function main(): Promise<void> {
   let reloadUntil = -1; // performance.now()-based; -1 = not reloading
   let swapUntil = -1; // performance.now()-based; -1 = no pending swap cooldown
   net.onAmmo((e) => {
+    scene.setReload(e.reloadMs ?? 0, WEAPONS[e.weapon - 1]?.reloadMs ?? e.reloadMs ?? 1);
     hud.setAmmo(e.mag, e.reserve, e.reloadMs);
     mag = e.mag;
     reloadUntil = e.reloadMs ? performance.now() + e.reloadMs : -1;
@@ -274,6 +279,7 @@ async function main(): Promise<void> {
         // fire/reload/switch (see the `mag` declaration above).
         mag = null;
         reloadUntil = -1;
+        scene.setReload(0, 1);
         swapUntil = -1;
       }
       prevHp = me.hp;
@@ -403,7 +409,7 @@ async function main(): Promise<void> {
     } else {
       scene.setView(eye, input.yaw, input.pitch);
     }
-    onAds(input.adsHeld);
+    onAds(alive && input.adsHeld);
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
     prevYaw = input.yaw;
@@ -414,6 +420,7 @@ async function main(): Promise<void> {
       ? Math.min(1, travelled / (dt / 1000) / GAME.move.sprint) : 0;
     motionX = eye.x; motionZ = eye.z;
     scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
+    if (!alive) scene.hideViewmodel();
     scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);
 
     // Remote players interpolated in the past.

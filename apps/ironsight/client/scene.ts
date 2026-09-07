@@ -18,6 +18,9 @@ import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { RemoteWeapon } from "./remote-weapon.js";
+import { ViewmodelHands } from "./viewmodel-hands.js";
+import { ReloadPresentation, reloadPose } from "./reload-presentation.js";
+import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
 import { Vfx, makeFlashTexture } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
@@ -25,6 +28,7 @@ import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionSt
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
+import { buildUndertowEnvironment } from "./undertow-environment.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
@@ -132,7 +136,7 @@ interface WeaponVmTransform {
  * Math.PI` flip (this viewmodel's own forward is -Z) needs no change.
  */
 const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
-  0: { scale: 0.45, posZ: -0.3, muzzleZ: -0.543 }, // AR — SM_Wep_Rifle_Base_01 (localMaxZ 0.54)
+  0: { scale: 0.65, posZ: -0.24, muzzleZ: -0.591 }, // AR — SM_Wep_Rifle_Base_01 (localMaxZ 0.54)
   1: { scale: 0.75, posZ: -0.3, muzzleZ: -0.552 }, // SMG — swapped to SM_Wep_MachinePistol_Gen1_01 (localMaxZ 0.336): the original SM_Wep_SMG_01's open carry-handle silhouette didn't read as a weapon at a glance; is-armfix independently re-measured (not just eyeballed) and found no real roll defect on either candidate, so the swap is purely a readability call. Scale started from this asset's own bounds (closer to Pistol's than to a long gun) rather than reused from the old SMG_01 entry — different mesh, not comparable.
   2: { scale: 0.5, posZ: -0.3, muzzleZ: -0.63 }, // Shotgun — swapped to SM_Wep_Rifle_Laser_01 (localMaxZ 0.661, nearly identical overall length to the old Shotgun_Plasma_01 so scale carried over as a starting point, muzzleZ re-derived fresh from this asset's own measured bounds, not reused) — this asset's own auto-orient pass genuinely had the muzzle backwards (is-armfix manually corrected with --flip_muzzle); re-verified independently in-game before shipping, see is-anim's report. The muzzle flash sprite's fixed (0, 0.02) local X/Y doesn't visibly land on this mesh's bore (its Y bounds aren't centered on 0 like the other 4 weapons) — cosmetic only, confirmed via instrumented timing that the flash itself fires correctly; tracer/casing/rotation all unaffected.
   3: { scale: 0.38, posZ: -0.3, muzzleZ: -0.631 }, // Sniper — SM_Wep_Sniper_01 (localMaxZ 0.87)
@@ -351,10 +355,19 @@ export class SceneRig {
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
+  private readonly hands = new ViewmodelHands();
+  private readonly reload = new ReloadPresentation();
+  private magazine?: THREE.Group;
+  private bolt?: THREE.Group;
+  private readonly weaponGeometry: THREE.BufferGeometry[] = [];
+  private reloadPhase = 'idle';
+  private inspectionReload: number | null | undefined;
+  private reloadCue?: (phase: string) => void;
   // Whether weaponHolder's current child is a cloned GLB (shared/cached geometry
   // + material, never disposed) or a procedural buildWeaponMesh() (fresh
   // BoxGeometry per call, must be disposed) — see setWeaponVisual/disposeCurrentWeaponMesh.
   private weaponIsModel = false;
+  private weaponGeneration = 0;
   private sightHeight = 0.1;
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
@@ -396,7 +409,7 @@ export class SceneRig {
 
   constructor(map: MapDef, container: HTMLElement = document.body,
     options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
-    const relay = map.presentation === "relay";
+    const relay = !!map.presentation; // shared industrial daylight lighting
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.hitBoxes = [...map.boxes, ...this.ramps.flatMap(rampOccluderBoxes)];
@@ -479,7 +492,8 @@ export class SceneRig {
     // by matching object identity against GAME.maps, which is keyed by exactly
     // those ids and holds the same ARENA1/ARENA2 references mapForMode returns.
     const mapId = Object.keys(GAME.maps).find((k) => GAME.maps[k] === map);
-    const dressingUrl = relay ? "/assets/maps/relay-skyline.glb" : mapId ? GAME.mapDressing?.[mapId] : undefined;
+    const dressingUrl = map.presentation === 'undertow' ? undefined
+      : relay ? "/assets/maps/relay-skyline.glb" : mapId ? GAME.mapDressing?.[mapId] : undefined;
     if (dressingUrl) {
       this.environmentLoading = true;
       loadMapDressing(dressingUrl).then((gltf) => {
@@ -518,8 +532,9 @@ export class SceneRig {
   // --- arena ------------------------------------------------------------------
 
   private buildArena(map: MapDef): void {
-    if (map.presentation === "relay") {
-      buildRelayEnvironment(this.scene, map);
+    if (map.presentation) {
+      if (map.presentation === 'undertow') buildUndertowEnvironment(this.scene, map);
+      else buildRelayEnvironment(this.scene, map);
       const material = new THREE.MeshStandardMaterial({ color: 0x667a7b, roughness: 0.84, side: THREE.DoubleSide });
       for (const r of this.ramps) {
         const mesh = new THREE.Mesh(buildWedgeGeometry(r), material);
@@ -633,6 +648,7 @@ export class SceneRig {
 
   private buildViewmodel(): { group: THREE.Group; muzzle: THREE.Mesh; light: THREE.PointLight } {
     const g = new THREE.Group();
+    g.add(this.hands.group);
     g.add(this.weaponHolder); // the per-weapon mesh is swapped inside this holder
 
     const muzzle = new THREE.Mesh(
@@ -646,22 +662,6 @@ export class SceneRig {
     light.position.set(0, 0.02, -0.74);
     g.add(light);
 
-    // Identity child: only updateViewmodel applies rest/ADS/motion transforms.
-    // Forearms terminate at their gloves; the other endpoint extends below frame.
-    if (MOTION.hands) {
-      for (const [grip, elbow] of [
-        [new THREE.Vector3(0.012, -0.035, -0.30), new THREE.Vector3(0.22, -0.38, -0.06)],
-        [new THREE.Vector3(-0.025, -0.025, -0.44), new THREE.Vector3(-0.24, -0.36, -0.05)],
-      ]) {
-        const glove = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.065), VM_DARK);
-        glove.position.copy(grip!);
-        const delta = elbow!.clone().sub(grip!);
-        const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.034, Math.max(0.01, delta.length() - 0.068), 3, 6), VM_METAL);
-        sleeve.position.copy(grip!).add(elbow!).multiplyScalar(0.5);
-        sleeve.quaternion.setFromUnitVectors(EYE_UP, delta.normalize());
-        g.add(glove, sleeve);
-      }
-    }
     return { group: g, muzzle, light };
   }
 
@@ -679,6 +679,7 @@ export class SceneRig {
     if (index === this.weaponIndex && this.pendingWeapon < 0) return;
     if (index === this.pendingWeapon) return;
     this.pendingWeapon = index;
+    this.reload.sync(0, 1, performance.now());
     this.swapT = performance.now();
   }
 
@@ -693,6 +694,7 @@ export class SceneRig {
    *  procedural mesh — same 2-tier "try once, else stay procedural" pattern
    *  either way, just a different source URL/extraction step. */
   private setWeaponVisual(index: number): void {
+    const generation = ++this.weaponGeneration;
     this.disposeCurrentWeaponMesh();
     const fallback = buildWeaponMesh(index);
     this.sightHeight = new THREE.Box3().setFromObject(fallback).max.y;
@@ -710,7 +712,7 @@ export class SceneRig {
 
     loadWeaponModel(url).then((gltf) => {
       if (!gltf) return; // load failed — weapon-loader already warned once, stay procedural
-      if (this.weaponIndex !== index) return; // player swapped away again before this resolved
+      if (this.weaponIndex !== index || generation !== this.weaponGeneration) return;
 
       const obj = nodeName ? cloneWeaponBundleNode(gltf, nodeName) : cloneWeaponMesh(gltf);
       if (!obj) return; // bundle loaded but this slot's node is missing — stay procedural
@@ -718,6 +720,10 @@ export class SceneRig {
       const bore = weaponMuzzle(obj);
       const sightHeight = new THREE.Box3().setFromObject(obj).max.y * transform.scale;
       this.disposeCurrentWeaponMesh();
+      if (index === 0) {
+        const split = splitRifleMagazine(obj);
+        this.magazine = split.magazine; this.bolt = split.bolt; this.weaponGeometry.push(...split.owned);
+      }
       obj.scale.setScalar(transform.scale);
       obj.rotation.y = Math.PI; // this asset family's +Z-is-muzzle -> this viewmodel's -Z-is-forward
       if (transform.roll) obj.rotation.z = transform.roll; // bore-axis roll correction, see WeaponVmTransform
@@ -742,6 +748,8 @@ export class SceneRig {
    *  (SkeletonUtils-free `Object3D#clone()` in weapon-loader.ts) and must never
    *  be disposed here; only the procedural mesh's fresh-per-call BoxGeometry is. */
   private disposeCurrentWeaponMesh(): void {
+    for (const geometry of this.weaponGeometry) geometry.dispose();
+    this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined;
     for (const child of [...this.weaponHolder.children]) {
       this.weaponHolder.remove(child);
       if (!this.weaponIsModel) {
@@ -760,6 +768,23 @@ export class SceneRig {
   /** Camera FOV this frame (main uses it to scale mouse sensitivity while zoomed). */
   get currentFov(): number {
     return this.fovCur;
+  }
+
+  setReload(remainingMs: number, durationMs: number): void {
+    this.reload.sync(remainingMs, durationMs, performance.now());
+  }
+  onReloadCue(callback: (phase: string) => void): void { this.reloadCue = callback; }
+
+  /** Deterministic inspector calls the same presentation path as gameplay. */
+  inspectViewmodel(progress: number | null, ads: boolean): boolean {
+    this.inspectionReload = progress; this.adsHeld = ads;
+    this.updateViewmodel(100, 0, 0, 0, true);
+    return this.weaponIsModel;
+  }
+  viewmodelDiagnostics() {
+    return { phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
+      magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT,
+      hands: this.hands.group.visible, ...this.getRenderInfo() };
   }
 
   // --- grenades + explosions ----------------------------------------------------
@@ -866,6 +891,19 @@ export class SceneRig {
   updateViewmodel(dtMs: number, speed01: number, dYaw: number, dPitch: number, grounded: boolean): void {
     const dt = clamp(dtMs / 1000, 0, 0.1);
     const now = performance.now();
+    const progress = this.inspectionReload !== undefined ? this.inspectionReload : this.reload.progress(now);
+    const reload = reloadPose(progress);
+    if (reload.phase !== this.reloadPhase) {
+      this.reloadPhase = reload.phase;
+      if (this.inspectionReload === undefined) this.reloadCue?.(reload.phase);
+    }
+    this.hands.update(this.weaponIndex, progress);
+    this.hands.group.visible = MOTION.hands && this.weaponIndex === 0;
+    if (this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
+    if (this.magazine) {
+      this.magazine.position.y = -reload.magazine * 0.34;
+      this.magazine.position.x = -reload.magazine * 0.08;
+    }
     const response = 1 - Math.exp(-dt * MOTION.speedResponse);
     this.motionSpeed += ((grounded ? clamp(speed01, 0, 1) : 0) - this.motionSpeed) * response;
     this.bobPhase += dt * MOTION.bobRate * this.motionSpeed;
@@ -894,8 +932,9 @@ export class SceneRig {
     }
 
     // ADS: ease adsT, drive FOV + centering; sniper hides the gun behind a scope overlay.
-    this.adsT += ((this.adsHeld && this.pendingWeapon < 0 ? 1 : 0) - this.adsT) * (1 - Math.exp(-dt * MOTION.adsResponse));
-    const targetFov = this.adsHeld ? (ADS_FOV[this.weaponIndex] ?? HIP_FOV) : HIP_FOV;
+    const aiming = this.adsHeld && this.pendingWeapon < 0 && progress === null;
+    this.adsT += ((aiming ? 1 : 0) - this.adsT) * (1 - Math.exp(-dt * MOTION.adsResponse));
+    const targetFov = aiming ? (ADS_FOV[this.weaponIndex] ?? HIP_FOV) : HIP_FOV;
     if (Math.abs(targetFov - this.fovCur) > 0.05) {
       this.fovCur += (targetFov - this.fovCur) * (1 - Math.exp(-dt * MOTION.adsResponse));
       this.camera.fov = this.fovCur;
@@ -914,13 +953,13 @@ export class SceneRig {
     this.viewmodel.position.set(
       lerp(pose.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady,
       lerp(pose.y, -this.sightHeight - MOTION.adsSightClearance, ads) +
-        (by + this.swayY + Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude) * steady - swapDip * MOTION.swapDrop,
+        (by + this.swayY + Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
       lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
     this.viewmodel.rotation.set(
-      pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch,
+      pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch + reload.tilt * 0.20,
       pose.yaw * (1 - ads) + this.swayX * steady,
-      Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady,
+      Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady - reload.tilt * 0.40,
     );
 
     if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
@@ -982,6 +1021,7 @@ export class SceneRig {
       rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
       rig.weapon.setWeapon(pose.weapon);
       rig.weapon.beforeAnimation();
+      rig.model?.setRifleHold(pose.weapon === 0);
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now, clip);
       else this.syncCapsuleRig(rig, pose);
       if (rig.contact) {
@@ -1013,11 +1053,21 @@ export class SceneRig {
     const rig = this.players.get("inspect")!;
     if (!rig.model || !rig.weapon) return false;
     rig.weapon.beforeAnimation();
+    rig.model.setRifleHold(arms && pose.weapon === 0);
     rig.model.forceIdle();
     rig.model.setState(clip);
     rig.model.update(0.75); // repeatable clip sample for every camera angle
+    this.groundCrouch(rig, pose.crouch);
     rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms);
     return rig.weapon.loaded;
+  }
+
+  inspectionHandFocus(): THREE.Vector3 | undefined {
+    const root = this.players.get('inspect')?.modelRoot;
+    const left = root?.getObjectByName('Hand_L'), right = root?.getObjectByName('Hand_R');
+    if (!left || !right) return undefined;
+    const point = left.getWorldPosition(new THREE.Vector3()).add(right.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5);
+    point.y += 0.08; point.z += 0.1; return point;
   }
 
   /** Plays a one-shot hit-reaction clip on remote player `id` — headshot uses
@@ -1124,6 +1174,17 @@ export class SceneRig {
       model.setState(clip ?? locomotion);
     }
     model.update(dtSec);
+    this.groundCrouch(rig, pose.crouch);
+  }
+
+  /** The inherited crouch clip lifts both feet in its source root frame. Anchor
+   * its lowest foot to the authoritative floor, without a per-vertex skin scan
+   * or changing collision/hit rules. The six foot bones cost constant work. */
+  private groundCrouch(rig: PlayerRig, crouch: boolean): void {
+    if (!crouch || !rig.model?.hasCrouchClips || !rig.modelRoot) return;
+    rig.modelRoot.position.y = -rig.localMinY! * rig.baseScale!;
+    const footY = rig.model.getFootWorldY();
+    if (footY !== undefined) rig.modelRoot.position.y -= Math.max(0, footY - rig.group.position.y - 0.035);
   }
 
   private makeRig(id: string, team: number): PlayerRig {

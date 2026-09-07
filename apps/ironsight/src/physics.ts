@@ -252,6 +252,21 @@ export function moveAndSlide(
     break;
   }
 
+  // A low-end ramp exit is a continuous floor transition. The final horizontal
+  // step may cross the footprint (including floating-point epsilon), so the
+  // in-footprint glue above cannot catch it. Do not create a one-frame airborne
+  // dip for a grounded walker; jumping and high-side exits remain ballistic.
+  if (!grounded && vyIn <= 0 && y > 0 && y <= stepUp) {
+    for (const r of ramps) {
+      const coord = r.axis === 'x' ? x : z;
+      const low = r.dir === 1 ? (r.axis === 'x' ? r.minX : r.minZ) : (r.axis === 'x' ? r.maxX : r.maxZ);
+      const crossedLow = r.dir === 1 ? coord < low : coord > low;
+      const wasOnLowSlope = insideRampFootprint(pos.x, pos.z, r)
+        && rampSurfaceY(r, pos.x, pos.z) <= stepUp
+        && Math.abs(pos.y - rampSurfaceY(r, pos.x, pos.z)) <= 0.02;
+      if (crossedLow && wasOnLowSlope) { y = 0; vy = 0; grounded = true; break; }
+    }
+  }
   return { pos: { x, y, z }, vy, grounded };
 }
 

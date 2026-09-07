@@ -78,12 +78,16 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['game', 'flow', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three'].includes(name);
+    gameplay = ['game', 'flow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three'].includes(name);
     if (gameplay && name !== 'flow') {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
-    else if (!['menu', 'menu-mobile', 'flow'].includes(name)) { url.searchParams.set('inspect', 'map'); url.searchParams.set('shot', name); }
+    else if (!['menu', 'menu-mobile', 'flow'].includes(name)) {
+      url.searchParams.set('inspect', name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
+      url.searchParams.set('shot', name);
+      if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
+    }
     if (name === 'menu-mobile') await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
     else await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: url.href });
@@ -107,6 +111,28 @@ try {
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
       }
+      if (name === 'self-respawn') {
+        await waitFor('!window.ironsight.state().players[window.ironsight.myId].prot');
+        await evaluate('window.ironsight.look(0,-Math.PI/2+0.001)'); await delay(150);
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'left', clickCount: 1 });
+        await delay(50);
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
+        const key = async (value, code, keyCode) => {
+          await send('Input.dispatchKeyEvent', { type: 'keyDown', key: value, code, windowsVirtualKeyCode: keyCode });
+          await send('Input.dispatchKeyEvent', { type: 'keyUp', key: value, code, windowsVirtualKeyCode: keyCode });
+        };
+        await key('g', 'KeyG', 71); await delay(900); await key('g', 'KeyG', 71);
+        await delay(1800); await key('r', 'KeyR', 82);
+        await waitFor('window.ironsight.viewmodelInfo().phase !== "idle"');
+        await waitFor('!window.ironsight.state().players[window.ironsight.myId].alive');
+        await delay(100);
+        const death = await send('Page.captureScreenshot', { format: 'png' });
+        await writeFile(join(output, `${prefix}-self-death.png`), Buffer.from(death.data, 'base64'));
+        await waitFor('window.ironsight.state().players[window.ironsight.myId].alive');
+        await evaluate('window.ironsight.look(Math.PI/2,0)'); await delay(300);
+        combat = await evaluate('({deaths:window.ironsight.state().players[window.ironsight.myId].d,hp:window.ironsight.state().players[window.ironsight.myId].hp,reloadPhase:window.ironsight.viewmodelInfo().phase})');
+        if (combat.deaths < 1 || combat.hp !== 100 || combat.reloadPhase !== 'idle') throw Error(`Respawn presentation failed: ${JSON.stringify(combat)}`);
+      }
       if (name === 'flow') {
         const before = await evaluate('window.ironsight.state().players[window.ironsight.myId].x');
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
@@ -129,10 +155,27 @@ try {
         const killsAfter = await evaluate('window.ironsight.state().players[window.ironsight.myId].k');
         if (killsAfter <= killsBefore) throw Error('Real-control fire did not produce a server-verified kill');
         const magBefore = await evaluate('document.querySelector("#ammo .mag").textContent');
+        await evaluate('window.__reloadSamples=[]; window.__reloadSampleTimer=setInterval(()=>window.__reloadSamples.push(window.ironsight.viewmodelInfo().phase),20)');
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
+        await waitFor('window.ironsight.viewmodelInfo().phase === "mag-out"');
+        const reloadCapture = await send('Page.captureScreenshot', { format: 'png' });
+        await writeFile(join(output, `${prefix}-flow-reloading.png`), Buffer.from(reloadCapture.data, 'base64'));
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'left', clickCount: 1 });
+        await delay(50);
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
+        const magDuring = await evaluate('document.querySelector("#ammo .mag").textContent');
+        if (magDuring !== magBefore) throw Error('Firing consumed ammo during server reload');
         await waitFor('document.querySelector("#ammo .mag").textContent === "30"');
-        combat = { movedMeters: after - before, serverVerifiedKills: killsAfter - killsBefore, magBeforeReload: magBefore, magAfterReload: 30 };
+        await waitFor('window.ironsight.viewmodelInfo().phase === "idle"');
+        const reloadPhases = await evaluate('clearInterval(window.__reloadSampleTimer); [...new Set(window.__reloadSamples)]');
+        for (const phase of ['mag-out', 'mag-in', 'bolt', 'return', 'idle'])
+          if (!reloadPhases.includes(phase)) throw Error(`Missing live reload phase ${phase}: ${reloadPhases}`);
+        await waitFor('window.ironsight.state().players["bot-idle"].alive');
+        const targetRespawned = await evaluate('window.ironsight.state().players["bot-idle"].hp === 100 && window.ironsight.state().players["bot-idle"].d > 0');
+        if (!targetRespawned) throw Error('Target did not respawn after verified kill');
+        combat = { movedMeters: after - before, serverVerifiedKills: killsAfter - killsBefore,
+          magBeforeReload: magBefore, magAfterReload: 30, reloadPhases, fireDuringReloadBlocked: true, targetRespawned };
       }
     }
     const report = (await send('Runtime.evaluate', { expression: gameplay ? '({ ...window.ironsight.renderInfo(), players: Object.keys(window.ironsight.state().players).length, hp: window.ironsight.state().players[window.ironsight.myId].hp })' : 'window.__mapInspect ?? null', returnByValue: true })).result?.value;

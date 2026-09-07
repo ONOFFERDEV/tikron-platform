@@ -26,6 +26,12 @@ export function startRigInspector(options: RigInspectOptions): void {
   let frames = 0;
   const frame = () => {
     const ready = scene.inspectRig(pose, clip, options.blend, options.arms);
+    const focus = options.dist <= 1.1 ? scene.inspectionHandFocus() : undefined;
+    if (focus) {
+      scene.camera.position.set(focus.x + Math.sin(yaw) * Math.cos(pitch) * options.dist,
+        focus.y + Math.sin(pitch) * options.dist, focus.z + Math.cos(yaw) * Math.cos(pitch) * options.dist);
+      scene.camera.lookAt(focus);
+    }
     scene.render();
     if (ready && ++frames >= 2) flags.__inspectReady = true;
     else requestAnimationFrame(frame);

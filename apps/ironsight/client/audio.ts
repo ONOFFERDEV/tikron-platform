@@ -10,6 +10,21 @@ import { GAME } from "../src/game-config.js";
 const MUTED_KEY = "iron_muted";
 const A = GAME.audio;
 
+/** Short mechanical cues at presentation phase boundaries. No scheduled tails
+ * survive death/swap; each transient releases and disconnects within 90 ms. */
+export function playReloadCue(phase: string): void {
+  const frequencies: Record<string, number> = { 'mag-out': 380, 'mag-in': 620, bolt: 1150 };
+  const frequency = frequencies[phase];
+  if (!frequency) return;
+  const c = ready(); if (!c || !master) return;
+  const t = c.currentTime, osc = c.createOscillator(), gain = c.createGain();
+  osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, t);
+  osc.frequency.exponentialRampToValueAtTime(frequency * 0.45, t + 0.06);
+  gain.gain.setValueAtTime(0.09, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  osc.connect(gain).connect(master); osc.start(t); osc.stop(t + 0.09);
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+}
+
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;

@@ -69,7 +69,9 @@ export class TacticalMap {
     if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
     const name = this.map.presentation === "relay"
       ? me.x < 14 ? "WEST SERVICE" : me.x > 46 ? "EAST SERVICE" : me.z < 12 ? "01 / COOLING" : me.z > 28 ? "03 / FREIGHT" : "02 / RELAY"
-      : "FIELD OPERATIONS";
+      : this.map.presentation === 'undertow'
+        ? me.x < 13 ? 'WEST SERVICE' : me.x > 47 ? 'EAST SERVICE' : me.x < 22 ? 'A / WEST CONTROL' : me.x > 38 ? 'C / EAST CONTROL' : 'B / PUMP HALL'
+        : "FIELD OPERATIONS";
     if (this.label.textContent !== name) this.label.textContent = name;
   }
 }
