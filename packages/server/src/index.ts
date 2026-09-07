@@ -17,6 +17,7 @@ export type {
   InputMeta,
   AOIConfig,
   AOITier,
+  RelayConfig,
   RoomServices,
   LeaderboardSubmit,
   ScoreMode,

@@ -33,6 +33,16 @@ export interface DropCounts {
   oversizedBatch: number;
   /** Messages whose `type` had no registered handler (usually a typo'd type). */
   unknownType: number;
+  /**
+   * Relay frames refused by the relay's OWN per-connection budget (`relay.perSecond`),
+   * which is separate from `rateLimited` — an ICE burst and a gameplay input stream
+   * never draw down each other's allowance.
+   */
+  relayRateLimited: number;
+  /** Relay frames whose JSON-encoded payload exceeded `relay.maxBytes`. */
+  relayOversized: number;
+  /** Relay frames addressed to a `to` that is not a seated client in this room. */
+  relayBadTarget: number;
 }
 
 /** The `tk:stats` reply payload — the wire contract the loadtest harness parses. */

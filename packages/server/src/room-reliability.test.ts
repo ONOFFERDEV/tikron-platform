@@ -378,7 +378,15 @@ describe("F119 drop diagnostics", () => {
     const reply = conn.frames().find((f) => f.type === "tk:stats");
     expect(reply).toBeDefined();
     const payload = reply!.payload as PerfSnapshot;
-    expect(payload.drops).toEqual({ rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 1 });
+    expect(payload.drops).toEqual({
+      rateLimited: 0,
+      staleSeq: 0,
+      oversizedBatch: 0,
+      unknownType: 1,
+      relayRateLimited: 0,
+      relayOversized: 0,
+      relayBadTarget: 0,
+    });
     expect(payload.errors).toBe(0);
   });
 });

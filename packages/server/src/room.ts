@@ -107,6 +107,10 @@ export interface LeaderboardSubmit {
   displayName?: string;
   /** How to combine with any existing score for this player (default "max"). */
   mode?: ScoreMode;
+  /** Score-reset cadence, keyed server-side in UTC (default "alltime" — never
+   *  resets). Declaring one on a submit also sets it as the board's current
+   *  period for reads; omitting it leaves any earlier declaration untouched. */
+  period?: "daily" | "weekly" | "monthly" | "alltime";
 }
 
 /**
@@ -234,6 +238,29 @@ export type MessageHandler = (
 export interface RoomInit {
   id: string;
   ctx: RoomContext;
+}
+
+/**
+ * Opt-in opaque peer relay (F2). Declared message types are passed through the room
+ * verbatim — the server never inspects the payload, it only stamps the sender, caps
+ * the size, and routes. Built for WebRTC signaling (`rtc`), which every P2P-augmented
+ * game hand-writes today, but nothing about it is RTC-specific.
+ *
+ * ```ts
+ * protected override relay = { types: ["rtc"] };
+ * ```
+ */
+export interface RelayConfig {
+  /** Developer message types that are relayed opaquely (e.g. `["rtc"]`). */
+  types: string[];
+  /** Max JSON-encoded payload size in bytes. Default 16384. */
+  maxBytes?: number;
+  /**
+   * Per-connection relay budget, separate from `maxInputsPerSecond`. Default 60.
+   * BROADCAST relays additionally draw on a room-wide bucket of the same size, so N
+   * senders cannot multiply the fan-out; unicast (`to`) is not subject to it.
+   */
+  perSecond?: number;
 }
 
 /**
@@ -410,6 +437,23 @@ const INPUT_BATCH_MAX = 16;
  */
 const DROP_WARN_KEYS_MAX = 64;
 
+/**
+ * Default {@link RelayConfig.maxBytes}. A real audio+video SDP offer/answer with trickle
+ * candidates runs 3–8 KB, so a tighter cap silently drops legitimate signaling (nyam-duel
+ * shipped a 20 000-byte cap for exactly this reason).
+ */
+const RELAY_DEFAULT_MAX_BYTES = 16_384;
+
+/**
+ * Default {@link RelayConfig.perSecond}. Sized for the worst realistic signaling burst
+ * (offer/answer + 10–16 trickle candidates, doubled on an ICE restart) landing inside a
+ * single second, since none of it is retransmitted if dropped.
+ */
+const RELAY_DEFAULT_PER_SECOND = 60;
+
+/** Module-level encoder for relay size checks (allocating one per message is waste). */
+const RELAY_ENCODER = new TextEncoder();
+
 /** Close code sent to a superseded connection when its session is taken over. */
 export const CLOSE_SESSION_TAKEN_OVER = 4001;
 
@@ -495,6 +539,19 @@ export abstract class Room<TState = unknown> {
 
   /** Max developer messages accepted per client per second before dropping. */
   protected maxInputsPerSecond = 30;
+
+  /**
+   * Opt-in opaque peer relay (F2). Message types listed here are relayed to peers
+   * verbatim instead of being treated as game inputs: the server stamps `from`,
+   * enforces {@link RelayConfig.maxBytes}, and routes by an optional `to`. They draw
+   * on their OWN per-connection budget ({@link RelayConfig.perSecond}), so a WebRTC
+   * ICE burst can neither starve gameplay inputs nor be starved by them — the reason
+   * signaling-carrying rooms no longer need to raise {@link maxInputsPerSecond}.
+   *
+   * Relayed messages skip the seq replay guard, the tick-aligned input queue, and
+   * acks; they are delivered immediately. `null` (default) disables the relay.
+   */
+  protected relay: RelayConfig | null = null;
 
   /**
    * Hard seat cap enforced by the room itself (not just the matchmaker, which is
@@ -585,6 +642,8 @@ export abstract class Room<TState = unknown> {
   private readonly connToClient = new Map<string, string>();
   private readonly lastSeq = new Map<string, number>();
   private readonly rate = new RateLimiter();
+  /** Second, independent limiter for {@link relay} traffic (keyed by connection id). */
+  private readonly relayRate = new RateLimiter();
   private readonly pendingFull = new Set<string>();
   private readonly clientBaselines = new Map<string, TState>();
   private baseline: TState | undefined;
@@ -617,7 +676,15 @@ export abstract class Room<TState = unknown> {
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   /** Cumulative dropped-input counts by reason (F119); exposed via tk:stats. */
-  readonly #drops: DropCounts = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0 };
+  readonly #drops: DropCounts = {
+    rateLimited: 0,
+    staleSeq: 0,
+    oversizedBatch: 0,
+    unknownType: 0,
+    relayRateLimited: 0,
+    relayOversized: 0,
+    relayBadTarget: 0,
+  };
   /** Cumulative count of exceptions routed through {@link onError} (F120). */
   #errorCount = 0;
   /**
@@ -1148,6 +1215,7 @@ export abstract class Room<TState = unknown> {
       this.pendingFull.delete(record.connId);
       this.clientBaselines.delete(record.connId);
       this.rate.forget(record.connId);
+      this.relayRate.forget(record.connId);
       old?.close(CLOSE_SESSION_TAKEN_OVER, "session taken over by a new connection");
     }
 
@@ -1291,6 +1359,15 @@ export abstract class Room<TState = unknown> {
     record: ClientRecord,
     msg: ClientGameMessage,
   ): Promise<void> {
+    // Opaque relay (F2): a declared relay type leaves the input path entirely — its
+    // own budget, no seq guard, no tick queue, no ack. Checked BEFORE the input rate
+    // limit in both directions: an ICE burst must not starve gameplay inputs, and a
+    // 60 Hz input stream must not eat the signaling allowance.
+    if (this.relay !== null && this.relay.types.includes(msg.type)) {
+      await this.relayMessage(this.relay, conn, record, msg);
+      return;
+    }
+
     if (!this.rate.allow(conn.id, Date.now(), this.maxInputsPerSecond)) {
       this.noteDrop("rateLimited");
       return; // dropped
@@ -1357,6 +1434,78 @@ export abstract class Room<TState = unknown> {
     }
   }
 
+  /**
+   * Relay one opaque message from a seated client (F2). The room never inspects the
+   * payload beyond the envelope: budget → plain-object check → byte cap → `from`
+   * stamp → route. `to` (a string) unicasts to that seated client; anything else
+   * broadcasts to the room minus the sender. Drops are counted under the three
+   * `relay*` {@link DropCounts} keys and warned once per reason in devMode.
+   */
+  private async relayMessage(
+    cfg: RelayConfig,
+    conn: RoomConnection,
+    record: ClientRecord,
+    msg: ClientGameMessage,
+  ): Promise<void> {
+    if (!this.relayRate.allow(conn.id, Date.now(), cfg.perSecond ?? RELAY_DEFAULT_PER_SECOND)) {
+      this.noteDrop("relayRateLimited");
+      return;
+    }
+
+    const payload = msg.payload;
+    // A relay payload must be a plain object — `from` is stamped onto it, and an
+    // array/primitive has nowhere to put it.
+    // ponytail: malformed (non-object or unserializable) payloads drop without a
+    // counter; the three relay counters cover what a well-formed sender can trip.
+    // Add a fourth key if malformed frames ever need to be observable in tk:stats.
+    if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return;
+    let json: string;
+    try {
+      json = JSON.stringify(payload);
+    } catch {
+      return; // circular / BigInt / otherwise unserializable
+    }
+    if (RELAY_ENCODER.encode(json).length > (cfg.maxBytes ?? RELAY_DEFAULT_MAX_BYTES)) {
+      this.noteDrop("relayOversized");
+      return;
+    }
+
+    // Server-authoritative sender identity: a client-supplied `from` is overwritten.
+    const fields = payload as Record<string, unknown>;
+    const stamped = { ...fields, from: record.client.id };
+    if (typeof fields.to === "string") {
+      const target = this.records.get(fields.to);
+      // A seat inside a reconnection window has no transport: Client.send would
+      // no-op and the signal would vanish uncounted. Treat it as a bad target.
+      if (!target || target.connId === null) {
+        this.noteDrop("relayBadTarget");
+        return;
+      }
+      target.client.send(msg.type, stamped);
+    } else {
+      // Fan-out ceiling: a broadcast costs (N-1) sends, so per-connection budgets
+      // alone scale with sender count. One room-wide bucket of the same size bounds
+      // the room's total broadcast relay rate regardless of how many are talking.
+      if (!this.relayRate.allow("room", Date.now(), cfg.perSecond ?? RELAY_DEFAULT_PER_SECOND)) {
+        this.noteDrop("relayRateLimited");
+        return;
+      }
+      this.broadcast(msg.type, stamped, record.client.id);
+    }
+    this.messagesSinceReport++; // relayed traffic is billable inbound room traffic
+
+    // A handler registered for the same type still runs, so a room can log or inspect
+    // what it relayed. Its ABSENCE is not an unknownType drop — the relay is the
+    // handler here, and the message was delivered.
+    const handler = this.handlers.get(msg.type);
+    if (!handler) return;
+    try {
+      await handler(record.client, payload, msg.seq, { receivedAt: Date.now() });
+    } catch (err) {
+      this.reportError(err, { phase: "onMessage", type: msg.type, clientId: record.client.id });
+    }
+  }
+
   /** @internal */
   async _close(conn: RoomConnection): Promise<void> {
     const clientId = this.connToClient.get(conn.id);
@@ -1364,6 +1513,7 @@ export abstract class Room<TState = unknown> {
     this.pendingFull.delete(conn.id);
     this.clientBaselines.delete(conn.id);
     this.rate.forget(conn.id);
+    this.relayRate.forget(conn.id);
 
     if (!clientId) return; // detached earlier (e.g. superseded by a takeover)
     const record = this.records.get(clientId);
