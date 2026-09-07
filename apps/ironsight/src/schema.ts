@@ -15,7 +15,7 @@ import { ARENA } from "./config.js";
  *
  * **Not in the wire state (server-authoritative, owner-reconciled instead):**
  * ammo/reserve (owner-only `ammo` events — other players never see your mag),
- * the reload clock, per-player velocity, and respawn timers. Projectiles are
+ * per-player velocity, and respawn timers. Projectiles are
  * never in state either: shots resolve server-side and emit a transient `shot`
  * event (standard hitscan practice), so there is no per-tick projectile sync.
  */
@@ -45,6 +45,8 @@ export interface ArenaPlayer {
   weapon: number;
   /** Grenades remaining. */
   nades: number;
+  /** Server deadline for cosmetic remote reloads; ammo remains owner-only. */
+  reloadEnd: number;
 }
 
 export type MatchPhase = "live" | "ended" | "warmup";
@@ -87,6 +89,7 @@ const PlayerSchema: Codec<ArenaPlayer> = schema({
   // decode) — client and bots import this same codec, so the fingerprint stays in sync.
   weapon: "u8",
   nades: "u8",
+  reloadEnd: "f64",
 });
 
 export const ArenaSchema: Codec<ArenaState> = schema({

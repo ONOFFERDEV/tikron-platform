@@ -25,7 +25,7 @@ import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
-import { initAudio, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
+import { initAudio, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
@@ -40,7 +40,7 @@ const DEFAULT_WEAPON_SPEC = WEAPONS[GAME.weaponMeta.defaultIndex]!;
 
 interface Pose {
   x: number; y: number; z: number; yaw: number; pitch: number;
-  crouch: boolean; team: number; alive: boolean; weapon: number;
+  crouch: boolean; team: number; alive: boolean; weapon: number; reloadEnd: number;
 }
 interface Snap {
   time: number;
@@ -234,6 +234,7 @@ async function main(): Promise<void> {
       scene.addTracer(anchor, dir, e.dist, e.hit, tracerSpeed);
       scene.spawnCasing(anchor, dir);
       scene.spawnMuzzleFlash(anchor, dir);
+      playFire(e.weapon - 1, anchor);
     }
     // Impact FX stays wire-authoritative for everyone — it's the true world-space
     // hit/wall location the server computed, unaffected by muzzle-position lag.
@@ -259,7 +260,7 @@ async function main(): Promise<void> {
   net.onNadeBounce((e) => scene.bounceNade(e));
   net.onNadeBoom((e) => {
     scene.boomNade(e);
-    playBoom();
+    playBoom(e);
   });
 
   let previousPhase = net.state?.phase;
@@ -306,7 +307,7 @@ async function main(): Promise<void> {
     // Buffer every player's pose for interpolation (rendered ~INTERP_DELAY in the past).
     const players = new Map<string, Pose>();
     for (const [id, p] of Object.entries(state.players)) {
-      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team, alive: p.alive, weapon: p.weapon });
+      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team, alive: p.alive, weapon: p.weapon, reloadEnd: p.reloadEnd });
     }
     buf.push({ time: performance.now(), players });
     while (buf.length > 24) buf.shift();
@@ -442,6 +443,7 @@ async function main(): Promise<void> {
     } else {
       scene.setView(eye, input.yaw, input.pitch);
     }
+    setAudioListener(scene.camera.position, deathCam?.yaw ?? input.yaw);
     onAds(alive && input.adsHeld);
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
@@ -460,7 +462,7 @@ async function main(): Promise<void> {
 
     // Remote players interpolated in the past.
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
-    scene.syncPlayers(poses, net.myId, dt);
+    scene.syncPlayers(poses, net.myId, dt, undefined, net.serverNow());
     for (const [id, p] of poses) {
       if (id !== net.myId && p.alive) scene.stepFootRemote(id, p, dt, eye);
     }
@@ -571,7 +573,7 @@ function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pos
     const pa = a.players.get(id) ?? pb;
     let pose = scratch.get(id);
     if (!pose) {
-      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false, weapon: 0 };
+      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false, weapon: 0, reloadEnd: 0 };
       scratch.set(id, pose);
     }
     pose.x = lerp(pa.x, pb.x, t);
@@ -583,6 +585,7 @@ function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pos
     pose.team = pb.team;
     pose.alive = pb.alive;
     pose.weapon = pb.weapon;
+    pose.reloadEnd = pb.reloadEnd;
   }
   return scratch;
 }

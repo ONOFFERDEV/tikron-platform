@@ -6,7 +6,7 @@ describe("main entry inspect query", () => {
     expect(parseRigInspect("?mode=tdm&weapon=3")).toBeNull();
   });
   it("uses documented rig defaults", () => {
-    expect(parseRigInspect("?inspect=rig")).toEqual({ weapon: 0, pose: "idle",
+    expect(parseRigInspect("?inspect=rig")).toEqual({ reload: null, weapon: 0, pose: "idle",
       yaw: 30, pitch: 10, dist: 2.2, aim: 0, sample: 0.75, blend: undefined, arms: true });
   });
   it("bounds overrides and rejects non-finite numbers", () => {

@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { describe, expect, it } from 'vitest';
+import { remoteWeaponTemplate } from '../client/remote-weapon.js';
 import { splitRifleMagazine } from '../client/rifle-magazine.js';
 
 describe('reload geometry ownership', () => {
@@ -29,4 +30,19 @@ describe('reload geometry ownership', () => {
     expect(split.owned).not.toContain(source);
     split.owned.forEach(g => g.dispose()); source.dispose();
   });
+});
+
+it('shares prepared remote buffers while reload transforms belong to each operator', () => {
+  const scene = new T.Group(), node = new T.Group(); node.name = 'test-pistol'; scene.add(node);
+  const source = new T.BoxGeometry(0.05, 0.2, 0.3); node.add(new T.Mesh(source));
+  const gltf = { scene } as Parameters<typeof remoteWeaponTemplate>[0];
+  const template = remoteWeaponTemplate(gltf, node.name, 4)!;
+  expect(remoteWeaponTemplate(gltf, node.name, 4)).toBe(template);
+  const a = template.object.clone(), b = template.object.clone();
+  const magA = a.getObjectByName('rifle-magazine')!, magB = b.getObjectByName('rifle-magazine')!;
+  magA.position.y = -0.3;
+  expect(magB.position.y).toBe(0);
+  expect(template.object.getObjectByName('rifle-magazine')!.position.y).toBe(0);
+  expect((magA.children[0] as T.Mesh).geometry).toBe((magB.children[0] as T.Mesh).geometry);
+  expect(node.getObjectByName('rifle-magazine')).toBeUndefined();
 });

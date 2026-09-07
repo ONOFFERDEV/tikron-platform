@@ -5,6 +5,7 @@
  * of emberfall's file-based `audio.ts`; the same lifecycle, oscillators instead of
  * decoded buffers.
  */
+import { spatialMix, type SoundPoint } from "./spatial-audio.js";
 import { GAME } from "../src/game-config.js";
 
 const MUTED_KEY = "iron_muted";
@@ -30,6 +31,25 @@ let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let muted = false;
 let volume = 1;
+const listener = { x: 0, y: 0, z: 0 };
+let listenerYaw = 0;
+let remoteVoices = 0;
+export function setAudioListener(pos: SoundPoint, yaw: number): void {
+  Object.assign(listener, pos); listenerYaw = yaw;
+}
+/** Bounded short-lived stereo graph; confirmation cues bypass this voice budget. */
+function spatialBus(c: AudioContext, source?: SoundPoint) {
+  if (!master) return null;
+  if (!source) return { input: master as AudioNode, release: () => {} };
+  const mix = spatialMix(source, listener, listenerYaw);
+  if (mix.gain < 0.015 || remoteVoices >= 20) return null;
+  remoteVoices++;
+  const gain = c.createGain(), pan = c.createStereoPanner(), filter = c.createBiquadFilter();
+  gain.gain.value = mix.gain * 0.7; pan.pan.value = mix.pan;
+  filter.type = 'lowpass'; filter.frequency.value = mix.cutoff;
+  filter.connect(gain).connect(pan).connect(master);
+  return { input: filter as AudioNode, release: () => { filter.disconnect(); gain.disconnect(); pan.disconnect(); remoteVoices--; } };
+}
 
 export function setMasterVolume(value: number): void {
   const next = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
@@ -47,7 +67,10 @@ function ensure(): AudioContext | null {
   ctx = new Ctor();
   master = ctx.createGain();
   master.gain.value = muted ? 0 : A.masterGain * volume;
-  master.connect(ctx.destination);
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -12; compressor.knee.value = 12;
+  compressor.ratio.value = 6; compressor.attack.value = 0.003; compressor.release.value = 0.18;
+  master.connect(compressor).connect(ctx.destination);
   // One second of white noise, reused for every gunshot.
   const buf = ctx.createBuffer(1, ctx.sampleRate * A.noiseBufferSec, ctx.sampleRate);
   const data = buf.getChannelData(0);
@@ -87,10 +110,11 @@ function ready(): AudioContext | null {
 }
 
 /** Gunshot: a noise burst through a bandpass + a body thump, tuned per weapon. */
-export function playFire(weaponIndex = 0): void {
+export function playFire(weaponIndex = 0, source?: SoundPoint): void {
   const c = ready();
   if (!c || !master || !noise) return;
   const p = A.fireParams[weaponIndex] ?? A.fireParams[0]!;
+  const bus = spatialBus(c, source); if (!bus) return;
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
@@ -101,7 +125,7 @@ export function playFire(weaponIndex = 0): void {
   const g = c.createGain();
   g.gain.setValueAtTime(p.gain, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
-  src.connect(bp).connect(g).connect(master);
+  src.connect(bp).connect(g).connect(bus.input);
   src.start(t);
   src.stop(t + p.dur + A.fireStopTailSec);
 
@@ -112,15 +136,18 @@ export function playFire(weaponIndex = 0): void {
   const og = c.createGain();
   og.gain.setValueAtTime(A.fireThumpGainStart, t);
   og.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
-  osc.connect(og).connect(master);
+  osc.connect(og).connect(bus.input);
   osc.start(t);
   osc.stop(t + p.dur + A.fireStopTailSec);
+  src.onended = () => { src.disconnect(); bp.disconnect(); g.disconnect(); };
+  osc.onended = () => { osc.disconnect(); og.disconnect(); bus.release(); };
 }
 
 /** Grenade detonation: a long low-passed noise rumble + a 50 Hz sub swell. */
-export function playBoom(): void {
+export function playBoom(source?: SoundPoint): void {
   const c = ready();
   if (!c || !master || !noise) return;
+  const bus = spatialBus(c, source); if (!bus) return;
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
@@ -131,7 +158,7 @@ export function playBoom(): void {
   const g = c.createGain();
   g.gain.setValueAtTime(A.boom.gainStart, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.boom.gainRampSec);
-  src.connect(lp).connect(g).connect(master);
+  src.connect(lp).connect(g).connect(bus.input);
   src.start(t);
   src.stop(t + A.boom.stopSec);
 
@@ -142,9 +169,12 @@ export function playBoom(): void {
   sg.gain.setValueAtTime(0.0001, t);
   sg.gain.linearRampToValueAtTime(A.boom.subGainPeak, t + A.boom.subGainRampUpSec);
   sg.gain.exponentialRampToValueAtTime(0.001, t + A.boom.subGainRampDownSec);
-  sub.connect(sg).connect(master);
+  sub.connect(sg).connect(bus.input);
   sub.start(t);
   sub.stop(t + A.boom.subStopSec);
+  let pending = 2; const release = () => { if (--pending === 0) bus.release(); };
+  src.onended = () => { src.disconnect(); lp.disconnect(); g.disconnect(); release(); };
+  sub.onended = () => { sub.disconnect(); sg.disconnect(); release(); };
 }
 
 /** Weapon-swap: a short mechanical double click. */
@@ -184,9 +214,10 @@ export function playHit(head = false): void {
 
 /** Footstep: a soft short low-passed noise tap, scaled by `atten` (distance falloff
  *  for remote players; self always passes 1). */
-export function playFootstep(atten = 1): void {
+export function playFootstep(atten = 1, source?: SoundPoint): void {
   const c = ready();
   if (!c || !master || !noise || atten <= 0.02) return;
+  const bus = spatialBus(c, source); if (!bus) return;
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
@@ -196,9 +227,10 @@ export function playFootstep(atten = 1): void {
   const g = c.createGain();
   g.gain.setValueAtTime(A.footstep.gain * atten, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.footstep.rampSec);
-  src.connect(lp).connect(g).connect(master);
+  src.connect(lp).connect(g).connect(bus.input);
   src.start(t);
   src.stop(t + A.footstep.stopSec);
+  src.onended = () => { src.disconnect(); lp.disconnect(); g.disconnect(); bus.release(); };
 }
 
 /** Hurt: a short descending low-register thud, distinct from the shooter-side

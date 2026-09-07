@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const args = process.argv.slice(2);
 const option = (key, fallback) => args.includes(key) ? args[args.indexOf(key) + 1] : fallback;
 const base = new URL(option('--url', 'http://localhost:8787'));
+if (args.includes('--reload')) base.searchParams.set('reload', option('--reload', '0.4'));
 const weapons = option('--weapons', '0,3').split(',').map(Number);
 if (weapons.some(w => !Number.isInteger(w) || w < 0 || w > 4)) throw Error('Weapons must be 0..4');
 const prefix = option('--prefix', 'rig');
@@ -99,7 +100,7 @@ try {
     measurements.push({ name, pose, aim, sample, weapon, arms, metrics: (await send('Runtime.evaluate', { expression: 'window.__rigInspect', returnByValue: true })).result?.value });
   }
   if (forbiddenNetwork.length) throw Error("Inspector opened gameplay network connections");
-  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ poses, aims, samples, weapons, angles: selectedAngles, armModes, measurements, errors, forbiddenNetwork }, null, 2));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reload: base.searchParams.get('reload'), poses, aims, samples, weapons, angles: selectedAngles, armModes, measurements, errors, forbiddenNetwork }, null, 2));
   if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (timedOut) process.exitCode = 1;
 } finally {

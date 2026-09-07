@@ -153,3 +153,18 @@ describe("botThink — practice showcase bots", () => {
     expect(decision.move.sprint).toBe(false);
   });
 });
+
+it('turns toward a rear target over time and cannot shoot through the acquisition turn', () => {
+  const brain = createBotBrain({ seed: 1, waypoints: [{ x: 30, y: 40 }], reactionMs: 0, aimNoiseRad: 0 });
+  const view = baseView({ enemies: [{ id: 'rear', x: 30, y: 0, z: 0, crouch: false, alive: true, team: 1 }] });
+  const first = botThink(view, brain, 50);
+  expect(Math.abs(first.look.yaw)).toBeLessThanOrEqual(0.301);
+  expect(first.fire).toBe(false);
+  let decision = first;
+  for (let i = 0; i < 15; i++) {
+    view.self.yaw = decision.look.yaw; view.self.pitch = decision.look.pitch;
+    decision = botThink(view, brain, 50);
+  }
+  expect(decision.look.yaw).toBeCloseTo(Math.PI, 4);
+  expect(decision.fire).toBe(true);
+});

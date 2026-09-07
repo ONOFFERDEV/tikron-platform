@@ -25,7 +25,7 @@ export function startRigInspector(options: RigInspectOptions): void {
   flags.__inspectReady = false;
   let frames = 0;
   const frame = () => {
-    const ready = scene.inspectRig(pose, clip, options.blend, options.arms, options.sample);
+    const ready = scene.inspectRig(pose, clip, options.blend, options.arms, options.sample, options.reload);
     const focus = options.dist <= 1.1 ? scene.inspectionHandFocus() : undefined;
     if (focus) {
       scene.camera.position.set(focus.x + Math.sin(yaw) * Math.cos(pitch) * options.dist,

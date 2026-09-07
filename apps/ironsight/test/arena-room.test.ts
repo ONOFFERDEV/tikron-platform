@@ -212,8 +212,11 @@ describe("arena room — weapon (server-authoritative)", () => {
     expect(last.mag).toBe(AR.mag - 3); // 27
 
     await a.send("reload");
+    await tick(h);
+    expect(liveState(h).players[a.id]!.reloadEnd).toBeGreaterThan(Date.now());
     await tick(h, Math.ceil(AR.reloadMs / TICK_MS) + 2); // wait out the reload
     const refilled = ammoFrames(a).at(-1)!.payload as { mag: number; reserve: number };
+    expect(liveState(h).players[a.id]!.reloadEnd).toBe(0);
     expect(refilled.mag).toBe(AR.mag); // topped back to 30
     expect(refilled.reserve).toBe(AR.reserve - 3); // 3 rounds came from the reserve
   });
@@ -838,6 +841,12 @@ describe("M4 recovery", () => {
     expect(ammo.weapon).toBe(1);
     expect(ammo.reloadMs).toBeGreaterThan(0);
     expect(ammo.reloadMs).toBeLessThan(AR.reloadMs);
+    const deadline = liveState(h).players[a.id]!.reloadEnd;
+    expect(deadline).toBeGreaterThan(Date.now());
+    await a.send("reload", { reloadEnd: 9999999999999 }); await tick(h);
+    expect(liveState(h).players[a.id]!.reloadEnd).toBe(deadline);
+    await a.send("switch", { slot: 2 }); await tick(h);
+    expect(liveState(h).players[a.id]!.reloadEnd).toBe(0);
   });
 
   it("a late subscriber receives the authoritative ended result and vote quorum", async () => {

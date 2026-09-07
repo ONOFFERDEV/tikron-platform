@@ -9,6 +9,7 @@ const args = process.argv.slice(2);
 const option = (key, fallback) => args.includes(key) ? args[args.indexOf(key) + 1] : fallback;
 const base = new URL(option('--url', 'http://localhost:8787'));
 const shots = option('--shots', 'overview,cooling,relay,freight,spawn,vista,stress,menu,game').split(',');
+if (args.includes('--assert-budgets') && !shots.some(s => s.endsWith('effects-stress'))) throw Error('--assert-budgets requires an effects-stress shot');
 const reports = []; const errors = [];
 const software = args.includes('--software');
 const prefix = option('--prefix', 'relay');
@@ -222,6 +223,8 @@ try {
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
         await waitFor('window.ironsight.viewmodelInfo().phase === "mag-out"');
+        const remoteReloadDeadline = await evaluate('window.ironsight.state().players[window.ironsight.myId].reloadEnd');
+        if (!Number.isFinite(remoteReloadDeadline) || remoteReloadDeadline <= 0) throw Error('Reload deadline missing from binary state');
         const reloadCapture = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-flow-reloading.png`), Buffer.from(reloadCapture.data, 'base64'));
         await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'left', clickCount: 1 });
@@ -231,6 +234,7 @@ try {
         if (magDuring !== magBefore) throw Error('Firing consumed ammo during server reload');
         await waitFor('document.querySelector("#ammo .mag").textContent === "30"');
         await waitFor('window.ironsight.viewmodelInfo().phase === "idle"');
+        await waitFor('window.ironsight.state().players[window.ironsight.myId].reloadEnd === 0');
         const reloadPhases = await evaluate('clearInterval(window.__reloadSampleTimer); [...new Set(window.__reloadSamples)]');
         for (const phase of ['mag-out', 'mag-in', 'bolt', 'return', 'idle'])
           if (!reloadPhases.includes(phase)) throw Error(`Missing live reload phase ${phase}: ${reloadPhases}`);
@@ -238,7 +242,7 @@ try {
         const targetRespawned = await evaluate('window.ironsight.state().players["bot-idle"].hp === 100 && window.ironsight.state().players["bot-idle"].d > 0');
         if (!targetRespawned) throw Error('Target did not respawn after verified kill');
         combat = { movedMeters: after - before, serverVerifiedKills: killsAfter - killsBefore,
-          magBeforeReload: magBefore, magAfterReload: 30, reloadPhases, fireDuringReloadBlocked: true, targetRespawned };
+          magBeforeReload: magBefore, magAfterReload: 30, remoteReloadDeadline, reloadDeadlineCleared: true, reloadPhases, fireDuringReloadBlocked: true, targetRespawned };
       }
     }
     const report = (await send('Runtime.evaluate', { expression: gameplay ? '({ ...window.ironsight.renderInfo(), players: Object.keys(window.ironsight.state().players).length, hp: window.ironsight.state().players[window.ironsight.myId].hp })' : 'window.__mapInspect ?? null', returnByValue: true })).result?.value;

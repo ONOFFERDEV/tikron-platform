@@ -140,9 +140,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // Relay/Undertow change solid geometry. Pre-rebuild snapshots intentionally start a
-  // fresh match via Room's default null migration; old positions may be in walls.
-  protected override stateVersion = 3;
+  // v4 adds the remote reload deadline. Older snapshots intentionally start a
+  // fresh match via the default null migration; client/server codecs ship together.
+  protected override stateVersion = 4;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -372,7 +372,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       k: 0,
       d: 0,
       weapon: DEFAULT_WEAPON,
-      nades: GRENADE.count,
+      nades: GRENADE.count, reloadEnd: 0,
     };
     this.state.players[id] = p;
     this.inputs.set(id, { ...NO_INPUT });
@@ -932,6 +932,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const w = p.weapon;
     if ((this.reserveArr(id)[w] ?? 0) <= 0) return;
     this.reloadUntil.set(id, now + spec.reloadMs);
+    p.reloadEnd = now + spec.reloadMs;
+    this.markStateChanged();
     this.ownerClient(id)?.send("ammo", {
       mag: this.magArr(id)[w] ?? 0,
       reserve: this.reserveArr(id)[w] ?? 0,
@@ -943,6 +945,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private finishReload(id: string): void {
     const p = this.state.players[id];
     if (!p) return;
+    p.reloadEnd = 0;
+    this.markStateChanged();
     const spec = this.weaponOf(p);
     const w = p.weapon;
     const mags = this.magArr(id);
@@ -968,6 +972,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (idx < 0 || idx >= WEAPONS.length || idx === p.weapon) return;
     p.weapon = idx;
     this.swapUntil.set(id, Date.now() + WEAPON.swapMs);
+    p.reloadEnd = 0;
     this.reloadUntil.delete(id); // a swap cancels an in-progress reload
     this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
@@ -1102,6 +1107,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     const warmup = this.state.phase === "warmup";
     victim.alive = false;
+    victim.reloadEnd = 0;
+    this.reloadUntil.delete(victimId);
     this.vy.set(victimId, 0);
     const delayMs = warmup ? 0 : this.respawnMs;
     this.respawnAt.set(victimId, this.currentTick + Math.ceil(delayMs / TICK_MS));
@@ -1228,6 +1235,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // weapon, and a fresh set of grenades.
     p.weapon = this.primaryWeapon.get(id) ?? DEFAULT_WEAPON;
     p.nades = GRENADE.count;
+    p.reloadEnd = 0;
     this.vy.set(id, 0);
     this.grounded.set(id, true);
     this.inputs.set(id, { ...NO_INPUT }); // drop a corpse's held keys

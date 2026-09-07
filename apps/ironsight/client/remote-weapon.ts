@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { splitRifleMagazine } from "./rifle-magazine.js";
+import { reloadPose } from "./reload-presentation.js";
 import { GAME } from "../src/game-config.js";
 import { VISUALS } from "../config/visuals.js";
 import { cloneWeaponBundleNode, loadWeaponModel, weaponMuzzle } from "./weapon-loader.js";
@@ -7,12 +9,30 @@ const MOUNT_OFFSETS = [[0.025, 0.14, 0.12], [0.025, 0.14, 0], [0.025, 0.14, 0.12
   [0.025, 0.10, -0.02], [0.025, 0.12, 0.08]] as const;
 const CONFIG = (GAME.weaponVis.presentation ?? VISUALS).remote;
 
+/** Like the source GLB cache, templates retain immutable buffers for the page.
+ * Instances share geometry but own magazine/bolt transforms. Prepare once, not
+ * eleven geometry splits in the first visible multiplayer frame. */
+const templates = new WeakMap<THREE.Object3D, Map<string, { object: THREE.Object3D; tip: THREE.Vector3; length: number }>>();
+export function remoteWeaponTemplate(gltf: Parameters<typeof cloneWeaponBundleNode>[0], name: string, index: number) {
+  let entries = templates.get(gltf.scene);
+  if (!entries) { entries = new Map(); templates.set(gltf.scene, entries); }
+  const key = `${name}:${index}`;
+  const cached = entries.get(key); if (cached) return cached;
+  const object = cloneWeaponBundleNode(gltf, name); if (!object) return undefined;
+  object.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(object);
+  const template = { object, tip: weaponMuzzle(object), length: Math.max(0.001, bounds.max.z - bounds.min.z) };
+  splitRifleMagazine(object, index);
+  entries.set(key, template); return template;
+}
+
 /** Owns only instance objects and fallback resources; GLB buffers remain cached. */
 export class RemoteWeapon {
   readonly mount = new THREE.Group();
   readonly muzzle = new THREE.Object3D();
   loaded = false;
   private index = -1;
+  private parts?: { magazine: THREE.Object3D; bolt: THREE.Object3D };
   private generation = 0;
   private fallback?: THREE.Mesh;
   private readonly hand?: THREE.Object3D;
@@ -72,13 +92,13 @@ export class RemoteWeapon {
     if (!bundle || !name || !this.hand) return;
     void loadWeaponModel(bundle.url).then(gltf => {
       if (!gltf || generation !== this.generation) return;
-      const mesh = cloneWeaponBundleNode(gltf, name);
-      if (!mesh) return;
-      mesh.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(mesh);
-      const tip = weaponMuzzle(mesh);
-      const scale = length / Math.max(0.001, box.max.z - box.min.z);
+      const template = remoteWeaponTemplate(gltf, name, index);
+      if (!template) return;
+      const mesh = template.object.clone();
+      const tip = template.tip;
+      const scale = length / template.length;
       this.clear();
+      this.parts = { magazine: mesh.getObjectByName('rifle-magazine')!, bolt: mesh.getObjectByName('rifle-bolt')! };
       mesh.scale.multiplyScalar(scale);
       mesh.position.multiplyScalar(scale); // preserve grip-origin asset convention
       mesh.traverse(n => { n.raycast = () => {}; });
@@ -100,7 +120,13 @@ export class RemoteWeapon {
     this.overridden = false;
   }
 
-  update(height: number, pitch: number, holding: boolean, holdBlend = CONFIG.holdBlend, arms = true): void {
+  update(height: number, pitch: number, holding: boolean, holdBlend = CONFIG.holdBlend, arms = true, reloadProgress: number | null = null): void {
+    const reload = reloadPose(holding ? reloadProgress : null);
+    if (this.parts) {
+      this.parts.magazine.position.set(-reload.magazine * (this.index === 2 ? 0.32 : 0.08), -reload.magazine * (this.index === 2 ? 0.04 : 0.34), 0);
+      this.parts.bolt.position.z = -reload.bolt * 0.07;
+    }
+    pitch = THREE.MathUtils.lerp(pitch, -0.35, reload.tilt * 0.85);
     if (!this.hand) {
       this.mount.position.set(0.22, height - 0.3, 0.24);
       this.mount.rotation.x = -pitch;
@@ -122,13 +148,33 @@ export class RemoteWeapon {
       }
       const firing = this.arms[0]!;
       firing.upper.getWorldPosition(this.shoulder);
-      this.q.setFromAxisAngle(this.direction, -aim * 0.35);
+      this.q.setFromAxisAngle(this.direction, -aim * (aim > 0 && this.index !== 4 ? 0.08 : 0.35));
       this.aimPivot.copy(firing.contact).sub(this.shoulder).applyQuaternion(this.q).add(this.shoulder);
+      // At steep upward aim, carry the stock outside the neck rather than
+      // rotating the visible head away from its verified hit silhouette.
+      const clearance = this.index === 4 ? 0 : THREE.MathUtils.smoothstep(aim, 0.65, 1.5);
+      this.group.getWorldQuaternion(this.q);
+      this.b.set(-0.12 * clearance, 0, 0.06 * clearance).applyQuaternion(this.q);
+      this.aimPivot.add(this.b);
       this.aimPivot.y += Math.max(0, -Math.sin(aim)) * 0.10;
       for (const arm of this.arms) {
         this.target.copy(arm.contact).sub(firing.contact).applyQuaternion(this.aimRotation).add(this.aimPivot);
+        if (arm.side > 0 && reload.reach > 0) {
+          // Support hand leaves the fore-end for the magazine well. Keep the
+          // firing wrist fixed; cosmetics never move the authoritative head.
+          this.b.set(this.index === 2 ? -0.14 : -0.06, -0.12 - reload.magazine * 0.18, -0.16);
+          this.group.getWorldQuaternion(this.q);
+          this.b.applyQuaternion(this.q).applyQuaternion(this.aimRotation);
+          this.target.addScaledVector(this.b, reload.reach);
+        }
+        if (arm.side > 0 && reload.chargeReach > 0) {
+          this.b.set(-0.05, 0.03, -0.20 - reload.bolt * 0.04);
+          this.group.getWorldQuaternion(this.q);
+          this.b.applyQuaternion(this.q).applyQuaternion(this.aimRotation);
+          this.target.addScaledVector(this.b, reload.chargeReach);
+        }
         // At zero pitch preserve the authored pose exactly, including elbow roll.
-        if (Math.abs(aim) > 0.0001) this.reach(arm, 1, true);
+        if (Math.abs(aim) > 0.0001 || reload.reach > 0 || reload.chargeReach > 0) this.reach(arm, 1, true);
         this.q.copy(this.aimRotation).multiply(arm.handWorld);
         arm.hand.parent!.getWorldQuaternion(this.parentQ).invert();
         arm.hand.quaternion.copy(this.parentQ).multiply(this.q);
@@ -226,6 +272,7 @@ export class RemoteWeapon {
   }
 
   private clear(): void {
+    this.parts = undefined;
     if (this.fallback) {
       this.fallback.geometry.dispose();
       (this.fallback.material as THREE.Material).dispose();

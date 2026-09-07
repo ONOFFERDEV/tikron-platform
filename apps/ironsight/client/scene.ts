@@ -18,9 +18,9 @@ import type { MapDef, RampDef } from "../src/map/types.js";
 import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
-import { RemoteWeapon } from "./remote-weapon.js";
+import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
 import { ViewmodelHands } from "./viewmodel-hands.js";
-import { ReloadPresentation, reloadPose } from "./reload-presentation.js";
+import { ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
 import { Vfx, makeFlashTexture } from "./vfx.js";
@@ -212,6 +212,7 @@ interface PlayerPose {
   team: number;
   alive: boolean;
   weapon: number;
+  reloadEnd?: number;
 }
 
 /** A remote player's rig: either the original capsule+head primitives, or (once
@@ -1043,7 +1044,7 @@ export class SceneRig {
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
    *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
-  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState): void {
+  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState, serverNow = Date.now()): void {
     const now = performance.now();
     const seen = this.seenPlayers;
     seen.clear();
@@ -1072,7 +1073,8 @@ export class SceneRig {
         rig.contact.material.opacity = Math.max(0, 0.48 - (pose.y - floor) * 0.2);
         rig.contact.visible = pose.alive;
       }
-      rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined);
+      rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined, undefined, true,
+        remoteReloadProgress(pose.alive, pose.reloadEnd ?? 0, GAME.weapons[pose.weapon]?.reloadMs ?? 1, serverNow));
     }
     // Map iterators tolerate deleting the current/already-visited key mid-loop
     // (spec-guaranteed), so this needs no defensive array copy.
@@ -1085,7 +1087,7 @@ export class SceneRig {
   }
 
   /** Network-free preview: same factory, mixer and weapon update as syncPlayers. */
-  inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean, sample = 0.75): boolean {
+  inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean, sample = 0.75, reload: number | null = null): boolean {
     this.viewmodel.visible = false;
     this.syncPlayers(new Map([["inspect", pose]]), "", 0, clip);
     const rig = this.players.get("inspect")!;
@@ -1096,7 +1098,7 @@ export class SceneRig {
     rig.model.setState(clip);
     rig.model.update(sample); // repeatable clip sample for every camera angle
     this.groundCrouch(rig, pose.crouch);
-    rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms);
+    rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms, reload);
     return rig.weapon.loaded;
   }
 
@@ -1658,7 +1660,13 @@ export class SceneRig {
     const bundle = GAME.weaponVis.bundle;
     const weapons = bundle && this.weaponIsModel ? await loadWeaponModel(bundle.url) : undefined;
     const weaponFixture = weapons?.scene.clone();
-    if (weaponFixture) this.scene.add(weaponFixture);
+    if (weaponFixture) {
+      if (weapons && bundle) Object.entries(bundle.nodes).forEach(([index, name]) => {
+        const template = remoteWeaponTemplate(weapons, name, Number(index));
+        if (template) weaponFixture.add(template.object.clone());
+      });
+      this.scene.add(weaponFixture);
+    }
     const oldVisibility = this.canvas.style.visibility;
     this.canvas.style.visibility = 'hidden';
     // Keep the default framebuffer's color-space and sample configuration: a

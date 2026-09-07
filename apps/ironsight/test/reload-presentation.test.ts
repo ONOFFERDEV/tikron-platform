@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ReloadPresentation, reloadPose } from '../client/reload-presentation.js';
+import { ReloadPresentation, reloadPose, remoteReloadProgress } from '../client/reload-presentation.js';
 
 describe('server-driven reload presentation', () => {
   it('is idle until acknowledged and finishes at the authoritative deadline', () => {
@@ -33,4 +33,11 @@ describe('server-driven reload presentation', () => {
     const timeline = new ReloadPresentation(); timeline.sync(Infinity, 1800, 0);
     expect(timeline.progress(1)).toBeNull(); timeline.sync(-10, 1800, 0); expect(timeline.progress(1)).toBeNull();
   });
+});
+
+it('AOI entry resumes a remote reload at its server-clock phase', () => {
+  expect(remoteReloadProgress(true, 5000, 2000, 4200)).toBeCloseTo(0.6);
+  expect(remoteReloadProgress(true, 5000, 2000, 5000)).toBeNull();
+  expect(remoteReloadProgress(false, 5000, 2000, 4200)).toBeNull();
+  expect(remoteReloadProgress(true, 0, 2000, 4200)).toBeNull();
 });

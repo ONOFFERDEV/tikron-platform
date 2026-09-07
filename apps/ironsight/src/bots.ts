@@ -98,10 +98,7 @@ export interface BotView {
   /** Optional game-owned route steering, independent of aim/hit validation. */
   navigate?: (target: { x: number; z: number }) => { x: number; z: number };
   self: BotPlayerView & {
-    /** Current facing (radians) — read only by the passive branch below, to hold
-     *  the bot's existing look instead of snapping it to a fixed direction every
-     *  tick; combat/patrol logic derives its own look from aiming or waypoints
-     *  and never reads this. */
+    /** Current facing, used to bound acquisition and tracking speed. */
     yaw: number;
     pitch: number;
   };
@@ -236,7 +233,7 @@ function nearestVisibleEnemy(
 }
 
 /** Yaw/pitch from the bot's muzzle to an enemy, plus seeded gaussian error. */
-function aimAt(brain: BotBrain, self: BotPlayerView, enemy: BotPlayerView): BotLookIntent {
+function aimAt(brain: BotBrain, self: BotView["self"], enemy: BotPlayerView, dtMs: number): BotLookIntent {
   const eye: Vec3 = { x: self.x, y: self.y + eyeHeight(self), z: self.z };
   const aim = aimPoint(enemy, brain.aimHeight);
   const dx = aim.x - eye.x;
@@ -244,10 +241,19 @@ function aimAt(brain: BotBrain, self: BotPlayerView, enemy: BotPlayerView): BotL
   const dz = aim.z - eye.z;
   const horiz = Math.hypot(dx, dz);
   let yaw = Math.atan2(dx, dz);
-  const pitch = Math.atan2(dy, horiz) + gaussian(brain) * brain.aimNoiseRad;
+  const targetPitch = Math.atan2(dy, horiz) + gaussian(brain) * brain.aimNoiseRad;
   yaw += gaussian(brain) * brain.aimNoiseRad;
-  yaw = ((yaw % TAU) + TAU) % TAU;
+  const step = Math.max(0, Math.min(100, dtMs)) / 1000;
+  const delta = Math.atan2(Math.sin(yaw - self.yaw), Math.cos(yaw - self.yaw));
+  yaw = ((self.yaw + clamp(delta, -6 * step, 6 * step)) % TAU + TAU) % TAU;
+  const pitch = self.pitch + clamp(targetPitch - self.pitch, -4 * step, 4 * step);
   return { yaw, pitch };
+}
+
+/** Don't shoot while still turning through a newly acquired target. */
+function aimSettled(self: BotPlayerView, enemy: BotPlayerView, look: BotLookIntent): boolean {
+  const target = Math.atan2(enemy.x - self.x, enemy.z - self.z);
+  return Math.abs(Math.atan2(Math.sin(target - look.yaw), Math.cos(target - look.yaw))) < 0.16;
 }
 
 /** Convert a world-space move direction to WASD in the bot's facing frame. */
@@ -375,9 +381,9 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     brain.lockMs += dtMs;
   }
 
-  const look = aimAt(brain, self, enemy);
+  const look = aimAt(brain, self, enemy, dtMs);
   const move = combatStrafe(brain, self, look.yaw);
-  const fire = brain.lockMs >= brain.reactionMs;
+  const fire = brain.lockMs >= brain.reactionMs && aimSettled(self, enemy, look);
   return { look, move, fire };
 }
 
@@ -398,7 +404,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
  */
 function domThink(
   objective: { x: number; z: number },
-  self: BotPlayerView,
+  self: BotView["self"],
   enemy: BotEnemyView | null,
   brain: BotBrain,
   dtMs: number,
@@ -412,8 +418,8 @@ function domThink(
     } else {
       brain.lockMs += dtMs;
     }
-    look = aimAt(brain, self, enemy);
-    fire = brain.lockMs >= brain.reactionMs;
+    look = aimAt(brain, self, enemy, dtMs);
+    fire = brain.lockMs >= brain.reactionMs && aimSettled(self, enemy, look);
   } else {
     brain.lockId = null;
     brain.lockMs = 0;

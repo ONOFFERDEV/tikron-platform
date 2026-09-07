@@ -10,6 +10,7 @@ export function parseRigInspect(search: string) {
   const poses = ['idle', 'walk', 'run', 'sprint', 'crouch', 'crouch_walk', 'strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'] as const;
   const locomotion = poses.find(p => p === pose) ?? 'idle';
   return {
+    reload: q.has("reload") ? num("reload", 0, 0, 1) : null,
     weapon: Math.floor(num("weapon", 0, 0, 4)),
     pose: locomotion,
     yaw: num("yaw", 30, -360, 360), pitch: num("pitch", 10, -89, 89),

@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-5 are deployed there. Session 6 is a local candidate
-until the supervisor publishes it; the new preparation phase, alternate authored
-holds and detailed reloads are not yet on that preview.
+Supervisor reports sessions 1-6 are deployed there. Session 7 is a local candidate
+until the supervisor publishes it; remote reloads, steep-aim clearance and the new
+directional combat audio/bot tracking are not yet on that preview.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -13,7 +13,7 @@ Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
 | Time | Try | Look for |
 |---|---|---|
 | 0-1 min | Open Settings using Tab/Enter; adjust sensitivity, rebind a key, close with Escape. Try volume and Reduced motion. | Clear focus, readable labels, saved choices; no unwanted movement while in a menu. |
-| 1-3 min | Training / Relay: sprint all three lanes, climb both decks, crouch at cover. After session 6 lands, watch arena preparation; fire, aim, reload and switch all five weapons (1-5), then throw G away from yourself. | Solid visible cover, readable enemies/exits, comfortable aim, no first-shot/blast freeze; stable grip and unobstructed sights. |
+| 1-3 min | Training / Relay: sprint all three lanes, climb both decks, crouch at cover. Watch arena preparation; fire, aim, reload and switch all five weapons (1-5), then throw G away from yourself. | Solid visible cover, readable enemies/exits, comfortable aim, no first-shot/blast freeze; stable grip and unobstructed sights. |
 | 3-5 min | Return to deployment, choose Training / Undertow. Visit A/B/C and both control ledges; die and respawn once. | Distinct routes, no snagged ramps/invisible walls, readable health/ammo and safe respawn. |
 | 5-10 min | Join a running Relay TDM with the other player. Fight across cover, open Escape/settings, return, then vote rematch if the round ends. | Correct team/result, hits that agree for both players, clear death/recovery, preserved controls after menus and rematch. |
 
@@ -36,14 +36,19 @@ trigger for any hitch, clipping, confusing UI or disagreeing hit; a short clip h
 - Supervisor: publish this candidate to preview, exercise real deployed Durable
   Object cold eviction (expected NEW round), short reconnect and lost-seat timeout,
   then verify the reviewed private asset set is present. No deployment done here.
-- Remaining engineering/art blockers: extreme upward crouch stock/neck clearance
-  (especially shotgun), human finger/wrist/animation acceptance and remote reload
-  replication/choreography. Session 6 delivers authored alternate holds and detailed
-  first-person reloads; it does not close full M2. Inspect another player's 1-5
-  weapon swaps, crouch and steep aim before accepting the animation.
-- Cold-start qualification: session 6 prepares shaders, effects and assets before
-  controls attach. Local Edge effects runs reduced first-ready peaks to 7.0-7.1 ms,
-  with 244-441 ms preparation plus 31-52 ms scene construction in the final sample.
+- Remaining animation acceptance: human finger/wrist contact and moving reload
+  review on all five weapons. Session 7 moves the steep-upward weapon arc outside
+  the neck and adds server-deadline remote reloads (magazine/cell, charge, support
+  hand and lowered aim). Captures and transform tests are engineering evidence,
+  not full M2 acceptance. Inspect another player's 1-5 swaps, reload interruption,
+  crouch and steep aim. Listen for left/right shots, steps and blasts while turning;
+  stereo direction is implemented, not HRTF elevation or cover occlusion.
+- Session 7 changes the state fingerprint and snapshot version to 4. Supervisor
+  must publish client and Worker together; old open tabs need a refresh. Older
+  snapshots intentionally start a fresh round. Ammo counts remain owner-only.
+- Cold-start qualification: session 7 also prepares shared remote reload-part
+  buffers before controls attach. Final isolated Edge effects runs show 7.1 ms
+  first-ready peaks, 260-472 ms preparation and 28-52 ms scene construction.
   This is moving initialization into a visible loading phase, not eliminating its
   cost. Browser/driver cold caches, weak GPUs and slow networks still need testing.
 - Owner explicitly approves the final preview and these remaining gates before the
@@ -217,10 +222,10 @@ viewport and GPU identity. Software-rendered Edge screenshots prove boot/renderi
 NOT the 60 fps iGPU floor. Record hardware measurements separately and keep that
 acceptance pending if this machine cannot provide representative GPU evidence.
 
-Animation: retain current state machine for this session; next add rifle hold
-locomotion and additive aim only after retarget proof. First-person reload should
+Animation: retain the state machine with authored five-weapon hold families,
+calibrated additive wrist aim and server-deadline remote reload presentation. First-person reload should
 have magazine/bolt phases matched to server duration, with firing muzzle derived
-from the visible barrel. Audio: positional fire/impact/steps, transient voice limits,
+from the visible barrel. Audio: directional stereo fire/blasts/steps, transient voice limits,
 master volume; no autoplay before gesture. UI: cinematic deployment screen,
 prominent play action, bilingual labels, small objective/score strip, bottom ammo
 and health, map callout, clear pause/reconnect/death states, reduced clutter.
@@ -852,3 +857,137 @@ Cleanup verified in `.inspect/session6-cleanup.json`: all **12** owned preview
 root/descendant processes stopped, no port 8796 listener, no inspection Edge/Chrome
 processes. Inspectors closed their profiles; session temporary artifacts remain
 under ignored .inspect only. No git commands or deployments were performed.
+
+
+### Session 7 - 2026-09-07
+
+Owner continued autonomous polish on the same defaults. Supervisor reports sessions
+1-6 on preview; this session remains local. Apps/ironsight only; no git commands,
+commits, deploys, new dependencies, SDK edits or purchased-asset writes. The required
+Worker build executes its existing dry-run only.
+
+Delivered:
+- Remote reloads now travel as a server-owned `reloadEnd` deadline in the shared
+  player codec. Ammo/reserves remain private. Start/completion/switch/death/respawn
+  set or clear the deadline; clients cannot supply it. The discrete deadline passes
+  through remote interpolation and uses the synchronized server clock, so AOI entry
+  and reconnect resume the remaining phase instead of replaying a start event.
+  Snapshot version 4 intentionally resets older snapshots. This changes the schema
+  fingerprint: publish bundled client and Worker together; refresh old open tabs.
+- All five remote weapons split the same runtime magazine/cell/charge parts as the
+  first-person model. Original cached source geometry remains immutable. The firing
+  hand lowers the weapon, the support hand reaches down for extraction/insertion and
+  back for charging, then resumes the authored hold. Death/reaction/weapon changes
+  release the override; locomotion remains owned by the mixer. Prepared templates retain immutable geometry beside the source GLB cache;
+  instances own only moving transforms. All five part variants prewarm during
+  arena preparation, avoiding per-operator geometry splitting on first visibility. This is cosmetic; server fire/reload/ammo gates remain.
+- Reduced the upward firing-wrist shoulder arc and blended a small outward/forward
+  clearance above steep aim. Both wrists follow the calibrated frame; the head and
+  torso hit silhouettes remain unchanged. Front/side extreme-crouch captures now
+  separate the shotgun stock from the neck. Full human finger/palm mesh acceptance
+  and moving reload review remain open; transforms alone cannot establish those.
+- Filled a missing remote gunshot audio path. Shots, explosions and remote steps
+  now use camera-relative stereo pan, distance gain and low-pass rolloff. Remote
+  transients share a 20-voice cap and release their audio nodes; local gun/confirm
+  cues bypass that cap. A master compressor reduces accumulated firefight peaks.
+  No new media assets. This is stereo bearing, not HRTF elevation, wall occlusion or
+  headphone comfort acceptance. Hit/kill confirmation still requires server events.
+- Combat bots acquire/track with bounded yaw/pitch speed (including DOM), retain
+  their seeded aim error and reaction delay, and withhold fire while turning onto
+  a target. They still use room movement/fire handlers and visibility checks.
+  Practice dummies remain stationary. Route tactics, burst/reload cover decisions
+  and human perceived difficulty remain further work.
+- Inspector supports explicit remote reload phases and records the phase. Resource
+  assertions now reject a request with no effects-stress workload; an accidental
+  `effects` shot previously fell back to an overview without exercising the gate.
+
+Final serial gates: typecheck PASS; test PASS **303 passed + 3 existing opt-in
+skips** (27 passed files + one skipped); build:client PASS; Worker build/dry-run
+PASS **234.36 KiB / gzip 69.64 KiB**. Evidence: `.inspect/session7-final-gates.log`.
+Five added tests cover deadline-based late entry, stereo bearing/falloff, bot
+acquisition and shared-buffer/per-instance reload-transform ownership. Existing room tests additionally assert deadline completion, rejection
+of a forged restart and weapon-switch cancellation. Existing arm-contact/head
+invariance, server hit verification, ammo and recovery tests remain green.
+PowerShell wraps esbuild's ordinary stderr as NativeCommandError in the log; both
+esbuild commands exit 0. Initial inspector-default expectation failed after adding
+`reload: null`; updated the expected diagnostic shape and reran all gates.
+
+Browser evidence:
+- `session7-final-report.json`: both actual effects workloads, real combat, TDM boot,
+  same-seat reconnect, self-grenade death/respawn and menu. Zero console/runtime/HTTP
+  errors or forbidden offline gameplay requests. Combat: 2.7 m movement, one
+  server-verified kill, reload 26 -> 30, all six phases, fire blocked during reload,
+  target respawn. TDM boot is not a completed human 6v6 match.
+- `session7-clearance-final-report.json`: ten front/side captures, all five weapons,
+  crouch +89 degrees. `session7-reload-report.json`: ten extraction/hand views, all
+  weapons at phase 0.4. Inspected shotgun clearance and shotgun/pistol reload hands,
+  plus the real combat screenshot. Charge-phase and full aim evidence follows below.
+- `session7-first-report.json` retains successful early combat/recovery plus two
+  mislabeled overview shots; those are NOT effects evidence. `session7-aim` is a
+  neutral-only 15-view run because `--aims=...` was not recognized; it is NOT a full
+  pitch sweep. Corrected with explicit spaced arguments for `session7-sweep`.
+- The first actual effects run overlapped software rig captures. Resource gates
+  passed at 219/222 peak calls, but first-ready maxima were 27.8/41.6 ms and Relay
+  had one 20.8 ms steady interval. Keep these observations; isolated timing follows.
+
+Asset audit PASS: **6,178,510 asset bytes**, **12,005,899 public bytes**, largest
+file **4,051,319 bytes**. Five existing private GLBs and their ignore rules unchanged;
+no raw or derived purchased file was written. Audio is synthesis, animation changes
+are runtime code. Local workerd logged tick backlog warnings under the mixed
+inspection workload; no deployed capacity/latency claim is derived from this.
+
+Next: human remote reload/palm/charging review, headphone direction/mix listening
+and full real 6v6 round/rematch/RTT playtest. Movement acceleration/deceleration and
+crouch camera transitions were reviewed but not changed: preserve the view/fire
+origin agreement while designing any transition. Further bot cover/reload tactics
+and UI iteration should follow playtest evidence. Representative laptop iGPU 1080p
+thermal testing, cold driver caches, supported real-device browsers and supervisor
+cold-eviction drill remain required. M2/M5 and live acceptance stay open. No new
+owner decision or SDK request; supervisor owns publication, owner owns live approval.
+
+Final correction evidence:
+- `session7-sweep-report.json` caught a **44.789 mm** pistol support-wrist drift in
+  upward run (6.11 mm crouched): rejected the universal clearance offset. The final
+  correction applies only to stocked weapons; pistol keeps its prior calibrated
+  arc. `session7-pistol-fixed-report.json` repeats all nine pistol idle/run/crouch
+  -89/0/+89 poses. Combined accepted 45-pose set has maximum support-wrist drift
+  **0.00805 mm**, zero errors; see `session7-contact-final.json`. This is contact
+  transform continuity, not proof of finger mesh penetration.
+- `session7-charge-report.json`: all five weapons at explicit phase 0.78, zero
+  errors/network requests. Opened sniper charge and corrected upward-running pistol
+  hand view. Support hand/bolt styling still needs human moving-pose acceptance.
+- An isolated pre-cache effects run reproduced 34.6/27.8 ms first-ready peaks.
+  That prompted preparing and retaining shared remote part buffers during loading.
+  Its later combat respawn assertion failed while the client bundle was being
+  rebuilt; do not count that incomplete run as accepted. The final post-build boot
+  and timing report below replace it. A Record-vs-array type error during the
+  preparation edit was fixed before the final green gates.
+
+Final isolated Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced / DPR 1:
+
+| Effects fixture | Construction / preparation ms | First 30 ready max ms | Steady median / p95 / p99 ms | Peak calls / triangles | Textures / estimated MiB |
+|---|---|---|---|---|---|
+| Relay | 51.6 / 471.6 | 7.1 | 6.9 / 7.1 / 7.1 | 219 / 81,962 | 22 / 60.08 |
+| Undertow | 27.8 / 259.9 | 7.1 | 6.9 / 7.1 / 7.1 | 222 / 76,456 | 21 / 57.42 |
+
+`session7-accepted-report.json`: 2,130 steady samples/map; max 7.8/7.6 ms and
+zero steady intervals over 16.7 ms. Each map: 145 twelve-rifle volleys/15 seconds
+(9.67 volleys/s), 96 explosions, zero live explosions/tracers after cooldown.
+Moving remote parts cost 22 additional calls in this eleven-operator view; both
+remain under the 240 stress gate. Shared part buffers reduce unique resident
+geometries from 163/154 to 144/135 in the same fixture. These desktop rAF samples
+are not GPU timer queries, representative iGPU acceptance, driver-cold-cache or
+network/room capacity evidence. No parallel rig inspector ran during this sample.
+
+Final post-build combat in `session7-accepted-report.json`: **2.4 m** authoritative
+movement, one verified kill, reload **26 -> 30**, all six phases and reload-fire
+blocking; the nonzero deadline arrived through the binary state and cleared to
+zero at completion. Target respawn, same-seat reconnect and self-grenade recovery
+to 100 HP/idle reload passed. Zero console/runtime/HTTP errors and forbidden offline
+network requests across all five final flows. Earlier `session7-final` also includes
+TDM boot and deployment-menu captures. Neither is human 6v6 acceptance.
+
+Cleanup verified in `.inspect/session7-cleanup.json`: all **12** owned preview
+root/descendant processes stopped, no port 8796 listener and no inspection browsers
+remain. Browser scripts closed their own temporary profiles. All session inspection
+artifacts remain under ignored .inspect. No git commands or deployments performed.

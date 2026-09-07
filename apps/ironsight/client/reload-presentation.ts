@@ -24,7 +24,14 @@ export function reloadPose(progress: number | null) {
     tilt: smooth(p, 0, 0.14) * (1 - smooth(p, 0.82, 1)),
     magazine: smooth(p, 0.18, 0.34) * (1 - smooth(p, 0.48, 0.64)),
     reach: smooth(p, 0.08, 0.18) * (1 - smooth(p, 0.65, 0.76)),
+    chargeReach: smooth(p, 0.68, 0.74) * (1 - smooth(p, 0.86, 0.94)),
     bolt: smooth(p, 0.72, 0.78) * (1 - smooth(p, 0.80, 0.86)),
     phase: progress === null ? 'idle' : p < 0.18 ? 'reach' : p < 0.48 ? 'mag-out' : p < 0.70 ? 'mag-in' : p < 0.86 ? 'bolt' : 'return',
   };
+}
+
+/** State deadlines survive AOI entry and reconnect without replaying a start event. */
+export function remoteReloadProgress(alive: boolean, end: number, duration: number, now: number): number | null {
+  if (!alive || !Number.isFinite(end) || !Number.isFinite(now) || !Number.isFinite(duration) || duration <= 0 || end <= now) return null;
+  return Math.max(0, Math.min(1, 1 - (end - now) / duration));
 }

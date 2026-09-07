@@ -263,7 +263,7 @@ export class Vfx {
       if (d > FOOT_MAX_DIST_M) return;
       atten = Math.min(1, 3 / Math.max(1, d));
     }
-    playFootstep(atten);
+    playFootstep(listenerPos ? 1 : atten, listenerPos ? pos : undefined);
   }
 
   // --- per-frame aging -----------------------------------------------------------
