@@ -13,6 +13,9 @@ import {
   listProjects,
   listShowcaseByOwner,
   revokeApiKey,
+  getLeaderboardBoardPeriod,
+  previousSeasonKey,
+  seasonKey,
   setShowcaseStatus,
   submitShowcaseGame,
   topScores,
@@ -163,14 +166,21 @@ const LEADERBOARD_CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Expose-Headers": "X-Tikron-Season, X-Tikron-Period",
   "Access-Control-Max-Age": "86400",
 };
 
 /**
- * Public top-N read: `GET /api/leaderboard?board=<name>&limit=50`. Resolved to the
- * calling project by `?apiKey=` (missing key → `DEMO_PROJECT_ID` when set;
- * dev-mode / null project → the shared "dev" scope). Returns ranked entries with
- * a short edge-cache — this is a hot, public read that tolerates 10s of staleness.
+ * Public top-N read: `GET /api/leaderboard?board=<name>&limit=50&season=`.
+ * Resolved to the calling project by `?apiKey=` (missing key → `DEMO_PROJECT_ID`
+ * when set; dev-mode / null project → the shared "dev" scope). `season` omitted
+ * or `"current"` resolves the board's declared period (missing → "alltime") and
+ * uses today's key; `"previous"`/`"prev"` uses the prior key; any other value is
+ * used verbatim as an explicit season key (validated: `[0-9A-Za-z-]{0,16}`, else
+ * `400 invalid_season` — it's echoed into a response header). The resolved key +
+ * period are echoed back as `X-Tikron-Season` / `X-Tikron-Period` (response body
+ * stays a bare ranked array for 0.6 client compatibility). Short edge-cache — a
+ * hot, public read that tolerates 10s of staleness.
  */
 export async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
   const resolved = await resolveProject(env, url);
@@ -181,14 +191,37 @@ export async function handleLeaderboard(env: Env, url: URL): Promise<Response> {
   const scope = resolved.projectId ?? "dev";
   const limitRaw = Number(url.searchParams.get("limit") ?? "50");
   const limit = Number.isFinite(limitRaw) ? limitRaw : 50;
-  const rows = env.DB ? await topScores(env.DB, scope, board, limit) : [];
+
+  const period = env.DB ? ((await getLeaderboardBoardPeriod(env.DB, scope, board)) ?? "alltime") : "alltime";
+  const seasonParam = url.searchParams.get("season");
+  let season: string;
+  if (seasonParam === null || seasonParam === "current") {
+    season = seasonKey(period, Date.now());
+  } else if (seasonParam === "previous" || seasonParam === "prev") {
+    season = previousSeasonKey(period, Date.now());
+  } else {
+    // An explicit key is echoed back verbatim into a response header, so it
+    // must be a valid ByteString with no CR/LF (a raw non-ASCII/control value
+    // would make `new Response()` throw -> an uncaught 500 with no CORS).
+    if (!/^[0-9A-Za-z-]{0,16}$/.test(seasonParam)) {
+      return json({ error: "invalid_season" }, 400, LEADERBOARD_CORS);
+    }
+    season = seasonParam;
+  }
+
+  const rows = env.DB ? await topScores(env.DB, scope, board, limit, season) : [];
   const body = rows.map((r, i) => ({
     rank: i + 1,
     playerId: r.player_id,
     displayName: r.display_name,
     score: r.score,
   }));
-  return json(body, 200, { "Cache-Control": "public, max-age=10", ...LEADERBOARD_CORS });
+  return json(body, 200, {
+    "Cache-Control": "public, max-age=10",
+    "X-Tikron-Season": season,
+    "X-Tikron-Period": period,
+    ...LEADERBOARD_CORS,
+  });
 }
 
 // --- dashboard session helpers ---

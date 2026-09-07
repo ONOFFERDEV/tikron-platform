@@ -201,12 +201,61 @@ export async function accrueUsage(
     .run();
 }
 
-// --- leaderboards (P5) ---
+// --- leaderboards (P5) + seasons (F4) ---
 
 export interface LeaderboardEntry {
   player_id: string;
   display_name: string | null;
   score: number;
+}
+
+/** A board's score-reset cadence. "alltime" never resets (the pre-F4 behavior,
+ *  stored as season=''). */
+export type LeaderboardPeriod = "daily" | "weekly" | "monthly" | "alltime";
+
+/**
+ * The UTC season key a score submitted at `nowMs` under `period` falls into.
+ * "alltime" is always "" (matches every pre-migration row, which is why 0005
+ * needed no backfill). Daily/monthly are calendar-aligned UTC strings; weekly
+ * is the ISO-8601 week ("YYYY-Www", Monday-start, week 1 = the week containing
+ * the year's first Thursday) via the standard Thursday-shift trick.
+ */
+export function seasonKey(period: LeaderboardPeriod, nowMs: number): string {
+  const d = new Date(nowMs);
+  switch (period) {
+    case "alltime":
+      return "";
+    case "daily":
+      return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    case "monthly":
+      return d.toISOString().slice(0, 7); // YYYY-MM
+    case "weekly": {
+      const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dayNum = (t.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+      t.setUTCDate(t.getUTCDate() - dayNum + 3); // Thursday of this ISO week
+      const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+      const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+      firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+      const week = 1 + Math.round((t.getTime() - firstThursday.getTime()) / (7 * 86_400_000));
+      return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+    }
+  }
+}
+
+/** The season key for the period immediately BEFORE the one containing `nowMs`. */
+export function previousSeasonKey(period: LeaderboardPeriod, nowMs: number): string {
+  switch (period) {
+    case "alltime":
+      return "";
+    case "daily":
+      return seasonKey("daily", nowMs - 86_400_000);
+    case "weekly":
+      return seasonKey("weekly", nowMs - 7 * 86_400_000);
+    case "monthly": {
+      const d = new Date(nowMs);
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
+    }
+  }
 }
 
 /**
@@ -221,9 +270,11 @@ const SCORE_SET: Record<ScoreMode, string> = {
 };
 
 /**
- * Record a score for a player on a project's board. The board is created
- * implicitly on first submit; the row is upserted per {@link ScoreMode} (keep the
- * max, add, or overwrite). `display_name` is refreshed to the latest submitted.
+ * Record a score for a player on a project's board within a season. The board
+ * is created implicitly on first submit; the row is upserted per
+ * {@link ScoreMode} (keep the max, add, or overwrite), scoped to `season`
+ * (default `""`, the alltime season — every pre-F4 row lives here). `display_name`
+ * is refreshed to the latest submitted.
  */
 export async function submitScore(
   db: D1Database,
@@ -234,20 +285,82 @@ export async function submitScore(
     displayName: string | null;
     score: number;
     mode: ScoreMode;
+    season?: string;
   },
 ): Promise<void> {
   const setScore = SCORE_SET[s.mode] ?? SCORE_SET.max;
   await db
     .prepare(
-      `INSERT INTO leaderboards (project_id, board, player_id, display_name, score, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(project_id, board, player_id) DO UPDATE SET
+      `INSERT INTO leaderboards (project_id, board, season, player_id, display_name, score, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(project_id, board, season, player_id) DO UPDATE SET
          score = ${setScore},
          display_name = excluded.display_name,
          updated_at = excluded.updated_at`,
     )
-    .bind(s.projectId, s.board, s.playerId, s.displayName, s.score, Date.now())
+    .bind(s.projectId, s.board, s.season ?? "", s.playerId, s.displayName, s.score, Date.now())
     .run();
+}
+
+/**
+ * Record a score, computing its season from `period` (default "alltime") as of
+ * now. When the caller explicitly declares a `period`, it's also remembered as
+ * the board's current reset period for future reads (last write wins);
+ * omitting `period` leaves any existing declaration untouched. The shared entry
+ * point for both gateway-hosted rooms and self-hosted score ingest, so season
+ * computation and the board-period upsert live in exactly one place.
+ */
+export async function recordScore(
+  db: D1Database,
+  s: {
+    projectId: string;
+    board: string;
+    playerId: string;
+    displayName: string | null;
+    score: number;
+    mode: ScoreMode;
+    period?: LeaderboardPeriod;
+  },
+): Promise<void> {
+  const season = seasonKey(s.period ?? "alltime", Date.now());
+  await submitScore(db, { ...s, season });
+  if (s.period !== undefined) {
+    await upsertLeaderboardBoardPeriod(db, s.projectId, s.board, s.period);
+  }
+}
+
+/** Upsert (last write wins) a board's declared reset period.
+ *  ponytail: dated season partitions (leaderboards rows keyed by season) are
+ *  never pruned — a daily board adds ~365 rows/player/year. Fine at current
+ *  scale; add a pruning job (or a D1 scheduled TTL sweep) when it isn't. */
+export async function upsertLeaderboardBoardPeriod(
+  db: D1Database,
+  projectId: string,
+  board: string,
+  period: LeaderboardPeriod,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO leaderboard_boards (project_id, board, period, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(project_id, board) DO UPDATE SET
+         period = excluded.period, updated_at = excluded.updated_at`,
+    )
+    .bind(projectId, board, period, Date.now())
+    .run();
+}
+
+/** A board's declared reset period, or null when it has never declared one
+ *  (callers treat a null as "alltime"). */
+export async function getLeaderboardBoardPeriod(
+  db: D1Database,
+  projectId: string,
+  board: string,
+): Promise<LeaderboardPeriod | null> {
+  const row = await db
+    .prepare(`SELECT period FROM leaderboard_boards WHERE project_id = ? AND board = ?`)
+    .bind(projectId, board)
+    .first<{ period: LeaderboardPeriod }>();
+  return row?.period ?? null;
 }
 
 /** Free-tier cap on distinct leaderboard boards per project (config-overridable,
@@ -289,15 +402,16 @@ export async function topScores(
   projectId: string,
   board: string,
   limit: number,
+  season = "",
 ): Promise<LeaderboardEntry[]> {
   const n = Math.max(1, Math.min(100, Math.floor(limit)));
   const res = await db
     .prepare(
       `SELECT player_id, display_name, score FROM leaderboards
-       WHERE project_id = ? AND board = ?
+       WHERE project_id = ? AND board = ? AND season = ?
        ORDER BY score DESC, updated_at ASC LIMIT ?`,
     )
-    .bind(projectId, board, n)
+    .bind(projectId, board, season, n)
     .all<LeaderboardEntry>();
   return res.results ?? [];
 }

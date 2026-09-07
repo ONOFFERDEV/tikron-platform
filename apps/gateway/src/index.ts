@@ -26,7 +26,7 @@ import {
   handlePlatformApi,
   resolveProject,
 } from "./platform/api.js";
-import { getProject, submitScore } from "./platform/db.js";
+import { getProject, recordScore } from "./platform/db.js";
 import { handleIngest, handleScoreIngest } from "./platform/ingest.js";
 import { verifyJwt } from "./platform/jwt.js";
 import { isLocationHint, resolveLocationHint, LOCATION_HINTS_LIST } from "./region.js";
@@ -178,16 +178,17 @@ const roomOptions: DefineRoomOptions = {
   // the write that lands last). A null project (dev-mode) writes to the shared
   // "dev" scope so dev reads see the same rows; no DB → a no-op.
   services: {
-    submitScore: (env, { projectId, board, playerId, score, displayName, mode }) => {
+    submitScore: (env, { projectId, board, playerId, score, displayName, mode, period }) => {
       const e = env as Env;
       if (!e.DB) return;
-      return submitScore(e.DB, {
+      return recordScore(e.DB, {
         projectId: projectId ?? "dev",
         board,
         playerId,
         score,
         displayName: displayName ?? null,
         mode: mode ?? "max",
+        period,
       });
     },
   },

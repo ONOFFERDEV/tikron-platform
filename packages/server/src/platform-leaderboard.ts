@@ -58,6 +58,7 @@ export function platformLeaderboard(
       score: entry.score,
       displayName: entry.displayName,
       mode: entry.mode,
+      period: entry.period,
     });
     try {
       const res = fetch(endpoint, {

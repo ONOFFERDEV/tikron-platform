@@ -2,7 +2,13 @@ import type { ScoreMode } from "@tikron/server";
 import type { Env } from "../index.js";
 import type { Matchmaker } from "../matchmaker.js";
 import { resolveProjectId, scopeForKey } from "./apikeys.js";
-import { boardCount, boardExists, leaderboardBoardsCap, submitScore } from "./db.js";
+import {
+  boardCount,
+  boardExists,
+  leaderboardBoardsCap,
+  recordScore,
+  type LeaderboardPeriod,
+} from "./db.js";
 
 /**
  * Self-hosted usage ingest: `POST /api/ingest/occupancy`.
@@ -218,6 +224,9 @@ interface ScoreInput {
   score: number;
   displayName: string | null;
   mode: ScoreMode;
+  /** Score-reset cadence; omitted -> "alltime" and leaves any board-declared
+   *  period (from a PRIOR submit) untouched — see {@link recordScore}. */
+  period?: LeaderboardPeriod;
 }
 
 /** Validate a score-submit body; null on any malformed field. */
@@ -244,7 +253,20 @@ function parseScore(body: unknown): ScoreInput | null {
     mode = b.mode;
   }
 
-  return { board, playerId, score, displayName, mode };
+  let period: LeaderboardPeriod | undefined;
+  if (b.period !== undefined) {
+    if (
+      b.period !== "daily" &&
+      b.period !== "weekly" &&
+      b.period !== "monthly" &&
+      b.period !== "alltime"
+    ) {
+      return null;
+    }
+    period = b.period;
+  }
+
+  return { board, playerId, score, displayName, mode, period };
 }
 
 // Actionable fix instructions carried in the error `message` (HARD rule: failures
@@ -294,13 +316,14 @@ export async function handleScoreIngest(request: Request, env: Env): Promise<Res
     return error("cap_leaderboard_boards", 403, MSG_CAP_BOARDS);
   }
 
-  await submitScore(env.DB, {
+  await recordScore(env.DB, {
     projectId,
     board: score.board,
     playerId: score.playerId,
     displayName: score.displayName,
     score: score.score,
     mode: score.mode,
+    period: score.period,
   });
   return new Response(null, { status: 204, headers: CORS });
 }

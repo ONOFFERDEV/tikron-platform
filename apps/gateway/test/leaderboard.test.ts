@@ -1,7 +1,15 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import type { Env } from "../src/index.js";
-import { createApiKey, createProject, submitScore, topScores } from "../src/platform/db.js";
+import {
+  createApiKey,
+  createProject,
+  previousSeasonKey,
+  seasonKey,
+  submitScore,
+  topScores,
+  upsertLeaderboardBoardPeriod,
+} from "../src/platform/db.js";
 import { generateApiKey } from "../src/platform/apikeys.js";
 import { handleLeaderboard } from "../src/platform/api.js";
 
@@ -140,5 +148,99 @@ describe("public leaderboard read (GET /api/leaderboard)", () => {
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
     const body = (await res.json()) as { playerId: string; score: number }[];
     expect(body[0]).toMatchObject({ playerId: "hero", score: 7 });
+  });
+});
+
+describe("leaderboard seasons (F4)", () => {
+  it("current/previous/explicit ?season= select the right partition, with X-Tikron-Season/-Period headers", async () => {
+    const p = proj();
+    const b = board();
+    await upsertLeaderboardBoardPeriod(db(), p, b, "weekly");
+
+    const now = Date.now();
+    const thisWeek = seasonKey("weekly", now);
+    const lastWeek = previousSeasonKey("weekly", now);
+    const put = (playerId: string, score: number, season: string) =>
+      submitScore(db(), { projectId: p, board: b, playerId, displayName: null, score, mode: "max", season });
+    await put("cur", 10, thisWeek);
+    await put("prev", 20, lastWeek);
+    await put("explicit", 30, "2020-W01");
+
+    const e = { DB: db(), DEMO_PROJECT_ID: p } as Env;
+
+    const curRes = await handleLeaderboard(e, new URL(`https://x/api/leaderboard?board=${b}`));
+    expect(curRes.headers.get("X-Tikron-Season")).toBe(thisWeek);
+    expect(curRes.headers.get("X-Tikron-Period")).toBe("weekly");
+    expect(curRes.headers.get("Access-Control-Expose-Headers")).toContain("X-Tikron-Season");
+    expect(((await curRes.json()) as { playerId: string }[])[0]).toMatchObject({ playerId: "cur" });
+
+    const prevRes = await handleLeaderboard(
+      e,
+      new URL(`https://x/api/leaderboard?board=${b}&season=previous`),
+    );
+    expect(prevRes.headers.get("X-Tikron-Season")).toBe(lastWeek);
+    expect(((await prevRes.json()) as { playerId: string }[])[0]).toMatchObject({ playerId: "prev" });
+
+    // "prev" is the plan's spelling — an alias for "previous".
+    const prevAliasRes = await handleLeaderboard(
+      e,
+      new URL(`https://x/api/leaderboard?board=${b}&season=prev`),
+    );
+    expect(prevAliasRes.headers.get("X-Tikron-Season")).toBe(lastWeek);
+    expect(((await prevAliasRes.json()) as { playerId: string }[])[0]).toMatchObject({
+      playerId: "prev",
+    });
+
+    const explicitRes = await handleLeaderboard(
+      e,
+      new URL(`https://x/api/leaderboard?board=${b}&season=2020-W01`),
+    );
+    expect(explicitRes.headers.get("X-Tikron-Season")).toBe("2020-W01");
+    expect(((await explicitRes.json()) as { playerId: string }[])[0]).toMatchObject({
+      playerId: "explicit",
+    });
+  });
+
+  it("a board that never declared a period reads all-time as before (regression)", async () => {
+    const p = proj();
+    const b = board();
+    // No upsertLeaderboardBoardPeriod call — mirrors every pre-F4 board.
+    await submitScore(db(), {
+      projectId: p,
+      board: b,
+      playerId: "u",
+      displayName: "hero",
+      score: 5,
+      mode: "max",
+    }); // season defaults to "" (alltime)
+
+    const e = { DB: db(), DEMO_PROJECT_ID: p } as Env;
+    const res = await handleLeaderboard(e, new URL(`https://x/api/leaderboard?board=${b}`));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("X-Tikron-Period")).toBe("alltime");
+    expect(res.headers.get("X-Tikron-Season")).toBe("");
+    const body = (await res.json()) as { playerId: string; score: number }[];
+    expect(body[0]).toMatchObject({ playerId: "u", score: 5 });
+  });
+
+  it("400s a non-ASCII explicit ?season= (would otherwise throw inside new Response headers)", async () => {
+    const e = { DB: db(), DEMO_PROJECT_ID: proj() } as Env;
+    const url = new URL(`https://x/api/leaderboard?board=${board()}`);
+    url.searchParams.set("season", "시즌");
+
+    const res = await handleLeaderboard(e, url);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_season" });
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*"); // still CORS-readable
+  });
+
+  it("400s a CRLF explicit ?season= (header-injection shaped input)", async () => {
+    const e = { DB: db(), DEMO_PROJECT_ID: proj() } as Env;
+    const url = new URL(`https://x/api/leaderboard?board=${board()}`);
+    url.searchParams.set("season", "a\r\nX-Injected: 1");
+
+    const res = await handleLeaderboard(e, url);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_season" });
   });
 });

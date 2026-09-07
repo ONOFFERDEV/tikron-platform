@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import type { Env } from "../src/index.js";
 import type { Matchmaker } from "../src/matchmaker.js";
 import { _resetScoreCaches } from "../src/platform/ingest.js";
-import { topScores } from "../src/platform/db.js";
+import { getLeaderboardBoardPeriod, seasonKey, topScores } from "../src/platform/db.js";
 
 const ORIGIN = "https://example.com";
 const INGEST = `${ORIGIN}/api/ingest/occupancy`;
@@ -189,6 +189,40 @@ describe("self-hosted leaderboard score ingest (POST /api/ingest/score)", () => 
     expect(rows[0]).toMatchObject({ player_id: "p1", display_name: "Ada", score: 42 });
   });
 
+  it("period=weekly → row lands under the current ISO-week season and the board's period is remembered (F4)", async () => {
+    _resetScoreCaches();
+    const cookie = await devLogin("score-weekly");
+    const { projectId, apiKey } = await projectWithKey(cookie, "WeeklyScores", "secret");
+    const board = `weekly-${crypto.randomUUID().slice(0, 8)}`;
+
+    const res = await ingestScore(apiKey, { board, playerId: "p1", score: 5, period: "weekly" });
+    expect(res.status).toBe(204);
+
+    const week = seasonKey("weekly", Date.now());
+    const rows = await topScores(testEnv().DB!, projectId, board, 10, week);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ player_id: "p1", score: 5 });
+    // Not visible under the default (alltime, season='') read.
+    expect(await topScores(testEnv().DB!, projectId, board, 10)).toHaveLength(0);
+
+    expect(await getLeaderboardBoardPeriod(testEnv().DB!, projectId, board)).toBe("weekly");
+  });
+
+  it("no period → row lands under the alltime season (empty string), same as before F4", async () => {
+    _resetScoreCaches();
+    const cookie = await devLogin("score-noperiod");
+    const { projectId, apiKey } = await projectWithKey(cookie, "NoPeriodScores", "secret");
+    const board = `alltime-${crypto.randomUUID().slice(0, 8)}`;
+
+    const res = await ingestScore(apiKey, { board, playerId: "p1", score: 9 });
+    expect(res.status).toBe(204);
+
+    const rows = await topScores(testEnv().DB!, projectId, board, 10); // season defaults to ""
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ player_id: "p1", score: 9 });
+    expect(await getLeaderboardBoardPeriod(testEnv().DB!, projectId, board)).toBeNull();
+  });
+
   it("tk_pub_ (publishable) key → 403 key_scope_forbidden with an actionable message", async () => {
     _resetScoreCaches();
     const cookie = await devLogin("score-pub");
@@ -229,6 +263,7 @@ describe("self-hosted leaderboard score ingest (POST /api/ingest/score)", () => 
       { board: "b", playerId: "p", score: "10" }, // score not a number
       { board: "b", playerId: "p", score: Infinity }, // non-finite score
       { board: "b", playerId: "p", score: 1, mode: "avg" }, // invalid mode
+      { board: "b", playerId: "p", score: 1, period: "yearly" }, // invalid period (F4)
       { board: "b", playerId: "p", score: 1, displayName: 5 }, // displayName wrong type
     ];
     for (const body of cases) {

@@ -54,6 +54,17 @@ describe("platformLeaderboard", () => {
     });
   });
 
+  it("includes period in the POST body when the entry declares one (F4 seasons)", () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const hook = platformLeaderboard({ apiKey: () => "tk_live_abc" });
+
+    hook({}, entry({ period: "weekly" }));
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(init.body as string)).toMatchObject({ period: "weekly" });
+  });
+
   it("uses a custom endpoint when given", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
