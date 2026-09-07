@@ -42,6 +42,8 @@ account.
 - **Opaque peer relay** (0.7.0, unreleased) — declare `relay = { types: [...] }` on a room and it passes WebRTC signaling (or any side-channel message) between clients with a spoofproof sender id, its own rate budget, and a byte cap, all separate from the gameplay input limiter.
 - **`@tikron/rtc`** (0.7.0, unreleased) — a browser-to-browser data channel and camera/mic link with your own Cloudflare TURN key (BYO-TURN); the room stays authoritative and P2P is an enhancement only.
 - **Leaderboard seasons** (0.7.0, unreleased) — submit a score with `period: "daily" | "weekly" | "monthly" | "alltime"` and read any past or current season back via `?season=`.
+- **Party matchmaking** (0.7.0, unreleased) — `matchmake({ party: N })` reserves up to 16 seats in one room atomically; the leader distributes the returned `sessionIds` to teammates over your own channel.
+- **Self-hosted matchmaking** (0.7.0, unreleased) — a room running on your own Cloudflare account registers for `/api/matchmake` through the same occupancy reporter you already wire for usage, zero extra config.
 
 ## Install
 

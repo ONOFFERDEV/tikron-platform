@@ -514,6 +514,51 @@ class Dungeon extends IoArenaRoom<MyState> {
 }
 ```
 
+## Party matchmaking
+
+Place a pre-made group into **one** room in a single call:
+`GET /api/matchmake?type=<room>&mode=<filter>&max=<seats>&party=N`.
+
+`party` is an integer `1 ≤ N ≤ 16` and must not exceed `max`; anything else is
+`400 {"error":"invalid_party"}`. The matchmaker only picks a room whose **free
+seats** (`max − live − held`) cover the whole party — a room with 2 seats left is
+skipped for a party of 3 — and otherwise creates a new one. All N holds are issued
+in the same call, so a concurrent solo player can never split the party.
+
+Response (superset of the single-player shape, which is unchanged when `party` is
+absent or `1`):
+
+```json
+{ "roomId": "…", "sessionId": "<first>", "sessionIds": ["…", "…", "…"], "region": "apac" }
+```
+
+From the client SDK:
+
+```ts
+const m = await client.matchmake({ type: "agar-room", maxClients: 8, party: 3 });
+// leader joins with its own seat
+const room = await client.joinOrCreate(m.roomId, { _session: m.sessionId });
+// hand m.sessionIds[1..] to the other two over YOUR channel (lobby room broadcast,
+// invite link, Discord activity payload — whatever your game already has)
+```
+
+**Tikron holds no party state.** There is no invite, lobby, or group object on the
+platform: the leader calls `matchmake` and distributes the extra session ids. Each
+member then connects with `joinOrCreate(m.roomId, { _session: <their id> })` — the
+session ids are single-use seats validated by the matchmaker, so treat them as
+secrets and send them over a channel only the party can read.
+
+**Size the party against the ROOM's cap, not just `max`.** The matchmaker cannot
+see the `maxClients` your `Room` subclass declares — that is the hard cap enforced
+at join. If the party is larger than it, the overflow members get `room_full` after
+the ids are already handed out, so keep the `max` you matchmake with at or below
+the room class's own cap.
+
+Honest limits: no skill/MMR matching (any party of the right size takes the first
+room that fits), no queue or backfill (a party that doesn't fit anywhere gets a
+fresh room, never a wait), N ≤ 16 per call, and the holds expire after 15s like any
+reservation — distribute the ids and connect promptly.
+
 ## Self-hosted usage reporting
 
 Your rooms run on **your** Cloudflare account, so the hosted dashboard
@@ -541,7 +586,74 @@ is throttled (≤ 1 POST / room / 10 s, plus an immediate send on the first repo
 and on the final leave) and fully best-effort — every error is swallowed, so it
 can never break a room. No key configured → it's a no-op, and the game runs
 exactly as before. Self-hosted rooms are metered but never appear in the gateway
-lobby (`/api/rooms`) or matchmaking.
+lobby (`/api/rooms`).
+
+`TIKRON_API_KEY` MUST be a `tk_live_` secret key — a `tk_pub_` publishable key is
+refused with `403 key_scope_forbidden` (occupancy ingest, like score ingest, is a
+secret-key-only route). Since 0.7, the same report also **registers the room for
+matchmaking** once it carries a party name, seat cap, and public origin — see
+"Self-hosted matchmaking" below.
+
+## Self-hosted matchmaking
+
+Your game runs on YOUR Cloudflare account; the platform only decides which room
+each player goes to. There is no new config — the occupancy reporter you already
+wire for usage does the registration.
+
+**Register (zero config).** Give the room a seat cap and keep `platformReporter`:
+
+```ts
+class ArenaRoomImpl extends Room<ArenaState> {
+  protected override maxClients = 8;      // required — an uncapped room can't be seated
+  protected override matchFilter = "ranked"; // optional bucket, like the matchmaker's `mode`
+}
+export const ArenaRoom = defineRoom(ArenaRoomImpl, {
+  reportOccupancy: platformReporter({ apiKey: (e) => (e as Env).TIKRON_API_KEY }),
+});
+```
+
+`TIKRON_API_KEY` must be a **`tk_live_` secret** key, kept server-side with
+`wrangler secret put`. Occupancy ingest rejects a publishable `tk_pub_` key with
+`403 key_scope_forbidden`: that key ships in your game's client bundle, so
+honoring it would let anyone forge your usage or point your own players at
+another host.
+
+Each occupancy report now also carries the room's party name, seat cap, match
+filter, and the public origin it answered its first connect on. That is enough for
+`GET /api/matchmake` to hand players a room on your worker. Behind a proxy or a
+custom domain the captured origin can be wrong — pin it with
+`platformReporter({ apiKey, publicUrl: (env) => env.PUBLIC_URL })`.
+
+**Match (from the browser).** Call tikron.dev cross-origin with a publishable key,
+then connect to the room it names:
+
+```ts
+const client = new GameClient(location.host, { apiKey: "tk_pub_…" });
+const m = await client.matchmake({ endpoint: "https://tikron.dev/api/matchmake", party: 2 });
+const game = new GameClient(new URL(m.roomUrl ?? location.origin).host, { apiKey: "tk_pub_…" });
+const room = await game.joinOrCreate(m.roomId, { _session: m.sessionId });
+```
+
+`roomUrl` is your worker's origin (absent for gateway-hosted rooms), `roomId` is a
+plain room name, and `party: N` reserves N seats in that one room — the same
+contract as hosted party matchmaking, so the leader distributes `sessionIds`.
+
+**Limits, honestly.**
+
+- **Seats are advisory.** Your worker never validates our session ids, so a player
+  who connects straight to a room URL bypasses the assignment. Enforce capacity
+  with `maxClients` in the room, which is authoritative.
+- **A room appears only after its first occupancy report**, i.e. after its first
+  player connects. Until then matchmaking mints a brand-new room id for your
+  origin, and your Durable Object is created by whoever connects first.
+- **One origin per project** — the latest report wins. Serve one deployment per
+  project; two origins reporting under one key will fight over it. The origin is
+  forgotten once the project's last registered room has been silent for 90s, so a
+  retired deployment stops receiving players.
+- **Uncapped rooms never register.** `maxClients = Infinity` (the default) reports
+  no seat cap, so there is nothing to seat against.
+- Self-hosted rooms are excluded from the public lobby (`GET /api/rooms`); their
+  ids are namespaced per project internally and never handed to a client.
 
 ## Identity & auth (player tokens)
 
@@ -791,13 +903,16 @@ Error **frames** (`{ t: "s:error", code, message }`) — HTTP or in-band, socket
 | `invalid_api_key` | HTTP 401 on `/parties/*` | API key not recognized. Use a key from the dashboard for this project. |
 | `cap_concurrent_rooms` | HTTP 403 on `/api/matchmake` | Project hit its concurrent-rooms cap. Free rooms as players leave, or upgrade the plan. |
 | `cap_room_hours` | HTTP 403 on `/api/matchmake` | Project hit its monthly room-hours cap. Wait for reset or upgrade. |
-| `key_scope_forbidden` | HTTP 403 on `/api/ingest/score` | A `tk_pub_` publishable key hit the secret-only score-ingest route. Use a `tk_live_` secret key (dashboard → Keys, or `POST /api/platform/projects/:id/keys {"scope":"secret"}`), kept server-side. |
+| `invalid_party` | HTTP 400 on `/api/matchmake` | `party` isn't an integer `1..16`, or it exceeds `max`. Fix the `party` value, or omit it for single-player matchmaking. |
+| `invalid_room` | HTTP 400 on `/parties/*` | A gateway connect targeted a self-hosted room's internal (`ext:`-namespaced) id directly. Get the room id from `/api/matchmake`; don't construct `ext:` room names yourself. |
+| `key_scope_forbidden` | HTTP 403 on `/api/ingest/score`, `/api/ingest/occupancy` | A `tk_pub_` publishable key hit a secret-only ingest route (score, and — since 0.7 — occupancy). Use a `tk_live_` secret key (dashboard → Keys, or `POST /api/platform/projects/:id/keys {"scope":"secret"}`), kept server-side. |
 | `cap_leaderboard_boards` | HTTP 403 on `/api/ingest/score` | Project hit its distinct-board limit (`free_leaderboard_boards`, default 50). Reuse an existing board name or raise the cap. |
 | `cap_leaderboard_rate` | HTTP 429 on `/api/ingest/score` | Per-project submit rate exceeded (30/s, burst 60). Throttle/batch server-side score writes and retry. |
 | `invalid_season` | HTTP 400 on `/api/leaderboard` | An explicit `?season=` value failed validation (`[0-9A-Za-z-]{0,16}`). Use `current`/`previous`/`prev`, omit the param, or pass a well-formed season key. |
 
-The three `/api/ingest/score` codes carry an actionable `message` field in the JSON body
-(`{ error, message }`); the plain occupancy-ingest errors stay code-only.
+The `/api/ingest/score` codes and occupancy's `key_scope_forbidden` carry an actionable
+`message` field in the JSON body (`{ error, message }`); the other occupancy-ingest errors
+stay code-only.
 
 (API-key enforcement + caps apply only when the gateway runs with a platform DB; local
 dev with `DEV_MODE=1` skips them.)
@@ -885,10 +1000,14 @@ what is in progress — pick your genre and architecture accordingly.
   matchmaker: the creating client passes `joinOrCreate(roomId, { region: "apac" })` and the
   scaffold worker forwards it as the `locationHint` on first contact (invalid values warn and
   fall back to default placement).
-- **Matchmaking scope.** What exists: `joinOrCreate` + reservation + `filterBy` + a live
-  lobby list. What does **not** exist yet: skill/MMR rating, parties/pre-made groups, and
-  reconnect-into-queue. Build ranked matching or party grouping in your own app layer on top
-  of the primitives.
+- **Matchmaking scope.** What exists: `joinOrCreate` + reservation + `filterBy`, a
+  live lobby list, parties (`party: N`, up to 16 seats reserved in one room at
+  once), and self-hosted rooms — a game running on your own account registers
+  itself through the occupancy reporter and is matched like a hosted one. What
+  does **not** exist yet: skill/MMR rating, a queue (a party that fits nowhere gets
+  a fresh room, it never waits), and reconnect-into-queue. Seats on a self-hosted
+  room are advisory — the room's own `maxClients` is what actually enforces
+  capacity. Build ranked matching on your own app layer on top of the primitives.
 - **Scale envelope.** Measured comfortable at **20 players/room**, **100 players in one room**
   (deployed, clean — server tick+flush 0 ms), and **128 CCU across 8 rooms** (see the measured
   limits above and PERF.md). Rooms scale horizontally — each is its own DO — so total CCU grows

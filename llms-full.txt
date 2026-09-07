@@ -283,9 +283,28 @@ write-only (not decode-relevant), so a str length change does NOT trip it.
 
 ## Platform (apps/gateway) — multi-tenancy
 
-REST: GET /api/matchmake?type=<party>&mode=&max= → {roomId, sessionId} (403
-cap_room_hours | cap_concurrent_rooms when capped) · GET /api/rooms → lobby ·
-Dashboard API under /api/platform/* (session-cookie auth; see dashboard).
+REST: GET /api/matchmake?type=<party>&mode=&max=&party= → {roomId, sessionId} (+
+sessionIds, region? when party>1; 403 cap_room_hours | cap_concurrent_rooms | 400
+invalid_party when capped/bad) · GET /api/rooms → lobby · Dashboard API under
+/api/platform/* (session-cookie auth; see dashboard).
+
+Party matchmaking (F5, 0.7): `&party=N` (1..16, N<=max) reserves N seats in ONE
+room atomically, all-or-nothing (a concurrent solo player can never split it) →
+sessionIds[0] is the leader's, the rest go to teammates over your OWN channel
+(Tikron holds no party/invite state). Size party against the ROOM's own
+maxClients, not just ?max= — bigger and the overflow gets room_full at join.
+15s reservation hold; no skill/MMR, no queue/backfill.
+
+Self-hosted matchmaking (F3, 0.7): a game on the customer's OWN Cloudflare
+account registers for /api/matchmake through the SAME occupancy reporter —
+report {type, maxClients, baseUrl} (or platformReporter({apiKey, publicUrl}))
+once a room takes its first connect. TIKRON_API_KEY must be tk_live_ (tk_pub_ →
+403 key_scope_forbidden, now also on /api/ingest/occupancy). Response's roomUrl
+names the worker to connect to: client.matchmake({ endpoint:
+"https://tikron.dev/api/matchmake" }) → new GameClient(new
+URL(m.roomUrl).host). Seats are ADVISORY (the room's own maxClients is what's
+enforced); one origin per project, forgotten after 90s silence; maxClients =
+Infinity (default) never registers; excluded from GET /api/rooms.
 
 Keys: two prefix-derived classes — tk_pub_ (publishable: browser connect/matchmake/leaderboard
 read; safe to ship) and tk_live_ (secret: + server-side ingest; keep off the client). SHA-256
@@ -351,8 +370,11 @@ an always-on tick. Full math + verified-vs-estimated: docs/COSTS.md.
   members are near each other and the placement. Self-hosted scaffolds: the creating client
   passes joinOrCreate(roomId, { region }) and the scaffold worker forwards it as locationHint
   (invalid values warn + default placement).
-- Matchmaking = joinOrCreate + reservation + filterBy + lobby list ONLY. No skill/MMR,
-  parties, or reconnect-into-queue — build ranked/party logic in your app layer.
+- Matchmaking = joinOrCreate + reservation + filterBy + lobby list + parties
+  (party=N, <=16 seats/call) + self-hosted rooms (registered via the occupancy
+  reporter, matched like hosted ones; seats advisory, room's maxClients
+  enforces). No skill/MMR or reconnect-into-queue — build ranked matching in
+  your app layer.
 - Scale: measured comfortable at 20 players/room, 100 in one room, and 128 CCU across rooms
   (PERF.md); rooms scale horizontally. AOI is now grid-indexed (~O(viewers+entities)/flush,
   property-tested vs the naive filter) + priority tiers — not O(n²) — so the per-room ceiling
