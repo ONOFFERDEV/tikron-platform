@@ -30,6 +30,7 @@ export class Input {
   yaw = 0;
   pitch = 0;
   locked = false;
+  lockRetry = false;
   /** Look-sensitivity multiplier (main sets it to fov/HIP_FOV so ADS zoom slows the turn). */
   sensScale = 1;
 
@@ -65,11 +66,8 @@ export class Input {
       // menu/settings-panel keydowns (including the settings panel's own key-capture
       // mode) from leaking into gameplay: capturing a rebind onto grenade's current
       // key must not ALSO throw a live grenade, and Digit1-5 during capture must not
-      // ALSO swap loadout slots. `held` bookkeeping below stays unconditional so a
-      // key held across a lock/unlock boundary is still tracked (intent() already
-      // returns neutral while unlocked), and this also drops any jumpEdge/reloadEdge
-      // that would otherwise accumulate while unlocked and fire the instant the
-      // player relocks.
+      // ALSO swap loadout slots. Menu keystrokes are not retained across resume;
+      // losing pointer lock clears both held keys and pending action edges.
       if (this.locked) {
         if (binds.jump.includes(e.code)) {
           if (!e.repeat) this.jumpEdge = true;
@@ -82,7 +80,7 @@ export class Input {
           if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
         }
       }
-      this.held.add(e.code);
+      if (this.locked) this.held.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.held.delete(e.code));
     // Losing window focus must not leave keys "stuck" down (tab-out mid-strafe).
@@ -99,7 +97,7 @@ export class Input {
       }
       if (e.button !== 0) return;
       if (this.locked) this.firing = true;
-      else void this.canvas.requestPointerLock();
+      else this.lock();
     });
     window.addEventListener("mouseup", (e) => {
       if (e.button === 0) this.firing = false;
@@ -120,7 +118,11 @@ export class Input {
 
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.canvas;
+      if (this.locked) this.lockRetry = false;
       if (!this.locked) {
+        this.held.clear();
+        this.jumpEdge = false;
+        this.reloadEdge = false;
         this.firing = false;
         this.adsHeldState = false;
       }
@@ -143,7 +145,14 @@ export class Input {
 
   /** Request pointer lock (from a user gesture, e.g. clicking the resume overlay). */
   lock(): void {
-    void this.canvas.requestPointerLock();
+    // Browsers can reject a quick Resume immediately after Escape. Keep the
+    // click prompt usable and explain the retry instead of leaking a rejection.
+    try {
+      const request = this.canvas.requestPointerLock();
+      void request?.catch(() => { this.lockRetry = true; });
+    } catch {
+      this.lockRetry = true;
+    }
   }
 
   /** Whether left-fire is currently held (only true while pointer-locked). */

@@ -26,8 +26,7 @@
  * cancel-capture-on-Escape, without either module needing to know about the
  * other's internals.
  */
-import { GAME } from "../src/game-config.js";
-import { openSettings } from "./settings-ui.js";
+import { openSettings, closeSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
 
 const css = `
@@ -38,7 +37,10 @@ const css = `
   padding: 32px 40px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
   background: rgba(20,24,32,0.85); }
 #quitConfirm h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
-#quitConfirm .row { display: flex; gap: 12px; }
+#quitConfirm .row { display: flex; gap: 12px; flex-wrap:wrap; justify-content:center; }
+#quitConfirm button:focus-visible{outline:2px solid #edaa52;outline-offset:3px}
+#quitConfirm .panel{max-width:calc(100vw - 32px);box-sizing:border-box}
+#quitConfirm p{margin:0;text-align:center;color:#becbd0}
 #quitConfirm button { padding: 10px 22px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
   background: rgba(255,255,255,0.06); color: #eef; font: inherit; cursor: pointer;
   transition: background 120ms, border-color 120ms; }
@@ -47,6 +49,14 @@ const css = `
 `;
 
 let root: HTMLDivElement | null = null;
+let dismissCurrent: (() => void) | null = null;
+
+/** Results and connection recovery take precedence over an open gameplay menu. */
+export function closeGameplayMenus(): void {
+  if (!root) return;
+  closeSettings();
+  dismissCurrent?.();
+}
 
 function quitToMenu(): void {
   const url = new URL(location.href);
@@ -61,9 +71,12 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
   style.textContent = css;
   const dlg = document.createElement("div");
   dlg.id = "quitConfirm";
+  dlg.setAttribute('role', 'dialog');
+  dlg.setAttribute('aria-modal', 'true');
+  dlg.setAttribute('aria-labelledby', 'pause-title');
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.innerHTML = `<h2>${GAME.text.quit.prompt}</h2>`;
+  panel.innerHTML = `<h2 id="pause-title">MATCH MENU / 메뉴</h2><p>The match continues while this menu is open.</p>`;
   const rowEl = document.createElement("div");
   rowEl.className = "row";
 
@@ -72,17 +85,23 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
     style.remove();
     dlg.remove();
     root = null;
+    dismissCurrent = null;
     if (relockAfter) relock();
   };
   const onKeydown = (e: KeyboardEvent): void => {
     if (e.code === "Escape" && !e.repeat) dismiss(false);
+    if (e.code === 'Tab') {
+      const controls = Array.from(rowEl.querySelectorAll('button'));
+      if (e.shiftKey && document.activeElement === controls[0]) { e.preventDefault(); controls.at(-1)?.focus(); }
+      else if (!e.shiftKey && document.activeElement === controls.at(-1)) { e.preventDefault(); controls[0]?.focus(); }
+    }
   };
 
   const continueBtn = document.createElement("button");
-  continueBtn.textContent = GAME.text.quit.continueLabel;
+  continueBtn.textContent = 'RESUME / 계속';
   continueBtn.addEventListener("click", () => dismiss(true));
   const settingsBtn = document.createElement("button");
-  settingsBtn.textContent = GAME.text.settings.openLabel;
+  settingsBtn.textContent = 'SETTINGS / 설정';
   settingsBtn.addEventListener("click", () => {
     window.removeEventListener("keydown", onKeydown);
     dlg.style.display = "none";
@@ -93,7 +112,7 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
   });
   const quitBtn = document.createElement("button");
   quitBtn.className = "quit";
-  quitBtn.textContent = GAME.text.quit.quitLabel;
+  quitBtn.textContent = 'DEPLOYMENT / 메뉴';
   quitBtn.addEventListener("click", () => quitToMenu());
 
   rowEl.append(continueBtn, settingsBtn, quitBtn);
@@ -102,6 +121,8 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
   document.body.appendChild(dlg);
   window.addEventListener("keydown", onKeydown);
   root = dlg;
+  dismissCurrent = () => dismiss(false);
+  continueBtn.focus();
 }
 
 /**

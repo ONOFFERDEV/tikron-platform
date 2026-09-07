@@ -5,8 +5,8 @@ import { openSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
 
 const MODES: Record<ModeId, { label: string; ko: string; map: string; description: string; detail: string }> = {
-  tdm: { label: "TEAM DEATHMATCH", ko: "팀 데스매치", map: "RELAY", description: "Take the yard. Hold the advantage.", detail: "6v6 · Team combat · Bots fill open seats" },
-  dom: { label: "DOMINATION", ko: "거점 점령", map: "UNDERTOW", description: "Three objectives. One coordinated team.", detail: "6v6 · Capture and defend · Three control points" },
+  tdm: { label: "TEAM DEATHMATCH", ko: "팀 데스매치", map: "RELAY", description: "Take the yard. Hold the advantage.", detail: "Up to 6v6 · Solo starts with 4 operators, including bots" },
+  dom: { label: "DOMINATION", ko: "거점 점령", map: "UNDERTOW", description: "Three objectives. One coordinated team.", detail: "Up to 6v6 · Capture and defend · Bots join solo matches" },
   ffa: { label: "FREE FOR ALL", ko: "개인전", map: "CROSSYARD", description: "Every angle is a threat. Trust your aim.", detail: "Solo combat · Fast respawns · Legacy arena" },
   practice: { label: "FIELD TRAINING", ko: "사격 훈련", map: "ALL SITES", description: "Learn the routes. Find your weapon.", detail: "Private session · Passive targets · No time limit" },
 };
@@ -98,7 +98,9 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
       root.querySelector(".brief")!.textContent = mode.description;
       const siteId: SiteId = selected === 'practice' ? trainingSite : selected === 'dom' ? 'arena2' : selected === 'ffa' ? 'arena3' : 'arena1';
       const site = SITES[siteId];
-      root.querySelector(".detail")!.textContent = `${site.name} / ${mode.detail}`;
+      root.querySelector(".detail")!.textContent = `${site.name} / ${selected === 'practice'
+        ? trainingSite === 'arena1' ? 'Private session · Five passive targets · No time limit' : 'Private map exploration · No targets · No time limit'
+        : mode.detail}`;
       (root.querySelector(".sites") as HTMLElement).hidden = selected !== "practice";
       root.querySelector('.intel small')!.textContent = `OPERATION SITE / ${site.number}${site.legacy ? ' / LEGACY' : ''}`;
       root.querySelector('.intel strong')!.textContent = site.name;

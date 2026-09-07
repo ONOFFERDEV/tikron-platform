@@ -164,6 +164,13 @@ export class Hud {
   private voteSent = false;
   private overlayMarkup = "";
   private briefText = "";
+  private trainingHelp = '';
+  private readonly muteBadge = el('div', 'audioMuted', 'AUDIO MUTED · M / SETTINGS');
+  setMuted(muted: boolean): void { this.muteBadge.hidden = !muted; }
+  setTrainingSite(hasTargets: boolean): void {
+    this.trainingHelp = hasTargets ? 'Passive targets stand in West Service. Try all five weapons (1–5), then reload.'
+      : 'Map exploration: no targets here. Choose Relay training for target practice.';
+  }
   private readonly brief = el("div", "matchBrief");
   private restart: () => void = () => {};
   private leave: () => void = () => {};
@@ -301,6 +308,8 @@ export class Hud {
     this.overlay = el("div", "overlay"); this.root.appendChild(this.overlay);
 
     this.root.appendChild(this.brief);
+    this.muteBadge.style.cssText = 'position:absolute;left:28px;top:230px;color:#edaa52;background:#10242bcc;padding:6px 10px;font:11px Arial';
+    this.muteBadge.hidden = true; this.root.appendChild(this.muteBadge);
     this.overlay.addEventListener('click', (event) => {
       const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
       if (action === 'restart') this.restart();
@@ -485,13 +494,14 @@ export class Hud {
       crouch: formatBinding(binds.crouch),
       jump: formatBinding(binds.jump),
       reload: formatBinding(binds.reload),
+      grenade: formatBinding(binds.grenade),
     });
   }
 
   /** The click-to-play / ESC prompt. */
   showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
     if (show) {
-      this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
+      this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>${this.trainingHelp ? this.trainingHelp + "<br>" : ""}Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
     } else {
       this.overlay.style.display = "none";
     }

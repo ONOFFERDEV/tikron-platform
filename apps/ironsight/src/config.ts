@@ -315,7 +315,7 @@ export const MATCH = {
   maxClients: 12,
   killTarget: 50, // team score that ends the match
   timeLimitMs: 5 * 60_000, // …or 5 minutes, whichever first
-  intermissionMs: 5_000, // "ended" banner window before the arena resets to "live"
+  intermissionMs: 20_000, // time to read results; a human majority can skip into warmup
   respawnMs: 3_000, // downed → respawn delay
   spawnProtectMs: 1_500, // post-spawn invulnerability (cleared early by firing)
   warmupMinPlayers: 2, // seats needed before the warmup→live countdown starts — reconcileBots

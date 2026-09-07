@@ -34,6 +34,10 @@ import {
   type SettingsStore,
 } from "./settings.js";
 
+import { isMuted, setMuted, setMasterVolume } from './audio.js';
+
+let closeCurrent: (() => void) | null = null;
+export function closeSettings(): void { closeCurrent?.(); }
 const T = GAME.text.settings;
 
 const css = `
@@ -156,6 +160,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   volumeInput.addEventListener("input", () => {
     if (capturingAction !== null) return;
     settings.setVolume(Number(volumeInput.value));
+    setMasterVolume(settings.get().volume);
     volumeValue.textContent = `${Math.round(settings.get().volume * 100)}%`;
   });
   volumeRow.append("Master volume / 음량", volumeInput, volumeValue);
@@ -224,6 +229,10 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     row.append(label, keyBtn, resetBtn);
     bindsWrap.appendChild(row);
   }
+  const muteLabel = document.createElement('label'); muteLabel.className = 'checkRow';
+  const muteInput = document.createElement('input'); muteInput.type = 'checkbox'; muteInput.checked = isMuted(); muteInput.dataset.setting = 'muted';
+  muteInput.addEventListener('change', () => { if (capturingAction === null) setMuted(muteInput.checked); });
+  muteLabel.append(muteInput, 'Mute audio / 음소거 (M)'); panel.insertBefore(muteLabel, bindsTitle);
   panel.appendChild(bindsWrap);
 
   // A capture consumes the very next keydown (Escape cancels instead of
@@ -266,6 +275,8 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   resetAllBtn.addEventListener("click", () => {
     if (capturingAction !== null) return;
     settings.resetAll();
+    setMuted(false); muteInput.checked = false;
+    setMasterVolume(settings.get().volume);
     sensInput.value = String(settings.get().sensitivity);
     sensValue.textContent = formatSens(settings.get().sensitivity);
     invertInput.checked = settings.get().invertY;
@@ -282,6 +293,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   panel.appendChild(bottomRow);
 
   function close(): void {
+    closeCurrent = null;
     window.removeEventListener("keydown", onKeydown);
     style.remove();
     dlg.remove();
@@ -293,5 +305,6 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   dlg.append(style, panel);
   document.body.appendChild(dlg);
   root = dlg;
+  closeCurrent = close;
   sensInput.focus();
 }

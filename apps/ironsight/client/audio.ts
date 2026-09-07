@@ -275,6 +275,12 @@ export function isMuted(): boolean {
   return muted;
 }
 
+export function setMuted(value: boolean): void {
+  muted = value;
+  try { localStorage.setItem(MUTED_KEY, muted ? '1' : '0'); } catch { /* private storage */ }
+  applyMute();
+}
+
 function applyMute(): void {
   if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : A.masterGain * volume, ctx.currentTime, 0.01);
 }
@@ -295,7 +301,7 @@ export function initAudio(onToggle?: (muted: boolean) => void): void {
   window.addEventListener("keydown", resume);
   window.addEventListener("keydown", (e) => {
     if (e.code !== "KeyM" || e.repeat || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
-    muted = !muted;
+    setMuted(!muted);
     try {
       localStorage.setItem(MUTED_KEY, muted ? "1" : "0");
     } catch {

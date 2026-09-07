@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-6 are deployed there. Session 7 is a local candidate
-until the supervisor publishes it; remote reloads, steep-aim clearance and the new
-directional combat audio/bot tracking are not yet on that preview.
+Supervisor reports sessions 1-7 are deployed there, including remote reloads,
+steep-aim clearance and directional combat audio/bot tracking. Session 8 fixes
+are local candidates until the supervisor publishes them. Refresh after publication.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -55,6 +55,47 @@ trigger for any hitch, clipping, confusing UI or disagreeing hit; a short clip h
   supervisor changes the live worker. Defaults remain industrial daylight, 6v6 TDM,
   stylized sci-fi. No new owner decision is needed to continue development.
 
+
+### OWNER FIRST-PLAY ISSUES
+
+Remaining after session 8, ranked by player impact. These are observations and
+follow-ups, not a claim of human playtest or laptop performance acceptance.
+
+1. **Disconnect detection timing.** The local graceful-close drill took
+   **30,535 ms** from requesting WebSocket close to the reconnect notice, then
+   **711 ms** to recover the same seat (`session8-reconnect-timing-report.json`).
+   This includes the browser/protocol closing handshake; it is not measured
+   Wi-Fi-outage recovery or network latency. Test a real dropped connection and
+   background-tab return. Do not claim immediate outage detection from the
+   successful reconnect smoke; investigate heartbeat/transport notification if
+   a real outage leaves gameplay apparently live for a similar interval.
+2. **Sparse or uneven solo encounters.** Solo TDM starts with four operators,
+   including bots; bots can take almost the same route (two sampled within 0.2 m
+   early in the public preview round). Unrelated preview clients later replaced
+   bots, and sampled scoring stayed at 8–16 until the next round. The menu now
+   describes the four-operator solo start accurately. Review bot separation,
+   route variety and inactive-seat behavior before tuning difficulty or filling
+   twelve seats. Do not infer bot capacity from the shared preview run.
+3. **Art continuity and first-person sleeves.** Crossyard FFA is still the dark,
+   bare legacy arena, visibly different from Relay/Undertow. It is labelled legacy;
+   replacement remains outside this two-map pass. Sniper reload captures show long,
+   angular forearms across the lower screen. Review them in motion and at normal
+   FOV before changing the authored grip or purchased derivative. Remote palm,
+   finger and moving reload approval from the guide remains open.
+4. **Training has no guided progression.** Undertow and Crossyard intentionally
+   have no targets; menu and onboarding now say so and direct shooting practice
+   to Relay. There is no completed-step checklist, route tour or target reset
+   button. Relay's passive pose names are animation labels rather than lessons.
+5. **Precise round-transition countdowns.** Warmup now says it starts automatically;
+   results allow twenty seconds and R has a one-second grace against accidental
+   reload-to-rematch votes. Neither screen displays a replicated transition
+   deadline. A future countdown must use server time, including reconnect and
+   late join, rather than a client timer pretending to be authoritative.
+
+Audio mute/recovery is exercised mechanically; headphone mix, stereo comfort,
+occlusion expectations, real mouse feel and the existing iGPU/6v6/browser gates
+still require the owner and representative devices. No listening approval is
+implied by a silent headless run. No new owner decision is required before the pause.
 
 ## Vision and pillars
 
@@ -991,3 +1032,104 @@ Cleanup verified in `.inspect/session7-cleanup.json`: all **12** owned preview
 root/descendant processes stopped, no port 8796 listener and no inspection browsers
 remain. Browser scripts closed their own temporary profiles. All session inspection
 artifacts remain under ignored .inspect. No git commands or deployments performed.
+
+### Session 8 - 2026-09-07: first-play review
+
+Supervisor reports sessions 1-7 on preview. Tested that deployed build first,
+then made local fixes only. Defaults, authoritative movement/server-verified hits,
+asset provenance and the iGPU budget remain unchanged. No SDK edits, dependencies,
+purchased-source/derivative writes, git commands or deployment; the build uses its
+existing Worker dry-run. Orca CLI was unavailable, so browser control used the
+existing Node/CDP inspector with real mouse clicks, pointer lock and keyboard
+events. The read-only state/camera diagnostics helped inspect the outcome;
+look setters simulate mouse turns, never player-position writes.
+
+First-play findings, ranked by player impact:
+
+| Rank | Observed friction / evidence | Session 8 disposition |
+|---|---|---|
+| 1 | Disconnect in Settings: reconnect UI exists behind both Settings and the Escape menu (`session8-before-menus-report.json`). Results share that overlay precedence problem. Graceful-close detection also takes about thirty seconds before the notice. | Overlay fixed: connection/results close gameplay menus and listeners; settings changes persist. Detection delay remains ranked first in the owner list. |
+| 2 | A reload R near round end becomes an immediate rematch vote; the original journey could skip results before its next poll. | Fixed: one-second grace for the keyboard vote after results appear; explicit button remains immediate. Inspector also stops reloading near the deadline. |
+| 3 | Five seconds is too little to read results, compare stats and choose rematch. | Extended authoritative intermission to twenty seconds, preserving majority skip. Exact countdown remains open. |
+| 4 | M persists mute with no visible status; volume controls do not expose that mute. Menu volume previously waited for gameplay's frame loop to apply. | Added HUD mute status, settings mute toggle/reset and immediate volume application, including saved volume before deployment. No audio asset or combat-mix changes. |
+| 5 | Escape asks only in Korean whether to quit, gives no initial focus/trap, and does not explain the match continues. Menu-held movement can leak into Resume; a browser can reject fast relock. | Bilingual match-menu actions, continued-match notice, focus/trap, cleared input on unlock, ignored menu movement keys, and recoverable click-again prompt for rejected pointer lock. |
+| 6 | Undertow training advertises passive targets but is empty. Onboarding omits G and weapon slots. | Map-specific training copy and target location; current grenade binding and 1-5 weapons included. Guided progression remains open. |
+| 7 | TDM menu says 6v6/bots fill seats, but solo boot has four operators. | Corrected menu to up to 6v6 and four-operator solo start; no untested twelve-bot load increase. |
+| 8 | Warmup says waiting for start without explaining whether another player/action is required. | Says starts automatically. Replicated countdown and clearer spawn-reset cue remain follow-ups. |
+| 9 | Two bots initially follow nearly identical positions; shared preview roster changes lead to a long sampled scoring lull. | Recorded; isolated bot-room rerun separates bot behavior from shared-room population. No speculative AI/difficulty retuning. |
+| 10 | FFA switches abruptly to bare/dark legacy art. Sniper reload exposes long angular sleeves in both training maps. | Recorded for owner visual review; no rushed collision, grip or purchased-asset rewrite. |
+
+`scripts/first-play.mjs` extends `scripts/inspect-map.mjs` with `journey`,
+`journey-match` and `menu-probe`. `--assert-first-play` checks menu focus wrapping,
+mute visibility/settings, no movement from a menu key, uncovered reconnect,
+recovery from a deliberately rejected pointer-lock promise, and a ten-second
+results reading window. `--isolated-tdm` changes only the inspector's matchmaking
+room ID to a unique TDM room; it preserves deployed server rules, bots and clocks.
+It is supplementary controlled evidence, not the public menu's default routing.
+
+Preview evidence: `session8-preview-report.json` covers deployment, real-click
+Relay combat and Undertow training, TDM, DOM, FFA, onboarding, reconnect and
+settings. Zero console/runtime/HTTP errors. `session8-journey-journey.json` records
+**122,140 ms Relay** and **121,671 ms Undertow** training, walking/turning and trying
+all five weapons, ADS and reloads. Screenshots were opened for menu, onboarding,
+both training maps, DOM, FFA, TDM, sniper reloads and fixed mute/recovery UI.
+This scripted route exploration is not proof of every route, human aim or listening.
+
+Failures retained, excluded from acceptance: `session8-first-play` omitted browser
+foregrounding before lock; fixed in the inspector. `session8-before-input` lost
+focus during a backward-Tab probe and could not relock. `session8-journey` completed
+practice but missed the public results/rematch boundary (R reload/vote timing and
+other clients entering the shared room). `session8-final-round` overlapped builds
+that restarted local workerd into a fresh round. These are replaced by the
+post-build isolated round evidence below, not silently counted as passed.
+
+Final application gates: **typecheck, test, build:client, build/dry-run PASS**;
+**303 passed, 3 existing opt-in skips**, 27 passed test files + one skipped.
+Worker **234.41 KiB / gzip 69.68 KiB**. `session8-final-gates.log` retains earlier
+and final gate runs. PowerShell wraps esbuild's ordinary stderr in NativeCommandError
+format; both build commands exit 0. An initial MapDef `id` type error was corrected
+to use the existing practice-room map resolver before green gates.
+
+`session8-final-report.json`: post-build real-click boot, both rebuilt maps,
+server-verified practice kill, ammo/reload phases and fire-during-reload rejection,
+mobile-width settings, menu-held key suppression, uncovered reconnect and rejected
+pointer-lock recovery. Zero console/runtime/HTTP errors or forbidden offline
+network requests. `session8-fixed-report.json` additionally covers all combat-mode
+boots; `session8-final-boot-report.json` includes self-grenade death/respawn.
+
+No representative iGPU, thermal, Firefox/Safari, headphone or human 6v6 acceptance
+is claimed. Resource fixtures were not rerun for these UI/input/intermission changes;
+session 7 budgets remain reference evidence, not a fresh hardware measurement.
+Owner-first-play remaining work is ranked immediately under the guide above.
+
+Completed natural round evidence (after the final gameplay build, no clock/score
+mutation): `session8-preview-round-report.json` and
+`session8-round-accepted-report.json`. Both use an isolated room on the actual
+preview/local Worker respectively, start with the ordinary bot fill, reach the
+five-minute server timeout, click Rematch, enter warmup then a fresh live round,
+open/close Settings, resume pointer lock and reconnect to the same seat.
+Preview result **RED 25 / BLUE 49**, local player **1 elimination / 22 deaths**;
+candidate **RED 15 / BLUE 25**, local player **2 eliminations / 15 deaths**.
+Candidate results remain visible after **10,000 ms** of reading before the vote.
+Both end with **zero console/runtime/HTTP errors** and no forbidden offline
+requests. Opened both result screenshots and candidate rematch warmup. These
+scripted aim/route choices are not a fair measurement of human bot difficulty.
+
+Asset audit: **6,178,510 asset bytes**, five existing ignored private GLBs;
+no purchased asset changed. The final small settings layout adjustment groups
+mute with volume above keybindings; it does not change the completed round flow.
+
+Final layout gate/boot: `session8-final-layout-report.json` passes the same real
+click, menu focus/input/mute, rejected-lock retry, settings layout and reconnect
+checks with zero errors. The final timed reconnect drill also has zero errors;
+its close-detection/recovery split is explicitly recorded in owner issue 1.
+Final public bytes **12,016,340**, largest file **4,058,073 bytes**; asset audit
+saved as `session8-assets.json`. Local workerd emitted tick-backlog warnings during
+the mixed browser/build workload (`session8-server-error.log`); no local capacity
+or sustained performance acceptance is inferred from these functional checks.
+
+Cleanup verified in `session8-cleanup.json`: all **12** owned server root/descendant
+processes stopped, **zero** listeners on 8796 and **zero** remaining inspection
+browsers. Inspectors closed their own temporary profiles. All session artifacts
+remain under app `.inspect` or the OS temporary directory. Ready for the owner's
+playtest pause; supervisor publication and owner live approval remain separate.

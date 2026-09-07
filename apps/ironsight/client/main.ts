@@ -1,4 +1,4 @@
-import { setMasterVolume } from "./audio.js";
+import { setMasterVolume, isMuted } from "./audio.js";
 /**
  * ironsight client entry point (W-B). Wires the network layer, input, local
  * prediction, the three.js scene, the DOM HUD, and synth audio into one frame
@@ -23,14 +23,14 @@ import { SceneRig } from "./scene.js";
 import { startMatchInspector } from "./match-inspect.js";
 import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
-import { wireQuitConfirm } from "./quit-confirm.js";
+import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
 import { initAudio, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
 import type { FireClaim } from "../src/hitscan.js";
-import { MODE_ORDER, mapForRoom, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
+import { MODE_ORDER, mapForRoom, practiceMapKeyFromRoomId, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 import { GAME } from "../src/game-config.js";
 
@@ -63,6 +63,7 @@ async function main(): Promise<void> {
   const settings = new SettingsStore();
   const hud = new Hud(settings);
   initAudio();
+  setMasterVolume(settings.get().volume);
 
   // Shows the fullscreen mode menu (and awaits a pick) only when the page has no
   // valid `?mode=` — a deep link resolves immediately with no menu. Either way,
@@ -88,6 +89,8 @@ async function main(): Promise<void> {
   // source of truth (mapForRoom) the room itself resolves from its own id, so
   // a practice session's arena2/arena3 pick can never diverge from the server.
   const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
+
+  if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1');
 
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
@@ -132,6 +135,7 @@ async function main(): Promise<void> {
     hud.markVoteSent();
     net.sendVoteRestart();
   };
+  let resultsShownAt = Infinity;
   hud.setMatchActions(voteRestart, () => {
     net.room.leave();
     const url = new URL(location.href); url.searchParams.delete('mode');
@@ -139,6 +143,9 @@ async function main(): Promise<void> {
   });
   window.addEventListener("keydown", (e) => {
     if (e.code !== "KeyR" || e.repeat || (e.target instanceof HTMLElement && e.target.closest('input,textarea,select,[contenteditable]'))) return;
+    // A reload pressed as the result arrives must not immediately dismiss it.
+    // The explicit rematch button remains available without this keyboard grace.
+    if (performance.now() - resultsShownAt < 1000) return;
     voteRestart();
   });
 
@@ -498,8 +505,13 @@ async function main(): Promise<void> {
     }
     hud.setPing(net.rttMs);
 
+    hud.setMuted(isMuted() || settings.get().volume === 0);
+    if (phase === 'ended' || !net.online) closeGameplayMenus();
     // Overlay precedence: match end > death > pointer-lock prompt.
-    if (phase === "ended" && !wasEnded && document.pointerLockElement) document.exitPointerLock();
+    if (phase === "ended" && !wasEnded) {
+      resultsShownAt = now;
+      if (document.pointerLockElement) document.exitPointerLock();
+    }
     wasEnded = phase === "ended";
     if (!net.online) {
       hud.showConnection(net.connectionExpired);
@@ -518,7 +530,7 @@ async function main(): Promise<void> {
         respawnSent = true;
       }
     } else if (!input.locked) {
-      hud.showLockPrompt(true, GAME.text.hud.clickToPlay);
+      hud.showLockPrompt(true, input.lockRetry ? 'Click again to resume mouse control' : GAME.text.hud.clickToPlay);
     } else {
       hud.hideOverlay();
     }

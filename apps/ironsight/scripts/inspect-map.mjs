@@ -1,3 +1,4 @@
+import { firstPlay, menuProbe } from './first-play.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -74,6 +75,11 @@ try {
   };
   await send('Page.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__inspectionSockets=[]; const NativeSocket=window.WebSocket; window.WebSocket=class extends NativeSocket { constructor(...args){super(...args);window.__inspectionSockets.push(this);} };` });
+  if (args.includes('--isolated-tdm')) {
+    const room = `arena-first-play-${Date.now()}`;
+    reports.push({ isolation: room, note: 'Only matchmaking room routing is isolated; normal deployed server rules and clock.' });
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: `const fetchOriginal=window.fetch;window.fetch=async(...args)=>{const response=await fetchOriginal(...args);if(String(args[0]).includes('/api/matchmake?mode=tdm') && response.ok){const data=await response.json();data.room=${JSON.stringify(room)};return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});}return response;};` });
+  }
   await send('Network.enable');
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
@@ -81,12 +87,12 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
-    if (gameplay && !name.startsWith('flow')) {
+    gameplay = ['journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
-    else if (!name.startsWith('menu') && !name.startsWith('flow')) {
+    else if (!name.startsWith('menu') && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('inspect', name.startsWith('match-') ? 'match' : name.startsWith('weapon') || name.startsWith('reload-') ? 'weapon' : 'map');
       url.searchParams.set('shot', name);
       if (name.startsWith('weapon-')) {
@@ -98,6 +104,13 @@ try {
     if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
     else await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: url.href });
+    if (name.startsWith('journey')) {
+      await firstPlay({ send, evaluate, click, waitFor, delay, matchOnly: name === 'journey-match', assertFixed: args.includes('--assert-first-play'),
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
+        record: async entry => { reports.push(entry); await writeFile(join(output, `${prefix}-journey.json`), JSON.stringify({ reports, errors }, null, 2)); console.log(entry.stage, entry.elapsed ?? ''); },
+      });
+      continue;
+    }
     if (name.startsWith('flow')) {
       await waitFor('!!document.querySelector("#modeMenu")');
       await click('[data-mode="practice"]');
@@ -165,15 +178,20 @@ try {
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
       }
+      if (name === 'menu-probe') combat = await menuProbe({ send, evaluate, click, waitFor, delay, assertFixed: args.includes('--assert-first-play') });
       if (name === 'reconnect') {
         const before = await evaluate('window.ironsight.myId');
+        const closeRequestedAt = Date.now();
         await evaluate('window.__inspectionSockets.at(-1).close(4000,"inspection reconnect")');
         await waitFor('document.querySelector("#overlay").dataset.kind === "connection"');
+        const disconnectShownAt = Date.now();
         const dropped = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-reconnect-disconnected.png`), Buffer.from(dropped.data, 'base64'));
         await waitFor('window.__inspectionSockets.length >= 2 && window.__inspectionSockets.at(-1).readyState === 1 && document.querySelector("#overlay").dataset.kind !== "connection"');
         if (before !== await evaluate('window.ironsight.myId')) throw Error('Reconnect changed the held seat');
-        combat = { reconnected: true, sameSeat: true };
+        combat = { reconnected: true, sameSeat: true,
+          gracefulCloseDetectionMs: disconnectShownAt - closeRequestedAt,
+          recoveryAfterNoticeMs: Date.now() - disconnectShownAt };
       }
       if (name === 'self-respawn') {
         await waitFor('!window.ironsight.state().players[window.ironsight.myId].prot');
