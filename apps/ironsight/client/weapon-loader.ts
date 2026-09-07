@@ -52,3 +52,25 @@ export function cloneWeaponMesh(gltf: GLTF): THREE.Object3D {
 export function cloneWeaponBundleNode(gltf: GLTF, nodeName: string): THREE.Object3D | undefined {
   return gltf.scene.getObjectByName(nodeName)?.clone();
 }
+
+/** Centre of the foremost vertex slice, rather than the receiver's bounding box.
+ * Called only on weapon load; bundle assets are authored with bore along +Z. */
+export function weaponMuzzle(object: THREE.Object3D): THREE.Vector3 {
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  const tip = new THREE.Box3();
+  const point = new THREE.Vector3();
+  const threshold = box.max.z - (box.max.z - box.min.z) * 0.015;
+  object.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const positions = node.geometry.getAttribute("position");
+    if (!positions) return;
+    for (let i = 0; i < positions.count; i++) {
+      point.fromBufferAttribute(positions, i).applyMatrix4(node.matrixWorld);
+      if (point.z >= threshold) tip.expandByPoint(point);
+    }
+  });
+  if (tip.isEmpty()) return new THREE.Vector3(0, 0, box.max.z);
+  tip.getCenter(point); point.z = box.max.z;
+  return point;
+}

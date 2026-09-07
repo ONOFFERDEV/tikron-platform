@@ -16,8 +16,8 @@ const WEAPONS = GAME.weapons;
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
 #hud .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-#xhair i { position: absolute; background: #d8f0ff; box-shadow: 0 0 2px #000; }
-#hud .panel { position: absolute; background: rgba(10,13,18,0.55); padding: 8px 12px; border-radius: 8px; backdrop-filter: blur(2px); }
+#xhair i { position: absolute; background: #d8f0ff; box-shadow: 0 0 0 1px #07101b, 0 0 4px #07101b; }
+#hud .panel { position: absolute; background: linear-gradient(135deg,rgba(12,22,36,0.90),rgba(8,14,24,0.75)); padding: 8px 12px; border-radius: 4px; border: 1px solid rgba(125,200,255,0.18); box-shadow: 0 4px 16px #0003; }
 #hp { left: 24px; bottom: 24px; width: 220px; }
 #hpbar { height: 12px; background: #2a2f3a; border-radius: 6px; overflow: hidden; margin-top: 4px; }
 #hpfill { height: 100%; width: 100%; background: linear-gradient(90deg,#4caf50,#8bd66f); transition: width 90ms linear; }
@@ -42,14 +42,16 @@ const css = `
 #caps .cap .bar { position: relative; height: 8px; background: #2a2f3a; border-radius: 4px; overflow: hidden; }
 #caps .cap .fill { position: absolute; top: 0; bottom: 0; }
 #feed { top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-#feed .k { background: rgba(10,13,18,0.55); padding: 3px 8px; border-radius: 6px; transition: opacity 300ms; }
+#feed .k { background: linear-gradient(90deg,#0c1626ed,#0c1626b8); padding: 6px 10px; border-radius: 3px; border-left: 2px solid var(--team); transition: opacity 300ms; animation: feed-in 160ms ease-out; }
+@keyframes feed-in { from { transform: translateX(12px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #feed .k { animation: none; } }
 #feed .k .assist { opacity: 0.55; }
 #ping { left: 16px; top: 16px; opacity: 0.6; font-size: 12px; }
 #hitmarker { opacity: 0; }
 #hitmarker.show { opacity: 1; }
-#hitmarker i { position: absolute; width: 12px; height: 2px; background: #fff; }
+#hitmarker i { position: absolute; width: 12px; height: 2px; left: -6px; top: -1px; background: #fff; box-shadow: 0 0 2px #000; }
 #hitmarker.head i { background: #ffd24a; box-shadow: 0 0 4px #ffae00; }
-#vignette { position: absolute; inset: 0; box-shadow: inset 0 0 120px 40px rgba(200,30,30,0); transition: box-shadow 120ms; }
+#vignette { position: absolute; inset: 0; box-shadow: inset 0 0 90px 20px rgba(235,48,65,0); transition: box-shadow 120ms; }
 /* pointer-events:none so a click passes through to the canvas (which requests
    pointer lock) — the prompt is informational, not a button. */
 #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(6,8,12,0.5); text-align: center; pointer-events: none; }
@@ -277,6 +279,7 @@ export class Hud {
     const icon = part === "head" ? T.killfeedIcons.head : part === "blast" ? T.killfeedIcons.blast : T.killfeedIcons.body;
     const assist = assistName ? ` <span class="assist">(+assist ${esc(assistName)})</span>` : "";
     const node = el("div"); node.className = "k";
+    node.style.setProperty("--team", color);
     node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}${assist}`;
     this.feed.appendChild(node);
     this.kills.push({ node, born: performance.now() });
@@ -359,7 +362,7 @@ export class Hud {
 
   flashDamage(): void {
     this.vignetteAt = performance.now();
-    this.vignette.style.boxShadow = "inset 0 0 120px 45px rgba(200,30,30,0.55)";
+    this.vignette.style.boxShadow = "inset 0 0 90px 20px rgba(235,48,65,0.65)";
   }
 
   setPing(ms: number): void {
@@ -449,7 +452,7 @@ export class Hud {
       }
     }
     if (now - this.hitAt > 90) this.hitmarker.className = "center";
-    if (now - this.vignetteAt > 60) this.vignette.style.boxShadow = "inset 0 0 120px 40px rgba(200,30,30,0)";
+    if (now - this.vignetteAt > 60) this.vignette.style.boxShadow = "inset 0 0 90px 20px rgba(235,48,65,0)";
     if (now - this.streakAt > 1800) this.streak.style.opacity = "0";
     for (let i = this.kills.length - 1; i >= 0; i--) {
       const k = this.kills[i]!;

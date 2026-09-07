@@ -1,3 +1,4 @@
+import { VISUALS } from "./visuals.js";
 /**
  * ironsight's `GameConfig` instance — the live values, lifted per PLAN-IRONSIGHT
  * M4 W1. Two lifting strategies, per field group:
@@ -282,6 +283,7 @@ export const ironsightConfig: GameConfig = defineConfig({
 
   // --- weaponVis: transcribed verbatim from client/scene.ts --------------------
   weaponVis: {
+    presentation: VISUALS,
     recoil: [0.4, 0.2, 0.7, 0.9, 0.3], // scene.ts's VM_RECOIL
     swapDownMs: 120, // scene.ts's SWAP_DOWN_MS
     swapUpMs: 230, // scene.ts's SWAP_UP_MS

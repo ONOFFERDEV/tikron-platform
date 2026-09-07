@@ -397,6 +397,7 @@ export interface AudioConfig {
  *  meshes built by `buildWeaponMesh(index)`; either model source is a visual
  *  override only, with no loading logic implied by its mere presence. */
 export interface WeaponVisConfig {
+  presentation?: typeof import("./visuals.js").VISUALS;
   /** Per-weapon recoil kick, indexed like {@link GameConfig.weapons}. */
   recoil: readonly number[];
   /** Lower-holder phase duration; `swapDownMs + swapUpMs` MUST equal

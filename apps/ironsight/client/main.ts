@@ -33,7 +33,7 @@ const DEFAULT_WEAPON_SPEC = WEAPONS[GAME.weaponMeta.defaultIndex]!;
 
 interface Pose {
   x: number; y: number; z: number; yaw: number; pitch: number;
-  crouch: boolean; team: number; alive: boolean;
+  crouch: boolean; team: number; alive: boolean; weapon: number;
 }
 interface Snap {
   time: number;
@@ -274,7 +274,7 @@ async function main(): Promise<void> {
     // Buffer every player's pose for interpolation (rendered ~INTERP_DELAY in the past).
     const players = new Map<string, Pose>();
     for (const [id, p] of Object.entries(state.players)) {
-      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team, alive: p.alive });
+      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team, alive: p.alive, weapon: p.weapon });
     }
     buf.push({ time: performance.now(), players });
     while (buf.length > 24) buf.shift();
@@ -284,6 +284,8 @@ async function main(): Promise<void> {
 
   // --- render loop ----------------------------------------------------------
   let last = performance.now();
+  let motionX = predictor.eye().x;
+  let motionZ = predictor.eye().z;
   let prevYaw = input.yaw;
   let prevPitch = input.pitch;
   // FPS: count rendered frames, publish twice a second (user-visible next to ping).
@@ -399,7 +401,10 @@ async function main(): Promise<void> {
     prevYaw = input.yaw;
     prevPitch = input.pitch;
     const moving = intent.mx !== 0 || intent.mz !== 0;
-    const speed01 = moving ? (intent.sprint && intent.mz > 0 ? 1 : 0.6) : 0;
+    const travelled = Math.hypot(eye.x - motionX, eye.z - motionZ);
+    const speed01 = alive && dt > 0 && travelled < 1
+      ? Math.min(1, travelled / (dt / 1000) / GAME.move.sprint) : 0;
+    motionX = eye.x; motionZ = eye.z;
     scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
     scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);
 
@@ -509,7 +514,7 @@ function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pos
     const pa = a.players.get(id) ?? pb;
     let pose = scratch.get(id);
     if (!pose) {
-      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false };
+      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false, weapon: 0 };
       scratch.set(id, pose);
     }
     pose.x = lerp(pa.x, pb.x, t);
@@ -520,6 +525,7 @@ function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pos
     pose.crouch = pb.crouch;
     pose.team = pb.team;
     pose.alive = pb.alive;
+    pose.weapon = pb.weapon;
   }
   return scratch;
 }

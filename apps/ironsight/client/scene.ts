@@ -17,15 +17,19 @@ import type { MapDef, RampDef } from "../src/map/types.js";
 import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
-import { Vfx } from "./vfx.js";
+import { RemoteWeapon } from "./remote-weapon.js";
+import { VISUALS } from "../config/visuals.js";
+import { Vfx, makeFlashTexture } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
-import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode } from "./weapon-loader.js";
+import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
 const PALETTE = GAME.palette;
+const VIS = GAME.weaponVis.presentation ?? VISUALS;
+const MOTION = VIS.motion;
 const ADS_FOV = GAME.camera.adsFov;
 const HIP_FOV = GAME.camera.hipFov;
 // Map-dressing manifests (committed JSON, client/dressing/*.manifest.json — see
@@ -118,9 +122,7 @@ interface WeaponVmTransform {
  * SM_Wep_Rifle_Base_01/SMG_01/Shotgun_Plasma_01/Sniper_01/Pistol_01 meshes,
  * replacing the cyber-trooper set entirely (same 5 slots, different source
  * geometry). `posZ` keeps the same ~0.3-unit-out convention the cyber-trooper pass
- * established (close enough to the camera to read at a natural FPS size,
- * far enough to clear the near-clip plane) and the shared rest yaw (+0.35,
- * buildViewmodel) is unchanged.
+ * established. Camera-local rest poses and motion now live in weaponVis.presentation.
  *
  * Bore test (confirms rotation, not just assumed): is-armfix's own per-asset
  * red/blue marker renders (muzzle vs stock ends, from their orientation
@@ -203,12 +205,14 @@ interface PlayerPose {
   crouch: boolean;
   team: number;
   alive: boolean;
+  weapon: number;
 }
 
 /** A remote player's rig: either the original capsule+head primitives, or (once
  *  the player GLB is loaded) an animated model clone. `kind` discriminates which
  *  fields below are populated — see {@link SceneRig.makeRig}. */
 interface PlayerRig {
+  weapon?: RemoteWeapon;
   group: THREE.Group;
   team: number;
   kind: "capsule" | "model";
@@ -349,10 +353,12 @@ export class SceneRig {
   // + material, never disposed) or a procedural buildWeaponMesh() (fresh
   // BoxGeometry per call, must be disposed) — see setWeaponVisual/disposeCurrentWeaponMesh.
   private weaponIsModel = false;
+  private sightHeight = 0.1;
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
   private muzzleFiredAt = -1e9;
   private bobPhase = 0;
+  private motionSpeed = 0;
   private recoil = 0; // 0..1, decays; drives kick-back + muzzle rise
   private swayX = 0;
   private swayY = 0;
@@ -395,18 +401,28 @@ export class SceneRig {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = VIS.exposure;
 
     this.scene.background = new THREE.Color(PALETTE.sceneBg);
+    // World-oriented sky: fog and horizon share a colour, zenith stays midnight blue.
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 24, 12), new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false,
+      uniforms: { horizon: { value: new THREE.Color(PALETTE.fog.color) }, zenith: { value: new THREE.Color(VIS.skyZenith) } },
+      vertexShader: "varying vec3 vDirection; void main(){ vDirection=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+      fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
+    }));
+    sky.position.set(ARENA.width / 2, 0, ARENA.depth / 2);
+    sky.raycast = () => {};
+    this.scene.add(sky);
     this.scene.fog = new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, GAME.camera.far);
 
-    this.scene.add(new THREE.HemisphereLight(PALETTE.lights.hemiSky, PALETTE.lights.hemiGround, 1.5));
-    const key = new THREE.DirectionalLight(PALETTE.lights.key, 2.4);
+    this.scene.add(new THREE.HemisphereLight(PALETTE.lights.hemiSky, PALETTE.lights.hemiGround, VIS.lighting.hemisphere));
+    const key = new THREE.DirectionalLight(PALETTE.lights.key, VIS.lighting.key);
     key.position.set(25, 45, 15);
     this.scene.add(key);
-    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, 0.9));
+    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, VIS.lighting.ambient));
 
     this.vfx = new Vfx(this.scene);
     this.buildArena();
@@ -444,6 +460,15 @@ export class SceneRig {
     if (dressingUrl) {
       loadMapDressing(dressingUrl).then((gltf) => {
         if (!gltf) return; // load failed — stay on the procedural box/wall render permanently
+        gltf.scene.traverse(node => {
+          if (!(node instanceof THREE.Mesh)) return;
+          for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
+            if (material instanceof THREE.MeshStandardMaterial) {
+              material.roughness = Math.max(0.72, material.roughness);
+              material.metalness = Math.min(0.18, material.metalness);
+            }
+          }
+        });
         this.scene.add(gltf.scene);
         const hidden = mapId ? DRESSING_MANIFESTS[mapId]?.hiddenBoxIndices : undefined;
         for (const idx of hidden ?? []) {
@@ -470,7 +495,7 @@ export class SceneRig {
     floorTex.repeat.set(width / 2, depth / 2);
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(width, depth),
-      new THREE.MeshStandardMaterial({ map: floorTex, color: PALETTE.floor, roughness: 1, metalness: 0 }),
+      new THREE.MeshStandardMaterial({ map: floorTex, color: PALETTE.floor, roughness: 0.9, metalness: 0.08 }),
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(width / 2, 0, depth / 2);
@@ -488,12 +513,16 @@ export class SceneRig {
     }
 
     // Perimeter walls (dark, low) so the arena bounds read.
-    const wallMat = new THREE.MeshStandardMaterial({ color: PALETTE.walls, roughness: 1 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: PALETTE.walls, roughness: 0.82, metalness: 0.12 });
     const wallH = 3;
     const wall = (w: number, d: number, x: number, z: number): void => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), wallMat);
       m.position.set(x, wallH / 2, z);
       this.scene.add(m);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.045, d),
+        new THREE.MeshBasicMaterial({ color: PALETTE.viewmodel.modelEmissive, transparent: true, opacity: 0.55 }));
+      strip.position.set(x, wallH - 0.12, z);
+      this.scene.add(strip);
     };
     wall(width, 0.4, width / 2, 0);
     wall(width, 0.4, width / 2, depth);
@@ -505,7 +534,7 @@ export class SceneRig {
     // constructor's dressing load can hide specific ones once (and only once)
     // a real bundle has actually loaded, never based on the manifest alone.
     const boxMat = new THREE.MeshStandardMaterial({ color: PALETTE.coverBox, roughness: 0.85, metalness: 0.05 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: PALETTE.coverEdge });
+    const edgeMat = new THREE.LineBasicMaterial({ color: PALETTE.coverEdge, transparent: true, opacity: 0.35 });
     // ?debugBoxes=1 overlay material — bright magenta, distinct from both the
     // procedural fallback edges (coverEdge) and any dressing mesh's own colors.
     const debugMat = new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.85 });
@@ -559,7 +588,7 @@ export class SceneRig {
 
     const muzzle = new THREE.Mesh(
       new THREE.PlaneGeometry(0.28, 0.28),
-      new THREE.MeshBasicMaterial({ color: PALETTE.muzzle, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: PALETTE.muzzle, map: makeFlashTexture(), toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
     muzzle.position.set(0, 0.02, -0.74);
     g.add(muzzle);
@@ -568,16 +597,22 @@ export class SceneRig {
     light.position.set(0, 0.02, -0.74);
     g.add(light);
 
-    // Rest pose: lower-right of the view. rotation.y is turned in enough to
-    // show a classic FPS 3/4 view of the barrel's length rather than looking
-    // nearly straight down it — verified by sweeping candidates with the real
-    // camera/viewmodel hierarchy: -0.05 (and more negative) foreshortens the
-    // GLB weapons' long barrels away to almost nothing (an AR reads as a
-    // pistol from behind), while +0.35 reveals the barrel clearly toward the
-    // crosshair for all 5 GLB weapons AND keeps the procedural boxes reading
-    // the same as before (checked side by side).
-    g.position.set(0.22, -0.2, -0.5);
-    g.rotation.y = 0.35;
+    // Identity child: only updateViewmodel applies rest/ADS/motion transforms.
+    // Forearms terminate at their gloves; the other endpoint extends below frame.
+    if (MOTION.hands) {
+      for (const [grip, elbow] of [
+        [new THREE.Vector3(0.012, -0.035, -0.30), new THREE.Vector3(0.22, -0.38, -0.06)],
+        [new THREE.Vector3(-0.025, -0.025, -0.44), new THREE.Vector3(-0.24, -0.36, -0.05)],
+      ]) {
+        const glove = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.065), VM_DARK);
+        glove.position.copy(grip!);
+        const delta = elbow!.clone().sub(grip!);
+        const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.034, Math.max(0.01, delta.length() - 0.068), 3, 6), VM_METAL);
+        sleeve.position.copy(grip!).add(elbow!).multiplyScalar(0.5);
+        sleeve.quaternion.setFromUnitVectors(EYE_UP, delta.normalize());
+        g.add(glove, sleeve);
+      }
+    }
     return { group: g, muzzle, light };
   }
 
@@ -610,7 +645,9 @@ export class SceneRig {
    *  either way, just a different source URL/extraction step. */
   private setWeaponVisual(index: number): void {
     this.disposeCurrentWeaponMesh();
-    this.weaponHolder.add(buildWeaponMesh(index));
+    const fallback = buildWeaponMesh(index);
+    this.sightHeight = new THREE.Box3().setFromObject(fallback).max.y;
+    this.weaponHolder.add(fallback);
     this.weaponIsModel = false;
     this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
     this.muzzleLight.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
@@ -629,6 +666,8 @@ export class SceneRig {
       const obj = nodeName ? cloneWeaponBundleNode(gltf, nodeName) : cloneWeaponMesh(gltf);
       if (!obj) return; // bundle loaded but this slot's node is missing — stay procedural
 
+      const bore = weaponMuzzle(obj);
+      const sightHeight = new THREE.Box3().setFromObject(obj).max.y * transform.scale;
       this.disposeCurrentWeaponMesh();
       obj.scale.setScalar(transform.scale);
       obj.rotation.y = Math.PI; // this asset family's +Z-is-muzzle -> this viewmodel's -Z-is-forward
@@ -642,10 +681,11 @@ export class SceneRig {
           if (n instanceof THREE.Mesh) n.material = VM_MODEL_MATERIAL;
         });
       }
+      this.sightHeight = sightHeight;
       this.weaponHolder.add(obj);
       this.weaponIsModel = true;
-      this.muzzle.position.set(0, 0.02, transform.muzzleZ);
-      this.muzzleLight.position.set(0, 0.02, transform.muzzleZ);
+      this.muzzle.position.set(-bore.x * transform.scale, bore.y * transform.scale, transform.posZ - bore.z * transform.scale);
+      this.muzzleLight.position.copy(this.muzzle.position);
     });
   }
 
@@ -775,41 +815,40 @@ export class SceneRig {
    * delta this frame (for sway).
    */
   updateViewmodel(dtMs: number, speed01: number, dYaw: number, dPitch: number, grounded: boolean): void {
-    const dt = dtMs / 1000;
+    const dt = clamp(dtMs / 1000, 0, 0.1);
     const now = performance.now();
-    this.bobPhase += dt * (6 + speed01 * 8) * (grounded ? 1 : 0.2);
-    const bobAmt = speed01 * 0.02 * (1 - this.adsT * 0.8); // ADS steadies the bob
+    const response = 1 - Math.exp(-dt * MOTION.speedResponse);
+    this.motionSpeed += ((grounded ? clamp(speed01, 0, 1) : 0) - this.motionSpeed) * response;
+    this.bobPhase += dt * MOTION.bobRate * this.motionSpeed;
+    const bobAmt = this.motionSpeed * MOTION.bobAmplitude;
     const bx = Math.cos(this.bobPhase) * bobAmt;
-    const by = Math.abs(Math.sin(this.bobPhase)) * bobAmt;
-
-    // Sway eases toward an offset proportional to the look delta, then relaxes.
-    this.swayX += (-dYaw * 0.35 - this.swayX) * Math.min(1, dt * 10);
-    this.swayY += (dPitch * 0.35 - this.swayY) * Math.min(1, dt * 10);
-    this.swayX = clamp(this.swayX, -0.06, 0.06);
-    this.swayY = clamp(this.swayY, -0.06, 0.06);
+    const by = Math.sin(this.bobPhase * 2) * bobAmt * 0.6;
+    const swayResponse = 1 - Math.exp(-dt * MOTION.swayResponse);
+    this.swayX += (clamp(-dYaw / Math.max(dt, 0.001) * MOTION.swayGain, -MOTION.swayLimit, MOTION.swayLimit) - this.swayX) * swayResponse;
+    this.swayY += (clamp(dPitch / Math.max(dt, 0.001) * MOTION.swayGain, -MOTION.swayLimit, MOTION.swayLimit) - this.swayY) * swayResponse;
 
     // Weapon swap: dip the holder, replace the mesh at the bottom, raise back up.
     let swapDip = 0;
     if (this.pendingWeapon >= 0) {
       const t = now - this.swapT;
       if (t < SWAP_DOWN_MS) {
-        swapDip = t / SWAP_DOWN_MS;
+        swapDip = THREE.MathUtils.smoothstep(t / SWAP_DOWN_MS, 0, 1);
       } else {
         if (this.weaponIndex !== this.pendingWeapon) {
           this.weaponIndex = this.pendingWeapon;
           this.setWeaponVisual(this.weaponIndex);
         }
         const up = (t - SWAP_DOWN_MS) / SWAP_UP_MS;
-        swapDip = Math.max(0, 1 - up);
+        swapDip = 1 - THREE.MathUtils.smoothstep(up, 0, 1);
         if (up >= 1) this.pendingWeapon = -1;
       }
     }
 
     // ADS: ease adsT, drive FOV + centering; sniper hides the gun behind a scope overlay.
-    this.adsT += ((this.adsHeld ? 1 : 0) - this.adsT) * Math.min(1, dt * 14);
+    this.adsT += ((this.adsHeld && this.pendingWeapon < 0 ? 1 : 0) - this.adsT) * (1 - Math.exp(-dt * MOTION.adsResponse));
     const targetFov = this.adsHeld ? (ADS_FOV[this.weaponIndex] ?? HIP_FOV) : HIP_FOV;
     if (Math.abs(targetFov - this.fovCur) > 0.05) {
-      this.fovCur += (targetFov - this.fovCur) * Math.min(1, dt * 14);
+      this.fovCur += (targetFov - this.fovCur) * (1 - Math.exp(-dt * MOTION.adsResponse));
       this.camera.fov = this.fovCur;
       this.camera.updateProjectionMatrix();
     }
@@ -817,19 +856,23 @@ export class SceneRig {
     this.viewmodel.visible = !scoped;
     this.toggleScope(scoped);
 
-    this.recoil *= Math.exp(-dtMs / 70);
+    this.recoil *= Math.exp(-dt * 1000 / MOTION.recoilSettleMs);
     const kick = this.recoil;
     const ads = this.adsT;
-    const rx = lerp(0.22, 0.0, ads);
-    const ry = lerp(-0.2, -0.152, ads);
-    const rz = lerp(-0.5, -0.42, ads);
+    const pose = MOTION.poses[this.weaponIndex] ?? MOTION.poses[0]!;
+    const steady = lerp(1, MOTION.adsMotion, ads);
+    // Centre X on the bore; look just above the sight silhouette, parallel to the barrel.
     this.viewmodel.position.set(
-      rx + (bx + this.swayX) * (1 - ads * 0.7),
-      ry + (by + this.swayY) * (1 - ads * 0.7) - kick * 0.02 - swapDip * 0.35,
-      rz + kick * 0.08,
+      lerp(pose.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady,
+      lerp(pose.y, -this.sightHeight - MOTION.adsSightClearance, ads) +
+        (by + this.swayY + Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude) * steady - swapDip * MOTION.swapDrop,
+      lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
-    this.viewmodel.rotation.x = kick * 0.25 - swapDip * 0.9;
-    this.viewmodel.rotation.y = -0.05 * (1 - ads) + this.swayX * 0.5;
+    this.viewmodel.rotation.set(
+      pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch,
+      pose.yaw * (1 - ads) + this.swayX * steady,
+      Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady,
+    );
 
     if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
       (this.muzzle.material as THREE.MeshBasicMaterial).opacity = 0;
@@ -887,8 +930,12 @@ export class SceneRig {
         rig = this.makeRig(id, pose.team);
         this.players.set(id, rig);
       }
+      rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
+      rig.weapon.setWeapon(pose.weapon);
+      rig.weapon.beforeAnimation();
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now);
       else this.syncCapsuleRig(rig, pose);
+      rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined);
     }
     // Map iterators tolerate deleting the current/already-visited key mid-loop
     // (spec-guaranteed), so this needs no defensive array copy.
@@ -931,7 +978,7 @@ export class SceneRig {
     rig.head!.position.y = h - HIT.headRadius;
     rig.headY = rig.head!.position.y;
     rig.group.position.set(pose.x, pose.y, pose.z);
-    // (capsule + head sphere are radially symmetric, so yaw needs no cosmetic rotation)
+    rig.group.rotation.y = pose.yaw;
     this.updateHitboxOverlay(rig, rig.headY);
   }
 
@@ -1113,6 +1160,7 @@ export class SceneRig {
   }
 
   private disposeRig(rig: PlayerRig): void {
+    rig.weapon?.dispose();
     this.scene.remove(rig.group);
     if (rig.hitboxOverlay) {
       rig.hitboxOverlay.cylinder.geometry.dispose();
@@ -1160,7 +1208,7 @@ export class SceneRig {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, segLen), mat);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, segLen), mat);
     mesh.quaternion.setFromUnitVectors(FWD_Z, d);
     this.scene.add(mesh);
     this.tracers.push({
@@ -1196,7 +1244,7 @@ export class SceneRig {
     return { x: this.muzzleWorldScratch.x, y: this.muzzleWorldScratch.y, z: this.muzzleWorldScratch.z };
   }
 
-  /** The currently-rendered world position of a remote player's rig, near eye
+  /** The currently-rendered world position of a remote player's weapon muzzle, formerly eye
    *  height (feet + the head mesh's local Y, which already accounts for crouch) —
    *  used to anchor their muzzle flash/casing/tracer start to where they visually
    *  are, since the wire shot origin is stale by their RTT plus our own render
@@ -1204,6 +1252,10 @@ export class SceneRig {
   getRemoteMuzzleAnchor(id: string): { x: number; y: number; z: number } | undefined {
     const rig = this.players.get(id);
     if (!rig) return undefined;
+    if (rig.weapon) {
+      rig.weapon.muzzle.getWorldPosition(this.muzzleWorldScratch);
+      return { x: this.muzzleWorldScratch.x, y: this.muzzleWorldScratch.y, z: this.muzzleWorldScratch.z };
+    }
     return { x: rig.group.position.x, y: rig.group.position.y + (rig.headY ?? 0), z: rig.group.position.z };
   }
 
@@ -1415,7 +1467,7 @@ export class SceneRig {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, VIS.pixelRatio));
   }
 }
 
@@ -1522,7 +1574,7 @@ function makeGridTexture(): THREE.CanvasTexture {
   const ctx = c.getContext("2d")!;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, 64, 64);
-  ctx.strokeStyle = "rgba(150,170,200,0.18)";
+  ctx.strokeStyle = "rgba(90,120,160,0.26)";
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(c);

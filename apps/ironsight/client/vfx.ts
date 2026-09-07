@@ -22,6 +22,20 @@ interface Vec3 {
   z: number;
 }
 
+/** Shared radial texture removes the old opaque-looking square flashes. */
+export function makeFlashTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas"); canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  glow.addColorStop(0, "rgba(255,255,255,1)");
+  glow.addColorStop(0.18, "rgba(255,240,190,0.95)");
+  glow.addColorStop(0.45, "rgba(255,170,70,0.4)");
+  glow.addColorStop(1, "rgba(255,120,30,0)");
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 const UP = new THREE.Vector3(0, 1, 0);
 
 // --- remote muzzle flash -------------------------------------------------------
@@ -75,6 +89,7 @@ interface FootTrack {
 }
 
 export class Vfx {
+  private readonly flashTexture = makeFlashTexture();
   private readonly muzzles: MuzzleSlot[] = [];
   private muzzleCursor = 0;
   private readonly casings: CasingSlot[] = [];
@@ -96,6 +111,8 @@ export class Vfx {
   private buildMuzzle(): MuzzleSlot {
     const mat = new THREE.SpriteMaterial({
       color: PALETTE.muzzle,
+      map: this.flashTexture,
+      toneMapped: false,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
@@ -143,8 +160,8 @@ export class Vfx {
   spawnMuzzleFlash(origin: Vec3, dir: Vec3): void {
     const slot = this.muzzles[this.muzzleCursor]!;
     this.muzzleCursor = (this.muzzleCursor + 1) % this.muzzles.length;
-    const d = normalize(dir);
-    slot.sprite.position.set(origin.x + d.x * 0.3, origin.y + d.y * 0.3, origin.z + d.z * 0.3);
+    slot.sprite.position.set(origin.x, origin.y, origin.z);
+    slot.mat.rotation = Math.atan2(dir.y, dir.x);
     slot.sprite.visible = true;
     slot.mat.opacity = 0.9;
     slot.light.position.copy(slot.sprite.position);
@@ -192,6 +209,9 @@ export class Vfx {
       slot.mesh.position.set(pos.x, pos.y, pos.z);
       slot.vel.copy(v);
       slot.mat.color.setHex(color);
+      slot.mat.blending = hitPlayer ? THREE.NormalBlending : THREE.AdditiveBlending;
+      slot.mesh.scale.set(hitPlayer ? 1 : 0.45, hitPlayer ? 1 : 0.45, hitPlayer ? 1 : 2.4);
+      slot.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v.clone().normalize());
       slot.mat.opacity = 1;
       slot.life = life;
       slot.gravity = gravity;
