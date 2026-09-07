@@ -63,6 +63,31 @@ const css = `
 #wbar .slot .num { opacity: 0.6; margin-right: 4px; }
 #wbar .slot.active { opacity: 1; background: rgba(70,130,220,0.65); box-shadow: 0 0 0 1px #9cc4ff; }
 #wbar .nades { padding: 4px 10px; border-radius: 6px; background: rgba(10,13,18,0.55); font-size: 12px; }
+/* Relay HUD pass: readable instrument hierarchy, quiet panels and warm accents. */
+#hud{font-family:Arial,"Malgun Gothic",sans-serif;color:#f1f0e8}
+#hud .panel{background:linear-gradient(110deg,#10242be8,#10242bba);border:1px solid #c3d3ca25;border-radius:0;box-shadow:none}
+#hp{left:28px;bottom:28px;width:190px;padding:12px 15px;border-left:2px solid #e9b567}
+#hp .healthValue{font-size:30px;font-weight:700;letter-spacing:-1px;margin-right:9px}
+#hp .healthLabel{font-size:10px;letter-spacing:2px;color:#a7c0c4}
+#hpbar{height:4px;border-radius:0;margin-top:8px;background:#354b52}
+#hpfill{background:#d2ded3}
+#ammo{right:28px;bottom:28px;padding:10px 18px;border-right:2px solid #e9b567}
+#ammo .mag{font-size:42px;line-height:1;font-variant-numeric:tabular-nums}
+#ammo .res{font-size:16px;color:#bdc9c8}
+#weaponName{font-size:10px;letter-spacing:3px;color:#edbd74;margin-bottom:9px}
+#wbar{bottom:28px;padding:5px 8px!important;border:0!important;background:#10242b80!important}
+#wbar .slot{border-radius:0;background:transparent;font-size:10px;letter-spacing:.6px;padding:5px 8px}
+#wbar .slot.active{background:#dcae64;color:#132932;box-shadow:none}
+#wbar .nades{background:transparent;font-size:10px}
+#scores{top:28px;gap:22px;padding:9px 22px;font-variant-numeric:tabular-nums}
+#mode{top:79px;opacity:.9;color:#dce6df;text-shadow:0 1px 3px #000;font-size:10px}
+#ping{top:194px;left:28px;font-size:10px;letter-spacing:1px;background:#10242bd9}
+#lb{background:#10242bdd;border-top:2px solid #edb467;padding:8px;top:28px}
+#feed{top:28px;right:28px;font-size:12px}
+#overlay{background:linear-gradient(0deg,#06151bc9,transparent 70%);text-shadow:0 2px 12px #000;justify-content:flex-end;padding-bottom:155px;box-sizing:border-box}
+#overlay h1{font-size:25px;letter-spacing:5px}
+#overlay .hint{font-size:11px;letter-spacing:1px}
+@media(max-width:800px){#tacticalMap{transform:scale(.75);transform-origin:top left}#ping{top:155px}#wbar{bottom:115px}#hp{width:150px}#scores{left:auto;right:28px;transform:none}#mode{left:auto;right:28px;transform:none}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -80,6 +105,8 @@ interface KillRow {
 export class Hud {
   private readonly root: HTMLElement;
   private readonly hpFill: HTMLElement;
+  private readonly hpValue: HTMLElement;
+  private readonly weaponName: HTMLElement;
   private readonly ammoMag: HTMLElement;
   private readonly ammoRes: HTMLElement;
   private readonly reload: HTMLElement;
@@ -143,7 +170,9 @@ export class Hud {
 
     // HP.
     const hp = el("div", "hp"); hp.className = "panel";
-    hp.appendChild(el("div", undefined, T.hud.hp));
+    this.hpValue = el("span", undefined, "100"); this.hpValue.className = "healthValue";
+    const healthLabel = el("span", undefined, "VITALS"); healthLabel.className = "healthLabel";
+    hp.append(this.hpValue, healthLabel);
     const hpbar = el("div", "hpbar");
     this.hpFill = el("div", "hpfill");
     hpbar.appendChild(this.hpFill); hp.appendChild(hpbar);
@@ -151,6 +180,7 @@ export class Hud {
 
     // Ammo.
     const ammo = el("div", "ammo"); ammo.className = "panel";
+    this.weaponName = el("div", "weaponName", "AR / AUTO"); ammo.appendChild(this.weaponName);
     this.ammoMag = el("span", undefined, "30"); this.ammoMag.className = "mag";
     this.ammoRes = el("span", undefined, " / 90"); this.ammoRes.className = "res";
     const ammoLine = el("div"); ammoLine.append(this.ammoMag, this.ammoRes);
@@ -226,9 +256,10 @@ export class Hud {
   }
 
   setHp(hp: number): void {
+    this.hpValue.textContent = String(Math.max(0, Math.ceil(hp)));
     const pct = Math.max(0, Math.min(100, hp));
     this.hpFill.style.width = `${pct}%`;
-    this.hpFill.style.background = pct > 50 ? "linear-gradient(90deg,#4caf50,#8bd66f)"
+    this.hpFill.style.background = pct > 50 ? "#d2ded3"
       : pct > 25 ? "linear-gradient(90deg,#d8a63a,#f0c040)"
       : "linear-gradient(90deg,#c0392b,#e05a4a)";
   }
@@ -253,6 +284,7 @@ export class Hud {
 
   /** Highlight the held weapon's slot (index into {@link WEAPONS}). */
   setWeapon(index: number): void {
+    this.weaponName.textContent = WEAPONS[index]?.name.toUpperCase() ?? "WEAPON";
     this.wslots.forEach((s, i) => s.classList.toggle("active", i === index));
   }
 
@@ -295,7 +327,7 @@ export class Hud {
     const id = MODE_ORDER[modeIndex];
     this.modeLabel.textContent = id?.toUpperCase() ?? "";
     const teamless = id !== undefined && isTeamless(id);
-    this.lb.style.display = teamless ? "block" : "none";
+    this.lb.style.display = id === "ffa" ? "block" : "none";
     this.scoresPanel.style.display = teamless ? "none" : "flex";
   }
 

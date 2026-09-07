@@ -1,10 +1,38 @@
 # Ironsight
 
+The rebuild is tracked in [AAA-PLAN.md](AAA-PLAN.md). Session 1 introduces Relay:
+shared three-lane geometry, industrial art, safe spawns, ground navigation for
+bots, deployment UI, tactical map and a first HUD pass. Combat stays authoritative.
+
+Run `pnpm --filter ironsight dev:preview` from the monorepo root. This starts the
+local preview configuration on port 8796; it does not deploy anything.
+
+Review the production map renderer at `http://localhost:8796/?inspect=map`.
+`shot=overview|cooling|relay|freight|spawn|vista|stress` chooses a camera; `stress`
+adds 11 animated operators. It waits for the environment and operators to load,
+warms up, samples 120 frame intervals, then freezes. The report includes GPU,
+viewport, calls, triangles, textures, estimated texture memory and shadow-bake
+peaks. These are measurements on the named GPU, not an iGPU performance claim.
+
+```powershell
+pnpm --filter ironsight inspect:map
+node apps/ironsight/scripts/inspect-map.mjs --url http://localhost:8796 --shots flow,tdm,dom,ffa,practice-two,practice-three,menu-mobile --prefix smoke
+pnpm --filter ironsight audit:assets
+```
+
+The `flow` check clicks through deployment, locks the mouse, sends W, kills a
+practice target through normal fire controls and reloads. Other shots cover mode
+boot and narrow menu layout. Tools save PNG/JSON into `.inspect`, close their own
+Edge/profile and fail on browser exceptions, console errors or HTTP failures.
+`--software` selects SwiftShader; default uses the available hardware adapter.
+`--write-vista` refreshes the flattened deployment background from `shot=vista`.
+Stop the local dev server when done. Do not deploy or commit from these tools.
+
 ## Reviewing the rig pose (for humans and AI)
 
 Start `pnpm --filter ironsight dev`, then open
 `http://localhost:8787/?inspect=rig`. This bypasses matchmaking and WebSockets,
-uses the normal map/lighting, and shows one remote rig at the arena centre without
+uses the normal map/lighting, and shows one remote rig in Relay's clear west service pocket without
 HUD, pointer lock, or the first-person viewmodel. Asset HTTP requests still occur.
 The mixer samples the selected clip at 0.75 seconds for repeatable comparisons.
 

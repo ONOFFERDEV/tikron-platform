@@ -49,7 +49,7 @@ import { LAG, PLAYER, TICK_MS } from "../../src/config.js";
  */
 
 const DT = TICK_MS / 1000; // seconds per tick
-const Z0 = 1.2; // corridor start (> player radius from the z=0 wall)
+const Z0 = 19.8; // corridor start (> player radius from the z=0 wall)
 const TRACK_TICKS = 7; // ticks of target history built per shot (≥ max D in ticks + 1)
 const SPEEDS = [1, 2, 3, 4, 5, 6, 7, 8] as const; // m/s lateral strafe sweep
 const RTTS = [0, 100, 200] as const;
@@ -100,16 +100,16 @@ async function measure(rttMs: number, mode: "on" | "off"): Promise<{ hits: numbe
   let hits = 0;
   for (const v of SPEEDS) {
     // Fresh shooter each sample (stationary, unprotected, on the floor).
-    Object.assign(sp, { x: 8, y: 0, z: 2.4, alive: true, hp: 100, prot: false, crouch: false });
+    Object.assign(sp, { x: 5, y: 0, z: 21, alive: true, hp: 100, prot: false, crouch: false });
 
     // Walk the target along a linear z-track; fire on the last tick, aiming where a
     // client `dTicks` behind would have rendered it.
     for (let j = 0; j < TRACK_TICKS; j++) {
-      Object.assign(tp, { x: 44, y: 0, z: Z0 + j * v * DT, team: 1, alive: true, hp: 100, prot: false, crouch: false });
+      Object.assign(tp, { x: 15, y: 0, z: Z0 + j * v * DT, team: 1, alive: true, hp: 100, prot: false, crouch: false });
       if (j === TRACK_TICKS - 1) {
         const aimZ = Z0 + (TRACK_TICKS - 1 - dTicks) * v * DT;
-        const from = { x: 8, y: 0 + PLAYER.standEye, z: 2.4 };
-        const to = { x: 44, y: 1.0, z: aimZ }; // aim at chest (body band)
+        const from = { x: 5, y: 0 + PLAYER.standEye, z: 21 };
+        const to = { x: 15, y: 1.0, z: aimZ }; // aim at chest (body band)
         const dx = to.x - from.x;
         const dz = to.z - from.z;
         const dy = to.y - from.y;

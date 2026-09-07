@@ -95,6 +95,8 @@ export interface ShowcaseView {
 
 /** The world as the bot perceives it this tick: own state, enemy list, map constants. */
 export interface BotView {
+  /** Optional game-owned route steering, independent of aim/hit validation. */
+  navigate?: (target: { x: number; z: number }) => { x: number; z: number };
   self: BotPlayerView & {
     /** Current facing (radians) — read only by the passive branch below, to hold
      *  the bot's existing look instead of snapping it to a fixed direction every
@@ -355,7 +357,8 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     brain.lockId = null;
     brain.lockMs = 0;
     const wp = advanceWaypoint(brain, self);
-    const yaw = Math.atan2(wp.x - self.x, wp.y - self.z);
+    const next = view.navigate?.({ x: wp.x, z: wp.y }) ?? { x: wp.x, z: wp.y };
+    const yaw = Math.atan2(next.x - self.x, next.z - self.z);
     return {
       look: { yaw, pitch: 0 },
       move: { mx: 0, mz: 1, jump: false, crouch: false, sprint: false },

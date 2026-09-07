@@ -76,7 +76,7 @@ async function tick(h: TestRoomHandle<ArenaState>, n = 1): Promise<void> {
   for (let i = 0; i < n; i++) await h.advance(TICK_MS);
 }
 
-/** Place a live, unprotected player at a spot in the clear top lane (z = 6).
+/** Place a live, unprotected player at a spot in the clear top lane (z = 11).
  *  Crouch isn't a `place()` option on purpose: `p.crouch` is overwritten by
  *  the room's own `integrate()` from the player's actual move INPUT on the
  *  very next tick, so a direct write here wouldn't stick — send a real
@@ -90,7 +90,7 @@ function place(
   const p = liveState(h).players[id]!;
   p.x = x;
   p.y = 0;
-  p.z = opts.z ?? 6;
+  p.z = opts.z ?? 11;
   p.hp = PLAYER.maxHp;
   p.alive = true;
   p.prot = false;
@@ -165,15 +165,14 @@ describe("arena room — teams & movement", () => {
 
   it("map cover blocks horizontal movement (no tunnelling through a box)", async () => {
     const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
-    const a = await h.connect(); // red spawn faces +x; keep that yaw but shift to z=9 —
-    // the walk-up ramp added at z6-8 (the spawn row) would legitimately carry the
-    // player onto the platform, so aim at a bare stretch of the platform's west face.
-    place(h, a.id, 20, { z: 9 });
+    const a = await h.connect();
+    // Walk into Relay's west service screen (x=16..18, z=12..16).
+    place(h, a.id, 12, { z: 15 });
     await a.send("move", { mz: 1 });
     await tick(h, 100);
     const p = h.snapshot().players[a.id]!;
-    expect(p.x).toBeGreaterThanOrEqual(25);
-    expect(p.x).toBeLessThanOrEqual(26); // stopped at the platform face, did not pass through
+    expect(p.x).toBeCloseTo(16 - PLAYER.radius, 2);
+    expect(p.y).toBe(0); // no tunnelling or phantom climb
   });
 
   it("look wraps yaw into [0,2π) and clamps pitch to the vertical limit", async () => {
@@ -334,14 +333,14 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     // Aim at the (still-protected) target and fire — no damage lands.
     const p = liveState(h).players[shooter.id]!;
     p.x = 10;
-    p.z = 6;
+    p.z = 11;
     p.y = 0;
     p.yaw = Math.PI / 2;
     p.pitch = BODY_PITCH;
     p.prot = false;
     const t = liveState(h).players[target.id]!;
     t.x = 20;
-    t.z = 6;
+    t.z = 11;
     t.y = 0; // leave t.prot = true (spawn-protected)
     await tick(h, 3);
     await shooter.send("fire");
@@ -365,13 +364,13 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     await tick(h, 2);
 
     place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
-    place(h, target.id, 20, { z: 6 });
+    place(h, target.id, 20, { z: 11 });
 
-    // Hold the target on the shooter's ray (z = 6) long enough to fill the buffer,
+    // Hold the target on the shooter's ray (z = 11) long enough to fill the buffer,
     // then slide it off (z = 7) just one tick before firing. The rewind instant
     // (~100 ms back) still finds it on the ray → HIT, even though it is off it now.
     for (let i = 0; i < 5; i++) {
-      liveState(h).players[target.id]!.z = 6;
+      liveState(h).players[target.id]!.z = 11;
       await tick(h, 1);
     }
     liveState(h).players[target.id]!.z = 7; // off the ray, this tick
@@ -570,7 +569,7 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     await tick(h, 2);
 
     place(h, shooter.id, 15, { yaw: Math.PI / 2, pitch: pitchFor(5) });
-    place(h, target.id, 20); // 5 m ahead in the clear z = 6 lane
+    place(h, target.id, 20); // 5 m ahead in the clear z = 11 lane
 
     await shooter.send("switch", { slot: 3 }); // shotgun
     await tick(h, swapTicks); // wait out the swap (also fills the lag buffer)
@@ -616,7 +615,7 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     // GRENADE.radius (5), so without the wall the blast WOULD hurt them (the
     // old placement was 5.5 m apart, past the radius, which made this test
     // vacuously pass with or without cover) — but the wall blocks LoS.
-    place(h, a.id, 30, { yaw: Math.PI / 2, pitch: -1.56, z: 11 });
+    place(h, a.id, 17, { yaw: Math.PI / 2, pitch: -1.56, z: 11 });
     place(h, b.id, 30, { z: 14.5 }); // opposite face of the divider (14,·,12)-(46,·,14)
     await tick(h, 2);
 
@@ -659,8 +658,8 @@ describe("arena room — hybrid hit registration (claim + server plausibility ga
     const bodyCenterY = neckY / 2; // feetY = 0
     const yaw = Math.atan2(10, offZ);
     const pitch = Math.atan2(bodyCenterY - PLAYER.standEye, Math.hypot(10, offZ));
-    place(h, shooter.id, 10, { yaw, pitch, z: 6 });
-    place(h, target.id, 20, { z: 6 });
+    place(h, shooter.id, 10, { yaw, pitch, z: 11 });
+    place(h, target.id, 20, { z: 11 });
     await tick(h, 3);
 
     await shooter.send("fire", { claim: { id: target.id, part: "body" } });
@@ -682,8 +681,8 @@ describe("arena room — hybrid hit registration (claim + server plausibility ga
     const bodyCenterY = neckY / 2;
     const yaw = Math.atan2(10, offZ);
     const pitch = Math.atan2(bodyCenterY - PLAYER.standEye, Math.hypot(10, offZ));
-    place(h, shooter.id, 10, { yaw, pitch, z: 6 });
-    place(h, target.id, 20, { z: 6 });
+    place(h, shooter.id, 10, { yaw, pitch, z: 11 });
+    place(h, target.id, 20, { z: 11 });
     await tick(h, 3);
 
     await shooter.send("fire"); // no claim — old client / hybrid-off behavior
@@ -741,11 +740,10 @@ describe("arena room — hybrid hit registration (claim + server plausibility ga
     const target = await h.connect();
     await tick(h, 2);
 
-    // x=20 sits inside the arena1 lane-divider box's x-range [14,46]; the
-    // divider spans z∈[13,14], y∈[0,2.5] — directly on the line between the
-    // two players placed 19 m apart along z.
-    place(h, shooter.id, 20, { yaw: 0, pitch: Math.atan2(1.0 - PLAYER.standEye, 19), z: 6 });
-    place(h, target.id, 20, { z: 25 });
+    // Relay service screen spans x=16..18, z=12..16. Both players are
+    // on clear ground, with the opaque screen strictly between their eyes.
+    place(h, shooter.id, 17, { yaw: 0, pitch: Math.atan2(1.0 - PLAYER.standEye, 6), z: 11 });
+    place(h, target.id, 17, { z: 17 });
     await tick(h, 3);
 
     await shooter.send("fire", { claim: { id: target.id, part: "body" } });

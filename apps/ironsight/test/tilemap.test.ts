@@ -397,16 +397,12 @@ describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", 
     expect(() => compileTileMap(rows2)).not.toThrow();
   });
 
-  it("live arena1 compiles with 4 relocated ramps and its merged-box set untouched by them", () => {
-    // The dressing manifests' hiddenBoxIndices [0..6] are bound to the compiled
-    // `boxes` array ORDER (merged height-class boxes only — ramps no longer
-    // contribute anything to `boxes`, they live entirely in their own `ramps`
-    // array) — this pins that contract so a ramp edit can't silently invalidate them.
-    expect(ARENA1.boxes.length).toBe(7);
-    expect(ARENA1.ramps!.length).toBe(4);
-    for (let i = 0; i < 7; i++) {
-      const b = ARENA1.boxes[i]!;
-      expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true); // grid-aligned = merged class
+  it("Relay retains four true ramps and grid-aligned solid footprints", () => {
+    expect(ARENA1.presentation).toBe("relay"); // legacy index-based dressing must not load
+    expect(ARENA1.ramps).toHaveLength(4);
+    for (const b of ARENA1.boxes) {
+      expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true);
+      expect(Number.isInteger(b.min.z) && Number.isInteger(b.max.z)).toBe(true);
     }
   });
 });

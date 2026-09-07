@@ -1,6 +1,6 @@
 /** Presentation only. Distances in metres, angles in radians, rates per second. */
 export const VISUALS = {
-  exposure: 1.05, pixelRatio: 1.5,
+  exposure: 1.05, pixelRatio: 1,
   lighting: { hemisphere: 1.65, key: 2.1, ambient: 0.35 },
   skyZenith: 0x080f24,
   motion: {

@@ -5,6 +5,9 @@
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "scripts": {
+    "dev:preview": "pnpm build:client && wrangler dev --config wrangler.next.jsonc --port 8796",
+    "inspect:map": "node scripts/inspect-map.mjs --url http://localhost:8796",
+    "audit:assets": "node scripts/audit-assets.mjs",
     "dev": "pnpm build:client && wrangler dev",
     "deploy": "pnpm build:client && wrangler deploy",
     "build": "pnpm build:client && wrangler deploy --dry-run --outdir dist",

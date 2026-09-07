@@ -36,7 +36,7 @@ function place(
   const p = liveState(h).players[id]!;
   p.x = x;
   p.y = 0;
-  p.z = opts.z ?? 6;
+  p.z = opts.z ?? 11;
   p.hp = PLAYER.maxHp;
   p.alive = true;
   p.prot = false;
@@ -204,8 +204,8 @@ describe("practice room — map selection", () => {
     const target = await h.connect();
     await tick(h, 2);
 
-    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH });
-    place(h, target.id, 20);
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH, z: 7 });
+    place(h, target.id, 20, { z: 7 });
     await tick(h, 3);
 
     for (let i = 0; i < 4; i++) {

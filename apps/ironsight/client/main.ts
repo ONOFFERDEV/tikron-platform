@@ -12,6 +12,8 @@
  */
 import { parseRigInspect } from "./rig-inspect-query.js";
 import { startRigInspector } from "./rig-inspect.js";
+import { startMapInspector } from "./map-inspect.js";
+import { TacticalMap } from "./tactical-map.js";
 import { Net, type ShotEvent } from "./net.js";
 import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
@@ -46,6 +48,7 @@ const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (clien
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
+  if (new URLSearchParams(location.search).get("inspect") === "map") { startMapInspector(); return; }
   const inspect = parseRigInspect(location.search);
   if (inspect) { startRigInspector(inspect); return; }
   // Single shared store: Input reads live sensitivity/invertY/binds from it every
@@ -85,6 +88,7 @@ async function main(): Promise<void> {
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
   // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
+  const tacticalMap = new TacticalMap(map);
 
   const input = new Input(
     scene.canvas,
@@ -426,6 +430,7 @@ async function main(): Promise<void> {
       hud.setNades(me.nades);
     }
     if (state) hud.setScores(state.redScore, state.blueScore);
+    if (state) tacticalMap.update(state, net.myId, input.yaw, now);
     const mode = state?.mode ?? 0;
     const modeId = MODE_ORDER[mode] ?? "tdm";
     const teamless = isTeamless(modeId);
@@ -433,7 +438,7 @@ async function main(): Promise<void> {
     hud.setWarmup(phase === "warmup");
     if (mode === 2 && state) hud.setCaps(state.capA, state.capB, state.capC);
     else hud.hideCaps();
-    if (teamless && state) {
+    if (modeId === "ffa" && state) {
       const rows = Object.entries(state.players)
         .map(([id, p]) => ({ name: name(id), k: p.k, d: p.d, isMe: id === net.myId }))
         .sort((a, b) => b.k - a.k || a.d - b.d)

@@ -1,1 +1,5 @@
 .inspect/
+# Purchased-source derivatives must stay private, including future bakes.
+public/assets/**/*.glb
+assets-src/**
+!assets-src/README.md

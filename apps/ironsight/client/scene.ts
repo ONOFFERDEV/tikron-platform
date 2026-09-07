@@ -24,6 +24,7 @@ import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
+import { buildRelayEnvironment } from "./relay-environment.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
@@ -212,6 +213,7 @@ interface PlayerPose {
  *  the player GLB is loaded) an animated model clone. `kind` discriminates which
  *  fields below are populated — see {@link SceneRig.makeRig}. */
 interface PlayerRig {
+  contact?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   weapon?: RemoteWeapon;
   group: THREE.Group;
   team: number;
@@ -388,7 +390,13 @@ export class SceneRig {
   private readonly claimTargets: THREE.Object3D[] = [];
   private readonly claimScratch = new THREE.Vector3();
 
-  constructor(map: MapDef, container: HTMLElement = document.body) {
+  private environmentLoading = false;
+  private contactTexture?: THREE.CanvasTexture;
+  private readonly contactGeometry = new THREE.PlaneGeometry(1.25, 1.25);
+
+  constructor(map: MapDef, container: HTMLElement = document.body,
+    options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
+    const relay = map.presentation === "relay";
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.hitBoxes = [...map.boxes, ...this.ramps.flatMap(rampOccluderBoxes)];
@@ -402,30 +410,45 @@ export class SceneRig {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = VIS.exposure;
+    if (relay) {
+      this.renderer.toneMappingExposure = 1.05;
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      // Architecture is static. No per-frame shadow pass on the balanced preset.
+      this.renderer.shadowMap.autoUpdate = false;
+      this.renderer.shadowMap.needsUpdate = true;
+    }
 
     this.scene.background = new THREE.Color(PALETTE.sceneBg);
     // World-oriented sky: fog and horizon share a colour, zenith stays midnight blue.
     const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 24, 12), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { horizon: { value: new THREE.Color(PALETTE.fog.color) }, zenith: { value: new THREE.Color(VIS.skyZenith) } },
+      uniforms: { horizon: { value: new THREE.Color(relay ? 0xc7d4cc : PALETTE.fog.color) }, zenith: { value: new THREE.Color(relay ? 0x547f94 : VIS.skyZenith) } },
       vertexShader: "varying vec3 vDirection; void main(){ vDirection=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }",
       fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
     }));
     sky.position.set(ARENA.width / 2, 0, ARENA.depth / 2);
     sky.raycast = () => {};
     this.scene.add(sky);
-    this.scene.fog = new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
+    this.scene.fog = relay ? new THREE.Fog(0xc7d4cc, 48, 145)
+      : new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, GAME.camera.far);
 
-    this.scene.add(new THREE.HemisphereLight(PALETTE.lights.hemiSky, PALETTE.lights.hemiGround, VIS.lighting.hemisphere));
-    const key = new THREE.DirectionalLight(PALETTE.lights.key, VIS.lighting.key);
-    key.position.set(25, 45, 15);
+    this.scene.add(new THREE.HemisphereLight(relay ? 0xc7e4ef : PALETTE.lights.hemiSky, relay ? 0x535648 : PALETTE.lights.hemiGround, relay ? 1.8 : VIS.lighting.hemisphere));
+    const key = new THREE.DirectionalLight(relay ? 0xffe1ad : PALETTE.lights.key, relay ? 3.2 : VIS.lighting.key);
+    key.position.set(8, 40, 6);
+    if (relay) {
+      key.target.position.set(30, 0, 20); this.scene.add(key.target);
+      key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+      Object.assign(key.shadow.camera, { left: -45, right: 45, top: 40, bottom: -40, near: 1, far: 110 });
+      key.shadow.normalBias = 0.12; key.shadow.bias = -0.0003;
+    }
     this.scene.add(key);
-    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, VIS.lighting.ambient));
+    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, relay ? 0.12 : VIS.lighting.ambient));
 
     this.vfx = new Vfx(this.scene);
-    this.buildArena();
+    this.buildArena(map);
 
     const vm = this.buildViewmodel();
     this.viewmodel.add(vm.group);
@@ -433,9 +456,9 @@ export class SceneRig {
     this.muzzleLight = vm.light;
     this.camera.add(this.viewmodel);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
-    this.setWeaponVisual(0);
+    if (options.loadViewmodel !== false) this.setWeaponVisual(0);
 
-    const modelUrl = GAME.models?.player;
+    const modelUrl = options.loadActors !== false ? GAME.models?.player : undefined;
     if (modelUrl) {
       this.modelState = "loading";
       loadPlayerModel(modelUrl).then((gltf) => {
@@ -456,12 +479,15 @@ export class SceneRig {
     // by matching object identity against GAME.maps, which is keyed by exactly
     // those ids and holds the same ARENA1/ARENA2 references mapForMode returns.
     const mapId = Object.keys(GAME.maps).find((k) => GAME.maps[k] === map);
-    const dressingUrl = mapId ? GAME.mapDressing?.[mapId] : undefined;
+    const dressingUrl = relay ? "/assets/maps/relay-skyline.glb" : mapId ? GAME.mapDressing?.[mapId] : undefined;
     if (dressingUrl) {
+      this.environmentLoading = true;
       loadMapDressing(dressingUrl).then((gltf) => {
+        this.environmentLoading = false;
         if (!gltf) return; // load failed — stay on the procedural box/wall render permanently
         gltf.scene.traverse(node => {
           if (!(node instanceof THREE.Mesh)) return;
+          if (relay) { node.castShadow = true; node.receiveShadow = true; }
           for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
             if (material instanceof THREE.MeshStandardMaterial) {
               material.roughness = Math.max(0.72, material.roughness);
@@ -470,7 +496,12 @@ export class SceneRig {
           }
         });
         this.scene.add(gltf.scene);
-        const hidden = mapId ? DRESSING_MANIFESTS[mapId]?.hiddenBoxIndices : undefined;
+        if (relay) {
+          const fallback = this.scene.getObjectByName("relay-skyline-fallback");
+          if (fallback) fallback.visible = false;
+          this.renderer.shadowMap.needsUpdate = true;
+        }
+        const hidden = !relay && mapId ? DRESSING_MANIFESTS[mapId]?.hiddenBoxIndices : undefined;
         for (const idx of hidden ?? []) {
           const render = this.boxRenders.get(idx);
           if (!render) continue;
@@ -486,7 +517,25 @@ export class SceneRig {
 
   // --- arena ------------------------------------------------------------------
 
-  private buildArena(): void {
+  private buildArena(map: MapDef): void {
+    if (map.presentation === "relay") {
+      buildRelayEnvironment(this.scene, map);
+      const material = new THREE.MeshStandardMaterial({ color: 0x667a7b, roughness: 0.84, side: THREE.DoubleSide });
+      for (const r of this.ramps) {
+        const mesh = new THREE.Mesh(buildWedgeGeometry(r), material);
+        mesh.castShadow = true; mesh.receiveShadow = true; this.scene.add(mesh);
+      }
+      if (DEBUG_BOXES) {
+        const mat = new THREE.LineBasicMaterial({ color: 0xff00ff });
+        for (const b of this.boxes) {
+          const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(
+            b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z)), mat);
+          edges.position.set((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
+          this.scene.add(edges);
+        }
+      }
+      return;
+    }
     const { width, depth } = ARENA;
 
     // Floor with a faint low-contrast grid (a high-contrast tiled grid shimmers).
@@ -935,6 +984,16 @@ export class SceneRig {
       rig.weapon.beforeAnimation();
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now, clip);
       else this.syncCapsuleRig(rig, pose);
+      if (rig.contact) {
+        // A downward ray finds the same platform/ramp surfaces used by shots.
+        // Ground is the fallback; the decal fades while jumping above it.
+        const distance = nearestBox({ x: pose.x, y: pose.y + 0.05, z: pose.z },
+          { x: 0, y: -1, z: 0 }, this.hitBoxes, pose.y + 0.1);
+        const floor = Number.isFinite(distance) ? pose.y + 0.05 - distance : 0;
+        rig.contact.position.y = floor - pose.y + 0.018;
+        rig.contact.material.opacity = Math.max(0, 0.48 - (pose.y - floor) * 0.2);
+        rig.contact.visible = pose.alive;
+      }
       rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined);
     }
     // Map iterators tolerate deleting the current/already-visited key mid-loop
@@ -1106,7 +1165,7 @@ export class SceneRig {
       hitboxOverlay = buildHitboxOverlay();
       group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
     }
-    return { group, team, kind: "capsule", body, head, hitboxOverlay };
+    return { group, team, kind: "capsule", body, head, hitboxOverlay, contact: this.makeContactShadow(group) };
   }
 
   private makeModelRig(id: string, team: number, gltf: GLTF): PlayerRig {
@@ -1130,7 +1189,9 @@ export class SceneRig {
     object.position.y = -box.min.y * baseScale;
     object.traverse((n) => {
       if (n instanceof THREE.Mesh) {
-        n.castShadow = true;
+        // The balanced atlas contains STATIC architecture only; baking a moving
+        // actor once would leave a ghost shadow at its loading-time position.
+        n.castShadow = false;
         n.receiveShadow = true;
       }
     });
@@ -1145,6 +1206,7 @@ export class SceneRig {
     }
     return {
       group,
+      contact: this.makeContactShadow(group),
       team,
       kind: "model",
       modelRoot: object,
@@ -1174,6 +1236,7 @@ export class SceneRig {
   }
 
   private disposeRig(rig: PlayerRig): void {
+    rig.contact?.material.dispose();
     rig.weapon?.dispose();
     this.scene.remove(rig.group);
     if (rig.hitboxOverlay) {
@@ -1470,9 +1533,64 @@ export class SceneRig {
    *  calls and triangles reset every render() call (three.js's own semantics,
    *  so this is "last frame"), programs accumulate for the renderer's
    *  lifetime (one per unique material/defines combination compiled so far). */
-  getRenderInfo(): { calls: number; triangles: number; programs: number } {
+  getRenderInfo(): { calls: number; triangles: number; programs: number; textures: number; geometries: number } {
     const info = this.renderer.info;
-    return { calls: info.render.calls, triangles: info.render.triangles, programs: info.programs?.length ?? 0 };
+    return { calls: info.render.calls, triangles: info.render.triangles, programs: info.programs?.length ?? 0,
+      textures: info.memory.textures, geometries: info.memory.geometries };
+  }
+
+  private makeContactShadow(group: THREE.Group): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> {
+    if (!this.contactTexture) {
+      const canvas = document.createElement("canvas"); canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext("2d")!;
+      const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 31);
+      gradient.addColorStop(0, "rgba(0,0,0,0.8)"); gradient.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
+      this.contactTexture = new THREE.CanvasTexture(canvas);
+    }
+    const shadow = new THREE.Mesh(this.contactGeometry, new THREE.MeshBasicMaterial({
+      map: this.contactTexture, transparent: true, depthWrite: false, opacity: 0.48,
+    }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.018;
+    shadow.raycast = () => {}; // cosmetic grounding must never become a hit claim
+    group.add(shadow); return shadow;
+  }
+
+  /** Offline map review uses the production renderer, with no weapon in the vista. */
+  hideViewmodel(): void { this.viewmodel.visible = false; }
+
+  readyForInspection(actorCount: number): boolean {
+    return !this.environmentLoading && (actorCount === 0 || (this.modelState === "ready"
+      && this.players.size === actorCount && [...this.players.values()].every(p => p.kind === "model" && p.weapon?.loaded)));
+  }
+
+  /** Estimate sampled texture residency (RGBA8/half/float + mip levels), including
+   * skin matrices and the static shadow target. Driver overhead is not observable. */
+  textureBytesEstimate(): number {
+    const textures = new Set<THREE.Texture>();
+    let depthRenderbufferBytes = 0;
+    this.scene.traverse(object => {
+      if (object instanceof THREE.Mesh) {
+        for (const mat of Array.isArray(object.material) ? object.material : [object.material]) {
+          for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value);
+        }
+      }
+      if (object instanceof THREE.SkinnedMesh && object.skeleton.boneTexture) textures.add(object.skeleton.boneTexture);
+      if (object instanceof THREE.DirectionalLight && object.shadow.map) {
+        textures.add(object.shadow.map.texture);
+        if (object.shadow.map.depthTexture) textures.add(object.shadow.map.depthTexture);
+        else if (object.shadow.map.depthBuffer) depthRenderbufferBytes += object.shadow.map.width * object.shadow.map.height * 4;
+      }
+    });
+    let bytes = depthRenderbufferBytes;
+    for (const texture of textures) {
+      const img = texture.image as { width?: number; height?: number } | undefined;
+      const channels = texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : 4;
+      const component = [THREE.FloatType, THREE.UnsignedIntType, THREE.UnsignedInt248Type, THREE.IntType].includes(texture.type as typeof THREE.FloatType)
+        ? 4 : texture.type === THREE.HalfFloatType || texture.type === THREE.UnsignedShortType ? 2 : 1;
+      bytes += (img?.width ?? 0) * (img?.height ?? 0) * channels * component * (texture.generateMipmaps ? 4 / 3 : 1);
+    }
+    return Math.ceil(bytes);
   }
 
   private resize(): void {
