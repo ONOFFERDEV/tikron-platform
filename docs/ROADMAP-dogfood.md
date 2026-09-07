@@ -109,5 +109,9 @@ philosophy that puts rooms on the customer's account. Concretely:
   (`POST /api/ingest/score` + `platformLeaderboard()`, boards cap), schema/
   protocol handshake (`RoomJoinError("schema_mismatch"|"protocol_mismatch")`),
   room observability (`Room.onError`, `tk:stats.drops/errors`), `forcePersist()`,
-  live `client.auth` identity, and scaffold test/headless-deploy wiring. Packages
-  staged at 0.6.0 (lockstep publish user-gated).
+  live `client.auth` identity, and scaffold test/headless-deploy wiring. Published
+  as the 0.6.0 lockstep release on 2026-07-06.
+- **0.7.0 (in progress, 2026-09):** P0-2 (relay budget split — `relay` knob),
+  P1-3 (`@tikron/rtc` BYO-TURN), P1-4 (built-in opaque relay), P1-5
+  (self-hosted matchmaking via the occupancy reporter), plus leaderboard
+  seasons and party matchmaking. Plan of record: internal PLAN-0.7.md.

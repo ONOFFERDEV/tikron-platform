@@ -61,10 +61,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Structural guard: scaffold a fresh app and prove it typechecks + tests green.
-  # MUST install @tikron/* from LOCAL TARBALLS — the generated package.json pins
-  # ^0.6.0, but the public registry still serves 0.5.0 (which lacks
-  # platformLeaderboard, imported by the template). A naive `npm i` would fail
-  # until the lockstep 0.6.0 publish. Drop the pack/override once 0.6.0 is live.
+  # Installs @tikron/* from LOCAL TARBALLS so the smoke exercises THIS checkout's
+  # packages, not whatever the public registry serves — the registry lags the
+  # monorepo until each lockstep publish (e.g. 0.7.0 features while npm is 0.6.0),
+  # and a naive `npm i` would test yesterday's SDK against today's template.
   scaffold-smoke:
     needs: build-and-test
     runs-on: ubuntu-latest
