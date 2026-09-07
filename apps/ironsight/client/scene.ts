@@ -1,3 +1,6 @@
+import { architectureMeshes } from "./site-architecture.js";
+import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
+import { buildWedgeGeometry } from "./site-wedge.js";
 /**
  * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
  * {@link MapDef} so walls cost zero wire bytes — main.ts resolves which map from the
@@ -271,49 +274,6 @@ interface Tracer {
   speed: number;
 }
 
-/** Wedge (triangular-prism) mesh geometry for a ramp's true sloped footprint —
- *  three has no built-in primitive for this, so it's built by hand as 5 flat
- *  faces (bottom, back, slope, two triangular ends). `DoubleSide` is used on
- *  the mesh material (see buildArena) rather than fussing over exact winding
- *  per face by hand — three flips the shading normal for back-facing
- *  triangles under DoubleSide, so lighting reads correctly and no face can
- *  end up invisibly culled regardless of the order below. */
-function buildWedgeGeometry(r: RampDef): THREE.BufferGeometry {
-  const isX = r.axis === "x";
-  const riseMin = isX ? r.minX : r.minZ;
-  const riseMax = isX ? r.maxX : r.maxZ;
-  const low = r.dir === 1 ? riseMin : riseMax;
-  const high = r.dir === 1 ? riseMax : riseMin;
-  const perpMin = isX ? r.minZ : r.minX;
-  const perpMax = isX ? r.maxZ : r.maxX;
-  const at = (rise: number, y: number, perp: number): number[] => (isX ? [rise, y, perp] : [perp, y, rise]);
-
-  const A0 = at(low, 0, perpMin);
-  const B0 = at(high, 0, perpMin);
-  const C0 = at(high, r.topY, perpMin);
-  const A1 = at(low, 0, perpMax);
-  const B1 = at(high, 0, perpMax);
-  const C1 = at(high, r.topY, perpMax);
-
-  const quad = (p1: number[], p2: number[], p3: number[], p4: number[]): number[] => [
-    ...p1, ...p2, ...p3,
-    ...p1, ...p3, ...p4,
-  ];
-  const tri = (p1: number[], p2: number[], p3: number[]): number[] => [...p1, ...p2, ...p3];
-  const positions = [
-    ...quad(A0, B0, B1, A1), // bottom, flush with the floor
-    ...quad(B0, C0, C1, B1), // back, vertical, full height at the high end
-    ...quad(A0, C0, C1, A1), // slope — the walkable surface, matches rampSurfaceY's lerp
-    ...tri(A0, B0, C0), // low-perp end cap
-    ...tri(A1, B1, C1), // high-perp end cap
-  ];
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geo.computeVertexNormals();
-  return geo;
-}
-
 export class SceneRig {
   private readonly creationStarted = performance.now();
   private constructionMs = 0;
@@ -483,6 +443,8 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
+    if (map.presentation) this.assetLoads.push(loadSiteEnvironment(this.scene, this.renderer)
+      .catch(error => console.warn("Site environment unavailable; retaining hemisphere fill.", error)));
 
     const vm = this.buildViewmodel();
     this.viewmodel.add(vm.group);
@@ -555,6 +517,7 @@ export class SceneRig {
 
   private buildArena(map: MapDef): void {
     if (map.presentation) {
+      const existing = new Set(architectureMeshes(this.scene));
       if (map.presentation === 'undertow') buildUndertowEnvironment(this.scene, map);
       else buildRelayEnvironment(this.scene, map);
       const material = new THREE.MeshStandardMaterial({ color: 0x667a7b, roughness: 0.84, side: THREE.DoubleSide });
@@ -562,6 +525,10 @@ export class SceneRig {
         const mesh = new THREE.Mesh(buildWedgeGeometry(r), material);
         mesh.castShadow = true; mesh.receiveShadow = true; this.scene.add(mesh);
       }
+      const fallback = architectureMeshes(this.scene).filter(mesh => !existing.has(mesh));
+      this.assetLoads.push(loadArchitecture(this.scene, map.presentation, fallback).then(() => {
+        this.renderer.shadowMap.needsUpdate = true;
+      }).catch(error => console.warn("Architecture AO unavailable; retaining original kit.", error)));
       if (DEBUG_BOXES) {
         const mat = new THREE.LineBasicMaterial({ color: 0xff00ff });
         for (const b of this.boxes) {
@@ -1772,10 +1739,11 @@ export class SceneRig {
         else if (object.shadow.map.depthBuffer) depthRenderbufferBytes += object.shadow.map.width * object.shadow.map.height * 4;
       }
     });
+    if (this.scene.environment) textures.add(this.scene.environment);
     let bytes = depthRenderbufferBytes;
     for (const texture of textures) {
       const img = texture.image as { width?: number; height?: number } | undefined;
-      const channels = texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : 4;
+      const channels = texture.format === THREE.RedFormat || texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : 4;
       const component = [THREE.FloatType, THREE.UnsignedIntType, THREE.UnsignedInt248Type, THREE.IntType].includes(texture.type as typeof THREE.FloatType)
         ? 4 : texture.type === THREE.HalfFloatType || texture.type === THREE.UnsignedShortType ? 2 : 1;
       bytes += (img?.width ?? 0) * (img?.height ?? 0) * channels * component * (texture.generateMipmaps ? 4 / 3 : 1);

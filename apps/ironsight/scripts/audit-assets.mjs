@@ -6,6 +6,7 @@ const approvedDerived = [
   'assets/models/player.glb', 'assets/models/weapons-vm.glb',
   'assets/maps/arena1-dressing.glb', 'assets/maps/arena2-dressing.glb', 'assets/maps/relay-skyline.glb',
 ];
+const approvedOriginal = ['assets/maps/relay-architecture.glb', 'assets/maps/undertow-architecture.glb'];
 const files = [];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -18,11 +19,11 @@ await walk(root);
 for (const file of files) {
   if (file.bytes >= 25 * 1024 * 1024) throw Error(`Cloudflare per-file cap exceeded: ${file.path}`);
   if (/\.(fbx|blend|zip|unitypackage)$/i.test(file.path)) throw Error(`Raw source asset in public: ${file.path}`);
-  if (file.path.endsWith('.glb') && !approvedDerived.includes(file.path)) throw Error(`Document provenance before shipping: ${file.path}`);
+  if (file.path.endsWith('.glb') && !approvedDerived.includes(file.path) && !approvedOriginal.includes(file.path)) throw Error(`Document provenance before shipping: ${file.path}`);
 }
-for (const path of approvedDerived) if (!files.some(f => f.path === path)) throw Error(`Restore private derived asset: ${path}`);
+for (const path of [...approvedDerived, ...approvedOriginal]) if (!files.some(f => f.path === path)) throw Error(`Restore private derived asset: ${path}`);
 const assetBytes = files.filter(f => f.path.startsWith('assets/')).reduce((n, f) => n + f.bytes, 0);
 const publicBytes = files.reduce((n, f) => n + f.bytes, 0);
 if (publicBytes > 40 * 1024 * 1024) throw Error('Deployed public asset set exceeds 40 MiB budget');
 console.log(JSON.stringify({ assetBytes, publicBytes, maxFileBytes: Math.max(...files.map(f => f.bytes)),
-  derivedFiles: files.filter(f => f.path.endsWith('.glb')), note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));
+  derivedFiles: files.filter(f => approvedDerived.includes(f.path)), originalFiles: files.filter(f => approvedOriginal.includes(f.path)), note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));

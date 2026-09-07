@@ -7,7 +7,7 @@ import type { MapDef } from "../src/map/types.js";
  * Detail is inset into solids; skyline is outside the playable rectangle.
  * Instances batch by material, not by individual architectural part.
  */
-export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
+export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly = false): void {
   const mats = {
     concrete: new THREE.MeshStandardMaterial({ color: 0xb4b7ae, roughness: 0.92 }),
     pale: new THREE.MeshStandardMaterial({ color: 0xd9d7c6, roughness: 0.8 }),
@@ -29,7 +29,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
     matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(w, h, d));
     const list = activeBatch.get(m) ?? []; list.push(matrix.clone()); activeBatch.set(m, list);
   };
-  buildSiteGround(scene, map);
+  if (!bakeOnly) buildSiteGround(scene, map);
 
   for (const b of map.boxes) {
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
@@ -180,6 +180,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef): void {
    }
   }
   // One original atlas for all world signs (no external fonts/textures).
+  if (bakeOnly) return;
   const atlas = document.createElement("canvas"); atlas.width = 1024; atlas.height = 512;
   const ctx = atlas.getContext("2d")!;
   const labels = ["01 / COOLING", "02 / RELAY", "03 / FREIGHT", "RELAY / 07"];

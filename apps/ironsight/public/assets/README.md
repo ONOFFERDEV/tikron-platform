@@ -10,6 +10,56 @@
 | `relay-vista.webp` | Flattened screenshot of the game scene, captured by `scripts/inspect-map.mjs --write-vista` | yes; see `../../LICENSE.md` |
 | `maps/relay-ground-ao.png`, `maps/undertow-ground-ao.png` | Original ground ambient occlusion baked in Blender 4.5 (Cycles) from the server collision boxes/ramps only, by `tools/bake-ground-ao.py`; multiplied into the ground atlas by `client/site-ground.ts` | yes; no purchased geometry |
 
+Original architecture / lighting pipeline (session 9):
+
+| Path | Original source / runtime treatment | Versioned |
+|---|---|---|
+| `maps/relay-architecture.glb` | Exact Relay procedural kit and MapDef ramps, 1024px embedded AO atlas; 1,010,412 bytes | yes, explicit original-only exception |
+| `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
+| `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
+
+Run from `apps/ironsight`, with the existing Node/esbuild and Python installations:
+
+```powershell
+node tools/dump-architecture.mjs
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/architecture.json
+python scripts/audit-architecture.py
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-environment.py --
+pnpm audit:assets
+```
+
+The dump imports the actual original client builders with canvas/sign generation
+skipped, and the same ramp geometry function used at runtime. It never opens any
+GLB, purchased source, rig or dressing. The baked selection excludes the licensed
+Relay skyline AND its procedural fallback, signs, ground and emissive strips.
+Those layers remain separate. No collision source or cover envelope is edited.
+Whenever the procedural kit or MapDefs change, regenerate and audit BOTH bundles.
+
+Blender 4.5 Cycles bakes AO at 64 samples, 2.5m distance, 4px dilation and a 1024px
+smart UV atlas (island margin 0.0015); `--size` / `--samples` are explicit overrides.
+The standard glTF occlusion slot uses TEXCOORD_0: architecture has no albedo map,
+so a redundant UV2 attribute is unnecessary. Runtime converts the atlas once into
+an R8 DataTexture with mipmaps (1.33 MiB), using AO intensity 0.75. Each map lazily
+loads its own bundle and removes only its original fallback after successful load.
+A load failure retains that fallback. The two exact GLB names are allowlisted in
+.gitignore and the asset audit; every purchased GLB remains ignored as before.
+
+Preserve authored triangle winding and custom split normals. Do NOT run Blender
+recalculate-normals on this overlapping kit: it can invert boundary faces. Only
+32 zero-area triangles at the dish centre are removed. The geometry audit compares
+all 7,420 / 14,572 nondegenerate oriented triangles against the source, to 0.1mm
+position quantization and 0.001 normal-component tolerance, and checks finite UVs,
+no transforms/skins/animations and one embedded AO image. It writes
+`.inspect/session9-geometry-audit.json`, including source and output SHA-256 values.
+
+The shared HDR contains original radiance values, not physical point-light bakes
+or external imagery. Standard view transform and Non-Color data prevent AgX from
+compressing white. One PMREM is generated during loading; the HDR and generator
+are then disposed. Environment intensity is 0.85; existing hemisphere fill drops
+from 1.8 to 0.65 only after success. The warm directional key, ACES exposure and
+1024 cached shadow map remain. No added lights, per-frame bake or postprocessing
+passes. The texture estimator now counts R8 storage and the PMREM target.
+
 The purchased derivatives must remain unversioned. The app `.gitignore` excludes
 all GLBs under this directory. The original four can be restored from
 `D:/game-assets/ironsight-synty-derived/`; no source pack is copied into the app.

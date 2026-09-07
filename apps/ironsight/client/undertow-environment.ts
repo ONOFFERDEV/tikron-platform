@@ -5,7 +5,7 @@ import { buildSiteGround } from './site-ground.js';
 /** Original reclamation kit. The complete box envelope remains visibly solid;
  * turbine faces/windows are flush cladding, never holes or new playable cover.
  * Pipes, basin and skyline equipment live outside the movement rectangle. */
-export function buildUndertowEnvironment(scene: T.Scene, map: MapDef): void {
+export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const colors = [0x96b3aa, 0x5c7b82, 0x283e48, 0xd7d5bb, 0x648e79, 0xd6a35b, 0x9cdbd2];
   const mats = colors.map((color, i) => i === 6 ? new T.MeshBasicMaterial({ color })
     : new T.MeshStandardMaterial({ color, roughness: i === 2 ? 0.66 : 0.86, metalness: i === 2 ? 0.25 : 0.05 }));
@@ -16,7 +16,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef): void {
     list.push(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx, ry, rz)), new T.Vector3(w, h, d)));
     batches.set(key, list);
   };
-  buildSiteGround(scene, map, true);
+  if (!bakeOnly) buildSiteGround(scene, map, true);
   for (const b of map.boxes) {
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
@@ -134,6 +134,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef): void {
     mesh.name = `undertow-${key}`; mesh.castShadow = material !== '6'; mesh.receiveShadow = true;
     mesh.computeBoundingSphere(); scene.add(mesh);
   }
+  if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
   const labels = ['A / WEST CONTROL', 'B / PUMP HALL', 'C / EAST CONTROL', 'UNDERTOW / 02',

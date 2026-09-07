@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-7 are deployed there, including remote reloads,
-steep-aim clearance and directional combat audio/bot tracking. Session 8 fixes
-are local candidates until the supervisor publishes them. Refresh after publication.
+Supervisor reports sessions 1-8 are deployed there, including the first-play
+fixes. Session 9 architecture AO/environment lighting remains local until the
+supervisor publishes it. The owner playtest pause remains active.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -202,7 +202,10 @@ times within 0.75 s, all objectives reachable, no overlapping capture radii.
 
 | Asset | Source / treatment | Target |
 |---|---|---|
-| Relay structural kit | original procedural instanced geometry, shared colliders | zero external geometry bytes |
+| Relay / Undertow structural kit | original procedural geometry from shared colliders; Blender Cycles AO, exact winding/normal audit | lazy original GLBs: 1.01 / 1.55 MB; 1024px R8 AO |
+| Ground AO (Blender 4.5) | collision-only Cycles bake; Standard view transform, existing supervisor pipeline | 1024x683 per map; versioned original PNGs |
+| Environment (Blender 4.5) | original linear radiance gradient + warm halo, one PMREM during preparation | shared 41,273-byte HDR; 1.5 MiB PMREM; no extra lights/passes |
+| Material detail | tiling concrete/steel normal and roughness maps deferred | preserve ~1.08 MiB stress texture headroom; re-budget first |
 | Hero props / skyline accents | purchased Synty sci-fi city, bake only after composition review | <= 6 MB per map |
 | Operator | existing Synty derived player, improve rig/weapon holds | <= 3 MB incl. clips |
 | Rifle / other weapons | existing Synty weapon bundle, recalibrate grip/muzzle | <= 2 MB shared |
@@ -241,7 +244,8 @@ and client together. If persisted player coordinates become invalid after layout
 changes, reset safely via game-level snapshot migration before preview rollout.
 
 Renderer: Three.js forward pipeline, ACES, restrained warm sunlight/cool fill,
-instanced structural kit, one static shadow atlas, no bloom/SSAO requirement in M1.
+material-batched original baked structural kit, one static shadow atlas, per-map
+AO and shared daylight PMREM; no bloom/SSAO postprocessing.
 Floor markings and signage use one small atlas. No transparent full-screen layers
 in gameplay. Balanced preset at device pixel ratio <= 1, 1080p; later optional
 quality toggles can raise shadows/resolution. Balanced currently uses a 1024 shadow
@@ -1133,3 +1137,121 @@ processes stopped, **zero** listeners on 8796 and **zero** remaining inspection
 browsers. Inspectors closed their own temporary profiles. All session artifacts
 remain under app `.inspect` or the OS temporary directory. Ready for the owner's
 playtest pause; supervisor publication and owner live approval remain separate.
+
+
+### Session 9 - 2026-09-07: architecture AO and daylight material response
+
+Art/lighting only, with owner playtesting still paused. Read supervisor commit
+c2ee2a8 first and retained its ground AO pipeline. Supervisor reports sessions
+1-8 deployed to preview; live remains the old build pending owner approval.
+No gameplay, map/collision, server hit validation, SDK, purchased derivative or
+npm dependency changes. No commit, push or actual deployment; `pnpm build` used
+only the working agreement's existing Worker dry-run. Read-only Git inspection
+was used for the requested commit, branch and diff/scope checks.
+
+Delivered architecture AO before environment lighting. `dump-architecture.mjs`
+imports the original runtime builders, including the shared ramp geometry helper,
+with canvas/signs skipped. Blender bakes this exact kit into two original GLBs,
+lazy per map, with 1024px AO atlases and unchanged material colours/roughness/
+metalness. Ground, signs, emissive strips, purchased Relay skyline and its fallback
+stay separate. No purchased input is ever opened by this pipeline. The two named
+original GLBs are explicit allowlist exceptions; all five private GLBs remain
+ignored and untouched. Rebuild commands and provenance are in assets/README.md.
+
+Runtime uses the standard glTF AO slot at strength 0.75, converting its image to
+R8 once during preparation (1.33 MiB including mips). It removes the original
+procedural fallback only after success and retains shared geometry/materials still
+used by other layers. Failed loads keep the original kit. The shared original
+512x256 HDR adds cool sky/warm cloud radiance through a PMREM generated once during
+loading, with temporary source/generator disposal. Environment intensity 0.85 and
+hemisphere 0.65 retain the existing warm directional key, ACES and cached 1024
+shadow map. Failed environment loads keep hemisphere 1.8. No extra real-time
+lights, render passes, postprocessing or per-frame CPU bake/update loop. PBR AO/
+environment sampling is part of the normal material shader and still needs iGPU
+measurement. The resource estimator now includes R8 and the PMREM target.
+
+Visual delta, inspected at the same cameras: Relay wall bases and panel edges now
+have soft contact shading, the core cassette recesses have depth and the dish/
+metal cladding receive cool sky reflection. Undertow fan surrounds, window panels,
+tank bands and wall bases gain grounding; pale concrete stays readable beside dark
+steel. Existing painted routes, solid boundaries and silhouettes remain intact.
+The 1024 atlas gives broad grounding, not sub-centimetre grime; thin cladding can
+show low-resolution AO. Do not increase atlas resolution without re-budgeting.
+Material normal/roughness detail (priority 3) is deferred: Relay has only **1.08 MiB**
+of estimated texture headroom under the current stress fixture.
+
+Rejected intermediate evidence: `session9-after-*` used a Blender normal-recalc
+path that inverted some thin boundary faces. Visual review caught missing surfaces;
+that build is NOT accepted despite its green renderer resource assertions. The
+pipeline now preserves authored winding/custom normals, discarding only 32
+zero-area dish-centre triangles. An additional audit caught custom-normal drift
+around those degenerate triangles and stopped the pipeline until corrected.
+Initial TypeScript image-typing errors were also fixed before final gates.
+`session9-fixed-*` is intermediate; `session9-final-*` is the accepted build.
+
+`session9-geometry-audit.json`: all **7,420 Relay / 14,572 Undertow** nondegenerate
+oriented triangles match the source at 0.1mm position quantization; maximum normal
+component errors **0.000134 / 0.000301**, under 0.001. UVs are finite/in-range,
+one AO image is embedded per map, and there are no skin/animation/node transforms.
+The audit records source/output SHA-256 values and will reject inverted, added or
+missing surfaces. This is render-surface equivalence, not a new collision system.
+
+Before/after evidence: `.inspect/session9-before-report.json` (6 views) and
+`session9-final-report.json` (11 views), corresponding PNGs and
+`session9-delta.json`. Both reports have **zero console/runtime/HTTP errors** and
+**zero forbidden matchmaking/WebSocket requests**. `undertow-pump` in the baseline
+is an unrecognized shot alias and uses the overview camera; compare the matching
+`undertow-vista` shots instead. Final views also cover Relay overview/cooling/
+freight/spawn and Undertow home/centre/deck. Opened the final Relay/core/dish,
+Undertow centre/fans and Undertow vista/tanks images against baseline captures.
+
+Isolated Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1, each effects
+fixture: eleven remote operators + local weapon, 145 twelve-rifle volleys and 96
+explosions over 15 seconds, all transient tracers/explosions drained, 2,130 steady
+samples/map. `--assert-budgets` passed.
+
+| Metric | Relay before -> final | Undertow before -> final |
+|---|---|---|
+| Median / p95 / p99 frame interval ms | 6.9 / 7.1 / 7.1 -> 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 -> 6.9 / 7.1 / 7.1 |
+| Maximum steady interval ms | 7.2 -> 7.3 | 7.2 -> 7.2 |
+| Peak calls / submitted triangles | 219 / 81,962 -> 216 / 82,008 | 222 / 76,456 -> 216 / 76,454 |
+| Estimated texture MiB / texture count | 60.08 / 22 -> 62.92 / 24 | 57.42 / 21 -> 60.25 / 23 |
+| Effects-fixture preparation ms | 429.8 -> 496.0 | 230.8 -> 259.8 |
+| First 30 ready frames maximum ms | 7.1 -> 7.1 | 7.1 -> 7.1 |
+
+Median/p95/p99 delta **0.0 ms** at reported precision, zero steady intervals over
+16.7ms; this is desktop rAF pacing, NOT GPU timer queries or mid-laptop iGPU proof.
+Material batching changes culling granularity (Cooling submits 1,014 more triangles
+while holding 16 calls); geometry is not added. First final map preparation was
+1,405.6ms versus baseline first view 943.2ms; caches/order differ, so record this as
+loading overhead, not a controlled cold-cache regression number. Real iGPU,
+thermal soak, cold-driver startup and human 6v6 approval remain open.
+
+Binary asset delta: **+2,605,509 bytes** (Relay 1,010,412; Undertow 1,553,824;
+shared HDR 41,273). Total assets **6,552,354 -> 9,161,256 bytes**, including
+**3,393 bytes** of new provenance documentation. Final public set **15,052,623
+bytes**, largest file **4,090,381 bytes**; asset and per-file budgets pass.
+Texture delta is **+2.83 MiB/map** (1.33 AO + 1.5 PMREM). Two extra resident
+textures per map; no cross-map architecture request is introduced.
+
+Final gates in `session9-final-gates.log`: **typecheck, pnpm test, build:client,
+build/dry-run, pnpm audit:assets, geometry audit PASS**; **303 passed, 3 existing
+opt-in skips**, 27 passing files + one skipped. Worker unchanged at **234.41 KiB /
+gzip 69.68 KiB**. The PowerShell mixed-encoding log was normalized to UTF-8 without
+rerunning gates; its `.raw` sibling preserves the original bytes. Final source-only
+change after captures moved the existing wedge documentation to its helper; the
+final build contains identical rendered behavior. No repeated gameplay testing
+during the owner pause.
+
+Cleanup confirmed in `session9-cleanup.json`: all **11** owned preview root/child
+processes stopped, **zero** listeners on 8796, **zero** remaining inspection
+browsers. Browser profiles were closed by the inspector. All evidence is ignored
+under app `.inspect`; versionable outputs are original only.
+
+Owner questions remain nonblocking: approve the softer industrial-daylight/contact
+balance once playtesting resumes (default: keep AO 0.75 / environment 0.85), and
+whether to spend further texture budget on detail (default: defer until measured
+on the target iGPU). Retain stylized sci-fi, 6v6 TDM/secondary DOM and the existing
+live-release approval gate. Supervisor should review the two original GLB
+allowlist exceptions and include their bakes plus shared HDR when publishing
+this local candidate to preview. No publication performed in this session.

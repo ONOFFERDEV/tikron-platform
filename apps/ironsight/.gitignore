@@ -3,3 +3,7 @@
 public/assets/**/*.glb
 assets-src/**
 !assets-src/README.md
+
+# Original collider-derived kit only; provenance and deterministic rebuild in README.
+!public/assets/maps/relay-architecture.glb
+!public/assets/maps/undertow-architecture.glb
