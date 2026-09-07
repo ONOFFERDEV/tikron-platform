@@ -14,11 +14,7 @@ import {
   type ServerMessage,
 } from "@tikron/protocol";
 import { defineRoom, type DefineRoomOptions } from "@tikron/server";
-import { MovementRoomImpl } from "./rooms/movement-room.js";
-import { TicTacToeImpl } from "./rooms/tic-tac-toe.js";
-import { AgarRoomImpl } from "./rooms/agar-room.js";
-import { ShooterRoomImpl } from "./rooms/shooter-room.js";
-import { MmoRoomImpl } from "./rooms/mmo-room.js";
+import { FixtureRoomImpl } from "./fixture-room.js";
 import { Matchmaker, isExternalRoom, unprefixExternalRoom } from "./matchmaker.js";
 import {
   enforceConnection,
@@ -35,11 +31,7 @@ export { Matchmaker };
 
 export interface Env {
   GameRoom: DurableObjectNamespace<GameRoom>;
-  MovementRoom: DurableObjectNamespace;
-  TicTacToe: DurableObjectNamespace;
-  AgarRoom: DurableObjectNamespace;
-  ShooterRoom: DurableObjectNamespace;
-  MmoRoom: DurableObjectNamespace;
+  FixtureRoom: DurableObjectNamespace;
   Matchmaker: DurableObjectNamespace<Matchmaker>;
   /** Platform database (M5). Absent → API-key enforcement + metering are skipped. */
   DB?: D1Database;
@@ -194,20 +186,12 @@ const roomOptions: DefineRoomOptions = {
   },
 };
 
-/** Realtime .io example — Simulation + MovementValidation modules. */
-export const MovementRoom = defineRoom(MovementRoomImpl, roomOptions);
-
-/** Turn-based guardrail example — genre-agnostic core only, no tick. */
-export const TicTacToe = defineRoom(TicTacToeImpl, roomOptions);
-
-/** Flagship .io demo — Simulation + MovementValidation + binary delta + AOI. */
-export const AgarRoom = defineRoom(AgarRoomImpl, roomOptions);
-
-/** FPS proof-of-concept — hitscan shooter with subtick timestamps + lag compensation. */
-export const ShooterRoom = defineRoom(ShooterRoomImpl, roomOptions);
-
-/** MMORPG example — integrates the @tikron/rpg combat engine (skills, buffs, aggro, XP). */
-export const MmoRoom = defineRoom(MmoRoomImpl, roomOptions);
+/**
+ * The gateway's only framework-based room: a game-free realtime room that carries
+ * the platform surface (session validation, occupancy, binary sync, onAuth,
+ * leaderboard writes, reconnection, persistence). See ./fixture-room.ts.
+ */
+export const FixtureRoom = defineRoom(FixtureRoomImpl, roomOptions);
 
 /** Largest party `/api/matchmake?party=` will place in one call. */
 const MAX_PARTY = 16;
@@ -251,7 +235,7 @@ export async function handleApi(request: Request, url: URL, env: Env): Promise<R
   if (url.pathname === "/api/matchmake") {
     const resolved = await resolveProject(env, url);
     if (!resolved.ok) return json({ error: resolved.code }, resolved.status);
-    const type = url.searchParams.get("type") ?? "agar-room";
+    const type = url.searchParams.get("type") ?? "room";
     const mode = url.searchParams.get("mode") ?? "";
     const max = Number(url.searchParams.get("max") ?? "8");
     const maxClients = Number.isFinite(max) ? max : 8;

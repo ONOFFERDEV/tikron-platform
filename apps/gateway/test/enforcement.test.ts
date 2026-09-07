@@ -38,16 +38,16 @@ beforeEach(() => _clearKeyCache());
 describe("API-key enforcement (DEV_MODE off)", () => {
   it("401s a missing key, 401s a bad key, resolves a valid key", async () => {
     const e = enforcedEnv();
-    const missing = await resolveProject(e, new URL("https://x/parties/agar-room/r"));
+    const missing = await resolveProject(e, new URL("https://x/parties/fixture-room/r"));
     expect(missing).toEqual({ ok: false, status: 401, code: "missing_api_key" });
 
-    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=tk_live_nope"));
+    const bad = await resolveProject(e, new URL("https://x/parties/fixture-room/r?apiKey=tk_live_nope"));
     expect(bad).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
 
     const { projectId, apiKey } = await seedProjectWithKey();
     const ok = await resolveProject(
       e,
-      new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(apiKey)}`),
+      new URL(`https://x/parties/fixture-room/r?apiKey=${encodeURIComponent(apiKey)}`),
     );
     expect(ok).toEqual({ ok: true, projectId });
   });
@@ -56,17 +56,17 @@ describe("API-key enforcement (DEV_MODE off)", () => {
     const e = { ...enforcedEnv(), DEMO_PROJECT_ID: "demo" } as Env;
 
     // Missing key → attributed to the metered demo project (public demos).
-    const missing = await resolveProject(e, new URL("https://x/parties/agar-room/r"));
+    const missing = await resolveProject(e, new URL("https://x/parties/fixture-room/r"));
     expect(missing).toEqual({ ok: true, projectId: "demo" });
 
     // A key that fails validation is a client error, not demo traffic.
-    const bad = await resolveProject(e, new URL("https://x/parties/agar-room/r?apiKey=tk_live_no"));
+    const bad = await resolveProject(e, new URL("https://x/parties/fixture-room/r?apiKey=tk_live_no"));
     expect(bad).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
   });
 
   it("forwards the resolved project to the room via _project on connect", async () => {
     const { projectId, apiKey } = await seedProjectWithKey();
-    const url = new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(apiKey)}`);
+    const url = new URL(`https://x/parties/fixture-room/r?apiKey=${encodeURIComponent(apiKey)}`);
     const gate = await enforceConnection(enforcedEnv(), new Request(url.toString()), url);
     expect(gate.ok).toBe(true);
     if (gate.ok) expect(new URL(gate.request.url).searchParams.get("_project")).toBe(projectId);

@@ -3,8 +3,6 @@ dist/
 .turbo/
 .wrangler/
 .omc/
-apps/gateway/public/agar.js
-apps/gateway/public/agar.js.map
 # Docs copied into the gateway's public/ at build time by scripts/copy-docs.mjs
 apps/gateway/public/llms.txt
 apps/gateway/public/llms-full.txt

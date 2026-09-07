@@ -11,5 +11,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ArenaRoom"] }],
   "assets": { "directory": "./public" },
+  // Public demo URL (the gateway demos were removed 2026-09-07; this is THE demo).
+  "routes": [{ "pattern": "fps.tikron.dev", "custom_domain": true }],
   "observability": { "enabled": true }
 }

@@ -9,7 +9,7 @@
 [![live](https://img.shields.io/badge/live-tikron.dev-00e5a0?style=flat-square&labelColor=0a0e14)](https://tikron.dev)
 [![discord](https://img.shields.io/badge/chat-discord-58a6ff?style=flat-square&labelColor=0a0e14&logo=discord&logoColor=58a6ff)](https://discord.gg/uXnK7Czq7G)
 
-**[🎮 Play the FPS demo](https://tikron.dev/shooter.html)** · [Dashboard](https://tikron.dev/dashboard/) · [Agent docs (AGENTS.md)](AGENTS.md) · [Measured numbers](docs/PERF.md)
+**[🎮 Play the FPS demo](https://fps.tikron.dev)** · [Dashboard](https://tikron.dev/dashboard/) · [Agent docs (AGENTS.md)](AGENTS.md) · [Measured numbers](docs/PERF.md)
 
 </div>
 
@@ -24,9 +24,9 @@ hosted services (leaderboards + a usage dashboard) are the only managed part —
 key, while browsers read them with a publishable `tk_pub_` key. Everything else runs on your
 account.
 
-> **Live at [tikron.dev](https://tikron.dev)** — landing, playable [.io demo](https://tikron.dev/agar.html),
-> [FPS demo](https://tikron.dev/shooter.html) (subtick lag compensation + AOI priority tiers),
-> developer dashboard. Building a game with an AI agent? Start at [`AGENTS.md`](AGENTS.md).
+> **Live at [tikron.dev](https://tikron.dev)** — landing, game showcase, developer dashboard.
+> Playable [FPS demo](https://fps.tikron.dev) (subtick lag compensation + AOI priority tiers),
+> built from [`apps/ironsight`](apps/ironsight). Building a game with an AI agent? Start at [`AGENTS.md`](AGENTS.md).
 > Questions, showcase, help: **[join the Discord](https://discord.gg/uXnK7Czq7G)**.
 > Measured: a single room holds **100 concurrent players cleanly on deployed Cloudflare**
 > (0 drops, server tick+flush 0 ms) — see [`docs/PERF.md`](docs/PERF.md); never invent latency figures.
@@ -69,15 +69,16 @@ packages/
   schema/     @tikron/schema   — binary delta state-sync (quant codec, per-field map deltas)
   sim/        @tikron/sim      — isomorphic movement math (shared client/server step + validation)
 apps/
-  gateway/    Cloudflare Worker + Durable Object rooms (agar / shooter / movement / tic-tac-toe)
-              + matchmaker + platform API; serves the landing, demos, and dashboard
+  gateway/    Cloudflare Worker — matchmaker + platform API + one generic realtime room;
+              serves the landing, the game showcase, and the docs (no games of its own)
+  ironsight/  web FPS template, deployed separately at fps.tikron.dev
   dashboard/  developer dashboard (usage, API keys)
 examples/
   starter/          "clone -> deploy in 5 min" cursor-arena template (see its README)
   discord-activity/ Discord Activity embed example
 tools/
   create-tikron/    npx scaffolder for a standalone game (SDK from npm)
-  loadtest/         WebSocket load-test harness (agar / movement / ttt / fps scenarios)
+  loadtest/         WebSocket load-test harness (see its README for scenarios)
 ```
 
 ## Foundation

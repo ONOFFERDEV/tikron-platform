@@ -55,8 +55,8 @@ async function openWs(party: string, room: string, session?: string) {
 
 describe("session validation (matchmaker-issued keys)", () => {
   it("accepts a connection carrying the session the matchmaker issued", async () => {
-    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
-    const c = await openWs("agar-room", m.roomId, m.sessionId);
+    const m = await api("/api/matchmake?type=fixture-room&mode=&max=8");
+    const c = await openWs("fixture-room", m.roomId, m.sessionId);
     const welcome = await c.waitFrame((f) => f.t === "s:welcome");
     expect(welcome.connectionId).toBe(m.sessionId);
     c.ws.close();
@@ -64,8 +64,8 @@ describe("session validation (matchmaker-issued keys)", () => {
 
   it("rejects an unissued session for a matchmaker-managed room", async () => {
     // Reserve so the matchmaker knows the room, then connect with a forged key.
-    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
-    const c = await openWs("agar-room", m.roomId, "forged-session-not-issued");
+    const m = await api("/api/matchmake?type=fixture-room&mode=&max=8");
+    const c = await openWs("fixture-room", m.roomId, "forged-session-not-issued");
     const err = await c.waitFrame((f) => f.t === "s:error");
     expect(err.code).toBe("invalid_session");
     c.ws.close();

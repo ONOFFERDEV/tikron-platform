@@ -12,11 +12,7 @@
   "durable_objects": {
     "bindings": [
       { "name": "GameRoom", "class_name": "GameRoom" },
-      { "name": "MovementRoom", "class_name": "MovementRoom" },
-      { "name": "TicTacToe", "class_name": "TicTacToe" },
-      { "name": "AgarRoom", "class_name": "AgarRoom" },
-      { "name": "ShooterRoom", "class_name": "ShooterRoom" },
-      { "name": "MmoRoom", "class_name": "MmoRoom" },
+      { "name": "FixtureRoom", "class_name": "FixtureRoom" },
       { "name": "Matchmaker", "class_name": "Matchmaker" }
     ]
   },
@@ -26,7 +22,14 @@
     { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
     { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] },
     { "tag": "v5", "new_sqlite_classes": ["ShooterRoom"] },
-    { "tag": "v6", "new_sqlite_classes": ["MmoRoom"] }
+    { "tag": "v6", "new_sqlite_classes": ["MmoRoom"] },
+    // The demo games were removed on 2026-09-07; FixtureRoom replaces them as the
+    // gateway's one generic realtime room (see src/fixture-room.ts).
+    {
+      "tag": "v7",
+      "new_sqlite_classes": ["FixtureRoom"],
+      "deleted_classes": ["MovementRoom", "TicTacToe", "AgarRoom", "ShooterRoom", "MmoRoom"]
+    }
   ],
   // Platform database (M5). database_id is filled in by `wrangler d1 create`;
   // local dev + vitest-pool-workers use a local SQLite regardless of the id.
@@ -43,8 +46,8 @@
   ],
   "assets": { "directory": "./public" },
   "vars": {
-    // Keyless connects (the public demos) are attributed to this project so they
-    // stay metered + capped in production. Row seeded via scripts/seed-demo.sql.
+    // Keyless connects are attributed to this project so they stay metered +
+    // capped in production. Row seeded via scripts/seed-demo.sql.
     "DEMO_PROJECT_ID": "demo",
     // www -> apex 301 + pins the GitHub OAuth flow to this host (the OAuth
     // app's registered callback is host-exact).

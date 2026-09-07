@@ -51,24 +51,20 @@
   `ts`) and the JSON codec.
 - [examples/starter/src/arena-room.ts](examples/starter/src/arena-room.ts): Read for a
   minimal, correct room to copy (validate-then-mutate handlers, reconnection).
-- [apps/gateway/src/rooms/shooter-room.ts](apps/gateway/src/rooms/shooter-room.ts): Read
-  for the FPS stack in practice — subtick lag-compensation rewind, AOI priority tiers, and
-  a quantized codec on `IoArenaRoom`.
+- [apps/ironsight/src/rooms/arena-room.ts](apps/ironsight/src/rooms/arena-room.ts): Read
+  for the FPS stack in practice — subtick lag-compensation rewind, hybrid hit claims behind
+  a server plausibility gate, AOI priority tiers, and a quantized codec on `IoArenaRoom`.
 - [packages/rpg/src/engine.ts](packages/rpg/src/engine.ts): Read for the RPG combat engine —
   a deterministic, timer-heap-driven `RpgEngine` (skills, buffs, aggro/AI, damage, XP) whose
   sole driver is `tick(now)`. `serialize()`/`restore()` survive a Durable Object eviction.
-- [apps/gateway/src/rooms/mmo-room.ts](apps/gateway/src/rooms/mmo-room.ts): Read for the
-  reference `@tikron/rpg` integration — one engine per room fed player intents, `tick(now)`
-  once per tick with a monotonic engine clock, unit state mirrored into a synced codec, and
-  the returned `CombatEvent[]` broadcast as one batched `combat` message.
 
-## Demos (live on tikron.dev)
+## Live games
 
-- [.io demo](https://tikron.dev/agar.html): the flagship realtime arena (binary delta + AOI).
-- [FPS demo](https://tikron.dev/shooter.html): hitscan shooter — subtick timestamps + server-side
-  lag compensation + AOI priority tiers at up to 100 players in one room.
-- [MMORPG demo](https://tikron.dev/mmo.html): server-authoritative RPG combat via `@tikron/rpg` —
-  click-to-move, hotbar skills, a wolf pack + boss with aggro/AI, damage/XP, and eviction survival.
+- [FPS demo](https://fps.tikron.dev): hitscan FPS — subtick timestamps + server-side
+  lag compensation + AOI priority tiers at up to 100 players in one room. Source:
+  [apps/ironsight](apps/ironsight).
+- [Nyam Duel](https://nyam.tikron.dev): webcam face-tracking 1v1 on the self-hosted golden path.
+- [Showcase](https://tikron.dev/games.html): games built with Tikron.
 
 ## Tooling
 

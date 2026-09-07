@@ -15,7 +15,7 @@ async function connect(party: string, room: string): Promise<WebSocket> {
 
 describe("time synchronization wire format (workerd)", () => {
   it("binary state frames carry a 13-byte tick/serverTime header", async () => {
-    const ws = await connect("agar-room", `ts-${crypto.randomUUID()}`);
+    const ws = await connect("fixture-room", `ts-${crypto.randomUUID()}`);
     const bytes = await new Promise<Uint8Array>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("no binary state frame")), 5000);
       ws.addEventListener("message", (e) => {
@@ -39,7 +39,7 @@ describe("time synchronization wire format (workerd)", () => {
   });
 
   it("answers a c:time ping with s:time echoing t0 plus the server time", async () => {
-    const ws = await connect("agar-room", `ts-${crypto.randomUUID()}`);
+    const ws = await connect("fixture-room", `ts-${crypto.randomUUID()}`);
     const reply = await new Promise<{ t: string; t0: number; serverTime: number }>(
       (resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("no s:time reply")), 5000);

@@ -1,8 +1,7 @@
 import { SELF } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
-import { AgarSchema } from "../src/rooms/agar-schema.js";
-import { MovementSchema } from "../src/rooms/movement-room.js";
+import { FixtureSchema } from "../src/fixture-room.js";
 
 type Frame = Record<string, any>;
 
@@ -84,19 +83,19 @@ async function pollRooms(type: string, pred: (rooms: any[]) => boolean, ms = 300
 
 describe("state-preserving reconnection (session-keyed seats)", () => {
   it("a session-keyed client keeps id, score, and position across a reconnect", async () => {
-    const a = await stateClient("agar-room", "rc1", AgarSchema, "sess-alpha");
+    const a = await stateClient("fixture-room", "rc1", FixtureSchema, "sess-alpha");
     const welcome = await a.waitMsg((m) => m.t === "s:welcome");
     expect(welcome.connectionId).toBe("sess-alpha"); // session key, not conn id
 
-    // Score once so there is state worth preserving (orb0 sits at (130,100)).
-    a.send("move", { x: 118, y: 100 }, 1);
+    // Score once so there is state worth preserving (+1 per accepted move).
+    a.send("move", { x: 5, y: 0 }, 1);
     const before = await a.waitState((s) => (s.players?.["sess-alpha"]?.score ?? 0) >= 1);
     const score = before.players["sess-alpha"].score as number;
 
     a.ws.close();
 
     // Reconnect with the same session key on a brand-new transport.
-    const b = await stateClient("agar-room", "rc1", AgarSchema, "sess-alpha");
+    const b = await stateClient("fixture-room", "rc1", FixtureSchema, "sess-alpha");
     const wb = await b.waitMsg((m) => m.t === "s:welcome");
     expect(wb.connectionId).toBe("sess-alpha");
     expect(wb.reconnected).toBe(true);
@@ -105,17 +104,17 @@ describe("state-preserving reconnection (session-keyed seats)", () => {
     // (seq restarted at 1 — the replay floor was reset on reattach).
     const after = await b.waitState((s) => s.players?.["sess-alpha"] !== undefined);
     expect(after.players["sess-alpha"].score).toBe(score);
-    b.send("move", { x: 118, y: 115 }, 1);
-    await b.waitState((s) => (s.players?.["sess-alpha"]?.y ?? 0) > 100);
+    b.send("move", { x: 5, y: 5 }, 1);
+    await b.waitState((s) => (s.players?.["sess-alpha"]?.y ?? 0) > 0);
 
     b.ws.close();
   });
 
   it("a duplicate session connection takes over the seat without a rejoin", async () => {
-    const a = await stateClient("agar-room", "rc2", AgarSchema, "sess-dup");
+    const a = await stateClient("fixture-room", "rc2", FixtureSchema, "sess-dup");
     await a.waitMsg((m) => m.t === "s:welcome");
 
-    const b = await stateClient("agar-room", "rc2", AgarSchema, "sess-dup"); // a still open
+    const b = await stateClient("fixture-room", "rc2", FixtureSchema, "sess-dup"); // a still open
     const wb = await b.waitMsg((m) => m.t === "s:welcome");
     expect(wb.reconnected).toBe(true);
     expect(wb.peers).toEqual([]); // one seat, not two
@@ -127,17 +126,17 @@ describe("state-preserving reconnection (session-keyed seats)", () => {
 
 describe("live room-count reporting (rooms -> matchmaker)", () => {
   it("consumes the reservation on connect: no double-count, then live count", async () => {
-    const m = await api("/api/matchmake?type=agar-room&mode=live&max=8");
+    const m = await api("/api/matchmake?type=fixture-room&mode=live&max=8");
 
     // Before connecting, the pending reservation holds the seat.
-    let rooms = await pollRooms("agar-room", (r) => r.some((x) => x.roomId === m.roomId));
+    let rooms = await pollRooms("fixture-room", (r) => r.some((x) => x.roomId === m.roomId));
     expect(rooms.find((x) => x.roomId === m.roomId).count).toBe(1);
 
-    const c = await stateClient("agar-room", m.roomId, AgarSchema, m.sessionId);
+    const c = await stateClient("fixture-room", m.roomId, FixtureSchema, m.sessionId);
     await c.waitMsg((x) => x.t === "s:welcome");
 
     // After connecting, the live report replaces the reservation — still 1, not 2.
-    rooms = await pollRooms("agar-room", (r) =>
+    rooms = await pollRooms("fixture-room", (r) =>
       r.some((x) => x.roomId === m.roomId && x.count === 1),
     );
     expect(rooms.find((x) => x.roomId === m.roomId).count).toBe(1);
@@ -146,14 +145,19 @@ describe("live room-count reporting (rooms -> matchmaker)", () => {
   });
 
   it("drops the room from the lobby when its last player leaves (no TTL wait)", async () => {
-    const m = await api("/api/matchmake?type=movement-room&mode=live&max=8");
-    const c = await stateClient("movement-room", m.roomId, MovementSchema, m.sessionId);
+    // Its own `mode` bucket: the test above leaves a seat held inside a 30s
+    // reconnection window, and matchmaking would otherwise reuse that same room.
+    const m = await api("/api/matchmake?type=fixture-room&mode=leave&max=8");
+    const c = await stateClient("fixture-room", m.roomId, FixtureSchema, m.sessionId);
     await c.waitMsg((x) => x.t === "s:welcome");
-    await pollRooms("movement-room", (r) => r.some((x) => x.roomId === m.roomId && x.count === 1));
+    await pollRooms("fixture-room", (r) => r.some((x) => x.roomId === m.roomId && x.count === 1));
 
-    // MovementRoom has no reconnection window: closing finalizes immediately and
-    // the room reports 0 — the lobby entry disappears well before the 15s TTL.
+    // Give up the reconnection window so the close is a REAL leave (otherwise the
+    // seat is held 30s). The finalized leave reports 0 and the lobby entry
+    // disappears well before the 15s reservation TTL — no TTL wait involved.
+    c.send("nowindow", null, 1);
+    await c.waitMsg((x) => x.t === "s:ack" && x.seq === 1); // handler ran
     c.ws.close();
-    await pollRooms("movement-room", (r) => !r.some((x) => x.roomId === m.roomId));
+    await pollRooms("fixture-room", (r) => !r.some((x) => x.roomId === m.roomId));
   });
 });

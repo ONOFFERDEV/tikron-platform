@@ -18,72 +18,17 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  apps/emberfall:
-    dependencies:
-      '@tikron/protocol':
-        specifier: workspace:*
-        version: link:../../packages/protocol
-      '@tikron/rpg':
-        specifier: workspace:*
-        version: link:../../packages/rpg
-      '@tikron/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      '@tikron/server':
-        specifier: workspace:*
-        version: link:../../packages/server
-      '@tikron/sim':
-        specifier: workspace:*
-        version: link:../../packages/sim
-      partyserver:
-        specifier: ^0.5.10
-        version: 0.5.10(@cloudflare/workers-types@4.20260701.1)
-    devDependencies:
-      '@cloudflare/vitest-pool-workers':
-        specifier: ^0.17.0
-        version: 0.17.0(@cloudflare/workers-types@4.20260701.1)(@vitest/runner@4.1.9)(@vitest/snapshot@4.1.9)(vitest@4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4)))
-      '@cloudflare/workers-types':
-        specifier: ^4.20260701.1
-        version: 4.20260701.1
-      '@tikron/client':
-        specifier: workspace:*
-        version: link:../../packages/client
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.0
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
-      vitest:
-        specifier: ^4.1.0
-        version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
-      wrangler:
-        specifier: ^4.106.0
-        version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
-
   apps/gateway:
     dependencies:
-      '@tikron/client':
-        specifier: workspace:*
-        version: link:../../packages/client
       '@tikron/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@tikron/rpg':
-        specifier: workspace:*
-        version: link:../../packages/rpg
       '@tikron/schema':
         specifier: workspace:*
         version: link:../../packages/schema
       '@tikron/server':
         specifier: workspace:*
         version: link:../../packages/server
-      '@tikron/sim':
-        specifier: workspace:*
-        version: link:../../packages/sim
       partyserver:
         specifier: ^0.5.10
         version: 0.5.10(@cloudflare/workers-types@4.20260701.1)
@@ -94,9 +39,6 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20260701.1
         version: 4.20260701.1
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
       vitest:
         specifier: ^4.1.0
         version: 4.1.9(@types/node@24.13.2)(vite@7.3.6(@types/node@24.13.2)(tsx@4.22.4))
@@ -280,40 +222,6 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.2
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
-  tools/loadtest:
-    dependencies:
-      '@tikron/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      ws:
-        specifier: ^8.18.0
-        version: 8.21.0
-    devDependencies:
-      '@types/node':
-        specifier: ^24.0.0
-        version: 24.13.2
-      '@types/ws':
-        specifier: ^8.5.13
-        version: 8.18.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.22.4
-
-  tools/rig-editor:
-    devDependencies:
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.0
-      esbuild:
-        specifier: ^0.28.1
-        version: 0.28.1
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -895,9 +803,6 @@ packages:
 
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
-
-  '@types/ws@8.18.1':
-    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/expect@4.1.9':
     resolution: {integrity: sha512-vl/rYsUKcBr3SnQn166+XR5ZQcgMx3DQhFWdfli/cWpLnLUmbxZvyrJZotLFUryib+LtArYMSTJ5RbQ57ZqrlA==}
@@ -1668,10 +1573,6 @@ snapshots:
 
   '@types/webxr@0.5.24': {}
 
-  '@types/ws@8.18.1':
-    dependencies:
-      '@types/node': 24.13.2
-
   '@vitest/expect@4.1.9':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -1936,6 +1837,7 @@ snapshots:
       esbuild: 0.28.1
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   turbo@2.10.2:
     optionalDependencies:

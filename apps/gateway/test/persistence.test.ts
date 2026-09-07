@@ -7,15 +7,15 @@ import {
 } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import { decodeFull, applyDelta, type Codec } from "@tikron/schema";
-import { AgarSchema } from "../src/rooms/agar-schema.js";
+import { FixtureSchema } from "../src/fixture-room.js";
 import type { Env } from "../src/index.js";
 
 type Frame = Record<string, any>;
-const codec = AgarSchema as Codec<any>;
+const codec = FixtureSchema as Codec<any>;
 
-/** The AgarRoom DO stub for a room name (partyserver derives its id via idFromName). */
+/** The FixtureRoom DO stub for a room name (partyserver derives its id via idFromName). */
 function roomStub(roomId: string) {
-  const ns = (env as unknown as Env).AgarRoom;
+  const ns = (env as unknown as Env).FixtureRoom;
   return ns.get(ns.idFromName(roomId));
 }
 
@@ -24,7 +24,7 @@ async function api(path: string): Promise<any> {
 }
 
 async function stateClient(room: string, session: string) {
-  const res = await SELF.fetch(`https://example.com/parties/agar-room/${room}?_session=${session}`, {
+  const res = await SELF.fetch(`https://example.com/parties/fixture-room/${room}?_session=${session}`, {
     headers: { Upgrade: "websocket" },
   });
   const ws = res.webSocket;
@@ -102,12 +102,12 @@ const seatWithWindow = (session: string) => (snap: any) =>
 // cold start the persistence layer is designed to survive.
 describe("persist + restore across Durable Object eviction", () => {
   it("restores a seat's score after the room DO is torn down mid-window", async () => {
-    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
+    const m = await api("/api/matchmake?type=fixture-room&mode=&max=8");
     const a = await stateClient(m.roomId, m.sessionId);
     await a.waitMsg((x) => x.t === "s:welcome");
 
-    // Collect an orb so there is a score worth preserving (orb0 sits at 130,100).
-    a.send("move", { x: 118, y: 100 }, 1);
+    // Make an accepted move so there is a score worth preserving (+1 per move).
+    a.send("move", { x: 5, y: 0 }, 1);
     const before = await a.waitState((s) => (s.players?.[m.sessionId]?.score ?? 0) >= 1);
     const score = before.players[m.sessionId].score as number;
 
@@ -126,39 +126,8 @@ describe("persist + restore across Durable Object eviction", () => {
     b.ws.close();
   });
 
-  it("collects a restored orb after a cold start (orb grid reseeded on restore)", async () => {
-    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
-    const a = await stateClient(m.roomId, m.sessionId);
-    await a.waitMsg((x) => x.t === "s:welcome");
-    await a.waitState((s) => s.players?.[m.sessionId] !== undefined); // player 0 at spawn (100,100)
-
-    // Drop → the reconnection window persists. Then inject a known orb straight into
-    // the durable snapshot so it exists ONLY in restored state, never in the fresh
-    // grid onReady seeds — the exact desync the onRestore reseed must repair.
-    a.ws.close();
-    await waitSnapshot(m.roomId, seatWithWindow(m.sessionId));
-    await runInDurableObject(roomStub(m.roomId), async (_inst, state) => {
-      const snap = (await state.storage.get("tk:room")) as any;
-      snap.state.orbs.known = { x: 100, y: 130 }; // 30 units below the spawn
-      await state.storage.put("tk:room", snap);
-    });
-    await abortAllDurableObjects();
-
-    // Cold restart: reconnect, confirm the restored orb is visible, then move onto it.
-    const b = await stateClient(m.roomId, m.sessionId);
-    await b.waitMsg((x) => x.t === "s:welcome");
-    await b.waitState((s) => s.orbs?.known !== undefined); // restored orb is in view
-    b.send("move", { x: 100, y: 130 }, 1);
-    // With the grid reseeded from restored state, moving onto it collects it. Without
-    // the fix the grid never holds `known`, so collectOrbs would miss it forever
-    // (this wait would then time out — a failing test).
-    const after = await b.waitState((s) => s.orbs?.known === undefined);
-    expect(after.orbs.known).toBeUndefined();
-    b.ws.close();
-  });
-
   it("the durable alarm finalizes an expired window after a cold start", async () => {
-    const m = await api("/api/matchmake?type=agar-room&mode=&max=8");
+    const m = await api("/api/matchmake?type=fixture-room&mode=&max=8");
     const a = await stateClient(m.roomId, m.sessionId);
     await a.waitMsg((x) => x.t === "s:welcome");
 

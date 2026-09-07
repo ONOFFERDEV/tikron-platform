@@ -10,7 +10,7 @@ const testEnv = () => env as unknown as Env;
 
 async function connect(room: string, params: Record<string, string>) {
   const q = new URLSearchParams(params);
-  const res = await SELF.fetch(`https://example.com/parties/agar-room/${room}?${q.toString()}`, {
+  const res = await SELF.fetch(`https://example.com/parties/fixture-room/${room}?${q.toString()}`, {
     headers: { Upgrade: "websocket" },
   });
   const ws = res.webSocket;

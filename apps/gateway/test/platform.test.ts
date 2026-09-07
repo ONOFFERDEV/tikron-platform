@@ -118,7 +118,7 @@ describe("platform dashboard API", () => {
       _clearKeyCache();
       const resolved = await resolveProject(
         enforcedEnv(),
-        new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(k)}`),
+        new URL(`https://x/parties/fixture-room/r?apiKey=${encodeURIComponent(k)}`),
       );
       expect(resolved).toEqual({ ok: true, projectId });
     }
@@ -194,7 +194,7 @@ describe("platform dashboard API", () => {
     _clearKeyCache();
     const before = await resolveProject(
       enforcedEnv(),
-      new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(key.key)}`),
+      new URL(`https://x/parties/fixture-room/r?apiKey=${encodeURIComponent(key.key)}`),
     );
     expect(before).toEqual({ ok: true, projectId });
 
@@ -210,7 +210,7 @@ describe("platform dashboard API", () => {
     _clearKeyCache();
     const after = await resolveProject(
       enforcedEnv(),
-      new URL(`https://x/parties/agar-room/r?apiKey=${encodeURIComponent(key.key)}`),
+      new URL(`https://x/parties/fixture-room/r?apiKey=${encodeURIComponent(key.key)}`),
     );
     expect(after).toEqual({ ok: false, status: 401, code: "invalid_api_key" });
   });

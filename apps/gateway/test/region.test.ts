@@ -11,9 +11,9 @@ describe("region hint validation", () => {
   });
 
   it("resolves a valid ?region= off a URL and ignores an invalid one", () => {
-    expect(resolveLocationHint(new URL("https://x/parties/agar-room/r?region=enam"))).toBe("enam");
-    expect(resolveLocationHint(new URL("https://x/parties/agar-room/r?region=nope"))).toBeUndefined();
-    expect(resolveLocationHint(new URL("https://x/parties/agar-room/r"))).toBeUndefined();
+    expect(resolveLocationHint(new URL("https://x/parties/fixture-room/r?region=enam"))).toBe("enam");
+    expect(resolveLocationHint(new URL("https://x/parties/fixture-room/r?region=nope"))).toBeUndefined();
+    expect(resolveLocationHint(new URL("https://x/parties/fixture-room/r"))).toBeUndefined();
   });
 });
 
@@ -43,7 +43,7 @@ describe("region placement plumbing (workerd)", () => {
     // Placement itself is not observable locally; assert the plumbing executes end
     // to end (the hint reaches routePartykitRequest and the socket still upgrades).
     const res = await SELF.fetch(
-      `https://example.com/parties/agar-room/rg-${crypto.randomUUID()}?_session=s-${crypto.randomUUID()}&region=weur`,
+      `https://example.com/parties/fixture-room/rg-${crypto.randomUUID()}?_session=s-${crypto.randomUUID()}&region=weur`,
       { headers: { Upgrade: "websocket" } },
     );
     expect(res.webSocket).toBeTruthy();

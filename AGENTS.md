@@ -23,19 +23,18 @@ nothing about ticks/movement/AOI); presets pre-wire the opt-in modules.
 |---|---|---|---|
 | Turn-based, board, card, quiz (players act in turns) | `TurnBasedRoom` | Core only: JSON sync on mutation, no tick. Cheapest room (idle ≈ WS keepalive). | `onCreate`, `onJoin`, `onLeave` |
 | Cursors, whiteboards, party games, shared canvases (free movement, no physics tick) | `CasualRealtimeRoom` | Throttled JSON sync (~20 Hz coalesced) + built-in 30 s reconnection window. | `onCreate`, `onJoin`, `onSeatExpired` |
-| `.io` arenas, shooters, racers (continuous movement, fixed-timestep simulation) | `IoArenaRoom` | Simulation tick (`onTick`) + binary delta `stateCodec` + input acks + optional per-viewer AOI + built-in reconnection. | `codec`, `onTick`, `onSeatExpired` |
+| `.io` arenas, FPS, racers (continuous movement, fixed-timestep simulation) | `IoArenaRoom` | Simulation tick (`onTick`) + binary delta `stateCodec` + input acks + optional per-viewer AOI + built-in reconnection. | `codec`, `onTick`, `onSeatExpired` |
 
 Rule of thumb: turns alternate → `TurnBasedRoom`; everyone moves but you don't run
 physics every frame → `CasualRealtimeRoom`; you integrate positions/collisions on a
 fixed timestep → `IoArenaRoom`. A preset is a thin `Room` subclass — dropping back to
 the raw core is always possible. The [`examples/starter`](examples/starter) template
-(`ArenaRoomImpl`) extends `CasualRealtimeRoom`; the flagship `.io` demo
-(`apps/gateway`, `AgarRoom`) extends `IoArenaRoom` with AOI; the FPS proof-of-concept
-(`apps/gateway`, `ShooterRoom`) is the same `IoArenaRoom` with the full competitive
-stack turned on — `lagCompensation` + AOI priority `tiers` + client `subtickTimestamps`
-(see "Competitive FPS" below). A hitscan shooter still fits WebSocket transport because
-projectiles never enter the state stream — shots resolve server-side (see the roadmap
-note on transport before choosing this for a twitch shooter).
+(`ArenaRoomImpl`) extends `CasualRealtimeRoom`; the web FPS template
+(`apps/ironsight`, `ArenaRoomImpl` in `src/rooms/arena-room.ts`) extends `IoArenaRoom`
+with the full competitive stack turned on — `lagCompensation` + AOI priority `tiers` +
+client `subtickTimestamps` (see "Competitive FPS" below). A hitscan FPS still fits
+WebSocket transport because projectiles never enter the state stream — shots resolve
+server-side (see the roadmap note on transport before choosing this for a twitch game).
 
 ## Golden path — scaffold → run → deploy → play
 
@@ -281,9 +280,12 @@ is already 6 links — past that, relay through the room instead.
 
 ## Competitive FPS: subtick timestamps + lag compensation + priority tiers
 
-Reach for this when hit registration must survive real RTT (a hitscan shooter, a fast
-racer with contact). It is `IoArenaRoom` with three opt-ins layered on; the
-`ShooterRoom` demo (`apps/gateway`) is the end-to-end reference.
+Reach for this when hit registration must survive real RTT (a hitscan FPS, a fast
+racer with contact). It is `IoArenaRoom` with three opt-ins layered on;
+`apps/ironsight/src/rooms/arena-room.ts` (`ArenaRoomImpl`) is the end-to-end reference:
+it layers hybrid hit registration on top — the client may send a `claim` naming who it
+hit, and the server accepts it only after a plausibility gate re-checks the claim against
+the rewound world, so a forged claim is rejected while an honest one survives real RTT.
 
 - **Quantize the state codec.** Snap continuous fields (position, angle, health) to a grid
   with `quant(min, max, step)` from `@tikron/schema`: it rides in 1–4 bytes instead of an
@@ -296,19 +298,19 @@ racer with contact). It is `IoArenaRoom` with three opt-ins layered on; the
 - **Subtick input timing.** The client opts in with `subtickTimestamps: true`; each `send()`
   is stamped with the input's estimated server-clock time. The server clamps it to a recent
   window (`[now-250ms, now]`, anti-backdate) and hands it to the handler as the 4th arg
-  (`InputMeta.ts`). Passing it to `rewind` pins the rewind to the exact instant the shooter
+  (`InputMeta.ts`). Passing it to `rewind` pins the rewind to the exact instant the firing client
   aimed, decoupled from the tick rate (the CS2 model). Requires client clock sync (on by
   default).
 - **AOI priority tiers.** Set `aoi.tiers` so far players refresh at a fraction of the tick rate
-  (see Room knobs). The demo uses `[{radius:300,interval:1},{radius:600,interval:4}]`.
+  (see Room knobs). A typical setting is `[{radius:300,interval:1},{radius:600,interval:4}]`.
 - **Optional input batching.** The client `inputBatchMs` option (e.g. 33 ≈ one tick) coalesces
   a burst of inputs into one `c:mbatch` WebSocket frame, cutting the DO's inbound request rate.
   Only enable it against a matching `@tikron/server` (0.2+) — an older server that predates the
   batch frame drops any multi-input window.
 
 ```ts
-// SERVER — a hitscan shooter room
-class Shooter extends IoArenaRoom<ShooterState> {
+// SERVER — a hitscan FPS room
+class Arena extends IoArenaRoom<ArenaState> {
   protected readonly codec = schema({
     players: mapOf(schema({ x: quant(0, 2000, 0.1), y: quant(0, 2000, 0.1),
       aim: quant(0, Math.PI * 2, 0.001), hp: "u8", alive: "bool" })),
@@ -327,14 +329,14 @@ class Shooter extends IoArenaRoom<ShooterState> {
     this.setState({ players: {} });
     // 4th arg carries the clamped subtick ts when the client opts in.
     this.onMessage("shoot", (client, aim, _seq, input) => {
-      const world = this.rewind(client, input?.ts);   // world as the shooter saw it
+      const world = this.rewind(client, input?.ts);   // world as that client saw it
       // ...resolve the hitscan against `world`, apply damage...
     });
   }
 }
 
 // CLIENT — opt into subtick timing (needs clock sync) + input batching
-const gc = new GameClient(host, { stateCodec: ShooterSchema, subtickTimestamps: true, inputBatchMs: 33 });
+const gc = new GameClient(host, { stateCodec: ArenaSchema, subtickTimestamps: true, inputBatchMs: 33 });
 ```
 
 **Wire compatibility & the handshake.** Client and server share `PROTOCOL_VERSION` and the
@@ -368,7 +370,7 @@ against an old server simply skips the check (no false rejects), so upgrade clie
 ## Smooth rendering: RenderPredictor + EntitySmoother
 
 For client-authoritative movement ("the client sends its position, the server validates the
-speed" — the shooter model), use the `@tikron/client` render helpers instead of hand-rolling
+speed" — the client-authoritative FPS model), use the `@tikron/client` render helpers instead of hand-rolling
 the integration/correction/clamp plumbing. They exist to make rubber-banding structurally
 impossible: every outgoing position passes through ONE budget clamp measured over the real
 elapsed time between sends, so an honest client is never speed-rejected; if the server still
@@ -442,8 +444,8 @@ Rules of thumb:
   `MovementConfig` — pass it straight to `resolveMovement`). Keep `sendHeadroom` strictly
   between 1 and `tolerance`.
 - Message budget: keep `1000/stepMs × message-types-per-tick` under the room's
-  `maxInputsPerSecond` (default 30), or moves get silently dropped — the shooter room raises
-  it to 90 for a 30 Hz move stream plus SMG fire.
+  `maxInputsPerSecond` (default 30), or moves get silently dropped — `apps/ironsight`
+  raises it to 90 for a 30 Hz move stream plus automatic fire.
 - **`maxInputsPerSecond` covers every developer message type EXCEPT relayed ones** — game
   inputs, chat, and side-channel traffic all draw from one per-client limiter, and
   over-budget messages are dropped silently (never acked, no error). The classic trap was
@@ -465,8 +467,8 @@ Rules of thumb:
   for movement (server after `resolveMovement`, client via RenderPredictor `constrain`)
   — authoritative walls for zero wire bytes. `skip(index)` makes cover destructible.
 - `RenderPredictor` is a different model from `InputPredictor` (input replay for
-  server-integrated movement); the shooter demo uses both — RenderPredictor for the view,
-  InputPredictor for ack bookkeeping. `apps/gateway/demo/shooter-client.ts` is the reference.
+  server-integrated movement). A client-authoritative game can run both — RenderPredictor
+  for the view, InputPredictor for ack bookkeeping.
 
 ## RPG combat: `@tikron/rpg`
 
@@ -476,8 +478,7 @@ XP — instead of hand-rolling combat math. It is an isomorphic, **deterministic
 (`RpgEngine`) with no timers/globals: time is the absolute `now` you pass in and randomness
 is one seeded stream, so the same seed + call sequence always produces the same event stream
 (and `serialize()`/`restore()` round-trip a live fight across a Durable Object eviction). The
-reference integration is `apps/gateway`'s `MmoRoom` (an `IoArenaRoom`); the package README has
-the full API.
+package README has the full API.
 
 **The one contract that matters: `tick(now)` is the SOLE driver.** Feed player intents
 whenever they arrive (`useSkill(id, skillId, target, now)` / `moveUnit` /
@@ -535,7 +536,7 @@ absent or `1`):
 From the client SDK:
 
 ```ts
-const m = await client.matchmake({ type: "agar-room", maxClients: 8, party: 3 });
+const m = await client.matchmake({ type: "arena-room", maxClients: 8, party: 3 });
 // leader joins with its own seat
 const room = await client.joinOrCreate(m.roomId, { _session: m.sessionId });
 // hand m.sessionIds[1..] to the other two over YOUR channel (lobby room broadcast,
@@ -879,7 +880,7 @@ keep a WebSocket smoke test (see the skill).
 | `pnpm build` | Turborepo build; gateway does `wrangler deploy --dry-run`. |
 | `pnpm typecheck` | `tsc --noEmit` across all packages. |
 | `pnpm test` | vitest everywhere (incl. workerd integration). |
-| `pnpm --filter @tikron/gateway dev` | Full-stack demos: `/agar.html` (.io), `/api/rooms` (lobby). |
+| `pnpm --filter @tikron/gateway dev` | Platform worker: landing, `/api/matchmake`, `/api/rooms` (lobby). |
 
 Swap `tikron-starter` for your project's package name (the `name` in its `package.json`).
 
@@ -968,7 +969,7 @@ what is in progress — pick your genre and architecture accordingly.
 - **Transport: WebSocket only (TCP).** Every connection is a WebSocket, so lost packets
   cause head-of-line blocking (a dropped frame stalls everything behind it). That's fine
   for the supported genres — turn-based, cursors/casual, and moderate `.io` — but it is
-  **not** a fit for competitive twitch shooters that need unreliable/unordered datagrams.
+  **not** a fit for a competitive twitch FPS that needs unreliable/unordered datagrams.
   WebTransport (UDP-like) is on the roadmap, but Cloudflare Workers do **not** terminate
   WebTransport server-side today, so there is no date — don't design around it yet.
 - **Deploys & live rooms.** `wrangler deploy` restarts your Durable Objects. Tikron rooms

@@ -10,8 +10,9 @@ extensions, `noUncheckedIndexedAccess` on.
 
 Index/docs: llms.txt · AGENTS.md (operational brief)
 · docs/PERF.md (measured numbers — never invent latency figures).
-Live demos: tikron.dev/agar.html (.io — binary delta + AOI) ·
-tikron.dev/shooter.html (FPS — subtick lag-comp + AOI priority tiers, up to 100/room).
+Live games: fps.tikron.dev (FPS — subtick lag-comp + AOI priority tiers, up to
+100/room, source in apps/ironsight) · nyam.tikron.dev (webcam 1v1) ·
+tikron.dev/games.html (showcase).
 
 ## Commands
 
@@ -36,7 +37,7 @@ tikron.dev/shooter.html (FPS — subtick lag-comp + AOI priority tiers, up to 10
                                  reconnection (field: reconnectWindowSec).
                                  Implement: onCreate, onJoin, onSeatExpired(client).
                                  NEVER override onLeave (the preset owns it).
-    IoArenaRoom<TState>          fixed-timestep simulation (.io/shooter/racer).
+    IoArenaRoom<TState>          fixed-timestep simulation (.io/FPS/racer).
                                  Binary delta sync + acks + optional AOI + reconnection.
                                  queueInputs on (inputs drain at the tick boundary so
                                  onTick sees one consistent batch).
@@ -49,7 +50,7 @@ tikron.dev/shooter.html (FPS — subtick lag-comp + AOI priority tiers, up to 10
                                  rewind(client, input?.ts) in a shoot handler to resolve
                                  the hitscan against the world that client saw; aoi.tiers
                                  for priority updates; client subtickTimestamps for
-                                 tick-independent rewind. Demo: apps/gateway ShooterRoom.
+                                 tick-independent rewind. Reference: apps/ironsight.
 
 ### Room<TState> core (packages/server/src/room.ts)
 
@@ -358,7 +359,7 @@ an always-on tick. Full math + verified-vs-estimated: docs/COSTS.md.
 ## Limits & roadmap (v1 — full detail in AGENTS.md "Limits & roadmap")
 
 - Transport: WebSocket only (TCP) — head-of-line blocking under packet loss; fine for
-  turn-based / casual / moderate .io, NOT competitive twitch shooters. WebTransport is
+  turn-based / casual / moderate .io, NOT a competitive twitch FPS. WebTransport is
   roadmap (CF Workers don't terminate it server-side yet — no date).
 - Deploys restart DOs; rooms recover via the durable snapshot + 30s session reconnection
   (players reland in the same seat/state). State-SHAPE migration across versions: bump

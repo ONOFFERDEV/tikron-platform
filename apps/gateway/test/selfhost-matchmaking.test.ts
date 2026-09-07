@@ -209,7 +209,7 @@ describe("self-hosted matchmaking (F3)", () => {
 
     // Raw and percent-encoded: the router decodes the segment, so the guard must too.
     for (const name of [key, encodeURIComponent(key)]) {
-      const res = await SELF.fetch(`${ORIGIN}/parties/agar-room/${name}`, {
+      const res = await SELF.fetch(`${ORIGIN}/parties/fixture-room/${name}`, {
         headers: { Upgrade: "websocket" },
       });
       expect(res.status).toBe(400);

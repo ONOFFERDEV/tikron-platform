@@ -13,10 +13,7 @@
   "durable_objects": {
     "bindings": [
       { "name": "GameRoom", "class_name": "GameRoom" },
-      { "name": "MovementRoom", "class_name": "MovementRoom" },
-      { "name": "TicTacToe", "class_name": "TicTacToe" },
-      { "name": "AgarRoom", "class_name": "AgarRoom" },
-      { "name": "ShooterRoom", "class_name": "ShooterRoom" },
+      { "name": "FixtureRoom", "class_name": "FixtureRoom" },
       { "name": "Matchmaker", "class_name": "Matchmaker" }
     ]
   },
@@ -25,7 +22,14 @@
     { "tag": "v2", "new_sqlite_classes": ["MovementRoom", "TicTacToe"] },
     { "tag": "v3", "new_sqlite_classes": ["AgarRoom"] },
     { "tag": "v4", "new_sqlite_classes": ["Matchmaker"] },
-    { "tag": "v5", "new_sqlite_classes": ["ShooterRoom"] }
+    { "tag": "v5", "new_sqlite_classes": ["ShooterRoom"] },
+    // Demo games removed 2026-09-07. MmoRoom is absent here on purpose: staging
+    // never created it (no v6), so it must not appear in deleted_classes.
+    {
+      "tag": "v7",
+      "new_sqlite_classes": ["FixtureRoom"],
+      "deleted_classes": ["MovementRoom", "TicTacToe", "AgarRoom", "ShooterRoom"]
+    }
   ],
   "assets": { "directory": "./public" },
   "vars": {

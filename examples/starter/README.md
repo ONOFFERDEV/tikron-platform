@@ -67,8 +67,8 @@ packet forgery simply isn't a thing you have to bolt on later.
   from JSON to binary delta sync.
 - **Big worlds / anti-wallhack:** `this.enableAOI(...)` sends each client only
   what it can see.
-- **Matchmaking, prediction, interpolation:** see the flagship .io demo in
-  `apps/gateway` (`/agar.html`) which uses the full stack.
+- **Matchmaking, prediction, interpolation:** see the web FPS template in
+  `apps/ironsight` (live at <https://fps.tikron.dev>) which uses the full stack.
 
 ## Test it
 

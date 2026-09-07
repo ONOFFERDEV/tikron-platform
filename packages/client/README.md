@@ -102,7 +102,7 @@ The pure primitives (`integrateMove`, `clampToBudget`, `decayOffset`, `applyCorr
 
 ```ts
 const client = new GameClient(location.host, {
-  party: "shooter-room",
+  party: "arena-room",
   stateCodec: ShooterSchema,   // match the room's codec for binary sync
   subtickTimestamps: true,     // stamp each send() with its server-clock time so the room can
                                // rewind lag compensation to the input instant (needs clock sync)

@@ -1,5 +1,9 @@
 # Performance — measured, 2026-07-02
 
+> **2026-09-07:** the `AgarRoom` / `ShooterRoom` demos these runs were measured against
+> were removed from `apps/gateway`. Every number below stands as measured; the netcode
+> they exercised lives on in `@tikron/server` and in `apps/ironsight`.
+
 Load-test results for the Tikron room engine, measured with
 [`tools/loadtest`](../tools/loadtest) (N simulated players, 20 Hz inputs,
 30 s runs). Commit under test: P1/P1b hardened core (`34829a0`).
