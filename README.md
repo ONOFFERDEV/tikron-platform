@@ -39,6 +39,9 @@ account.
 - **`forcePersist()`** — close the up-to-5 s deploy/restart snapshot loss window on a critical transition.
 - **Managed leaderboards from self-hosted rooms** — wire `platformLeaderboard()` with a `tk_live_` key; browsers read via a `tk_pub_` key.
 - **`npx create-tikron my-game`** scaffolds a runnable project with a bundled `AGENTS.md` and a green `npm test`.
+- **Opaque peer relay** (0.7.0, unreleased) — declare `relay = { types: [...] }` on a room and it passes WebRTC signaling (or any side-channel message) between clients with a spoofproof sender id, its own rate budget, and a byte cap, all separate from the gameplay input limiter.
+- **`@tikron/rtc`** (0.7.0, unreleased) — a browser-to-browser data channel and camera/mic link with your own Cloudflare TURN key (BYO-TURN); the room stays authoritative and P2P is an enhancement only.
+- **Leaderboard seasons** (0.7.0, unreleased) — submit a score with `period: "daily" | "weekly" | "monthly" | "alltime"` and read any past or current season back via `?season=`.
 
 ## Install
 

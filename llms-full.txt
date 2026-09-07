@@ -106,7 +106,8 @@ sendAcks=false (ack input seq for client reconciliation) · queueInputs=false (d
 at the tick boundary; needs a sim interval; IoArenaRoom sets it) · stateCodec (binary delta) ·
 persistIntervalMs=5000 (durable snapshot cadence) · stateVersion=1 (bump on incompatible
 TState change + override migrateState(from, old) so a redeploy migrates old snapshots
-instead of silently restoring the old shape; return null = discard + start fresh).
+instead of silently restoring the old shape; return null = discard + start fresh) ·
+relay=null ({types, maxBytes?=16384, perSecond?=60} — opaque pass-through, see below).
 
 Facts: Client = { id, data (server-only scratch), auth?, send }. client.id is the session key
 when supplied, else the connection id — state keyed by client.id survives reconnects.
@@ -116,6 +117,15 @@ session id (a new tab/reconnect resets it); live-only (not persisted across evic
 Only this.state and client.data survive DO eviction (persisted snapshot); ad-hoc
 instance fields do not. State must be structured-clone-able. Duplicate session connect
 = takeover (old socket closed 4001). Input seq replay-floor resets on reattach.
+
+Peer relay (F2, 0.7): `protected override relay = { types: ["rtc"] }` opaquely passes a
+declared message type between seated clients — server stamps `from: client.id` (never
+trust a client-set from), enforces maxBytes (16384), and routes by an optional string `to`
+(unicast to that client, incl. echo-to-self; else broadcast-except-sender off its own
+room-wide bucket). Bypasses maxInputsPerSecond, queueInputs, acks, and seq-check entirely —
+it has its own perSecond=60 budget so an ICE trickle burst can't starve gameplay inputs and
+vice versa. Drops surface on tk:stats DropCounts: relayRateLimited/relayOversized/
+relayBadTarget. An onMessage(type, ...) handler for a relayed type still runs, after delivery.
 
 ### defineRoom (packages/server/src/define-room.ts)
 
@@ -215,6 +225,21 @@ in a normalized [0,1] world, so it only eases — exactly what a cursor/paint ro
 Input: the starter client uses pointer events (pointermove/pointerdown) + canvas touch-action:none
 + viewport maximum-scale=1 — one code path for touch & mouse (the absolute-cursor pattern).
 
+## @tikron/rtc — browser-to-browser data (WebRTC) with your own TURN
+
+RtcLink (perfect negotiation): one link per remote peer — { peerId, polite: myId < peerId,
+send: (s) => room.send("rtc", { ...s, to: peerId }), iceServers?, channel?, iceRestartBudget?=1,
+connectTimeoutMs? }. connect() / handleSignal(signal) (feed from room.onMessage("rtc", ...)) /
+send(data)->boolean / onMessage(cb) / onStateChange(cb) / addLocalStream(stream) /
+setMicEnabled(bool) / onRemoteStream(cb) / getSelectedCandidatePair() / close(). The room's
+`relay = { types: ["rtc"] }` (see above) carries signaling opaquely, from-stamped, capped at
+16384 bytes. iceServersHandler (from "@tikron/rtc/worker"): a Worker route (`{keyId, apiToken}`
+from env, GET /api/ice) that mints Cloudflare TURN credentials — 1h TTL, cached 30 min/isolate;
+no key / mint failure / network error all degrade to a STUN-only 200 body, never a 5xx. P2P is
+an enhancement only: server neither reads nor writes link traffic; a hard failure (ICE-restart
+budget exhausted or connectTimeoutMs) settles on "failed" and the game keeps running over the
+room socket. Bills to YOUR Cloudflare TURN key, not Tikron.
+
 ## @tikron/sim — shared movement math (zero-dep, isomorphic)
 
     stepToward(pos, target, maxSpeed, dtMs)            budget-capped step (client+server)
@@ -272,10 +297,18 @@ DEV_MODE=1 bypasses. Caps (D1 config, defaults): 1,000 room-hours/month · 20 co
 players/room. Usage: rooms report occupancy + 30s heartbeats; matchmaker accrues
 room-hours/peak CCU/messages → usage_daily (60s alarm flush).
 Self-host leaderboard ingest: POST /api/ingest/score (Authorization: Bearer tk_live_ ONLY;
-tk_pub_ → 403 key_scope_forbidden) {board, playerId, score, displayName?, mode?} → 204 |
+tk_pub_ → 403 key_scope_forbidden) {board, playerId, score, displayName?, mode?, period?} → 204 |
 {error, message}; caps 403 cap_leaderboard_boards (free_leaderboard_boards=50, new boards only) /
 429 cap_leaderboard_rate (isolate-local bucket 30/s, burst 60). Read: GET /api/leaderboard?board=
 &limit=&apiKey=tk_pub_ (Access-Control-Allow-Origin: *).
+Seasons (0.7): submit's optional `period` (daily|weekly|monthly|alltime, default alltime) sets
+a UTC-computed season key (daily YYYY-MM-DD, weekly ISO YYYY-Www, monthly YYYY-MM, alltime "")
+and remembers it as the board's current period for reads (last write wins). Read a season with
+`&season=` — omitted/`current` = the declared period now, `previous`/`prev` = the prior period,
+anything else = an explicit key (`[0-9A-Za-z-]{0,16}`, else 400 invalid_season). Response body
+is unchanged (bare ranked array); resolved season/period echo on `X-Tikron-Season` /
+`X-Tikron-Period` headers (CORS-exposed). No season-list endpoint or rollover job — a season
+exists once its key is first written or read; old rows stay reachable via an explicit `?season=`.
 
 ## Hard rules (failures these prevent — details in AGENTS.md)
 

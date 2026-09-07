@@ -145,6 +145,7 @@ movement-style `.io` game instead needs a virtual joystick (phase-2 `--template`
 | `persistIntervalMs` | `5000` | Max interval between durable state snapshots. |
 | `queueInputs` | `false` | Buffer inputs and drain them (in arrival order) at the START of each tick, so `onTick` sees one consistent batch instead of interleaved handlers. Requires a simulation interval. `IoArenaRoom` turns this on. |
 | `stateVersion` | `1` | Persisted-state SHAPE version. Bump it on an incompatible `TState` change and override `migrateState(from, old)` so a redeploy migrates old snapshots instead of silently restoring the old shape. |
+| `relay` | `null` | `{ types, maxBytes?, perSecond? }` — opaque pass-through for the listed message types (WebRTC signaling and similar side-channels). See "Peer relay" below. |
 
 Realtime modules (call from `onCreate`): `setSimulationInterval(fn, ms)` (fixed tick,
 20–30 Hz; DO alarms are unsuitable < ~1 s), `enableAOI(config)` (per-viewer interest
@@ -158,6 +159,125 @@ and removal always fire immediately. Reconnection: inside `onLeave`,
 (needs a `?_session=` key) and rejects on timeout. A room can poll its own recent tick/flush
 timing at runtime by sending itself the core-reserved `tk:stats` developer message (the load
 test uses this; the reply is a `{ tick, flush, windowMs }` timing summary).
+
+## Peer relay (WebRTC signaling and other opaque messages)
+
+Games that add a peer-to-peer channel (webcam, voice, a direct data channel) need the room
+to pass signaling between clients. Hand-rolling that in `onMessage` is the same twenty
+lines every time — spoof-proof sender id, a byte cap, broadcast-except-sender — so the
+room does it for you. Declare which message types are relayed:
+
+```ts
+class ArenaRoom extends CasualRealtimeRoom<MatchState> {
+  protected override relay = { types: ["rtc"] };
+}
+```
+
+Any `rtc` message from a seated client is now passed through verbatim. The server never
+inspects the payload — it only checks the envelope, so SDP and ICE stay opaque.
+
+**`from` is server-authoritative.** The relayed payload is `{ ...payload, from: client.id }`.
+A client that supplies its own `from` has it overwritten, so a peer can trust the sender id
+without a signature.
+
+**Payloads are capped at `maxBytes` (default 16384).** That fits an audio+video SDP
+offer/answer with trickle candidates, which routinely runs 3–8 KB. Lower it only for a
+channel you know carries small envelopes.
+
+**`to` picks unicast or broadcast.** A payload with a string `to` is delivered to that one
+seated client (dropped if the id names nobody in the room). Anything else broadcasts to
+every client except the sender — which, in a 2-seat room, is exactly "send to the other
+player".
+
+**`to` rides along, and addressing yourself echoes.** The `to` field stays on the payload
+the peer receives — the server reads it, it does not strip it. A `to` equal to the sender's
+own id is delivered back to the sender: unicast excludes nobody, only broadcast skips the
+sender.
+
+**The relay has its own budget.** `perSecond` (default 60) is a separate per-connection
+limiter from `maxInputsPerSecond`: an ICE trickle burst cannot starve gameplay inputs, and
+a 60 Hz input stream cannot eat the signaling allowance. Broadcasts additionally share one
+room-wide bucket of the same size, so a room full of senders cannot multiply the fan-out;
+unicast is exempt. **You no longer raise `maxInputsPerSecond` to make room for signaling**
+— the nyam-duel workaround (`maxInputsPerSecond = 60` for a 20 Hz game) is obsolete; leave
+the input budget sized for gameplay alone.
+
+Relayed messages are delivered immediately, never queued by `queueInputs`, never acked, and
+never seq-checked (signaling is not a replayable game input). Registering
+`onMessage("rtc", …)` for a relayed type is still allowed and runs *after* delivery, for
+logging or phase gating; leaving it unregistered is not an "unknown type" drop.
+
+| Field | Default | Use |
+|---|---|---|
+| `relay` | `null` | `{ types, maxBytes?, perSecond? }` — opaque pass-through for the listed message types. |
+
+Drops are visible on the `tk:stats` poll under `drops`: `relayRateLimited` (over
+`perSecond`), `relayOversized` (JSON payload over `maxBytes`), `relayBadTarget` (`to` names
+no seated client, including a seat whose transport is inside a reconnection window). A
+payload that is not a plain object is dropped uncounted.
+
+## Peer-to-peer data (WebRTC) with your own TURN
+
+`@tikron/rtc` adds a browser-to-browser link alongside the room socket — a data channel, camera and
+mic, or both. The room stays authoritative. **The data plane is yours** — relay bytes bill to YOUR
+Cloudflare TURN key, inside your own free tier; Tikron proxies no media and hosts no ICE service.
+
+**1. Mint a TURN key (5 minutes).** Cloudflare dashboard → **Realtime** → **TURN Keys** → *Create*,
+then `wrangler secret put TURN_KEY_ID` and `wrangler secret put TURN_KEY_API_TOKEN`. Skip it and
+everything runs STUN-only: fine on most home networks, dead behind symmetric NAT. TURN fixes that.
+
+**2. Serve the credentials.** One route in your Worker:
+
+```ts
+import { iceServersHandler } from "@tikron/rtc/worker";
+
+if (url.pathname === "/api/ice") {
+  // 1h TTL, cached 30 min per isolate. No key, a down mint API, or a network error
+  // all answer 200 with a STUN-only body, never a 5xx — ICE must not break a match.
+  return iceServersHandler({ keyId: env.TURN_KEY_ID, apiToken: env.TURN_KEY_API_TOKEN })(request);
+}
+```
+
+**3. Let the room relay signaling.** It rides the room socket opaquely, `from`-stamped and capped at
+16 KB (`maxBytes`, default 16384) — `RtcLink` sends one candidate per signal, far inside that:
+
+```ts
+export class ArenaRoomImpl extends CasualRealtimeRoom<S> {
+  protected override relay = { types: ["rtc"] }; // stamps `from`, byte cap, own rate budget
+}
+```
+
+**4. One link per peer.** `polite` must differ across the pair; comparing client ids gives it free:
+
+```ts
+const { connectionId: myId, peers } = await room.connected();
+const link = new RtcLink({
+  peerId, //                        the REMOTE client id
+  polite: myId < peerId, //         exactly one side of a pair is polite
+  send: (s) => room.send("rtc", { ...s, to: peerId }),
+  iceServers: async () => (await (await fetch("/api/ice")).json()).iceServers,
+});
+room.onMessage("rtc", (p) => link.handleSignal(p as RtcSignal)); // `from` routes it
+link.onMessage(apply); //           link.send(data) returns false until the channel is open
+await link.connect(); //            impolite side offers, polite side waits
+```
+
+For N players keep a `Map<peerId, RtcLink>` seeded from `peers`, dispatch by `from`, `close()` on leave.
+
+**Media.** Camera and mic ride the same link: `addLocalStream(cam)` (before or after `connect()`),
+`setMicEnabled(false)`, `onRemoteStream(cb)`. A `relay` from `getSelectedCandidatePair()` means TURN
+is carrying that video, and those bytes bill your own Cloudflare account.
+
+**Limits.** Browser-to-browser only — a Durable Object is not a WebRTC peer, so the server neither
+reads nor writes link traffic. One ICE restart per successful connection (`iceRestartBudget`), then
+`"failed"` and play continues without P2P. A `connectTimeoutMs` expiry reports `"failed"` too, but
+not terminally: it never re-arms after a restart, and a late connection flips it back. Port-53 TURN
+URLs pass through as minted; nyam-duel dropped them as its own policy, so filter them if you must.
+
+**When NOT to use this.** Server-authoritative state (movement, scores, hit registration) belongs
+on the room socket, always. Under ~10 messages/sec per peer does not repay a peer connection.
+Anything a cheater profits from must not travel a channel the server cannot see. A 4-player mesh
+is already 6 links — past that, relay through the room instead.
 
 ## Competitive FPS: subtick timestamps + lag compensation + priority tiers
 
@@ -324,16 +444,13 @@ Rules of thumb:
 - Message budget: keep `1000/stepMs × message-types-per-tick` under the room's
   `maxInputsPerSecond` (default 30), or moves get silently dropped — the shooter room raises
   it to 90 for a 30 Hz move stream plus SMG fire.
-- **The budget is shared by EVERY developer message type on the connection** — game
-  inputs, chat, and any relay/side-channel traffic draw from one per-client limiter, and
-  over-budget messages are dropped silently (never acked, no error). The classic trap is
-  WebRTC signaling relayed through the room: ICE trickle bursts 10–16 candidates in
-  under a second, so a 20 Hz input stream + signaling on a 30/s budget loses candidates
-  (or the offer itself — there is no retransmit) exactly on the CGNAT sessions that need
-  TURN. Budget for the worst-case burst: a webcam 1v1 with 20 Hz inputs runs safely at
-  `maxInputsPerSecond = 60`, and throttle input cadence in non-gameplay phases (e.g.
-  5 Hz during a lobby/calibration screen) to widen the signaling window. Case study:
-  the 냠냠대전 dogfood game (docs/ROADMAP-dogfood.md P0-2).
+- **`maxInputsPerSecond` covers every developer message type EXCEPT relayed ones** — game
+  inputs, chat, and side-channel traffic all draw from one per-client limiter, and
+  over-budget messages are dropped silently (never acked, no error). The classic trap was
+  WebRTC signaling: an ICE burst of 10–16 candidates in under a second would eat a 30/s
+  budget and lose candidates that are never retransmitted. That is now the relay's job —
+  put signaling types in `relay` and they get their own `perSecond` bucket, so budget
+  `maxInputsPerSecond` for gameplay alone.
 - Raising the network rate = lower `tickMs` (the loop drains inputs + flushes state per
   tick; `syncIntervalMs` alone cannot raise it — set it ≤ `tickMs` so the coalesce window
   doesn't throttle the flushes back down). Keep `queueInputs` ON: per-input immediate
@@ -478,6 +595,45 @@ fire-and-forget to `https://tikron.dev/api/ingest/score`; the owning project is 
 
 **Reading** is a publishable-key path — CORS-enabled, so a browser on your own domain reads it
 directly: `GET /api/leaderboard?board=<b>&limit=50&apiKey=tk_pub_...`.
+
+**Seasons (reset periods).** A board can reset on a cadence instead of accumulating
+forever: declare `period` on a submit —
+`this.services.leaderboard?.submit({ board, playerId, score, period: "weekly" })`
+(`period` ∈ `daily | weekly | monthly | alltime`, default `alltime` — unchanged
+behavior when omitted). The season key is computed **server-side in UTC**: daily
+`YYYY-MM-DD`, weekly ISO-8601 `YYYY-Www` (Monday-start, week 1 = the week containing
+the year's first Thursday), monthly `YYYY-MM`, alltime `""`. Declaring a period on a
+submit also remembers it as the board's current period for reads (last write wins);
+a submit that omits `period` doesn't touch that memory.
+
+Self-hosted rooms pass it through the same `platformLeaderboard()` helper —
+`this.services.leaderboard?.submit({ board, playerId, score, period: "weekly" })`
+POSTs `period` in the ingest body unchanged.
+
+**Reading a season**: `GET /api/leaderboard?board=<b>&limit=50&season=<s>`.
+
+- `season` omitted or `current` (default) — the board's declared period (or
+  `alltime` if it's never declared one) as of right now.
+- `season=previous` (or `prev`) — the immediately preceding period.
+- any other value — used verbatim as an explicit season key (e.g. `2026-W37`,
+  `2026-06-15`, `2026-06`), for building a "past seasons" view.
+
+The response body is unchanged — still a bare ranked JSON array, so existing 0.6
+clients keep working. Two headers carry the resolved season out-of-band:
+`X-Tikron-Season` (the key actually queried) and `X-Tikron-Period` (the board's
+resolved period). Both are readable cross-origin via
+`Access-Control-Expose-Headers`.
+
+**Honest limits.** Season rollover is implicit — there's no cron job that "closes"
+a season, no reward payout, and no season-list endpoint. A season simply exists once
+its key first appears in the data (via a submit, or as soon as its computed key is
+first read). Building a "browse all past seasons" UI means the game tracks its own
+season keys client-side (e.g. render the last N weekly keys) and requests each with
+an explicit `?season=`. Changing a board's declared `period` doesn't move old rows —
+scores recorded under the earlier period's keys become invisible to a default
+(`current`/omitted) read, though they stay reachable with an explicit `?season=<old
+key>`. Seasons are never pruned: a daily board adds roughly 365 partitions a year,
+which is fine at current scale but not forever.
 
 **Diagnostics — "my scores aren't showing up"** (self-hosted). The write is best-effort, but a
 `4xx` from the ingest endpoint logs `console.warn` **once** with the status. Check, in order:
@@ -638,6 +794,7 @@ Error **frames** (`{ t: "s:error", code, message }`) — HTTP or in-band, socket
 | `key_scope_forbidden` | HTTP 403 on `/api/ingest/score` | A `tk_pub_` publishable key hit the secret-only score-ingest route. Use a `tk_live_` secret key (dashboard → Keys, or `POST /api/platform/projects/:id/keys {"scope":"secret"}`), kept server-side. |
 | `cap_leaderboard_boards` | HTTP 403 on `/api/ingest/score` | Project hit its distinct-board limit (`free_leaderboard_boards`, default 50). Reuse an existing board name or raise the cap. |
 | `cap_leaderboard_rate` | HTTP 429 on `/api/ingest/score` | Per-project submit rate exceeded (30/s, burst 60). Throttle/batch server-side score writes and retry. |
+| `invalid_season` | HTTP 400 on `/api/leaderboard` | An explicit `?season=` value failed validation (`[0-9A-Za-z-]{0,16}`). Use `current`/`previous`/`prev`, omit the param, or pass a well-formed season key. |
 
 The three `/api/ingest/score` codes carry an actionable `message` field in the JSON body
 (`{ error, message }`); the plain occupancy-ingest errors stay code-only.
