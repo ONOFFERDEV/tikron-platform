@@ -31,6 +31,13 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.ellipse(random() * 512, random() * 512, 5 + random() * 13, 2 + random() * 4, random(), 0, Math.PI * 2); ctx.fill();
   }
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
+  // Blender-baked ground AO (tools/bake-ground-ao.py, same row-0 = north layout)
+  // multiplied in once it arrives; the atlas above stands alone until then.
+  if (map.presentation) {
+    const ao = new Image();
+    ao.onload = () => { ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(ao, 0, 0, 512, 512); texture.needsUpdate = true; };
+    ao.src = `/assets/maps/${map.presentation}-ground-ao.png`;
+  }
   // CanvasTexture's default flipY puts its top row at plane V=1; after the
   // -90 degree floor rotation that is z=0 (north), matching the map footprints.
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),

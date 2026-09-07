@@ -8,6 +8,7 @@
 | `maps/relay-skyline.glb` | Synty Power 01/02/03 and Warehouse 01, transformed and merged with a 1024px atlas by `tools/bake-relay-skyline.py` | **no** |
 | `undertow-vista.webp` | Original procedural scene screenshot from `scripts/inspect-map.mjs --shots undertow-vista --write-vista` | yes; no purchased geometry in this map |
 | `relay-vista.webp` | Flattened screenshot of the game scene, captured by `scripts/inspect-map.mjs --write-vista` | yes; see `../../LICENSE.md` |
+| `maps/relay-ground-ao.png`, `maps/undertow-ground-ao.png` | Original ground ambient occlusion baked in Blender 4.5 (Cycles) from the server collision boxes/ramps only, by `tools/bake-ground-ao.py`; multiplied into the ground atlas by `client/site-ground.ts` | yes; no purchased geometry |
 
 The purchased derivatives must remain unversioned. The app `.gitignore` excludes
 all GLBs under this directory. The original four can be restored from
@@ -32,6 +33,18 @@ distant atlas to 1024, joins the scenery and exports the ignored GLB. It records
 source SHA-256 values and exact placement envelopes in
 `.inspect/relay-skyline-provenance.json`. Current output: **1,167,268 bytes**, one
 material and one image. Run `pnpm audit:assets` to verify the deployed size limits.
+
+Rebuild the versioned ground AO maps (run from `apps/ironsight`; ~6 s on CPU, both maps):
+
+```powershell
+node tools/dump-maps.mjs $env:TEMP/ironsight-maps.json
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps $env:TEMP/ironsight-maps.json
+```
+
+Output is 1024x683 8-bit grey PNG per presentation, AO ray distance 3.5 m
+(`--distance`), 96 samples (`--samples`). Unoccluded ground is exactly 1.0; the
+script pins the Standard view transform because Blender 4.x's default AgX would
+save white as ~0.8.
 
 UAL inventory checked in session 1: the installed `UAL1_Standard.glb` contains
 43 animations, including six pistol clips but **no rifle-hold clips**. The active
