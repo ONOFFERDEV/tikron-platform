@@ -37,4 +37,27 @@ describe('authored rifle clip lifecycle', () => {
     expect(rig.hasHitChestClip).toBe(false); expect(rig.hasHitHeadClip).toBe(false);
     expect(rig.hasSprintClip).toBe(false); expect(rig.hasCrouchClips).toBe(false);
   });
+  it('selects each authored weapon hold and restores its idle after death', () => {
+    const source = asset();
+    for (const [i, prefix] of ['smg', 'shotgun', 'sniper', 'pistol'].entries()) {
+      const clip = source.animations.find(c => c.name === 'rifle_idle')!.clone();
+      clip.name = `${prefix}_idle`;
+      const q = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), 0.3 + i * 0.1).toArray();
+      clip.tracks[0]!.values = Float32Array.from([...q, ...q]); source.animations.push(clip);
+    }
+    const rig = clonePlayerRig(source);
+    for (let index = 1; index <= 4; index++) {
+      rig.setWeaponHold(index); rig.forceIdle(); rig.update(0.3);
+      expect(rotation(rig)).toBeCloseTo(0.2 + index * 0.1);
+      expect(rig.object.userData.rifleHold).toBe(true);
+      rig.setState('death'); rig.update(0.3); expect(rotation(rig)).toBeCloseTo(-0.8);
+      rig.forceIdle(); rig.update(0.3); expect(rotation(rig)).toBeCloseTo(0.2 + index * 0.1);
+    }
+  });
+  it('never applies a rifle pose to a missing alternate hold in older assets', () => {
+    const rig = clonePlayerRig(asset()); rig.setWeaponHold(4); rig.forceIdle(); rig.update(0.3);
+    expect(rig.object.userData.rifleHold).toBe(false); expect(rotation(rig)).toBeCloseTo(0);
+    rig.setWeaponHold(0); rig.forceIdle(); rig.update(0.3); expect(rotation(rig)).toBeCloseTo(0.8);
+  });
+
 });

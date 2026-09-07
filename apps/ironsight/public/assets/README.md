@@ -35,9 +35,11 @@ material and one image. Run `pnpm audit:assets` to verify the deployed size limi
 
 UAL inventory checked in session 1: the installed `UAL1_Standard.glb` contains
 43 animations, including six pistol clips but **no rifle-hold clips**. The active
-player retains its nine original locomotion/reaction clips. Sessions 2–3 add eleven original rifle clips: six upper-body holds over the existing
-lower body, plus five authored directional variants. These are not rifle/strafe
-clips from UAL; the Standard pack contains neither. AR uses them; other slots retain the original attachment fallback.
+player retains its nine original locomotion/reaction clips. The original authored
+rifle family now has SMG, energy-shotgun, sniper and two-handed pistol variants:
+eleven locomotion clips per weapon, 55 total. These are authored on the existing
+skeleton, not renamed UAL clips. Older assets without a requested family retain
+the original attachment fallback.
 
 Rebuild and verify the private operator from the original local mirror (run from
 `apps/ironsight`; no Blender/exporter dependency and no source files copied):
@@ -48,18 +50,24 @@ node scripts/audit-rifle.mjs --source D:/game-assets/ironsight-synty-derived/mod
 ```
 
 Source SHA-256: `691a8d8ed1a3d7ef3cc546dd16406b18b36257994a0946e1200349da9dc8f861`.
-The ignored output remains `models/player.glb`: **1,705,400 bytes**, nine original
-clips plus `rifle_idle/walk/run/sprint/crouch_idle/crouch_walk`,
-`rifle_strafe_left/strafe_right/backpedal/crouch_left/crouch_right`. The audit verifies
-19,768 unit quaternion samples, unchanged mesh/skin/image data, all original clips
-and the six base rifle holds’ lower-body samplers. Directional variants explicitly
-author thigh/calf/foot rotations over the original pelvis cadence; backpedal reverses
-the in-place gait. Bind matrices and original source payload stay byte-identical. Reports are `.inspect/rifle-bake.json` and
-`.inspect/rifle-audit.json`. Never version the output or the inspection backups.
+The ignored output remains `models/player.glb`: **2,913,320 bytes**, nine original
+clips plus eleven clips for each `rifle_`, `smg_`, `shotgun_`, `sniper_`, `pistol_`
+prefix: idle/walk/run/sprint/crouch_idle/crouch_walk, strafe_left/strafe_right/
+backpedal/crouch_left/crouch_right. AR is sampled at 30 Hz, alternatives at 20 Hz;
+constant finger rotations use two shared-time endpoints. The audit checks 29,880
+unit quaternion samples across all 55 authored clips, unchanged mesh/skin/image
+data and original clips, and base lower-body samplers. Directional variants author
+thigh/calf/foot rotations over the original pelvis cadence; backpedal reverses the
+in-place gait. Bind matrices and original source payload stay byte-identical.
+Reports are `.inspect/rifle-bake.json` and `.inspect/rifle-audit.json`.
+Never version the output or inspection backups. The supervisor must explicitly
+include the reviewed private export when publishing the session 6 candidate.
 
 First-person gloves/forearms are original procedural geometry. The AR drum and
-charging handle are separated at runtime into complete welded components, keeping
-the cached purchased mesh immutable. No extra purchased derivative is exported.
+charging handle, SMG/sniper magazines and handles, energy-shotgun side cell and
+pistol slide are separated at runtime into complete welded components, keeping
+the cached purchased mesh immutable. The pistol insert is original box geometry inside its integrated source grip.
+No extra purchased weapon derivative is exported.
 Undertow uses the original procedural reclamation kit, skyline and baked floor atlas; it never requests the
 legacy `arena2-dressing.glb`. That older bundle remains local for rollback.
 
@@ -80,8 +88,10 @@ The rifle bake stabilizes clavicles in the authored idle frame while preserving
 torso/head tracks, and fits the support hand to the measured rear fore-end contact
 for every sampled locomotion pose. The source fallback clips remain untouched.
 
-Session 5 adds no asset files or purchased derivatives. First-person procedural
-hands now have individual fits for all five slots; alternate reloads use an attached
-support hand and the existing tilt, not AR magazine/bolt choreography. Third-person
-alternatives still use the original attachment fallback. Explosion debris is
-instanced at runtime from original box geometry; four pooled lights bound shading.
+Session 6 retains the original procedural gloves, with per-weapon extraction,
+insertion and charging contact paths driven by server reload acknowledgements.
+The shotgun uses its sci-fi side cell, not a shell-by-shell ammo model. These
+reloads are first-person presentation; remote reload replication/choreography is
+still absent. Aim contact captures do not prove finger penetration or acceptance
+of every extreme pose: upward crouch stock/neck clearance needs further work.
+Explosion debris remains instanced original box geometry with four pooled lights.

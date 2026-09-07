@@ -3,6 +3,8 @@ import { GAME } from "../src/game-config.js";
 import { VISUALS } from "../config/visuals.js";
 import { cloneWeaponBundleNode, loadWeaponModel, weaponMuzzle } from "./weapon-loader.js";
 
+const MOUNT_OFFSETS = [[0.025, 0.14, 0.12], [0.025, 0.14, 0], [0.025, 0.14, 0.12],
+  [0.025, 0.10, -0.02], [0.025, 0.12, 0.08]] as const;
 const CONFIG = (GAME.weaponVis.presentation ?? VISUALS).remote;
 
 /** Owns only instance objects and fallback resources; GLB buffers remain cached. */
@@ -175,7 +177,7 @@ export class RemoteWeapon {
       this.hand.getWorldPosition(this.target);
       this.group.getWorldQuaternion(this.q);
       this.parentQ.setFromAxisAngle(this.pitchAxis, -pitch); this.q.multiply(this.parentQ);
-      this.b.set(0.025, 0.14, 0.12).applyQuaternion(this.q);
+      this.b.fromArray(MOUNT_OFFSETS[this.index] ?? MOUNT_OFFSETS[0]!).applyQuaternion(this.q);
       this.target.add(this.b); this.hand.worldToLocal(this.target);
       this.mount.position.copy(this.target);
     }

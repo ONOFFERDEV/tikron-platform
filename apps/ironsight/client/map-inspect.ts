@@ -93,6 +93,7 @@ export function startMapInspector(): void {
     if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
+      preparation: scene.getPreparationInfo(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
       actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
         rifles: 12, targetShotsPerRiflePerSecond: 10, observedShotsPerRiflePerSecond: volleys / 15, grenadesPerBurst: 12, burstIntervalMs: 2000 } : null,
@@ -110,5 +111,7 @@ export function startMapInspector(): void {
     };
     flags.__inspectReady = true;
   };
-  requestAnimationFrame(tick);
+  // Exercise the production preparation path, before ready-frame timing starts.
+  if (actorCount) scene.syncPlayers(actors, "local-inspector", 0);
+  void scene.prepare().then(() => { last = performance.now(); requestAnimationFrame(tick); });
 }

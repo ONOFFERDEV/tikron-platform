@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   hud.showLockPrompt(true, GAME.text.hud.connecting);
 
   const net = await Net.connect();
-  const me0 = await waitForSelf(net);
+  let me0 = await waitForSelf(net);
   if (!me0) {
     // waitForSelf timed out: state (or our own player entry in it) never arrived,
     // so mapForRoom below would fall back to mode 0's map even in a dom/ffa room —
@@ -93,6 +93,9 @@ async function main(): Promise<void> {
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
   // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
+  hud.showLockPrompt(true, 'Preparing arena / Loading weapons and effects...');
+  await scene.prepare();
+  me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map);
 
@@ -150,6 +153,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    preparationInfo: () => scene.getPreparationInfo(),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
     hitboxDiag: () => scene.getHitboxDiagnostics(),

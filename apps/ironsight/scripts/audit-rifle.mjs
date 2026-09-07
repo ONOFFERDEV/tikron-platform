@@ -12,11 +12,11 @@ const baked = parse(await readFile(new URL('../public/assets/models/player.glb',
 for (const field of ['nodes', 'skins', 'meshes', 'images', 'textures', 'materials']) assert.deepEqual(baked.json[field], original.json[field], field);
 assert.deepEqual(baked.bin.subarray(0, original.bin.length), original.bin, 'original geometry/skin/clip payload stays byte-identical');
 assert.deepEqual(baked.json.animations.slice(0, original.json.animations.length), original.json.animations, 'original clip fallback');
-const clips = baked.json.animations.filter(a => a.name.startsWith('rifle_'));
-assert.equal(clips.length, 11);
+const clips = baked.json.animations.filter(a => /^(rifle|smg|shotgun|sniper|pistol)_/.test(a.name));
+assert.equal(clips.length, 55);
 let sampledRotations = 0;
 for (const clip of clips) {
-  const name = clip.name.slice(6);
+  const name = clip.name.slice(clip.name.indexOf('_') + 1);
   const directional = ['strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'].includes(name);
   const baseName = directional ? name.startsWith('crouch_') ? 'crouch_walk' : 'walk' : name;
   const base = original.json.animations.find(a => a.name === baseName); assert.ok(base);
@@ -41,7 +41,7 @@ for (const clip of clips) {
   }
 }
 const report = { sourceSha256: createHash('sha256').update(original.bytes).digest('hex'),
-  originalClips: original.json.animations.length, rifleClips: clips.length, sampledRotations,
+  originalClips: original.json.animations.length, authoredWeaponClips: clips.length, sampledRotations,
   sourceGeometryAndOriginalClipsPreserved: true, baseRifleLowerBodyPreserved: true,
   directionalClips: 5, outputBytes: baked.bytes.length };
 await writeFile(new URL('../.inspect/rifle-audit.json', import.meta.url), JSON.stringify(report, null, 2));

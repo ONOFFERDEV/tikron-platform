@@ -3,16 +3,17 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-4 are deployed there. Session 5 is a local candidate
-until the supervisor publishes it; its new hands/settings/effects are not yet on
-that preview. **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
+Supervisor reports sessions 1-5 are deployed there. Session 6 is a local candidate
+until the supervisor publishes it; the new preparation phase, alternate authored
+holds and detailed reloads are not yet on that preview.
+**Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
 
 | Time | Try | Look for |
 |---|---|---|
-| 0-1 min | Open Settings using Tab/Enter; adjust sensitivity, rebind a key, close with Escape. After session 5 lands, try volume and Reduced motion. | Clear focus, readable labels, saved choices; no unwanted movement while in a menu. |
-| 1-3 min | Training / Relay: sprint all three lanes, climb both decks, crouch at cover. Fire, aim, reload and switch all five weapons (1-5); throw G away from yourself. | Solid visible cover, readable enemies/exits, comfortable aim, no first-shot/blast freeze; stable grip and unobstructed sights. |
+| 0-1 min | Open Settings using Tab/Enter; adjust sensitivity, rebind a key, close with Escape. Try volume and Reduced motion. | Clear focus, readable labels, saved choices; no unwanted movement while in a menu. |
+| 1-3 min | Training / Relay: sprint all three lanes, climb both decks, crouch at cover. After session 6 lands, watch arena preparation; fire, aim, reload and switch all five weapons (1-5), then throw G away from yourself. | Solid visible cover, readable enemies/exits, comfortable aim, no first-shot/blast freeze; stable grip and unobstructed sights. |
 | 3-5 min | Return to deployment, choose Training / Undertow. Visit A/B/C and both control ledges; die and respawn once. | Distinct routes, no snagged ramps/invisible walls, readable health/ammo and safe respawn. |
 | 5-10 min | Join a running Relay TDM with the other player. Fight across cover, open Escape/settings, return, then vote rematch if the round ends. | Correct team/result, hits that agree for both players, clear death/recovery, preserved controls after menus and rematch. |
 
@@ -35,10 +36,16 @@ trigger for any hitch, clipping, confusing UI or disagreeing hit; a short clip h
 - Supervisor: publish this candidate to preview, exercise real deployed Durable
   Object cold eviction (expected NEW round), short reconnect and lost-seat timeout,
   then verify the reviewed private asset set is present. No deployment done here.
-- Remaining engineering/art blockers: cold first-use stutter (83-347 ms first-ready
-  effects samples here; one Chrome map boot reached 653 ms), alternate third-person
-  authored holds/aim contact and detailed alternate reloads, followed by human
-  animation acceptance. Session 5 first-person grips are an improvement, not full M2.
+- Remaining engineering/art blockers: extreme upward crouch stock/neck clearance
+  (especially shotgun), human finger/wrist/animation acceptance and remote reload
+  replication/choreography. Session 6 delivers authored alternate holds and detailed
+  first-person reloads; it does not close full M2. Inspect another player's 1-5
+  weapon swaps, crouch and steep aim before accepting the animation.
+- Cold-start qualification: session 6 prepares shaders, effects and assets before
+  controls attach. Local Edge effects runs reduced first-ready peaks to 7.0-7.1 ms,
+  with 244-441 ms preparation plus 31-52 ms scene construction in the final sample.
+  This is moving initialization into a visible loading phase, not eliminating its
+  cost. Browser/driver cold caches, weak GPUs and slow networks still need testing.
 - Owner explicitly approves the final preview and these remaining gates before the
   supervisor changes the live worker. Defaults remain industrial daylight, 6v6 TDM,
   stylized sci-fi. No new owner decision is needed to continue development.
@@ -738,3 +745,110 @@ Cleanup verified in `.inspect/session5-cleanup.json`: all 12 owned preview root/
 descendant processes stopped, no port 8796 listener and no inspection Chrome/Edge
 processes remain. Inspection profiles were removed by their owning scripts. All
 session temporary reports/screenshots remain in the ignored .inspect directory.
+
+
+### Session 6 - 2026-09-07
+
+Owner chose continued autonomous polish; the three defaults remain active.
+Supervisor confirmed sessions 1-5 are on preview. This session stays local:
+apps/ironsight only, no git commands, commits, deployments, SDK changes or new
+dependencies. Required Worker build ran its existing dry-run only.
+
+Delivered:
+- Deliberate arena preparation before Input attaches: await map/operator/weapon
+  loads, compileAsync on the actual renderer, render hidden pooled effects plus
+  temporary operator/weapon/explosion/tracer fixtures to upload buffers/textures,
+  then restore visibility/culling and bake the correct static shadows. Retain
+  material references so disposing fixtures cannot evict the programs just warmed.
+  Warm effects leave no live tracer/explosion or camera shake. Canvas is hidden
+  during the pass; the HUD shows preparation. Report construction and preparation
+  separately from the first-ready and steady frames. Reuse the production path
+  in map/effects inspection. This shifts initialization into loading, not free work.
+- Fixed operator disposal to release each cloned skeleton's bone texture. The
+  warm fixture and departed players now relinquish their instance GPU texture.
+- Four original alternate hold families on the existing operator: SMG, energy
+  shotgun, sniper and two-handed pistol. All eleven locomotion variants per weapon
+  are ordinary baked quaternion tracks; runtime aim preserves their measured
+  wrist frames. Separate mount fits reflect the weapon grip origins. Old exports
+  without a requested family retain attachment fallback. Death/respawn and weapon
+  transitions select the right family; no changes to authoritative combat/hits.
+- Detailed first-person alternate reloads: SMG/sniper complete welded magazines
+  and charging handles; side-loading energy-shotgun cell; pistol original insert
+  inside the integrated source grip plus moving slide. Support gloves follow
+  extraction, insertion and charging. The shared server-acknowledged timeline
+  still owns duration/cancellation; cosmetics never award ammo or allow firing.
+  Remote reload state/choreography is not implemented in this session.
+- Private operator rebuilt with 55 authored + nine original clips, **2,913,320
+  bytes** (under the 3 MB target). AR remains 30 Hz; alternatives use 20 Hz with
+  quaternion interpolation, constant finger tracks use two shared-time endpoints.
+  Audit: **29,880 unit quaternion samples**, original mesh/skin/image/clip payload
+  byte-identical and base lower-body samplers preserved. Provenance/rebuild updated
+  in public/assets/README.md. The changed private GLB remains covered by the existing
+  ignore rule; the supervisor must include it separately in the reviewed preview.
+
+Final serial gates in `.inspect/session6-gates.log`: typecheck PASS; test PASS
+**298 passed + 3 existing opt-in skips** (26 passed files + one skipped);
+build:client PASS; Worker build/dry-run PASS **233.53 KiB / gzip 69.43 KiB**.
+Six new tests cover alternate-family selection/legacy fallback and reload component
+ownership/immutable cached geometry. Existing server verification tests remain green.
+
+Final Windows headless browser evidence, 1920x1080 balanced / DPR 1, RTX 5070:
+
+| Effects fixture | Construction / preparation ms | First 30 ready max ms | Steady median / p95 / p99 ms | Peak calls / triangles | Peak textures / estimated MiB |
+|---|---|---|---|---|---|
+| Edge Relay | 52.0 / 440.6 | 7.1 | 6.9 / 7.0 / 7.1 | 197 / 81,962 | 22 / 60.08 |
+| Edge Undertow | 31.3 / 244.4 | 7.0 | 6.9 / 7.0 / 7.1 | 200 / 76,456 | 21 / 57.42 |
+| Chrome Relay | 52.2 / 424.2 | 7.1 | 6.9 / 7.0 / 7.1 | 197 / 81,962 | 22 / 60.08 |
+| Chrome Undertow | 30.8 / 252.5 | 7.0 | 6.9 / 7.0 / 7.1 | 200 / 76,456 | 21 / 57.42 |
+
+Each fixture: 2,130 steady samples, 145 volleys of twelve rifles over 15 seconds
+(9.67 volleys/s), 96 explosions; after three-second cooldown zero explosions/tracers.
+Resource budget gates PASS. Steady max: Edge 7.3/7.2 ms, Chrome 7.4/7.6 ms.
+Session 5 first-ready spikes were 83-347 ms (Chrome map boot 653 ms); these fresh
+browser-profile results improve readiness, but do not flush the OS/driver shader
+cache or establish representative iGPU, thermal, slow-network or real 6v6 acceptance.
+The all-visible warm pass is deliberately outside gameplay draw-call sampling.
+
+- `session6-final-report.json`: eight views/flows, zero console/runtime/HTTP errors
+  and forbidden offline gameplay requests. Includes effects on both maps, real
+  combat, same-seat reconnect, self-grenade death/respawn and alternate reload/ADS.
+- `session6-chrome-report.json`: both effects gates plus real combat, zero errors.
+  Both final combat boots retain the existing verified kill, movement, reload,
+  reload-fire blocking and target-respawn assertions.
+- `session6-reloads-report.json`: eight first-person alternate extraction/insertion/
+  charging/ADS views, zero errors. Opened SMG extraction, energy-cell extraction,
+  sniper extraction and pistol slide pull, plus final combat and SMG hold captures.
+- `session6-aim-report.json`: 36 contact views, four alternatives, idle/run/crouch
+  at -89/0/+89 degrees; zero errors or gameplay requests. Maximum support-wrist
+  drift per pose over pitch < **0.008 mm**. Summary in session6-contact-summary.json.
+  This measures transforms, not finger-mesh penetration or human acceptance.
+- `session6-holds-report.json`: eight initial close/side views; rejected the SMG
+  support hand at the muzzle and moved it back before the final aim sweep.
+- `session6-extreme-report.json`: four side views make extreme upward crouch
+  stock/neck crowding explicit, particularly shotgun. `session6-head-aim` was a
+  rejected head-only correction; removed from the final source. Further authored
+  torso/head/weapon clearance work is still needed; full M2 is not closed.
+
+Other rejected iterations: overextended support frames were rejected by the bake's
+reach guard; corrected the authored frames before export. The first warm inspector
+hit a ReferenceError from an overbroad edit; fixed and rerun (`session6-warm-fixed`).
+A tuple-spread type error in the new test was corrected before the final green gates.
+Failed evidence is retained, not counted as acceptance. Local workerd logged tick
+backlog warnings under this mixed workload (session6-preview-error.log); no deployed
+capacity or latency claim is derived from it.
+
+Asset audit PASS: **6,178,510 asset bytes**, **11,982,234 public bytes**, largest
+file **4,033,414 bytes**. Five documented private GLBs under unchanged ignore rules;
+only the operator derivative changed. No purchased source was copied into the app.
+
+Next: fix extreme upward crouch stock/neck clearance with coherent torso/head and
+arm authorship; complete remote reload replication/choreography and human finger/
+pose review. Then representative laptop 1080p/12-player thermal effects test, real
+6v6 round/rematch/RTT feel, cold driver-cache and supported-browser/device tests.
+Supervisor owns preview/private-asset publication and deployed cold-eviction drill;
+owner owns live approval. No new owner decisions or SDK request. M2/M5 remain open.
+
+Cleanup verified in `.inspect/session6-cleanup.json`: all **12** owned preview
+root/descendant processes stopped, no port 8796 listener, no inspection Edge/Chrome
+processes. Inspectors closed their profiles; session temporary artifacts remain
+under ignored .inspect only. No git commands or deployments were performed.

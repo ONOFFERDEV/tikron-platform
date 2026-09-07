@@ -99,7 +99,14 @@ const authored = {
 };
 const modified = objects.flatMap((o, i) => /^(clavicle_|UpperArm_|lowerarm_|Hand_|thumb_|indexFinger_|finger_)/.test(o.name) ? [i] : []);
 const summaries = [];
-let gripOffset;
+// Original wrist-frame variants, tuned against the fitted weapon geometry.
+const profiles = [
+  { name: 'rifle', offset: [0, 0, 0] },
+  { name: 'smg', offset: [0, 0, -0.07] },
+  { name: 'shotgun', offset: [0, 0, 0.06] },
+  { name: 'sniper', offset: [0, -0.04, -0.06] },
+  { name: 'pistol', offset: [0.055, -0.055, -0.13] },
+];
 const clavicleFrame = new Map();
 const sources = [...doc.animations];
 const recipes = ['idle', 'walk', 'run', 'sprint', 'crouch_idle', 'crouch_walk'].map(name => ({ name, base: name, yaw: 0 }));
@@ -107,6 +114,9 @@ recipes.push(...[
   ['strafe_left', 'walk', Math.PI / 2], ['strafe_right', 'walk', -Math.PI / 2],
   ['backpedal', 'walk', 0], ['crouch_left', 'crouch_walk', Math.PI / 2], ['crouch_right', 'crouch_walk', -Math.PI / 2],
 ].map(([name, base, yaw]) => ({ name, base, yaw })));
+let rifleGrip;
+for (const profile of profiles) {
+let gripOffset;
 for (const recipe of recipes) {
   const clip = sources.find(c => c.name === recipe.base);
   const tracks = clip.channels.map(c => {
@@ -116,7 +126,7 @@ for (const recipe of recipes) {
     return { target: c.target, sample: track.createInterpolant() };
   });
   const duration = Math.max(...clip.samplers.map(s => data(s.input).at(-1)));
-  const frames = Math.ceil(duration * 30), times = Array.from({ length: frames + 1 }, (_, i) => duration * i / frames);
+  const frames = Math.ceil(duration * (profile.name === 'rifle' ? 30 : 20)), times = Array.from({ length: frames + 1 }, (_, i) => duration * i / frames);
   const legNodes = recipe.yaw ? objects.flatMap((o, i) => /^(Thigh_|calf_|Foot_|ball_)/.test(o.name) ? [i] : []) : [];
   const outputs = new Map([...modified, ...legNodes].map(i => [i, []]));
   // Backpedal reverses the existing in-place gait, preserving planted foot phases.
@@ -152,8 +162,8 @@ for (const recipe of recipes) {
       }
     }
     for (const [suffix, side] of [['R', -1], ['L', 1]]) {
-      direction(`UpperArm_${suffix}`, `lowerarm_${suffix.toLowerCase()}`, authored[`UpperArm_${suffix}`]);
-      direction(`lowerarm_${suffix.toLowerCase()}`, `Hand_${suffix}`, authored[`lowerarm_${suffix.toLowerCase()}`]);
+      direction(`UpperArm_${suffix}`, `lowerarm_${suffix.toLowerCase()}`, profile.name === 'pistol' && suffix === 'R' ? [-0.15, -0.80, 0.55] : profile.name === 'shotgun' && suffix === 'R' ? [-0.28, -0.95, -0.18] : authored[`UpperArm_${suffix}`]);
+      direction(`lowerarm_${suffix.toLowerCase()}`, `Hand_${suffix}`, profile.name === 'pistol' && suffix === 'R' ? [0.15, 0.35, 0.93] : authored[`lowerarm_${suffix.toLowerCase()}`]);
       // Palm's long axis follows the forearm into the grip. Explicit roll keeps
       // knuckles outside the receiver; no hand-orientation cancellation in bake.
       // Right fingers follow -X, left fingers +X: both point forward.
@@ -184,21 +194,29 @@ for (const recipe of recipes) {
     // frame through torso/clavicle motion. Never reach toward a guessed point.
     if (!gripOffset) {
       gripOffset = named('Hand_L').getWorldPosition(new T.Vector3()).sub(firingWrist);
-      gripOffset.z -= 0.075; // palm on the rear fore-end, fingers still wrap forward of the drum
+      gripOffset.z -= 0.075;
+      if (profile.name === 'rifle') rifleGrip = gripOffset.clone();
+      else gripOffset.copy(rifleGrip);
+      gripOffset.add(new T.Vector3(...profile.offset));
     }
     try { fitSupport(firingWrist.add(gripOffset)); }
-    catch (error) { throw Error(`${recipe.name} at ${time}: ${error.message}`); }
+    catch (error) { throw Error(`${profile.name}/${recipe.name} at ${time}: ${error.message}`); }
     for (const [i, values] of outputs) values.push(...objects[i].quaternion.toArray());
   }
-  const next = structuredClone(clip); next.name = `rifle_${recipe.name}`;
+  const next = structuredClone(clip); next.name = `${profile.name}_${recipe.name}`;
   next.channels = next.channels.filter(c => !(c.target.path === 'rotation' && outputs.has(c.target.node)));
   const input = accessor(times, 'SCALAR');
+  const endpoints = accessor([0, duration], 'SCALAR');
   for (const [node, values] of outputs) {
-    const output = accessor(values, 'VEC4'), sampler = next.samplers.length;
-    next.samplers.push({ input, output, interpolation: 'LINEAR' });
+    // Constant finger curls need only endpoints, not duplicate 30 Hz samples.
+    const constant = values.every((v, i) => Math.abs(v - values[i % 4]) < 1e-7);
+    const output = accessor(constant ? [...values.slice(0, 4), ...values.slice(-4)] : values, 'VEC4'), sampler = next.samplers.length;
+    const trackInput = constant ? endpoints : input;
+    next.samplers.push({ input: trackInput, output, interpolation: 'LINEAR' });
     next.channels.push({ sampler, target: { node, path: 'rotation' } });
   }
   doc.animations.push(next); summaries.push({ clip: next.name, duration, frames: times.length, authoredBones: outputs.size });
+}
 }
 doc.buffers[0].byteLength = offset;
 let json = Buffer.from(JSON.stringify(doc)); json = Buffer.concat([json, Buffer.alloc((4 - json.length % 4) % 4, 32)]);
@@ -209,6 +227,6 @@ const bh = Buffer.alloc(8); bh.writeUInt32LE(binary.length); bh.writeUInt32LE(0x
 const output = new URL('../public/assets/models/player.glb', import.meta.url);
 await writeFile(output, Buffer.concat([header, json, bh, binary]));
 await mkdir(new URL('../.inspect/', import.meta.url), { recursive: true });
-const report = { source, sha256: createHash('sha256').update(bytes).digest('hex'), outputBytes: header.readUInt32LE(8), authored, clips: summaries };
+const report = { source, sha256: createHash('sha256').update(bytes).digest('hex'), outputBytes: header.readUInt32LE(8), authored, profiles, clips: summaries };
 await writeFile(new URL('../.inspect/rifle-bake.json', import.meta.url), JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

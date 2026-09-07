@@ -314,6 +314,8 @@ function buildWedgeGeometry(r: RampDef): THREE.BufferGeometry {
 }
 
 export class SceneRig {
+  private readonly creationStarted = performance.now();
+  private constructionMs = 0;
   readonly canvas: HTMLCanvasElement;
   readonly camera: THREE.PerspectiveCamera;
   private readonly scene = new THREE.Scene();
@@ -409,6 +411,12 @@ export class SceneRig {
   private readonly claimTargets: THREE.Object3D[] = [];
   private readonly claimScratch = new THREE.Vector3();
 
+  private readonly assetLoads: Promise<unknown>[] = [];
+  private preparation?: Promise<void>;
+  private preparationMs = 0;
+  // Retain a small material reference set so disposing the warm fixtures does
+  // not evict their compiled programs before the first real shot/operator.
+  private readonly warmedMaterials = new Set<THREE.Material>();
   private environmentLoading = false;
   private contactTexture?: THREE.CanvasTexture;
   private readonly contactGeometry = new THREE.PlaneGeometry(1.25, 1.25);
@@ -481,12 +489,12 @@ export class SceneRig {
     this.muzzleLight = vm.light;
     this.camera.add(this.viewmodel);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
-    if (options.loadViewmodel !== false) this.setWeaponVisual(0);
+    if (options.loadViewmodel !== false) this.assetLoads.push(this.setWeaponVisual(0));
 
     const modelUrl = options.loadActors !== false ? GAME.models?.player : undefined;
     if (modelUrl) {
       this.modelState = "loading";
-      loadPlayerModel(modelUrl).then((gltf) => {
+      this.assetLoads.push(loadPlayerModel(modelUrl).then((gltf) => {
         this.modelGltf = gltf;
         this.modelState = gltf ? "ready" : "absent";
         // Bots/players already exist server-side from the room's first broadcast,
@@ -496,7 +504,7 @@ export class SceneRig {
         // seconds after the model had already loaded. Upgrade any rig that was
         // built as a capsule for exactly that reason, now that the model is ready.
         if (gltf) this.upgradeCapsuleRigs();
-      });
+      }));
     }
 
     // Map dressing: `map`'s id ("arena1"/"arena2") isn't on MapDef itself
@@ -508,7 +516,7 @@ export class SceneRig {
       : relay ? "/assets/maps/relay-skyline.glb" : mapId ? GAME.mapDressing?.[mapId] : undefined;
     if (dressingUrl) {
       this.environmentLoading = true;
-      loadMapDressing(dressingUrl).then((gltf) => {
+      this.assetLoads.push(loadMapDressing(dressingUrl).then((gltf) => {
         this.environmentLoading = false;
         if (!gltf) return; // load failed — stay on the procedural box/wall render permanently
         gltf.scene.traverse(node => {
@@ -534,11 +542,12 @@ export class SceneRig {
           render.mesh.visible = false;
           render.edges.visible = false;
         }
-      });
+      }));
     }
 
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    this.constructionMs = performance.now() - this.creationStarted;
   }
 
   // --- arena ------------------------------------------------------------------
@@ -705,7 +714,7 @@ export class SceneRig {
    *  the bundle's `nodes` map falls back to `weaponVis.models`, then to the
    *  procedural mesh — same 2-tier "try once, else stay procedural" pattern
    *  either way, just a different source URL/extraction step. */
-  private setWeaponVisual(index: number): void {
+  private async setWeaponVisual(index: number): Promise<void> {
     const generation = ++this.weaponGeneration;
     this.disposeCurrentWeaponMesh();
     const fallback = buildWeaponMesh(index);
@@ -722,7 +731,8 @@ export class SceneRig {
     const url = nodeName ? bundle!.url : GAME.weaponVis.models?.[index];
     if (!url) return;
 
-    loadWeaponModel(url).then((gltf) => {
+    {
+      const gltf = await loadWeaponModel(url);
       if (!gltf) return; // load failed — weapon-loader already warned once, stay procedural
       if (this.weaponIndex !== index || generation !== this.weaponGeneration) return;
 
@@ -732,8 +742,8 @@ export class SceneRig {
       const bore = weaponMuzzle(obj);
       const sightHeight = new THREE.Box3().setFromObject(obj).max.y * transform.scale;
       this.disposeCurrentWeaponMesh();
-      if (index === 0) {
-        const split = splitRifleMagazine(obj);
+      {
+        const split = splitRifleMagazine(obj, index);
         this.magazine = split.magazine; this.bolt = split.bolt; this.weaponGeometry.push(...split.owned);
       }
       obj.scale.setScalar(transform.scale);
@@ -759,7 +769,7 @@ export class SceneRig {
       this.weaponIsModel = true;
       this.muzzle.position.set(-bore.x * transform.scale, bore.y * transform.scale, transform.posZ - bore.z * transform.scale);
       this.muzzleLight.position.copy(this.muzzle.position);
-    });
+    }
   }
 
   /** Empties weaponHolder. A model mesh's geometry/material are shared/cached
@@ -888,8 +898,8 @@ export class SceneRig {
         this.scene.remove(b.ring);
         this.scene.remove(b.parts); b.parts.geometry.dispose(); b.parts.dispose();
         b.ring.geometry.dispose();
-        b.ringMat.dispose();
-        b.partMat.dispose();
+        if (!this.warmedMaterials.has(b.ringMat)) b.ringMat.dispose();
+        if (!this.warmedMaterials.has(b.partMat)) b.partMat.dispose();
         this.booms.splice(i, 1);
         continue;
       }
@@ -926,8 +936,8 @@ export class SceneRig {
     this.hands.group.visible = MOTION.hands;
     if (this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
     if (this.magazine) {
-      this.magazine.position.y = -reload.magazine * 0.34;
-      this.magazine.position.x = -reload.magazine * 0.08;
+      this.magazine.position.y = -reload.magazine * (this.weaponIndex === 2 ? 0.04 : 0.34);
+      this.magazine.position.x = -reload.magazine * (this.weaponIndex === 2 ? 0.32 : 0.08);
     }
     const response = 1 - Math.exp(-dt * MOTION.speedResponse);
     this.motionSpeed += ((grounded ? clamp(speed01, 0, 1) : 0) - this.motionSpeed) * response;
@@ -1049,7 +1059,7 @@ export class SceneRig {
       rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
       rig.weapon.setWeapon(pose.weapon);
       rig.weapon.beforeAnimation();
-      rig.model?.setRifleHold(pose.weapon === 0);
+      rig.model?.setWeaponHold(pose.weapon);
       if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now, clip);
       else this.syncCapsuleRig(rig, pose);
       if (rig.contact) {
@@ -1081,7 +1091,7 @@ export class SceneRig {
     const rig = this.players.get("inspect")!;
     if (!rig.model || !rig.weapon) return false;
     rig.weapon.beforeAnimation();
-    rig.model.setRifleHold(arms && pose.weapon === 0);
+    rig.model.setWeaponHold(arms ? pose.weapon : undefined);
     rig.model.forceIdle();
     rig.model.setState(clip);
     rig.model.update(sample); // repeatable clip sample for every camera angle
@@ -1346,7 +1356,7 @@ export class SceneRig {
   }
 
   private disposeRig(rig: PlayerRig): void {
-    rig.contact?.material.dispose();
+    if (rig.contact && !this.warmedMaterials.has(rig.contact.material)) rig.contact.material.dispose();
     rig.weapon?.dispose();
     this.scene.remove(rig.group);
     if (rig.hitboxOverlay) {
@@ -1366,8 +1376,9 @@ export class SceneRig {
     rig.modelRoot!.traverse((n) => {
       if (!(n instanceof THREE.Mesh)) return;
       const m = n.material;
-      if (Array.isArray(m)) m.forEach((mm) => mm.dispose());
-      else (m as THREE.Material).dispose();
+      for (const material of Array.isArray(m) ? m : [m])
+        if (!this.warmedMaterials.has(material)) material.dispose();
+      if (n instanceof THREE.SkinnedMesh) n.skeleton.dispose();
     });
   }
 
@@ -1613,7 +1624,7 @@ export class SceneRig {
       if (headDist >= t.dist) {
         this.scene.remove(t.mesh);
         t.mesh.geometry.dispose();
-        t.mat.dispose();
+        if (!this.warmedMaterials.has(t.mat)) t.mat.dispose();
         this.tracers.splice(i, 1);
         continue;
       }
@@ -1630,6 +1641,65 @@ export class SceneRig {
       t.mat.opacity = remainingMs < TRACER_FADE_MS ? t.baseOpacity * (remainingMs / TRACER_FADE_MS) : t.baseOpacity;
     }
   }
+
+  /** Run before input is attached. Compile hidden effect variants and upload their
+   * buffers on this renderer, under the loading screen. The same path is measured
+   * by the map inspector; loading time is reported separately, never erased. */
+  prepare(): Promise<void> {
+    return this.preparation ??= this.prepareScene();
+  }
+
+  private async prepareScene(): Promise<void> {
+    const start = performance.now();
+    await Promise.all(this.assetLoads);
+    const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    await nextFrame(); // let the loading message paint before GPU work
+    const rig = this.modelGltf ? this.makeModelRig('__prepare', 0, this.modelGltf) : undefined;
+    const bundle = GAME.weaponVis.bundle;
+    const weapons = bundle && this.weaponIsModel ? await loadWeaponModel(bundle.url) : undefined;
+    const weaponFixture = weapons?.scene.clone();
+    if (weaponFixture) this.scene.add(weaponFixture);
+    const oldVisibility = this.canvas.style.visibility;
+    this.canvas.style.visibility = 'hidden';
+    // Keep the default framebuffer's color-space and sample configuration: a
+    // tiny linear render target would warm different material variants.
+    const changed: { object: THREE.Object3D; visible: boolean; culled: boolean }[] = [];
+    try {
+      this.boomNade({ id: '__prepare', x: 0, y: 0, z: 0, r: 5 });
+      this.addTracer({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: 1 }, 10, false, 300);
+      this.scene.traverse(object => {
+        changed.push({ object, visible: object.visible, culled: object.frustumCulled });
+        object.visible = true; object.frustumCulled = false;
+        if (object instanceof THREE.Mesh || object instanceof THREE.Sprite)
+          for (const material of Array.isArray(object.material) ? object.material : [object.material])
+            this.warmedMaterials.add(material);
+      });
+      await this.renderer.compileAsync(this.scene, this.camera);
+      this.renderer.render(this.scene, this.camera);
+      await nextFrame();
+      this.renderer.render(this.scene, this.camera);
+      await nextFrame();
+    } finally {
+      for (const { object, visible, culled } of changed) {
+        object.visible = visible; object.frustumCulled = culled;
+      }
+      if (rig) this.disposeRig(rig);
+      weaponFixture?.removeFromParent();
+      const now = performance.now();
+      this.stepFx(now + 10000); this.updateTracers(now + 10000);
+      for (const light of this.blastLights) { light.born = -Infinity; light.light.intensity = 0; }
+      this.shakeAmp = 0; this.lastFx = now;
+      // The warm pass temporarily made hidden diagnostic geometry visible.
+      // Bake the correct static shadow atlas before the first playable frame.
+      this.renderer.shadowMap.needsUpdate = true;
+      this.renderer.render(this.scene, this.camera);
+      await nextFrame();
+      this.canvas.style.visibility = oldVisibility;
+      this.preparationMs = performance.now() - start;
+    }
+  }
+
+  getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs }; }
 
   render(): void {
     const now = performance.now();

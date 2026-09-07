@@ -79,6 +79,7 @@ export interface PlayerRigModel {
   setState(state: LocomotionState): void;
   /** Uses private baked rifle clips when present; old assets retain fallback. */
   setRifleHold(enabled: boolean): void;
+  setWeaponHold(index: number | undefined): void;
   /** Snaps directly back to "idle", bypassing the death lock — used on the respawn edge,
    *  where the rig is about to become visible again and a lingering fade would show. */
   forceIdle(): void;
@@ -107,8 +108,9 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const footPosition = new THREE.Vector3();
   const mixer = new THREE.AnimationMixer(object);
   const actions = new Map<LocomotionState, THREE.AnimationAction>();
-  const rifleActions = new Map<LocomotionState, THREE.AnimationAction>();
-  let rifle = true;
+  const holds = ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'].map(() => new Map<LocomotionState, THREE.AnimationAction>());
+  let holdIndex: number | undefined = 0;
+  const holdActions = () => holdIndex === undefined ? undefined : holds[holdIndex];
   for (const s of [
     "idle",
     "walk",
@@ -132,8 +134,10 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
       action.clampWhenFinished = true;
     }
     actions.set(s, action);
-    const hold = THREE.AnimationClip.findByName(gltf.animations, `rifle_${s}`);
-    if (hold) rifleActions.set(s, mixer.clipAction(hold));
+    for (const [index, prefix] of ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'].entries()) {
+      const hold = THREE.AnimationClip.findByName(gltf.animations, `${prefix}_${s}`);
+      if (hold) holds[index]!.set(s, mixer.clipAction(hold));
+    }
   }
   const deathDuration = actions.get("death")?.getClip().duration;
   const hasCrouchClips = actions.has("crouch_idle") || actions.has("crouch_walk");
@@ -147,7 +151,7 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   let state: LocomotionState = "idle";
 
   const play = (next: LocomotionState, restart = false): void => {
-    const action = (rifle ? rifleActions.get(next) : undefined) ?? actions.get(next);
+    const action = holdActions()?.get(next) ?? actions.get(next);
     if (!action) return;
     if (action === current && !restart) return;
     action.reset().fadeIn(CROSSFADE_SEC).play();
@@ -155,7 +159,7 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     current = action;
   };
   play("idle");
-  object.userData.rifleHold = rifleActions.size > 0;
+  object.userData.rifleHold = !!holdActions()?.size;
 
   return {
     object,
@@ -166,10 +170,11 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     hasHitHeadClip,
     hitChestDuration,
     hitHeadDuration,
-    setRifleHold(enabled): void {
-      if (rifle === enabled) return;
-      rifle = enabled;
-      object.userData.rifleHold = rifle && rifleActions.size > 0;
+    setRifleHold(enabled): void { this.setWeaponHold(enabled ? 0 : undefined); },
+    setWeaponHold(index): void {
+      if (holdIndex === index) return;
+      holdIndex = index;
+      object.userData.rifleHold = !!holdActions()?.size;
       play(state);
     },
     setState(next: LocomotionState): void {
@@ -181,8 +186,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     },
     forceIdle(): void {
       state = "idle";
-      for (const action of [...actions.values(), ...rifleActions.values()]) action.stop();
-      const idle = (rifle ? rifleActions.get("idle") : undefined) ?? actions.get("idle");
+      for (const action of [...actions.values(), ...holds.flatMap(actions => [...actions.values()])]) action.stop();
+      const idle = holdActions()?.get("idle") ?? actions.get("idle");
       if (idle) {
         idle.reset().play();
         idle.weight = 1;

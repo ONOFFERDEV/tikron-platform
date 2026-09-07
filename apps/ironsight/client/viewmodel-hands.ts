@@ -11,6 +11,9 @@ const WRISTS = [
   { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.45] },
   { right: [0.021, -0.057, -0.28], left: [-0.020, -0.058, -0.30] },
 ] as const;
+const WEAPON_SCALES = [0.65, 0.75, 0.5, 0.38, 0.85] as const;
+const RELOAD_CONTACTS = [[-0.014, -0.07, -0.435], [0.01, -0.02, -0.28],
+  [-0.014, -0.045, -0.377], [-0.014, -0.105, -0.26]] as const;
 const gloveMaterial = new T.MeshStandardMaterial({ color: 0x253035, roughness: 0.9 });
 const armorMaterial = new T.MeshStandardMaterial({ color: 0x506968, roughness: 0.82, metalness: 0.08, flatShading: true });
 const cuffMaterial = new T.MeshStandardMaterial({ color: 0xc09654, roughness: 0.8 });
@@ -51,6 +54,15 @@ export class ViewmodelHands {
         this.wrist.y -= pose.reach * 0.07 + pose.magazine * 0.20;
         this.wrist.x += pose.magazine * 0.052;
         this.wrist.y += pose.bolt * 0.13;
+      }
+      if (!right && index > 0) {
+        // Receiver-space contact points for magazine/battery/slide manipulation.
+        const contact = RELOAD_CONTACTS[index - 1]!;
+        this.wrist.lerp(this.elbow.fromArray(contact), pose.reach);
+        const scale = WEAPON_SCALES[index]!;
+        this.wrist.x += pose.magazine * (index === 2 ? 0.32 : 0.08) * scale;
+        this.wrist.y -= pose.magazine * (index === 2 ? 0.04 : 0.34) * scale;
+        this.wrist.lerp(this.elbow.set(index === 4 ? -0.025 : 0.035, 0.045, -0.30 + pose.bolt * 0.05), pose.bolt);
       }
       palm.position.copy(this.wrist);
       palm.rotation.set(right ? -0.18 : -0.25, 0, right ? -0.10 : 0.45);

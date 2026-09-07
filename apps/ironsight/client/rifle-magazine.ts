@@ -1,7 +1,9 @@
 import * as T from 'three';
-/** Isolates the private AR drum using an authored selection volume in grip
- * space. Cached geometry stays immutable; dispose the owned copies on swap. */
-export function splitRifleMagazine(object: T.Object3D): { magazine: T.Group; bolt: T.Group; owned: T.BufferGeometry[] } {
+const insertMaterial = new T.MeshStandardMaterial({ color: 0x263033, roughness: 0.72, metalness: 0.3 });
+/** Select whole connected magazine/charge parts in each weapon's grip space.
+ * Cached geometry stays immutable; only runtime copies move and are disposed.
+ * The energy-shotgun receiver uses a side cell; pistol uses an original insert. */
+export function splitRifleMagazine(object: T.Object3D, weapon = 0): { magazine: T.Group; bolt: T.Group; owned: T.BufferGeometry[] } {
   object.updateMatrixWorld(true);
   const magazine = new T.Group(); magazine.name = 'rifle-magazine';
   const bolt = new T.Group(); bolt.name = 'rifle-bolt';
@@ -36,17 +38,29 @@ export function splitRifleMagazine(object: T.Object3D): { magazine: T.Group; bol
     }
     const keep: number[] = [], drum: number[] = [], handle: number[] = [];
     for (const { bounds: b, indices } of parts.values()) {
-      const target = b.min.z > 0.10 && b.max.z < 0.26 && b.max.y < 0.03 ? drum
-        : b.min.x < -0.05 && b.max.x < 0 && b.min.y > 0.05 && b.max.z < 0.03 ? handle : keep;
+      const isMagazine = weapon === 0 ? b.min.z > 0.10 && b.max.z < 0.26 && b.max.y < 0.03
+        : weapon === 1 ? b.min.z > 0.12 && b.max.z < 0.23 && b.max.y < 0.025 && b.min.y < -0.15
+        : weapon === 2 ? b.min.z > -0.11 && b.max.z < 0.02 && b.min.y > -0.07 && b.max.y < 0.07
+        : weapon === 3 ? b.min.z > 0.15 && b.max.z < 0.26 && b.max.y < -0.02 : false;
+      const isBolt = weapon === 4 ? b.min.z > -0.06 && b.max.z > 0.28 && b.min.y > -0.01 && b.max.y < 0.13
+        : b.min.x < -0.045 && b.max.x < 0 && b.min.y > (weapon === 3 ? 0 : 0.05) && b.max.z < (weapon === 0 ? 0.03 : 0.09);
+      const target = isMagazine ? drum : isBolt ? handle : keep;
       target.push(...indices);
     }
-    if (!drum.length || !handle.length) return;
+    if (!drum.length && !handle.length) return;
     const body = source.clone().setIndex(keep); owned.push(body); node.geometry = body;
     for (const [indices, group] of [[drum, magazine], [handle, bolt]] as const) {
+      if (!indices.length) continue;
       const geometry = source.clone().setIndex(indices); owned.push(geometry);
       const mesh = new T.Mesh(geometry, node.material); mesh.applyMatrix4(node.matrixWorld); group.add(mesh);
     }
   });
+  if (weapon === 4) {
+    // Original insert inside the integrated pistol grip; the source frame stays
+    // intact. Its base follows the same extraction/seat timeline as the hand.
+    const geometry = new T.BoxGeometry(0.028, 0.10, 0.055).translate(0, -0.105, -0.045);
+    owned.push(geometry); magazine.add(new T.Mesh(geometry, insertMaterial));
+  }
   object.add(magazine, bolt);
   return { magazine, bolt, owned };
 }
