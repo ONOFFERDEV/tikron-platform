@@ -1,6 +1,6 @@
 // Supervisor loop: run astra (codex) sessions against AAA-PLAN.md, gate, commit, deploy, repeat.
 //
-//   node tools/aaa-loop.mjs [--max 50] [--dry-gates] [--no-deploy]
+//   node tools/aaa-loop.mjs [--max 50 | --until 2026-09-09T10:00:00+09:00] [--dry-gates] [--no-deploy]
 //
 // State under apps/ironsight/.inspect/aaa-loop/: status.md (what astra reads), log.jsonl,
 // run.log, STOP (create it to stop after the current session). Requires: omc, codex login,
@@ -17,6 +17,10 @@ await mkdir(state, { recursive: true });
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
 const MAX = Number(opt('--max', 50));
+// --until <ISO datetime>: keep starting sessions while now < until (MAX becomes a safety cap of 500).
+const UNTIL = opt('--until') ? Date.parse(opt('--until')) : Infinity;
+if (opt('--until') && Number.isNaN(UNTIL)) throw new Error('--until must be an ISO datetime, e.g. 2026-09-09T10:00:00+09:00');
+const CAP = UNTIL === Infinity ? MAX : 500;
 const DRY = args.includes('--dry-gates');
 const DEPLOY = !args.includes('--no-deploy');
 const PREVIEW = 'http://localhost:8796';
@@ -83,7 +87,7 @@ async function gates(tag) {
 }
 async function writeStatus({ session, last, balance, remaining, failures }) {
   const md = [`# aaa-loop status (written by the supervisor, ${new Date().toISOString()})`, '',
-    `- This is **Session ${session}**. Sessions remaining in this run after it: ${remaining}.`,
+    `- This is **Session ${session}**. Run continues: ${remaining}.`,
     `- Meshy balance: **${balance} credits** (stop generating below 300; <= 60 per session).`,
     `- Preview worker: https://ironsight-next.plain-wave-5d5b.workers.dev (deployed after every green session).`,
     '', '## Last session outcome', '', ...(last ? last : ['First session of this run. Start from the current AAA gap list in AAA-PLAN.md (create it if missing).']),
@@ -115,12 +119,14 @@ async function commitAndDeploy(session) {
 }
 
 let failures = 0; let last = null;
-for (let i = 0; i < MAX; i++) {
+for (let i = 0; i < CAP; i++) {
   if (existsSync(join(state, 'STOP'))) { await log('STOP file present; exiting'); break; }
+  if (Date.now() >= UNTIL) { await log(`deadline ${opt('--until')} reached; exiting`); break; }
   const session = await nextSession();
   const balance = await meshyBalance();
-  await writeStatus({ session, last, balance, remaining: MAX - i - 1, failures });
-  await log(`=== session ${session} (${i + 1}/${MAX}) balance=${balance} ===`);
+  const remaining = UNTIL === Infinity ? String(MAX - i - 1) : `until ${opt('--until')} (${Math.max(0, Math.round((UNTIL - Date.now()) / 60000))} min left)`;
+  await writeStatus({ session, last, balance, remaining, failures });
+  await log(`=== session ${session} (${i + 1}${UNTIL === Infinity ? '/' + MAX : ', ' + remaining}) balance=${balance} ===`);
   let ask = { code: 0, out: 'dry' };
   if (!DRY) {
     const prompt = `Continue the ironsight AAA rebuild as Session ${session}. First read apps/ironsight/tools/aaa-loop-brief.md (standing brief, all rules), then apps/ironsight/.inspect/aaa-loop/status.md (supervisor status for this session), then apps/ironsight/AAA-PLAN.md. Repo D:\\webgame-baas, branch ironsight-aaa, scope apps/ironsight/** only, no git commit/push/deploy. End green per the brief and log the session in AAA-PLAN.md.`;
