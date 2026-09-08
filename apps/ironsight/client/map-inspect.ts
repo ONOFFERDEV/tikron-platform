@@ -17,6 +17,7 @@ export function startMapInspector(): void {
     overview: [51, 33, 52, 28, 0, 16],
     cooling: [20, 1.65, 9, 34, 2.3, 3],
     uplink: [34, 2.85, 4, 37, 5, -6],
+    exterior: [52, 9, 3, 29, 0, -10],
     relay: [20, 1.65, 23, 31, 3, 16],
     freight: [42, 1.65, 31, 27, 1.4, 35],
     spawn: [5, 1.65, 15, 23, 1.8, 20],
@@ -102,6 +103,7 @@ export function startMapInspector(): void {
     flags.__mapInspect = {
       uplinks: scene.inspectRelayUplinks(),
       concreteDetail: scene.inspectConcreteDetail(),
+      siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
       actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,

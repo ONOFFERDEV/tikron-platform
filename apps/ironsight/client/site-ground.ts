@@ -1,5 +1,6 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
+import { buildRelayApronGeometry } from './relay-apron.js';
 
 /** Original baked contact/dirt atlas. Opaque ground: no AO pass, blended floor
  * decal or per-frame work. MapDef footprints keep grime attached to real cover. */
@@ -14,6 +15,14 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.fillRect(random() * 512, random() * 512, 1 + random() * 2, 1 + random() * 2);
   }
   const sx = 512 / map.bounds.width, sz = 512 / map.bounds.depth;
+  if (map.presentation === 'relay') {
+    // Broad pour-to-pour aging gives the existing atlas a second scale of wear.
+    // Deterministic, restrained contrast keeps the lane paint readable.
+    for (let z = 0; z < map.bounds.depth; z += 5) for (let x = 0; x < map.bounds.width; x += 6) {
+      ctx.fillStyle = `rgba(43,57,49,${0.015 + random() * 0.055})`;
+      ctx.fillRect(x * sx, z * sz, 6 * sx, 5 * sz);
+    }
+  }
   // Broad stained slabs, not a high-frequency grid that shimmers at eye level.
   ctx.strokeStyle = wet ? '#516e6e' : '#7b867d'; ctx.lineWidth = 0.6;
   for (let x = 0; x <= 60; x += 6) { ctx.beginPath(); ctx.moveTo(x * sx, 0); ctx.lineTo(x * sx, 512); ctx.stroke(); }
@@ -87,9 +96,14 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
     new T.MeshStandardMaterial({ map: texture, roughness: wet ? 0.76 : 0.96 }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(30, -0.012, 20); floor.receiveShadow = true;
+  floor.userData.siteGround = true;
   if (map.presentation === 'relay') floor.name = 'relay-ground';
   scene.add(floor);
-  const apron = new T.Mesh(new T.PlaneGeometry(180, 160), new T.MeshStandardMaterial({ color: wet ? 0x52686c : 0x818b88, roughness: 0.98 }));
-  apron.rotation.x = -Math.PI / 2; apron.position.set(30, -0.03, 20); apron.receiveShadow = true; scene.add(apron);
-  if (map.presentation === 'relay') apron.name = 'relay-apron';
+  const relay = map.presentation === 'relay';
+  const apron = new T.Mesh(relay ? buildRelayApronGeometry() : new T.PlaneGeometry(180, 160),
+    new T.MeshStandardMaterial({ color: relay ? 0xffffff : wet ? 0x52686c : 0x818b88, vertexColors: relay, roughness: 0.98 }));
+  if (!relay) { apron.rotation.x = -Math.PI / 2; apron.position.set(30, -0.03, 20); }
+  apron.userData.siteGround = true;
+  apron.name = `${map.presentation ?? 'site'}-apron`;
+  apron.receiveShadow = true; scene.add(apron);
 }

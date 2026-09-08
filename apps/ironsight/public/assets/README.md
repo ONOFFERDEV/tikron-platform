@@ -270,3 +270,29 @@ The fallback still works if the baked architecture fails to load.
 
 Reproduce from the app directory with `pnpm build:client`, then on the running
 preview: `node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,cooling,freight,spawn,effects-stress --assert-budgets`.
+
+### Relay exterior paving (Session 15, original runtime geometry)
+
+`client/relay-apron.ts` builds one vertex-colored, flat paving mesh during scene
+construction: concrete slab joints, flush machinery pads below the existing
+uplinks/mast, an asphalt service road with worn center dashes, and a broad horizon
+skirt beyond the existing fog end. All faces lie at y=-0.03 and outside the
+60 x 40 m playable floor; no new collision, cover, raised curb or physics is added.
+Disjoint rectangles prevent coplanar decal fighting. Cell colors use a deterministic
+integer hash; no external source or downloaded asset is involved. The apron shares
+Session 14's existing concrete textures and metric UVs, with no additional texture,
+light, render pass or frame-loop bake. Subtle pour-to-pour aging is painted once
+into Relay's existing 512px floor atlas at its original resolution.
+
+All three maps now tag site ground so the architecture replacement does not remove
+their untextured exterior aprons. Ground is intentionally excluded from offline
+architecture bakes. Undertow/Switchyard retain their existing flat apron shape and
+material; only Relay receives the new paving and extended horizon. No baked or
+purchased GLB changes. The Relay deployment vista is refreshed from the production
+renderer using the command below.
+
+Reproduce from the app directory with `pnpm build:client`, then on the running
+preview: `node scripts/inspect-map.mjs --url http://localhost:8796 --shots exterior,relay,cooling,vista,effects-stress --assert-budgets --write-vista`.
+Ground presence/height/extent and triangle budget are asserted by the inspector;
+`pnpm test -- test/relay-apron.test.ts` checks architecture selection and paving
+winding, coverage, finite data and separation from playable ground.

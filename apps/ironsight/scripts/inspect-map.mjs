@@ -273,6 +273,14 @@ try {
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
     const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    if (report?.siteGround) {
+      const ground = report.siteGround, apron = ground.find(g => g.name.endsWith('-apron'));
+      const extent = apron?.name === 'relay-apron' ? [-210, -200, 270, 240] : [-60, -60, 120, 100];
+      if (ground.length !== 2 || ground.some(g => !g.visible || g.max[1] >= 0) || !apron ||
+          apron.min[0] !== extent[0] || apron.min[2] !== extent[1] || apron.max[0] !== extent[2] || apron.max[2] !== extent[3] ||
+          apron.triangles > 4500)
+        throw Error(`Site ground removed, raised or outside its budget: ${JSON.stringify(ground)}`);
+    }
     if (report?.concreteDetail) {
       const detail = report.concreteDetail;
       const otherMap = name.startsWith('undertow-') || name.startsWith('switchyard-');

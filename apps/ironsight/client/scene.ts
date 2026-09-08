@@ -1719,6 +1719,15 @@ export class SceneRig {
     return { meshes, textures: textures.size, invalidUv };
   }
 
+  inspectSiteGround() {
+    return this.scene.children.filter((node): node is THREE.Mesh =>
+      node instanceof THREE.Mesh && node.userData.siteGround === true).map(node => {
+      const bounds = new THREE.Box3().setFromObject(node);
+      return { name: node.name, visible: node.visible, min: bounds.min.toArray(), max: bounds.max.toArray(),
+        triangles: (node.geometry.index?.count ?? node.geometry.getAttribute('position').count) / 3 };
+    });
+  }
+
   inspectRelayUplinks() {
     return this.scene.children.filter(node => node.name === 'relay-uplink').map(node => {
       const box = new THREE.Box3().setFromObject(node);

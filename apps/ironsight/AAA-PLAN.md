@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-13 are deployed there, including the persisted-room
-fix, Switchyard, Relay service detail and uplinks. Session 14 concrete detail remains
-local until the supervisor publishes it. Continue using the standing brief's active defaults.
+Supervisor reports sessions 1-14 are deployed there, including the persisted-room
+fix, Switchyard, Relay service detail, uplinks and concrete detail. Session 15 ground
+continuity remains local until publication. Continue using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,23 +326,29 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked for Session 14. The supervisor's persisted-ended-room report takes
-precedence: the Session 10 fix and three real-restoration regression tests remain
-present and pass. Session 12 already proves a natural ended snapshot locally;
-Session 14 retains that fix and reruns its three regressions and preserved-state
-gameplay qualification. Selected visual gap: Relay's flat material response;
-shared concrete normal/roughness detail fits within the existing texture headroom.
+Re-ranked after Session 15. The supervisor's persisted-ended-room concern took
+precedence: retained the Session 10 fix, passed its three real-core restoration
+regressions and two preserved-state TDM probes including empty reuse. Session 12's
+natural ended-snapshot proof remains applicable; deployed eviction is still open.
+Selected Session 15 visual gap: exterior ground continuity. Fixed architecture
+loading deleting all three aprons, then delivered Relay paving/road/pads and a
+fog-covered horizon. Next default: first-person weapon/operator presentation.
 
-1. **Environment richness and material depth.** Relay now has human-scale service
+1. **Weapon/operator finish.** First-person sleeves still read as long angular
+   tubes against the improving environment. Inspect moving five-weapon reload/grip
+   contact, then refine glove/sleeve silhouettes and folds within existing draw and
+   texture budgets. Remote reactions/deaths still need review; retain constant
+   light count through hidden groups and authoritative animation deadlines.
+2. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
    walls and floor now have restrained concrete relief and roughness (Session 14).
-   Broad composition, weathering and exterior ground still read simply. Relay's
+   Exterior ground now survives loading; Session 15 adds slab paving, flush pads,
+   a service road and a horizon skirt. Broad composition and weathering remain simple. Relay's
    stress texture headroom is now ~0.25 MiB; re-budget before adding more textures.
-   Next default: exterior ground continuity and larger-scale grounded wear using
-   the existing atlases/geometry. Retain the Session 13 paired uplinks.
+   Next environment default: larger-scale wall wear and roof service detail using
+   existing atlases/geometry. Undertow/Switchyard exterior dressing remains sparse.
+   Retain the Session 13 paired uplinks.
    Meshy remains appropriate for machinery; the weak cable drum remains rejected.
-2. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
-   remote reactions and deaths; retain constant light count through hidden groups.
 3. **Solo encounter quality.** Improve bot route variety/separation and examine
    inactive seats before increasing fill or difficulty.
 4. **Switchyard encounter design.** Its art replaces the legacy blockout, but the
@@ -1874,3 +1880,120 @@ root/descendant processes stopped, zero remaining owned processes, zero port-879
 listeners and zero inspection browsers. The eleven-process preflight tree also
 remains stopped. Durable state is preserved. All temporary evidence is under
 ignored .inspect; ready for supervisor review/publication, no commit/push/deploy.
+
+### Session 15 - 2026-09-08: restore exterior ground and connect Relay to its surroundings
+
+Read the standing brief, Session 15 status and plan in order. Branch confirmed
+from HEAD as ironsight-aaa. Changes stay within apps/ironsight/**; no git commands,
+commit, push, deployment, SDK edits or dependencies. Worker build was its existing
+dry-run. No Meshy credits spent (1530 remain): this pass needed ground geometry,
+not a generated prop. The weak cable drum remains rejected.
+
+The supervisor's persisted-ended-room concern took precedence. Reviewed onRestore,
+dormancy/simulation retention, bot fill and warmup; all three Session 10 lifecycle
+regressions pass (.inspect/session15-lifecycle.log). They cold-restore serialized
+ended state through the real core with immediate reconnect or alarm-before-join,
+then assert four-seat bot fill, warmup -> live, bot movement and queued input.
+Repeated empty reuse also checks no duplicate ticks. Retained the covered fix;
+no new lifecycle defect was reproduced or speculative server change made.
+
+Delivered the selected environment gap: exterior ground continuity. The first
+before/after capture exposed why the site looked suspended in sky: architecture
+replacement selected every untextured standard-material mesh, including the apron,
+and disposed it even though bakeOnly never exports ground. All three maps now tag
+site ground explicitly and exclude it from architecture selection. Their original
+ground receives the existing cached shadows again. No baked GLB was changed.
+
+Relay's restored apron is one original vertex-colored mesh: slab joints, flush
+machinery pads under the uplinks/mast, a service road with center dashes, and four
+broad skirt faces extending past the existing 145 m fog end. All 2,528 triangles
+are flat at y=-0.03, outside the 60 x 40 m playable floor. Disjoint rectangles avoid
+coplanar overlap; nothing creates cover, a curb or a new route. Undertow/Switchyard
+keep their existing 180 x 160 m apron geometry/material. Relay extends to 480 x
+440 m and shares its existing concrete detail pair. No added texture, light, pass,
+per-frame bake, collision, movement, state/schema, bot or hit-validation change.
+
+Subtle pour-to-pour aging is painted once into Relay's existing 512px floor atlas;
+its resolution, AO mapping and paint remain intact. Refreshed the deployment vista
+from the production renderer. Provenance/reproduction is in public/assets/README.md.
+New tests check that ground survives architecture selection and that apron data
+is finite, upward-facing, below ground, within triangle budget and covers the
+exterior without entering playable space. Inspector now checks both ground meshes
+after loading, their visibility, height, extent and triangle budget on every map.
+
+Final gates: pnpm typecheck, pnpm test, pnpm build:client, pnpm build (Worker
+dry-run), pnpm audit:assets, required relay/practice-two inspection and both
+150000-ms maximum TDM hitch probes PASS. Tests: 318 passed, 3 existing opt-in skips;
+33 passing files plus one skipped. Worker unchanged: 235.27 KiB / gzip 69.94 KiB.
+Logs: .inspect/session15-{typecheck,test,build-client,worker-build,audit-assets,
+final-inspector}.log. Assets 12,172,815 -> 12,175,155 bytes (+2,340, provenance and
+refreshed vista); public 18,144,823 -> 18,160,264 (+15,441); largest file 4,154,030
+bytes. No new downloaded GLB/bitmap textures. Both asset caps pass.
+
+Before/after evidence: session15-before-report.json and session15-final-report.json,
+matching relay/cooling/vista/effects-stress PNGs, session15-delta.json and
+session15-evidence.json. The dedicated exterior baseline is
+session15-before-exterior-{report.json,exterior.png}; compare final-exterior.png.
+Final report has nine views, including real Undertow training, all three effects
+workloads and the refreshed menu: zero console/runtime/HTTP errors or forbidden
+offline requests. Opened matching exterior/vista images, final Relay, Undertow
+training and menu. These are inspected engineering captures, not owner approval.
+
+Edge 152.0.4191.66 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Each effects
+fixture: eleven remote operators plus local hands/rifle, 145 twelve-rifle volleys,
+96 blasts over 15 seconds, 2,130 steady samples, zero remaining blasts/tracers.
+
+| Relay metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Eye-level calls / triangles | 21 / 27,178 | 22 / 29,706 | +1 / +2,528 |
+| Stress peak calls / triangles | 219 / 87,758 | 220 / 90,286 | +1 / +2,528 |
+| Stress textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Stress median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0.0 / 0.0 / 0.0 |
+| Stress max / first-ready max ms | 7.7 / 7.1 | 7.5 / 7.1 | -0.2 / 0.0 |
+
+Undertow/Switchyard restored aprons each add one draw and two triangles. Final
+stress peaks: 217 / 215 calls, 76,456 / 89,014 triangles, 60.251 / 61.585 MiB;
+all resource gates pass. Relay texture headroom remains 0.249 MiB. Desktop rAF
+intervals and texture estimates do not establish GPU timings, mid-laptop iGPU,
+thermal, cold-driver or real 6v6 acceptance; no controlled speedup is claimed.
+
+Both standard TDM probes used fixed arena-tdm on the same server. The second
+started 73.563 seconds after the first report, allowing the old human seat to
+expire. No state clearing, room isolation, server restart, build or asset write
+between them. Preflight restart after final asset writes preserved .wrangler/state.
+
+| Accepted TDM probe | First | Reuse after expiry |
+|---|---:|---:|
+| Initial population | 1 human + 3 bots | 1 human + 3 bots |
+| Warmup -> live after measurement starts | 7.132 s | 7.404 s |
+| Deaths / respawns | 2 / 2 | 3 / 2 |
+| Maximum recorded frame | 54.0 ms | 58.8 ms |
+| Recompiles / >150 ms frames / console errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Reports/logs: session15-hitch-{first,second}.{json,log}, session15-reuse-start.json
+and session15-lifecycle-probes.json. Required .inspect/hitch.json is the second
+accepted run. Its third death occurred during the post-second-death observation;
+two respawns were seen. This rechecks local startup/empty reuse. Session 12's
+natural ended snapshot remains stronger ended-match evidence; real deployed DO
+eviction is still a supervisor gate, not inferred from local workerd.
+
+Rejected intermediates: session15-detail showed no exterior change because the
+new apron was removed by architecture loading; fixed the selection. Then
+session15-ground revealed a hard outer plane edge, so extended Relay's four skirt
+faces beyond the fog horizon. Session15-horizon refreshed the vista; only the
+post-restart session15-final is final browser acceptance. No assertion or threshold
+was relaxed. Existing local workerd tick-backlog warnings are retained in the
+server log; these browser checks are not local capacity/latency evidence.
+
+Cleanup: session15-cleanup.json confirms all twelve final-server root/descendant
+processes stopped, zero remaining owned processes/listeners/inspection browsers.
+session15-preflight-cleanup.json records the earlier eleven-process tree stopped.
+Durable state remains preserved. All temporary evidence is under ignored .inspect.
+
+Re-ranked the gap list: next default is first-person sleeve/glove silhouette and
+moving reload/contact review, followed by larger-scale environment wear. Open
+owner questions remain nonblocking: does the grounded service-site treatment fit
+Relay (default: retain it), and should weapon finish now precede more environment
+detail (default: yes). Keep industrial daylight, amber/teal, stylized sci-fi and
+6v6 TDM. Human play/audio/animation, target hardware, real RTT and deployed eviction
+acceptance remain open. Ready for supervisor review/publication; no commit/push/deploy.
