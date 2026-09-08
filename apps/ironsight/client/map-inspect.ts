@@ -19,6 +19,7 @@ export function startMapInspector(): void {
     uplink: [34, 2.85, 4, 37, 5, -6],
     exterior: [52, 9, 3, 29, 0, -10],
     relay: [20, 1.65, 23, 31, 3, 16],
+    impact: [18, 1.65, 23, 22, 1.5, 23],
     freight: [42, 1.65, 31, 27, 1.4, 35],
     spawn: [5, 1.65, 15, 23, 1.8, 20],
     vista: [45, 13, 37, 26, 4.2, 10],
@@ -89,6 +90,12 @@ export function startMapInspector(): void {
     if (frameCount > 30 && (!effects || now - started < 15000)) samples.push(now - last);
     if (actorCount) scene.syncPlayers(actors, "local-inspector", Math.min(50, now - last));
     last = now;
+    // Paired server-event presentation sample: surface on the left, player on
+    // the right. Stop rendering shortly after the burst to retain it for capture.
+    if (shotName === "impact" && frameCount === 140) {
+      scene.spawnImpact({ x: 22, y: 1.5, z: 22.5 }, { x: 1, y: 0, z: 0 }, false);
+      scene.spawnImpact({ x: 22, y: 1.5, z: 23.5 }, { x: 1, y: 0, z: 0 }, true);
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);

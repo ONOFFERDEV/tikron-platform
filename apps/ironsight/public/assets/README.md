@@ -306,3 +306,12 @@ or Meshy generation is involved. Constructed once by `ViewmodelHands`; six draws
 no texture allocations, existing wrist fits and server-driven reload timeline.
 Reproduce with `pnpm build:client`; inspect with
 `node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-ar,weapon-sniper-reload-out,weapon-pistol,weapon-ar-cycle --prefix hands`.
+
+### Session 18 impact layers (original runtime geometry)
+Surface impacts reuse the existing seven pooled spheres for a 65 ms contact core,
+three ballistic sparks and three 480 ms expanding dust fragments. Player hits use
+five dark, elongated droplets. All remain server-shot-event presentation; no decals
+or cover are inferred. No bitmap, purchased derivative, light or pool is added.
+Reproduce: pnpm build:client; run the preview and node scripts/inspect-map.mjs
+--url http://localhost:8796 --shots impact,effects-stress --prefix impact-review.
+Source: client/vfx.ts; the paired impact fixture is in client/map-inspect.ts.

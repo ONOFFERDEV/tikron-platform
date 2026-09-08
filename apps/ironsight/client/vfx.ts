@@ -75,6 +75,9 @@ interface ParticleSlot {
   life: number;
   gravity: number;
   active: boolean;
+  origin: THREE.Vector3;
+  size: THREE.Vector3;
+  kind: "spark" | "dust" | "core" | "blood";
 }
 
 // --- footsteps --------------------------------------------------------------
@@ -151,7 +154,8 @@ export class Vfx {
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), mat);
     mesh.visible = false;
     this.scene.add(mesh);
-    return { mesh, mat, vel: new THREE.Vector3(), born: -1e9, life: 300, gravity: 0, active: false };
+    return { mesh, mat, vel: new THREE.Vector3(), origin: new THREE.Vector3(),
+      size: new THREE.Vector3(), kind: "spark", born: -1e9, life: 300, gravity: 0, active: false };
   }
 
   // --- spawn API (called from SceneRig) -----------------------------------------
@@ -195,27 +199,33 @@ export class Vfx {
   spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean): void {
     const d = normalize(dir);
     const count = hitPlayer ? 5 : 7;
-    const color = hitPlayer ? PALETTE.impactBlood : PALETTE.impactSpark;
-    const speed = hitPlayer ? 1 : 2.5;
-    const gravity = hitPlayer ? -6 : -2;
-    const life = hitPlayer ? 400 : 260;
+    const born = performance.now();
     for (let i = 0; i < count; i++) {
       const slot = this.particles[this.particleCursor]!;
       this.particleCursor = (this.particleCursor + 1) % this.particles.length;
+      // Three temporal layers in the same seven slots: a short contact core,
+      // three ballistic streaks, then three slower, expanding dust fragments.
+      slot.kind = hitPlayer ? "blood" : i === 0 ? "core" : i < 4 ? "spark" : "dust";
+      const dust = slot.kind === "dust", core = slot.kind === "core";
+      const speed = hitPlayer ? 1.4 : dust ? 0.75 : core ? 0 : 3.8;
       // Bounce roughly away from the shot direction, spread into a hemisphere.
       const away = new THREE.Vector3(-d.x, -d.y, -d.z);
       const jitter = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
       const v = away.addScaledVector(jitter, 0.9).normalize().multiplyScalar(speed * (0.5 + Math.random()));
       slot.mesh.position.set(pos.x, pos.y, pos.z);
+      slot.origin.copy(slot.mesh.position);
       slot.vel.copy(v);
-      slot.mat.color.setHex(color);
-      slot.mat.blending = hitPlayer ? THREE.NormalBlending : THREE.AdditiveBlending;
-      slot.mesh.scale.set(hitPlayer ? 1 : 0.45, hitPlayer ? 1 : 0.45, hitPlayer ? 1 : 2.4);
+      slot.mat.color.setHex(hitPlayer ? PALETTE.impactBlood : dust ? 0x968c7b : core ? 0xfff0c0 : PALETTE.impactSpark);
+      slot.mat.blending = hitPlayer || dust ? THREE.NormalBlending : THREE.AdditiveBlending;
+      slot.size.set(hitPlayer ? 0.7 : dust ? 1.3 : core ? 2.4 : 0.22,
+        hitPlayer ? 0.7 : dust ? 1.0 : core ? 2.4 : 0.22,
+        hitPlayer ? 1.8 : dust ? 1.2 : core ? 0.6 : 4.8);
+      slot.mesh.scale.copy(slot.size);
       slot.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v.clone().normalize());
       slot.mat.opacity = 1;
-      slot.life = life;
-      slot.gravity = gravity;
-      slot.born = performance.now();
+      slot.life = hitPlayer ? 340 : dust ? 480 : core ? 65 : 180 + i * 25;
+      slot.gravity = hitPlayer ? -7 : dust ? -0.6 : core ? 0 : -4;
+      slot.born = born;
       slot.active = true;
       slot.mesh.visible = true;
     }
@@ -316,9 +326,16 @@ export class Vfx {
         p.mesh.visible = false;
         continue;
       }
-      p.vel.y += p.gravity * dt;
-      p.mesh.position.addScaledVector(p.vel, dt);
-      p.mat.opacity = 1 - age / p.life;
+      const t = Math.max(0, age) / 1000, progress = Math.max(0, age) / p.life;
+      p.mesh.position.copy(p.origin).addScaledVector(p.vel, t);
+      p.mesh.position.y += 0.5 * p.gravity * t * t;
+      if (p.kind === "dust") {
+        p.mesh.scale.copy(p.size).multiplyScalar(1 + progress * 3);
+        p.mat.opacity = 0.42 * (1 - progress) ** 2;
+      } else {
+        p.mesh.scale.copy(p.size).multiplyScalar(1 - progress * 0.55);
+        p.mat.opacity = (1 - progress) ** 1.5;
+      }
     }
 
     // Drop footstep trackers for ids stepFoot() didn't see this frame (disconnected

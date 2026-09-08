@@ -327,17 +327,19 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 17. The supervisor confirms lifecycle recovery is resolved;
+Re-ranked after Session 18. The supervisor confirms lifecycle recovery is resolved;
 no extra persistence drill is needed absent a new failure. This session delivers
-first-person tailored sleeve/glove geometry and five-weapon moving reload fixtures.
-Next default: impact feedback and remote hit/death presentation, ahead of another
+layered surface sparks/dust and distinct player impact droplets in the existing pool.
+Next default: remote hit/death presentation, then layered weapon audio, ahead of another
 environment pass. Keep the constant-light and existing texture budgets.
 
 1. **Combat character/impact finish.** First-person sleeves now have tapered oval
    sections, compression folds, reinforced panels and padded gloves at six draws.
    Five weapon reload cycles and static contact/ADS captures have engineering
    coverage; human finger contact and animation acceptance remain open. Next:
-   remote hit reactions/deaths and readable impact VFX, then layered weapon audio.
+   remote hit reactions/deaths, then layered weapon audio. Session 18 gives surface
+   impacts separate contact/spark/dust lifetimes and player hits elongated droplets;
+   human combat readability and audio acceptance remain open.
    Keep server-confirmed hits and constant light count through hidden groups.
 2. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
@@ -2196,3 +2198,83 @@ root/descendant processes stopped, zero remaining owned processes, zero port-879
 listeners and zero inspection browsers. The earlier server tree was stopped in
 session17-preflight-cleanup.json. All required final gates are green and evidence
 stays under ignored .inspect. Ready for supervisor review; no commit/push/deploy.
+
+### Session 18 - 2026-09-08: layered ballistic impact feedback
+
+Read the standing brief, Session 18 supervisor status and plan in order; confirmed
+ironsight-aaa from HEAD. Scope apps/ironsight/** only. No commit, push, deployment,
+SDK edits, dependencies or purchased derivative changes. No Meshy credits spent
+(1530 remain): transient ballistic effects fit existing procedural geometry.
+The resolved lifecycle issue was not reopened.
+
+Selected the impact portion of the top combat finish gap. Surface hits now have a
+65 ms contact core, three thin ballistic sparks, and three slower expanding dust
+fragments lasting 480 ms. Player impacts use five dark elongated droplets. Reuses
+the same 48 pooled meshes/materials and existing sphere buffers. No new textures,
+lights, passes or per-frame allocation/bakes. Position is evaluated from birth
+position, velocity and absolute effect age, avoiding frame-cadence-dependent
+ballistic paths. This remains presentation of existing server shot events; no
+collision, hit authority, state/schema or remote animation rules changed.
+
+Added the paired offline impact capture through the production renderer, with
+surface/player bursts sampled shortly after emission. Before/after positions and
+camera match; particle scatter remains random and capture age is frame-based,
+so these are visual comparisons, not identical seeded particle trajectories.
+Opened both impact captures and final Undertow gameplay. Evidence:
+.inspect/session18-{before,final}-report.json, matching impact/effects-stress PNGs,
+final-relay.png and final-practice-two.png; session18-delta.json records metrics.
+All four final inspection views pass with zero console/runtime/HTTP errors and
+zero forbidden offline network requests.
+
+Three new tests cover pool saturation/expiry and stable geometry/light membership,
+frame-cadence-independent positions, and separated core/spark/dust lifetime stages.
+Tests: 328 passed, 3 existing opt-in skips (35 passing files, one skipped).
+Initial typecheck rejected the browser VFX test under the server-only library;
+excluded it from tsconfig.json and included it in tsconfig.client.json, following
+the existing browser test convention. Final typecheck passes. No art iteration was
+rejected and no gate threshold was relaxed. The before capture shows the former
+uniform particle bursts; the final retains the first layered implementation.
+
+Matched Relay effects stress: eleven remote operators plus local rifle/hands,
+145 twelve-rifle volleys and 96 blasts, 2,130 steady samples, drained explosions
+and tracers. Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 93,190 | 220 / 93,190 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0 / 0 / 0 |
+| Max / first-ready max ms | 7.2 / 7.2 | 7.6 / 7.1 | +0.4 / -0.1 |
+
+Desktop rAF intervals and allocation estimates do not establish GPU timing,
+mid-laptop iGPU performance, cold-driver/thermal behavior or real 6v6 acceptance.
+No performance improvement is claimed. Asset audit: 12,175,826 -> 12,176,452
+bytes (+626, provenance); total public 18,184,742 -> 18,189,111 (+4,369);
+largest file 4,172,617 bytes. Both public/per-file caps pass. No binary additions.
+Reproduction/provenance is in public/assets/README.md.
+
+Re-ranked gaps: remote hit/death presentation next, then layered weapon audio,
+ahead of more environment detail. Open owner questions are nonblocking: retain
+restrained dust and thinner sparks (default yes); prioritize remote reactions
+next (default yes). Human impact readability, finger/contact, moving reload and
+headphone mix approval remain open. Industrial daylight, amber/teal, stylized
+sci-fi and 6v6 TDM remain active defaults.
+
+All standing gates PASS: pnpm typecheck, pnpm test, pnpm build:client,
+pnpm audit:assets, the exact required relay,practice-two inspection command,
+and node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json
+--assert. Code logs use .inspect/session18-{typecheck,test,build-client,audit-assets}.log;
+exact browser gate log is session18-required-inspector.log. The extended final
+inspector separately includes impact and effects-stress with --assert-budgets.
+
+TDM: one human plus three bots, warmup -> live at 6.880 s, three deaths and two
+observed respawns (third death during post-second-death observation). Zero shader
+recompiles, >150 ms spikes, console errors or long tasks. Reports are .inspect/hitch.json
+and session18-hitch.json; log session18-hitch.log. Preserved .wrangler/state;
+no room isolation, clearing or redundant lifecycle drill. Restarted owned preview
+after final client writes before browser acceptance; no builds overlapped combat.
+
+Cleanup: session18-preflight-cleanup.json and session18-cleanup.json record the
+owned server trees stopped. Final twelve-process tree: zero remaining processes,
+port-8796 listeners or inspection browsers. Evidence remains ignored under .inspect.
+Ready for supervisor review/publication; no commit/push/deploy.
