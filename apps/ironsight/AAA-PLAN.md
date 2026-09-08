@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-21 are deployed there, including layered impacts,
-grounded remote reactions/deaths, weapon audio and the combat HUD. Session 22's
-Relay wall weathering and roof service plates remain local until publication. Continue using the standing
+Supervisor reports sessions 1-22 are deployed there, including layered impacts,
+grounded remote reactions/deaths, weapon audio, combat HUD and Relay weathering.
+Session 23's round debrief remains local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -325,46 +325,53 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Session log
 
+## Reference scorecard
+
+Session 23: the standing brief requires `AAA-DESIGN-REFERENCE.md`, but that file
+is absent from this checkout (including an ignored/hidden-file search under the
+app). No canonical R-xx IDs or previous reference scorecard are available in the
+plan. Do not invent their definitions or claim reference compliance. Supervisor
+follow-up: restore the source document so the next session can enumerate every ID.
+Until then these are explicitly **plan-derived checks**, not replacement R-xx IDs:
+
+| Plan criterion | Status | Evidence / remaining acceptance |
+|---|---|---|
+| Clear outcome, personal contribution and round roster | met | Session 23 eight production-HUD fixtures; team/FFA/draw, 12 rows, local marker |
+| Readable narrow/short results and usable vote controls | met | 390x844, 720x900, 1280x600, 1920x1080; heading/actions reachable, focus preserved |
+| Environment depth across all three maps | partial | Relay Sessions 12-15/22; Undertow and Switchyard exterior richness next |
+| Convincing hands, weapon motion, reactions and sound | partial | Sessions 17-20 fixtures; moving animation and headphone approval open |
+| Guided first play and complete transition timing | partial | Existing onboarding/results; guided progression and authoritative countdowns open |
+| Target iGPU, 6v6 and browser/human acceptance | not yet | Desktop fixtures are not representative hardware or human acceptance |
+
 ## AAA gap list
 
-Re-ranked after Session 22. Lifecycle recovery remains resolved; no extra persistence
-drill is needed absent a new failure. Sessions 17-20 improve hands, impacts,
-remote reactions and layered weapon audio; Session 21 finishes the killfeed and
-confirmed elimination pass. Session 22 adds baked Relay wall weathering and roof
-service plates. Next default: scoreboard and results presentation, then exterior
-richness on the other maps. Keep constant lights and the existing texture budgets.
+Re-ranked after Session 23. The round debrief now has an outcome hierarchy,
+personal stats, sorted team/FFA rosters, local-row emphasis and responsive actions.
+Lifecycle recovery remains resolved; no extra persistence drill is needed absent
+a new failure. Canonical reference-based ranking awaits the missing reference file.
 
-1. **Scoreboard and round presentation.** Session 21 adds readable kill weapon,
-   headshot/blast, assist and local involvement, plus a bounded confirmed-elimination
-   notice. Next presentation default: scoreboard/results hierarchy and readability.
-   Preserve authoritative events, accessible menus and reduced-motion settings.
-   Five weapons have mechanical attack, body and outdoor decay; headphone mix
-   approval remains open. Real 6v6 should review remote cue drops under the
-   unchanged 20-voice cap. Finger/contact, reaction intensity, moving reload/death
-   and the new confirmation's distraction level remain human acceptance items.
-2. **Environment richness and material depth.** Relay now has human-scale service
-   hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
-   walls and floor have restrained concrete relief and roughness (Session 14).
-   Session 15 adds slab paving, flush pads, a service road and a horizon skirt.
-   Session 22 adds baked macro runoff/foundation grime and sixteen flush roof
-   service plates. Stress texture headroom is ~0.25 MiB; re-budget before adding
-   textures. Broader composition still needs work; next default: enrich the sparse
-   Undertow and Switchyard exteriors. Retain Session 13's paired uplinks.
-   Meshy is appropriate for machinery; the weak cable drum remains rejected.
-3. **Solo encounter quality.** Improve bot route variety/separation and examine
+1. **Environment richness and material depth.** Enrich sparse Undertow and
+   Switchyard exteriors next, keeping collision authority and readable exits.
+   Relay has human-scale services, concrete relief, apron paving and Session 22
+   macro weathering/roof plates. Stress texture headroom is about 0.25 MiB;
+   re-budget before adding textures. Use Meshy when machinery adds visible quality;
+   retain paired Relay uplinks and reject weak silhouettes.
+2. **Solo encounter quality.** Improve bot route variety/separation and examine
    inactive seats before increasing fill or difficulty.
-4. **Switchyard encounter design.** Its art replaces the legacy blockout, but the
-   original open FFA layout still needs owner route/spawn review. Preserve server
-   cover and navigation authority; any future layout change needs migration/tests.
-5. **First-play guidance and transitions.** Guided training, authoritative countdowns,
-   and real dropped-network detection; preserve accessible menus and reconnect flow.
+3. **First-play guidance and transitions.** Guided training, authoritative
+   countdowns and real dropped-network detection. Session 23 completes the
+   finishable results/roster hierarchy pass; player readability approval remains.
+4. **Character/weapon and combat presentation acceptance.** Sessions 17-21 improve
+   sleeves, impacts, reactions/deaths, layered audio and confirmation HUD. Review
+   moving finger/contact/reload, reaction intensity, audio comfort and confirmation
+   distraction with players; dense 6v6 cue drops remain under the 20-voice cap.
+5. **Switchyard encounter design.** The original open FFA layout still needs owner
+   route/spawn review. Preserve server cover/navigation and migration/test rules.
 6. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
    thermal/cold-driver checks and headphone/owner approval remain unverified.
-7. **Deployed lifecycle qualification.** Session 16 adds join-during-disposal to
-   ended-snapshot restoration coverage and repeats the natural ended-round,
-   preserved-state cold restart and empty reuse browser drill. Actual preview DO
-   eviction and storage/connection ordering remain supervisor checks. Escalate
-   any reproduced dead-room feedback ahead of art again.
+7. **Deployed lifecycle qualification.** Actual preview DO eviction and storage/
+   connection ordering remain supervisor checks. Escalate reproduced dead-room
+   feedback ahead of art; do not reopen the resolved bug without evidence.
 
 ### Session 1 — 2026-09-07
 
@@ -2690,3 +2697,105 @@ members stopped, zero remaining owned processes, port-8796 listeners or inspecti
 browsers. All standing final gates and the strengthened architecture audit are
 green. Evidence remains ignored under .inspect. Ready for supervisor review;
 no commit, push or deployment.
+
+
+### Session 23 - 2026-09-08: round debrief and readable final rosters
+
+Read standing brief, Session 23 supervisor status and plan in order; confirmed
+ironsight-aaa through .git/HEAD. Scope apps/ironsight/** only. No git commands,
+commit, push, deployment, dependencies or purchased-asset edits. No Meshy credits
+spent (1530 remain): this DOM presentation item needs no generated bitmap/model.
+Local .wrangler/state was preserved and the resolved lifecycle issue was not reopened.
+
+Reference: unavailable. `AAA-DESIGN-REFERENCE.md` is missing in this checkout;
+an app search including hidden/ignored files found no copy. Added the explicit
+reference-scorecard limitation above rather than inventing R-xx mappings. Concrete
+plan-derived target: distinguish outcome, team totals and local contribution;
+render all 12 fixture operators with a local marker; preserve vote/leave controls;
+no horizontal overflow, reachable heading and actions at four viewport sizes.
+The final production-HUD fixtures meet those checks. Canonical source compliance
+and owner visual approval remain unclaimed.
+
+The final round panel uses industrial teal/amber, a large victory/defeat/draw
+heading, separate final team scores, three personal stats and two aligned team
+tables (one for FFA). Rankings sort kills descending, deaths ascending, then name;
+the local row has a text YOU tag plus amber emphasis. Zero deaths displays a dash
+for the undefined K/D ratio. Names/winner text are escaped, long names truncate,
+and semantic tables label K/D columns. Results use the existing server winner,
+score event and replicated player stats; no rule, codec, state version or combat
+changes. Current AOI spans the whole small arena. The roster is explicitly the
+operators still in the room, not a historical ledger of departed players. Production
+names use the existing client resolver; authored fixture names are review samples.
+
+The rematch control receives focus on entering results; vote broadcasts preserve
+focus/scroll, and a focused button becoming disabled moves focus to deployment.
+Existing one-second R grace, vote behavior and automatic intermission remain.
+No new animation, lights, textures, passes, geometry, sounds or runtime bakes.
+The results are an opaque DOM overlay; narrow views stack tables and scroll.
+
+Rejected intermediates: the first candidate passed desktop but the compact fixture
+caught content-box padding exceeding the viewport. Added border-box sizing. Visual
+review then caught a clipped heading on the tallest narrow panel despite reachable
+actions; changed flex alignment and added an explicit heading-reachability check.
+No gate thresholds were relaxed. Intermediate reports/screens remain under
+.inspect/session23-review-* and session23-results-*.
+
+Before evidence: .inspect/session23-before-{match-end,match-end-mobile,relay,
+effects-stress}.png and session23-before-report.json. Accepted results evidence:
+session23-final-results-report.json and eight PNGs (end, mobile, narrow, short,
+defeat, draw, FFA, vote). Checks cover escaping, sorting/ties, exactly one local
+row, zero-death ratio, initial/vote focus, disabled vote, draw and FFA presentation,
+12-row completeness and heading/action reachability. Final report has zero errors
+or forbidden offline gameplay requests. Opened before/after desktop, compact and
+narrow captures and final real Undertow practice. Fixtures are not human playtests.
+
+Final pnpm typecheck, pnpm test (337 passed, 3 existing opt-in skips; 36 passing
+files, one skipped), pnpm build:client and pnpm audit:assets PASS. Logs use
+.inspect/session23-{typecheck,test,build-client,audit-assets}.log. Exact required
+relay,practice-two inspector PASS (session23-required-inspector.log); extended
+Relay/practice-two/effects-stress inspector with --assert-budgets PASS
+(session23-final.log and session23-final-report.json). Zero console/runtime/HTTP
+errors or forbidden offline gameplay network requests. Owned preview was restarted
+after final public bundle writes before the final browser gates.
+
+Matched effects workload: eleven remote operators plus local rifle/hands, 145
+twelve-rifle volleys, 96 blasts, 2,130 steady samples; transient effects drain.
+Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Measured deltas in
+.inspect/session23-delta.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 133,302 | 220 / 133,302 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0 / 0 / 0 |
+| Max / first-ready max ms | 7.2 / 7.1 | 7.2 / 7.2 | 0 / +0.1 |
+| Prepared shader programs | 27 | 27 | 0 |
+
+The unchanged WebGL fixture does not measure dense results DOM updates. Desktop
+rAF/allocation estimates do not establish GPU timing, target iGPU, cold-driver,
+thermal or real 6v6 acceptance. No performance improvement is claimed. Asset bytes
+remain 13,526,417; public bytes 19,579,911 -> 19,603,121 (+23,210, bundled code
+and source map). Largest public file 4,209,115 bytes. Public 40 MiB / per-file
+25 MiB caps pass. No binary asset/provenance or allowlist additions are required.
+
+Re-ranked gaps: Undertow/Switchyard exterior richness next, then solo encounter
+variety. Nonblocking owner questions: keep this restrained debrief and full seated
+roster (default yes); prioritize other-map exterior richness next (default yes).
+Industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM remain active defaults.
+Human visual/animation/audio, browser/device and real-match acceptance stay open.
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots; warmup -> live at 6.927 seconds, two deaths and two
+observed respawns. Zero post-warmup shader recompiles, frames >150 ms, console
+errors or long tasks. Sole recorded frame above 24 ms was 64.2 ms at startup.
+Evidence: .inspect/hitch.json, session23-hitch.json and session23-hitch.log.
+No room isolation, storage clearing or extra lifecycle drill. The probe finishes
+during live play; results behavior is covered by the separate production-HUD fixtures.
+
+Cleanup: .inspect/session23-cleanup.json confirms all twelve final preview process
+tree members stopped, zero remaining owned processes, port-8796 listeners or
+inspection browsers. Earlier preview trees were also stopped (the first cleanup's
+one immediately lingering process was verified gone on the subsequent process read).
+All standing final gates are green. Evidence remains ignored under .inspect.
+Ready for supervisor review/publication; no commit, push or deployment.

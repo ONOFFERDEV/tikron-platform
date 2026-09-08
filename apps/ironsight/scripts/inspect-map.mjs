@@ -102,7 +102,9 @@ try {
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
       if (name.startsWith('switchyard-')) url.searchParams.set('map', 'arena3');
     }
-    if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
+    if (name.endsWith('narrow')) await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+    else if (name.endsWith('short')) await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 600, deviceScaleFactor: 1, mobile: false });
+    else if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
     else await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await send('Page.navigate', { url: url.href });
     if (name.startsWith('journey')) {

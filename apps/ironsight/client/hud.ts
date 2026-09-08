@@ -13,6 +13,11 @@ const T = GAME.text;
 const [UI_RED, UI_BLUE] = GAME.teams.uiText;
 const WEAPONS = GAME.weapons;
 
+export interface ResultRoster {
+  rows: { name: string; k: number; d: number; team: number; isMe: boolean }[];
+  won: boolean;
+}
+
 import { matchBrief } from "./match-presentation.js";
 import type { ArenaState } from "../src/schema.js";
 
@@ -121,6 +126,39 @@ const css = `
 #overlay .hint{font-size:11px;letter-spacing:1px}
 @media(max-width:800px){#tacticalMap{transform:scale(.75);transform-origin:top left}#ping{top:155px}#wbar{bottom:115px}#hp{width:150px}#scores{left:auto;right:28px;transform:none}#mode{left:auto;right:28px;transform:none}}
 @media(max-width:800px){#matchBrief{top:202px}#hud #caps{top:270px}#hud #lb{top:290px}#hud #feed{top:96px;width:260px;max-height:96px;overflow:hidden}#hud #feed .k{width:260px;padding:6px 9px;gap:5px}#hud #streak{top:310px}}
+/* Round debrief: outcome first, personal contribution, then the seated roster. */
+#overlay[data-kind="end"]{padding:24px;overflow:auto;justify-content:flex-start;background:linear-gradient(120deg,#08191f,#142e35);text-shadow:none}
+#overlay .debrief{box-sizing:border-box;flex-shrink:0;width:min(960px,100%);margin:auto;border-top:3px solid var(--result-accent);background:linear-gradient(125deg,#1d363e,#10262d);padding:28px 32px;text-align:left;box-shadow:0 18px 70px #0005}
+#overlay .debrief .eyebrow{margin:0 0 12px;color:#a9c0c2;letter-spacing:3px}
+#overlay .resultHeader{display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #c3d3ca30;padding-bottom:22px}
+#overlay .debrief h1{font-size:44px;letter-spacing:4px;color:var(--result-accent);margin:0 0 5px;overflow-wrap:anywhere}
+#overlay .resultWinner{color:#d0dddb;font-size:12px;letter-spacing:1px;overflow-wrap:anywhere}
+#overlay .finalScore{display:flex;gap:22px;text-align:center;align-items:center;font-variant-numeric:tabular-nums}
+#overlay .finalScore strong{display:block;font-size:38px;line-height:1.2}
+#overlay .finalScore span{font-size:10px;letter-spacing:2px;white-space:nowrap}
+#overlay .finalScore .divider{color:#9eb4b5;font-size:20px}
+#overlay .personalStats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:20px 0;border-bottom:1px solid #c3d3ca30}
+#overlay .personalStats strong{display:block;font-size:30px;line-height:1.2;font-variant-numeric:tabular-nums}
+#overlay .personalStats span{font-size:10px;letter-spacing:1.5px;color:#b8cccc}
+#overlay .rosters{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:22px 0}
+#overlay .rosters.solo{grid-template-columns:1fr}
+#overlay .roster{min-width:0}
+#overlay .roster h2{font-size:11px;letter-spacing:2px;margin:0 0 10px;color:var(--team)}
+#overlay .roster table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;font-variant-numeric:tabular-nums}
+#overlay .roster th{color:#b8cccc;font-size:10px;letter-spacing:1px;font-weight:400}
+#overlay .roster th,#overlay .roster td{padding:8px 6px;border-bottom:1px solid #c3d3ca16;text-align:right}
+#overlay .roster th:first-child,#overlay .roster td:first-child{width:24px;text-align:left;color:#9db4b7}
+#overlay .roster th:nth-child(2),#overlay .roster td:nth-child(2){width:auto;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#overlay .roster th:nth-child(n+3){width:36px}
+#overlay .roster tr.me{background:#edaa521b;box-shadow:inset 2px 0 #edaa52;color:#ffe0aa}
+#overlay .youTag{font-size:9px;color:#edaa52;margin-right:6px}
+#overlay .resultFooter{display:flex;justify-content:space-between;align-items:center;gap:18px;border-top:1px solid #c3d3ca30;padding-top:18px}
+#overlay .resultFooter p{font-size:12px;margin:0 0 5px;opacity:1;color:#d2e0dc}
+#overlay .resultFooter .hint{font-size:10px;letter-spacing:.3px;color:#a6bfc1;margin:0;max-width:290px}
+#overlay .resultActions{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+#overlay .resultActions button{margin:0;padding:13px 16px;font-size:11px}
+@media(max-width:800px){#overlay[data-kind="end"]{padding:16px}#overlay .debrief{padding:22px}#overlay .debrief h1{font-size:32px}#overlay .resultFooter{align-items:flex-start;flex-direction:column}#overlay .rosters{gap:16px}}
+@media(max-width:540px){#overlay .debrief{padding:18px}#overlay .resultHeader{align-items:flex-start;flex-direction:column;gap:14px}#overlay .rosters{grid-template-columns:1fr}#overlay .personalStats{gap:8px}#overlay .personalStats span{font-size:9px;letter-spacing:.5px}#overlay .resultActions{flex-shrink:1}#overlay .debrief h1{font-size:28px}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -198,14 +236,20 @@ export class Hud {
     if (this.brief.innerHTML !== markup) this.brief.innerHTML = markup;
   }
   private present(kind: string, markup: string): void {
+    const enteringEnd = kind === 'end' && (this.overlay.dataset.kind !== 'end' || this.overlay.style.display === 'none');
     this.overlay.style.display = "flex";
     this.overlay.dataset.kind = kind;
     // Keep focused buttons alive between frames and vote broadcasts.
     if (this.overlayMarkup === markup) return;
     const focused = document.activeElement?.getAttribute('data-action');
+    const scrollTop = this.overlay.scrollTop;
     this.overlayMarkup = markup;
     this.overlay.innerHTML = markup;
-    if (focused) this.overlay.querySelector<HTMLButtonElement>(`[data-action="${focused}"]`)?.focus();
+    const focusTarget = focused ? this.overlay.querySelector<HTMLButtonElement>(`[data-action="${focused}"]:not(:disabled)`)
+      ?? this.overlay.querySelector<HTMLButtonElement>('[data-action="leave"]')
+      : enteringEnd ? this.overlay.querySelector<HTMLButtonElement>('[data-action="restart"]') : null;
+    focusTarget?.focus({ preventScroll: true });
+    this.overlay.scrollTop = scrollTop;
   }
   showConnection(expired: boolean): void {
     this.present('connection', `<div class="result"><div class="eyebrow">CONNECTION / 연결</div><h1>${expired ? 'CONNECTION LOST' : 'RECONNECTING'}</h1><p>${expired ? 'Return to deployment to join a new room.' : 'Waiting for the room. Your operator remains in the match.'}</p><button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
@@ -548,7 +592,7 @@ export class Hud {
    * instead of the team colors. (Practice never actually reaches "ended" — its
    * match never ends — so this path is unreachable there in practice.)
    */
-  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, teamless: boolean): void {
+  showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, teamless: boolean, roster?: ResultRoster): void {
     this.overlay.style.display = "flex";
     // "draw" is checked before teamless so an FFA no-score timeout renders "DRAW"
     // in neutral color, matching team-mode draw rendering, instead of "draw WINS".
@@ -556,13 +600,23 @@ export class Hud {
       ? T.hud.draw
       : fmt(T.hud.winsFmt, { winner: teamless ? esc(winner) : winner.toUpperCase() });
     const color = teamless ? "#eee" : winner === "red" ? UI_RED : winner === "blue" ? UI_BLUE : "#eee";
-    const scoreLine = teamless ? "" : `<p><span style="color:${UI_RED}">RED ${red}</span> — <span style="color:${UI_BLUE}">BLUE ${blue}</span></p>`;
+    const scoreLine = teamless ? "" : `<div class="finalScore" aria-label="Final team scores"><span style="color:${UI_RED}">RED<strong>${red}</strong></span><span class="divider">/</span><span style="color:${UI_BLUE}">BLUE<strong>${blue}</strong></span></div>`;
     const voteLine = this.voteCount >= 0 ? `${this.voteCount} / ${this.voteNeed} votes to restart` : 'A majority can skip the intermission.';
-    this.present('end', `<div class="result"><div class="eyebrow">RELAY / ROUND COMPLETE</div><h1 style="color:${color}">${title}</h1>${scoreLine}`
-      + `<div class="resultStats"><div><strong>${myKills}</strong>ELIMINATIONS</div><div><strong>${myDeaths}</strong>DEATHS</div></div>`
-      + `<p>${voteLine}</p><p class="hint">The next round starts automatically after intermission.</p>`
+    const outcome = winner === 'draw' ? 'DRAW' : roster ? roster.won ? 'VICTORY' : 'DEFEAT' : title;
+    const accent = winner === 'draw' ? '#d2ded3' : roster ? roster.won ? '#edaa52' : '#e7a49c' : color;
+    const groups = teamless ? [null] : [0, 1];
+    const tables = roster ? groups.map(team => {
+      const rows = roster.rows.filter(r => team === null || r.team === team).slice()
+        .sort((a, b) => b.k - a.k || a.d - b.d || a.name.localeCompare(b.name));
+      const label = team === null ? 'OPERATORS' : team === 0 ? 'RED TEAM' : 'BLUE TEAM';
+      return `<section class="roster" style="--team:${team === null ? '#b8cccc' : team === 0 ? UI_RED : UI_BLUE}"><h2>${label} / ${rows.length}</h2><table aria-label="${label} final standings"><thead><tr><th scope="col">#</th><th scope="col">OPERATOR</th><th scope="col"><abbr title="Eliminations">K</abbr></th><th scope="col"><abbr title="Deaths">D</abbr></th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${r.isMe ? 'me' : ''}"><td>${i + 1}</td><td>${r.isMe ? '<span class="youTag">YOU</span>' : ''}${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`).join('')}</tbody></table></section>`;
+    }).join('') : '';
+    this.present('end', `<div class="debrief" style="--result-accent:${accent}" role="region" aria-label="Round results"><div class="eyebrow">RELAY / ROUND DEBRIEF</div><div class="resultHeader"><div><h1>${outcome}</h1><div class="resultWinner">${title}</div></div>${scoreLine}</div>`
+      + `<div class="personalStats" aria-label="Your performance"><div><strong>${myKills}</strong><span>ELIMINATIONS</span></div><div><strong>${myDeaths}</strong><span>DEATHS</span></div><div><strong>${myDeaths === 0 ? '—' : (myKills / myDeaths).toFixed(2)}</strong><span>K / D RATIO</span></div></div>`
+      + (tables ? `<div class="rosters${teamless ? ' solo' : ''}">${tables}</div>` : '')
+      + `<div class="resultFooter"><div><p>${voteLine}</p><p class="hint">The next round starts automatically after intermission. Standings show operators still in the room.</p></div><div class="resultActions">`
       + `<button data-action="restart" ${this.voteSent ? 'disabled' : ''}>${this.voteSent ? 'VOTE SENT / 대기' : 'REMATCH / 다시 플레이 · R'}</button>`
-      + `<button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
+      + `<button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div></div></div>`);
   }
 
   hideOverlay(): void {

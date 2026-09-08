@@ -520,7 +520,12 @@ async function main(): Promise<void> {
       // "draw" is a literal wire value (the no-score timeout), not a player id — name()
       // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
       const winnerLabel = teamless && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
-      hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless);
+      hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless, {
+        won: teamless ? matchEnd.winner === net.myId : matchEnd.winner === (me?.team === 0 ? 'red' : 'blue'),
+        rows: Object.entries(state?.players ?? {}).map(([id, p]) => ({
+          name: name(id), k: p.k, d: p.d, team: p.team, isMe: id === net.myId,
+        })),
+      });
     } else if (phase === "ended") {
       hud.showLockPrompt(true, "ROUND COMPLETE · Receiving results…");
     } else if (me && !me.alive) {
