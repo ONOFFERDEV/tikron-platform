@@ -6,6 +6,7 @@ import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
 import { PLAYER } from "../src/config.js";
+import { spawnFacingYaw } from "../src/map/spawn.js";
 
 class SpawnArena extends ArenaRoomImpl {
   protected override fillToPlayers = 0;
@@ -35,7 +36,38 @@ describe("real room spawn routing", () => {
     expect(p.prot).toBe(true);
     expect(p.hp).toBe(PLAYER.maxHp);
     if (id === "arena-ffa") {
-      expect(p.yaw).toBeCloseTo(Math.atan2(map.bounds.width / 2 - p.x, map.bounds.depth / 2 - p.z));
+      expect(p.yaw).toBeCloseTo(spawnFacingYaw(map, p,
+        Math.atan2(map.bounds.width / 2 - p.x, map.bounds.depth / 2 - p.z)));
     }
+  });
+  it('FFA joins use both authored northern exit views and retain other arrival defaults', async () => {
+    const h = await createTestRoom(SpawnArena, { id: 'arena-ffa', codec: ArenaSchema, sync: 'throttled' });
+    const state = (h.room as unknown as { state: ArenaState }).state;
+    const points = [...ARENA3.spawns.red, ...ARENA3.spawns.blue];
+    let authored = 0;
+    for (const point of points) {
+      // Isolate orientation from the independently tested threat selector.
+      for (const player of Object.values(state.players)) player.alive = false;
+      const client = await h.connect();
+      const p = state.players[client.id]!;
+      expect({ x: p.x, y: p.y, z: p.z }).toEqual(point);
+      if (p.z === 3 && (p.x === 57 || p.x === 93)) {
+        expect(p.yaw).toBeCloseTo(p.x === 57 ? Math.PI / 2 : Math.PI * 1.5);
+        authored++;
+      } else {
+        const expected = Math.atan2(75 - p.x, 50 - p.z);
+        expect(Math.sin(p.yaw)).toBeCloseTo(Math.sin(expected));
+        expect(Math.cos(p.yaw)).toBeCloseTo(Math.cos(expected));
+      }
+      expect(p.yaw).toBeGreaterThanOrEqual(0);
+      expect(p.yaw).toBeLessThan(Math.PI * 2);
+      expect(p.pitch).toBe(0);
+      await h.advance(100); // Wait for the room's normal coalesced state flush.
+      const received = (client.lastState() as ArenaState).players[client.id]!;
+      // Exercise the real Welcome/binary codec path, including west-facing yaw.
+      expect(received.yaw).toBeCloseTo(p.yaw, 2);
+      expect(received.pitch).toBeCloseTo(0, 2);
+    }
+    expect(authored).toBe(2);
   });
 });

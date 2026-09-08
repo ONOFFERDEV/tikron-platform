@@ -40,6 +40,12 @@ export interface MapDef {
    *  compatibility with existing fixtures/blueprints that predate ramps. */
   readonly ramps?: readonly RampDef[];
   readonly spawns: { readonly red: readonly Vec3[]; readonly blue: readonly Vec3[] };
+  /** Authored first-look targets for screened arrivals. These orient the player;
+   * they never select a spawn or change collision/threat scoring. */
+  readonly spawnViews?: readonly {
+    readonly from: { readonly x: number; readonly z: number };
+    readonly toward: { readonly x: number; readonly z: number };
+  }[];
   /** Domination capture points. Every map defines them (even a tdm/ffa-only
    *  map) so `mapForMode` never has to special-case a missing field. */
   readonly caps: { readonly a: Vec3; readonly b: Vec3; readonly c: Vec3 };

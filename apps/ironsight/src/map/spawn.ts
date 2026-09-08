@@ -1,5 +1,14 @@
 import { nearestBox, type Box, type Vec3 } from "../physics.js";
 import { PLAYER } from "../config.js";
+import type { MapDef } from "./types.js";
+
+export function spawnFacingYaw(map: MapDef, point: Vec3, fallback: number): number {
+  const view = map.spawnViews?.find(v => v.from.x === point.x && v.from.z === point.z);
+  const yaw = view ? Math.atan2(view.toward.x - point.x, view.toward.z - point.z) : fallback;
+  // ArenaSchema encodes yaw in [0, 2pi]. Negative atan2 results would otherwise
+  // clamp to zero on the wire, turning western-facing FFA arrivals toward +z.
+  return ((yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+}
 
 export interface SpawnOccupant extends Vec3 {
   readonly id: string; readonly team: number; readonly alive: boolean; readonly crouch?: boolean;

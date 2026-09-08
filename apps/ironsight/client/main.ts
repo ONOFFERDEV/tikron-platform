@@ -318,6 +318,10 @@ async function main(): Promise<void> {
         deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
       }
       if (!wasAlive && me.alive) {
+        // Adopt the authoritative arrival view once. Keeping the corpse's look
+        // would immediately send it back and erase the server's spawn facing.
+        input.yaw = me.yaw;
+        input.pitch = me.pitch;
         hud.clearDamage();
         deathCam = null;
         killerId = undefined;

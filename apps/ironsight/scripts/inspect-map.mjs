@@ -240,9 +240,13 @@ try {
         const death = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-self-death.png`), Buffer.from(death.data, 'base64'));
         await waitFor('window.ironsight.state().players[window.ironsight.myId].alive');
-        await evaluate('window.ironsight.look(Math.PI/2,0)'); await delay(300);
-        combat = await evaluate('({deaths:window.ironsight.state().players[window.ironsight.myId].d,hp:window.ironsight.state().players[window.ironsight.myId].hp,reloadPhase:window.ironsight.viewmodelInfo().phase})');
-        if (combat.deaths < 1 || combat.hp !== 100 || combat.reloadPhase !== 'idle') throw Error(`Respawn presentation failed: ${JSON.stringify(combat)}`);
+        // Do not repair the look in the probe: the game must discard the steep
+        // downward death aim itself, then keep the fresh view through look sync.
+        await delay(300);
+        combat = await evaluate('(() => { const p=window.ironsight.state().players[window.ironsight.myId]; return {deaths:p.d,hp:p.hp,pitch:p.pitch,yaw:p.yaw,expectedYaw:Math.atan2(75-p.x,50-p.z),reloadPhase:window.ironsight.viewmodelInfo().phase}; })()');
+        // Relay practice is FFA-style centre-facing, not a team-facing spawn.
+        const yawError = Math.atan2(Math.sin(combat.yaw-combat.expectedYaw),Math.cos(combat.yaw-combat.expectedYaw));
+        if (combat.deaths < 1 || combat.hp !== 100 || Math.abs(combat.pitch) > .01 || Math.abs(yawError) > .01 || combat.reloadPhase !== 'idle') throw Error(`Respawn presentation failed: ${JSON.stringify(combat)}`);
       }
       if (name === 'flow') {
         const before = await evaluate('window.ironsight.state().players[window.ironsight.myId].x');

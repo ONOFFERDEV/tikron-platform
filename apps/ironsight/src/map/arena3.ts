@@ -65,6 +65,12 @@ export const SWITCHYARD_ROWS: readonly string[] = [
 const compiled = compileTileMap(SWITCHYARD_ROWS);
 export const ARENA3: MapDef = {
   ...compiled, presentation: 'switchyard',
+  // Look along the protected aisle toward the screen end, instead of into the
+  // cabinet face. The player still chooses when to turn into the combat lane.
+  spawnViews: [
+    { from: { x: 57, z: 3 }, toward: { x: 66, z: 3 } },
+    { from: { x: 93, z: 3 }, toward: { x: 84, z: 3 } },
+  ],
   patrolWaypoints: [
     { x: 25, z: 13 }, { x: 55, z: 29 }, { x: 95, z: 29 }, { x: 125, z: 13 },
     { x: 123, z: 51 }, { x: 123, z: 87 }, { x: 75, z: 93 },

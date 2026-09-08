@@ -4,9 +4,24 @@ import { canStand, moveAndSlide, nearestBox } from '../src/physics.js';
 import { PLAYER, MOVE } from '../src/config.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
-import { spawnExposed } from '../src/map/spawn.js';
+import { spawnExposed, spawnFacingYaw } from '../src/map/spawn.js';
 
 describe('Switchyard encounter safety', () => {
+  it('authored northern views have nine metres of clear eye and capsule travel to an exit', () => {
+    expect(map.spawnViews).toHaveLength(2);
+    for (const view of map.spawnViews!) {
+      const spawn = [...map.spawns.red, ...map.spawns.blue].find(p => p.x === view.from.x && p.z === view.from.z)!;
+      expect(spawn).toBeDefined();
+      const yaw = spawnFacingYaw(map, spawn, 0);
+      const dir = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
+      expect(nearestBox({ ...spawn, y: PLAYER.standEye }, dir, map.boxes, 9)).toBe(Infinity);
+      let p = { ...spawn };
+      for (let i = 0; i < 90; i++) p = moveAndSlide(p, PLAYER.radius, PLAYER.standHeight,
+        { x: dir.x * .1, y: -.1, z: dir.z * .1 }, -1, map.boxes, map.bounds, MOVE.stepUp, map.ramps).pos;
+      expect(p.x).toBeCloseTo(view.toward.x);
+      expect(p.z).toBeCloseTo(view.toward.z);
+    }
+  });
   it('new northern arrivals hide the whole body and can leave around either screen end', () => {
     for (const x of [57, 93]) {
       const spawn = [...map.spawns.red, ...map.spawns.blue].find(p => p.x === x && p.z === 3)!;

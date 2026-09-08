@@ -24,7 +24,7 @@ import {
   type WeaponSpec,
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
-import { chooseSafeSpawn, SpawnSightHistory } from "../map/spawn.js";
+import { chooseSafeSpawn, spawnFacingYaw, SpawnSightHistory } from "../map/spawn.js";
 import { GroundNavigator } from "../map/navigation.js";
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
@@ -1332,9 +1332,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.alive = true;
     p.prot = true;
     p.crouch = false;
-    p.yaw = teamed
+    p.yaw = spawnFacingYaw(this.map, pt, teamed
       ? p.team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1]
-      : Math.atan2(this.map.bounds.width / 2 - pt.x, this.map.bounds.depth / 2 - pt.z);
+      : Math.atan2(this.map.bounds.width / 2 - pt.x, this.map.bounds.depth / 2 - pt.z));
     p.pitch = 0;
     const patrolBrain = this.botBrains.get(id);
     if (patrolBrain && this.map.patrolWaypoints?.length)
