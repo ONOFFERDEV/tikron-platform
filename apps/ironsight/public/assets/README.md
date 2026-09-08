@@ -296,3 +296,13 @@ preview: `node scripts/inspect-map.mjs --url http://localhost:8796 --shots exter
 Ground presence/height/extent and triangle budget are asserted by the inspector;
 `pnpm test -- test/relay-apron.test.ts` checks architecture selection and paving
 winding, coverage, finite data and separation from playable ground.
+
+### Original first-person tailored gloves and sleeves (Session 17)
+
+`client/hand-geometry.ts` builds original oval sleeve sections with compression
+folds, reinforced vertex-colour panels, rounded closed gloves/padded knuckles and
+a dark cuff with an amber seam. No external source, purchased derivative, bitmap
+or Meshy generation is involved. Constructed once by `ViewmodelHands`; six draws,
+no texture allocations, existing wrist fits and server-driven reload timeline.
+Reproduce with `pnpm build:client`; inspect with
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-ar,weapon-sniper-reload-out,weapon-pistol,weapon-ar-cycle --prefix hands`.

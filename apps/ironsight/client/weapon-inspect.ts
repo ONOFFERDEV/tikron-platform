@@ -17,11 +17,22 @@ export function startWeaponInspector(): void {
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
   flags.__inspectReady = false;
   let frames = 0;
+  const cycle = shot?.endsWith('-cycle') ?? false;
+  let cycleFrames = 0;
+  const observedPhases = new Set<string>();
   const tick = () => {
-    const ready = scene.inspectViewmodel(progress, shot?.endsWith('-ads') ?? false);
+    const movingProgress = cycle && cycleFrames < 181 ? cycleFrames / 180 : progress;
+    const ready = scene.inspectViewmodel(movingProgress, shot?.endsWith('-ads') ?? false);
     scene.render();
     if (!ready || ++frames < 20 || !scene.readyForInspection(0)) { requestAnimationFrame(tick); return; }
-    flags.__mapInspect = scene.viewmodelDiagnostics(); flags.__inspectReady = true;
+    if (cycle && cycleFrames < 182) {
+      observedPhases.add(scene.viewmodelDiagnostics().phase);
+      cycleFrames++;
+      requestAnimationFrame(tick); return;
+    }
+    flags.__mapInspect = { ...scene.viewmodelDiagnostics(),
+      ...(cycle ? { reloadCycle: { frames: cycleFrames, phases: [...observedPhases] } } : {}) };
+    flags.__inspectReady = true;
   };
   requestAnimationFrame(tick);
 }

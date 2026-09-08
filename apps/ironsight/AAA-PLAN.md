@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-15 are deployed there, including Switchyard, Relay
-service detail, uplinks, concrete detail and ground continuity. Session 16's
-join-during-disposal recovery fix remains local until publication. Continue using
+Supervisor reports sessions 1-16 are deployed there, including Switchyard, Relay
+service detail, uplinks, concrete detail, ground continuity and arena recovery.
+Session 17's first-person sleeve/glove finish remains local until publication. Continue using
 the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,20 +327,18 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 16. Selected the supervisor's persisted-ended-room failure
-ahead of art. A new real-core regression reproduced a join during asynchronous
-disposal leaving one seat in warmup without simulation. Fixed occupied-room
-recovery, passed all four lifecycle tests, and verified a naturally ended saved
-round through local cold restart and empty reuse with two green hitch probes.
-Actual deployed eviction/ordering qualification remains open; the harness race
-is not a claim about Cloudflare input-gate scheduling. Next default: first-person
-weapon/operator presentation, with the other visual priorities retained below.
+Re-ranked after Session 17. The supervisor confirms lifecycle recovery is resolved;
+no extra persistence drill is needed absent a new failure. This session delivers
+first-person tailored sleeve/glove geometry and five-weapon moving reload fixtures.
+Next default: impact feedback and remote hit/death presentation, ahead of another
+environment pass. Keep the constant-light and existing texture budgets.
 
-1. **Weapon/operator finish.** First-person sleeves still read as long angular
-   tubes against the improving environment. Inspect moving five-weapon reload/grip
-   contact, then refine glove/sleeve silhouettes and folds within existing draw and
-   texture budgets. Remote reactions/deaths still need review; retain constant
-   light count through hidden groups and authoritative animation deadlines.
+1. **Combat character/impact finish.** First-person sleeves now have tapered oval
+   sections, compression folds, reinforced panels and padded gloves at six draws.
+   Five weapon reload cycles and static contact/ADS captures have engineering
+   coverage; human finger contact and animation acceptance remain open. Next:
+   remote hit reactions/deaths and readable impact VFX, then layered weapon audio.
+   Keep server-confirmed hits and constant light count through hidden groups.
 2. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
    walls and floor now have restrained concrete relief and roughness (Session 14).
@@ -2109,3 +2107,92 @@ questions are nonblocking: should weapon finish precede more environment detail
 yes). Keep industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM. Human
 grip/audio/route review, representative hardware, real RTT and deployed eviction
 qualification remain open. No owner approval requested; supervisor owns publication.
+
+### Session 17 - 2026-09-08: tailored first-person sleeves and padded gloves
+
+Read the standing brief, Session 17 status and plan in order; confirmed
+ironsight-aaa from HEAD. Scope apps/ironsight/** only. No git commands, commit,
+push, deployment, dependencies, SDK or purchased-derivative changes. The Worker
+build used its existing dry-run. Supervisor explicitly resolves the lifecycle
+issue; no additional persistence investigation or duplicate reuse drill performed.
+No Meshy credits spent (1530 remain): fitted procedural hand geometry is the
+appropriate tool for this gap, and avoids a new textured prop within ~0.25 MiB
+remaining texture headroom.
+
+Selected the top weapon/operator gap. Replaced the six-sided straight forearm
+tubes with original tapered oval cloth sections, asymmetric compression folds
+and vertex-coloured reinforced panels. Rounded closed glove shapes now have
+separate padded knuckle silhouettes and back-hand panels. A dark cuff with a thin
+amber seam replaces the solid gold bracelet. Sleeve ends now reach the cuff using
+the measured wrist/elbow length, avoiding the old proportional endpoint gap.
+All six existing mesh draws remain; geometry is built only during construction.
+No new textures, lights, passes or per-frame bakes. Existing five weapon wrist
+fits, reload contacts, muzzle origins, authoritative reload timing, collision and
+server hit rules remain unchanged. Provenance/reproduction: public/assets/README.md.
+
+Added five offline moving reload fixtures: weapon-{ar,smg,shotgun,sniper,pistol}-cycle.
+Each samples 181 normalized reload positions plus idle through the production
+presentation path; the inspector asserts reach, extraction, insertion, charging,
+return and idle were observed. These are deterministic sequential render samples,
+not a real-time server-duration or human moving-animation acceptance claim.
+Six new tests check finite/outward geometry, the six-draw/no-texture/triangle
+budget, five-weapon wrist continuity, unchanged firing-hand anchors, cancellation
+to idle, and stable geometry buffers throughout updates.
+
+Code gates PASS: pnpm typecheck, pnpm test (325 passed, 3 existing opt-in skips;
+34 passing files plus one skipped), pnpm build:client, pnpm build (dry-run),
+pnpm audit:assets. Worker remains 235.35 KiB / gzip 69.96 KiB. Logs use
+.inspect/session17-{typecheck,test,build-client,build,audit-assets}.log.
+Asset bytes 12,175,155 -> 12,175,826 (+671, provenance only); public bytes
+18,160,264 -> 18,184,742 (+24,478 including bundle/source map); largest file
+4,170,048 bytes. Both file caps pass. No binary asset changes or new downloads.
+
+Before/after evidence: .inspect/session17-before-report.json (eight views),
+session17-final-report.json (33 views), matching PNGs and session17-delta.json.
+Final captures cover required Relay/real Undertow practice, Relay effects stress,
+all five weapon holds/ADS/extraction/insertion/charging poses and all five cycles.
+Zero console/runtime/HTTP errors and zero forbidden offline requests. Opened the
+baseline and tailored sniper extraction, AR and pistol holds, final shotgun hold,
+sniper charging, AR ADS and Undertow gameplay. The first tailored geometry was
+retained after review; no rejected art intermediate or failed gate was hidden.
+The tailored captures precede the inspector extension; final captures are the
+post-build acceptance set. No gate threshold was relaxed.
+
+Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Matched Relay effects
+workload: eleven remote operators plus local rifle/hands, 145 twelve-rifle volleys,
+96 blasts, 2,130 steady samples; transient effects drain completely.
+
+| Relay stress metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 90,286 | 220 / 93,190 | 0 / +2,904 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0.0 / 0.0 / 0.0 |
+| Max / first-ready max ms | 7.2 / 7.1 | 7.2 / 7.1 | 0.0 / 0.0 |
+
+Relay eye-level environment remains 22 calls / 29,706 triangles. Resource gates
+pass unchanged. These desktop rAF intervals and allocation estimates do not
+establish GPU timing, target iGPU, thermal/cold-driver or real 6v6 acceptance.
+Existing local workerd tick-backlog warnings remain in the server log; no local
+capacity claim is made.
+
+Re-ranked the gap list: next default is remote hit/death and impact feedback,
+then layered audio, ahead of another environment pass. Open owner questions are
+nonblocking: retain this tailored cloth/padded glove direction (default yes), and
+prioritize combat impact readability next (default yes). Human finger/contact,
+reload motion, headphone mix and real play review remain open. Industrial daylight,
+amber/teal, stylized sci-fi and 6v6 TDM remain the active defaults.
+
+Required TDM hitch gate PASS with the exact 150000-ms maximum command and fixed
+arena-tdm room. One human plus three bots; warmup -> live at 6.853 seconds,
+two deaths and two observed respawns. Zero post-warmup shader recompiles, frames
+over 150 ms, console errors or long tasks. The only recorded frame above 24 ms
+was 69.1 ms at startup. Evidence: .inspect/hitch.json, session17-hitch.json and
+session17-hitch.log. Preserved .wrangler/state; no room isolation or state clearing.
+The server restart occurred after final asset/build writes, before final browser
+gates. No redundant ended-room investigation was performed.
+
+Cleanup: .inspect/session17-cleanup.json confirms all twelve final-server
+root/descendant processes stopped, zero remaining owned processes, zero port-8796
+listeners and zero inspection browsers. The earlier server tree was stopped in
+session17-preflight-cleanup.json. All required final gates are green and evidence
+stays under ignored .inspect. Ready for supervisor review; no commit/push/deploy.

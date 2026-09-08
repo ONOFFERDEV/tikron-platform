@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { cuffGeometry, gloveGeometry, sleeveGeometry } from './hand-geometry.js';
 import { reloadPose } from './reload-presentation.js';
 
 // Camera-local wrist frames for the five fitted weapon meshes. The pistol's
@@ -14,13 +14,9 @@ const WRISTS = [
 const WEAPON_SCALES = [0.65, 0.75, 0.5, 0.38, 0.85] as const;
 const RELOAD_CONTACTS = [[-0.014, -0.07, -0.435], [0.01, -0.02, -0.28],
   [-0.014, -0.045, -0.377], [-0.014, -0.105, -0.26]] as const;
-const gloveMaterial = new T.MeshStandardMaterial({ color: 0x253035, roughness: 0.9 });
-const armorMaterial = new T.MeshStandardMaterial({ color: 0x506968, roughness: 0.82, metalness: 0.08, flatShading: true });
-const cuffMaterial = new T.MeshStandardMaterial({ color: 0xc09654, roughness: 0.8 });
-function boxes(parts: number[][]): T.BufferGeometry {
-  const pieces = parts.map(([x, y, z, w, h, d]) => new T.BoxGeometry(w, h, d).translate(x!, y!, z!));
-  const merged = mergeGeometries(pieces)!; pieces.forEach(g => g.dispose()); return merged;
-}
+const gloveMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+const armorMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
+const cuffMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
 /** Original low-poly closed gloves and forearm armor. Six draw calls total;
  * individual fingers are merged at construction, no per-frame allocations. */
 export class ViewmodelHands {
@@ -31,14 +27,10 @@ export class ViewmodelHands {
   constructor() {
     for (const side of [1, -1]) {
       const palm = new T.Group();
-      const glove = new T.Mesh(boxes([
-        [side * 0.025, -0.004, 0, 0.045, 0.055, 0.065],
-        ...[0, 1, 2, 3].map(i => [-0.002, -0.030 + i * 0.014, -0.021, 0.062, 0.011, 0.024]),
-        [side * -0.012, 0.023, 0.015, 0.025, 0.022, 0.045],
-      ]), gloveMaterial);
+      const glove = new T.Mesh(gloveGeometry(side), gloveMaterial);
       palm.add(glove);
-      const sleeve = new T.Mesh(new T.CylinderGeometry(0.045, 0.065, 1, 6), armorMaterial);
-      const cuff = new T.Mesh(new T.CylinderGeometry(0.037, 0.038, 0.042, 6), cuffMaterial);
+      const sleeve = new T.Mesh(sleeveGeometry(), armorMaterial);
+      const cuff = new T.Mesh(cuffGeometry(), cuffMaterial);
       this.group.add(palm, sleeve, cuff); this.hands.push({ palm, sleeve, cuff, side });
     }
   }
@@ -68,8 +60,9 @@ export class ViewmodelHands {
       palm.rotation.set(right ? -0.18 : -0.25, 0, right ? -0.10 : 0.45);
       this.elbow.set(side * 0.27, -0.35, 0.08);
       this.delta.subVectors(this.wrist, this.elbow);
-      sleeve.position.copy(this.elbow).addScaledVector(this.delta, 0.46);
-      sleeve.scale.y = this.delta.length() * 0.87;
+      const length = this.delta.length();
+      sleeve.position.copy(this.elbow).addScaledVector(this.delta, .5 - .018 / length);
+      sleeve.scale.y = length - .036;
       sleeve.quaternion.setFromUnitVectors(this.up, this.delta.normalize());
       cuff.position.copy(this.wrist).addScaledVector(this.delta, -0.035);
       cuff.quaternion.copy(sleeve.quaternion);

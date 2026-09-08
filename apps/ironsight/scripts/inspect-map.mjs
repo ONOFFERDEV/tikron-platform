@@ -266,6 +266,11 @@ try {
       }
     }
     const report = (await send('Runtime.evaluate', { expression: gameplay ? '({ ...window.ironsight.renderInfo(), players: Object.keys(window.ironsight.state().players).length, hp: window.ironsight.state().players[window.ironsight.myId].hp })' : 'window.__mapInspect ?? null', returnByValue: true })).result?.value;
+    if (name.startsWith('weapon-') && name.endsWith('-cycle')) {
+      const cycle = report?.reloadCycle;
+      if (cycle?.frames !== 182 || ['reach', 'mag-out', 'mag-in', 'bolt', 'return', 'idle'].some(p => !cycle.phases.includes(p)))
+        throw Error(`Incomplete moving reload fixture: ${JSON.stringify(report)}`);
+    }
     if (args.includes('--assert-budgets') && name.endsWith('effects-stress')) {
       if (report.peakCallsIncludingShadowBake > 240 || report.peakTrianglesIncludingShadowBake > 500000 ||
           report.peakTextureMiB > 64 || report.peakTextures > 32 || report.effects.drained.explosions !== 0 || report.effects.drained.tracers !== 0)
