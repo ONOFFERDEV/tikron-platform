@@ -5,7 +5,8 @@
  * of emberfall's file-based `audio.ts`; the same lifecycle, oscillators instead of
  * decoded buffers.
  */
-import { spatialMix, type SoundPoint } from "./spatial-audio.js";
+import type { MapDef } from "../src/map/types.js";
+import { coverMix, footSurface, spatialMix, type SoundPoint } from "./spatial-audio.js";
 import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
 
@@ -14,17 +15,18 @@ const A = GAME.audio;
 
 /** Short mechanical cues at presentation phase boundaries. No scheduled tails
  * survive death/swap; each transient releases and disconnects within 90 ms. */
-export function playReloadCue(phase: string): void {
+export function playReloadCue(phase: string, source?: SoundPoint, threatGain = 1): void {
   const frequencies: Record<string, number> = { 'mag-out': 380, 'mag-in': 620, bolt: 1150 };
   const frequency = frequencies[phase];
   if (!frequency) return;
   const c = ready(); if (!c || !master) return;
+  const bus = spatialBus(c, source, threatGain); if (!bus) return;
   const t = c.currentTime, osc = c.createOscillator(), gain = c.createGain();
   osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, t);
   osc.frequency.exponentialRampToValueAtTime(frequency * 0.45, t + 0.06);
   gain.gain.setValueAtTime(0.09, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-  osc.connect(gain).connect(master); osc.start(t); osc.stop(t + 0.09);
-  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  osc.connect(gain).connect(bus.input); osc.start(t); osc.stop(t + 0.09);
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); bus.release(); };
 }
 
 let ctx: AudioContext | null = null;
@@ -37,19 +39,26 @@ let volume = 1;
 const listener = { x: 0, y: 0, z: 0 };
 let listenerYaw = 0;
 let remoteVoices = 0;
+let acousticMap: MapDef | undefined;
+let auditMixes: { gain: number; cutoff: number; pan: number; threatGain: number; blocked: boolean }[] | null = null;
+export function setAudioMap(map: MapDef): void { acousticMap = map; }
 export function setAudioListener(pos: SoundPoint, yaw: number): void {
   Object.assign(listener, pos); listenerYaw = yaw;
 }
 /** Bounded short-lived stereo graph; confirmation cues bypass this voice budget. */
-function spatialBus(c: AudioContext, source?: SoundPoint) {
+function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1) {
   if (!master) return null;
   if (!source) return { input: master as AudioNode, release: () => {} };
   const mix = spatialMix(source, listener, listenerYaw);
-  if (mix.gain < 0.015 || remoteVoices >= 20) return null;
+  if (mix.gain < 0.015) return null;
+  const cover = coverMix(source, listener, acousticMap?.boxes ?? []);
+  // Reserve four of the existing twenty voices for clear enemy foley.
+  if (remoteVoices >= (threatGain > 1 && !cover.blocked ? 20 : 16)) return null;
   remoteVoices++;
   const gain = c.createGain(), pan = c.createStereoPanner(), filter = c.createBiquadFilter();
-  gain.gain.value = mix.gain * 0.7; pan.pan.value = mix.pan;
-  filter.type = 'lowpass'; filter.frequency.value = mix.cutoff;
+  gain.gain.value = mix.gain * 0.7 * threatGain * cover.gain; pan.pan.value = mix.pan;
+  filter.type = 'lowpass'; filter.frequency.value = Math.min(mix.cutoff, cover.cutoff);
+  auditMixes?.push({ gain: gain.gain.value, cutoff: filter.frequency.value, pan: pan.pan.value, threatGain, blocked: cover.blocked });
   filter.connect(gain).connect(pan).connect(master);
   return { input: filter as AudioNode, release: () => { filter.disconnect(); gain.disconnect(); pan.disconnect(); remoteVoices--; } };
 }
@@ -218,18 +227,21 @@ export function playHit(head = false): void {
 
 /** Footstep: a soft short low-passed noise tap, scaled by `atten` (distance falloff
  *  for remote players; self always passes 1). */
-export function playFootstep(atten = 1, source?: SoundPoint): void {
+export function playFootstep(atten = 1, source?: SoundPoint, feet?: SoundPoint): void {
   const c = ready();
   if (!c || !master || !noise || atten <= 0.02) return;
-  const bus = spatialBus(c, source); if (!bus) return;
+  const bus = spatialBus(c, source, source ? atten : 1); if (!bus) return;
+  const metal = feet && footSurface(feet, acousticMap) === 'metal';
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
+  src.playbackRate.value = metal ? 1.35 : 0.85;
   const lp = c.createBiquadFilter();
-  lp.type = "lowpass";
-  lp.frequency.value = A.footstep.lpFreq;
+  lp.type = metal ? "bandpass" : "lowpass";
+  lp.Q.value = metal ? 2.2 : 0.7;
+  lp.frequency.value = metal ? 1900 : A.footstep.lpFreq;
   const g = c.createGain();
-  g.gain.setValueAtTime(A.footstep.gain * atten, t);
+  g.gain.setValueAtTime(A.footstep.gain * (source ? 1 : atten), t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.footstep.rampSec);
   src.connect(lp).connect(g).connect(bus.input);
   src.start(t);
@@ -314,4 +326,40 @@ export function initAudio(onToggle?: (muted: boolean) => void): void {
     applyMute();
     onToggle?.(muted);
   });
+}
+
+/** Explicit developer fixture: real Web Audio nodes after a user gesture.
+ * No gameplay state changes; map/listener restored even if an assertion fails. */
+export async function inspectThreatAudio() {
+  const c = ready(); if (!c) throw Error('Audio context is not running');
+  const savedMap = acousticMap, savedListener = { ...listener }, savedYaw = listenerYaw;
+  const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+  const source = { x: 0, y: 1, z: 10 };
+  const mixes: NonNullable<typeof auditMixes> = [];
+  try {
+    await wait(600);
+    acousticMap = { ...savedMap!, boxes: [] };
+    auditMixes = mixes;
+    setAudioListener({ x: 0, y: 1, z: 0 }, 0);
+    playFootstep(1, source, { ...source, y: 0 });
+    playFootstep(1.4, source, { ...source, y: 0 });
+    playReloadCue('mag-in', source, 1);
+    playReloadCue('mag-in', source, 1.4);
+    acousticMap = { ...savedMap!, boxes: [{ min: { x: -2, y: 0, z: 4 }, max: { x: 2, y: 3, z: 5 } }] };
+    playFootstep(1.4, source, { ...source, y: 0 });
+    auditMixes = null;
+    await wait(600);
+    acousticMap = { ...savedMap!, boxes: [] };
+    setAudioListener({ x: 0, y: 1, z: 0 }, 0);
+    for (let i = 0; i < 24; i++) playReloadCue('mag-in', source, 1);
+    const ordinaryPeak = remoteVoices;
+    for (let i = 0; i < 24; i++) playReloadCue('bolt', source, 1.4);
+    const threatPeak = remoteVoices;
+    playHit(); playKill(); // confirmed cues remain outside the remote budget
+    await wait(600);
+    return { context: c.state, sampleRate: c.sampleRate, mixes, ordinaryPeak, threatPeak, drained: remoteVoices,
+      note: 'Actual node parameters before master compressor; not headphone loudness or HRTF acceptance.' };
+  } finally {
+    auditMixes = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);
+  }
 }

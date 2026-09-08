@@ -235,7 +235,7 @@ export class Vfx {
    *  distance travelled; plays a synthesized step through `audio.ts` when the
    *  accumulated distance crosses the stride length. `listenerPos` attenuates by
    *  distance (remotes); pass null for the self track (always full volume). */
-  stepFoot(id: string, pos: Vec3, dtSec: number, grounded: boolean, listenerPos: Vec3 | null): void {
+  stepFoot(id: string, pos: Vec3, dtSec: number, grounded: boolean, listenerPos: Vec3 | null, threatGain = 1): void {
     this.seenFeet.add(id);
     let t = this.feet.get(id);
     if (!t) {
@@ -273,7 +273,7 @@ export class Vfx {
       if (d > FOOT_MAX_DIST_M) return;
       atten = Math.min(1, 3 / Math.max(1, d));
     }
-    playFootstep(listenerPos ? 1 : atten, listenerPos ? pos : undefined);
+    playFootstep(listenerPos ? threatGain : atten, listenerPos ? { x: pos.x, y: pos.y + 0.15, z: pos.z } : undefined, pos);
   }
 
   // --- per-frame aging -----------------------------------------------------------

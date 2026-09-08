@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-25 are deployed there, including layered impacts,
-grounded remote reactions/deaths, weapon audio, combat HUD and Relay weathering.
-Session 26's weapon handling remains local until publication. Continue using the standing
+Supervisor reports sessions 1-26 are deployed there, including layered impacts,
+grounded remote reactions/deaths, weapon handling, combat HUD and Relay weathering.
+Session 27's threat audio remains local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,8 +327,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 26. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session26-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 27. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session27-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -367,9 +367,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
 | R-G12 | partial | Session17 sleeves and reload phases; centre corridor/finger motion needs human review. |
 | R-G13 | not yet | Hip FOV 78; no 90-100 default/110-capped slider. |
-| R-G14 | not yet | Equal-distance enemy/ally footstep gain ratio 1.0, common noise tap; remote reload audio absent. |
+| R-G14 | partial | Session27 actual Web Audio graph: enemy/ally step and reload gain 1.4; concrete/metal surfaces, replicated remote reload phases. Numeric target met; headphone/identity acceptance open. |
 | R-G15 | partial | Confirmed hit 900/1400 Hz at .28 gain; kill 660/990 Hz at .30. Bypasses voice cap; headphone mix unverified. |
-| R-G16 | not yet | Distance low-pass only; no solid-geometry audio occlusion. |
+| R-G16 | partial | Session27 collision-box segment occlusion: .32 gain / 1100 Hz cutoff, event-time only. No ramp-volume occlusion, diffraction, doorway routing or HRTF. |
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
@@ -391,7 +391,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Shared movement/combat systems; no staged content progression. |
 | R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
-| R-L18 | not yet | Enemy audio has no team/reachability priority. |
+| R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Server rewind/plausibility checks and numeric ping; network quality label absent. |
 | R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
@@ -400,26 +400,27 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Re-ranked after Session 26: per-weapon ADS/sprint handling delivered from the top
-finishable gap. Threat audio now leads; deterministic recoil remains a separate
-coordinated prediction/hit-validation change. Resolved lifecycle recovery stays closed.
+Re-ranked after Session 27: threat gain, surface foley and direct-path cover filtering
+are delivered. Shared learnable recoil is the next finishable gap. Audio routing and
+headphone acceptance remain partial; resolved lifecycle recovery stays closed.
 
-1. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
-   occlusion; preserve bounded voices and require headphone acceptance.
-2. **Learnable recoil and accuracy (R-G04-06, R-G08, R-G20).** Shared recoil patterns,
+1. **Learnable recoil and accuracy (R-G04-06, R-G08, R-G20).** Shared recoil patterns,
    authoritative ADS/crouch accuracy and predicted claim-ray parity; handling timers
    are implemented, but high-RTT/mouse comfort still requires player review.
-3. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
+2. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
    avoids available unoccupied sampled-hidden alternatives. Measure real contact,
    recontest and side/route heatmaps; address all-exposed pools and recent enemy LOS.
-4. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
+3. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
    exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
-5. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
+4. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
    pings, countdowns, network-quality label and highlight colour choices.
-6. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** Current CQB map scale and
+5. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** Current CQB map scale and
    five-minute rounds miss reference rotation/economy targets; measure real encounters
    before coordinated map/movement/economy changes. AR close-range 300 ms TTK supports
    the retained CQB footprint; sniper lanes must remain exceptional.
+6. **Audio routing and acceptance (R-G14, R-G16, R-L18).** Headphone mix/surface identity,
+   ramp-volume occlusion and sound around doorways; current direct box filtering is
+   bounded and tested, not a reachability/diffraction model.
 7. **Human/device acceptance.** Moving hands/holds, headphone mix, 6v6/RTT, iGPU,
    cold-driver/thermal and Firefox/Safari remain open; desktop fixtures cannot close them.
 
@@ -3261,3 +3262,111 @@ session26-report-checks.json records zero
 errors/forbidden requests in required, effects and controls reports. All standing
 final gates are green. Evidence remains ignored under .inspect. Ready for supervisor
 review/publication; no commit, push or deployment.
+
+
+### Session 27 - 2026-09-08: audible threats, grounded footsteps and cover muffling
+
+Read standing brief, Session27 status, plan and all 63 reference principles in order;
+reviewed the existing canonical scorecard first, then selected its top threat-audio gap.
+Confirmed ironsight-aaa through .git/HEAD. Scope apps/ironsight/** only; no commit,
+push, deploy, dependency, purchased derivative or collision change. No Meshy spend
+(1530 credits remain): this audio gap needs no generated visual asset. Preserved local
+room storage; resolved lifecycle work was not reopened. Supervisor reports Session26
+is deployed; Session27 remains local pending supervisor publication.
+
+Reference: R-G14, R-G16, R-L18, R-G15. Concrete targets: enemy/ally footstep and reload
+gain 1.4 at equal distance; distinct concrete and metal footsteps; solid cover reduces
+gain to .32 and caps cutoff at 1100 Hz; never exceed twenty concurrent remote voices;
+hit/kill confirms bypass that cap. These implemented checks pass. R-G14 remains partial
+for headphone/surface-identity acceptance, R-G16 for ramps and sound routing around
+openings, and R-L18 for path reachability and broader enemy weapon priority. The more
+specific R-G14 1.3-1.5 range takes precedence over R-L18's generic 1.2-1.3 boost.
+
+Remote steps and mechanical reload phases now use enemy/ally team context, including
+FFA hostility. Concrete retains the short 350 Hz low-pass tap; metal uses a 1900 Hz,
+Q2.2 band-pass and 1.35 playback rate versus concrete .85. Surface selection uses box
+tops and actual ramp slopes; airborne feet do not count as a surface. Remote steps
+check shared supporting geometry. Reload cues follow replicated deadlines and the
+same phase timeline as the visible operator; entry seeds its current phase, avoiding
+a stale reload-start cue on AOI entry. Death/disappearance clears the tracker.
+
+All spatial gunfire, explosions and foley now query the source-listener segment
+against collision boxes when the sound starts. No visual prop becomes an acoustic
+wall. Overlapping boxes do not multiply attenuation. Ordinary remote sounds admit up
+to sixteen voices; four of the existing twenty slots remain available for clear enemy
+foley. There is no voice stealing, pathfinding, per-frame acoustic raycast, new sound
+buffer, texture, light, pass or runtime bake. Ramp volumes do not yet occlude audio;
+this is direct-path muffling, not physical diffraction, doorway routing or HRTF.
+
+Actual Web Audio graph fixture:
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots audio --prefix session27-audio`
+PASS, running 48 kHz AudioContext after real browser click. At 10 m, ally/enemy bus
+gains .286364/.400909 for both step and reload (ratio 1.4); covered enemy .128291
+(ratio .32), cutoff 1100 Hz. Ordinary saturation 16, enemy saturation 20, drained 0;
+hit and kill functions run while saturated. Evidence: .inspect/session27-audio-report.json,
+PNG and log. The developer fixture restores map/listener in finally and changes no
+gameplay state. Measurements are node parameters before the master compressor, not
+perceived loudness; no headphone listening approval is claimed. Five new regressions
+cover teams/FFA, solid/beyond/behind segments, open routes/elevated rays, overlapping
+boxes, and deck/ramp/airborne classification. Existing panning regressions remain.
+
+Reference re-audit: .inspect/session27-reference-audit.json, reproduced by the command
+in tools/reference-audit.ts. All 63 scorecard rows retained and re-ranked. Unchanged
+priority numeric checks: Relay 13 full/8 waist boxes, Undertow 14/8, Switchyard 6/5,
+zero head-height boxes; A/B/C ground rotations 1.33-7.33 s walk, .89-4.89 s sprint;
+spawn-to-cap proxy 2.33-10.67 s walk (not contact). ADS AR/SMG/shotgun/sniper/pistol
+250/200/225/400/165 ms, sprint recovery 120/100/130/150/90 ms. TDM 50 kills/300 s;
+DOM 4 s neutral/8 s enemy capture, one point per two seconds per flag, target 200,
+no side swap. Live respawn 3000 ms with Session25 threat selection. Hit 900/1400 Hz
+at .28 gain; kill 660/990 Hz at .30 peak. Existing victim flash plus direction remains;
+killfeed still top-right/five rows/weapon and HEADSHOT text, no objective feed.
+Reference pacing mismatches stay open; 60x40 m remains CQB with four-hit/300 ms AR.
+
+Paired renderer evidence: .inspect/session27-{before,final}-{relay,effects-stress}.png,
+reports and logs. Opened both Relay views: matching geometry/presentation as expected
+for an audio session, not a claim of visual improvement. Edge152 / RTX5070 D3D11,
+1920x1080 balanced/DPR1, eleven remote operators plus local hands/rifle, 145 twelve-rifle
+volleys and 96 blasts, 2130 steady samples. Before -> after: peak calls 220 -> 220,
+triangles 133302 -> 133302, textures 30 -> 30, estimated texture MiB 63.751 -> 63.751;
+median/p95/p99 6.9/7.1/7.1 -> 6.9/7.1/7.1 ms; max 7.2 -> 7.2 ms; first-ready max
+7.1 -> 7.1 ms; programs 27 -> 27. Effects drain. All measured deltas zero at this
+precision (.inspect/session27-delta.json). This desktop fixture does not establish
+iGPU, GPU timings, cold-driver, thermal, headphone or real 6v6 acceptance.
+
+Asset bytes remain 13,526,417. Public 19,632,950 -> 19,646,775 (+13,825 bundled code
+and source map); largest file 4,237,973 bytes. Forty MiB total/twenty-five MiB per-file
+caps pass; no provenance/allowlist addition needed. Texture headroom remains ~.25 MiB.
+
+Rejected intermediates: a PowerShell brace path search and the first Python edit's
+Windows default decoding failed; reran with explicit UTF-8 before continuing edits.
+An initial remote-grounding idea based on small vertical deltas was replaced before
+final gates with actual box/ramp support, so climbing ramps still produces steps.
+No gameplay gate, shader check, performance threshold or room rule was relaxed.
+
+Final required pnpm typecheck, pnpm test (376 pass, three existing skips; 39 passing
+files, one skipped), pnpm build:client and pnpm audit:assets PASS. Logs under
+.inspect/session27-{typecheck,test,build-client,audit-assets}.log. Exact required
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two`
+PASS; session27-required-inspector.log and copied session27-required-report.json.
+Final relay,effects-stress --assert-budgets PASS. All before/audio/required/final
+reports have zero console/runtime/HTTP errors and forbidden offline gameplay requests
+(session27-report-checks.json). Owned preview restarted after final public writes.
+
+Exact required live gate PASS:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human/three bots, live at 7.344 s, two deaths and two observed respawns; zero
+post-warmup shader recompiles, frames >150 ms, console errors or long tasks. Only
+recorded frame above 24 ms was 61.9 ms at startup. Evidence: .inspect/hitch.json,
+session27-hitch.json/log. Same-run first received nonlethal damage after live/respawns
+11.020/14.124/3.194 s (session27-contact-samples.json). These do not meet the 20-30 s
+reference band and are not first visual contact, a distribution, a fairness improvement
+or 6v6 acceptance. No full natural round observed; economy remains configured timing.
+
+Cleanup: .inspect/session27-cleanup.json records twelve stopped final preview process
+members, zero remaining owned processes, port8796 listeners or inspection browsers.
+The first preview tree was also stopped before final gates. All standing gates green.
+Re-ranked learnable recoil first; audio routing/headphone review remains explicit.
+Open owner questions/defaults: retain 1.4 threat gain and direct cover muffling pending
+headphone feedback (yes); proceed to shared recoil/accuracy next (yes). Industrial
+daylight, amber/teal, stylized sci-fi and 6v6 TDM stay active. No answer needed to
+continue. Ready for supervisor review; no commit, push or deployment.

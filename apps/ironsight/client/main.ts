@@ -1,3 +1,5 @@
+import { footGrounded, hostileFoley } from "./spatial-audio.js";
+import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { WeaponHandling, isSprinting } from "../src/handling.js";
 import { setMasterVolume, isMuted } from "./audio.js";
 /**
@@ -26,7 +28,7 @@ import { Hud } from "./hud.js";
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
-import { initAudio, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
+import { inspectThreatAudio, initAudio, setAudioMap, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
@@ -96,6 +98,8 @@ async function main(): Promise<void> {
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
   // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
+  setAudioMap(map);
+  const remoteFoley = new Map<string, { phase: string; y: number }>();
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
   hud.showLockPrompt(true, 'Preparing arena / Loading weapons and effects...');
   await scene.prepare();
@@ -161,6 +165,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
@@ -484,8 +489,18 @@ async function main(): Promise<void> {
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
     scene.syncPlayers(poses, net.myId, dt, undefined, net.serverNow());
     for (const [id, p] of poses) {
-      if (id !== net.myId && p.alive) scene.stepFootRemote(id, p, dt, eye);
+      if (id === net.myId || !p.alive) { remoteFoley.delete(id); continue; }
+      const previous = remoteFoley.get(id);
+      const threatGain = hostileFoley(p.team, net.state?.players[net.myId]?.team ?? p.team,
+        isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm'));
+      scene.stepFootRemote(id, p, dt, eye, threatGain, footGrounded(p, map));
+      const phase = reloadPose(remoteReloadProgress(p.alive, p.reloadEnd,
+        WEAPONS[p.weapon]?.reloadMs ?? 1, net.serverNow())).phase;
+      // Seed on AOI entry; never replay an already-running phase.
+      if (previous && previous.phase !== phase) playReloadCue(phase, { x: p.x, y: p.y + 1, z: p.z }, threatGain);
+      remoteFoley.set(id, { phase, y: p.y });
     }
+    for (const id of remoteFoley.keys()) if (!poses.has(id)) remoteFoley.delete(id);
     scene.render();
 
     // HUD.

@@ -1599,8 +1599,8 @@ export class SceneRig {
   }
 
   /** Remote footstep cadence, attenuated by distance to `listenerPos` (the local eye). */
-  stepFootRemote(id: string, pos: { x: number; y: number; z: number }, dtMs: number, listenerPos: { x: number; y: number; z: number }): void {
-    this.vfx.stepFoot(id, pos, dtMs / 1000, true, listenerPos);
+  stepFootRemote(id: string, pos: { x: number; y: number; z: number }, dtMs: number, listenerPos: { x: number; y: number; z: number }, threatGain = 1, grounded = true): void {
+    this.vfx.stepFoot(id, pos, dtMs / 1000, grounded, listenerPos, threatGain);
   }
 
   /** Advance each tracer's travelling segment: `headDist` is how far its leading

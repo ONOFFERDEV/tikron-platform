@@ -88,7 +88,7 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
@@ -188,6 +188,15 @@ try {
         const failed = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
+      }
+      if (name === 'audio') {
+        combat = await evaluate('window.ironsight.audioProbe()');
+        const m = combat?.mixes;
+        if (!m || m.length !== 5 || Math.abs(m[1].gain / m[0].gain - 1.4) > .001 ||
+            Math.abs(m[3].gain / m[2].gain - 1.4) > .001 ||
+            Math.abs(m[4].gain / m[1].gain - .32) > .001 || m[4].cutoff !== 1100 ||
+            combat.ordinaryPeak !== 16 || combat.threatPeak !== 20 || combat.drained !== 0)
+          throw Error(`Threat audio graph failed: ${JSON.stringify(combat)}`);
       }
       if (name === 'handling') combat = await handlingProbe({ send, evaluate, waitFor, delay, assertFixed: args.includes('--assert-handling'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
