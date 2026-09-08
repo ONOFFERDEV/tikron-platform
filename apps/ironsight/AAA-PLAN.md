@@ -3,10 +3,11 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-32 are deployed there, including all three expanded maps,
+Supervisor reports sessions 1-33 are deployed there, including all three expanded maps,
 threat audio, weapon handling, combat presentation and shared recoil/accuracy. Session 32
-adds recent spawn-sightline memory. Session 33 adds Undertow orientation landmarks
-and remains local until supervisor publication. Continue the standing brief defaults.
+adds recent spawn-sightline memory. Session 33 adds Undertow orientation landmarks.
+Session 34 adds Switchyard half/lane silhouettes and remains local until supervisor
+publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -327,8 +328,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 33. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session33-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 34. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session34-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -341,16 +342,16 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M05 | partial | Relay rifle decks, Undertow paired control shortcuts, Switchyard exposed four-ramp 3 m deck crossing both axes. Grounded traversal tested; player value unreviewed. |
 | R-M06 | n.a. | No world power pickups implemented. |
 | R-M07 | not yet | Session32 natural twelve-seat FFA: respawn first-damage median 4.8 s (before 4.2); initial 3.5 s. 20-30 s remains unmet; one seeded round is not a pacing/fairness pass. |
-| R-M08 | partial | Session33 Undertow west filter vessels versus east amber gantry, distinct cladding and side-wall labels; matched vista and eye-level captures. Human wayfinding and Switchyard half distinction remain. |
+| R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session32 adds server sightline memory sampled at most 2 Hz, fading over 3 s; death/expiry/round clear. Occupancy/current-LOS priority retained; regression tests and natural FFA heatmaps. All-exposed fallback and human camping acceptance remain. |
 | R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
 | R-M12 | partial | All three expanded maps now document distinct route beats and automated traversability; human action-block validation remains open. |
-| R-M13 | partial | Session33 Undertow north forked intake crown, west filters, east gantry and south twin flues; route silhouettes inspected. Switchyard richness and human callout learning remain. |
+| R-M13 | partial | Session34 Switchyard west capacitors/east crane/south roof monitors contrast with north bus mast; final deck/service views. Session33 Undertow route silhouettes retained. Human callout learning and all-lane visibility remain open. |
 | R-M14 | n.a. | No destruction/windows system promised; fixed openings remain authoritative. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
-| R-M17 | partial | Session33 raises Undertow north-axis crown to 34 m; vista proves skyline hierarchy, but it is outside the north boundary, not literal map center. All-lane visibility remains unverified. |
+| R-M17 | partial | Undertow north crown and Switchyard north bus mast remain exterior axis landmarks. Session34 adds distinct side silhouettes; no literal central weenie or all-lane visibility proof. |
 | R-M18 | partial | All maps now ground/3 m decks/6 m roofs plus 1.1 m waist cover. Switchyard four ramps cross both axes both ways grounded. Bots use ground navigation; player vantage review open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
 | R-M20 | partial | Session32 before/final natural 300 s twelve-bot FFA rounds: 207/212 kills, JSON/SVG heatmaps and contact comparison PNG. No multi-round side-win or human fairness proof. |
@@ -400,23 +401,23 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 33 reference audit: all 63 rows retained; static checks reproduced. Undertow
-now has distinct perimeter silhouettes and half accents without extra texture memory.
-Re-rank the remaining environment work to Switchyard; contact remains unmet and
-needs route/encounter work rather than a larger historical danger weight.
+Session 34 reference audit: all 63 rows retained; static checks reproduced. Both
+Undertow and Switchyard now have distinct perimeter silhouettes with zero added
+texture memory. Re-rank to unresolved contact and first-play presentation; human
+orientation and encounter quality are still unverified.
 
-1. **Switchyard orientation/richness (R-M08, R-M13, R-M17).** Undertow's first
-   orientation pass is delivered; Switchyard still needs distinct half silhouettes.
-   Review all-lane landmark visibility on both maps. Only ~0.25 MiB Relay stress
-   texture headroom; reuse materials/instancing and use Meshy for clear silhouette value.
-2. **Spawn fairness and solo encounters (R-M07, R-M09, R-M20).** Current and recent
+1. **Spawn fairness and solo encounters (R-M07, R-M09, R-M20).** Current and recent
    LOS scoring implemented; all-exposed pools and very short FFA contact remain.
    Gather multiple natural rounds and inspect spawn-exit sightlines/route heatmaps.
-3. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
+2. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
    pings, countdowns, network-quality label and highlight colour choices.
-4. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps expanded;
+3. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps expanded;
    DOM capture/economy/side-swap and five-minute soft caps differ from reference.
    Gather real encounters before changing movement, TTK or economy together.
+4. **Environment orientation review (R-M08, R-M13, R-M17).** First silhouette passes
+   delivered on Undertow/Switchyard; verify all-lane visibility and human callouts.
+   Relay has only ~0.25 MiB stress texture headroom; reuse materials/instancing,
+   with Meshy reserved for clear silhouette value.
 5. **Audio routing and acceptance (R-G14, R-G16, R-L18).** Headphone mix/surface identity,
    ramp-volume occlusion and sound around doorways; current direct box filtering is
    bounded and tested, not a reachability/diffraction model.
@@ -4361,3 +4362,111 @@ server-verified hits and 6v6 team defaults. All-lane landmark visibility, moving
 hands, headphones, real players/RTT, iGPU/thermal and browser acceptance remain
 open. No owner answer needed to continue. Next session: Switchyard half/lane
 orientation, with matched views and no new texture budget assumed.
+
+### Session 34 - 2026-09-09: Switchyard capacitor bank and crane orientation
+
+Read the standing brief, Session34 supervisor status, plan and all 63 references.
+Started clean on ironsight-aaa; scope apps/ironsight/** only. Reference: R-M08,
+R-M13, R-M17. Target: distinguish west/east by silhouette as well as colour,
+strengthen the south service identity, preserve collision and add zero resident
+texture MiB. These bounded implementation checks pass. Rows remain partial:
+human route learning, all-lane visibility and a literal central weenie are open.
+All 63 scorecard rows retained; re-ranked unresolved natural contact first, then
+first-play presentation. No owner feedback justified a gameplay retune this session.
+
+West now has three ribbed ceramic capacitor towers, 24.2/31.2/24.2 m at the
+terminal tips. East has a 49 m wide amber maintenance crane, 21.3 m at its rails,
+with a suspended service block; east boundary accents reuse amber. South has
+three broad ventilation monitors on the exterior service hall, 13.4 m tops.
+The existing north bus mast remains the north-axis landmark. New west geometry
+stays x <= -4.8 m, crane x >=153.9 m, roof monitors z >=105.3 m. No new opaque
+geometry inside play, no changes to boxes, ramps, spawns, caps, bots, movement,
+server-verified hits, room lifecycle or codec. Collision-derived ground AO stays
+unchanged. Same lighting, cached shadow pass, lazy map assets and dependencies.
+
+Original procedural geometry uses the existing kit palette and one 1024px AO
+image, rebaked in Blender4.5 Cycles with Standard transform and authored normals.
+No Meshy generation: these simple electrical silhouettes fit the existing texture
+budget. Reported balance1530, session spend0 credits. Existing explicit original
+asset allowlists apply; provenance/reproduction appended to public/assets/README.md.
+Architecture audit .inspect/session34-architecture-audit.log: 68,588 triangles,
+zero source/export degenerates, max normal-component error .000300000001,
+positions within .0001 m, finite UVs and one AO image; ten material primitives.
+Source dump session34-architecture.json and bake log session34-bake.log.
+
+Matched .inspect/session34-{before,final}-switchyard-{vista,center,service,
+effects-stress}.png and report.json/inspector.log files. Opened both vistas:
+the west towers clearly break the former box silhouette; east amber wall panels
+identify the opposite half. Refreshed production-renderer deployment vista.
+Opened supplementary session34-{west,east}-switchyard-center.png: opposing views
+from (75,4.65,50), standing on the authoritative 3 m deck, show the capacitor
+bank versus the crane above cover. Both look slightly upward toward y10, so
+they establish this viewpoint only. Opened session34-south-switchyard-service.png
+shows the roof monitors above a foreground cabinet; much of the hall is occluded.
+These are geometry/orientation checks, not all-lane or human callout acceptance.
+
+Matched effects fixture, .inspect/session34-render-delta.json: Edge152/RTX5070
+D3D11,1920x1080 balanced/DPR1, eleven remote operators plus local rifle,145
+twelve-rifle volleys,96 blasts,2130 steady samples and complete effect drain.
+Both --assert-budgets runs pass.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls including shadow work | 189 | 189 | 0 |
+| Peak submitted triangles | 133374 | 135870 | +2496 |
+| Resident textures | 26 | 26 | 0 |
+| Estimated texture MiB | 61.5846 | 61.5846 | 0 |
+| Median/p95/p99 frame interval ms | 6.9/7.1/7.1 | 6.9/7.1/7.1 | 0 |
+| Max frame interval ms | 7.4 | 7.2 | -.2 |
+| First-ready max ms | 7.0 | 7.1 | +.1 |
+| Browser-resident programs | 19 | 19 | 0 |
+
+No performance improvement claimed; desktop intervals do not establish iGPU
+60 fps, thermal/cold-driver performance, networking or human comfort.
+Public bytes24,930,129 ->25,155,144 (+225,015); Switchyard architecture5,016,936
+->5,229,544 (+212,608), vista129,730 ->136,488 (+6,758). Remaining bytes are
+provenance/client bundle and source map. Largest file5,229,544; public40 MiB and
+per-file25 MiB caps pass. Evidence session34-{before,final}-bytes.json.
+Static .inspect/session34-reference-audit.json reproduces unchanged map cover
+classes, ground sprint rotations,1,250 m2/seat, weapon handling, mode economy,
+respawn, audio and HUD checks. No new pacing distribution for unchanged gameplay;
+prior natural-contact and DOM-economy mismatches remain open.
+
+Rejected intermediates: no art bake/model rejected. Initial byte query used
+assets/maps/switchyard-vista.webp instead of assets/switchyard-vista.webp; corrected
+the recorded baseline before comparison. No test/probe threshold or gameplay rule
+weakened. Art preview was stopped after writing vista/provenance, before the stable
+required gates, to avoid counting a file-triggered reload as an uninterrupted run.
+
+Required pnpm typecheck; pnpm test (408 passed,6 existing/opt-in skips;41 passing
+files/four skipped); pnpm build:client; pnpm audit:assets PASS. Evidence
+.inspect/session34-{typecheck,test,build-client,audit-assets}.log. Exact required
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS; session34-required-inspector.log and required-report.json. All six inspection
+reports have zero console errors/forbidden network requests; report-checks.json.
+
+Exact required node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS. Evidence .inspect/hitch.json and
+session34-hitch.json/log: twelve seats, two bot-caused deaths, two respawns,
+zero post-warmup recompiles, frames >150 ms, console errors or long tasks.
+Only frame >24 ms was startup64.3 ms. Single live transition8.054 s, first damage
+28.754 s (20.700 s after live), deaths32.782/92.600 s, respawns35.712/95.641 s.
+Ordinary probe movement through server-owned positions; no teleport, isolation,
+storage reset, bot-stat edit or lifecycle rework. Stable server log has no reload;
+server-error.log retains simulation-backlog warnings. Browser assertions pass;
+this Relay hitch run does not establish Switchyard pacing or deployed capacity.
+
+Cleanup .inspect/session34-cleanup.json: twelve owned stable preview processes
+stopped, zero remaining owned processes, port8796 listeners or inspection browsers.
+Earlier preview trees stopped as recorded in before-cleanup.json/art-cleanup.json.
+Read-only whitespace and scope checks pass: all five changed paths are inside
+apps/ironsight/**. A post-gate inline Node summary command lost quotes in the
+Windows shell; used PowerShell JSON parsing instead, without altering evidence.
+All standing gates green. No commit, push, deploy or external publication.
+
+Open owner questions/defaults: retain west capacitor/east crane contrast pending
+human route-learning review (yes); next prioritize natural spawn-exit/contact
+evidence or a bounded first-play presentation improvement (yes). Keep industrial
+daylight, amber/teal, stylized sci-fi, six-versus-six team defaults and twelve-seat
+Switchyard FFA. Hands, headphones, real players/RTT, iGPU/thermal and browser
+acceptance remain open. No owner answer needed; supervisor owns publication.

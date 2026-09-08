@@ -503,3 +503,24 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista 
 
 No ground AO rebuild is needed: collision boxes/ramps and ground are unchanged;
 the added exterior equipment receives AO in the architecture bake.
+
+### Session 34: Switchyard orientation kit (2026-09-09)
+
+Original procedural west capacitor towers, east maintenance crane and south
+service-hall roof monitors distinguish the perimeter by shape. East wall panels
+use the existing amber material. All new opaque structures remain outside play;
+collision geometry and collision-derived ground AO are unchanged. No purchased
+inputs, new textures or Meshy credits; existing original-asset allowlists apply.
+
+`maps/switchyard-architecture.glb`: 5,229,544 bytes, 68,588 triangles, ten material
+primitives and one 1024px AO image. `switchyard-vista.webp` is refreshed from the
+production renderer. Reproduce from the app directory (PowerShell, Blender 4.5):
+
+```powershell
+node tools/dump-architecture.mjs .inspect/session34-architecture.json switchyard
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session34-architecture.json
+python scripts/audit-architecture.py --input .inspect/session34-architecture.json
+pnpm dev:preview
+# In a second terminal after preview is ready:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --prefix session34-vista --write-vista
+```

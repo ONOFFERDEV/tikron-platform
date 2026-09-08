@@ -73,7 +73,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     add(1, x, 2.6, cz, 0.9, 5.2, depth, 'exterior');
     for (let z = 2; z < depth; z += 4) {
       add(2, x, 2.6, z, 0.915, 5.2, 0.18, 'exterior');
-      add(4, x, 3.4, z + 1.7, 0.915, 1.2, 2.3, 'exterior');
+      add(x < 0 ? 4 : 3, x, 3.4, z + 1.7, 0.915, 1.2, 2.3, 'exterior');
     }
   }
   // North substation: three portal frames and visible ceramic insulator stacks.
@@ -113,6 +113,39 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     for (let xx = x - w / 2 + 1; xx < x + w / 2; xx += 2.4)
       add(2, xx, h * 0.45, z, 0.18, h - 2.2, d + 0.012, 'exterior');
     add(4, x, h - 1, z, w + 0.12, 0.3, d + 0.12, 'exterior');
+  }
+  // West capacitor bank: three ribbed ceramic towers, the middle one taller.
+  // All extents remain x <= -4.8; silhouette identifies the half without colour.
+  for (const [z, height] of [[cz - 17, 22], [cz, 29], [cz + 17, 22]] as const) {
+    add(1, -8, 2, z, 6.4, 4, 6.4, 'exterior');
+    add(5, -8, (height + 4) / 2, z, 4.6, height - 4, 4.6, 'exterior', true);
+    for (let y = 5; y < height - 1; y += 1.6)
+      add(4, -8, y, z, 6.2, .42, 6.2, 'exterior', true);
+    add(1, -8, height, z, 5.2, .5, 5.2, 'exterior', true);
+    add(3, -8, height + 1.2, z, .6, 2, .6, 'exterior', true);
+  }
+  // East maintenance crane: broad amber double beam versus the west uprights.
+  // Its entire structure is x >= width + 3.9, never across a playable route.
+  for (const z of [cz - 22, cz + 22]) {
+    add(1, width + 6, 1.4, z, 3.2, 2.8, 3.2, 'exterior');
+    add(3, width + 6, 10, z, 1.4, 20, 1.6, 'exterior');
+    add(5, width + 6, 16, z, 1.44, 1.5, 1.64, 'exterior');
+  }
+  for (const x of [width + 4.5, width + 7.5]) {
+    add(3, x, 20, cz, 1.2, 2.2, 49, 'exterior');
+    add(1, x, 21.2, cz, 1.24, .2, 49, 'exterior');
+  }
+  add(1, width + 6, 19, cz - 8, 4, 1.2, 4, 'exterior');
+  for (const z of [cz - 9, cz - 7])
+    add(1, width + 6, 13.5, z, .12, 10, .12, 'exterior');
+  add(3, width + 6, 8.5, cz - 8, 1.6, 1.2, 3, 'exterior');
+  // South service hall's three stepped ventilation monitors answer the north
+  // mast with a low, broad roof rhythm. Each sits above the exterior hall only.
+  for (const x of [cx - 38, cx - 30, cx - 22]) {
+    add(3, x, 11, depth + 11, 5.8, 4, 11, 'exterior');
+    add(1, x, 13.2, depth + 11, 6.2, .4, 11.4, 'exterior');
+    for (const y of [10, 11, 12])
+      add(5, x, y, depth + 5.49, 4.8, .25, .02, 'exterior');
   }
   // In-ground cable raceways and crossings, not raised rail obstacles.
   for (const z of [29, 65]) for (const x of [cx - 40, cx, cx + 40]) {
