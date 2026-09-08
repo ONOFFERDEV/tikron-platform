@@ -5,6 +5,33 @@ export interface SpawnOccupant extends Vec3 {
   readonly id: string; readonly team: number; readonly alive: boolean; readonly crouch?: boolean;
 }
 
+/** Room-local, bounded sightline memory. No client reports or wall-clock timers.
+ * Samples at 2 Hz; a sightline fades out over three seconds. Dead/disconnected
+ * threats are removed on observation, so a successful clear frees the spawn. */
+export class SpawnSightHistory {
+  private readonly sightings = new Map<Vec3, Map<string, number>>();
+  private nextSampleMs = 0;
+  clear(): void { this.sightings.clear(); this.nextSampleMs = 0; }
+  forget(id: string): void { for (const seen of this.sightings.values()) seen.delete(id); }
+  due(nowMs: number): boolean { return nowMs >= this.nextSampleMs; }
+  observe(points: readonly Vec3[], players: readonly SpawnOccupant[], boxes: readonly Box[], nowMs: number): void {
+    if (nowMs < this.nextSampleMs) return;
+    this.nextSampleMs = nowMs + 500;
+    const living = players.filter(p => p.alive);
+    const ids = new Set(living.map(p => p.id));
+    for (const point of points) {
+      const seen = this.sightings.get(point) ?? new Map<string, number>();
+      for (const [id, at] of seen) if (!ids.has(id) || nowMs - at >= 3000) seen.delete(id);
+      for (const p of living) if (spawnExposed(point, p, boxes)) seen.set(p.id, nowMs);
+      this.sightings.set(point, seen);
+    }
+  }
+  danger(point: Vec3, enemyId: string, nowMs: number): number {
+    const at = this.sightings.get(point)?.get(enemyId);
+    return at === undefined ? 0 : 60 * Math.max(0, 1 - Math.max(0, nowMs - at) / 3000);
+  }
+}
+
 /** Conservative current LOS: an enemy need not be aiming at the spawn yet.
  * Check head, chest and both shoulders, so a narrow screen cannot hide only
  * the centre ray while leaving the arriving player shootable. */
@@ -26,7 +53,8 @@ export function spawnExposed(point: Vec3, enemy: SpawnOccupant, boxes: readonly 
  * exposure outweigh route variety. No client position or preference is accepted.
  */
 export function chooseSafeSpawn(points: readonly Vec3[], rotation: number,
-  players: readonly SpawnOccupant[], selfId: string, team: number, boxes: readonly Box[], teamed = true): Vec3 {
+  players: readonly SpawnOccupant[], selfId: string, team: number, boxes: readonly Box[], teamed = true,
+  history?: SpawnSightHistory, nowMs = 0): Vec3 {
   if (!points.length) throw new Error("Map has no team spawn points");
   let best = points[rotation % points.length]!;
   let bestDanger = Infinity;
@@ -45,6 +73,7 @@ export function chooseSafeSpawn(points: readonly Vec3[], rotation: number,
         continue;
       }
       danger += Math.max(0, 14 - distance) ** 2;
+      danger += history?.danger(point, p.id, nowMs) ?? 0;
       if (spawnExposed(point, p, boxes)) {
         exposed = 1;
         danger += 100 * Math.max(0.1, 1 - distance / 50);

@@ -24,7 +24,7 @@ import {
   type WeaponSpec,
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
-import { chooseSafeSpawn } from "../map/spawn.js";
+import { chooseSafeSpawn, SpawnSightHistory } from "../map/spawn.js";
 import { GroundNavigator } from "../map/navigation.js";
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
@@ -210,6 +210,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private vertLag = new LagCompensator({ depthMs: LAG.depthMs });
   /** Round-robin spawn cursor per team, so successive spawns don't stack. */
   private readonly spawnRot: Record<number, number> = { [TEAM.red]: 0, [TEAM.blue]: 0 };
+  private readonly spawnSightHistory = new SpawnSightHistory();
   /** Sim tick the post-match intermission ends and the arena resets (phase "ended"). */
   private endedUntil: number | undefined;
   /** Sim tick the warmup countdown elapses (unset while below {@link warmupMinPlayers}). */
@@ -419,6 +420,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   protected override onSeatExpired(client: Client): void {
+    this.spawnSightHistory.forget(client.id);
     const id = client.id;
     delete this.state.players[id];
     for (const m of [
@@ -496,6 +498,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // Movement integration for the living.
     for (const [id, p] of Object.entries(this.state.players)) {
       if (p.alive) this.integrate(id, p, dt);
+    }
+
+    // Sample authoritative post-movement sightlines before choosing respawns.
+    // History uses simulation time and never changes cover or the spawn shield.
+    if (this.spawnSightHistory.due(this.currentTick * TICK_MS)) {
+      this.spawnSightHistory.observe([...this.map.spawns.red, ...this.map.spawns.blue],
+        Object.entries(this.state.players).map(([id, p]) => ({ ...p, id })),
+        this.boxes, this.currentTick * TICK_MS);
     }
 
     // Respawns due this tick.
@@ -1198,6 +1208,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     const warmup = this.state.phase === "warmup";
     victim.alive = false;
+    this.spawnSightHistory.forget(victimId);
     victim.reloadEnd = 0;
     this.reloadUntil.delete(victimId);
     this.vy.set(victimId, 0);
@@ -1313,7 +1324,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.spawnRot[rotKey] = i + 1;
     const pt = chooseSafeSpawn(points, i,
       Object.entries(this.state.players).map(([id, player]) => ({ ...player, id })),
-      id, p.team, this.boxes, teamed);
+      id, p.team, this.boxes, teamed, this.spawnSightHistory, this.currentTick * TICK_MS);
     p.x = pt.x;
     p.y = pt.y;
     p.z = pt.z;
@@ -1660,6 +1671,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.spawnSightHistory.clear();
     this.roundResult = null;
     this.state.redScore = 0;
     this.state.blueScore = 0;

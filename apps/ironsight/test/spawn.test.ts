@@ -1,8 +1,49 @@
 import { describe, expect, it } from "vitest";
-import { chooseSafeSpawn, spawnExposed } from "../src/map/spawn.js";
+import { chooseSafeSpawn, spawnExposed, SpawnSightHistory } from "../src/map/spawn.js";
 const points = [{ x: 5, y: 0, z: 5 }, { x: 5, y: 0, z: 15 }];
 const enemy = { id: "enemy", x: 15, y: 0, z: 5, team: 1, alive: true };
 describe("authoritative spawn selection", () => {
+  it("avoids a recently watched spawn after its enemy ducks behind cover, then expires", () => {
+    const history = new SpawnSightHistory();
+    const pool = [{ x: 5, y: 0, z: 5 }, { x: 5, y: 0, z: 35 }];
+    const wall = { min: { x: 9, y: 0, z: 10 }, max: { x: 11, y: 4, z: 40 } };
+    history.observe(pool, [enemy], [wall], 0);
+    const hidden = { ...enemy, x: 15, z: 25 };
+    expect(spawnExposed(pool[0]!, hidden, [wall])).toBe(false);
+    expect(spawnExposed(pool[1]!, hidden, [wall])).toBe(false);
+    expect(chooseSafeSpawn(pool, 0, [hidden], 'self', 0, [wall], true, history, 1000)).toEqual(pool[1]);
+    expect(history.danger(pool[0]!, enemy.id, 1500)).toBe(30);
+    expect(chooseSafeSpawn(pool, 0, [hidden], 'self', 0, [wall], true, history, 3000)).toEqual(pool[0]);
+  });
+  it("keeps current cover ahead of history, and treats FFA peers as threats", () => {
+    const history = new SpawnSightHistory();
+    history.observe(points, [{ ...enemy, team: 0 }], [], 0);
+    const wall = { min: { x: 9, y: 0, z: 11 }, max: { x: 11, y: 4, z: 15 } };
+    const peer = { ...enemy, team: 0, z: 10 };
+    expect(chooseSafeSpawn(points, 0, [peer], 'self', 0, [wall], false, history, 500)).toEqual(points[1]);
+    expect(chooseSafeSpawn(points, 0, [peer], 'self', 0, [wall], true, history, 500)).toEqual(points[0]);
+  });
+  it("removes cleared threats and resets round history without retaining seats", () => {
+    const history = new SpawnSightHistory();
+    history.observe(points, [enemy], [], 0);
+    expect(history.danger(points[0]!, enemy.id, 0)).toBe(60);
+    history.observe(points, [{ ...enemy, alive: false }], [], 500);
+    expect(history.danger(points[0]!, enemy.id, 500)).toBe(0);
+    history.observe(points, [enemy], [], 1000);
+    history.forget(enemy.id);
+    expect(history.danger(points[0]!, enemy.id, 1000)).toBe(0);
+    history.observe(points, [enemy], [], 1500);
+    history.clear();
+    expect(history.danger(points[0]!, enemy.id, 1000)).toBe(0);
+  });
+  it("samples at most twice a second and never carries danger beyond three seconds", () => {
+    const history = new SpawnSightHistory();
+    history.observe(points, [enemy], [], 0);
+    expect(history.due(499)).toBe(false);
+    history.observe(points, [enemy], [], 499);
+    expect(history.danger(points[0]!, enemy.id, 3000)).toBe(0);
+    expect(history.due(500)).toBe(true);
+  });
   it("rotates equally safe spawns", () => {
     expect(chooseSafeSpawn(points, 0, [], "self", 0, [])).toEqual(points[0]);
     expect(chooseSafeSpawn(points, 1, [], "self", 0, [])).toEqual(points[1]);

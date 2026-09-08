@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-30 are deployed there, including all three expanded maps,
-threat audio, weapon handling and combat presentation. Session 31 adds learnable recoil
-and shared accuracy; it remains local until supervisor publication. Continue using the standing brief's active defaults.
+Supervisor reports sessions 1-31 are deployed there, including all three expanded maps,
+threat audio, weapon handling, combat presentation and shared recoil/accuracy. Session 32
+adds recent spawn-sightline memory; it remains local until supervisor publication. Continue using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,8 +326,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 31. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session31-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 32. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session32-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -339,9 +339,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M04 | met | All-map ground BFS sprint rotations in 10-15 s: Switchyard 14.44/14.44/11.11 s, Undertow 14.22/14.22/10.67 s, Relay 14.44/11.56 s. Does not measure human retakes or vertical shortcuts. |
 | R-M05 | partial | Relay rifle decks, Undertow paired control shortcuts, Switchyard exposed four-ramp 3 m deck crossing both axes. Grounded traversal tested; player value unreviewed. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session30 natural 12-seat FFA: initial damage median 3.75 s; respawn 4.4 s. Session29 DOM 16.8 s. 20-30 s remains unmet; do not infer success from footprint. |
+| R-M07 | not yet | Session32 natural twelve-seat FFA: respawn first-damage median 4.8 s (before 4.2); initial 3.5 s. 20-30 s remains unmet; one seeded round is not a pacing/fairness pass. |
 | R-M08 | partial | Lane accents and hero silhouettes exist; half-to-half orientation needs player review. |
-| R-M09 | partial | Session25: all maps/FFA prefer unoccupied, sampled-LOS-hidden spawns, then danger/support; 4,608 static decisions, zero avoidable exposure. No recent LOS history; all-exposed fallback remains. |
+| R-M09 | partial | Session32 adds server sightline memory sampled at most 2 Hz, fading over 3 s; death/expiry/round clear. Occupancy/current-LOS priority retained; regression tests and natural FFA heatmaps. All-exposed fallback and human camping acceptance remain. |
 | R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
 | R-M12 | partial | All three expanded maps now document distinct route beats and automated traversability; human action-block validation remains open. |
@@ -352,7 +352,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Relay core/uplinks and lane signs; all-lane central landmark visibility unverified. |
 | R-M18 | partial | All maps now ground/3 m decks/6 m roofs plus 1.1 m waist cover. Switchyard four ramps cross both axes both ways grounded. Bots use ground navigation; player vantage review open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session30 300 s natural FFA round, 200 live kills, JSON/SVG contact/heatmap. Rejected spawn-corridor layouts retained; all three maps have natural samples, no multi-round/human balance proof. |
+| R-M20 | partial | Session32 before/final natural 300 s twelve-bot FFA rounds: 207/212 kills, JSON/SVG heatmaps and contact comparison PNG. No multi-round side-win or human fairness proof. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
@@ -399,21 +399,22 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 31 reference audit: all 63 rows retained and re-audited against current code
-and static measurements. Owner-ordered map expansion is complete. Shared recoil/
-accuracy is implemented; contact pacing is the next highest unmet measurable gap.
-The remaining recoil items require human mouse/RTT review or a separate setting.
+Session 32 reference audit: all 63 rows retained; static checks reproduced and changed
+spawn/contact rows updated. Recent sightline memory is now implemented. Re-rank toward
+visible orientation next; contact remains unmet and needs route/encounter work, not a
+larger historical danger weight or simultaneous movement/TTK/economy retuning.
 
-1. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
-   avoids available unoccupied sampled-hidden alternatives. Measure real contact,
-   recontest and side/route heatmaps; address all-exposed pools and recent enemy LOS.
-2. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
-   exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
+1. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
+   large spaces need distinct half/lane silhouettes and a readable central landmark.
+   Only ~0.25 MiB Relay stress texture headroom; reuse materials/instancing and use
+   Meshy only where its silhouette adds clear value.
+2. **Spawn fairness and solo encounters (R-M07, R-M09, R-M20).** Current and recent
+   LOS scoring implemented; all-exposed pools and very short FFA contact remain.
+   Gather multiple natural rounds and inspect spawn-exit sightlines/route heatmaps.
 3. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
    pings, countdowns, network-quality label and highlight colour choices.
-4. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps now expanded;
-   contact remains short, especially Switchyard FFA despite better yard coverage. DOM
-   capture/economy/side-swap and five-minute soft caps still differ from reference.
+4. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps expanded;
+   DOM capture/economy/side-swap and five-minute soft caps differ from reference.
    Gather real encounters before changing movement, TTK or economy together.
 5. **Audio routing and acceptance (R-G14, R-G16, R-L18).** Headphone mix/surface identity,
    ramp-volume occlusion and sound around doorways; current direct box filtering is
@@ -4098,3 +4099,136 @@ retune movement, TTK and economy together by guesswork. Keep industrial daylight
 amber/teal, stylized sci-fi and six-versus-six team defaults. Moving hands,
 headphones, real players/RTT, iGPU and browser acceptance remain open. No owner
 answer is needed to continue; supervisor owns publication.
+
+### Session 32 - 2026-09-09: recent sightline memory for safer respawns
+
+Read the standing brief, Session32 supervisor status, plan and all 63 references.
+Branch ironsight-aaa, clean starting worktree, scope apps/ironsight/** only.
+Reference: R-M09, R-M20, R-M07, R-L04. Checkable target: remember authoritative
+spawn exposure for three seconds after an enemy leaves sight, sample at most
+2 Hz, preserve unoccupied/currently hidden priority, and measure natural contact.
+The memory/priority checks pass; R-M09 and R-M20 remain partial and the 20-30 s
+R-M07 contact target remains not yet. No geometry or bot-stat retune by guesswork.
+This session closes a bounded part of the highest-ranked spawn gap; its visible
+evidence is encounter distribution, not a new art asset. Environment orientation
+now ranks first for the next session's first-glance improvement.
+
+SpawnSightHistory records four-body-sample visibility from authoritative player
+positions against the existing collision boxes. Each enemy's remembered exposure
+adds at most 60 danger points, fading linearly to zero over 3000 simulation ms.
+This is a soft addition after occupancy/current exposure, alongside existing
+proximity danger; no remembered risk can select a currently exposed candidate
+when an equally unoccupied hidden one exists. Friendly/self/dead players do not
+contribute enemy danger; FFA treats other seats as hostile. Current sightlines
+are always checked at selection even between historical samples. There is no
+claim that a 2 Hz sample catches every brief peek or predicts enemy movement.
+
+History uses currentTick*TICK_MS, with sampling after movement and before due
+respawns. Stable map spawn-point references bound the table to twelve anchors
+by seated players. Death and seat expiry forget the enemy immediately, sample
+pruning removes absent/dead ids, and resetMatch clears the old round. A fresh
+room starts without stale history. No persisted state/codec/version changes,
+client messages, shield/timer changes or lifecycle rework. No client-visible
+positions are added. No new lights, passes, dependencies, assets or Meshy spend
+(reported balance1530). Server-verified combat remains in place.
+
+Four new regression tests cover a remembered lane after cover closes, expiry,
+current-LOS precedence, FFA/friendly distinctions, clearing and sample cadence.
+The existing real-room all-map spawn tests pass. Added tools/spawn-history-audit.ts
+for repeatable local CPU cost. The Switchyard natural-round tool now accepts
+METRICS_PREFIX (validated filename prefix), so later sessions preserve separate
+reports instead of overwriting Session30 evidence.
+
+Natural production-bot FFA, same tool seed0x30abc, twelve seats, full300 s rounds,
+normal movement/reaction/HP/damage/respawn/recoil, no scripted routes or teleports:
+
+| Contact sample | Before | Final |
+|---|---|---|
+| Total live kills | 207 | 212 |
+| Initial first LOS min/median/max s (12/12 each) | .6/.8/3.2 | .6/.8/3.2 |
+| Initial first damage min/median/max s (12/12 each) | 1.4/7.25/31 | 1.1/3.5/10.8 |
+| Respawn first LOS min/median/max s | 0/.9/7 (204/205) | 0/1.1/6.2 (208/209) |
+| Respawn first damage min/median/max s | .7/4.2/43.4 (200/205) | .7/4.8/22.4 (203/209) |
+
+The small respawn median change is not general balance improvement: initial
+damage contact shortened, outcomes diverge, and one round per policy cannot
+establish fairness. LOS is an unobstructed100 m eye ray without FOV; 100 ms
+sampling, absent contacts stay absent. Evidence .inspect/session32-{before,final}-
+bot-round.json and bot-heatmap.svg, session32-contact-summary.json and opened
+session32-contact-comparison.png. Death density still favors southern routes;
+the memory does not solve Switchyard's fast FFA rhythm or all-exposed pools.
+Reproduce final: SWITCHYARD_METRICS=1 METRICS_PREFIX=session32-final pnpm exec
+vitest run test/switchyard-metrics.tool.test.ts (set env vars in the host shell).
+
+CPU fixture .inspect/session32-spawn-history-audit.json, local Node, twelve
+occupants cycling legal map spawn anchors,120 warmup/600 measured samples per map:
+
+| Map | History observation median/p95/max ms | Spawn selection median/p95/max ms |
+|---|---|---|
+| Relay | .526/.619/1.408 | .524/.596/1.111 |
+| Undertow | .541/.669/1.112 | .540/.697/1.097 |
+| Switchyard | .982/1.385/3.150 | .979/1.411/3.458 |
+
+Observation is at most twice per second; selection occurs on spawn. This fixture
+keeps all anchors occupied and changes zero choices; it measures bounded cost,
+not historical-policy benefit. Regression fixtures and the natural round exercise
+policy differences. Local Node CPU is not deployed workerd capacity or latency.
+
+Opened before/final Switchyard effects-stress PNGs: presentation is unchanged.
+Reports .inspect/session32-{before,final}-report.json and render-delta.json:
+Edge152/RTX5070 D3D11,1920x1080 balanced/DPR1, eleven remote operators plus local
+rifle,145 twelve-rifle volleys,96 blasts,2130 steady samples and full effect drain.
+Peak calls189 ->189; triangles133374 ->133374; textures26 ->26; estimated texture
+MiB61.5846 ->61.5846; programs19 ->19. Median/p95/p99 frame intervals6.9/7.1/7.1 ms
+unchanged; max7.6 ->7.3 ms. Same geometry/lighting/assets; no optimization claim.
+Desktop frame intervals do not establish iGPU60 fps, thermal/cold-driver or6v6 RTT.
+
+Public bytes24,762,596 ->24,762,596 (delta0); assets including provenance18,592,941
+(delta0), largest Switchyard architecture5,016,936 bytes. Forty MiB public and
+25 MiB per-file caps pass. Evidence session32-bytes.json. Static reference audit
+session32-reference-audit.json reproduces unchanged map heights/rotations,
+ADS/sprint timers, mode economy, respawn and audio/HUD checks. Existing unmet
+reference rows remain honest; no new art allowlist/provenance requirement.
+
+Rejected intermediates: initial hidden-enemy unit fixture was still visible past
+the wall endpoint; corrected its position and retained the false-LOS assertion.
+An out-of-order multi-hunk patch failed atomically and was reapplied in source
+order. Byte-summary reader first assumed UTF16 for a UTF8 file; corrected the
+reader without changing evidence. No gameplay/gate assertion was weakened.
+
+Required pnpm typecheck; pnpm test (408 passed,6 existing/opt-in skips;41 passing
+files/4 skipped); pnpm build:client; pnpm audit:assets PASS. Logs:
+.inspect/session32-{typecheck,test,build-client,audit-assets}.log. Before/final
+Switchyard effects inspection with --assert-budgets PASS. Exact required command
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS; session32-required-inspector.log and required-report.json. All three reports
+have empty console-error and forbidden-network arrays.
+
+Exact required node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS. Evidence .inspect/hitch.json and
+session32-hitch.json/log: twelve seats, two bot-caused deaths and two respawns;
+zero post-warmup shader recompiles, frames >150 ms, browser console errors or
+long tasks. One recorded frame >24 ms: startup60.5 ms. Live at6.755 s, first
+damage27.058 s (20.303 s after live), deaths29.143/84.376 s, respawns32.211/
+87.431 s. Ordinary W/look navigation through server positions, no teleport,
+room isolation, storage reset, probe threshold or bot-stat change. This Relay
+hitch run is not a Switchyard pacing distribution or real-player acceptance.
+Local Wrangler logged a simulation-backlog warning and Network connection lost;
+the browser gate passed with zero errors. Those server-log messages are retained
+in session32-final-server-error.log; no attribution to a specific cause is claimed.
+
+Cleanup .inspect/session32-cleanup.json: twelve owned final preview processes
+stopped; root no longer alive, zero port8796 listeners and inspection browsers.
+The earlier preview tree was stopped before final build/restart. Final code and
+public assets stayed unchanged throughout final inspections and hitch gate.
+Read-only whitespace/scope checks pass. No commit, push, deploy or external
+publication; supervisor owns preview release. All standing gates green.
+
+Open owner questions/defaults: retain three-second soft sightline memory pending
+real spawn-camping review (yes); prioritize visible Undertow/Switchyard orientation
+next rather than increasing the danger weight until telemetry looks better (yes).
+Keep the larger footprints, industrial daylight, amber/teal, stylized sci-fi,
+server-verified hits and six-versus-six team defaults. Human mouse/hands, headphones,
+real players/RTT, iGPU/thermal and browser acceptance remain open. No owner answer
+is needed to continue. Next session: first-glance landmark/lane orientation with
+before/after views and the same resident-texture and performance budgets.
