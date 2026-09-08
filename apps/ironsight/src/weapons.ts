@@ -60,14 +60,15 @@ export function dirFromAngles(yaw: number, pitch: number): Vec3 {
 }
 
 /** The accuracy-cone half-angle for a shot, by movement state (movement penalty). */
-export function accuracySpread(spec: WeaponSpec, moving: boolean, grounded: boolean): number {
-  if (!grounded) return spec.spreadStill + spec.spreadAir;
-  if (moving) return spec.spreadStill + spec.spreadMove;
-  return spec.spreadStill;
+export function accuracySpread(spec: WeaponSpec, moving: boolean, grounded: boolean,
+  ads = false, crouch = false, shotIndex = 0): number {
+  const base = spec.spreadStill + (!grounded ? spec.spreadAir : moving ? spec.spreadMove : 0);
+  const deep = shotIndex >= spec.recoil.hybridAfter ? spec.recoil.hybridSpread : 0;
+  return (base + deep) * (ads ? spec.recoil.adsMul : 1) * (grounded && crouch ? spec.recoil.crouchMul : 1);
 }
 
 /**
- * Symmetric uniform jitter in `[-spread, +spread]`, `0` when `spread` is `0`
+ * Symmetric center-biased triangular jitter in `[-spread, +spread]`, zero at zero spread.
  * (pinpoint — matches `accuracySpread`'s "stationary AR" case exactly). The
  * SAME distribution arena-room.ts's private `jitter()` applies server-side for
  * pellet spread — shared here so the client's hybrid-hit claim ray (main.ts's
@@ -81,5 +82,5 @@ export function accuracySpread(spec: WeaponSpec, moving: boolean, grounded: bool
  * either side's independent roll).
  */
 export function jitter(spread: number, random01: () => number): number {
-  return spread > 0 ? (random01() - 0.5) * 2 * spread : 0;
+  return spread > 0 ? (random01() + random01() - 1) * spread : 0;
 }

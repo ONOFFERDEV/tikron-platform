@@ -1,3 +1,4 @@
+import type { RecoilState } from "../src/recoil.js";
 /**
  * Network layer: matchmaking, the room connection, event fan-out, and the intent
  * senders — with the 90 inputs/second budget enforced here so no caller can blow
@@ -285,11 +286,13 @@ export class Net {
    * trusted miss), and a `FireClaim` sends `claim: {id, part}` for the server
    * to plausibility-check.
    */
-  tryFire(now: number, computeClaim?: () => FireClaim | null | undefined): boolean {
+  fireSeq = 0;
+  tryFire(now: number, computeClaim?: () => FireClaim | null | undefined, aim?: { yaw: number; pitch: number }): boolean {
     if (now - this.lastFireAt < this.fireIntervalMs) return false;
     this.lastFireAt = now;
     const claim = computeClaim?.();
-    this.send("fire", claim === undefined ? {} : { claim });
+    this.fireSeq += 1;
+    this.send("fire", { ...aim, fireSeq: this.fireSeq, ...(claim === undefined ? {} : { claim }) });
     return true;
   }
 
@@ -332,6 +335,16 @@ export class Net {
       const { mag, weapon } = p as { mag?: unknown; weapon?: unknown };
       if (typeof mag === 'number' && Number.isInteger(mag) && mag >= 0 &&
           typeof weapon === 'number' && Number.isInteger(weapon) && weapon >= 1 && weapon <= WEAPONS.length) cb(mag, weapon);
+    });
+  }
+  onRecoilSync(cb: (seq: number, state: RecoilState) => void): void {
+    this.room.onMessage("recoilSync", p => {
+      if (!p || typeof p !== "object") return;
+      const { seq, slot, count, at } = p as Record<string, unknown>;
+      if (typeof seq === "number" && Number.isSafeInteger(seq) && seq > 0 &&
+          typeof slot === "number" && Number.isInteger(slot) && slot >= 0 && slot <= WEAPONS.length &&
+          typeof count === "number" && Number.isInteger(count) && count >= 0 && count <= 64 &&
+          typeof at === "number" && Number.isFinite(at) && at >= 0) cb(seq, { slot, count, at });
     });
   }
   onHit(cb: (e: HitEvent) => void): void {

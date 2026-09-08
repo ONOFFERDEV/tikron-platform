@@ -30,7 +30,8 @@ const maps = [ARENA1, ARENA2, ARENA3].map(map => {
 });
 console.log(JSON.stringify({ note: '1m four-neighbour ground BFS; cap waypoint overrides used where platforms block ground cells. Spawn-to-objective is a travel proxy, NOT measured first contact. Null means unreachable.',
   maps, weapons: WEAPONS.map(w => ({ name: w.name, adsMs: w.adsMs, sprintToFireMs: w.sprintToFireMs,
-    visualAdsCompleteMs: w.adsMs,
+    visualAdsCompleteMs: w.adsMs, recoil: w.recoil,
+    accuracy: { still: w.spreadStill, move: w.spreadMove, air: w.spreadAir },
     closeBodyHits: Math.ceil(100 / w.damageBody), closeBodyTtkMs: (Math.ceil(100 / w.damageBody) - 1) * w.fireIntervalMs,
     note: 'Server arrival-time ADS/sprint gate; hip fire does not require ADS. Body TTK assumes one pellet; not a shotgun volley.' })),
   match: MATCH, modes: MODES, dom: { neutralCaptureSeconds: 100 / MODES.dom.capturePerSec,

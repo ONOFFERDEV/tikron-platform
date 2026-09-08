@@ -1,3 +1,4 @@
+import { advanceRecoil, emptyRecoil, recoilSample } from "../../src/recoil.js";
 import type { Vec2 } from "@tikron/sim";
 import { xorshift32 } from "@tikron/sim";
 import { ARENA1_BOXES } from "../../src/map/arena1.js";
@@ -116,6 +117,7 @@ export class ArenaBot {
   private wpIndex = 0;
 
   // Ammo model (mag is owner-only, off the wire) + fire cadence, on the bot clock.
+  private recoil = emptyRecoil();
   private magFired = 0;
   private reloadUntilMs = 0;
   private lastFireMs = -Infinity;
@@ -165,6 +167,7 @@ export class ArenaBot {
     if (!me) return {};
     if (!me.alive) {
       this.inEncounter = false;
+      this.recoil = emptyRecoil();
       // Reset the ammo model so the bot comes back with a full mag, and rewind the
       // return route to its first waypoint — the spawn-side clear corridor — so a
       // bot respawning behind cover walks back through open ground instead of
@@ -190,8 +193,11 @@ export class ArenaBot {
     if (this.engagementRange !== undefined && !this.inEncounter) this.engagementZ = me.z;
     this.inEncounter = true;
     const { yaw, pitch } = this.aimAt(me, enemy);
+    // Pull against the public learnable pattern; retain seeded aim error and
+    // server-only accuracy noise. This is an aim intent, never a hit override.
+    const kick = recoilSample(this.recoil, AR, nowMs);
     const intents: BotIntents = {
-      look: { yaw, pitch },
+      look: { yaw: yaw - kick.yaw, pitch: pitch - kick.pitch },
       move: this.combatStrafe(me, yaw, nowMs),
     };
 
@@ -208,6 +214,7 @@ export class ArenaBot {
     if (nowMs - this.lastFireMs >= AR.fireIntervalMs) {
       this.lastFireMs = nowMs;
       this.magFired += 1;
+      this.recoil = advanceRecoil(this.recoil, AR, nowMs);
       intents.fire = true;
     }
     return intents;

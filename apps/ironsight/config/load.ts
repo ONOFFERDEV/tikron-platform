@@ -211,6 +211,16 @@ export function assertModesWireOrder(cfg: GameConfig): string[] {
 export function assertTracerSpeedPositive(cfg: GameConfig): string[] {
   const errs: string[] = [];
   for (const w of cfg.weapons) {
+    const r = w.recoil;
+    if (!r || !Array.isArray(r.pattern) || r.pattern.length < 2 ||
+        r.pattern.some(p => !Array.isArray(p) || p.length !== 2 || p.some((n: unknown) => typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > .15)) ||
+        r.pattern[0]?.[0] !== 0 || r.pattern[0]?.[1] !== 0 ||
+        !Number.isFinite(r.recoverMs) || r.recoverMs <= 0 ||
+        !Number.isFinite(r.adsMul) || r.adsMul <= 0 || r.adsMul > 1 ||
+        !Number.isFinite(r.crouchMul) || r.crouchMul < .66 || r.crouchMul > .84 ||
+        !Number.isInteger(r.hybridAfter) || r.hybridAfter < 4 ||
+        !Number.isFinite(r.hybridSpread) || r.hybridSpread < 0 || r.hybridSpread > .02)
+      errs.push(`weapon "${w.name}".recoil must have a centered finite pattern and bounded accuracy/recovery values`);
     for (const field of ['adsMs', 'sprintToFireMs'] as const) {
       if (!Number.isFinite(w[field]) || w[field] <= 0)
         errs.push(`weapon "${w.name}".${field} must be finite and positive`);

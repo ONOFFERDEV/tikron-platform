@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-29 are deployed there, including expanded Relay/Undertow,
-threat audio, weapon handling and combat presentation. Session 30 expands Switchyard
-and remains local until supervisor publication. Continue using the standing brief's active defaults.
+Supervisor reports sessions 1-30 are deployed there, including all three expanded maps,
+threat audio, weapon handling and combat presentation. Session 31 adds learnable recoil
+and shared accuracy; it remains local until supervisor publication. Continue using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,8 +326,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 30. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session30-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 31. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session31-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -356,11 +356,11 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
-| R-G04 | partial | AR still spread zero/moving .02 rad; SMG/sniper/pistol nonzero still; no crouch spread bonus. |
-| R-G05 | not yet | No learnable authoritative recoil sequence. |
-| R-G06 | not yet | No deep-spray hybrid or authoritative ADS/crouch multipliers. |
+| R-G04 | met | Session31: stationary cone AR/SMG/shotgun/sniper/pistol 0/.0002/0/.0001/.0002 rad; movement .02/.03/.02/.12/.02 added. Grounded crouch reduces cone 25%; shared accuracy tests. Human burst feel open. |
+| R-G05 | partial | Session31 fixed per-weapon authoritative offsets, four vertical automatic opening shots, later lateral drift; mouse probe and server-ray tests. Secure timed recovery replaces instant release reset; human learning/RTT acceptance open. |
+| R-G06 | met | Session31 bounded center-biased deep-spray cone after 8/7/8/8/5 shots; ADS .65/.70/.80/.50/.65 and grounded crouch .75 multiply. Shared function on server/claims, distribution and authority tests; slow weapons settle between shots. |
 | R-G07 | not yet | Cosmetic kick exists; no trauma-driven rotational shake. |
-| R-G08 | partial | Cosmetic recoil and reduced motion; no authoritative aim-kick model. |
+| R-G08 | partial | Session31 authoritative aim offset separated from cosmetic weapon kick. Reduced motion preserves the exact aim model; dedicated reduce-view-kick setting remains absent. |
 | R-G09 | partial | Team tint and five held pose families; human silhouette/hold acceptance open. |
 | R-G10 | partial | Bounded pooled muzzle VFX; per-weapon shape/duration reference acceptance open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
@@ -372,7 +372,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | partial | Shared table now also owns ADS/sprint timers; same handling model in client/server. Authoritative learnable recoil, crouch/ADS accuracy multipliers remain absent. |
+| R-G20 | met | Session31 WeaponSpec includes fixed recoil/recovery/accuracy alongside ADS/sprint timers; shared sampling/jitter drives server rays, claims, local camera and HUD. Owner-only sequence replies repair rejected prediction; raw fire aim is atomic. Human RTT acceptance open. |
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
 | R-L02 | partial | TDM 50 kills/300 s. DOM natural round 277.9 s, 100-201; 4/8 s capture, 1 point/2 s/flag, no side swap remain below reference pacing requirements. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -399,28 +399,27 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 30 reference audit: owner-ordered Relay, Undertow and Switchyard expansions
-are complete. All meet density/ground-rotation targets. Contact pacing and
-all-objective defensive visibility remain incomplete and require further layout work.
-Learnable recoil is the next finishable art/feel item, followed by measured spawn flow.
+Session 31 reference audit: all 63 rows retained and re-audited against current code
+and static measurements. Owner-ordered map expansion is complete. Shared recoil/
+accuracy is implemented; contact pacing is the next highest unmet measurable gap.
+The remaining recoil items require human mouse/RTT review or a separate setting.
 
-1. **Learnable recoil and accuracy (R-G04-06, R-G08, R-G20).** Shared recoil patterns,
-   authoritative ADS/crouch accuracy and predicted claim-ray parity; handling timers
-   are implemented, but high-RTT/mouse comfort still requires player review.
-2. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
+1. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
    avoids available unoccupied sampled-hidden alternatives. Measure real contact,
    recontest and side/route heatmaps; address all-exposed pools and recent enemy LOS.
-3. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
+2. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
    exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
-4. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
+3. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
    pings, countdowns, network-quality label and highlight colour choices.
-5. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps now expanded;
+4. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps now expanded;
    contact remains short, especially Switchyard FFA despite better yard coverage. DOM
    capture/economy/side-swap and five-minute soft caps still differ from reference.
    Gather real encounters before changing movement, TTK or economy together.
-6. **Audio routing and acceptance (R-G14, R-G16, R-L18).** Headphone mix/surface identity,
+5. **Audio routing and acceptance (R-G14, R-G16, R-L18).** Headphone mix/surface identity,
    ramp-volume occlusion and sound around doorways; current direct box filtering is
    bounded and tested, not a reachability/diffraction model.
+6. **Weapon comfort (R-G05, R-G08, R-G13, R-G18).** Human burst learning and high-RTT
+   corrections; separate reduced cosmetic view kick and world/weapon FOV controls.
 7. **Human/device acceptance.** Moving hands/holds, headphone mix, 6v6/RTT, iGPU,
    cold-driver/thermal and Firefox/Safari remain open; desktop fixtures cannot close them.
 
@@ -3921,3 +3920,181 @@ an art follow-up within the texture budget. Industrial daylight, amber/teal,
 stylized sci-fi, server-verified hits and six-versus-six team defaults stay active.
 Human hands/mouse/headphones, real RTT/players, iGPU and browser acceptance remain
 open. No owner answer is needed to continue.
+
+### Session 31 - 2026-09-09: learnable recoil and shared stance accuracy
+
+Read the standing brief, Session31 supervisor status, complete plan structure and
+all 63 design references. Branch ironsight-aaa; starting worktree clean. Scope
+apps/ironsight/** only; no commit, push, deployment, dependency or purchased-source
+change. No Meshy spend (reported balance 1530): aim behavior needs shared code,
+not another prop. Scorecard re-audited above; spawn-exit/contact flow ranks first next.
+
+Reference: R-G04, R-G05, R-G06, R-G08, R-G20. Checkable targets: near-zero still
+opening cone; movement substantially larger than the 16-34% crouch bonus; four
+vertical automatic opening shots followed by repeatable sideways drift; bounded
+center-biased randomness only deeper in the spray; multiplicative ADS/crouch;
+one shared data/model for server rays, honest claims and local aim. Implementation
+checks pass; R-G05 remains partial because recovery is timed, not an instantaneous
+release reset, and human learning/comfort is untested. R-G08 remains partial: no
+separate reduce-view-kick setting. No human/iGPU/6v6 acceptance is implied.
+
+WeaponSpec now owns a RecoilProfile (src/recoil.ts): absolute angular offsets from
+raw mouse aim, capped at the end of a finite sequence. First shot is centered;
+AR/SMG shots 1-4 are vertical, then drift right/left respectively. Peak vertical
+hip offsets AR/SMG/shotgun/sniper/pistol are .030/.024/.018/.025/.016 radians
+(about 1.72/1.38/1.03/1.43/.92 degrees). Slow shotgun/sniper settle between shots;
+their second pattern entry provides immediate feedback after a shot, not a hidden
+penalty on the next fully recovered trigger. Damage, pellet pattern, cadence,
+movement, map geometry, capture economy and twelve-seat fill are unchanged.
+
+| Weapon | Still cone rad (before -> now) | Added moving / air rad | ADS multiplier | Deep cone after N shots | Full recovery after last shot |
+|---|---|---|---|---|---|
+| AR | 0 -> 0 | .02 / .05 | .65 | .003 after 8 | 450 ms |
+| SMG | .004 -> .0002 | .03 / .06 | .70 | .004 after 7 | 347.5 ms |
+| Shotgun | 0 -> 0 | .02 / .05 | .80 | .002 after 8 (normally settles first) | 500 ms |
+| Sniper | .0005 -> .0001 | .12 / .20 | .50 | .002 after 8 (normally settles first) | 550 ms |
+| Pistol | .002 -> .0002 | .02 / .05 | .65 | .002 after 5 | 430 ms |
+
+Grounded crouch multiplies the accuracy cone by .75, stacking with ADS; airborne
+crouch receives no bonus. ADS also scales deterministic aim offset. Two independent
+uniform draws produce triangular center-biased jitter with variance 1/6 of squared
+half-angle (uniform was 1/3). The server and local claim call the same function
+with independent RNG streams. Hybrid plausibility is centered on the server's
+recoil-adjusted ray; its existing tolerance/occlusion/rewind policy is unchanged.
+That tolerated claim channel does not prove cheat-proof randomness or pixel-exact
+client/server correspondence. No widening of its acceptance gate was introduced.
+
+Only accepted server shots advance the burst. Cadence, handling, reload, swap,
+ammo and liveness rejection return owner-only recoilSync when a valid fireSeq is
+present; the client's bounded queue replays only still-pending predicted shots.
+Old acknowledgments cannot resurrect an earlier weapon/life after reset. Fire
+messages include current validated raw yaw/pitch atomically so mouse compensation
+does not wait for the throttled look stream. Clients never supply a trusted recoil
+count, timestamp or offset. Legacy fire messages still work, with server recoil.
+These additive developer messages do not alter the binary schema or snapshot
+version, but client and Worker must publish together for correct visual prediction.
+
+No explicit release-reset message: after min(150 ms, 1.5 fire intervals) of silence,
+the offset decays linearly over the profile's recovery time. This is a deliberate
+security exception to the literal immediate-release reference: a forged up/down
+pair cannot earn centered shots at automatic cadence. Server arrival time drives
+recovery; local prediction uses estimated server time. ADS/reload/death/switch
+continue through their existing handling gates. Reduced motion keeps authoritative
+aim exactly the same as ordinary rendering; no new light, pass or runtime bake.
+
+Tests cover per-weapon cone and recovery boundaries, automatic vertical/lateral
+ordering, center-biased variance, pending-shot/rejection reconciliation, stale
+replies after reset, real-room accepted rays, forged reset/index fields, same-time
+fire rejection, atomic mouse compensation, malformed angles, reload and swap.
+Existing two-bot combat test initially failed (15 hits vs required 20): its external
+ArenaBot client assumed zero recoil. That client now subtracts the public pattern
+through ordinary look intents, retaining seeded aim error, movement, ammo and all
+combat assertions. Production filler-bot HP/damage/aim/reaction were not changed;
+they receive the same new server recoil as players. No test threshold was weakened.
+
+Rejected intermediates: config validation initially widened an array element to
+implicit any (typecheck caught it; fixed explicit unknown validation); one edit
+used a root-relative path from the app cwd and wrote nothing. The first browser
+spray held for one second and observed too few accepted shots to reach the
+8-shot lateral assertion; the workload now holds for 1.8 s with the same required
+shot count and records per-slot evidence even on failure. Subsequent recoil probes
+passed, but a handling run during active development/reloads measured 403.3 ms
+sprint recovery against its unchanged 300 ms upper bound. That run is rejected;
+final isolated checks below supersede it. No hitch or standing gate assertion changed.
+
+Final measured renderer, control, gates and cleanup evidence follows.
+
+Final control evidence: .inspect/session31-final-report.json, final-inspector.log,
+recoil-1..5.json and matching ready/held/recovered PNGs; compact measurements in
+session31-recoil-summary.json. Command: `node scripts/inspect-map.mjs --url
+http://localhost:8796 --shots recoil,handling,effects-stress --assert-handling
+--assert-budgets --prefix session31-final`. All assertions PASS. Actual held-mouse
+shots AR/SMG/shotgun/sniper/pistol: 13/16/3/2/9. Peak local pitch offsets reach
+.030/.024/.018/.025/.016 rad; automatic yaw peaks .007/.009 rad. All five recover
+to index zero and exactly zero angular offset. SMG briefly predicts index17 and
+settles to authoritative count16, demonstrating a corrected in-flight difference.
+Counts include the held capture interval; they are not weapon cadence benchmarks.
+
+Final ADS fully-settled local times 252.7/207.1/234.6/408.5/170.4 ms;
+first received self-shot 308.5/265.5/291.0/465.7/219.3 ms. Pistol sprint-to-fire
+first received self-shot 124.4 ms (server setting 90 ms). These include browser,
+tick and transport scheduling; they are not RTT measurements. Final stable-build
+handling succeeds within every original bound, superseding the 403.3 ms rejected
+run. Final source/build stayed unchanged throughout final inspector and live gates.
+
+Before evidence: .inspect/session31-before-report.json, before-inspector.log and
+before-* PNGs. Opened before ADS acquisition, final AR ready/held/recovered, final
+sniper held, and required Undertow practice. AR's sightline rises against the roof
+while firing, then returns to the ready alignment; central combat corridor stays
+clear. Different ADS/hip frames are presentation evidence, not matched camera
+pixel deltas. Five-weapon sampled offsets and server-ray tests establish the new
+behavior. Human wrist/finger motion and mouse comfort remain unaccepted.
+
+Matched renderer workload (before/final reports, session31-delta.json): Edge152,
+RTX5070 D3D11, 1920x1080 balanced/DPR1; eleven remote operators and local rifle,
+145 twelve-rifle volleys, 96 blasts, 2,130 steady samples, complete effects drain.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak draw calls | 220 | 220 | 0 |
+| Peak submitted triangles | 128,906 | 128,906 | 0 |
+| Resident textures | 30 | 30 | 0 |
+| Estimated texture MiB | 63.7513 | 63.7513 | 0 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0 / 0 / 0 |
+| Maximum / first-ready max ms | 7.2 / 7.1 | 7.8 / 7.1 | +0.6 / 0 |
+| Browser-resident programs | 27 | 27 | 0 |
+
+The effects fixture measures rendering cost, not competitive aim or true GPU time.
+Program totals include shaders retained across earlier browser views. Same light
+count/passes/assets; no added texture MiB. Remaining limiting fixture texture
+headroom ~.249 MiB. Desktop intervals do not prove laptop iGPU, cold-driver,
+thermal, browser portability, real twelve-player networking or mouse acceptance.
+
+Session31 static reference audit reproduced with tools/reference-audit.ts;
+.inspect/session31-reference-audit.json includes the new accuracy/recoil table.
+Map heights/rotation timings are unchanged from Session30. ADS/sprint settings
+remain 250/200/225/400/165 and 120/100/130/150/90 ms. TDM 50 kills/300 s; DOM
+4/8 s neutral/enemy capture, 1 point/2 s/flag, 200 target, no side swap. Live
+respawn remains 3000 ms with threat-aware scoring; enemy/ally foley gain1.4;
+hit/kill two-tone confirmations, victim flash/direction, five-row top-right feed
+remain. These unchanged reference mismatches are still marked partial/not yet.
+No map pacing or side fairness acceptance is inferred from this gunplay session.
+
+Public bytes 24,746,675 -> 24,762,596 (+15,921, generated client bundle/maps);
+assets including provenance remain 18,592,941 (delta0). Largest file remains
+Switchyard architecture 5,016,936 bytes. Evidence session31-bytes.json. Public
+40 MiB and per-file25 MiB caps pass. No new art allowlist/provenance requirement.
+
+Required pnpm typecheck, pnpm test (404 passed, six existing/opt-in skips; 41
+passing files/four skipped), pnpm build:client and pnpm audit:assets PASS.
+Evidence .inspect/session31-{typecheck,test,build-client,audit-assets}.log.
+Exact required `node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two` PASS; session31-required-inspector.log and copied
+session31-required-report.json. Before/final/required reports have zero console
+errors and forbidden offline network requests (session31-report-checks.json).
+
+Exact required live command `node scripts/hitch-probe.mjs http://localhost:8796
+150000 .inspect/hitch.json --assert` PASS. Evidence .inspect/hitch.json,
+session31-hitch.json/log: twelve seats, two bot-caused deaths, two respawns, zero
+post-warmup shader recompiles, frames >150 ms, console errors or long tasks.
+Only recorded frame >24 ms: startup59.1 ms. Live begins at7.914 s; first damage
+at30.262 s (22.348 s after live), first death77.018 s, respawn80.086 s, second
+death95.524 s and respawn98.593 s. The ordinary W/look route moved through
+server-owned positions; no teleports, room isolation, storage reset, lifecycle
+rework or bot-stat overrides. This is a hitch/respawn gate, not a new contact
+pacing distribution or proof that production bots have mastered recoil.
+
+Cleanup .inspect/session31-cleanup.json: twelve owned final preview processes
+stopped; zero owned processes, port8796 listeners or inspection browsers remain.
+Earlier preview trees were stopped before rebuild/restarts. Read-only git diff
+whitespace and scope checks pass: every modified/untracked path is within
+apps/ironsight/**. All standing gates green; no commit, push or deployment.
+
+Open owner questions/defaults: retain modest fixed patterns and timed recovery
+pending mouse review (yes); preserve server/claim parity while collecting real
+RTT/comfort evidence (yes). Next session tackle spawn-exit/contact flow, especially
+Switchyard FFA, using natural telemetry and collision-aligned routes. Do not
+retune movement, TTK and economy together by guesswork. Keep industrial daylight,
+amber/teal, stylized sci-fi and six-versus-six team defaults. Moving hands,
+headphones, real players/RTT, iGPU and browser acceptance remain open. No owner
+answer is needed to continue; supervisor owns publication.

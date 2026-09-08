@@ -1,3 +1,4 @@
+import { RECOIL, type RecoilProfile } from "./recoil.js";
 /**
  * ironsight M0 tunables — every gameplay constant in one place.
  *
@@ -115,6 +116,7 @@ export const MOVE = {
  * falls off — so the best weapon differs per range band.
  */
 export interface WeaponSpec {
+  readonly recoil: RecoilProfile;
   /** Loadout slot 1–5 (the `switch` intent's slot; wire `weapon` stores slot−1). */
   readonly slot: number;
   readonly name: string;
@@ -161,6 +163,7 @@ export interface WeaponSpec {
 /** AR — the all-rounder baseline (PLAN §4: body 25 / head 50, 100 ms, 30-mag, 1.8 s). */
 const AR_SPEC: WeaponSpec = {
   slot: 1,
+  recoil: RECOIL[0]!,
   name: "AR",
   adsMs: 250,
   sprintToFireMs: 120,
@@ -185,6 +188,7 @@ const AR_SPEC: WeaponSpec = {
 /** SMG — higher close-range DPS, cliffs off past mid (owns the 15 m band). */
 const SMG_SPEC: WeaponSpec = {
   slot: 2,
+  recoil: RECOIL[1]!,
   name: "SMG",
   adsMs: 200,
   sprintToFireMs: 100,
@@ -197,7 +201,7 @@ const SMG_SPEC: WeaponSpec = {
   range: 80,
   pellets: 1,
   pelletSpread: 0,
-  spreadStill: 0.004,
+  spreadStill: 0.0002,
   spreadMove: 0.03,
   spreadAir: 0.06,
   falloffStart: 16,
@@ -209,6 +213,7 @@ const SMG_SPEC: WeaponSpec = {
 /** Shotgun — 8 pellets: a point-blank one-shot that decays to nothing past ~20 m. */
 const SHOTGUN_SPEC: WeaponSpec = {
   slot: 3,
+  recoil: RECOIL[2]!,
   name: "Shotgun",
   adsMs: 225,
   sprintToFireMs: 130,
@@ -233,6 +238,7 @@ const SHOTGUN_SPEC: WeaponSpec = {
 /** Sniper — bolt-action: body chunk (2-shot), head one-shot, no falloff, huge move penalty. */
 const SNIPER_SPEC: WeaponSpec = {
   slot: 4,
+  recoil: RECOIL[3]!,
   name: "Sniper",
   adsMs: 400,
   sprintToFireMs: 150,
@@ -245,7 +251,7 @@ const SNIPER_SPEC: WeaponSpec = {
   range: 100,
   pellets: 1,
   pelletSpread: 0,
-  spreadStill: 0.0005,
+  spreadStill: 0.0001,
   spreadMove: 0.12, // punishing while moving — this is a stand-still weapon
   spreadAir: 0.2,
   falloffStart: 100, // ≥ range → full damage everywhere in reach
@@ -257,6 +263,7 @@ const SNIPER_SPEC: WeaponSpec = {
 /** Pistol — the reliable semi-auto sidearm every loadout carries (slot 5). */
 const PISTOL_SPEC: WeaponSpec = {
   slot: 5,
+  recoil: RECOIL[4]!,
   name: "Pistol",
   adsMs: 165,
   sprintToFireMs: 90,
@@ -269,7 +276,7 @@ const PISTOL_SPEC: WeaponSpec = {
   range: 90,
   pellets: 1,
   pelletSpread: 0,
-  spreadStill: 0.002,
+  spreadStill: 0.0002,
   spreadMove: 0.02,
   spreadAir: 0.05,
   falloffStart: 20,

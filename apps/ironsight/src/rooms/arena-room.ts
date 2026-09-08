@@ -1,3 +1,4 @@
+import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
 import { WeaponHandling, isSprinting } from "../handling.js";
 import {
   IoArenaRoom,
@@ -26,7 +27,7 @@ import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../phys
 import { chooseSafeSpawn } from "../map/spawn.js";
 import { GroundNavigator } from "../map/navigation.js";
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
-import { accuracySpread, dirFromAngles, falloffMul, pelletPattern } from "../weapons.js";
+import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
 import { rampOccluderBoxes } from "../map/tilemap.js";
@@ -191,6 +192,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly magByW = new Map<string, number[]>();
   private readonly reserveByW = new Map<string, number[]>();
   private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading (current weapon only)
+  private readonly recoil = new Map<string, RecoilState>();
   private readonly lastShotAt = new Map<string, number>(); // epoch ms
   private readonly swapUntil = new Map<string, number>(); // epoch ms; can't fire until a weapon swap settles
   private readonly nadeReadyAt = new Map<string, number>(); // epoch ms; earliest next grenade throw
@@ -427,6 +429,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.reserveByW,
       this.reloadUntil,
       this.lastShotAt,
+      this.recoil,
       this.swapUntil,
       this.handling,
       this.nadeReadyAt,
@@ -657,6 +660,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // --- shooting ---------------------------------------------------------------
 
   private handleFire(client: Client, payload: unknown, input?: InputMeta): void {
+    this.resolveFire(client, payload, input);
+    const seq = readNum(payload, "fireSeq");
+    if (seq !== undefined && Number.isSafeInteger(seq) && seq > 0) {
+      client.send("recoilSync", { seq, ...(this.recoil.get(client.id) ?? emptyRecoil()) });
+    }
+  }
+
+  private resolveFire(client: Client, payload: unknown, input?: InputMeta): void {
     const id = client.id;
     const shooter = this.state.players[id];
     if (!shooter || !shooter.alive) return;
@@ -695,6 +706,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
     mags[w] = (mags[w] ?? 0) - 1;
     this.lastShotAt.set(id, now);
+    const burst = this.recoil.get(id) ?? emptyRecoil();
+    const kick = recoilSample(burst, spec, now, handling.adsProgress >= 1);
+    this.recoil.set(id, advanceRecoil(burst, spec, now));
+    // Fire carries current raw mouse intent atomically, avoiding the throttled
+    // look stream lagging behind an honest recoil-compensating mouse movement.
+    this.handleLook(client, payload);
+    const shotYaw = shooter.yaw + kick.yaw;
+    const shotPitch = clamp(shooter.pitch + kick.pitch, -PITCH_LIMIT, PITCH_LIMIT);
     client.send("ammo", { mag: mags[w], reserve: this.reserveArr(id)[w] ?? 0, weapon: spec.slot });
 
     // Firing ends spawn protection early (no shooting from behind the shield).
@@ -735,8 +754,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // Also the reference direction hybrid claims are validated against below —
     // a claim reflects where the client's crosshair pointed, not the analytic
     // path's per-pellet jittered ray (the client can't predict the server's
-    // secret spread RNG), so it's checked against this raw aim, not `dir`.
-    const baseDir = dirFromAngles(shooter.yaw, shooter.pitch);
+    // secret spread RNG), so it is checked against recoil-adjusted aim, before random jitter.
+    const baseDir = dirFromAngles(shotYaw, shotPitch);
 
     // Fire the weapon's pellets: a fixed pattern (the shotgun's spread) plus a
     // per-ray accuracy-cone jitter (movement penalty). Per-pellet damage scales
@@ -744,7 +763,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const inp = this.inputs.get(id);
     const grounded = this.grounded.get(id) ?? true;
     const moving = inp ? inp.mx !== 0 || inp.mz !== 0 : false;
-    const acc = accuracySpread(spec, moving, grounded);
+    const acc = accuracySpread(spec, moving, grounded, handling.adsProgress >= 1, shooter.crouch, kick.index);
     const cfg = { radius: HIT.radius, headRadius: HIT.headRadius };
 
     const dmgByVictim = new Map<string, { dmg: number; head: boolean }>();
@@ -814,7 +833,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         console.log(JSON.stringify({ tag: "hybridHit", shooter: id, result: "no-claim" }));
       }
       for (const off of pelletPattern(spec)) {
-        const dir = dirFromAngles(shooter.yaw + off.dyaw + this.jitter(acc), shooter.pitch + off.dpitch + this.jitter(acc));
+        const dir = dirFromAngles(shotYaw + off.dyaw + this.jitter(acc), shotPitch + off.dpitch + this.jitter(acc));
         const hit = resolveHitscan(
           origin,
           dir,
@@ -963,13 +982,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return a;
   }
 
-  /** Symmetric spread offset (rad) for a cone half-angle; 0 → pinpoint (deterministic).
-   *  Same formula as weapons.ts's exported `jitter()` (which main.ts's hybrid-hit
-   *  claim roll uses with its own `Math.random()`) — kept as a separate method
-   *  here rather than switched to call the shared one, so this room's seeded
-   *  `spreadRng` (secret, reproducible-per-room) stays untouched. */
+  /** One distribution shared with local claims; room RNG stays server-owned. */
+  private readonly accuracyRandom = () => this.spreadRng() / 0xffffffff;
   private jitter(spread: number): number {
-    return spread > 0 ? (this.spreadRng() / 0xffffffff - 0.5) * 2 * spread : 0;
+    return jitter(spread, this.accuracyRandom);
   }
 
   private ownerClient(id: string): Client | undefined {
@@ -1039,6 +1055,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.reloadEnd = 0;
     this.reloadUntil.delete(id); // a swap cancels an in-progress reload
     this.updateHandling(id, Date.now());
+    this.recoil.delete(id);
     this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
       mag: this.magArr(id)[idx] ?? 0,
@@ -1323,6 +1340,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.magByW.set(id, WEAPONS.map((wpn) => wpn.mag));
     this.reserveByW.set(id, WEAPONS.map((wpn) => wpn.reserve));
     this.reloadUntil.delete(id);
+    this.recoil.delete(id);
     this.lastShotAt.delete(id);
     this.swapUntil.delete(id);
     this.handling.delete(id);
@@ -1466,6 +1484,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.reserveByW,
       this.reloadUntil,
       this.lastShotAt,
+      this.recoil,
       this.swapUntil,
       this.handling,
       this.nadeReadyAt,

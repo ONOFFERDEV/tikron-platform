@@ -1,3 +1,4 @@
+import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { WeaponHandling, isSprinting } from "../src/handling.js";
@@ -168,6 +169,7 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
+    recoilInfo: () => ({ ...recoil.state, ...recoilSample(recoil.state, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, net.serverNow(), handling.adsProgress >= 1) }),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
     hitboxDiag: () => scene.getHitboxDiagnostics(),
   };
@@ -191,6 +193,8 @@ async function main(): Promise<void> {
   let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
   let curWeapon = 0;
+  const recoil = new RecoilPrediction();
+  net.onRecoilSync((seq, state) => recoil.reconcile(seq, state));
   let handling = new WeaponHandling();
   // Client-side mirror of the server's fire-drop conditions (arena-room.ts's
   // handleFire: mid-reload, empty mag, mid weapon-swap), so predicted-only local
@@ -213,6 +217,7 @@ async function main(): Promise<void> {
     const idx = e.weapon - 1;
     hud.setWeapon(idx);
     if (idx !== curWeapon && idx >= 0) {
+      recoil.reset(net.fireSeq);
       curWeapon = idx;
       scene.setWeapon(idx);
       net.setFireInterval(idx);
@@ -284,7 +289,7 @@ async function main(): Promise<void> {
   const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
     if (state.phase === "live" && previousPhase !== "live") {
-      reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling();
+      reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
       scene.setReload(0, 1); net.requestSync();
     }
     previousPhase = state.phase;
@@ -304,7 +309,7 @@ async function main(): Promise<void> {
         playHurt();
       }
       if (wasAlive && !me.alive) {
-        handling = new WeaponHandling();
+        handling = new WeaponHandling(); recoil.reset(net.fireSeq);
         deathAt = performance.now();
         respawnSent = false;
         deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
@@ -361,7 +366,7 @@ async function main(): Promise<void> {
 
     // Intents (net enforces the send budget).
     if (net.online !== wasOnline) {
-      buf.length = 0; handling = new WeaponHandling();
+      buf.length = 0; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
       if (!net.online && document.pointerLockElement) document.exitPointerLock();
       if (net.online) {
         const restored = net.state?.players[net.myId];
@@ -391,6 +396,12 @@ async function main(): Promise<void> {
     // shot below anchors its tracer/casing to this same live eye position.
     const eye = predictor.eye();
 
+    const spec = WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC;
+    const shotNow = net.serverNow();
+    const kick = recoilSample(recoil.state, spec, shotNow, handling.adsProgress >= 1);
+    const aimYaw = input.yaw + kick.yaw;
+    const aimPitch = Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, input.pitch + kick.pitch));
+
     // Firing (server fire interval is the truth; net gates, we kick locally).
     if (net.online && input.isFiring && alive && phase === "live" && handling.canFire) {
       // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
@@ -409,24 +420,15 @@ async function main(): Promise<void> {
       const computeClaim = (): FireClaim | null | undefined => {
         const spec = WEAPONS[curWeapon];
         if (!spec || spec.pellets !== 1) return undefined;
-        // Client-side spread roll (team-lead's balance requirement): the
-        // server's own accuracy-cone movement penalty (accuracySpread) must
-        // ALSO degrade the claim ray, or a hybrid-capable client would fire
-        // pinpoint-accurate SMG/Sniper/Pistol shots while moving — a
-        // rebalance affecting every player, unlike the already-accepted
-        // "aimbot-tier claim passes plausibility" cheat surface (a client that
-        // skips this roll just gets that same surface, nothing new). One roll
-        // per shot, same distribution as arena-room.ts's server-side jitter()
-        // (weapons.ts's shared `jitter`) — this client's own Math.random(), not
-        // trying to predict the server's secret seeded RNG (validateClaim
-        // widens its own cone tolerance by this same accuracySpread value to
-        // accept either side's independent roll).
+        // Same deterministic offset and stance cone as the server; independent,
+        // center-biased noise only affects the accuracy cone, never the pattern.
         const moving = intent.mx !== 0 || intent.mz !== 0;
-        const acc = accuracySpread(spec, moving, predictor.isGrounded);
-        const claimDir = dirFromAngles(input.yaw + jitter(acc, Math.random), input.pitch + jitter(acc, Math.random));
+        const acc = accuracySpread(spec, moving, predictor.isGrounded, handling.adsProgress >= 1, me?.crouch ?? false, kick.index);
+        const claimDir = dirFromAngles(aimYaw + jitter(acc, Math.random), aimPitch + jitter(acc, Math.random));
         return scene.raycastHitClaim(eye, claimDir, spec.range) ?? null;
       };
-      if (net.tryFire(now, computeClaim) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
+      if (net.tryFire(now, computeClaim, { yaw: input.yaw, pitch: input.pitch }) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
+        recoil.fire(net.fireSeq, spec, shotNow);
         scene.fireRecoil(curWeapon);
         playFire(curWeapon);
         if (mag !== null) mag -= 1; // predicted decrement; the next "ammo" resyncs it
@@ -438,7 +440,7 @@ async function main(): Promise<void> {
         // in the way) since the actual hit/miss distance is only known
         // server-side — `spawnImpact` (still wire-authoritative below) carries
         // the real hit location regardless.
-        const aimDir = dirFromAngles(input.yaw, input.pitch);
+        const aimDir = dirFromAngles(aimYaw, aimPitch);
         const range = WEAPONS[curWeapon]?.range ?? 100;
         const aimDist = scene.wallDistance(eye, aimDir, range);
         const endpoint = {
@@ -466,7 +468,8 @@ async function main(): Promise<void> {
     if (deathCam) {
       scene.setView(deathCam.eye, deathCam.yaw, deathCam.pitch);
     } else {
-      scene.setView(eye, input.yaw, input.pitch);
+      const viewKick = recoilSample(recoil.state, spec, shotNow, handling.adsProgress >= 1);
+      scene.setView(eye, input.yaw + viewKick.yaw, Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, input.pitch + viewKick.pitch)));
     }
     setAudioListener(scene.camera.position, deathCam?.yaw ?? input.yaw);
     onAds(alive && input.adsHeld);
@@ -524,7 +527,7 @@ async function main(): Promise<void> {
         .slice(0, 8);
       hud.setLeaderboard(rows);
     }
-    hud.setSpread(!predictor.isGrounded ? 1 : moving ? 0.5 : 0);
+    hud.setSpread(Math.min(1, accuracySpread(spec, moving, predictor.isGrounded, handling.adsProgress >= 1, me?.crouch ?? false, kick.index) / .05));
     fpsFrames++;
     if (now - fpsWindowStart >= 500) {
       hud.setFps((fpsFrames * 1000) / (now - fpsWindowStart));
