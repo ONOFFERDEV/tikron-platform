@@ -51,7 +51,7 @@ export class Input {
     private readonly onCycle?: (dir: 1 | -1) => void,
     /** KeyG pressed: throw a grenade. */
     private readonly onNade?: () => void,
-    private readonly onPing?: () => void,
+    private readonly onPing?: (intent: 'context' | 'backup') => void,
   ) {
     this.yaw = initialYaw;
     this.bind();
@@ -77,7 +77,9 @@ export class Input {
         } else if (binds.grenade.includes(e.code)) {
           if (!e.repeat) this.onNade?.();
         } else if (binds.ping.includes(e.code)) {
-          if (!e.repeat) this.onPing?.();
+          if (!e.repeat) this.onPing?.('context');
+        } else if (binds.backup.includes(e.code)) {
+          if (!e.repeat) this.onPing?.('backup');
         } else if (e.code.startsWith("Digit")) {
           const slot = Number(e.code.slice(5));
           if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);

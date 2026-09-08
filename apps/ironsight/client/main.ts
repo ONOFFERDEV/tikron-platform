@@ -125,11 +125,11 @@ async function main(): Promise<void> {
       net.sendSwitch(next + 1);
     },
     () => net.sendNade(),
-    () => {
+    (intent) => {
       const state = net.state, now = performance.now();
       if (!net.online || state?.phase !== 'live' || !state.players[net.myId]?.alive || state.mode === 1 || now - lastPingAt < PING.cooldownMs) return;
       lastPingAt = now;
-      net.room.send('ping', { yaw: input.yaw, pitch: input.pitch });
+      net.room.send('ping', { yaw: input.yaw, pitch: input.pitch, intent });
     },
   );
   net.room.onMessage('teamPing', payload => {

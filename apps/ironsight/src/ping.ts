@@ -4,7 +4,7 @@ import { HIT } from './config.js';
 import type { MapDef } from './map/types.js';
 
 export const PING = { cooldownMs: 2000, lifetimeMs: 5000, range: 80 } as const;
-export interface TeamPing { from: string; kind: 'enemy' | 'go'; x: number; z: number; expiresAt: number }
+export interface TeamPing { from: string; kind: 'enemy' | 'go' | 'backup'; x: number; z: number; expiresAt: number }
 
 /** Snapshot of an aimed location, never a tracking tag or a client position claim. */
 export function resolvePing(origin: Vec3, dir: Vec3, team: number, targets: readonly HitTarget[],

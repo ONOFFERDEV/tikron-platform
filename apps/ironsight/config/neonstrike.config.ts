@@ -171,6 +171,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
       keybindingsTitle: "키 설정",
       actionLabels: {
         ping: "Team ping",
+        backup: "Need backup",
         forward: "앞으로",
         back: "뒤로",
         left: "왼쪽",

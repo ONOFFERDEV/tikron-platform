@@ -53,8 +53,37 @@ it('does not treat FFA/practice shared team numbers as team communication', asyn
     const a = await h.connect(), b = await h.connect();
     const state = (h.room as unknown as { state: ArenaState }).state;
     state.mode = mode; state.players[b.id]!.team = state.players[a.id]!.team;
-    await a.send('ping', { yaw: 0, pitch: 0 }); await h.advance(100);
+    await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(100);
     expect(frames(b)).toHaveLength(0); expect(frames(a)).toHaveLength(mode === 3 ? 1 : 0);
   }
 });
 
+
+it('backup snapshots the authoritative caller, shares the contextual budget and rejects unsupported intent', async () => {
+  const h = await createTestRoom(PingArena, { codec: ArenaSchema, sync: 'throttled' });
+  const a = await h.connect(), enemy = await h.connect(), ally = await h.connect();
+  const state = (h.room as unknown as { state: ArenaState }).state;
+  const me = state.players[a.id]!;
+  const origin = { x: me.x, z: me.z };
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'reveal' }); await h.advance(50);
+  expect(frames(a)).toHaveLength(0);
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup', x: 999, z: 999, from: enemy.id });
+  await h.advance(50);
+  expect(frames(a)).toHaveLength(1); expect(frames(ally)).toHaveLength(1); expect(frames(enemy)).toHaveLength(0);
+  expect(frames(a)[0]!.payload).toMatchObject({ ...origin, kind: 'backup', from: a.id });
+  await a.send('ping', { yaw: 0, pitch: 0 }); await h.advance(50);
+  expect(frames(a)).toHaveLength(1);
+  me.x += 1;
+  expect(frames(a)[0]!.payload).toMatchObject(origin);
+  await h.advance(2000);
+  await a.send('ping', { yaw: 0, pitch: 0 }); await h.advance(50);
+  expect(frames(a)).toHaveLength(2);
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(50);
+  expect(frames(a)).toHaveLength(2);
+  await h.advance(2000); me.alive = false;
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(50);
+  expect(frames(a)).toHaveLength(2);
+  me.alive = true; state.phase = 'ended';
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(50);
+  expect(frames(a)).toHaveLength(2);
+});

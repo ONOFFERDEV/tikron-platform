@@ -200,10 +200,11 @@ try {
             combat.ordinaryPeak !== 16 || combat.threatPeak !== 20 || combat.drained !== 0)
           throw Error(`Threat audio graph failed: ${JSON.stringify(combat)}`);
       }
-      if (args.includes('--assert-ping') && name === 'practice-two') {
+      if ((args.includes('--assert-ping') || args.includes('--assert-backup')) && name === 'practice-two') {
+        const backup = args.includes('--assert-backup');
         const key = async () => {
-          await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ', windowsVirtualKeyCode: 81 });
-          await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ', windowsVirtualKeyCode: 81 });
+          await send('Input.dispatchKeyEvent', { type: 'keyDown', key: backup ? 'b' : 'q', code: backup ? 'KeyB' : 'KeyQ', windowsVirtualKeyCode: backup ? 66 : 81 });
+          await send('Input.dispatchKeyEvent', { type: 'keyUp', key: backup ? 'b' : 'q', code: backup ? 'KeyB' : 'KeyQ', windowsVirtualKeyCode: backup ? 66 : 81 });
         };
         const layouts = [];
         for (const [width, height] of [[1920,1080],[1280,600],[720,900]]) {
@@ -211,12 +212,12 @@ try {
           await key(); await waitFor('!document.querySelector("#teamPingNotice").hidden');
           const layout = await evaluate(`(() => {
             const n=document.querySelector('#teamPingNotice'), r=n.getBoundingClientRect();
-            const overlaps=[...document.querySelectorAll('#trainingCoach,#ping,#briefing,#tacticalMap,#wbar,#hp')].filter(e=>!e.hidden).some(e=>{const b=e.getBoundingClientRect();return r.left<b.right&&r.right>b.left&&r.top<b.bottom&&r.bottom>b.top;});
+            const overlaps=[...document.querySelectorAll('#trainingCoach,#ping,#briefing,#tacticalMap,#wbar,#hp,#teamPingHint')].filter(e=>!e.hidden).some(e=>{const b=e.getBoundingClientRect();return r.left<b.right&&r.right>b.left&&r.top<b.bottom&&r.bottom>b.top;});
             return {width:innerWidth,height:innerHeight,text:n.textContent,fits:r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight,overlaps};
           })()`);
-          if (!layout.fits || layout.overlaps || !layout.text.includes('YOU / GO HERE')) throw Error(`Ping layout failed: ${JSON.stringify(layout)}`);
+          if (!layout.fits || layout.overlaps || !layout.text.includes(backup ? 'YOU / NEED BACKUP' : 'YOU / GO HERE')) throw Error(`Ping layout failed: ${JSON.stringify(layout)}`);
           const shot = await send('Page.captureScreenshot', {format:'png'});
-          await writeFile(join(output, `${prefix}-ping-${width}.png`), Buffer.from(shot.data,'base64'));
+          await writeFile(join(output, `${prefix}-${backup ? 'backup' : 'ping'}-${width}.png`), Buffer.from(shot.data,'base64'));
           layouts.push(layout);
           await delay(5200);
           if (!await evaluate('document.querySelector("#teamPingNotice").hidden')) throw Error('Ping failed to expire');
@@ -225,7 +226,30 @@ try {
         await evaluate('document.exitPointerLock()'); await delay(250);
         await key(); await delay(250);
         if (!await evaluate('document.querySelector("#teamPingNotice").hidden')) throw Error('Ping leaks into pause');
-        combat = {layouts, expiry:true, pauseClears:true, normalKey:true};
+        let rebound = false;
+        if (backup) {
+          await click('#quitConfirm button:nth-child(2)');
+          await evaluate(`document.querySelector('#settingsPanel .keyBtn[aria-label*="Need backup"]').scrollIntoView({block:'center'})`);
+          await click('#settingsPanel .keyBtn[aria-label*="Need backup"]');
+          await send('Input.dispatchKeyEvent', {type:'keyDown',code:'KeyV',key:'v',windowsVirtualKeyCode:86});
+          await send('Input.dispatchKeyEvent', {type:'keyUp',code:'KeyV',key:'v',windowsVirtualKeyCode:86});
+          await send('Input.dispatchKeyEvent', {type:'keyDown',code:'Escape',key:'Escape',windowsVirtualKeyCode:27});
+          await send('Input.dispatchKeyEvent', {type:'keyUp',code:'Escape',key:'Escape',windowsVirtualKeyCode:27});
+          await click('#quitConfirm button');
+          await waitFor('document.pointerLockElement instanceof HTMLCanvasElement');
+          await waitFor('document.querySelector("#teamPingHint").textContent.includes("V / NEED BACKUP")');
+          await delay(2200);
+          await key(); await delay(250);
+          if (!await evaluate('document.querySelector("#teamPingNotice").hidden')) throw Error('Old backup binding still sends');
+          await send('Input.dispatchKeyEvent', {type:'keyDown',code:'KeyV',key:'v',windowsVirtualKeyCode:86});
+          await send('Input.dispatchKeyEvent', {type:'keyUp',code:'KeyV',key:'v',windowsVirtualKeyCode:86});
+          await waitFor('!document.querySelector("#teamPingNotice").hidden');
+          if (!await evaluate('document.querySelector("#teamPingNotice").textContent.includes("YOU / NEED BACKUP") && document.querySelector("#teamPingHint").textContent.includes("V / NEED BACKUP")')) throw Error('Backup rebinding failed');
+          const shot = await send('Page.captureScreenshot', {format:'png'});
+          await writeFile(join(output, `${prefix}-backup-rebound.png`), Buffer.from(shot.data,'base64'));
+          rebound = true;
+        }
+        combat = {layouts, expiry:true, pauseClears:true, normalKey:true, rebound};
         await send('Emulation.setDeviceMetricsOverride', {width:1920,height:1080,deviceScaleFactor:1,mobile:false});
       }
       if (args.includes('--assert-training') && ['onboarding', 'practice-two', 'practice-three'].includes(name)) combat = await trainingProbe({ send, evaluate, waitFor, delay,

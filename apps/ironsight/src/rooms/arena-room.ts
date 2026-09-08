@@ -673,6 +673,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const p = this.state.players[client.id];
     const yaw = readNum(payload, 'yaw'), pitch = readNum(payload, 'pitch');
     if (!p?.alive || this.state.phase !== 'live' || this.state.mode === 1 || yaw === undefined || pitch === undefined) return;
+    const intent = (payload as Record<string, unknown>).intent;
+    if (intent !== undefined && intent !== 'context' && intent !== 'backup') return;
     const now = Date.now();
     const last = client.data.lastPingAt;
     if (typeof last === 'number' && now - last < PING.cooldownMs) return;
@@ -682,8 +684,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const targets = Object.entries(this.state.players).filter(([id, t]) => id !== client.id && t.alive)
       .map(([id, t]) => ({ id, x: t.x, z: t.z, feetY: t.y, headY: t.y + this.hitHeight(t), team: t.team }));
     const ping: TeamPing = { from: client.id, expiresAt: now + PING.lifetimeMs,
-      ...resolvePing({ x: p.x, y: p.y + this.eyeHeight(p), z: p.z }, dirFromAngles(p.yaw, p.pitch), p.team,
-        targets, this.hitBoxes, this.map.bounds) };
+      ...(intent === 'backup' ? { kind: 'backup' as const, x: p.x, z: p.z } : resolvePing({ x: p.x, y: p.y + this.eyeHeight(p), z: p.z }, dirFromAngles(p.yaw, p.pitch), p.team,
+        targets, this.hitBoxes, this.map.bounds)) };
     for (const recipient of this.clientList()) {
       const ally = this.state.players[recipient.id];
       if (recipient.id === client.id || (this.state.mode !== 3 && ally?.team === p.team)) recipient.send('teamPing', ping);

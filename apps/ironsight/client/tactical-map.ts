@@ -46,20 +46,20 @@ export class TacticalMap {
         (ramp.maxX - ramp.minX) * this.scale, (ramp.maxZ - ramp.minZ) * this.scale);
     }
     const style = document.createElement('style');
-    style.textContent = '@media(max-width:800px){#teamPingNotice{bottom:180px!important}#teamPingHint{bottom:156px!important}}';
+    style.textContent = '@media(max-width:800px){#teamPingNotice{bottom:200px!important}#teamPingHint{bottom:156px!important}}';
     document.head.appendChild(style);
     this.hint.id = 'teamPingHint';
     this.notice.id = 'teamPingNotice'; this.notice.setAttribute('role', 'status');
-    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:#e8eee9;font:11px Arial,sans-serif;left:28px;bottom:124px;width:200px;padding:9px;background:#10242bef;border-left:2px solid #edaa52;line-height:1.5;letter-spacing:1px;overflow-wrap:anywhere';
+    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:#e8eee9;font:11px Arial,sans-serif;left:28px;bottom:144px;width:200px;padding:9px;background:#10242bef;border-left:2px solid #edaa52;line-height:1.5;letter-spacing:1px;overflow-wrap:anywhere';
     this.notice.hidden = true;
-    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:10px Arial,sans-serif;left:28px;bottom:100px;width:220px;padding:6px 0;font-size:9px;letter-spacing:1px;color:#c0d6d5';
+    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:10px Arial,sans-serif;left:28px;bottom:100px;width:220px;padding:6px 0;font-size:9px;letter-spacing:1px;color:#c0d6d5;white-space:pre-line;line-height:1.5';
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
 
   receivePing(payload: unknown, serverNow: number): TeamPing | undefined {
     if (!payload || typeof payload !== 'object') return;
     const p = payload as TeamPing;
-    if (typeof p.from !== 'string' || p.from.length > 128 || !['go', 'enemy'].includes(p.kind) ||
+    if (typeof p.from !== 'string' || p.from.length > 128 || !['go', 'enemy', 'backup'].includes(p.kind) ||
       !Number.isFinite(p.x) || !Number.isFinite(p.z) || !Number.isFinite(p.expiresAt) ||
       p.x < 0 || p.z < 0 || p.x > this.map.bounds.width || p.z > this.map.bounds.depth ||
       p.expiresAt <= serverNow || p.expiresAt > serverNow + PING.lifetimeMs + 1000) return;
@@ -78,11 +78,12 @@ export class TacticalMap {
     const latest = [...this.pings.values()].at(-1);
     this.notice.hidden = !latest;
     if (latest) {
-      const text = `${latest.from === myId ? 'YOU' : 'ALLY'} / ${latest.kind === 'enemy' ? 'ENEMY SEEN' : 'GO HERE'} / ${mapCallout(this.map, latest.x, latest.z)} / last marked location`;
+      const text = `${latest.from === myId ? 'YOU' : 'ALLY'} / ${latest.kind === 'enemy' ? 'ENEMY SEEN' : latest.kind === 'backup' ? 'NEED BACKUP' : 'GO HERE'} / ${mapCallout(this.map, latest.x, latest.z)} / ${latest.kind === 'backup' ? 'caller location when sent' : 'last marked location'}`;
       if (this.notice.textContent !== text) this.notice.textContent = text;
     }
     this.hint.hidden = !active || state.mode === 1 || state.phase !== 'live' || !me.alive;
-    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / aim, then mark`;
+    const backup = this.settings ? formatBinding(this.settings.get().binds.backup) : 'B';
+    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / aim, then mark\n${backup} / NEED BACKUP / at your location`;
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     const ctx = this.context;
     ctx.clearRect(0, 0, 360, 252); ctx.drawImage(this.floor, 0, 0);
@@ -117,14 +118,14 @@ export class TacticalMap {
       ctx.fillStyle = '#ffe0a3'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center';
       ctx.fillText('A', x, z - 14);
     }
+    if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
     for (const ping of this.pings.values()) {
       const x = 18 + ping.x * this.scale, z = 18 + ping.z * this.scale;
-      ctx.strokeStyle = ping.kind === 'enemy' ? '#ff967e' : '#ffe0a3'; ctx.lineWidth = 2;
+      ctx.strokeStyle = ping.kind === 'enemy' ? '#ff967e' : ping.kind === 'backup' ? '#80d5dc' : '#ffe0a3'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(x, z-7); ctx.lineTo(x+7,z); ctx.lineTo(x,z+7); ctx.lineTo(x-7,z); ctx.closePath(); ctx.stroke();
       ctx.fillStyle = ctx.strokeStyle; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
-      ctx.fillText(ping.kind === 'enemy' ? '!' : '+', x, z+4);
+      ctx.fillText(ping.kind === 'enemy' ? '!' : ping.kind === 'backup' ? 'B' : '+', x, z+4);
     }
-    if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
     const name = mapCallout(this.map, me.x, me.z);
     if (this.label.textContent !== name) this.label.textContent = name;
   }

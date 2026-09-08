@@ -77,6 +77,7 @@ describe("SettingsStore persistence", () => {
       reload: ["KeyR"],
       grenade: ["KeyG"],
       ping: ["KeyQ"],
+      backup: ["KeyB"],
     });
   });
 
@@ -110,6 +111,7 @@ describe("SettingsStore persistence", () => {
       reload: ["KeyR"],
       grenade: ["KeyG"],
       ping: ["KeyQ"],
+      backup: ["KeyB"],
     });
   });
 });
@@ -243,4 +245,12 @@ it('preserves an older Q binding and allows ping to be rebound without sharing a
   expect(store.get().binds.ping).toEqual([]); expect(store.get().binds.grenade).toEqual(['KeyQ']);
   store.rebind('ping', 'KeyQ');
   expect(store.get().binds.grenade).toEqual([]); expect(store.get().binds.ping).toEqual(['KeyQ']);
+});
+
+it('preserves an existing B binding when backup is introduced and supports reassignment', () => {
+  const store = new SettingsStore({ getItem: () => JSON.stringify({ binds: { reload: ['KeyB'] } }), setItem: () => {} });
+  expect(store.get().binds.backup).toEqual([]);
+  expect(store.get().binds.reload).toEqual(['KeyB']);
+  store.rebind('backup', 'KeyV');
+  expect(store.get().binds.backup).toEqual(['KeyV']);
 });
