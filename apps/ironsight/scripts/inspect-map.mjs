@@ -101,6 +101,12 @@ try {
       }
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
       if (name.startsWith('switchyard-')) url.searchParams.set('map', 'arena3');
+      if (url.searchParams.get('inspect') === 'map') {
+        for (const key of ['review-camera', 'review-enemy']) {
+          const value = option(`--${key}`, null);
+          if (value) url.searchParams.set(key, value);
+        }
+      }
     }
     if (name.endsWith('narrow')) await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
     else if (name.endsWith('short')) await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 600, deviceScaleFactor: 1, mobile: false });

@@ -6,12 +6,23 @@ import { ARENA3 } from "../src/map/arena3.js";
 /** Deterministic production-renderer review. No matchmaking, no gameplay sockets. */
 export function startMapInspector(): void {
   const params = new URLSearchParams(location.search);
+  // Offline spawn-policy review: supply eye/look-at and one fixed threat.
+  // These parameters are read only by the inspector, never live gameplay.
+  const vector = (key: string, length: number): number[] | null => {
+    const raw = params.get(key);
+    if (!raw) return null;
+    const values = raw.split(',').map(Number);
+    if (values.length !== length || values.some(v => !Number.isFinite(v) || Math.abs(v) > 1000))
+      throw Error(`Invalid inspection ${key}`);
+    return values;
+  };
+  const reviewCamera = vector('review-camera', 6), reviewEnemy = vector('review-enemy', 3);
   const host = document.getElementById("app") ?? document.body;
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
   const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
-  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : 0;
+  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : reviewEnemy ? 1 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
@@ -43,6 +54,10 @@ export function startMapInspector(): void {
   const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
   scene.camera.lookAt(shot[3], shot[4], shot[5]);
+  if (reviewCamera) {
+    scene.camera.position.set(reviewCamera[0]!, reviewCamera[1]!, reviewCamera[2]!);
+    scene.camera.lookAt(reviewCamera[3]!, reviewCamera[4]!, reviewCamera[5]!);
+  }
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
   flags.__inspectReady = false;
   const gl = scene.canvas.getContext("webgl2");
@@ -54,6 +69,11 @@ export function startMapInspector(): void {
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
     alive: true, weapon: 0,
   }] as const));
+  if (reviewEnemy) {
+    const actor = actors.get('inspect-0')!;
+    Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
+      yaw: Math.atan2(scene.camera.position.x - reviewEnemy[0]!, scene.camera.position.z - reviewEnemy[2]!) });
+  }
   let frameCount = 0, last = performance.now(), peakCalls = 0, peakTriangles = 0;
   const firstFrames: number[] = [];
   let drained: unknown;
@@ -114,6 +134,7 @@ export function startMapInspector(): void {
     if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
+      spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),
       concreteDetail: scene.inspectConcreteDetail(),

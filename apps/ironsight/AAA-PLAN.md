@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-23 are deployed there, including layered impacts,
+Supervisor reports sessions 1-24 are deployed there, including layered impacts,
 grounded remote reactions/deaths, weapon audio, combat HUD and Relay weathering.
-Session 24's incoming-damage cues remain local until publication. Continue using the standing
+Session 25's spawn selection remains local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,7 +327,7 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored). Met means the stated implemented
+Session 24 first canonical audit (reference restored), updated in Session 25. Met means the stated implemented
 check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session24-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
@@ -342,7 +342,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M06 | n.a. | No world power pickups implemented. |
 | R-M07 | not yet | Spawn-to-cap proxy 2.33-10.67 s walk; one live Relay probe first-received-damage 11.062/9.548/1.611 s. Recontest/other maps unmeasured. |
 | R-M08 | partial | Lane accents and hero silhouettes exist; half-to-half orientation needs player review. |
-| R-M09 | partial | Relay team mode uses enemy distance/LOS scoring; other maps rotate. No strict LOS exclusion/history. |
+| R-M09 | partial | Session25: all maps/FFA prefer unoccupied, sampled-LOS-hidden spawns, then danger/support; 4,608 static decisions, zero avoidable exposure. No recent LOS history; all-exposed fallback remains. |
 | R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
 | R-M12 | partial | Relay/Undertow route beats documented; not all lanes validated as action blocks. |
@@ -377,7 +377,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
 | R-L02 | partial | TDM 50 kills/300 s; DOM 4 s neutral/8 s enemy capture, 1 point/2 s/flag, target 200; no side swap. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
-| R-L04 | partial | 3000 ms live respawn; dynamic spawn scoring only Relay team mode. |
+| R-L04 | met | 3000 ms live respawn retained; Session25 dynamic scoring on every map/FFA, real room join tests and live respawn hitch gate. Human/6v6 camping acceptance remains open. |
 | R-L05 | partial | 10 s warmup and skippable 20 s results; replicated countdown/5-8 s freeze absent. |
 | R-L06 | not yet | No replay capture or highlight sequence. |
 | R-L07 | not yet | No objective/assist-aware MVP selection. |
@@ -400,15 +400,17 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Re-ranked after Session 24: R-L21 incoming-damage cues delivered. Resolved lifecycle
-recovery stays closed. Spawn fairness is the next finishable reference gap.
+Re-ranked after Session 25: all-map threat-aware spawn selection delivered. Resolved
+lifecycle recovery stays closed. Shared weapon handling is the next finishable feel gap;
+spawn selection still needs historical/real-match fairness evidence, not another routing pass.
 
-1. **Spawn fairness and solo encounters (R-M09, R-L04, R-M20).** Extend threat-aware
-   scoring beyond Relay, then measure contact/recontest and route/side telemetry.
-2. **Shared weapon handling (R-G19, R-G20, R-G04-06).** Authoritative per-weapon ADS,
+1. **Shared weapon handling (R-G19, R-G20, R-G04-06).** Authoritative per-weapon ADS,
    sprint recovery and learnable recoil need a coordinated client/server pass.
-3. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
+2. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
    occlusion; preserve bounded voices and require headphone acceptance.
+3. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
+   avoids available unoccupied sampled-hidden alternatives. Measure real contact,
+   recontest and side/route heatmaps; address all-exposed pools and recent enemy LOS.
 4. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
    exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
 5. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
@@ -2997,3 +2999,125 @@ or inspection browsers. Earlier preview trees also stopped, with cleanup records
 for the initial/review trees. All standing gates are green; evidence remains
 ignored under .inspect. Ready for supervisor review/publication. No commit,
 push or deployment.
+
+### Session 25 - 2026-09-08: covered arrivals across every map and FFA
+
+Read the standing brief, Session25 supervisor status, plan and design reference;
+confirmed ironsight-aaa through .git/HEAD. Scope apps/ironsight/** only. No commit,
+push, deployment, dependency, SDK, purchased derivative or collision-map change.
+No Meshy credits spent (1530 remain): this top-ranked server gameplay gap needs
+no generated asset. Local room storage was preserved; the resolved lifecycle issue
+was not reopened. Worker packaging used only the existing build's dry-run.
+
+Reference: R-M09, R-L04, R-M20. Concrete target: every map/mode routes joins and
+respawns through authoritative threat selection; choose an unoccupied candidate
+with no sampled enemy LOS whenever one exists; keep the 3000 ms live respawn and
+existing protection, rotate ties, and treat all other FFA players as hostile.
+R-L04's implementation target is met. R-M09 remains partial: current LOS only,
+four body probes rather than exhaustive silhouette visibility, no recent enemy
+sightline history, and no guarantee when every authored candidate is exposed.
+R-M20 remains partial: the new static decision audit is not a bot-match heatmap,
+side win rate, live encounter distribution or human spawn-camping acceptance.
+
+The selector now applies to Undertow and Switchyard as well as Relay, and to FFA's
+combined pool. It orders candidates by occupancy, hidden/exposed class, enemy
+proximity/exposure danger, then teammate support. An unoccupied hidden point
+cannot lose to a far exposed point because of additive distance penalties.
+Nearby allies break safety ties without rewarding body stacking. LOS uses the
+enemy's authoritative height/crouch eye and probes head, chest and both shoulders;
+it does not assume the enemy must currently aim at the arriving player. When all
+candidates are exposed, least danger wins and normal respawn/protection still run.
+FFA arrivals face the arena centre instead of always inheriting red-team facing.
+Practice showcase pins remain intact. No state shape, protocol or snapshot bump.
+Selection runs on spawning, not every frame/tick; no new lights, textures, passes,
+runtime bakes, VFX or sounds.
+
+Added seven selector regressions and three real-room join tests (+10 total):
+FFA hostility, hidden-near versus exposed-far, ally support, occupancy priority,
+shoulder exposure, crouch/elevation, invalid pools, all three production map/mode
+routes, protection/full health and FFA facing. Existing rotation, screen, corpse,
+self and all-exposed tests remain. `tools/spawn-audit.ts` preserves the Session24
+policy for comparison and samples 1/3/6/11 seeded ground occupants, 128 trials per
+side/count; both policies are judged with the same new four-probe LOS criterion.
+Reproduction commands are in its header. Evidence: .inspect/session25-spawn-audit.json.
+
+| Static policy / map | Decisions | Unoccupied hidden option available | Avoidable exposed choice before -> after | Occupied choice before -> after |
+|---|---:|---:|---:|---:|
+| Relay teams | 1024 | 318 | 20 -> 0 | 0 -> 0 |
+| Relay FFA policy | 512 | 192 | 112 -> 0 | 5 -> 0 |
+| Undertow teams | 1024 | 472 | 39 -> 0 | 11 -> 0 |
+| Undertow FFA policy | 512 | 301 | 119 -> 0 | 4 -> 0 |
+| Switchyard team policy | 1024 | 351 | 226 -> 0 | 10 -> 0 |
+| Switchyard FFA | 512 | 172 | 117 -> 0 | 5 -> 0 |
+
+Totals: 4608 decisions, 1806 with an unoccupied sampled-hidden option; avoidable
+exposure 633 -> 0 and occupancy 35 -> 0. Extra mode/map combinations exercise
+the generic selector, not newly offered playlists. **2801 samples had every
+candidate exposed**: selection alone cannot solve crowding or pinning in these
+compact pools. Preserve this limitation for future map/telemetry work. Per-group
+selection medians .0115-.1186 ms, p95 .0356-.2848 ms, worst .9808 ms on this Node
+desktop run; these are not deployed Worker duration or browser frame measurements.
+
+Paired production-renderer views use the audit's fixed threat and before/after
+selected eye positions: .inspect/session25-{relay,undertow,switchyard}-{before,after}
+PNGs/reports/logs. Opened all six: the fixed blue review operator is exposed before
+and screened after. The cameras deliberately look toward that same threat to
+compare cover; they are not a claim about the automatic spawn yaw or a live match.
+Inspector-only --review-camera/--review-enemy arguments record those coordinates
+in report.spawnReview for reproduction; they do not affect gameplay. Baseline
+renderer evidence: session25-before-{spawn,relay,effects-stress}.png/report.json.
+
+Rejected intermediates: typecheck caught an assumed min/max Bounds API (fixed to
+width/depth); the initial room tests called a nonexistent harness dispose method
+(removed, matching existing fake-timer tests). No production gate or threshold
+was relaxed. The first grid audit never occupied odd-coordinate spawn points, so
+the final seeded corpus also samples exact spawn positions and catches occupancy.
+
+Final typecheck, test (347 passed, three existing skips; 37 passing files, one
+skipped), build:client, asset audit and Worker dry-run PASS. Logs:
+.inspect/session25-{typecheck,test,build-client,audit-assets,build-worker}.log.
+Worker dry-run 236.78 KiB, gzip 70.38 KiB. Exact required relay,practice-two inspector
+PASS (session25-required-inspector.log); final extended relay,practice-two,
+effects-stress --assert-budgets PASS (session25-final.log/report.json). All paired
+spawn views pass with zero console/runtime/HTTP errors and forbidden offline
+gameplay requests; aggregate evidence session25-report-checks.json. Owned preview
+restarted after final public writes before the final browser gates.
+
+Matched effects fixture, Edge152 / RTX5070 D3D11 at 1920x1080 balanced/DPR1:
+11 remote operators plus local rifle/hands, 145 twelve-rifle volleys, 96 blasts,
+2130 steady samples; effects drain. .inspect/session25-delta.json records unchanged
+peak calls/triangles 220/133302, textures 30 / 63.751 MiB, median/p95/p99
+6.9/7.1/7.1 ms, max 7.2 ms, first-ready max 7.1 ms, prepared programs 27.
+Zero measured deltas at this precision; no renderer performance gain claimed.
+These are desktop frame intervals/texture estimates, not GPU timing, iGPU,
+cold-driver, thermal or 6v6 acceptance. Asset bytes unchanged at 13,526,417;
+public bytes 19,618,684 -> 19,621,683 (+2999, inspector code/source map), largest
+file 4,220,697 bytes. Public 40 MiB / file 25 MiB caps pass. No asset allowlist
+or provenance additions needed; stress texture headroom remains about .25 MiB.
+
+Re-ranked gaps: shared authoritative weapon handling next, then threat audio;
+spawn history/all-exposed pools and real side/contact telemetry remain explicit.
+Open owner questions/defaults: retain safety before spawn variety (yes); proceed
+to per-weapon handling timers next (yes). Industrial daylight, amber/teal,
+stylized sci-fi and 6v6 TDM remain active defaults. No response is needed to continue.
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human/three bots, warmup -> live at 6.939 s, two deaths and two observed
+respawns. Zero post-warmup shader recompiles, frames >150 ms, console errors or
+long tasks. Sole recorded frame above 24 ms: 49.6 ms at startup. Evidence:
+.inspect/hitch.json, session25-hitch.json/log. Existing gate/room rules unchanged;
+no isolated matchmaking, storage clearing or lifecycle re-proof.
+
+R-M07 live evidence from the same probe: first received nonlethal damage at
+9.632 s after live reset, 4.687 s and 2.430 s after respawn. Derived artifact:
+.inspect/session25-contact-samples.json. This single wandering-player/three-bot
+Relay sample remains below the 20-30 s reference and does not establish an
+improvement over Session24 or eliminate spawn camping. It does not measure visual
+contact, recontest or many-round side balance. No full natural round was observed.
+
+Cleanup: .inspect/session25-cleanup.json records the twelve stopped final preview
+processes, zero remaining owned processes, port8796 listeners or inspection
+browsers. Both earlier owned preview trees were also stopped. All standing gates
+are green. Evidence remains ignored under .inspect; Session25 is ready for
+supervisor review. No commit, push or deployment.

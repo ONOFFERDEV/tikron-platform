@@ -1249,8 +1249,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private spawnInto(p: ArenaPlayer, id: string): void {
-    // Teamless modes (ffa) round-robin across both spawn pools combined, keyed
-    // off a dedicated rotation slot rather than the (always-0) player team.
+    // Every map uses authoritative threat scoring. FFA considers everyone hostile
+    // and searches both pools; rotation only breaks equally safe choices.
     const teamed = this.gameMode.teams;
     const points = teamed
       ? p.team === TEAM.red
@@ -1260,17 +1260,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const rotKey = teamed ? p.team : -1;
     const i = this.spawnRot[rotKey] ?? 0;
     this.spawnRot[rotKey] = i + 1;
-    const pt = this.map.presentation === "relay" && teamed
-      ? chooseSafeSpawn(points, i, Object.entries(this.state.players).map(([id, player]) => ({ ...player, id })), id, p.team, this.boxes)
-      : points[i % points.length]!;
+    const pt = chooseSafeSpawn(points, i,
+      Object.entries(this.state.players).map(([id, player]) => ({ ...player, id })),
+      id, p.team, this.boxes, teamed);
     p.x = pt.x;
-    p.y = 0;
+    p.y = pt.y;
     p.z = pt.z;
     p.hp = PLAYER.maxHp;
     p.alive = true;
     p.prot = true;
     p.crouch = false;
-    p.yaw = p.team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1];
+    p.yaw = teamed
+      ? p.team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1]
+      : Math.atan2(this.map.bounds.width / 2 - pt.x, this.map.bounds.depth / 2 - pt.z);
     p.pitch = 0;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
     // weapon, and a fresh set of grenades.
