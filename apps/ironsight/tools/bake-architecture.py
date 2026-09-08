@@ -83,7 +83,9 @@ for name, kit in json.loads(Path(args.input).read_text()).items():
     bpy.ops.uv.smart_project(angle_limit=1.15192, island_margin=0.0015)
     bpy.ops.object.mode_set(mode='OBJECT')
     # Floor is an occluder only; not part of the exported architecture.
-    bpy.ops.mesh.primitive_plane_add(size=220, location=(30, -20, -0.012))
+    bounds = kit['bounds']
+    bpy.ops.mesh.primitive_plane_add(size=max(bounds['width'], bounds['depth']) + 160,
+        location=(bounds['width'] / 2, -bounds['depth'] / 2, -0.012))
     floor = bpy.context.object
     floor.select_set(False)
     kit_object.select_set(True)

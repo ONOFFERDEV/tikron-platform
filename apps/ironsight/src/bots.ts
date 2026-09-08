@@ -95,6 +95,8 @@ export interface ShowcaseView {
 
 /** The world as the bot perceives it this tick: own state, enemy list, map constants. */
 export interface BotView {
+  /** Expanded arenas: keep patrolling until an effective fight is in range. */
+  engagementRange?: number;
   /** Optional game-owned route steering, independent of aim/hit validation. */
   navigate?: (target: { x: number; z: number }) => { x: number; z: number };
   self: BotPlayerView & {
@@ -141,6 +143,7 @@ export interface BotBrainOptions {
 
 /** Per-bot mutable state, held by the caller and threaded through every {@link botThink} call. */
 export interface BotBrain {
+  engagementZ?: number;
   readonly aimNoiseRad: number;
   readonly reactionMs: number;
   readonly aimHeight: number;
@@ -212,6 +215,7 @@ function nearestVisibleEnemy(
   aimHeight: number,
   teamless: boolean,
   boxes: readonly Box[],
+  maxDistance = Infinity,
 ): BotEnemyView | null {
   const eye: Vec3 = { x: self.x, y: self.y + eyeHeight(self), z: self.z };
   let best: BotEnemyView | null = null;
@@ -223,7 +227,7 @@ function nearestVisibleEnemy(
     const dy = aim.y - eye.y;
     const dz = aim.z - eye.z;
     const dist = Math.hypot(dx, dy, dz);
-    if (dist === 0 || dist >= bestDist) continue;
+    if (dist === 0 || dist >= bestDist || dist > maxDistance) continue;
     const dir: Vec3 = { x: dx / dist, y: dy / dist, z: dz / dist };
     if (nearestBox(eye, dir, boxes, dist) < dist) continue;
     best = p;
@@ -286,7 +290,7 @@ function strafeAround(brain: BotBrain, self: BotPlayerView, yaw: number, anchorZ
 
 /** Sidestep along the depth axis while facing the enemy — see {@link BotBrainOptions.strafeZ}. */
 function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMoveIntent {
-  return strafeAround(brain, self, yaw, brain.strafeZ);
+  return strafeAround(brain, self, yaw, brain.engagementZ ?? brain.strafeZ);
 }
 
 /** Loop the patrol cursor forward once the bot reaches the current waypoint. */
@@ -352,7 +356,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     };
   }
 
-  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes);
+  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes, view.engagementRange);
 
   // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
   // dom once every point is owned) falls through to the legacy logic below,
@@ -376,6 +380,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   // acquired, even though the bot already turns to face it — mimics human target lag.
   if (brain.lockId !== enemy.id) {
     brain.lockId = enemy.id;
+    if (view.engagementRange !== undefined) brain.engagementZ = self.z;
     brain.lockMs = 0;
   } else {
     brain.lockMs += dtMs;

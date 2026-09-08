@@ -132,7 +132,9 @@ floor decals never create invisible walls. Avoid uncollidable pipes across route
 
 ## Level design
 
-All maps retain the current 60 x 40 m wire extent in this series. `arena1` becomes
+Session28 supersedes the original compact-map plan below: Relay is now 150 x 100 m;
+Undertow and Switchyard retain 60 x 40 m until their separate expansion sessions.
+The shared wire envelope is 200 x 160 m; each map enforces its own movement bounds. `arena1` becomes
 Relay; `arena2` becomes Undertow in milestone 2. Session 11 presents arena3 as
 Switchyard, retaining Crossyard's collision layout for practice/FFA. Shared MapDef drives
 server, bots, physics, client geometry and minimap. Existing dressing bundles are
@@ -327,20 +329,20 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 27. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session27-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 28. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session28-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
 | Id | Status | Evidence |
 |---|---|---|
-| R-M01 | partial | Relay lane purposes documented; other-map lane/defensive-angle acceptance incomplete. |
+| R-M01 | partial | Session28 Relay: Cooling rifle/decks, split-core center, Freight close flanks; paired crossovers. Other-map lane/defensive-angle acceptance incomplete. |
 | R-M02 | not yet | No co-visible entrance count audit; Undertow B has four planned approaches. |
-| R-M03 | met | Session24 reference audit: Relay 13 full/8 waist, Undertow 14/8, Switchyard 6/5; zero head-height boxes. |
-| R-M04 | not yet | Ground BFS rotations 1.33-7.33 s walk, 0.89-4.89 s sprint; below 10-15 s. |
+| R-M03 | met | Session28 audit: Relay 23 full/14 waist (1.1 m), Undertow 14/8, Switchyard 6/5; zero head-height boxes. |
+| R-M04 | partial | Relay A-B/B-C 14.44 s, A-C 11.56 s at 9 m/s sprint, regression guarded. Other maps remain 2-4.89 s; ground BFS excludes vertical shortcuts. |
 | R-M05 | partial | Relay decks and Undertow control ledges; Switchyard route-changing hook absent. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Spawn-to-cap proxy 2.33-10.67 s walk; one live Relay probe first-received-damage 11.062/9.548/1.611 s. Recontest/other maps unmeasured. |
+| R-M07 | not yet | Expanded Relay natural 6v6 round: initial LOS median 5.4 s, first damage 12.2 s; respawn first damage 10.85 s. Below 20-30 s; recontest/human samples open. |
 | R-M08 | partial | Lane accents and hero silhouettes exist; half-to-half orientation needs player review. |
 | R-M09 | partial | Session25: all maps/FFA prefer unoccupied, sampled-LOS-hidden spawns, then danger/support; 4,608 static decisions, zero avoidable exposure. No recent LOS history; all-exposed fallback remains. |
 | R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
@@ -351,9 +353,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Relay core/uplinks and lane signs; all-lane central landmark visibility unverified. |
-| R-M18 | partial | Ground plus 1.2/2.4 m structures, not reference 3/6 m tiers; traversal budget retained. |
-| R-M19 | partial | All maps retain 60x40 m CQB; AR four body hits/300 ms at close range. Long-range distribution unverified. |
-| R-M20 | partial | Opt-in map-metrics heatmap exists; no many-round side win-rate acceptance. |
+| R-M18 | partial | Relay ground/3 m decks/6 m roofs plus 1.1 m waist cover; ramps reach 3 m. Other maps retain old tiers; bot navigation is ground-only. |
+| R-M19 | partial | Relay expanded 60x40 -> 150x100 m, 1,250 m2/seat at twelve seats. Forty-metre open rifle connector tested. Undertow/Switchyard expand next. |
+| R-M20 | partial | Session28 production-bot 6v6 TDM: 206.1 s, 48-50, 98 deaths with heatmap/contact samples. One local harness round is not a side-win-rate distribution. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
@@ -375,7 +377,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
 | R-G20 | partial | Shared table now also owns ADS/sprint timers; same handling model in client/server. Authoritative learnable recoil, crouch/ADS accuracy multipliers remain absent. |
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
-| R-L02 | partial | TDM 50 kills/300 s; DOM 4 s neutral/8 s enemy capture, 1 point/2 s/flag, target 200; no side swap. |
+| R-L02 | partial | TDM 50 kills/300 s; expanded Relay natural bot round 206.1 s. DOM unchanged: 4/8 s capture, 1 point/2 s/flag, 200 target, no side swap. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
 | R-L04 | met | 3000 ms live respawn retained; Session25 dynamic scoring on every map/FFA, real room join tests and live respawn hitch gate. Human/6v6 camping acceptance remains open. |
 | R-L05 | partial | 10 s warmup and skippable 20 s results; replicated countdown/5-8 s freeze absent. |
@@ -383,7 +385,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L07 | not yet | No objective/assist-aware MVP selection. |
 | R-L08 | not yet | No contextual team ping system. |
 | R-L09 | partial | Controls/onboarding and targets; no guided progression/objective/ping lesson. |
-| R-L10 | partial | Solo auto-fill to four operators; no first-three-match difficulty progression/ranked. |
+| R-L10 | partial | Expanded Relay fills twelve seats (6v6); other maps four operators. No first-three-match difficulty progression/ranked. |
 | R-L11 | partial | Bots use 200 ms reaction and ordinary damage/HP; difficulty progression/flank acceptance open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
@@ -400,10 +402,15 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Re-ranked after Session 27: threat gain, surface foley and direct-path cover filtering
-are delivered. Shared learnable recoil is the next finishable gap. Audio routing and
-headphone acceptance remain partial; resolved lifecycle recovery stays closed.
+Session 28 reference audit: the owner explicitly superseded the CQB default.
+Relay expansion is implemented; Undertow is next, then Switchyard in separate
+sessions. Relay contact pacing and objective entrance review remain open. Existing gunplay/audio/presentation gaps remain open below it.
 
+0. **Owner-directed map expansion (R-M01-05, R-M07, R-M09, R-M17-20).** Undertow next,
+   then Switchyard: target 10-15 s rotations, 20-30 s contact and ~1,250 m2/seat.
+   Relay now meets density/rotation targets with rebuilt collision, ramps and bakes.
+   Its contact samples remain short; preserve that follow-up and co-visible objective
+   entrance audit rather than claiming footprint alone resolves pacing.
 1. **Learnable recoil and accuracy (R-G04-06, R-G08, R-G20).** Shared recoil patterns,
    authoritative ADS/crouch accuracy and predicted claim-ray parity; handling timers
    are implemented, but high-RTT/mouse comfort still requires player review.
@@ -414,7 +421,7 @@ headphone acceptance remain partial; resolved lifecycle recovery stays closed.
    exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
 4. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
    pings, countdowns, network-quality label and highlight colour choices.
-5. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** Current CQB map scale and
+5. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** Undertow/Switchyard CQB map scale and
    five-minute rounds miss reference rotation/economy targets; measure real encounters
    before coordinated map/movement/economy changes. AR close-range 300 ms TTK supports
    the retained CQB footprint; sniper lanes must remain exceptional.
@@ -3370,3 +3377,189 @@ Open owner questions/defaults: retain 1.4 threat gain and direct cover muffling 
 headphone feedback (yes); proceed to shared recoil/accuracy next (yes). Industrial
 daylight, amber/teal, stylized sci-fi and 6v6 TDM stay active. No answer needed to
 continue. Ready for supervisor review; no commit, push or deployment.
+
+
+### Session 28 - 2026-09-09: expanded Relay and repaired combat gate
+
+Read standing brief, supervisor status, plan and all 63 reference principles. This
+continues the uncommitted Session28 expansion after the supervisor rejected its
+bot-battle test. Confirmed ironsight-aaa; scope apps/ironsight/** only. No commit,
+push, deploy, new dependencies or Meshy spend (reported balance 1530 retained).
+The inherited original geometry/bakes were preserved and audited; private skyline
+remains ignored. Local room storage was preserved; resolved lifecycle work stayed closed.
+
+Reference: R-M01, R-M03, R-M04, R-M05, R-M07, R-M09, R-M17, R-M18, R-M19, R-M20,
+R-L10, R-L11. Targets: 10-15 s objective rotations at 9 m/s, 20-30 s contact,
+1,250 m2 per seat, purposeful three lanes, waist/full cover, 3/6 m tiers, at least
+one 30-40 m rifle lane, twelve-player fill, collider-authoritative cover and bot routes.
+Density/rotation/cover/rifle-lane checks pass; contact and co-visible two-entry
+objective acceptance remain incomplete. Owner expansion direction overrides the old
+CQB default. All 63 scorecard rows retained, audited and re-ranked; Undertow next.
+
+Relay grows from 60 x 40 to 150 x 100 m (2,400 -> 15,000 m2; 6.25x; 200 -> 1,250
+m2 per twelve seats). Collision tile rows own spawns, caps and all cover: 23 full
+volumes, 14 waist volumes at 1.1 m, zero head-height cover. The primary floor is
+ground, north decks at +3 m reached by four extended ramps, service roofs at +6 m.
+Waist cover tops are not counted as an architectural floor tier. Six spawns per
+side are wall-backed behind mirrored screens. Existing tests cover opposing-spawn
+LOS, open deployment exits, valid target positions, mirrored solids and connected
+navigation. Snapshot version 5 intentionally resets older layouts; the expanded
+200 x 160 wire envelope changes the fingerprint, so client and Worker must ship
+together through the supervisor. Other maps retain their individual small bounds.
+
+Cooling is the rifle route with paired ramp/deck elevation (the traversal hook);
+center splits around the relay core, while Freight uses offset service blocks and
+short approach gaps. Both spawn sides cross between lanes around screened service
+blocks. The north connector at z=27 has a tested 40 m eye-height line, including
+its 2.4 m strafe band. The north-axis dish/mast remains the main orientation landmark;
+all-lane human visibility and exact objective two-entry coverage are still partial.
+A/B/C are (25,15), (75,95), (125,15). Four-neighbour 1 m ground BFS:
+
+| Rotation | Walk 6 m/s | Sprint 9 m/s | Target |
+|---|---:|---:|---|
+| A-B | 21.67 s | 14.44 s | met |
+| B-C | 21.67 s | 14.44 s | met |
+| A-C | 17.33 s | 11.56 s | met |
+
+These are ground-route estimates, not measured player turns or vertical shortcuts.
+Regression checks protect the full 10-15 s band and minimum area/seat. Ground,
+apron, fog, sky/camera range, shadow extent, inspector framing, service details,
+uplinks and private skyline now follow expanded bounds. Original architecture,
+weathering and ground AO were rebaked; unchanged light count, one cached shadow
+atlas, no extra pass, no per-frame bake. The private skyline keeps its single atlas.
+Map-specific lazy loading remains. Tools accept Relay-only exports to avoid changing
+other maps' bakes. Remaining 60/40 constants in the Relay apron/context code are
+source-layout coordinates transformed into MapDef bounds; other-map authored
+perimeters are deferred to their own expansion sessions.
+
+Expanded Relay fills twelve seats, including an arriving human, using existing
+ordinary bot HP/damage and input handlers. Bots keep navigating until a target is
+within min(40 m, weapon range), then strafe around their current encounter rather
+than sliding back toward legacy z=11. Two focused brain regressions guard travel
+past distant visibility and local fight anchoring. Practice's five stationary
+roles move to the sheltered west pocket. The rig inspector also uses map bounds.
+
+The supervisor failure was the M0 transport-bot harness returning through obsolete
+60x40 waypoint coordinates after respawn. ArenaBot now accepts collision-map route
+steering; the test fights a 20 m north-connector duel and walks normal authoritative
+spawn returns through GroundNavigator. No post-death teleport, artificial map,
+aim-noise reduction, retries or lower threshold. Original >=20 hits, >=2 kills,
+both teams scoring, respawn and score-accounting assertions pass. The older opt-in
+map-metrics driver also receives map navigation/appropriate strafe anchors.
+
+Natural production-bot evidence: `$env:RELAY_METRICS='1'; pnpm exec vitest run
+ test/relay-metrics.tool.test.ts` (remove the env var afterwards). No shortened
+round/respawn clocks, combat-stat overrides, teleports or scripted routes. Final
+observed round: 206.1 s, red48/blue50, 98 kills; .inspect/session28-bot-round.json,
+session28-bot-round.log and session28-bot-heatmap.svg. Initial lives: LOS 4.6/5.4/6.2 s
+min/median/max; damage 10.6/12.2/30.4 s (12/12 observed). Respawns: LOS 2.6/4.0/7.6 s,
+damage 3.1/10.85/21.7 s (94/95 observed; absent observation stays absent). LOS is a
+100 m eye ray without FOV; damage sampled each 100 ms. R-M07 remains unmet. This
+single local harness round does not establish 6v6 fairness, side win rates, real
+RTT, first visual attention or deployed capacity. An earlier sample was 47-50 in
+198.2 s; do not describe the seeded-spread tool as a fully deterministic replay.
+
+Rejected intermediates: supervisor's red bot-battle run; stale candidate captures
+with a dark clipped sky cap and old apron extents. Restarting the preview after
+final public writes exposed the existing bounds-aware sky/far-plane correction;
+opened .inspect/session28-repair-visual-relay.png and overview against the before
+views to verify it. Old session28-final-* captures are superseded. An initial new
+test assumed waist height 1.05; actual tilemap is 1.1, so the floor-tier check now
+selects full structures and separately validates waist class limits. A UTF-16
+PowerShell JSON redirect was normalized to UTF-8 for the reference audit. No standing
+gate threshold or game rule was relaxed.
+
+Architecture audit .inspect/session28-repair-architecture-audit.log PASS: 15,004
+source triangles, 28,572 verified weathered triangles, no exported degenerates,
+normal-component error <=0.0002642, source tolerance 0.1 mm, twelve material
+primitives, 2,499,400 bytes. public/assets/README.md documents repeatable Relay-only
+bakes, weathering, private skyline and vista capture. .inspect/session28-before-*
+is the inherited pre-expansion baseline; final visual/performance evidence and
+required gate results follow below.
+
+The first exact live hitch gate failed with zero deaths: the legacy probe rotates
+0.9 rad every 1.8 s walk burst and circles entirely inside the larger sheltered
+spawn pocket. No recompiles, >150 ms frames, long tasks or console errors occurred;
+this is still a rejected run (.inspect/session28-repair-hitch.json/log). Updated
+scripts/hitch-probe.mjs to compile the existing collision-map navigator into its
+Node driver and steer the same W/look controls around corners toward A/B/C on
+expanded maps. It does not teleport, write gameplay state, choose an isolated room,
+change bot stats, change clocks or weaken assertions. Small-map wandering remains.
+Route samples are retained in the output so death/respawn coverage is reviewable.
+
+A read-only CDP diagnosis on the second rejected run showed the authoritative
+player still at x3/z43 and pointerLockElement=null (resume prompt visible). The
+probe's new tab was not foregrounded. Added Page.bringToFront and an explicit
+pointer-lock readiness assertion after the ordinary user click, matching the
+existing first-play tool. This corrects the initial assumption: those two runs
+proved no movement, not that the player actually circled. Neither no-death run
+is accepted as gameplay evidence. Navigation remains necessary because the old
+fixed turn pattern has bounded travel; the final route reports prove real movement.
+
+Optional legacy map-metrics validation initially found no Relay kills: its test
+clients acquired targets across the enlarged map, outside useful weapon range.
+Added an optional 40 m encounter limit/local strafe anchor to the transport bot,
+matching production patrol behavior; the unchanged M0 duel has no new range limit.
+All three opt-in map-metrics scenarios now pass. Generated legacy report files were
+restored byte-for-byte; current natural-round evidence is the Session28 JSON/SVG.
+Final full typecheck/test rerun after these tool edits is recorded in repair logs.
+
+Final required gates PASS: pnpm typecheck; pnpm test (379 passed, four opt-in
+skips; 39 passing files/two skipped); pnpm build:client; pnpm audit:assets.
+Logs: .inspect/session28-repair-{typecheck,test,build-client,audit-assets}.log.
+Exact required inspector command `node scripts/inspect-map.mjs --url
+http://localhost:8796 --shots relay,practice-two` PASS; evidence
+session28-required-inspector.log / session28-required-report.json. Extended
+`--shots overview,cooling,relay,freight,spawn,effects-stress --assert-budgets
+--prefix session28-accepted` PASS. Opened accepted overview/Cooling/Freight and
+repaired Relay captures; sky/apron clipping is absent, skyline detail is loaded.
+All final report error/forbidden-network arrays empty (session28-report-checks.json).
+The preview was restarted after the final public writes before browser gates.
+
+Matched stress workload, Edge152 / RTX5070 D3D11, 1920x1080 balanced/DPR1,
+eleven remote operators and local hands/rifle, 145 twelve-rifle volleys, 96 blasts,
+2,130 steady samples, complete effects drain. .inspect/session28-delta.json:
+
+| Metric | Before | Accepted | Delta |
+|---|---:|---:|---:|
+| Peak calls | 220 | 220 | 0 |
+| Peak submitted triangles | 133302 | 128906 | -4396 |
+| Resident textures | 30 | 30 | 0 |
+| Estimated texture MiB | 63.7513 | 63.7513 | 0 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0 / 0 / 0 |
+| Maximum / first-ready max ms | 7.2 / 7.2 | 7.6 / 7.1 | +0.4 / -0.1 |
+| Prepared programs | 27 | 27 | 0 |
+
+The fixture camera moves with the new layout, so submitted triangle differences
+include visibility changes and are not a geometry optimization claim. Texture
+headroom remains ~0.249 MiB. Desktop frame intervals do not establish the iGPU,
+thermal, cold-driver or real 6v6 acceptance. No render light/pass added.
+Asset bytes 13,526,417 -> 13,602,205 (+75,788); public 19,646,775 -> 19,736,916
+(+90,141), including bundle/maps/provenance README. Largest file 4,246,711 bytes.
+Forty MiB total/twenty-five MiB per-file caps pass. Architecture +152,780 bytes;
+ground AO -52,216 bytes. Private skyline stays ignored; no new allowlist needed.
+
+Final exact live command `node scripts/hitch-probe.mjs http://localhost:8796
+150000 .inspect/hitch.json --assert` PASS. .inspect/hitch.json,
+session28-final-hitch.json/log: twelve seats, two bot-caused deaths and two
+respawns, zero post-warmup shader recompiles, >150 ms frames, console errors or
+long tasks. Only recorded frame above 24 ms: startup 95.2 ms. Navigation samples
+prove the client moved through normal server-owned coordinates. The run joined
+an existing live room, observed its ordinary ended/warmup/live transition, then
+completed its second death/respawn; no room isolation or storage reset. First
+received damage 21.714 s after measurement began (not spawn-to-contact), then
+14.708 s after the next live reset. These do not replace the natural bot-round
+contact distribution or establish human pacing.
+
+Cleanup: .inspect/session28-cleanup.json confirms the owned preview tree stopped,
+zero remaining owned processes, port8796 listeners or inspection browsers. The
+inherited and intermediate preview trees were also stopped. Read-only git diff
+whitespace check passed; every changed path stays under apps/ironsight/**.
+All standing gates are green. No commit, push or deployment.
+
+Open owner questions/defaults: expand Undertow next, then Switchyard (yes, per
+owner order); retain Relay's larger footprint while gathering human contact and
+two-entry objective feedback (yes). Improve its sparse intermediate spaces with
+collider-aligned dressing in a future art pass; do not shrink back to CQB. Keep
+industrial daylight, amber/teal, stylized sci-fi, shared authority and 6v6 TDM.
+No answer is required to continue. Supervisor owns publication of this candidate.

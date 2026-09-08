@@ -5,7 +5,7 @@ import { openSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
 
 const MODES: Record<ModeId, { label: string; ko: string; map: string; description: string; detail: string }> = {
-  tdm: { label: "TEAM DEATHMATCH", ko: "팀 데스매치", map: "RELAY", description: "Take the yard. Hold the advantage.", detail: "Up to 6v6 · Solo starts with 4 operators, including bots" },
+  tdm: { label: "TEAM DEATHMATCH", ko: "팀 데스매치", map: "RELAY", description: "Take the yard. Hold the advantage.", detail: "Up to 6v6 · Solo fills 6v6 with bots" },
   dom: { label: "DOMINATION", ko: "거점 점령", map: "UNDERTOW", description: "Three objectives. One coordinated team.", detail: "Up to 6v6 · Capture and defend · Bots join solo matches" },
   ffa: { label: "FREE FOR ALL", ko: "개인전", map: "SWITCHYARD", description: "Every angle is a threat. Trust your aim.", detail: "Solo combat · Fast respawns · Power distribution depot" },
   practice: { label: "FIELD TRAINING", ko: "사격 훈련", map: "ALL SITES", description: "Learn the routes. Find your weapon.", detail: "Private session · Passive targets · No time limit" },

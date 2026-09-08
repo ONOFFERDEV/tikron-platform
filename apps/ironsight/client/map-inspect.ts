@@ -26,15 +26,15 @@ export function startMapInspector(): void {
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
-    overview: [51, 33, 52, 28, 0, 16],
-    cooling: [20, 1.65, 9, 34, 2.3, 3],
-    uplink: [34, 2.85, 4, 37, 5, -6],
-    exterior: [52, 9, 3, 29, 0, -10],
-    relay: [20, 1.65, 23, 31, 3, 16],
+    overview: [124, 91, 126, 75, 0, 45],
+    cooling: [52, 1.65, 25, 94, 2.3, 25],
+    uplink: [78, 2.85, 4, 81, 5, -6],
+    exterior: [110, 9, 3, 75, 0, -10],
+    relay: [58, 1.65, 56, 75, 3, 47],
     impact: [18, 1.65, 23, 22, 1.5, 23],
-    freight: [42, 1.65, 31, 27, 1.4, 35],
-    spawn: [5, 1.65, 15, 23, 1.8, 20],
-    vista: [45, 13, 37, 26, 4.2, 10],
+    freight: [54, 1.65, 77, 77, 1.4, 72],
+    spawn: [3, 1.65, 39, 20, 1.8, 28],
+    vista: [105, 20, 91, 75, 4.2, 37],
     stress: [8, 1.65, 11, 35, 1.5, 11],
     'undertow-overview': [52, 38, 57, 29, 0, 19],
     'undertow-home': [15, 1.65, 21, 28, 1.6, 17],
@@ -134,6 +134,7 @@ export function startMapInspector(): void {
     if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
+      mapBounds: map.bounds,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),

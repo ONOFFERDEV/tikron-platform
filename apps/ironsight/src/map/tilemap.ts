@@ -1,5 +1,5 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
-import { ARENA } from "../config.js";
+import { ARENA, WORLD_LIMITS } from "../config.js";
 import type { MapDef, RampDef } from "./types.js";
 
 /**
@@ -113,10 +113,10 @@ export function compileTileMap(rows: readonly string[], opts: CompileOptions = {
 
   const width = cols * TILE;
   const depth = rows.length * TILE;
-  if (width !== ARENA.width || depth !== ARENA.depth) {
+  if (width <= 0 || depth <= 0 || width > WORLD_LIMITS.width || depth > WORLD_LIMITS.depth) {
     throw new Error(
       `compileTileMap: ${cols}x${rows.length} tiles compiles to ${width}x${depth}m, ` +
-        `but ARENA bounds are ${ARENA.width}x${ARENA.depth}m`,
+        `but wire envelope is ${WORLD_LIMITS.width}x${WORLD_LIMITS.depth}m`,
     );
   }
 

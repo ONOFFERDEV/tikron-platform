@@ -24,9 +24,9 @@ export function assertMapsFitArena(cfg: GameConfig): string[] {
   const { width, depth, ceiling } = cfg.arena;
   for (const [id, map] of Object.entries(cfg.maps)) {
     const b = map.bounds;
-    if (b.width !== width || b.depth !== depth || b.ceiling !== ceiling) {
+    if (![b.width, b.depth, b.ceiling].every(v => Number.isFinite(v) && v > 0) || b.width > width || b.depth > depth || b.ceiling > ceiling) {
       errs.push(
-        `map "${id}".bounds (${b.width}x${b.depth}x${b.ceiling}) must equal arena extents ` +
+        `map "${id}".bounds (${b.width}x${b.depth}x${b.ceiling}) must fit arena envelope ` +
           `(${width}x${depth}x${ceiling}) — the wire codec's quant ranges are pinned to arena`,
       );
     }

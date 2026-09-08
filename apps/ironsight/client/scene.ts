@@ -416,27 +416,29 @@ export class SceneRig {
 
     this.scene.background = new THREE.Color(PALETTE.sceneBg);
     // World-oriented sky: fog and horizon share a colour, zenith stays midnight blue.
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 24, 12), new THREE.ShaderMaterial({
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(Math.max(200, map.bounds.width * 3), 24, 12), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
       uniforms: { horizon: { value: new THREE.Color(relay ? 0xc7d4cc : PALETTE.fog.color) }, zenith: { value: new THREE.Color(relay ? 0x547f94 : VIS.skyZenith) } },
       vertexShader: "varying vec3 vDirection; void main(){ vDirection=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }",
       fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
     }));
-    sky.position.set(ARENA.width / 2, 0, ARENA.depth / 2);
+    sky.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2);
     sky.raycast = () => {};
     this.scene.add(sky);
-    this.scene.fog = relay ? new THREE.Fog(0xc7d4cc, 48, 145)
+    this.scene.fog = relay ? new THREE.Fog(0xc7d4cc, Math.max(48, map.bounds.width * .6), Math.max(145, map.bounds.width * 2.4))
       : new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
-    this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, GAME.camera.far);
+    this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, Math.max(GAME.camera.far, map.bounds.width * 5));
 
     this.scene.add(new THREE.HemisphereLight(relay ? 0xc7e4ef : PALETTE.lights.hemiSky, relay ? 0x535648 : PALETTE.lights.hemiGround, relay ? 1.8 : VIS.lighting.hemisphere));
     const key = new THREE.DirectionalLight(relay ? 0xffe1ad : PALETTE.lights.key, relay ? 3.2 : VIS.lighting.key);
-    key.position.set(8, 40, 6);
+    key.position.set(map.bounds.width / 2 - 22, map.bounds.width > 60 ? 80 : 40, map.bounds.depth / 2 - 14);
     if (relay) {
-      key.target.position.set(30, 0, 20); this.scene.add(key.target);
+      key.target.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2); this.scene.add(key.target);
       key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
-      Object.assign(key.shadow.camera, { left: -45, right: 45, top: 40, bottom: -40, near: 1, far: 110 });
+      Object.assign(key.shadow.camera, map.bounds.width > 60
+        ? { left: -map.bounds.width * .75, right: map.bounds.width * .75, top: map.bounds.depth, bottom: -map.bounds.depth, near: 1, far: 250 }
+        : { left: -45, right: 45, top: 40, bottom: -40, near: 1, far: 110 });
       key.shadow.normalBias = 0.12; key.shadow.bias = -0.0003;
     }
     this.scene.add(key);
@@ -444,7 +446,7 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
-    if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene).then(() => {
+    if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene).then(() => {
@@ -550,7 +552,7 @@ export class SceneRig {
       }
       return;
     }
-    const { width, depth } = ARENA;
+    const { width, depth } = map.bounds;
 
     // Floor with a faint low-contrast grid (a high-contrast tiled grid shimmers).
     const floorTex = makeGridTexture();

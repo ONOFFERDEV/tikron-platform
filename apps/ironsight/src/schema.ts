@@ -1,5 +1,5 @@
 import { schema, mapOf, quant, enumOf, type Codec } from "@tikron/schema";
-import { ARENA } from "./config.js";
+import { WORLD_LIMITS as ARENA } from "./config.js";
 
 /**
  * Binary state codec for the arena room — the wire contract shared by the server

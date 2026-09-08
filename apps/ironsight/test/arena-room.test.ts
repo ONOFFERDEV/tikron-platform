@@ -166,12 +166,12 @@ describe("arena room — teams & movement", () => {
   it("map cover blocks horizontal movement (no tunnelling through a box)", async () => {
     const h = await createTestRoom(ProtArena, { codec: ArenaSchema, sync: "throttled" });
     const a = await h.connect();
-    // Walk into Relay's west service screen (x=16..18, z=12..16).
-    place(h, a.id, 12, { z: 15 });
+    // Walk into Relay's west service screen (x=14..16, z=34..66).
+    place(h, a.id, 12, { z: 45 });
     await a.send("move", { mz: 1 });
     await tick(h, 100);
     const p = h.snapshot().players[a.id]!;
-    expect(p.x).toBeCloseTo(16 - PLAYER.radius, 2);
+    expect(p.x).toBeCloseTo(14 - PLAYER.radius, 2);
     expect(p.y).toBe(0); // no tunnelling or phantom climb
   });
 
@@ -447,7 +447,7 @@ describe("arena room — vote-restart excludes filler-bot seats", () => {
     const h1 = await h.connect();
     const h2 = await h.connect();
     await tick(h, 1); // reconcileBots fills to fillToPlayers=4 with 2 filler bots
-    expect(Object.keys(h.snapshot().players).length).toBe(4);
+    expect(Object.keys(h.snapshot().players).length).toBe(12);
 
     liveState(h).phase = "ended";
     await tick(h, 1);
@@ -761,10 +761,10 @@ describe("arena room — hybrid hit registration (claim + server plausibility ga
     const target = await h.connect();
     await tick(h, 2);
 
-    // Relay service screen spans x=16..18, z=12..16. Both players are
+    // Relay service screen spans x=14..16, z=34..66. Both players are
     // on clear ground, with the opaque screen strictly between their eyes.
-    place(h, shooter.id, 17, { yaw: 0, pitch: Math.atan2(1.0 - PLAYER.standEye, 6), z: 11 });
-    place(h, target.id, 17, { z: 17 });
+    place(h, shooter.id, 12, { yaw: Math.PI / 2, pitch: Math.atan2(1.0 - PLAYER.standEye, 6), z: 45 });
+    place(h, target.id, 18, { z: 45 });
     await tick(h, 3);
 
     await shooter.send("fire", { claim: { id: target.id, part: "body" } });

@@ -29,6 +29,9 @@ export const ARENA = {
   ceiling: 16, // y (headroom cap for jumps / raised platforms)
 } as const;
 
+/** Shared wire envelope; each MapDef owns its smaller playable boundary. */
+export const WORLD_LIMITS = { width: 200, depth: 160, ceiling: ARENA.ceiling } as const;
+
 /** Player capsule + head sphere (metres) — movement collision, camera/muzzle
  *  eye height, and physics. NOT what the server raycasts against — see
  *  {@link HIT} below, split out once the hitbox/visual audit found the

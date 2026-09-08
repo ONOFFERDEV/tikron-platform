@@ -30,11 +30,12 @@ export function dump() {
     geo.dispose();
    }
   }
-  result[name]={materials,meshes};
+  result[name]={materials,meshes,bounds:map.bounds};
  }
  return result;
 }`, resolveDir: process.cwd() }, bundle: true, platform:'node', format:'esm', outfile:'.inspect/architecture-bundle.mjs' });
 const { dump } = await import('../.inspect/architecture-bundle.mjs');
-const data = dump();
+const all = dump();
+const data = process.argv[3] ? { [process.argv[3]]: all[process.argv[3]] } : all;
 await writeFile(process.argv[2] ?? '.inspect/architecture.json', JSON.stringify(data));
 console.log(Object.fromEntries(Object.entries(data).map(([k,v]) => [k,{parts:v.meshes.length,materials:v.materials.length}])));

@@ -3,13 +3,17 @@ import * as T from 'three';
 /** Original, entirely flat exterior paving. Colors and joints are geometry data,
  * not another texture or decal layer. Disjoint rectangles avoid coplanar overlap.
  * World coordinates preserve the existing ground/detail scale and shadow plane. */
-export function buildRelayApronGeometry(): T.BufferGeometry {
+export function buildRelayApronGeometry(bounds = { width: 60, depth: 40 }): T.BufferGeometry {
+  const padding = Math.max(210, bounds.width * 3);
+  const worldX = (x: number) => x === -210 ? -padding : x === 270 ? bounds.width + padding : x >= 60 ? x + bounds.width - 60 : x <= 0 ? x : x * bounds.width / 60;
+  const padZ = Math.max(200, bounds.width > 60 ? bounds.width * 3 : 200);
+  const worldZ = (z: number) => z === -200 ? -padZ : z === 240 ? bounds.depth + padZ : z >= 40 ? z + bounds.depth - 40 : z <= 0 ? z : z * bounds.depth / 40;
   const positions: number[] = [], colors: number[] = [], normals: number[] = [], uv: number[] = [];
   const tint = new T.Color();
   const quad = (x0: number, z0: number, x1: number, z1: number, color: T.Color) => {
     if (x1 <= x0 || z1 <= z0) return;
     for (const [x, z] of [[x0, z0], [x0, z1], [x1, z0], [x1, z0], [x0, z1], [x1, z1]]) {
-      positions.push(x!, -0.03, z!); normals.push(0, 1, 0);
+      positions.push(worldX(x!), -0.03, worldZ(z!)); normals.push(0, 1, 0);
       colors.push(color.r, color.g, color.b); uv.push(x! / 6, -z! / 5);
     }
   };

@@ -21,7 +21,7 @@ import { VISUALS } from "./visuals.js";
  */
 
 import {
-  ARENA,
+  ARENA, WORLD_LIMITS,
   PLAYER,
   HIT,
   MOVE,
@@ -66,7 +66,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   },
 
   // --- imported verbatim from src/config.ts -----------------------------------
-  arena: ARENA,
+  arena: WORLD_LIMITS,
   player: PLAYER,
   hit: HIT,
   move: MOVE,

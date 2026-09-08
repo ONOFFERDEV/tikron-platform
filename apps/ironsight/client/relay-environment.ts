@@ -9,6 +9,10 @@ import type { MapDef } from "../src/map/types.js";
  * Instances batch by material, not by individual architectural part.
  */
 export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly = false): void {
+  const width = map.bounds.width, depth = map.bounds.depth;
+  const contextX = (x: number) => x < 0 ? x : x > 60 ? width + x - 60 : x * width / 60;
+  const contextZ = (z: number) => z < 0 ? z : z > 40 ? depth + z - 40 : z * depth / 40;
+  const mastX = width / 2;
   const mats = {
     concrete: new THREE.MeshStandardMaterial({ color: 0xb4b7ae, roughness: 0.92 }),
     pale: new THREE.MeshStandardMaterial({ color: 0xd9d7c6, roughness: 0.8 }),
@@ -26,6 +30,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   const matrix = new THREE.Matrix4();
   const quat = new THREE.Quaternion();
   const add = (m: Mat, x: number, y: number, z: number, w: number, h: number, d: number, yaw = 0) => {
+    if (activeBatch === skylineBatches) { x = contextX(x); z = contextZ(z); }
     quat.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(w, h, d));
     const list = activeBatch.get(m) ?? []; list.push(matrix.clone()); activeBatch.set(m, list);
@@ -43,13 +48,13 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     add(low ? "metal" : "pale", x, y + h - 0.08, z, w, 0.16, d);
     // Flush foundations and cornices give buildings scale without enlarging collisions.
     add("dark", x, y + 0.16, z, w + 0.006, 0.32, d + 0.006);
-    const accent: Mat = z < 20 ? "teal" : "amber";
+    const accent: Mat = z < depth / 2 ? "teal" : "amber";
     if (low) {
       add(accent, x, y + h * 0.65, z, w + 0.01, 0.13, d + 0.01);
       for (const sx of [-1, 1]) add("metal", x + sx * (w / 2 - 0.06), y + h / 2, z, 0.16, h, d + 0.024);
     } else {
       add(accent, x, y + h - 0.45, z, w + 0.006, 0.38, d + 0.006);
-      if (h > 6) {
+      if (h === 6 && w === 10 && d === 12) {
         // The shared 6.4m core is a signal coupler, distinct from service houses.
         // Cassette depth is in the collider; only millimetre cladding crosses it.
         for (const side of [-1, 1]) {
@@ -80,27 +85,27 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     }
   }
   // Perimeter retaining wall starts OUTSIDE the clamped movement bounds.
-  for (const z of [-0.4, 40.4]) {
-    add("concrete", 30, 1.45, z, 61.6, 2.9, 0.8);
-    add("dark", 30, 2.82, z, 61.6, 0.16, 0.8);
-    for (let x = 2; x < 60; x += 4) add("metal", x, 1.5, z, 0.22, 3, 0.9);
+  for (const z of [-0.4, depth + 0.4]) {
+    add("concrete", width / 2, 1.45, z, width + 1.6, 2.9, 0.8);
+    add("dark", width / 2, 2.82, z, width + 1.6, 0.16, 0.8);
+    for (let x = 2; x < width; x += 4) add("metal", x, 1.5, z, 0.22, 3, 0.9);
   }
-  for (const x of [-0.4, 60.4]) {
-    add("dark", x, 3.5, 20, 0.8, 7, 40);
-    for (let z = 2; z < 40; z += 6) {
+  for (const x of [-0.4, width + 0.4]) {
+    add("dark", x, 3.5, depth / 2, 0.8, 7, depth);
+    for (let z = 2; z < depth; z += 6) {
       add("concrete", x, 3.5, z, 0.85, 7, 0.3);
-      add(x < 30 ? "amber" : "teal", x, 5.4, z + 2, 0.86, 1.3, 3.3);
+      add(x < width / 2 ? "amber" : "teal", x, 5.4, z + 2, 0.86, 1.3, 3.3);
     }
   }
   // Painted lane edges, crossing bars and hazard chevrons: flush with the floor.
-  for (const z of [10.4, 22.4, 29.4]) {
-    for (const [x, w] of [[8, 12], [30, 16], [52, 12]]) {
+  for (const z of [25, 50, 75].map(z => z * depth / 100)) {
+    for (const [x, w] of [[width * .18, 12], [width / 2, 16], [width * .82, 12]]) {
       add("paint", x!, 0.007, z, w!, 0.012, 0.065);
       for (let i = -2; i <= 2; i++) add("paint", x! + i * 0.45, 0.008, z + 0.55, 0.18, 0.014, 0.8);
     }
   }
-  for (const x of [3, 57]) for (const z of [6, 16, 26, 36]) {
-    add(x < 30 ? "amber" : "teal", x, 0.008, z, 3, 0.015, 0.12);
+  for (const x of [3, width - 3]) for (const z of [39, 43, 47, 51, 55, 59].map(z => z * depth / 100)) {
+    add(x < width / 2 ? "amber" : "teal", x, 0.008, z, 3, 0.015, 0.12);
   }
   // Site context: large silhouettes, never cover in the playable world.
   activeBatch = skylineBatches;
@@ -117,12 +122,12 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   }
   activeBatch = batches;
   // Relay mast and paired gantry behind the north boundary.
-  add("dark", 31, 12, -8, 2.4, 24, 2.4);
-  add("pale", 31, 20, -8, 8, 1.2, 4);
-  add("teal", 31, 20, -5.94, 5.6, 0.45, 0.1);
+  add("dark", mastX, 12, -8, 2.4, 24, 2.4);
+  add("pale", mastX, 20, -8, 8, 1.2, 4);
+  add("teal", mastX, 20, -5.94, 5.6, 0.45, 0.1);
   // Original parabolic antenna: the map's identifying silhouette. It lives
   // entirely beyond z=0, so the detailed bowl needs no gameplay collider.
-  const dish = new THREE.Group(); dish.position.set(31, 25, -8);
+  const dish = new THREE.Group(); dish.position.set(mastX, 25, -8);
   dish.rotation.set(-0.18, -0.25, 0);
   const vertices: number[] = [], indices: number[] = [];
   const rings = 8, segments = 32, radius = 5.2;
@@ -158,16 +163,16 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   const bracing = new THREE.Mesh(mergeGeometries(braces)!, mats.metal);
   braces.forEach(g => g.dispose()); bracing.castShadow = true; dish.add(bracing);
   // Base actuator and service cabinets all remain beyond the north boundary.
-  add('metal', 31, 21.8, -8, 3.2, 2.6, 3.2);
-  add('amber', 31, 22.7, -6.38, 1.7, 0.5, 0.06);
+  add('metal', mastX, 21.8, -8, 3.2, 2.6, 3.2);
+  add('amber', mastX, 22.7, -6.38, 1.7, 0.5, 0.06);
   for (const side of [-1, 1]) {
-    add('dark', 31 + side * 1.2, 12, -6.79, 0.20, 17, 0.12);
-    add('metal', 31 + side * 3, 1.8, -8, 2, 3.6, 3);
+    add('dark', mastX + side * 1.2, 12, -6.79, 0.20, 17, 0.12);
+    add('metal', mastX + side * 3, 1.8, -8, 2, 3.6, 3);
   }
   scene.add(dish);
-  for (const x of [22, 40]) add("amber", x, 8, -3, 0.6, 16, 0.8);
-  add("amber", 31, 15.6, -3, 19, 0.8, 1);
-  for (let x = 23; x < 40; x += 2) add("dark", x, 15.1, -3, 0.16, 1.5, 0.5, 0.35);
+  for (const x of [mastX - 9, mastX + 9]) add("amber", x, 8, -3, 0.6, 16, 0.8);
+  add("amber", mastX, 15.6, -3, 19, 0.8, 1);
+  for (let x = mastX - 8; x < mastX + 9; x += 2) add("dark", x, 15.1, -3, 0.16, 1.5, 0.5, 0.35);
   const fallback = new THREE.Group(); fallback.name = "relay-skyline-fallback"; scene.add(fallback);
   for (const [batch, parent] of [[batches, scene], [skylineBatches, fallback]] as const) {
    for (const [name, transforms] of batch) {
@@ -202,10 +207,10 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     const mesh = new THREE.Mesh(geo, signMat); mesh.position.set(x, y, z); mesh.rotation.y = yaw;
     scene.add(mesh);
   };
-  sign(0, 30, 2.1, 0.015, 0, 6);
-  sign(2, 30, 2.1, 39.985, Math.PI, 6);
-  sign(3, 31, 21.4, -5.98, 0, 7);
+  sign(0, width / 2, 2.1, 0.015, 0, 6);
+  sign(2, width / 2, 2.1, depth - .015, Math.PI, 6);
+  sign(3, mastX, 21.4, -5.98, 0, 7);
   for (const side of [-1, 1]) {
-    sign(1, 30 + side * 2.030, 3.7, 18, side * Math.PI / 2, 3.5);
+    sign(1, width / 2 + side * 5.030, 3.7, 50, side * Math.PI / 2, 3.5);
   }
 }

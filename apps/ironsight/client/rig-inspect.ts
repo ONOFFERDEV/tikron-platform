@@ -1,5 +1,4 @@
 import { SceneRig } from "./scene.js";
-import { ARENA } from "../src/config.js";
 import { mapForRoom } from "../src/modes.js";
 import type { RigInspectOptions } from "./rig-inspect-query.js";
 
@@ -9,10 +8,11 @@ export function startRigInspector(options: RigInspectOptions): void {
     if (child !== host && child instanceof HTMLElement) child.hidden = true;
   }
   host.replaceChildren();
-  const scene = new SceneRig(mapForRoom("tdm", ""), host);
+  const map = mapForRoom("tdm", "");
+  const scene = new SceneRig(map, host);
   // Relay's center is now solid machinery. Use the clear west service pocket
   // so orbit cameras and the operator never intersect the new architecture.
-  const x = 10, z = ARENA.depth / 2;
+  const x = 10, z = map.bounds.depth / 2;
   const pose = { x, y: 0, z, yaw: 0, pitch: options.aim * Math.PI / 180, crouch: options.pose.startsWith('crouch'),
     alive: true, team: 0, weapon: options.weapon };
   const clip = options.pose === "crouch" ? "crouch_idle" : options.pose;

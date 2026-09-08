@@ -33,7 +33,9 @@ def main():
     parser.add_argument('--input', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--report', required=True)
+    parser.add_argument('--edge-length', type=float, default=0.7, help='Offline vertex spacing in metres; triangle cap remains 45000')
     args = parser.parse_args()
+    assert 0.5 <= args.edge_length <= 2
     source = Path(args.input).read_bytes()
     magic, version, size = struct.unpack_from('<III', source)
     assert (magic, version, size) == (0x46546c67, 2, len(source))
@@ -110,7 +112,7 @@ def main():
                     tri = stack.pop()
                     lengths = [sum((tri[i]['POSITION'][k] - tri[(i+1) % 3]['POSITION'][k])**2 for k in range(3)) for i in range(3)]
                     edge = lengths.index(max(lengths))
-                    if vertical and top - bottom > 0.5 and lengths[edge] > 0.7**2:
+                    if vertical and top - bottom > 0.5 and lengths[edge] > args.edge_length**2:
                         a, b, c = tri[edge], tri[(edge+1) % 3], tri[(edge+2) % 3]
                         mid = {key: tuple((x+y)/2 for x, y in zip(a[key], b[key])) for key in attrs}
                         stack.extend([[a, mid, c], [mid, b, c]])

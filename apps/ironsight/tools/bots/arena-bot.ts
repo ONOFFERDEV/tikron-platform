@@ -21,7 +21,8 @@ const AR = GAME.weapons[GAME.weaponMeta.defaultIndex]!;
  * (the E2E harness, or a real `@tikron/client` `GameClient`) forwards those to the
  * server with {@link applyIntents}. Because the bot never integrates its own
  * position — it steers off the authoritative `state.players[id]` the server sends
- * back — there is no client prediction to drift.
+ * back — there is no client prediction to drift. Optional collision-map steering routes
+ * spawn returns on expanded arenas without modifying authoritative coordinates.
  *
  * Behaviour: patrol the supplied lane {@link ArenaBotOptions.waypoints} until an
  * enemy is in line of sight (occlusion-tested against {@link ArenaBotOptions.boxes},
@@ -57,6 +58,10 @@ export interface BotIntents {
 }
 
 export interface ArenaBotOptions {
+  /** Expanded-map patrol: acquire only in range and strafe around that encounter. */
+  engagementRange?: number;
+  /** Collision-map route steering for return paths on expanded arenas. */
+  navigate?: (from: { x: number; z: number }, target: { x: number; z: number }) => { x: number; z: number };
   /** The client id the server knows this bot by (== `state.players` key). */
   id: string;
   /** PRNG seed for the aim-noise stream (fixed → reproducible runs). */
@@ -104,6 +109,10 @@ export class ArenaBot {
   private readonly strafeAmp: number;
   private readonly strafePeriodMs: number;
   private readonly boxes: readonly Box[];
+  private readonly navigate: ArenaBotOptions["navigate"];
+  private readonly engagementRange: number | undefined;
+  private engagementZ: number | undefined;
+  private inEncounter = false;
   private wpIndex = 0;
 
   // Ammo model (mag is owner-only, off the wire) + fire cadence, on the bot clock.
@@ -126,6 +135,8 @@ export class ArenaBot {
     this.strafeAmp = opts.strafeAmp ?? 1.2;
     this.strafePeriodMs = opts.strafePeriodMs ?? 700;
     this.boxes = opts.boxes ?? ARENA1_BOXES;
+    this.navigate = opts.navigate;
+    this.engagementRange = opts.engagementRange;
   }
 
   /** Uniform in [0, 1). */
@@ -153,6 +164,7 @@ export class ArenaBot {
     const me = state.players[this.id];
     if (!me) return {};
     if (!me.alive) {
+      this.inEncounter = false;
       // Reset the ammo model so the bot comes back with a full mag, and rewind the
       // return route to its first waypoint — the spawn-side clear corridor — so a
       // bot respawning behind cover walks back through open ground instead of
@@ -166,13 +178,17 @@ export class ArenaBot {
     const enemy = this.nearestVisibleEnemy(me, state);
 
     if (!enemy) {
+      this.inEncounter = false;
       // Nothing in sight (spawned far away, or cover between): walk the return
       // route back to the fight lane, one waypoint at a time.
       const wp = this.advanceWaypoint(me);
-      const yaw = Math.atan2(wp.x - me.x, wp.y - me.z);
+      const target = this.navigate?.(me, { x: wp.x, z: wp.y }) ?? { x: wp.x, z: wp.y };
+      const yaw = Math.atan2(target.x - me.x, target.z - me.z);
       return { look: { yaw, pitch: 0 }, move: { mx: 0, mz: 1, jump: false, crouch: false, sprint: false } };
     }
 
+    if (this.engagementRange !== undefined && !this.inEncounter) this.engagementZ = me.z;
+    this.inEncounter = true;
     const { yaw, pitch } = this.aimAt(me, enemy);
     const intents: BotIntents = {
       look: { yaw, pitch },
@@ -224,7 +240,7 @@ export class ArenaBot {
       const dy = aim.y - eye.y;
       const dz = aim.z - eye.z;
       const dist = Math.hypot(dx, dy, dz);
-      if (dist === 0 || dist >= bestDist) continue;
+      if (dist === 0 || dist >= bestDist || dist > (this.engagementRange ?? Infinity)) continue;
       const dir: Vec3 = { x: dx / dist, y: dy / dist, z: dz / dist };
       // Occluded if a map box is entered before the target along the ray.
       if (nearestBox(eye, dir, this.boxes, dist) < dist) continue;
@@ -262,7 +278,7 @@ export class ArenaBot {
    */
   private combatStrafe(me: ArenaPlayer, yaw: number, nowMs: number): MoveIntent {
     const phase = Math.floor(nowMs / this.strafePeriodMs) % 2 === 0 ? 1 : -1;
-    const targetZ = this.strafeZ + phase * this.strafeAmp;
+    const targetZ = (this.engagementZ ?? this.strafeZ) + phase * this.strafeAmp;
     // Desired world move is purely along z, toward the oscillating anchor.
     return this.worldToMove(yaw, 0, clamp(targetZ - me.z, -1, 1));
   }

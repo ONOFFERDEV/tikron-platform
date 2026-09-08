@@ -11,6 +11,8 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
 const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const base = positional[0] ?? 'http://localhost:8796';
@@ -23,6 +25,19 @@ const assert = process.argv.includes('--assert');
 // the same durable state. No client writes to scores, deadlines or server state.
 const untilEnded = process.argv.includes('--until-ended');
 const mode = (process.argv.find(a => a.startsWith('--mode=')) ?? '--mode=tdm').slice(7);
+// Compile the app's immutable collision map/navigation into the Node driver only.
+// The old fixed 0.9-radian turn loop circles within expanded deployment pockets.
+// Route normal W-key movement to map objectives; never write player/server state.
+const routeBundle = await build({ stdin: { contents: `
+  import { mapForMode } from './src/modes.js';
+  import { GroundNavigator } from './src/map/navigation.js';
+  export function createRoute(mode) {
+    const map = mapForMode(mode), nav = new GroundNavigator(map);
+    return { bounds: map.bounds, caps: Object.values(map.caps), next: (from, to) => nav.next(from, to) };
+  }`, resolveDir: fileURLToPath(new URL('..', import.meta.url)) },
+  bundle: true, platform: 'node', format: 'esm', write: false, logLevel: 'silent' });
+const { createRoute } = await import(`data:text/javascript;base64,${Buffer.from(routeBundle.outputFiles[0].text).toString('base64')}`);
+const route = createRoute(mode);
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const profile = await mkdtemp(join(tmpdir(), 'ironsight-hitch-'));
 const edge = spawn(process.env.EDGE ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe', [
@@ -62,7 +77,9 @@ try {
   await send('Page.navigate', { url: url.href });
   await waitFor('!!window.ironsight?.state()?.players[window.ironsight.myId]');
   await delay(1500);
+  await send('Page.bringToFront');
   await clickCenter();
+  await waitFor('!!document.pointerLockElement');
   await delay(500);
   await evaluate(`(() => {
     const P = window.__perf = { frames: [], long: [], events: [], t0: performance.now() };
@@ -92,14 +109,35 @@ try {
   const start = Date.now();
   // Wander in bursts, turn, and fire so the bots engage and kill the probe.
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
-  let yaw = 0, doneAt = Infinity;
+  let yaw = 0, doneAt = Infinity, routeIndex = 0;
+  const navigationSamples = [];
   while (Date.now() - start < runMs && Date.now() < doneAt) {
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) {
       await delay(5500);
       break;
     }
-    yaw += 0.9; await evaluate(`window.ironsight.look(${yaw}, 0)`);
-    await key('w', 'KeyW', 87, 'keyDown'); await delay(1800); await key('w', 'KeyW', 87, 'keyUp');
+    // Short steering steps respect corners in the shared capsule-clear flow field.
+    // On small maps retain the original wander fixture for comparable old runs.
+    if (route.bounds.width > 60) {
+      await key('w', 'KeyW', 87, 'keyDown');
+      for (let step = 0; step < 9; step++) {
+        const me = await evaluate(`window.ironsight.state().players[window.ironsight.myId]`);
+        if (me?.alive) {
+          let goal = route.caps[routeIndex % route.caps.length];
+          if (Math.hypot(goal.x - me.x, goal.z - me.z) < 3) goal = route.caps[++routeIndex % route.caps.length];
+          const target = route.next(me, goal);
+          yaw = Math.atan2(target.x - me.x, target.z - me.z);
+          await evaluate(`window.ironsight.look(${yaw}, 0)`);
+          if (step === 0) navigationSamples.push({ t: Date.now() - start, x: me.x, z: me.z, goal, target });
+          // Never overshoot a one-metre navigation corner at the 6 m/s walk speed.
+          await delay(Math.min(200, Math.max(30, Math.hypot(target.x - me.x, target.z - me.z) / 6 * 1000)));
+        } else await delay(200);
+      }
+      await key('w', 'KeyW', 87, 'keyUp');
+    } else {
+      yaw += 0.9; await evaluate(`window.ironsight.look(${yaw}, 0)`);
+      await key('w', 'KeyW', 87, 'keyDown'); await delay(1800); await key('w', 'KeyW', 87, 'keyUp');
+    }
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) continue;
     await clickCenter();
     await delay(600);
@@ -128,7 +166,7 @@ try {
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.dt > 150).map(rel);
-  const summary = { url: url.href, runMs, untilEnded, finalState, room: data.room, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
+  const summary = { url: url.href, runMs, untilEnded, finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));

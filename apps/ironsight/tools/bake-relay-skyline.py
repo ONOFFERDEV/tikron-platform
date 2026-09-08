@@ -16,8 +16,11 @@ from mathutils import Vector
 app = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument("--source", required=True)
+parser.add_argument("--maps", required=True, help="dump-maps JSON; Relay bounds determine exterior placement")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 source = Path(args.source).resolve()
+bounds = json.loads(Path(args.maps).read_text())["relay"]["bounds"]
+map_width, map_depth = bounds["width"], bounds["depth"]
 output = app / "public/assets/maps/relay-skyline.glb"
 manifest = []
 bpy.ops.object.select_all(action="SELECT")
@@ -37,7 +40,9 @@ placements = [
 ]
 all_meshes = []
 for relative, x, z, width, height, depth in placements:
-    assert x + width / 2 < 0 or x - width / 2 > 60 or z + depth / 2 < 0 or z - depth / 2 > 40
+    x = x if x < 0 else map_width + x - 60 if x > 60 else x * map_width / 60
+    z = z if z < 0 else map_depth + z - 40 if z > 40 else z * map_depth / 40
+    assert x + width / 2 < 0 or x - width / 2 > map_width or z + depth / 2 < 0 or z - depth / 2 > map_depth
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(source / relative))
     imported = set(bpy.data.objects) - before

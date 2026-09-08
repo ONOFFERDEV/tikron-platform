@@ -18,6 +18,7 @@ import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
 import type { MapDef } from "../src/map/types.js";
 import { walkSeconds } from "../src/map/nav.js";
+import { GroundNavigator } from "../src/map/navigation.js";
 import type { Vec3 } from "../src/physics.js";
 
 /**
@@ -100,13 +101,7 @@ function capWaypoint(map: MapDef, key: (typeof CAP_KEYS)[number]): { x: number; 
   return { x: cap.x, y: cap.z };
 }
 
-/**
- * Picks the spawn point closest (in z) to a target z. Used to seed the bot match
- * from whichever spawn row shares cap b's lane: arena-bot.ts's `decide()` steers
- * straight at its next waypoint with no obstacle avoidance, so a patrol route
- * that crosses a lane-divider wall (arena1 has these; arena2 doesn't) just wedges
- * the bot against it and the match never engages.
- */
+/** Pick an initial spawn aligned with the objective; GroundNavigator handles cover. */
 function spawnNearZ(spawns: readonly Vec3[], z: number): Vec3 {
   return spawns.reduce((best, s) => (Math.abs(s.z - z) < Math.abs(best.z - z) ? s : best));
 }
@@ -207,27 +202,31 @@ describe.skipIf(process.env.MAP_METRICS !== "1")("map metrics report tool", () =
 
       const scoreCheckpoints: { redScore: number; blueScore: number }[] = [];
 
-      // Route each bot in two legs — straight along its own (obstacle-free) spawn
-      // row until x-aligned with cap b, then straight up/down cap b's own column —
-      // instead of one diagonal waypoint. ArenaBot has no obstacle avoidance, and a
-      // direct diagonal clips arena2's row-11 flanking cover crates right at their
-      // edge; both legs stay clear of every map's boxes (lane dividers, crates,
-      // platform) by construction, so this works for both maps' real geometry.
+      // Preserve the small-map approach anchors; expanded Relay routes directly
+      // toward B through GroundNavigator. Both use ordinary movement intents.
       const bWaypoint = capWaypoint(map, "b");
       const redApproach = { x: bWaypoint.x, y: redSpawn.z };
       const blueApproach = { x: bWaypoint.x, y: blueSpawn.z };
+      const navigator = new GroundNavigator(map);
+      const navigate = (from: { x: number; z: number }, target: { x: number; z: number }) => navigator.next(from, target);
 
       for (const [redSeed, blueSeed] of SEGMENT_SEEDS) {
         const red = new ArenaBot({
           id: redConn.id,
           seed: redSeed,
-          waypoints: [redApproach, bWaypoint],
+          engagementRange: map === ARENA1 ? 40 : undefined,
+          waypoints: map === ARENA1 ? [bWaypoint] : [redApproach, bWaypoint],
+          navigate,
+          strafeZ: bWaypoint.y,
           boxes: map.boxes,
         });
         const blue = new ArenaBot({
           id: blueConn.id,
           seed: blueSeed,
-          waypoints: [blueApproach, bWaypoint],
+          engagementRange: map === ARENA1 ? 40 : undefined,
+          waypoints: map === ARENA1 ? [bWaypoint] : [blueApproach, bWaypoint],
+          navigate,
+          strafeZ: bWaypoint.y,
           boxes: map.boxes,
         });
 

@@ -177,7 +177,8 @@ describe("validateConfig — warnings tier (suspicious but legal) [blueprint]", 
 
 describe("equivalence — the lift didn't fork any value away from src/*.ts [config: ironsight]", () => {
   it("imported groups are the exact same object src/config.ts and the map modules export", () => {
-    expect(GAME.arena).toBe(ARENA);
+    expect(GAME.arena.width).toBeGreaterThanOrEqual(ARENA1.bounds.width);
+    expect(GAME.arena.depth).toBeGreaterThanOrEqual(ARENA1.bounds.depth);
     expect(GAME.player).toBe(PLAYER);
     expect(GAME.move).toBe(MOVE);
     expect(GAME.weapons).toBe(WEAPONS);

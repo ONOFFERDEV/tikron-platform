@@ -29,7 +29,7 @@ describe("Relay ground navigation", () => {
   });
   it("does not invent a route into a solid objective", () => {
     const nav = new GroundNavigator(ARENA1), from = { x: 5, z: 5 };
-    expect(nav.next(from, { x: 17, z: 5 })).toEqual(from);
+    expect(nav.next(from, { x: 15, z: 45 })).toEqual(from);
   });
   it("real filler bots leave deployment and exchange kills on Relay", async () => {
     vi.useFakeTimers(); vi.setSystemTime(1_000_000);

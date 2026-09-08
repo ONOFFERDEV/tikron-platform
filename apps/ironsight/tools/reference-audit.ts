@@ -37,5 +37,5 @@ console.log(JSON.stringify({ note: '1m four-neighbour ground BFS; cap waypoint o
     enemyCaptureSeconds: 200 / MODES.dom.capturePerSec, pointsPerFlagPerSecond: MODES.dom.pointsPer2s / 2, sideSwap: false },
   audio: { enemyAllyFootstepRatio: 1.4, hit: GAME.audio.hit, kill: GAME.audio.kill, footstep: GAME.audio.footstep,
     note: 'Session27: hostileFoley gain 1.4; box occlusion .32 / 1100 Hz; remote reload phase cues; headphone mix unverified.' },
-  baselineDamageCues: ['edge vignette only'], baselineKillfeed: 'top-right, five rows, weapon and HEADSHOT text, team colours, no objective events',
+  damageCues: ['60ms victim flash (omitted with reduced motion)', '900ms directional edge and labelled sector'], killfeed: 'top-right, five rows, weapon and HEADSHOT text, team colours, no objective events',
 }, null, 2));

@@ -20,6 +20,29 @@ function baseView(overrides: Partial<BotView> = {}): BotView {
   };
 }
 
+describe("expanded arena encounters", () => {
+  it("keeps travelling when a visible target is outside effective range", () => {
+    const brain = createBotBrain({ seed: 1, reactionMs: 0, waypoints: [{ x: 30, y: 90 }] });
+    const view = baseView({ engagementRange: 40,
+      enemies: [{ id: "far", x: 30, y: 0, z: 80, crouch: false, alive: true, team: 1 }] });
+    const decision = botThink(view, brain, 50);
+    expect(decision.fire).toBe(false);
+    expect(decision.move.mz).toBe(1);
+    expect(brain.lockId).toBeNull();
+  });
+  it("anchors a new firefight locally instead of dragging the bot back to the legacy lane", () => {
+    const brain = createBotBrain({ seed: 1, reactionMs: 0, aimNoiseRad: 0,
+      waypoints: [{ x: 30, y: 90 }], strafeZ: 11 });
+    const view = baseView({ engagementRange: 40,
+      self: { x: 30, y: 0, z: 70, crouch: false, alive: true, team: 0, yaw: 0, pitch: 0 },
+      enemies: [{ id: "near", x: 30, y: 0, z: 80, crouch: false, alive: true, team: 1 }] });
+    const decision = botThink(view, brain, 50);
+    expect(decision.fire).toBe(true);
+    expect(decision.move.mz).toBeGreaterThan(0);
+    expect(brain.engagementZ).toBe(70);
+  });
+});
+
 describe("botThink — dom objective", () => {
   it("with an objective and no visible enemy, walks straight toward it instead of patrolling", () => {
     const brain = createBotBrain({ seed: 1, waypoints: [{ x: 0, y: 0 }] }); // unused while an objective is set

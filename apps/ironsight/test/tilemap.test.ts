@@ -257,9 +257,9 @@ describe("compileTileMap - validation errors", () => {
     expect(() => compileTileMap(rows)).toThrow(/row 5 has length 29, expected 30/);
   });
 
-  it("throws when the grid's compiled size doesn't match ARENA bounds", () => {
-    const rows = makeGrid([]).slice(0, ROWS - 1);
-    expect(() => compileTileMap(rows)).toThrow(/ARENA bounds are 60x40m/);
+  it("throws when the grid exceeds the shared coordinate envelope", () => {
+    const rows = Array.from({ length: 81 }, () => ".".repeat(30));
+    expect(() => compileTileMap(rows)).toThrow(/wire envelope is 200x160m/);
   });
 
   it("throws on an unrecognized character, naming its row and column", () => {

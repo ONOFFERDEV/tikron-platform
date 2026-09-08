@@ -8,6 +8,8 @@ import { ArenaRoomImpl } from "../../src/rooms/arena-room.js";
 import { ArenaSchema, type ArenaState } from "../../src/schema.js";
 import { LAG, TICK_MS } from "../../src/config.js";
 import { ArenaBot, applyIntents } from "../../tools/bots/arena-bot.js";
+import { ARENA1 } from "../../src/map/arena1.js";
+import { GroundNavigator } from "../../src/map/navigation.js";
 
 /**
  * M0 fate-gate E2E: two bots (red + blue) fight a full match in-process and we
@@ -82,28 +84,30 @@ describe("bot auto-battle E2E (M0 gate)", () => {
       const redConn = await h.connect(); // 1st join → red
       const blueConn = await h.connect(); // 2nd join → blue
 
-      // Fight in the box-free mid corridor at z = 11 (it threads between the
-      // platforms at z ≤ 9 and the lane divider at z ≥ 13 for every x), 20 m apart.
-      // Return routes go via the spawn-side clear vertical corridor (x < 14 / x > 46,
-      // where the dividers don't reach) before turning onto the z = 11 lane, so a
-      // downed bot walks back through open ground.
-      place(h, redConn.id, 20, 11);
-      place(h, blueConn.id, 40, 11);
+      // Expanded Relay's north connector: a 20 m duel, with real spawn returns
+      // routed around the active collision map. No post-death teleport or weaker
+      // combat threshold; the scripted clients still send ordinary movement intents.
+      const nav = new GroundNavigator(ARENA1);
+      const navigate = (from: { x: number; z: number }, target: { x: number; z: number }) => nav.next(from, target);
+      place(h, redConn.id, 65, 27);
+      place(h, blueConn.id, 85, 27);
 
       const red = new ArenaBot({
         id: redConn.id,
         seed: 0xa11ce,
+        navigate,
+        strafeZ: 27,
         waypoints: [
-          { x: 4, y: 11 },
-          { x: 20, y: 11 },
+          { x: 65, y: 27 },
         ],
       });
       const blue = new ArenaBot({
         id: blueConn.id,
         seed: 0xb0b,
+        navigate,
+        strafeZ: 27,
         waypoints: [
-          { x: 56, y: 11 },
-          { x: 40, y: 11 },
+          { x: 85, y: 27 },
         ],
       });
 

@@ -175,11 +175,11 @@ export interface ShowcaseBotDef {
 // ShowcaseBotDef (and arena-room still builds the waypoints) so restoring
 // movement later is a data-only change back here.
 export const PRACTICE_SHOWCASE_BOTS: readonly ShowcaseBotDef[] = [
-  { id: "bot-idle", role: "idle", label: "IDLE", x: 12, z: 6, amp: 0 },
-  { id: "bot-crouch", role: "crouch", label: "CROUCH", x: 12, z: 10, amp: 0 },
-  { id: "bot-sneak", role: "sneak", label: "SNEAK", x: 12, z: 15, amp: 0 },
-  { id: "bot-walk", role: "walk", label: "WALK", x: 12, z: 23, amp: 0 },
-  { id: "bot-sprint", role: "sprint", label: "SPRINT", x: 12, z: 28, amp: 0 },
+  { id: "bot-idle", role: "idle", label: "IDLE", x: 10, z: 39, amp: 0 },
+  { id: "bot-crouch", role: "crouch", label: "CROUCH", x: 10, z: 43, amp: 0 },
+  { id: "bot-sneak", role: "sneak", label: "SNEAK", x: 10, z: 47, amp: 0 },
+  { id: "bot-walk", role: "walk", label: "WALK", x: 10, z: 51, amp: 0 },
+  { id: "bot-sprint", role: "sprint", label: "SPRINT", x: 10, z: 55, amp: 0 },
 ];
 
 /** The stationary showcase roles face back along this yaw so their pose reads

@@ -18,6 +18,6 @@ await build({
 });
 const maps = await import(pathToFileURL(bundle).href);
 const pick = (m) => ({ bounds: m.bounds, boxes: m.boxes, ramps: m.ramps ?? [] });
-await writeFile(out, JSON.stringify(Object.fromEntries(Object.entries(maps).map(([k, m]) => [k, pick(m)]))));
+await writeFile(out, JSON.stringify(Object.fromEntries(Object.entries(maps).filter(([key]) => !process.argv[3] || key === process.argv[3]).map(([k, m]) => [k, pick(m)]))));
 await rm(dir, { recursive: true, force: true });
 console.log(`[dump-maps] ${Object.keys(maps).join(', ')} -> ${out}`);

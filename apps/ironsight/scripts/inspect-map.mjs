@@ -300,7 +300,12 @@ try {
     const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
     if (report?.siteGround) {
       const ground = report.siteGround, apron = ground.find(g => g.name.endsWith('-apron'));
-      const extent = apron?.name === 'relay-apron' ? [-210, -200, 270, 240] : [-60, -60, 120, 100];
+      const { width, depth } = report.mapBounds;
+      const padding = Math.max(210, width * 3), padZ = Math.max(200, width > 60 ? width * 3 : 200);
+      const extent = apron?.name === 'relay-apron' ? [-padding, -padZ, width + padding, depth + padZ] : [-60, -60, width + 60, depth + 60];
+      const floor = ground.find(g => !g.name.endsWith('-apron'));
+      if (!floor || floor.min[0] !== 0 || floor.min[2] !== 0 || floor.max[0] !== width || floor.max[2] !== depth)
+        throw Error('Ground must match authoritative map bounds');
       if (ground.length !== 2 || ground.some(g => !g.visible || g.max[1] >= 0) || !apron ||
           apron.min[0] !== extent[0] || apron.min[2] !== extent[1] || apron.max[0] !== extent[2] || apron.max[2] !== extent[3] ||
           apron.triangles > 4500)

@@ -27,7 +27,7 @@ export function relayServiceGeometry(map: MapDef): T.BufferGeometry {
   for (const b of map.boxes) {
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2;
-    if (h > 4 && h < 6 && w >= 5) {
+    if (h === 6 && w >= 20 && d === 6) {
       // Sealed roof access and recessed ventilation share the existing atlas.
       // Flush plates only: no rooftop machinery that could imply new cover.
       const roofY = b.max.y + 0.012, midZ = (b.min.z + b.max.z) / 2;
@@ -44,7 +44,7 @@ export function relayServiceGeometry(map: MapDef): T.BufferGeometry {
         face('label', x + side * 1.6, b.min.y + 1.3, z, 0.54, 0.54, yaw);
       }
     } else if (h < 1.5 && w >= 1 && d >= 1) {
-      for (const side of [-1, 1]) {
+      for (const side of [-1]) {
         // Below the existing colored identification band; never wraps a corner.
         face('case', x, b.min.y + h * 0.30,
           (side < 0 ? b.min.z : b.max.z) + side * 0.012,

@@ -393,3 +393,32 @@ every subdivided triangle's winding, containment, surface area and interpolated
 UV/normal against that original, then compares the original against the MapDef kit.
 These audit references add 81,096 bytes to the compact weathered export and are
 not uploaded as render attributes. All other materials and image bytes are intact.
+
+### Session 28: expanded Relay, 150 x 100 m
+
+Original collision-derived architecture and ground AO were rebaked for the expanded
+MapDef, including 3 m decks/ramps and 6 m service buildings. Existing allowlisted
+paths and provenance apply: no new purchased input in the versioned kit. Final
+architecture is 2,499,400 bytes; ground AO 122,886 bytes. The original deployment
+vista is recaptured from the same build. The existing private skyline derivative
+was repositioned outside the new bounds and remains ignored.
+
+Reproduce from the app directory (Blender 4.5 on PATH, or its full executable path):
+
+```powershell
+node tools/dump-maps.mjs .inspect/session28-maps.json relay
+node tools/dump-architecture.mjs .inspect/session28-architecture.json relay
+blender --background --python tools/bake-ground-ao.py -- --maps .inspect/session28-maps.json
+blender --background --python tools/bake-architecture.py -- --input .inspect/session28-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session28-weather.json
+python scripts/audit-architecture.py --input .inspect/session28-architecture.json
+# Private skyline: use the licensed GLB directory documented above.
+blender --background --python tools/bake-relay-skyline.py -- --source <licensed-GLB-directory> --maps .inspect/session28-maps.json
+pnpm build:client
+# Restart the preview after writing public assets, then:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --prefix relay-expanded --write-vista
+```
+
+No Meshy generation or new texture/light/pass is added. Existing Meshy uplinks
+move to flank the centered relay mast. Material weathering remains an offline
+vertex-color operation. See AAA-PLAN.md Session 28 for measurements and limits.

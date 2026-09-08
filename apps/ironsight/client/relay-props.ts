@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 /** Two exterior uplinks share one generated geometry/PBR set. Ground the source
  * from its measured bounds; no generated surface can become playable cover. */
-export function placeRelayUplinks(model: T.Object3D): T.Group[] {
+export function placeRelayUplinks(model: T.Object3D, centerX = 31): T.Group[] {
   model.traverse(node => {
     if (node instanceof T.Light) throw Error('Uplink must not contain lights');
   });
@@ -19,7 +19,7 @@ export function placeRelayUplinks(model: T.Object3D): T.Group[] {
   model.traverse(node => {
     if (node instanceof T.Mesh) { node.castShadow = true; node.receiveShadow = true; }
   });
-  return [25, 37].map(x => {
+  return [centerX - 6, centerX + 6].map(x => {
     const group = new T.Group(); group.name = 'relay-uplink';
     group.add(normalized.clone(true)); group.position.set(x, 0, -6);
     const placed = new T.Box3().setFromObject(group);
@@ -28,7 +28,7 @@ export function placeRelayUplinks(model: T.Object3D): T.Group[] {
   });
 }
 
-export async function loadRelayUplinks(scene: T.Scene): Promise<void> {
+export async function loadRelayUplinks(scene: T.Scene, centerX = 31): Promise<void> {
   const { scene: model } = await new GLTFLoader().loadAsync('/assets/props/relay-uplink.glb');
-  scene.add(...placeRelayUplinks(model));
+  scene.add(...placeRelayUplinks(model, centerX));
 }

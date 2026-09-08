@@ -25,8 +25,8 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   }
   // Broad stained slabs, not a high-frequency grid that shimmers at eye level.
   ctx.strokeStyle = wet ? '#516e6e' : '#7b867d'; ctx.lineWidth = 0.6;
-  for (let x = 0; x <= 60; x += 6) { ctx.beginPath(); ctx.moveTo(x * sx, 0); ctx.lineTo(x * sx, 512); ctx.stroke(); }
-  for (let z = 0; z <= 40; z += 5) { ctx.beginPath(); ctx.moveTo(0, z * sz); ctx.lineTo(512, z * sz); ctx.stroke(); }
+  for (let x = 0; x <= map.bounds.width; x += 6) { ctx.beginPath(); ctx.moveTo(x * sx, 0); ctx.lineTo(x * sx, 512); ctx.stroke(); }
+  for (let z = 0; z <= map.bounds.depth; z += 5) { ctx.beginPath(); ctx.moveTo(0, z * sz); ctx.lineTo(512, z * sz); ctx.stroke(); }
   if (map.presentation === 'relay') {
     // Retired freight traffic: paired broad tire wear, patched concrete and
     // maintenance clearances. Painted into this EXISTING opaque ground atlas.
@@ -43,7 +43,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     }
     for (const b of map.boxes) {
       const w = b.max.x - b.min.x, h = b.max.y - b.min.y;
-      if (h <= 4 || h >= 6 || w < 5) continue;
+      if (h !== 6 || w < 18) continue;
       for (const side of [-1, 1]) {
         const faceZ = side < 0 ? b.min.z : b.max.z;
         const edgeZ = faceZ + side * 1.15;
@@ -95,14 +95,14 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   // -90 degree floor rotation that is z=0 (north), matching the map footprints.
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
     new T.MeshStandardMaterial({ map: texture, roughness: wet ? 0.76 : 0.96 }));
-  floor.rotation.x = -Math.PI / 2; floor.position.set(30, -0.012, 20); floor.receiveShadow = true;
+  floor.rotation.x = -Math.PI / 2; floor.position.set(map.bounds.width / 2, -0.012, map.bounds.depth / 2); floor.receiveShadow = true;
   floor.userData.siteGround = true;
   if (map.presentation === 'relay') floor.name = 'relay-ground';
   scene.add(floor);
   const relay = map.presentation === 'relay';
-  const apron = new T.Mesh(relay ? buildRelayApronGeometry() : new T.PlaneGeometry(180, 160),
+  const apron = new T.Mesh(relay ? buildRelayApronGeometry(map.bounds) : new T.PlaneGeometry(map.bounds.width + 120, map.bounds.depth + 120),
     new T.MeshStandardMaterial({ color: relay ? 0xffffff : wet ? 0x52686c : 0x818b88, vertexColors: relay, roughness: 0.98 }));
-  if (!relay) { apron.rotation.x = -Math.PI / 2; apron.position.set(30, -0.03, 20); }
+  if (!relay) { apron.rotation.x = -Math.PI / 2; apron.position.set(map.bounds.width / 2, -0.03, map.bounds.depth / 2); }
   apron.userData.siteGround = true;
   apron.name = `${map.presentation ?? 'site'}-apron`;
   apron.receiveShadow = true; scene.add(apron);

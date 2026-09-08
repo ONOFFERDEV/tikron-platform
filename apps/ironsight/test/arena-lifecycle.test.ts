@@ -23,7 +23,7 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 async function expectPlayable(h: TestRoomHandle<ArenaState>) {
   await h.advance(TICK_MS);
-  expect(Object.keys(h.snapshot().players)).toHaveLength(4);
+  expect(Object.keys(h.snapshot().players)).toHaveLength(12);
   await h.advance(300);
   expect(h.snapshot().phase).toBe("live");
   const before = structuredClone(h.snapshot().players);

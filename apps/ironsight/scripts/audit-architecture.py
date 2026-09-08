@@ -1,6 +1,7 @@
 """Compare the original render kit to baked GLBs, including triangle winding.
 Run node tools/dump-architecture.mjs first. Python standard library only.
 """
+import argparse
 import hashlib
 import json
 import math
@@ -8,7 +9,10 @@ import struct
 from pathlib import Path
 
 app = Path(__file__).resolve().parents[1]
-source_path = app / '.inspect/architecture.json'
+parser = argparse.ArgumentParser()
+parser.add_argument('--input', default=str(app / '.inspect/architecture.json'))
+args = parser.parse_args()
+source_path = Path(args.input)
 source = json.loads(source_path.read_text())
 reports = {}
 
