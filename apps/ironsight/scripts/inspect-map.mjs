@@ -273,6 +273,12 @@ try {
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
     const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    if (report?.concreteDetail) {
+      const detail = report.concreteDetail;
+      const otherMap = name.startsWith('undertow-') || name.startsWith('switchyard-');
+      if (detail.invalidUv || (otherMap ? detail.meshes !== 0 : detail.meshes < 3 || detail.textures !== 2))
+        throw Error(`Concrete detail missing, invalid or loaded on another map: ${JSON.stringify(detail)}`);
+    }
     if (!gameplay && !name.startsWith('menu') && !name.startsWith('undertow-') && !name.startsWith('switchyard-') && report?.uplinks) {
       if (!assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)
         throw Error('Relay uplinks not loaded');

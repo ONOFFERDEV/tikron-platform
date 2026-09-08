@@ -1704,6 +1704,21 @@ export class SceneRig {
    *  lifetime (one per unique material/defines combination compiled so far). */
   getEffectInfo() { return { explosions: this.booms.length, tracers: this.tracers.length, blastLights: this.blastLights.length }; }
 
+  inspectConcreteDetail() {
+    let meshes = 0, invalidUv = false;
+    const textures = new Set<THREE.Texture>();
+    this.scene.traverse(node => {
+      if (!(node instanceof THREE.Mesh) || !(node.material instanceof THREE.MeshStandardMaterial) ||
+          node.material.normalMap?.name !== 'relay-concrete-normal') return;
+      meshes++;
+      textures.add(node.material.normalMap);
+      if (node.material.roughnessMap) textures.add(node.material.roughnessMap);
+      const uv = node.geometry.getAttribute('uv2');
+      if (!uv || uv.count !== node.geometry.getAttribute('position').count || ![...uv.array].every(Number.isFinite)) invalidUv = true;
+    });
+    return { meshes, textures: textures.size, invalidUv };
+  }
+
   inspectRelayUplinks() {
     return this.scene.children.filter(node => node.name === 'relay-uplink').map(node => {
       const box = new THREE.Box3().setFromObject(node);

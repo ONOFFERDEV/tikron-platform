@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { applyConcreteDetail, createConcreteDetail } from './concrete-detail.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
@@ -45,6 +46,18 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
   sourceTextures.forEach(t => { t.dispose(); (t.image as ImageBitmap).close?.(); });
+  if (name === 'relay') {
+    const detail = createConcreteDetail();
+    gltf.scene.traverse(node => {
+      if (node instanceof T.Mesh && node.material instanceof T.MeshStandardMaterial &&
+          node.material.metalness < 0.1 && node.material.roughness >= 0.8)
+        applyConcreteDetail(node, detail, node.material.roughness < 0.9 ? 0.12 : 0.2);
+    });
+    for (const name of ['relay-ground', 'relay-apron']) {
+      const floor = scene.getObjectByName(name);
+      if (floor instanceof T.Mesh) applyConcreteDetail(floor, detail, 0.12);
+    }
+  }
 }
 
 export async function loadSiteEnvironment(scene: T.Scene, renderer: T.WebGLRenderer): Promise<void> {

@@ -250,3 +250,23 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,cooling,u
 Only the explicitly allowlisted compressed GLB and its metadata are versioned;
 raw generated output remains in ignored `.inspect/meshy`. The unrelated rejected
 cable-drum example is not used. Purchased-source derivatives remain ignored.
+
+### Relay concrete surface detail (Session 14, original runtime data)
+
+`client/concrete-detail.ts` generates one shared pair of 128px RGBA8 normal and
+roughness textures from seeded periodic aggregate noise (seed 14071). Both have
+repeat wrapping, linear mipmaps, anisotropy 4 and linear data color space; combined
+GPU storage is approximately 0.167 MiB including mips. No external source, bitmap
+download, new render pass/light, shader injection or per-frame generation is used.
+The normal strength is 0.2 on concrete, 0.12 on pale trim, ramps and ground.
+Original baked architecture and purchased assets remain byte-identical.
+
+`site-lighting.ts` applies detail only after Relay's architecture loads and before
+renderer preparation. Nonmetallic materials with roughness >=0.8 and the named
+Relay ground/apron share it. A separate metric UV channel (`uv2`, 0.8m repeat)
+preserves paint and baked AO UVs. Positions, normals and collision data are not
+modified. Other maps and the original fallback do not allocate these textures.
+The fallback still works if the baked architecture fails to load.
+
+Reproduce from the app directory with `pnpm build:client`, then on the running
+preview: `node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,cooling,freight,spawn,effects-stress --assert-budgets`.

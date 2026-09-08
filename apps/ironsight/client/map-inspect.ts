@@ -101,6 +101,7 @@ export function startMapInspector(): void {
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
       uplinks: scene.inspectRelayUplinks(),
+      concreteDetail: scene.inspectConcreteDetail(),
       preparation: scene.getPreparationInfo(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
       actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,

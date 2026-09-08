@@ -87,7 +87,9 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
     new T.MeshStandardMaterial({ map: texture, roughness: wet ? 0.76 : 0.96 }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(30, -0.012, 20); floor.receiveShadow = true;
+  if (map.presentation === 'relay') floor.name = 'relay-ground';
   scene.add(floor);
   const apron = new T.Mesh(new T.PlaneGeometry(180, 160), new T.MeshStandardMaterial({ color: wet ? 0x52686c : 0x818b88, roughness: 0.98 }));
   apron.rotation.x = -Math.PI / 2; apron.position.set(30, -0.03, 20); apron.receiveShadow = true; scene.add(apron);
+  if (map.presentation === 'relay') apron.name = 'relay-apron';
 }
