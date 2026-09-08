@@ -10,6 +10,20 @@
 | `relay-vista.webp` | Flattened screenshot of the game scene, captured by `scripts/inspect-map.mjs --write-vista` | yes; see `../../LICENSE.md` |
 | `maps/relay-ground-ao.png`, `maps/undertow-ground-ao.png` | Original ground ambient occlusion baked in Blender 4.5 (Cycles) from the server collision boxes/ramps only, by `tools/bake-ground-ao.py`; multiplied into the ground atlas by `client/site-ground.ts` | yes; no purchased geometry |
 
+Relay service detail (session 12): original code-authored sealed access hatches,
+breaker cabinets, louvers, warning plates and case latches. No purchased or AI
+source input. `client/relay-service-detail.ts` paints a deterministic 512x256
+RGBA canvas atlas once during scene creation; `relay-service-geometry.ts` batches
+48 face quads derived from existing cover, offset by 12 mm. Estimated texture
+storage including mipmaps is 0.67 MiB, one extra scene draw, no lights/passes.
+`site-ground.ts` paints tire wear, patches, drains and worn maintenance clearances
+into Relay's existing 512px ground canvas. Other maps keep their previous ground.
+Reproduce with `pnpm build:client`; inspect with
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,freight,spawn,effects-stress --assert-budgets`.
+These are runtime original textures, with no new binary asset or GLB allowlist
+exception. Existing baked architecture/ground AO and collision geometry remain
+unchanged. Do not enlarge the atlas without rechecking Relay's 64 MiB stress cap.
+
 Original architecture / lighting pipeline (session 9):
 
 | Path | Original source / runtime treatment | Versioned |

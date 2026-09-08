@@ -18,6 +18,50 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   ctx.strokeStyle = wet ? '#516e6e' : '#7b867d'; ctx.lineWidth = 0.6;
   for (let x = 0; x <= 60; x += 6) { ctx.beginPath(); ctx.moveTo(x * sx, 0); ctx.lineTo(x * sx, 512); ctx.stroke(); }
   for (let z = 0; z <= 40; z += 5) { ctx.beginPath(); ctx.moveTo(0, z * sz); ctx.lineTo(512, z * sz); ctx.stroke(); }
+  if (map.presentation === 'relay') {
+    // Retired freight traffic: paired broad tire wear, patched concrete and
+    // maintenance clearances. Painted into this EXISTING opaque ground atlas.
+    ctx.save(); ctx.scale(sx, sz);
+    for (const z of [11.3, 28.4]) for (const offset of [-0.55, 0.55]) {
+      ctx.strokeStyle = 'rgba(43,55,49,0.15)'; ctx.lineWidth = 0.22;
+      ctx.beginPath(); ctx.moveTo(4, z + offset);
+      ctx.bezierCurveTo(19, z + offset, 20, z - 0.65 + offset, 30, z - 0.65 + offset);
+      ctx.bezierCurveTo(40, z - 0.65 + offset, 42, z + offset, 56, z + offset); ctx.stroke();
+    }
+    for (const [x, z, w, d] of [[10, 18, 2.4, 1.7], [45, 21, 3.2, 1.5], [32, 10, 1.6, 1.1]] as const) {
+      ctx.fillStyle = '#7d8981'; ctx.fillRect(x, z, w, d);
+      ctx.strokeStyle = '#6f7d74'; ctx.lineWidth = 0.055; ctx.strokeRect(x, z, w, d);
+    }
+    for (const b of map.boxes) {
+      const w = b.max.x - b.min.x, h = b.max.y - b.min.y;
+      if (h <= 4 || h >= 6 || w < 5) continue;
+      for (const side of [-1, 1]) {
+        const faceZ = side < 0 ? b.min.z : b.max.z;
+        const edgeZ = faceZ + side * 1.15;
+        ctx.strokeStyle = '#999c81'; ctx.lineWidth = 0.11;
+        ctx.setLineDash([0.65, 0.25]);
+        ctx.beginPath(); ctx.moveTo(b.min.x + 0.3, faceZ);
+        ctx.lineTo(b.min.x + 0.3, edgeZ); ctx.lineTo(b.max.x - 0.3, edgeZ);
+        ctx.lineTo(b.max.x - 0.3, faceZ); ctx.stroke(); ctx.setLineDash([]);
+        // A flush drain below the louver explains the localized dark runoff.
+        const drainX = (b.min.x + b.max.x) / 2 + side * 1.6;
+        const drainZ = faceZ + side * 0.38;
+        ctx.fillStyle = '#596c68'; ctx.fillRect(drainX - 0.75, drainZ - 0.12, 1.5, 0.24);
+        ctx.strokeStyle = '#89978b'; ctx.lineWidth = 0.055;
+        for (let x = drainX - 0.65; x < drainX + 0.7; x += 0.2) {
+          ctx.beginPath(); ctx.moveTo(x, drainZ - 0.08); ctx.lineTo(x, drainZ + 0.08); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(39,58,49,0.11)'; ctx.beginPath();
+        ctx.ellipse(drainX, drainZ, 1.1, 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    // Worn paint gaps and low-frequency aggregate; never a flickering overlay.
+    ctx.restore();
+    for (let i = 0; i < 1800; i++) {
+      ctx.fillStyle = `rgba(128,142,127,${0.08 + random() * 0.14})`;
+      ctx.fillRect(random() * 512, random() * 512, 1 + random() * 2, 0.5 + random());
+    }
+  }
   for (const box of map.boxes) {
     const x = box.min.x * sx, z = box.min.z * sz, w = (box.max.x - box.min.x) * sx, d = (box.max.z - box.min.z) * sz;
     // Nested translucent fills are baked into an opaque texture once at load.

@@ -1,10 +1,10 @@
 // Frame-hitch probe: plays TDM vs bots on a running build and records long frames, shader
 // program (re)compiles, long tasks and a CPU profile attributed to the worst frames.
 //
-//   node scripts/hitch-probe.mjs <url> [runMs=90000] [out.json] [--assert] [--mode=tdm|ffa|dom]
+//   node scripts/hitch-probe.mjs <url> [runMs=90000] [out.json] [--assert] [--mode=tdm|ffa|dom] [--until-ended]
 //
 // --assert exits 1 when a shader program is compiled after warm-up (t > 3 s), when any frame
-// after 8 s exceeds 150 ms, or when fewer than two deaths happened (the probe must reach the
+// in the measurement exceeds 150 ms, or when fewer than two deaths happened (the probe must reach the
 // death/respawn path). Found the 2026-09-08 death hitch: hiding the viewmodel removed a
 // PointLight from the light count and recompiled every lit material (1,149 ms frame).
 import { spawn } from 'node:child_process';
@@ -17,6 +17,11 @@ const base = positional[0] ?? 'http://localhost:8796';
 const runMs = Number(positional[1] ?? 90000);
 const out = positional[2] ?? '.inspect/hitch-probe.json';
 const assert = process.argv.includes('--assert');
+// Optional natural-round evidence: do not shorten at two deaths. Leave the room
+// ended for at least one 5s persistence interval, capture it, then exit without
+// voting. A supervisor can stop/restart workerd and run the normal probe against
+// the same durable state. No client writes to scores, deadlines or server state.
+const untilEnded = process.argv.includes('--until-ended');
 const mode = (process.argv.find(a => a.startsWith('--mode=')) ?? '--mode=tdm').slice(7);
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const profile = await mkdtemp(join(tmpdir(), 'ironsight-hitch-'));
@@ -89,11 +94,21 @@ try {
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
   let yaw = 0, doneAt = Infinity;
   while (Date.now() - start < runMs && Date.now() < doneAt) {
+    if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) {
+      await delay(5500);
+      break;
+    }
     yaw += 0.9; await evaluate(`window.ironsight.look(${yaw}, 0)`);
     await key('w', 'KeyW', 87, 'keyDown'); await delay(1800); await key('w', 'KeyW', 87, 'keyUp');
+    if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) continue;
     await clickCenter();
     await delay(600);
-    if (doneAt === Infinity && (await evaluate(`window.__perf.events.filter(e => e.kind === 'death').length`)) >= 2) doneAt = Date.now() + 6000;
+    if (!untilEnded && doneAt === Infinity && (await evaluate(`window.__perf.events.filter(e => e.kind === 'death').length`)) >= 2) doneAt = Date.now() + 6000;
+  }
+  const finalState = await evaluate(`(() => { const s = window.ironsight.state(); return { phase: s.phase, redScore: s.redScore, blueScore: s.blueScore, matchEndMs: s.matchEndMs, players: Object.keys(s.players) }; })()`);
+  if (untilEnded) {
+    const shot = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(out.replace(/\.json$/, '') + '-ended.png', Buffer.from(shot.data, 'base64'));
   }
   const { profile: prof } = await send('Profiler.stop');
   const data = JSON.parse(await evaluate('JSON.stringify(window.__perf)'));
@@ -112,13 +127,13 @@ try {
   const deaths = data.events.filter(e => e.kind === 'death').length;
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
-  const spikes = data.frames.filter(f => f.t - data.t0 > 8000 && f.dt > 150).map(rel);
-  const summary = { url: url.href, runMs, room: data.room, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
+  const spikes = data.frames.filter(f => f.dt > 150).map(rel);
+  const summary = { url: url.href, runMs, untilEnded, finalState, room: data.room, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));
   if (assert) {
-    const failed = recompiles.length > 0 || spikes.length > 0 || deaths < 2 || errors.length > 0;
+    const failed = recompiles.length > 0 || spikes.length > 0 || deaths < 2 || errors.length > 0 || (untilEnded && finalState.phase !== 'ended');
     console.log(JSON.stringify({ hitchGate: failed ? 'FAIL' : 'PASS', deaths, recompiles: recompiles.length, spikes: spikes.length, errors: errors.length }));
     process.exitCode = failed ? 1 : 0;
   }

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { buildSiteGround } from "./site-ground.js";
+import { buildRelayServiceDetail } from './relay-service-detail.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from "../src/map/types.js";
 
@@ -181,6 +182,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   }
   // One original atlas for all world signs (no external fonts/textures).
   if (bakeOnly) return;
+  buildRelayServiceDetail(scene, map);
   const atlas = document.createElement("canvas"); atlas.width = 1024; atlas.height = 512;
   const ctx = atlas.getContext("2d")!;
   const labels = ["01 / COOLING", "02 / RELAY", "03 / FREIGHT", "RELAY / 07"];

@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-10 are deployed there, including the persisted-room
-fix. Session 11 Switchyard presentation remains local until the supervisor
-publishes it. Continue development using the standing brief's active defaults.
+Supervisor reports sessions 1-11 are deployed there, including the persisted-room
+fix and Switchyard. Session 12 Relay service detail remains local until the
+supervisor publishes it. Continue using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,16 +326,18 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 11. The Session 10 ended/empty-room fix was already
-present and passed its existing real-restoration regression tests. This session
-selected the next visual priority: Crossyard -> Switchyard, now a complete first
-art pass with unchanged collision layout. Continue with the first item below.
+Re-ranked for Session 12. The supervisor's persisted-ended-room report takes
+precedence: the Session 10 fix and its real-restoration regression tests are
+already present and pass. Session 12 adds natural-ended-round/cold-restart browser
+qualification and retains that implementation. The selected visual gap is Relay's
+blank service facades and floor; the first service-detail/wear pass is delivered.
 
-1. **Environment richness and material detail.** All three sites now share the
-   industrial direction, but long clean facades and broad empty floor areas still
-   read simply. Add purposeful human-scale service detail, wear and composition;
-   prioritize Relay, with its tighter texture budget. Meshy can supply a stronger
-   hero silhouette where useful; the supervisor's cable drum remains rejected.
+1. **Environment richness and material depth.** Relay now has human-scale service
+   hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
+   walls and floor still read simply; improve composition and material response
+   without adding texture memory blindly (Relay stress headroom is now ~0.42 MiB).
+   Next default: improve a Relay machinery silhouette or re-budget existing atlases.
+   Meshy is appropriate for a hero prop; the weak cable drum remains rejected.
 2. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
    remote reactions and deaths; retain constant light count through hidden groups.
 3. **Solo encounter quality.** Improve bot route variety/separation and examine
@@ -347,8 +349,10 @@ art pass with unchanged collision layout. Continue with the first item below.
    and real dropped-network detection; preserve accessible menus and reconnect flow.
 6. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
    thermal/cold-driver checks and headphone/owner approval remain unverified.
-7. **Deployed lifecycle qualification.** Local ended-snapshot tests and repeat probes
-   cover recovery; supervisor should still exercise actual preview DO eviction.
+7. **Deployed lifecycle qualification.** Local real-restoration tests cover ended
+   snapshots with/without alarm expiry. Session 12's natural round and preserved
+   state browser drill are logged below; actual preview DO eviction remains a
+   supervisor gate, not something inferred from local workerd.
 
 ### Session 1 — 2026-09-07
 
@@ -1501,3 +1505,129 @@ stopped, **zero remaining owned processes, zero port-8796 listeners, zero inspec
 browsers**. Persistent local state was preserved. All three probe commands and
 final inspection exited successfully; generation and Blender processes completed.
 Ready for supervisor review/publication; no commit, push or deployment performed.
+
+
+### Session 12 - 2026-09-08: Relay service detail and real ended-room recovery proof
+
+Read the standing brief, Session 12 supervisor status and this plan in order.
+The supervisor's ended-room concern outranked art: the Session 10 implementation
+and three real-core-restoration lifecycle tests were already present, and all
+three passed before visual work (`.inspect/session12-lifecycle.log`). Retained
+that fix and added a stronger natural-match browser qualification below. No new
+server, SDK, collision, state-codec or migration change was needed. Scope remained
+apps/ironsight/** on ironsight-aaa. Entry branch/status checks were read-only;
+no commit, push or deployment. The Worker build was the existing dry-run only.
+
+Selected the next ranked visual gap: Relay's blank service facades and floor.
+Delivered original sealed maintenance hatches, breaker cabinets with gauges and
+conduits, louvers, caution plates, and armored-case hardware. Edge chips, fastener
+runoff and scuffs are painted deterministically during scene creation. Hatches
+say SEALED / ACCESS PANEL so they do not advertise a new playable entrance.
+Existing solid faces determine every placement; 48 quads / 96 triangles sit
+12 mm outside cover. One merged mesh and one 512x256 original canvas atlas add
+one draw and **0.667 MiB**, with no new lights, rendering passes, animation or
+per-frame baking. Existing baked architecture/AO remains unchanged. This is flat
+service cladding, not close-range three-dimensional machinery or AAA completion.
+
+Relay's existing 512px ground atlas now includes worn maintenance clearances,
+flush drains and runoff, concrete repairs and paired freight tire wear. Other
+maps retain their ground. No new binary assets or private derivatives were
+written; provenance/reproduction is documented in public/assets/README.md. No
+Meshy credits spent (balance remains **1560**): this pass needed surface graphics,
+not another freestanding prop. The weak cable drum remains rejected. A stronger
+machinery silhouette is an appropriate next Meshy use after resource re-budgeting.
+
+Two new tests check every cladding face against the authoritative solid envelope,
+its vertical/outside placement, finite atlas coordinates and the small triangle
+budget. Final **pnpm typecheck, pnpm test, pnpm build:client, pnpm audit:assets,
+Worker build/dry-run, required relay/practice-two inspection and effects-budget
+assertions all PASS**. Tests: **312 passed, 3 existing opt-in skips**, 30 passing
+files plus one skipped. Worker **235.27 KiB / gzip 69.94 KiB**, unchanged. Logs:
+`.inspect/session12-{typecheck,test,build-client,worker-build,audit-assets}.log`.
+
+Visual evidence: `.inspect/session12-before-report.json` and `session12-final-report.json`,
+matching relay/cooling/freight/spawn/effects-stress PNGs, and `session12-delta.json`.
+Final report also includes the required Undertow practice boot. All six final
+views have **zero console/runtime/HTTP errors and zero forbidden offline requests**.
+Opened the matching Relay before/after/final, freight intermediate, spawn baseline,
+and final Undertow practice captures. Final inspection log: session12-final-inspector.log.
+
+Edge 152.0.4191.66 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Matched effects
+fixtures: eleven remote operators plus local rifle/hands, 145 twelve-rifle volleys
+and 96 explosions in 15 seconds, 2,130 steady samples, zero residual tracers/blasts.
+
+| Relay metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Eye-level relay calls / triangles | 18 / 21,428 | 19 / 21,524 | +1 / +96 |
+| Stress peak calls / triangles | 216 / 82,008 | 217 / 82,104 | +1 / +96 |
+| Stress textures / estimated MiB | 24 / 62.918 | 25 / 63.585 | +1 / +0.667 |
+| Stress median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0.0 / 0.0 / 0.0 |
+| Stress max / first-ready max ms | 7.2 / 7.2 | 7.3 / 7.1 | +0.1 / -0.1 |
+
+Only **0.415 MiB** estimated stress texture headroom remains. These are desktop
+rAF intervals and allocation estimates, not iGPU, GPU timer, cold-driver or
+thermal acceptance. No controlled loading-time improvement is claimed. Relative
+to Session 11's audited set, assets **11,874,843 -> 11,875,894 bytes** (provenance
+text +1,051; binary asset delta **0**). Public **17,795,795 -> 17,823,585 bytes**,
+including generated client/source-map growth; largest file **4,128,832 bytes**.
+The 40 MiB total / 25 MiB individual-file limits pass.
+
+Natural-ended-room proof, stronger than the prior hook/short-probe evidence:
+- Added optional `--until-ended` to scripts/hitch-probe.mjs. With a 360000-ms
+  ceiling it continues normal inputs beyond two deaths, waits 5.5 seconds after
+  the natural end for persistence, captures results, and exits without voting.
+  It asserts the final phase is ended. It never edits scores, clocks or state.
+- `session12-natural-ended.json` / .log PASS: ordinary fixed arena-tdm reached
+  its natural five-minute timeout, **RED 17 / BLUE 23**, **12 deaths**, zero shader
+  recompiles, over-limit frames or console errors. Maximum recorded frame
+  **47.6 ms**. Opened `session12-natural-ended-ended.png` showing the same result.
+- Stopped the owned preview before intermission completed. Read SQLite strictly
+  read-only and decoded the existing tk:room blob: **phase ended, 17 / 23, version 4,
+  four players, one human seat, 861 bytes**. Evidence: session12-persisted-ended.json,
+  session12-persistence-source.json and ignored raw snapshot; the report records
+  the snapshot SHA-256. No durable bytes were replaced or cleared.
+- Restarted the preview against that same .wrangler/state and ran the required
+  150000-ms maximum TDM probe. After its seat expired, ran a second standard
+  probe on the same process and fixed room, with no state clearing or restart
+  between these two accepted runs. Final .inspect/hitch.json is the reuse run.
+
+| Accepted standard probe | Cold start from ended snapshot | Reuse after seat expiry |
+|---|---:|---:|
+| Initial population | 1 human + 3 bots | 1 human + 3 bots |
+| Warmup -> live, seconds after measurement starts | 6.891 | 6.915 |
+| Deaths / respawns | 2 / 2 | 3 / 3 |
+| Maximum recorded frame ms | 54.2 | 57.5 |
+| Shader recompiles / >150 ms frames / console errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Reports/logs: session12-hitch-cold, session12-hitch-reuse, plus
+session12-lifecycle-probes.json. The existing three tests continue to cover ended
+snapshot restore with/without alarm expiry, bot fill/live/movement/queued inputs,
+and repeated empty reuse without duplicate ticks. This establishes actual local
+ended-snapshot recovery, not deployed Cloudflare eviction acceptance.
+
+Also corrected the probe's old eight-second exclusion for >150 ms frames: it now
+rejects ANY measured frame above that limit; preparation precedes measurement.
+The three final browser probes above pass the stricter gate. Thresholds were not
+relaxed. The initial session12-hitch-first also passed but a provenance edit
+triggered Wrangler asset reload near its end; treat it as supplemental reload
+recovery evidence, not one of the two isolated final acceptance runs.
+
+Rejected intermediates: session12-after floor clearances were too bright/soft on
+the low-resolution ground atlas; toned them down before final captures. Initial
+typecheck failed because the geometry test imported a browser module using
+document; split pure geometry from canvas painting and reran the gates. Existing
+local workerd tick-backlog warnings occurred in the logs; the final browser gates
+passed, and no capacity/latency claim is derived from this local single process.
+
+Cleanup: session12-cleanup.json confirms all 12 restarted-server root/descendant
+processes stopped, zero remaining owned processes, zero port-8796 listeners and
+zero inspection browsers. The earlier 12-process server tree was stopped for the
+cold drill; its root's brief termination lag was checked resolved before restart.
+Persistent local state was preserved. All session evidence stays under .inspect.
+
+Open owner questions remain nonblocking: does the sealed service-hardware look
+fit Relay (default: retain it), and should the next environment pass prioritize
+machinery or material depth (default: a better hero silhouette, first freeing
+texture budget). Keep industrial daylight, amber/teal and stylized sci-fi. Human
+animation/audio/route review, real 6v6/RTT, target hardware and deployed eviction
+remain open. No owner approval requested; ready for supervisor review/publication.
