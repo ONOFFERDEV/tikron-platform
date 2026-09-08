@@ -40,6 +40,7 @@ export interface KillEvent {
   victim: string;
   part: string;
   killerTeam: number | null;
+  weapon?: number | null;
   assist?: string;
 }
 export interface ShotEvent {

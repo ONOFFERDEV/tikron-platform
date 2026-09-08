@@ -3,8 +3,8 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-19 are deployed there, including layered impacts
-and grounded remote reactions/deaths. Session 20's layered weapon audio remains
+Supervisor reports sessions 1-20 are deployed there, including layered impacts,
+grounded remote reactions/deaths and weapon audio. Session 21's combat HUD remains
 local until supervisor publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
@@ -327,32 +327,29 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 20. Lifecycle recovery remains resolved; no extra persistence
-drill is needed absent a new failure. Sessions 17-19 improve hands, impacts and
-remote reactions; Session 20 adds distinct layered weapon audio with bounded tails.
-Next default: combat HUD/killfeed and round presentation, then environment richness.
-Keep the constant-light and existing texture budgets.
+Re-ranked after Session 21. Lifecycle recovery remains resolved; no extra persistence
+drill is needed absent a new failure. Sessions 17-20 improve hands, impacts,
+remote reactions and layered weapon audio; Session 21 finishes the killfeed and
+confirmed elimination pass. Next default: environment richness, then scoreboard
+and results presentation. Keep constant lights and the existing texture budgets.
 
-1. **Combat HUD and round presentation.** Bring the killfeed, confirmed elimination
-   feedback and scoreboard into a clearer, coherent amber/teal hierarchy, with
-   restrained timing and readable team/weapon attribution. Preserve existing
-   authoritative events, accessible menus and reduced-motion settings. Default:
-   finish killfeed/confirmed elimination presentation before another environment
-   pass. Five weapons now have mechanical attack, body and outdoor decay, but
-   headphone mix/comfort approval remains open. Full 6v6 should also review remote
-   cue drop rates with the longer tails sharing the unchanged 20-voice cap.
-   Moving finger/contact, reaction intensity and reload/death review remain human
-   acceptance items. Keep server-confirmed hits and constant light membership.
-2. **Environment richness and material depth.** Relay now has human-scale service
+1. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
-   walls and floor now have restrained concrete relief and roughness (Session 14).
-   Exterior ground now survives loading; Session 15 adds slab paving, flush pads,
-   a service road and a horizon skirt. Broad composition and weathering remain simple. Relay's
-   stress texture headroom is now ~0.25 MiB; re-budget before adding more textures.
-   Next environment default: larger-scale wall wear and roof service detail using
-   existing atlases/geometry. Undertow/Switchyard exterior dressing remains sparse.
-   Retain the Session 13 paired uplinks.
-   Meshy remains appropriate for machinery; the weak cable drum remains rejected.
+   walls and floor have restrained concrete relief and roughness (Session 14).
+   Session 15 adds slab paving, flush pads, a service road and a horizon skirt.
+   Broad composition and weathering remain simple. Stress texture headroom is
+   ~0.25 MiB; re-budget before adding textures. Next default: larger-scale wall
+   wear and roof service detail using existing atlases/geometry. Undertow and
+   Switchyard exterior dressing remains sparse. Retain Session 13's paired uplinks.
+   Meshy is appropriate for machinery; the weak cable drum remains rejected.
+2. **Scoreboard and round presentation.** Session 21 adds readable kill weapon,
+   headshot/blast, assist and local involvement, plus a bounded confirmed-elimination
+   notice. Next presentation default: scoreboard/results hierarchy and readability.
+   Preserve authoritative events, accessible menus and reduced-motion settings.
+   Five weapons have mechanical attack, body and outdoor decay; headphone mix
+   approval remains open. Real 6v6 should review remote cue drops under the
+   unchanged 20-voice cap. Finger/contact, reaction intensity, moving reload/death
+   and the new confirmation's distraction level remain human acceptance items.
 3. **Solo encounter quality.** Improve bot route variety/separation and examine
    inactive seats before increasing fill or difficulty.
 4. **Switchyard encounter design.** Its art replaces the legacy blockout, but the
@@ -2488,3 +2485,97 @@ confirm owned preview trees stopped, zero remaining owned processes, port-8796
 listeners or inspection browsers. All final code, asset, required/extended browser,
 audio and live hitch checks are green. Evidence remains ignored under .inspect.
 Ready for supervisor review/publication; no commit/push/deploy.
+
+
+### Session 21 - 2026-09-08: attributed combat feed and confirmed elimination HUD
+
+Read standing brief, Session 21 status and plan in order; confirmed ironsight-aaa
+from .git/HEAD. Scope apps/ironsight/** only; no git commands, commit, push,
+deployment, dependencies or purchased asset edits. No Meshy credits spent (1530
+remain): this DOM presentation gap needs no generated model. Lifecycle recovery
+was not reopened, and local .wrangler/state was preserved.
+
+Completed the top killfeed/confirmed-elimination portion of the combat HUD gap.
+Feed rows now align killer, weapon/cause and victim, retain assist attribution,
+use the brighter existing team text palette and mark local involvement with YOU.
+Amber highlights local kills; self deaths never award a confirmation. Newest rows
+appear first; the five-row cap and five-second expiry remain. Fixed the inherited
+feed container's missing absolute positioning so its intended margins apply.
+Compact view constrains feed height above the aiming area. Names remain escaped
+and visually truncate. A local confirmed kill displays the latest victim and
+weapon below the crosshair for 1.8 seconds (last 300 ms fade), on a restrained dark
+backing; one polite status region announces it. Repeated kills replace the notice.
+Game reduced-motion and OS preference disable feed translation; no new lights,
+textures, passes, geometry or runtime bakes.
+
+The server kill event now includes the killing weapon's existing one-based slot
+from damage resolution. The client resolves by slot, never by array index/current
+equipment; grenade events use BLAST/GRENADE, and absent/unknown slots fall back to
+WEAPON. Field is optional client-side for older room events. No state codec,
+snapshot shape/version, damage, collision or input-validation changes. Two existing
+room combat tests now assert authoritative AR and shotgun kill attribution.
+
+Evidence: .inspect/session21-before-report.json and paired match-combat,
+match-combat-mobile, relay and effects-stress PNGs. Review captures are preserved
+under session21-review-*. Rejected the first compact layout crossing the aiming
+area and the unbacked notice over bright concrete; final placement/backing accepted.
+A Python edit initially failed on Windows default text encoding; another used the
+wrong working-directory prefix. Both failed before writes and were rerun correctly.
+No gate threshold relaxed. Final report/captures: session21-final-report.json and
+session21-final-{match-combat,match-combat-mobile,match-combat-reduced,relay,
+practice-two,effects-stress}.png. Opened baseline, first desktop/compact candidates,
+final desktop/compact, and final real Undertow practice. UI fixtures freeze the
+production HUD over an existing vista; they are not live human play captures.
+
+Each final combat fixture checks pool bounds, HTML escaping, no remote/self-kill
+confirmation, latest-kill replacement, confirmation/feed expiry and the in-game
+reduced-motion animation disable. All checks pass with zero browser errors or
+forbidden offline gameplay network requests. OS media-query support is implemented;
+no separate OS accessibility or screen-reader acceptance is claimed.
+
+Final pnpm typecheck, pnpm test (337 passed, 3 existing opt-in skips; 36 passing
+files and one skipped), pnpm build:client and pnpm audit:assets PASS. Logs:
+.inspect/session21-{typecheck,test,build-client,audit-assets}.log. Exact required
+relay,practice-two inspector PASS (.inspect/session21-required-inspector.log).
+Extended six-view inspector with --assert-budgets PASS (session21-final.log).
+Owned preview was restarted after final public writes before final browser gates.
+
+Matched effects workload: eleven remote operators plus local rifle/hands, 145
+12-rifle volleys and 96 blasts; transient effects drain. Edge 152 / RTX 5070
+Direct3D11, 1920x1080 balanced/DPR 1. .inspect/session21-delta.json records:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 93,190 | 220 / 93,190 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.2 | 6.9 / 7.1 / 7.1 | 0 / 0 / -0.1 |
+| Max / first-ready max ms | 7.5 / 7.1 | 7.2 / 7.1 | -0.3 / 0 |
+
+The rendering fixture measures the unchanged WebGL workload, not dense DOM feed
+updates. Live TDM separately exercises combat HUD events. Desktop rAF/allocation
+estimates do not establish GPU timing, target iGPU, thermal/cold-driver or real
+6v6 acceptance. No performance improvement claimed. Asset bytes 12,178,645 ->
+12,179,418 (+773 provenance); public bytes 18,217,874 -> 18,231,553 (+13,679);
+largest file 4,194,488 bytes. Public 40 MiB/per-file 25 MiB caps pass. No binary
+asset additions. Provenance and reproduction: public/assets/README.md.
+
+Re-ranked gaps: environment richness next, then scoreboard/results. Nonblocking
+owner questions: retain 1.8-second local confirmation and newest-first feed
+(default yes); next improve wall wear/roof service detail within existing texture
+budget (default yes). Human HUD distraction/readability, headphone mix, moving
+animation and real-play acceptance remain open. Industrial daylight, amber/teal,
+stylized sci-fi and 6v6 TDM remain active defaults.
+
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots, two deaths. Zero post-warmup shader recompiles,
+frames >150 ms, console errors or long tasks; sole recorded frame above 24 ms
+was 58.1 ms at startup. Evidence: .inspect/hitch.json, session21-hitch.json and
+session21-hitch.log. No room isolation, storage clearing or extra lifecycle drill.
+
+Cleanup: .inspect/session21-review-cleanup.json records the first owned preview
+tree stopped. session21-cleanup.json confirms all twelve final preview process-tree
+members stopped, zero remaining owned processes, port-8796 listeners or inspection
+browsers. All standing final gates green; evidence remains ignored under .inspect.
+Ready for supervisor review/publication. No commit, push or deployment.

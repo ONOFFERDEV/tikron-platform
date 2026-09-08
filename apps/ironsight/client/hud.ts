@@ -44,11 +44,23 @@ const css = `
 #caps .cap .lbl { font-size: 10px; text-align: center; opacity: 0.7; margin-bottom: 2px; }
 #caps .cap .bar { position: relative; height: 8px; background: #2a2f3a; border-radius: 4px; overflow: hidden; }
 #caps .cap .fill { position: absolute; top: 0; bottom: 0; }
-#feed { top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-#feed .k { background: linear-gradient(90deg,#0c1626ed,#0c1626b8); padding: 6px 10px; border-radius: 3px; border-left: 2px solid var(--team); transition: opacity 300ms; animation: feed-in 160ms ease-out; }
-@keyframes feed-in { from { transform: translateX(12px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { #feed .k { animation: none; } }
-#feed .k .assist { opacity: 0.55; }
+#feed { position:absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+#feed .k{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;width:340px;max-width:calc(100vw - 80px);box-sizing:border-box;background:linear-gradient(100deg,#10242bf2,#10242bda);padding:9px 12px;border-left:2px solid var(--team);animation:feed-in 160ms ease-out}
+#feed .k.local{border-left-color:#edaa52;background:linear-gradient(100deg,#473923f5,#10242bf2)}
+#feed .k.victim{border-left-color:#e78879}
+#feed .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+#feed .target{text-align:right}
+#feed .cause{text-align:center;color:#bbc9c8;font-size:9px;letter-spacing:1px}
+#feed .cause strong{display:block;color:#f1f0e8;font-size:10px;letter-spacing:.5px}
+#feed .assist{grid-column:1/-1;font-size:10px;color:#9eb9bd;border-top:1px solid #ffffff12;padding-top:4px}
+#feed .tag{font-size:9px;color:#edaa52;margin-right:5px}
+#elimination{position:absolute;top:calc(50% + 76px);left:50%;transform:translateX(-50%);width:280px;max-width:80vw;padding:10px 18px;border-top:1px solid #edaa5270;background:linear-gradient(90deg,#10242b00,#10242be8 20%,#10242be8 80%,#10242b00);text-align:center;opacity:0;text-shadow:0 2px 4px #07151b}
+#elimination .confirm{font-size:10px;letter-spacing:2px;color:#edaa52}
+#elimination .target{display:block;font-size:18px;font-weight:600;margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#elimination .detail{font-size:10px;letter-spacing:1px;color:#cfdfdf}
+@keyframes feed-in{from{transform:translateX(10px);opacity:0}to{transform:translateX(0);opacity:1}}
+#hud[data-reduced-motion="true"] #feed .k{animation:none}
+@media(prefers-reduced-motion:reduce){#feed .k{animation:none}}
 #ping { left: 16px; top: 16px; opacity: 0.6; font-size: 12px; }
 #hitmarker { opacity: 0; }
 #hitmarker.show { opacity: 1; }
@@ -108,7 +120,7 @@ const css = `
 #overlay h1{font-size:25px;letter-spacing:5px}
 #overlay .hint{font-size:11px;letter-spacing:1px}
 @media(max-width:800px){#tacticalMap{transform:scale(.75);transform-origin:top left}#ping{top:155px}#wbar{bottom:115px}#hp{width:150px}#scores{left:auto;right:28px;transform:none}#mode{left:auto;right:28px;transform:none}}
-@media(max-width:800px){#matchBrief{top:202px}#hud #caps{top:270px}#hud #lb{top:290px}#hud #feed{top:335px}#hud #streak{top:310px}}
+@media(max-width:800px){#matchBrief{top:202px}#hud #caps{top:270px}#hud #lb{top:290px}#hud #feed{top:96px;width:260px;max-height:96px;overflow:hidden}#hud #feed .k{width:260px;padding:6px 9px;gap:5px}#hud #streak{top:310px}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, id?: string, html?: string): HTMLElementTagNameMap[K] {
@@ -143,6 +155,8 @@ export class Hud {
   private readonly caps: HTMLElement;
   private readonly capFills: HTMLElement[];
   private readonly feed: HTMLElement;
+  private readonly elimination = el('div', 'elimination');
+  private eliminationAt = -1e9;
   private readonly ping: HTMLElement;
   private readonly xhair: HTMLElement[];
   private readonly hitmarker: HTMLElement;
@@ -302,6 +316,11 @@ export class Hud {
 
     // Killfeed + ping + vignette + overlay.
     this.feed = el("div", "feed"); this.root.appendChild(this.feed);
+    this.feed.setAttribute('aria-label', 'Combat feed');
+    this.elimination.setAttribute('role', 'status');
+    this.elimination.setAttribute('aria-live', 'polite');
+    this.elimination.setAttribute('aria-atomic', 'true');
+    this.root.appendChild(this.elimination);
     this.ping = el("div", "ping"); this.ping.className = "panel"; this.ping.textContent = "-- ms";
     this.root.appendChild(this.ping);
     this.vignette = el("div", "vignette"); this.root.appendChild(this.vignette);
@@ -370,18 +389,23 @@ export class Hud {
     this.xhair.forEach((arm, i) => (arm.style.cssText = arms[i]![0]));
   }
 
-  addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string): void {
-    const color = killerTeam === 0 || killerTeam === 1 ? `#${TEAM_COLOR[killerTeam].toString(16)}` : "#eee";
-    const icon = part === "head" ? T.killfeedIcons.head : part === "blast" ? T.killfeedIcons.blast : T.killfeedIcons.body;
-    const assist = assistName ? ` <span class="assist">(+assist ${esc(assistName)})</span>` : "";
-    const node = el("div"); node.className = "k";
-    node.style.setProperty("--team", color);
-    node.innerHTML = `<b style="color:${color}">${esc(killer)}</b>${icon}${esc(victim)}${assist}`;
-    this.feed.appendChild(node);
+  /** Driven only by confirmed room kills; weapon identifies the killing shot. */
+  addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string,
+    details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean } = {}): void {
+    this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
+    const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
+    const weapon = part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
+    const cause = part === 'head' ? 'HEADSHOT' : part === 'blast' ? 'BLAST' : 'ELIMINATION';
+    const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
+    node.style.setProperty('--team', color);
+    node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? '<span class="tag">YOU</span>' : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? '<span class="tag">YOU</span>' : ''}${esc(victim)}</span>${assistName ? `<span class="assist">ASSIST / ${esc(assistName)}</span>` : ''}`;
+    this.feed.prepend(node);
     this.kills.push({ node, born: performance.now() });
-    while (this.kills.length > 5) {
-      const old = this.kills.shift()!;
-      old.node.remove();
+    while (this.kills.length > 5) this.kills.shift()!.node.remove();
+    if (details.localKill && !details.localVictim) {
+      this.elimination.innerHTML = `<span class="confirm">ELIMINATION CONFIRMED</span><span class="target">${esc(victim)}</span><span class="detail">${esc(weapon)}${part === 'head' ? ' / HEADSHOT' : ''}</span>`;
+      this.eliminationAt = performance.now();
+      this.elimination.style.opacity = '1';
     }
   }
 
@@ -547,6 +571,10 @@ export class Hud {
 
   /** Per-frame animation: reload bar, hitmarker + vignette fade, killfeed decay. */
   update(now: number): void {
+    this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
+    const confirmAge = now - this.eliminationAt;
+    this.elimination.style.opacity = String(Math.max(0, Math.min(1, (1800 - confirmAge) / 300)));
+    if (confirmAge >= 1800 && this.elimination.childNodes.length) this.elimination.replaceChildren();
     if (this.reloadStart >= 0) {
       const p = Math.min(1, (now - this.reloadStart) / this.reloadMs);
       this.reloadFill.style.width = `${p * 100}%`;

@@ -347,3 +347,14 @@ saturation, voice recovery, local priority, mute and volume zero. `--baseline`
 permits over-range peaks only when recording an earlier implementation; final
 acceptance must omit it. Offline rendering validates signals/lifecycle, not human
 headphone mix approval, actual browser audio-device latency or occlusion.
+
+
+### Session 21: combat feed and confirmed elimination presentation
+Original DOM/CSS in `client/hud.ts`; no image/model/audio assets added. The optional
+kill-event weapon slot comes from the server damage resolution, with a neutral
+fallback for older events. Amber highlights local eliminations; confirmation has
+an 1800 ms lifetime and feed entries expire at 5000 ms, capped at five. Motion
+respects both the OS preference and the game setting. Offline fixtures reuse the
+existing Relay vista only for a matched background; gameplay loads no new asset.
+Reproduce: `pnpm build:client`, run the local preview, then
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots match-combat,match-combat-mobile,match-combat-reduced --prefix session21-final`.

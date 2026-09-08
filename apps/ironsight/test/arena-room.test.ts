@@ -319,7 +319,9 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     expect(s.players[target.id]!.d).toBe(1);
     expect(s.players[shooter.id]!.k).toBe(1);
     expect(s.redScore).toBe(1);
-    expect(h.broadcastsOf("s:msg").some((f) => (f.data as { type?: string }).type === "kill")).toBe(true);
+    expect(h.broadcastsOf("s:msg").find((f) => (f.data as { type?: string }).type === "kill")?.data).toMatchObject({
+      type: 'kill', payload: { killer: shooter.id, victim: target.id, weapon: 1, part: 'body' },
+    });
 
     await tick(h, 8); // > respawnMs (200 ms)
     const s2 = h.snapshot();
@@ -580,6 +582,9 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     await shooter.send("fire");
     await tick(h, 2);
     expect(h.snapshot().players[target.id]!.alive).toBe(false); // all 8 pellets connected
+    expect(h.broadcastsOf('s:msg').find(f => (f.data as { type?: string }).type === 'kill')?.data).toMatchObject({
+      type: 'kill', payload: { killer: shooter.id, victim: target.id, weapon: 3 },
+    });
   });
 
   it("a thrown grenade decrements the count, detonates on its fuse, and blasts nearby players (self too)", async () => {

@@ -1185,6 +1185,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       victim: victimId,
       part,
       killerTeam: this.state.players[killerId]?.team ?? null,
+      weapon: weaponSlot ?? null,
       assist,
     });
   }
