@@ -95,8 +95,9 @@ async function main(): Promise<void> {
   // a practice session's arena2/arena3 pick can never diverge from the server.
   const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
 
-  if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1');
-  const training = net.state?.mode === 3 ? new TrainingCoach(practiceMapKeyFromRoomId(net.roomId) === 'arena1', settings) : null;
+  if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1', map.presentation === 'undertow');
+  const training = net.state?.mode === 3 ? new TrainingCoach(practiceMapKeyFromRoomId(net.roomId) === 'arena1', settings,
+    map.presentation === 'undertow' ? map.caps.a : undefined) : null;
 
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
@@ -108,7 +109,7 @@ async function main(): Promise<void> {
   await scene.prepare();
   me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
-  const tacticalMap = new TacticalMap(map);
+  const tacticalMap = new TacticalMap(map, training?.progress.objective);
 
   const input = new Input(
     scene.canvas,

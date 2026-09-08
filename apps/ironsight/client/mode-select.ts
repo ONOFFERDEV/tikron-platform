@@ -99,7 +99,9 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
       const siteId: SiteId = selected === 'practice' ? trainingSite : selected === 'dom' ? 'arena2' : selected === 'ffa' ? 'arena3' : 'arena1';
       const site = SITES[siteId];
       root.querySelector(".detail")!.textContent = `${site.name} / ${selected === 'practice'
-        ? trainingSite === 'arena1' ? 'Private session · Five passive targets · No time limit' : 'Private map exploration · No targets · No time limit'
+        ? trainingSite === 'arena1' ? 'Private session · Five passive targets · No time limit'
+          : trainingSite === 'arena2' ? 'Objective rehearsal · No targets or scoring · No time limit'
+          : 'Private map exploration · No targets · No time limit'
         : mode.detail}`;
       (root.querySelector(".sites") as HTMLElement).hidden = selected !== "practice";
       root.querySelector('.intel small')!.textContent = `OPERATION SITE / ${site.number}${site.legacy ? ' / LEGACY' : ''}`;

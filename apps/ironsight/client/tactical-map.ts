@@ -1,6 +1,8 @@
 import { mapCallout } from "./map-presentation.js";
 import type { MapDef } from "../src/map/types.js";
 import type { ArenaState } from "../src/schema.js";
+import { MODES } from '../src/config.js';
+import type { TrainingObjective } from './training-progress.js';
 
 /** Static floor plan plus self/allies only. Enemy positions are never plotted. */
 export class TacticalMap {
@@ -11,7 +13,7 @@ export class TacticalMap {
   private lastAt = -Infinity;
   private readonly scale: number;
 
-  constructor(private readonly map: MapDef) {
+  constructor(private readonly map: MapDef, private readonly trainingObjective?: TrainingObjective) {
     const root = document.createElement("aside"); root.id = "tacticalMap";
     root.setAttribute("aria-label", "Tactical map and current location");
     root.style.cssText = "position:fixed;left:28px;top:28px;width:180px;color:#e8eee9;pointer-events:none;font:10px Arial,sans-serif;letter-spacing:2px";
@@ -68,6 +70,15 @@ export class TacticalMap {
       for (const [index, cap] of Object.values(this.map.caps).entries()) {
         ctx.fillStyle = "#efc985"; ctx.fillText(["A", "B", "C"][index]!, 18 + cap.x * this.scale, 23 + cap.z * this.scale);
       }
+    }
+    if (state.mode === 3 && this.trainingObjective) {
+      const goal = this.trainingObjective;
+      const x = 18 + goal.x * this.scale, z = 18 + goal.z * this.scale;
+      ctx.strokeStyle = '#edaa52'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, z, MODES.dom.captureRadius * this.scale, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#10242b'; ctx.fillRect(x - 11, z - 30, 22, 20);
+      ctx.fillStyle = '#ffe0a3'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('A', x, z - 14);
     }
     if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
     const name = mapCallout(this.map, me.x, me.z);

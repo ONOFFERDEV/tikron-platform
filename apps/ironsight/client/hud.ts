@@ -242,8 +242,9 @@ export class Hud {
   private trainingHelp = '';
   private readonly muteBadge = el('div', 'audioMuted', 'AUDIO MUTED · M / SETTINGS');
   setMuted(muted: boolean): void { this.muteBadge.hidden = !muted; }
-  setTrainingSite(hasTargets: boolean): void {
+  setTrainingSite(hasTargets: boolean, hasObjective = false): void {
     this.trainingHelp = hasTargets ? 'Passive targets stand in West Service. Try all five weapons (1–5), then reload.'
+      : hasObjective ? 'Follow the training card to rehearse holding A for Domination. No targets or scoring here.'
       : 'Map exploration: no targets here. Choose Relay training for target practice.';
   }
   private readonly brief = el("div", "matchBrief");
