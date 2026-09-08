@@ -1114,7 +1114,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         if (nearestBox(c, dir, this.hitBoxes, dist) < dist) continue;
       }
       const dmg = Math.round(blastDamage(GRENADE.maxDamage, GRENADE.radius, dist));
-      if (dmg > 0) this.applyDamage(pid, dmg, g.owner, "blast");
+      if (dmg > 0) this.applyDamage(pid, dmg, g.owner, "blast", undefined, c);
     }
   }
 
@@ -1126,10 +1126,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     killerId: string,
     part: string,
     weaponSlot?: number,
+    source?: { x: number; z: number },
   ): void {
     const victim = this.state.players[victimId];
     if (!victim || !victim.alive || victim.prot) return;
     victim.hp = Math.max(0, victim.hp - dmg);
+    // Only a confirmed victim receives this bearing; no attacker id/position or
+    // broadcast. A blast points at its detonation, even if its owner has left.
+    const origin = source ?? this.state.players[killerId];
+    const dx = origin ? origin.x - victim.x : 0;
+    const dz = origin ? origin.z - victim.z : 0;
+    this.ownerClient(victimId)?.send("hurt", {
+      bearing: Math.hypot(dx, dz) > 0.01 ? Math.atan2(dx, dz) : null,
+    });
     const now = Date.now();
     if (victim.hp > 0) {
       if (killerId !== victimId) this.recordHit(victimId, killerId, dmg, now);

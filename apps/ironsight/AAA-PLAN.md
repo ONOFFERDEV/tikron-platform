@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-22 are deployed there, including layered impacts,
+Supervisor reports sessions 1-23 are deployed there, including layered impacts,
 grounded remote reactions/deaths, weapon audio, combat HUD and Relay weathering.
-Session 23's round debrief remains local until publication. Continue using the standing
+Session 24's incoming-damage cues remain local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,51 +327,98 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 23: the standing brief requires `AAA-DESIGN-REFERENCE.md`, but that file
-is absent from this checkout (including an ignored/hidden-file search under the
-app). No canonical R-xx IDs or previous reference scorecard are available in the
-plan. Do not invent their definitions or claim reference compliance. Supervisor
-follow-up: restore the source document so the next session can enumerate every ID.
-Until then these are explicitly **plan-derived checks**, not replacement R-xx IDs:
+Session 24 first canonical audit (reference restored). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session24-reference-audit.json`;
+reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
+short-map timing mismatches are recorded, not silently redefined as passes.
 
-| Plan criterion | Status | Evidence / remaining acceptance |
+| Id | Status | Evidence |
 |---|---|---|
-| Clear outcome, personal contribution and round roster | met | Session 23 eight production-HUD fixtures; team/FFA/draw, 12 rows, local marker |
-| Readable narrow/short results and usable vote controls | met | 390x844, 720x900, 1280x600, 1920x1080; heading/actions reachable, focus preserved |
-| Environment depth across all three maps | partial | Relay Sessions 12-15/22; Undertow and Switchyard exterior richness next |
-| Convincing hands, weapon motion, reactions and sound | partial | Sessions 17-20 fixtures; moving animation and headphone approval open |
-| Guided first play and complete transition timing | partial | Existing onboarding/results; guided progression and authoritative countdowns open |
-| Target iGPU, 6v6 and browser/human acceptance | not yet | Desktop fixtures are not representative hardware or human acceptance |
+| R-M01 | partial | Relay lane purposes documented; other-map lane/defensive-angle acceptance incomplete. |
+| R-M02 | not yet | No co-visible entrance count audit; Undertow B has four planned approaches. |
+| R-M03 | met | Session24 reference audit: Relay 13 full/8 waist, Undertow 14/8, Switchyard 6/5; zero head-height boxes. |
+| R-M04 | not yet | Ground BFS rotations 1.33-7.33 s walk, 0.89-4.89 s sprint; below 10-15 s. |
+| R-M05 | partial | Relay decks and Undertow control ledges; Switchyard route-changing hook absent. |
+| R-M06 | n.a. | No world power pickups implemented. |
+| R-M07 | not yet | Spawn-to-cap proxy 2.33-10.67 s walk; one live Relay probe first-received-damage 11.062/9.548/1.611 s. Recontest/other maps unmeasured. |
+| R-M08 | partial | Lane accents and hero silhouettes exist; half-to-half orientation needs player review. |
+| R-M09 | partial | Relay team mode uses enemy distance/LOS scoring; other maps rotate. No strict LOS exclusion/history. |
+| R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
+| R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
+| R-M12 | partial | Relay/Undertow route beats documented; not all lanes validated as action blocks. |
+| R-M13 | partial | Cooling/Relay/Freight themes and three map palettes; Undertow/Switchyard richness remains. |
+| R-M14 | n.a. | No destruction/windows system promised; fixed openings remain authoritative. |
+| R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
+| R-M16 | not yet | No timed central item-control loop. |
+| R-M17 | partial | Relay core/uplinks and lane signs; all-lane central landmark visibility unverified. |
+| R-M18 | partial | Ground plus 1.2/2.4 m structures, not reference 3/6 m tiers; traversal budget retained. |
+| R-M19 | partial | All maps retain 60x40 m CQB; AR four body hits/300 ms at close range. Long-range distribution unverified. |
+| R-M20 | partial | Opt-in map-metrics heatmap exists; no many-round side win-rate acceptance. |
+| R-G01 | not yet | No contested HP/ammo reward loop. |
+| R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
+| R-G03 | partial | Sniper tracer and slow fire cadence; no glint or authoritative ready-up. |
+| R-G04 | partial | AR still spread zero/moving .02 rad; SMG/sniper/pistol nonzero still; no crouch spread bonus. |
+| R-G05 | not yet | No learnable authoritative recoil sequence. |
+| R-G06 | not yet | No deep-spray hybrid or authoritative ADS/crouch multipliers. |
+| R-G07 | not yet | Cosmetic kick exists; no trauma-driven rotational shake. |
+| R-G08 | partial | Cosmetic recoil and reduced motion; no authoritative aim-kick model. |
+| R-G09 | partial | Team tint and five held pose families; human silhouette/hold acceptance open. |
+| R-G10 | partial | Bounded pooled muzzle VFX; per-weapon shape/duration reference acceptance open. |
+| R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
+| R-G12 | partial | Session17 sleeves and reload phases; centre corridor/finger motion needs human review. |
+| R-G13 | not yet | Hip FOV 78; no 90-100 default/110-capped slider. |
+| R-G14 | not yet | Equal-distance enemy/ally footstep gain ratio 1.0, common noise tap; remote reload audio absent. |
+| R-G15 | partial | Confirmed hit 900/1400 Hz at .28 gain; kill 660/990 Hz at .30. Bypasses voice cap; headphone mix unverified. |
+| R-G16 | not yet | Distance low-pass only; no solid-geometry audio occlusion. |
+| R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
+| R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
+| R-G19 | not yet | All five lack authoritative ADS/sprint-to-fire timers; shared visual 95% ADS ~214 ms. |
+| R-G20 | partial | Shared weapon table controls damage/spread/cadence; missing authoritative handling/recoil fields. |
+| R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
+| R-L02 | partial | TDM 50 kills/300 s; DOM 4 s neutral/8 s enemy capture, 1 point/2 s/flag, target 200; no side swap. |
+| R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
+| R-L04 | partial | 3000 ms live respawn; dynamic spawn scoring only Relay team mode. |
+| R-L05 | partial | 10 s warmup and skippable 20 s results; replicated countdown/5-8 s freeze absent. |
+| R-L06 | not yet | No replay capture or highlight sequence. |
+| R-L07 | not yet | No objective/assist-aware MVP selection. |
+| R-L08 | not yet | No contextual team ping system. |
+| R-L09 | partial | Controls/onboarding and targets; no guided progression/objective/ping lesson. |
+| R-L10 | partial | Solo auto-fill to four operators; no first-three-match difficulty progression/ranked. |
+| R-L11 | partial | Bots use 200 ms reaction and ordinary damage/HP; difficulty progression/flank acceptance open. |
+| R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
+| R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
+| R-L14 | partial | Collider authority and bounded VFX; distance-amplified fresnel absent and iGPU acceptance open. |
+| R-L15 | not yet | No skill-based HP/ammo reward. |
+| R-L16 | partial | Shared movement/combat systems; no staged content progression. |
+| R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
+| R-L18 | not yet | Enemy audio has no team/reachability priority. |
+| R-L19 | partial | Server rewind/plausibility checks and numeric ping; network quality label absent. |
+| R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
+| R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
+| R-L22 | partial | Minimap exists; contextual pings absent. |
+| R-L23 | not yet | No enemy-highlight colour dropdown. |
 
 ## AAA gap list
 
-Re-ranked after Session 23. The round debrief now has an outcome hierarchy,
-personal stats, sorted team/FFA rosters, local-row emphasis and responsive actions.
-Lifecycle recovery remains resolved; no extra persistence drill is needed absent
-a new failure. Canonical reference-based ranking awaits the missing reference file.
+Re-ranked after Session 24: R-L21 incoming-damage cues delivered. Resolved lifecycle
+recovery stays closed. Spawn fairness is the next finishable reference gap.
 
-1. **Environment richness and material depth.** Enrich sparse Undertow and
-   Switchyard exteriors next, keeping collision authority and readable exits.
-   Relay has human-scale services, concrete relief, apron paving and Session 22
-   macro weathering/roof plates. Stress texture headroom is about 0.25 MiB;
-   re-budget before adding textures. Use Meshy when machinery adds visible quality;
-   retain paired Relay uplinks and reject weak silhouettes.
-2. **Solo encounter quality.** Improve bot route variety/separation and examine
-   inactive seats before increasing fill or difficulty.
-3. **First-play guidance and transitions.** Guided training, authoritative
-   countdowns and real dropped-network detection. Session 23 completes the
-   finishable results/roster hierarchy pass; player readability approval remains.
-4. **Character/weapon and combat presentation acceptance.** Sessions 17-21 improve
-   sleeves, impacts, reactions/deaths, layered audio and confirmation HUD. Review
-   moving finger/contact/reload, reaction intensity, audio comfort and confirmation
-   distraction with players; dense 6v6 cue drops remain under the 20-voice cap.
-5. **Switchyard encounter design.** The original open FFA layout still needs owner
-   route/spawn review. Preserve server cover/navigation and migration/test rules.
-6. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
-   thermal/cold-driver checks and headphone/owner approval remain unverified.
-7. **Deployed lifecycle qualification.** Actual preview DO eviction and storage/
-   connection ordering remain supervisor checks. Escalate reproduced dead-room
-   feedback ahead of art; do not reopen the resolved bug without evidence.
+1. **Spawn fairness and solo encounters (R-M09, R-L04, R-M20).** Extend threat-aware
+   scoring beyond Relay, then measure contact/recontest and route/side telemetry.
+2. **Shared weapon handling (R-G19, R-G20, R-G04-06).** Authoritative per-weapon ADS,
+   sprint recovery and learnable recoil need a coordinated client/server pass.
+3. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
+   occlusion; preserve bounded voices and require headphone acceptance.
+4. **Environment orientation/richness (R-M08, R-M13, R-M17).** Undertow/Switchyard
+   exteriors next; only ~0.25 MiB stress texture headroom. Meshy where silhouette helps.
+5. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
+   pings, countdowns, network-quality label and highlight colour choices.
+6. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** Current CQB map scale and
+   five-minute rounds miss reference rotation/economy targets; measure real encounters
+   before coordinated map/movement/economy changes. AR close-range 300 ms TTK supports
+   the retained CQB footprint; sniper lanes must remain exceptional.
+7. **Human/device acceptance.** Moving hands/holds, headphone mix, 6v6/RTT, iGPU,
+   cold-driver/thermal and Firefox/Safari remain open; desktop fixtures cannot close them.
 
 ### Session 1 — 2026-09-07
 
@@ -2799,3 +2846,154 @@ inspection browsers. Earlier preview trees were also stopped (the first cleanup'
 one immediately lingering process was verified gone on the subsequent process read).
 All standing final gates are green. Evidence remains ignored under .inspect.
 Ready for supervisor review/publication; no commit, push or deployment.
+
+
+### Session 24 - 2026-09-08: reference audit and authoritative incoming-damage cues
+
+Read standing brief, Session 24 supervisor status, plan and the now-restored
+AAA-DESIGN-REFERENCE.md. Confirmed ironsight-aaa from .git/HEAD. Scope remained
+apps/ironsight/**; no git commands, commit, push, deployment, dependencies, SDK or
+purchased-derivative edits. No Meshy credits spent (1530 remain): this combat HUD
+pass benefits from original DOM/CSS, not a generated asset. Existing local room
+storage was preserved; the resolved ended-room/lifecycle bug was not reopened.
+
+First completed the canonical 63-row reference scorecard above, replacing the
+Session23 missing-document placeholder. Re-ranked gaps from partial/not-yet rows
+and selected incoming-damage direction ahead of exterior decoration: immediately
+useful combat feedback, bounded enough to finish green this session.
+Reference: R-L21, R-G12, R-L14. Concrete target: a server-confirmed victim-only
+bearing plus brief flash/edge cue; four readable direction labels outside the
+central aiming rectangle, no overlap with elimination confirmation at 1920x1080,
+720x900, 390x844 and 1280x600; reduced motion suppresses the full-screen flash.
+These implementation/fixture checks now pass. Human comfort/readability and weak
+GPU acceptance remain open. This does not close the broader reload corridor or
+all-settings gameplay-clarity references.
+
+Immediate numeric audit (tools/reference-audit.ts bundles with existing esbuild;
+reproduction command in its header; .inspect/session24-reference-audit.json):
+
+| Check | Actual | Reference result |
+|---|---|---|
+| R-M03 cover classes | Relay 13 full/8 waist; Undertow 14/8; Switchyard 6/5 | All boxes classified; zero 1.5-1.6 m head-height cover |
+| R-M04 A-B / B-C / A-C, walk seconds | Relay 3.00 / 1.33 / 4.33; Undertow 3.00 / 3.00 / 6.00; Switchyard 3.67 / 3.67 / 7.33 | Below 10-15 s target |
+| R-M04 same routes, sprint seconds | Relay 2.00 / .89 / 2.89; Undertow 2.00 / 2.00 / 4.00; Switchyard 2.44 / 2.44 / 4.89 | Below target |
+| R-M07 spawn-to-cap walk proxy | Relay 4.33-8.67 s; Undertow 2.67-9.67 s; Switchyard 2.33-10.67 s | Travel proxy, not first-contact timing |
+| R-G19 ADS / sprint-to-fire, all five weapons | No authoritative ADS timer; no sprint recovery gate (0 ms); shared exponential visual ADS reaches 95% in 214 ms | Per-weapon reference timers absent |
+| R-L02 mode economy | TDM 50 kills/300 s; DOM neutral capture 4 s, enemy-to-owned 8 s, 1 point/2 s/flag, target 200, no side swap | TDM score/DOM target match; other numeric targets differ |
+| R-L04 respawn/scoring | 3000 ms live, 0 in warmup; enemy-distance/LOS scoring only Relay team modes | Timer met; other maps/FFA still rotate |
+| R-G15 hit confirm | Body 900 Hz/head 1400 Hz, .28 gain; kill 660/990 Hz, .30 peak; bypasses remote 20-voice cap | Implemented; mix comfort not measured |
+| R-G14 enemy/ally footsteps | 1.0 equal-distance ratio; common filtered noise tap; remote reload sound absent | Below 1.3-1.5 target |
+| R-L20 feed | Top-right, five entries, killer/weapon/HEADSHOT text/victim, team colours, no objective events | Partial: location/icons/objective feed differ |
+| R-L21 damage | Before: edge vignette only. After: edge/60 ms low-alpha flash plus 900 ms direction | Implementation check met |
+
+Map timing is the existing 1 m, four-neighbour ground BFS at 6 m/s walk and 9 m/s
+sprint, using the first cap waypoint for platform centres. It ignores useful
+vertical/diagonal paths and is not a player stopwatch. R-M09's current Relay
+score uses +10000 occupied penalty, squared proximity inside 14 m, up to +100 LOS
+penalty attenuating to zero at 50 m, and rotating ties; it does not guarantee a
+hidden spawn when every candidate is exposed, use recent LOS, or favour teammates.
+Those limitations now rank above more decoration. R-M19 default remains 60x40 m
+CQB on every map: AR four close body hits/300 ms TTK, long sniper lanes exceptional.
+The rotation/20-30 s contact and mode-economy mismatches remain explicit gaps;
+this HUD session does not silently replace the reference with shorter targets.
+
+Implementation: damage resolution sends an additive `hurt` event to the victim's
+own connection after protection/cover checks. It contains only world bearing
+(or null for an unknown/coincident source), no attacker identity, range or position.
+Gunfire uses the authoritative shooter location; grenades explicitly use their
+detonation position, including self-blasts. No new client intent, damage rule,
+state codec, snapshot version, collision, lights, WebGL passes, geometry, textures
+or runtime bakes. Older clients ignore the event; new clients still retain the
+HP-delta vignette fallback against older servers. Current protocol stays compatible.
+The direction is the latest impact bearing, not a tracker of a moving attacker.
+
+Four labelled HUD sectors update relative to current camera yaw, hold 650 ms,
+then fade for 250 ms. Unknown origins display the flash without guessing direction.
+The brief 5.5%-alpha full-screen flash implements R-L21; it is a transient DOM
+extension to the existing damage overlay (an explicit exception to the plan's
+older blanket no-transparent-fullscreen-layer guideline), not a WebGL render pass.
+In-game/OS reduced-motion preferences omit that flash and remove the vignette
+transition while retaining the static direction/edge signal. Respawn, reconnect
+notice and results clear stale cues. Sector text changes only when the sector
+changes. No pulse, camera shake, added sound or bright opaque aiming obstruction.
+
+Strengthened existing real room combat tests: one victim-only gunshot bearing,
+no shooter echo, no cue during spawn protection, blast bearings measured from
+the actual detonation for enemy/self, no cue behind blast-blocking cover. All
+existing tests still pass. Production HUD fixtures check four sectors, yaw wrap,
+camera-turn tracking, unknown origin, expiry, reset, reduced motion, viewport fit,
+central aim clearance and separation from elimination confirmation, alongside
+Session21 feed/lifetime/escaping checks.
+
+Rejected intermediates: first rear label overlapped the elimination panel;
+visual review caught it, then a new overlap assertion rejected the 1280x600
+candidate. Final rear placement has both a viewport fraction and a minimum
+184 px offset below centre. No gate thresholds relaxed. One apply_patch attempt
+with an extra unmatched context line failed before writes and was corrected.
+Early rejected captures/logs: .inspect/session24-review-* and
+session24-short-rejected.log. Final nine-view evidence:
+session24-final-hud-report.json and session24-final-hud-match-combat*.png.
+Before captures/report: session24-before-{match-combat,match-combat-mobile,relay,
+effects-stress}. Opened before desktop, candidate desktop/compact/rear, final
+narrow/rear-short and real Undertow practice. Fixtures freeze the production HUD
+over the existing map vista; they are not a human playtest.
+
+Final pnpm typecheck, pnpm test (337 passed, 3 existing opt-in skips; 36 passing
+files and one skipped), pnpm build:client and pnpm audit:assets PASS. Logs:
+.inspect/session24-{typecheck,test,build-client,audit-assets}.log. Exact required
+relay,practice-two inspector PASS (session24-required-inspector.log); extended
+relay,practice-two,effects-stress inspector with --assert-budgets PASS
+(session24-final.log/report.json). All nine HUD views also PASS; reports contain
+zero console/runtime/HTTP errors or forbidden offline gameplay requests. Owned
+preview restarted after final public writes before final browser gates.
+
+Matched effects fixture: eleven remote operators and local rifle/hands, 145
+12-rifle volleys, 96 blasts, transient effects drain; Edge152 / RTX5070 D3D11,
+1920x1080 balanced/DPR1. .inspect/session24-delta.json records:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 133302 | 220 / 133302 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0 |
+| Median / p95 / p99 ms | 6.9 / 7.2 / 7.2 | 6.9 / 7.0 / 7.1 | 0 / -.2 / -.1 |
+| Max / first-ready max ms | 7.4 / 7.3 | 7.2 / 7.1 | -.2 / -.2 |
+| Prepared shader programs | 27 | 27 | 0 |
+
+This unchanged WebGL fixture does not measure DOM flash composition. Live TDM
+is the separate browser frame-hitch check. Desktop rAF intervals/allocation
+estimates do not establish GPU timing, target iGPU, cold-driver/thermal or real
+6v6 acceptance; no performance improvement is claimed. Asset bytes remain
+13,526,417; public bytes 19,603,121 -> 19,618,684 (+15,563 bundled code/source map).
+Largest file 4,218,691 bytes; public 40 MiB/per-file 25 MiB caps pass. No binary
+asset additions or new asset provenance/allowlists required.
+
+Nonblocking owner questions/defaults: retain the 900 ms last-impact cue and
+restrained flash (yes, tune after headphone/mouse play); prioritize threat-aware
+spawns on the other maps next (yes). Industrial daylight, amber/teal, stylized
+sci-fi and 6v6 TDM remain active defaults. No owner response needed to continue.
+
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots, warmup -> live at 6.713 s, three deaths and three
+observed respawns. Zero post-warmup shader recompiles, frames >150 ms, console
+errors or long tasks. Sole frame above 24 ms was 56.3 ms at startup. Evidence:
+.inspect/hitch.json, session24-hitch.json and session24-hitch.log. No room
+isolation, storage clearing or additional lifecycle drill.
+
+R-M07 live contact evidence: the existing probe records first received nonlethal
+damage 11.062 s after live reset, then 9.548 s and 1.611 s after respawn; last
+respawn is censored when the probe stops. Derived artifact:
+.inspect/session24-contact-samples.json. This is one wandering human/three-bot
+Relay TDM sample, not first visual contact, point recontest, a distribution or
+6v6 fairness. All observed values are below 20-30 s. The 1.611 s sample reinforces
+the next spawn-fairness review; it is not by itself proof of camping. No complete
+natural round was observed, so actual round duration remains unmeasured; configured
+TDM/DOM economy numbers above must not be presented as measured match lengths.
+
+Cleanup: .inspect/session24-cleanup.json confirms all twelve final preview
+process-tree members stopped; zero remaining owned processes, port8796 listeners
+or inspection browsers. Earlier preview trees also stopped, with cleanup records
+for the initial/review trees. All standing gates are green; evidence remains
+ignored under .inspect. Ready for supervisor review/publication. No commit,
+push or deployment.

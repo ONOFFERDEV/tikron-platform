@@ -321,6 +321,13 @@ export class Net {
   onHit(cb: (e: HitEvent) => void): void {
     this.room.onMessage("hit", (p) => cb(p as HitEvent));
   }
+  onHurt(cb: (bearing: number | null) => void): void {
+    this.room.onMessage("hurt", (p) => {
+      if (!p || typeof p !== 'object' || !('bearing' in p)) return;
+      const bearing = p.bearing;
+      if (bearing === null || (typeof bearing === 'number' && Number.isFinite(bearing))) cb(bearing);
+    });
+  }
   onKill(cb: (e: KillEvent) => void): void {
     this.room.onMessage("kill", (p) => cb(p as KillEvent));
   }

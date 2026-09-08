@@ -239,6 +239,10 @@ describe("arena room — shot event's per-victim hits (remote hit-reaction trigg
     const payload = shotFrames(shooter).at(-1)!.payload as { hit: boolean; hits: { id: string; head: boolean }[] };
     expect(payload.hit).toBe(true);
     expect(payload.hits).toEqual([{ id: target.id, head: false }]);
+    const hurt = target.frames().filter(f => f.type === 'hurt');
+    expect(hurt).toHaveLength(1);
+    expect(hurt[0]!.payload).toEqual({ bearing: -Math.PI / 2 });
+    expect(shooter.frames().filter(f => f.type === 'hurt')).toHaveLength(0);
   });
 
   it("a headshot reports head=true", async () => {
@@ -351,6 +355,7 @@ describe("arena room — combat, respawn, lag compensation, match flow", () => {
     await shooter.send("fire");
     await tick(h, 2);
     expect(h.snapshot().players[target.id]!.hp).toBe(PLAYER.maxHp); // shielded
+    expect(target.frames().filter(f => f.type === 'hurt')).toHaveLength(0);
 
     // After protection lapses (1.5 s) the same shot connects.
     await tick(h, 32);
@@ -610,6 +615,13 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     const s = h.snapshot();
     expect(s.players[b.id]!.hp).toBeLessThan(PLAYER.maxHp); // enemy caught in the blast
     expect(s.players[a.id]!.hp).toBeLessThan(PLAYER.maxHp); // self-damage included
+    const boom = a.frames().find(f => f.type === 'nadeBoom')!.payload as { x: number; z: number };
+    for (const conn of [a, b]) {
+      const p = s.players[conn.id]!;
+      const hurt = conn.frames().filter(f => f.type === 'hurt');
+      expect(hurt).toHaveLength(1);
+      expect(hurt[0]!.payload).toEqual({ bearing: Math.atan2(boom.x - p.x, boom.z - p.z) });
+    }
   });
 
   it("a grenade behind cover does not damage a shielded player (line-of-sight AoE)", async () => {
@@ -630,6 +642,7 @@ describe("arena room — weapons: switch, per-weapon ammo, pellets, grenades", (
     await a.send("nade");
     await tick(h, Math.ceil(GRENADE.fuseMs / TICK_MS) + 2);
     expect(h.snapshot().players[b.id]!.hp).toBe(PLAYER.maxHp); // wall between them absorbed it
+    expect(b.frames().filter(f => f.type === 'hurt')).toHaveLength(0);
   });
 });
 

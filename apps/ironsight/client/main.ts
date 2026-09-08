@@ -272,6 +272,7 @@ async function main(): Promise<void> {
   });
 
   let previousPhase = net.state?.phase;
+  net.onHurt(bearing => hud.showDamageDirection(bearing));
   const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
     if (state.phase === "live" && previousPhase !== "live") {
@@ -300,6 +301,7 @@ async function main(): Promise<void> {
         deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
       }
       if (!wasAlive && me.alive) {
+        hud.clearDamage();
         deathCam = null;
         killerId = undefined;
         // Mirrors server death cleanup; syncView supplies the fresh loadout.
@@ -541,7 +543,7 @@ async function main(): Promise<void> {
       hud.hideOverlay();
     }
 
-    hud.update(now);
+    hud.update(now, input.yaw);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

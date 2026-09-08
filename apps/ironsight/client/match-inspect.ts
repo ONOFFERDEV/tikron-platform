@@ -24,6 +24,25 @@ export function startMatchInspector(): void {
   }
   const checks: Record<string, boolean> = {};
   if (shot.startsWith('match-combat')) {
+    const indicator = document.querySelector<HTMLElement>('#damage-direction')!;
+    const flash = document.querySelector<HTMLElement>('#damage-flash')!;
+    const hitTime = performance.now();
+    for (const [bearing, direction] of [[0, 'front'], [Math.PI / 2, 'right'], [Math.PI, 'back'], [-Math.PI / 2, 'left']] as const) {
+      hud.showDamageDirection(bearing); hud.update(hitTime);
+      checks[`damage-${direction}`] = indicator.dataset.direction === direction && indicator.style.opacity === '1';
+    }
+    hud.showDamageDirection(0); hud.update(hitTime, Math.PI / 2);
+    checks.damageTracksView = indicator.dataset.direction === 'left';
+    hud.update(hitTime, Math.PI * 2);
+    checks.damageYawWrap = indicator.dataset.direction === 'front';
+    hud.update(performance.now() + 1000);
+    checks.damageExpired = indicator.style.opacity === '0' && flash.style.opacity === '0';
+    hud.showDamageDirection(null); hud.update(performance.now());
+    checks.unknownNoDirection = indicator.style.opacity === '0' && flash.style.opacity === '1';
+    settings.setReducedMotion(true); hud.showDamageDirection(Math.PI / 2); hud.update(performance.now());
+    checks.damageReduced = getComputedStyle(flash).display === 'none' && indicator.style.opacity === '1';
+    hud.clearDamage(); hud.update(performance.now());
+    checks.damageReset = indicator.style.opacity === '0' && flash.style.opacity === '0';
     // Exercise production HUD lifetime, escaping and capacity before freezing the review sample.
     const feed = document.querySelector('#feed')!;
     const confirm = document.querySelector<HTMLElement>('#elimination')!;
@@ -51,6 +70,14 @@ export function startMatchInspector(): void {
     hud.addKill('KESTREL', 'Rook', 'body', 0, undefined, { weapon: 1 });
     hud.addKill('Sable', 'Vega', 'blast', 1, 'Echo', { localVictim: true });
     hud.addKill('KESTREL', 'Sentinel', 'head', 0, undefined, { weapon: 4, localKill: true });
+    const bearing = shot.includes('back') ? Math.PI : shot.includes('left') ? -Math.PI / 2 : shot.includes('front') ? 0 : Math.PI / 2;
+    hud.showDamageDirection(bearing); hud.update(performance.now());
+    const marker = indicator.firstElementChild!.getBoundingClientRect();
+    checks.damageFits = marker.left >= 0 && marker.right <= innerWidth && marker.top >= 0 && marker.bottom <= innerHeight;
+    checks.damageOutsideAim = marker.right < innerWidth * .45 || marker.left > innerWidth * .55 || marker.bottom < innerHeight * .4 || marker.top > innerHeight * .6;
+    const notice = confirm.getBoundingClientRect();
+    checks.damageClearOfNotice = marker.right <= notice.left || marker.left >= notice.right || marker.bottom <= notice.top || marker.top >= notice.bottom;
+    if (Object.values(checks).some(ok => !ok)) throw Error(`Damage layout failed: ${JSON.stringify(checks)}`);
   } else {
     if (shot !== 'match-reconnect') {
       const sample = { rows: [{ name: '<img src=x onerror=alert(1)>', k: 1, d: 0, team: 0, isMe: true },

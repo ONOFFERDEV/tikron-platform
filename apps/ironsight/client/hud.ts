@@ -6,6 +6,7 @@
  */
 import { MODE_ORDER, isTeamless } from "../src/modes.js";
 import { GAME } from "../src/game-config.js";
+import { damageDirection } from './damage-direction.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -72,6 +73,19 @@ const css = `
 #hitmarker i { position: absolute; width: 12px; height: 2px; left: -6px; top: -1px; background: #fff; box-shadow: 0 0 2px #000; }
 #hitmarker.head i { background: #ffd24a; box-shadow: 0 0 4px #ffae00; }
 #vignette { position: absolute; inset: 0; box-shadow: inset 0 0 90px 20px rgba(235,48,65,0); transition: box-shadow 120ms; }
+#damage-flash { position:absolute; inset:0; background:rgba(235,48,65,.055); opacity:0; }
+#damage-direction { position:absolute; left:50%; top:50%; width:clamp(180px,30vmin,320px); height:clamp(180px,30vmin,320px); transform:translate(-50%,-50%); opacity:0; }
+#damage-direction .damage-mark { position:absolute; left:50%; top:0; transform:translateX(-50%); color:#ffb69e; text-align:center; font-size:10px; font-weight:800; letter-spacing:2px; text-shadow:0 1px 3px #000,0 0 4px #000; }
+#damage-direction .damage-mark::before { content:''; display:block; margin:0 auto 5px; width:44px; height:7px; background:#ffb69e; border:1px solid #57242a; clip-path:polygon(0 0,100% 0,80% 100%,20% 100%); }
+#damage-direction[data-direction="back"] { top:max(76%,calc(50% + 184px)); height:0; }
+#damage-direction[data-direction="back"] .damage-mark::before { transform:rotate(180deg); }
+#damage-direction[data-direction="right"] .damage-mark { left:100%; top:50%; transform:translate(-50%,-50%); }
+#damage-direction[data-direction="right"] .damage-mark::before { transform:rotate(90deg); width:28px; margin-bottom:12px; }
+#damage-direction[data-direction="left"] .damage-mark { left:0; top:50%; transform:translate(-50%,-50%); }
+#damage-direction[data-direction="left"] .damage-mark::before { transform:rotate(-90deg); width:28px; margin-bottom:12px; }
+#hud[data-reduced-motion="true"] #damage-flash { display:none; }
+#hud[data-reduced-motion="true"] #vignette { transition:none; }
+@media(prefers-reduced-motion:reduce){#damage-flash{display:none}#vignette{transition:none}}
 /* pointer-events:none so a click passes through to the canvas (which requests
    pointer lock) — the prompt is informational, not a button. */
 #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(6,8,12,0.5); text-align: center; pointer-events: none; }
@@ -199,6 +213,10 @@ export class Hud {
   private readonly xhair: HTMLElement[];
   private readonly hitmarker: HTMLElement;
   private readonly vignette: HTMLElement;
+  private readonly damageFlash: HTMLElement;
+  private readonly damageIndicator: HTMLElement;
+  private damageBearing: number | null = null;
+  private damageAt = -1e9;
   private readonly overlay: HTMLElement;
   private readonly wslots: HTMLElement[];
   private readonly nadeCount: HTMLElement;
@@ -252,6 +270,7 @@ export class Hud {
     this.overlay.scrollTop = scrollTop;
   }
   showConnection(expired: boolean): void {
+    this.clearDamage();
     this.present('connection', `<div class="result"><div class="eyebrow">CONNECTION / 연결</div><h1>${expired ? 'CONNECTION LOST' : 'RECONNECTING'}</h1><p>${expired ? 'Return to deployment to join a new room.' : 'Waiting for the room. Your operator remains in the match.'}</p><button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
   }
 
@@ -368,6 +387,11 @@ export class Hud {
     this.ping = el("div", "ping"); this.ping.className = "panel"; this.ping.textContent = "-- ms";
     this.root.appendChild(this.ping);
     this.vignette = el("div", "vignette"); this.root.appendChild(this.vignette);
+    this.damageFlash = el('div', 'damage-flash'); this.root.appendChild(this.damageFlash);
+    this.damageIndicator = el('div', 'damage-direction');
+    this.damageIndicator.setAttribute('aria-hidden', 'true');
+    this.damageIndicator.innerHTML = '<span class="damage-mark"></span>';
+    this.root.appendChild(this.damageIndicator);
     this.overlay = el("div", "overlay"); this.root.appendChild(this.overlay);
 
     this.root.appendChild(this.brief);
@@ -534,6 +558,19 @@ export class Hud {
   flashDamage(): void {
     this.vignetteAt = performance.now();
     this.vignette.style.boxShadow = "inset 0 0 90px 20px rgba(235,48,65,0.65)";
+    this.damageFlash.style.opacity = '1';
+  }
+
+  showDamageDirection(bearing: number | null): void {
+    this.damageBearing = bearing;
+    this.damageAt = performance.now();
+    this.flashDamage();
+  }
+
+  clearDamage(): void {
+    this.damageBearing = null; this.damageAt = this.vignetteAt = -1e9;
+    this.damageIndicator.style.opacity = this.damageFlash.style.opacity = '0';
+    this.vignette.style.boxShadow = 'none';
   }
 
   setPing(ms: number): void {
@@ -593,6 +630,7 @@ export class Hud {
    * match never ends — so this path is unreachable there in practice.)
    */
   showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, teamless: boolean, roster?: ResultRoster): void {
+    this.clearDamage();
     this.overlay.style.display = "flex";
     // "draw" is checked before teamless so an FFA no-score timeout renders "DRAW"
     // in neutral color, matching team-mode draw rendering, instead of "draw WINS".
@@ -624,8 +662,18 @@ export class Hud {
   }
 
   /** Per-frame animation: reload bar, hitmarker + vignette fade, killfeed decay. */
-  update(now: number): void {
+  update(now: number, yaw = 0): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
+    const damageAge = now - this.damageAt;
+    this.damageIndicator.style.opacity = this.damageBearing === null ? '0' : String(Math.max(0, Math.min(1, (900 - damageAge) / 250)));
+    if (this.damageBearing !== null && damageAge < 900) {
+      const direction = damageDirection(this.damageBearing, yaw);
+      if (this.damageIndicator.dataset.direction !== direction) {
+        this.damageIndicator.dataset.direction = direction;
+        this.damageIndicator.firstElementChild!.textContent = direction.toUpperCase();
+      }
+    }
+    if (now - this.vignetteAt > 60) this.damageFlash.style.opacity = '0';
     const confirmAge = now - this.eliminationAt;
     this.elimination.style.opacity = String(Math.max(0, Math.min(1, (1800 - confirmAge) / 300)));
     if (confirmAge >= 1800 && this.elimination.childNodes.length) this.elimination.replaceChildren();
