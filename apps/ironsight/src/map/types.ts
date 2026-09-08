@@ -30,7 +30,7 @@ export interface RampDef {
 
 export interface MapDef {
   /** Game-owned visual kit. Collision remains the boxes/ramps below. */
-  readonly presentation?: "relay" | "undertow";
+  readonly presentation?: "relay" | "undertow" | "switchyard";
   readonly bounds: Bounds;
   readonly boxes: readonly Box[];
   /** Sloped-surface colliders — see {@link RampDef}. Optional for backward

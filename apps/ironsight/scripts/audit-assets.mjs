@@ -6,7 +6,8 @@ const approvedDerived = [
   'assets/models/player.glb', 'assets/models/weapons-vm.glb',
   'assets/maps/arena1-dressing.glb', 'assets/maps/arena2-dressing.glb', 'assets/maps/relay-skyline.glb',
 ];
-const approvedOriginal = ['assets/maps/relay-architecture.glb', 'assets/maps/undertow-architecture.glb'];
+const approvedOriginal = ['assets/maps/relay-architecture.glb', 'assets/maps/undertow-architecture.glb',
+  'assets/maps/switchyard-architecture.glb', 'assets/props/switchyard-transformer.glb'];
 const files = [];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {

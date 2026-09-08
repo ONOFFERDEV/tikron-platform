@@ -1,0 +1,15 @@
+{
+  "name": "switchyard-transformer",
+  "prompt": "A single heavy industrial electrical substation transformer, broad rectangular steel oil tank on a low concrete skid, large deeply ribbed radiator cooling fins on both sides, three tall brown ceramic ribbed high-voltage bushings rising from the top, thick curved busbar connections, a small front control cabinet and lifting lugs. Strong recognizable electrical transformer silhouette. Ground mounted equipment, flat base, no scene, no surrounding ground, no fence, no text, no logo. Stylized realistic hard surface game prop, clean readable shapes, chunky machinery.",
+  "texture_prompt": "Weathered desaturated teal enamel steel, dark graphite radiator fins, cream ceramic insulators with copper caps, restrained amber safety labels, dust and grime at seams, industrial daylight sci fi game art, no text or logos.",
+  "previewId": "01a08072-2312-724c-9908-ae532db06d58",
+  "refineId": "01a08073-f462-72c6-9831-0a0975b3ebc6",
+  "ai_model": "latest",
+  "target_polycount": 3000,
+  "pbr": true,
+  "glbBytes": 6746160,
+  "creditsUsed": 30,
+  "balanceAfter": 1560,
+  "generatedAt": "2026-09-08T09:59:30.280Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan."
+}

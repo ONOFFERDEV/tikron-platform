@@ -100,6 +100,7 @@ try {
         if (weapon > 0) url.searchParams.set('weapon', String(weapon));
       }
       if (name.startsWith('undertow-')) url.searchParams.set('map', 'arena2');
+      if (name.startsWith('switchyard-')) url.searchParams.set('map', 'arena3');
     }
     if (name.endsWith('mobile')) await send('Emulation.setDeviceMetricsOverride', { width: 720, height: 900, deviceScaleFactor: 1, mobile: false });
     else await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
@@ -124,6 +125,7 @@ try {
     await waitFor(expression);
     if (name.startsWith('menu')) {
       if (name === 'menu-undertow') await click('[data-mode="dom"]');
+      if (name === 'menu-switchyard') await click('[data-mode="ffa"]');
       if (name.startsWith('menu-training')) {
         await click('[data-mode="practice"]'); await click('[data-map="arena2"]');
         if (!(await evaluate('document.querySelector("[data-map=arena2]").getAttribute("aria-pressed") === "true" && document.querySelector(".vista").dataset.site === "arena2"')))
@@ -270,13 +272,22 @@ try {
         throw Error(`Renderer resource budget or effect cleanup failed: ${JSON.stringify(report)}`);
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
-    reports.push({ shot: name, report, combat });
+    const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    if (name.startsWith('switchyard-')) {
+      for (const required of ['/assets/maps/switchyard-architecture.glb', '/assets/maps/switchyard-ground-ao.png', '/assets/props/switchyard-transformer.glb'])
+        if (!assetRequests.includes(required)) throw Error(`Switchyard asset not requested: ${required}`);
+      if (assetRequests.some(p => /relay|undertow|arena[12]-dressing/.test(p))) throw Error('Switchyard requested another map asset');
+    }
+    if (name === 'relay' || name.startsWith('undertow-') || name === 'practice-two')
+      if (assetRequests.some(p => p.includes('switchyard'))) throw Error('Switchyard assets loaded on another map');
+    reports.push({ shot: name, report, combat, assetRequests });
     const capture = await send('Page.captureScreenshot', { format: 'png' });
     const file = join(output, `${prefix}-${name}.png`);
     await writeFile(file, Buffer.from(capture.data, 'base64'));
-    if ((name === 'vista' || name === 'undertow-vista') && args.includes('--write-vista')) {
+    if (['vista', 'undertow-vista', 'switchyard-vista'].includes(name) && args.includes('--write-vista')) {
       const webp = await send('Page.captureScreenshot', { format: 'webp', quality: 88 });
-      await writeFile(fileURLToPath(new URL(`../public/assets/${name === 'vista' ? 'relay' : 'undertow'}-vista.webp`, import.meta.url)), Buffer.from(webp.data, 'base64'));
+      const site = name === 'vista' ? 'relay' : name.slice(0, -6);
+      await writeFile(fileURLToPath(new URL(`../public/assets/${site}-vista.webp`, import.meta.url)), Buffer.from(webp.data, 'base64'));
     }
     console.log(file, JSON.stringify(report));
   }

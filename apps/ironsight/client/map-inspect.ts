@@ -28,6 +28,12 @@ export function startMapInspector(): void {
     'undertow-vista': [48, 13, 37, 25, 4.0, 9],
     'undertow-maintenance': [36, 1.65, 35, 23, 2.5, 28],
     'undertow-stress': [14, 1.65, 16, 33, 1.5, 19],
+    'switchyard-overview': [52, 38, 57, 29, 0, 19],
+    'switchyard-center': [25, 1.65, 25, 31, 2.2, 17],
+    'switchyard-service': [39, 1.65, 13, 47, 2, 7],
+    'switchyard-vista': [48, 13, 37, 26, 4, 8],
+    'switchyard-north': [20, 1.65, 3, 31, 3.5, -5],
+    'switchyard-stress': [8, 1.65, 11, 35, 1.5, 11],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
   const shot = shots[shotName] ?? shots.overview!;

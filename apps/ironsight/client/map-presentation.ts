@@ -10,9 +10,9 @@ export const SITES = {
   arena2: { name: 'UNDERTOW', number: '02', subtitle: 'WATER RECLAMATION PLANT',
     routes: 'Control decks / Pump hall / Maintenance', description: 'Cross the pump hall. Hold the three control points.',
     image: '/assets/undertow-vista.webp', map: ARENA2, legacy: false },
-  arena3: { name: 'CROSSYARD', number: '03', subtitle: 'LEGACY TRAINING GROUND',
-    routes: 'Open court / Crossings / Perimeter', description: 'An open arena for aim drills and solo combat.',
-    image: '', map: ARENA3, legacy: true },
+  arena3: { name: 'SWITCHYARD', number: '03', subtitle: 'POWER DISTRIBUTION DEPOT',
+    routes: 'North bus / Switch deck / South service', description: 'Cross the switch deck. Watch every approach in free-for-all.',
+    image: '/assets/switchyard-vista.webp', map: ARENA3, legacy: false },
 } as const;
 export type SiteId = keyof typeof SITES;
 
@@ -28,7 +28,11 @@ export function mapCallout(map: MapDef, x: number, z: number): string {
     if (z < 14) return x < 22 ? 'WEST DECK' : x > 38 ? 'EAST DECK' : 'PIPE ROUTE';
     return x < 22 ? 'A / WEST CONTROL' : x > 38 ? 'C / EAST CONTROL' : 'B / PUMP HALL';
   }
-  return 'CROSSYARD';
+  if (map.presentation === 'switchyard') {
+    if (x < 8 || x > 52) return 'PERIMETER SERVICE';
+    return z < 14 ? '01 / NORTH BUS' : z > 26 ? '03 / SOUTH SERVICE' : '02 / SWITCH DECK';
+  }
+  return 'TRAINING GROUND';
 }
 
 /** Original collision-derived plan; used as a site card, never enemy intel. */

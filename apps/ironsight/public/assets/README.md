@@ -158,3 +158,48 @@ reloads are first-person presentation; remote reload replication/choreography is
 still absent. Aim contact captures do not prove finger penetration or acceptance
 of every extreme pose: upward crouch stock/neck clearance needs further work.
 Explosion debris remains instanced original box geometry with four pooled lights.
+
+### Session 11: Switchyard (arena3)
+
+The former Crossyard blockout now uses original power-distribution architecture
+from `client/switchyard-environment.ts`, the SAME 11 collision boxes/four ramps,
+an original 1024px single-channel architecture AO atlas, collision-derived ground
+AO and the existing industrial-daylight HDR. No purchased source enters this bake.
+The map lazy-loads only its own architecture and generated transformer; Relay and
+Undertow never request those assets. Signs use one original 1024x512 canvas atlas.
+`switchyard-vista.webp` is a production-renderer screenshot, not concept art.
+
+Rebuild only this site's bakes from `apps/ironsight` (Blender 4.5):
+
+```powershell
+node tools/dump-architecture.mjs
+node tools/dump-maps.mjs .inspect/session11-maps.json
+node --input-type=module -e "import fs from 'node:fs'; for (const [input,output] of [['.inspect/architecture.json','.inspect/session11-architecture.json'],['.inspect/session11-maps.json','.inspect/session11-switchyard-map.json']]) { const all=JSON.parse(fs.readFileSync(input)); fs.writeFileSync(output,JSON.stringify({switchyard:all.switchyard})); }"
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session11-architecture.json
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session11-switchyard-map.json
+python scripts/audit-architecture.py
+# With the local preview running after build:client:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --write-vista
+```
+
+`props/switchyard-transformer.glb` is an original Meshy-generated exterior prop,
+created 2026-09-08 with the project's account: 30 credits, preview plus PBR refine.
+`props/switchyard-transformer.meta.json` records exact prompts and task IDs.
+The model is 2,599 triangles; raw 6,746,160 bytes becomes 243,392 bytes with 512px
+WebP PBR textures. Three placements share geometry/material/texture data. Bounds
+normalization fits each to at most 7m wide / 6m tall / 6m deep, grounded at y=0,
+entirely north of z=0. It creates no playable cover and has no lights/animation.
+The stylized radiator silhouette is approved for exterior distance, not a weapon
+or close-interaction asset. Purchased Synty/UAL derivatives remain private.
+
+Generate a new variant from the recorded prompt (consumes credits; Meshy generation
+is not byte-deterministic), then shrink and inspect before replacing the asset:
+
+```powershell
+node --input-type=module -e "import fs from 'node:fs'; import {execFileSync} from 'node:child_process'; const m=JSON.parse(fs.readFileSync('public/assets/props/switchyard-transformer.meta.json')); execFileSync(process.execPath,['tools/meshy-generate.mjs','--name',m.name,'--prompt',m.prompt,'--texture',m.texture_prompt,'--polycount',String(m.target_polycount),'--out','.inspect/meshy'],{stdio:'inherit'});"
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/meshy/switchyard-transformer/model.glb --output public/assets/props/switchyard-transformer.glb --size 512 --webp
+```
+
+Both new GLBs are explicit original/generated allowlist exceptions in `.gitignore`
+and `scripts/audit-assets.mjs`. Keep raw Meshy output under ignored `.inspect`.
+The 40 MiB public and 25 MiB per-file limits still apply to the complete product.

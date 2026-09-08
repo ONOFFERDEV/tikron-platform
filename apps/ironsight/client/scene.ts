@@ -33,6 +33,8 @@ import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle }
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
 import { buildUndertowEnvironment } from "./undertow-environment.js";
+import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
+import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
@@ -443,6 +445,9 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
+    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene).then(() => {
+      this.renderer.shadowMap.needsUpdate = true;
+    }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
     if (map.presentation) this.assetLoads.push(loadSiteEnvironment(this.scene, this.renderer)
       .catch(error => console.warn("Site environment unavailable; retaining hemisphere fill.", error)));
 
@@ -477,8 +482,8 @@ export class SceneRig {
     // by matching object identity against GAME.maps, which is keyed by exactly
     // those ids and holds the same ARENA1/ARENA2 references mapForMode returns.
     const mapId = Object.keys(GAME.maps).find((k) => GAME.maps[k] === map);
-    const dressingUrl = map.presentation === 'undertow' ? undefined
-      : relay ? "/assets/maps/relay-skyline.glb" : mapId ? GAME.mapDressing?.[mapId] : undefined;
+    const dressingUrl = map.presentation === 'relay' ? '/assets/maps/relay-skyline.glb'
+      : map.presentation ? undefined : mapId ? GAME.mapDressing?.[mapId] : undefined;
     if (dressingUrl) {
       this.environmentLoading = true;
       this.assetLoads.push(loadMapDressing(dressingUrl).then((gltf) => {
@@ -521,6 +526,7 @@ export class SceneRig {
     if (map.presentation) {
       const existing = new Set(architectureMeshes(this.scene));
       if (map.presentation === 'undertow') buildUndertowEnvironment(this.scene, map);
+      else if (map.presentation === 'switchyard') buildSwitchyardEnvironment(this.scene, map);
       else buildRelayEnvironment(this.scene, map);
       const material = new THREE.MeshStandardMaterial({ color: 0x667a7b, roughness: 0.84, side: THREE.DoubleSide });
       for (const r of this.ramps) {

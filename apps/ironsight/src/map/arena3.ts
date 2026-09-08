@@ -22,9 +22,9 @@ import type { MapDef } from "./types.js";
  * split is just a spawn-pool partition, not a "team side" — all three caps
  * sit on open floor, so no `capWaypoints` override is needed.
  *
- * v1 is a blockout: no dressing tiles are placed here on purpose — the scene
- * layer's manifest-optional fallback renders this map procedurally (plus
- * wedges) when no dressing glTF is registered for it.
+ * Switchyard replaces the original Crossyard presentation without changing this
+ * collision grid, spawn pool or navigation. The original industrial kit and its
+ * AO bake follow these envelopes; generated substation machinery stays outside.
  */
 const ROWS_ARENA3: readonly string[] = [
   "..............................",
@@ -59,4 +59,4 @@ export const ARENA3_CAPS: { readonly a: Vec3; readonly b: Vec3; readonly c: Vec3
 /** arena3 packaged as one {@link MapDef} — the single value `mapForMode` (modes.ts)
  *  resolves and threads everywhere; the individual named exports above stay as
  *  aliases so existing direct importers don't need to change. */
-export const ARENA3: MapDef = compiled;
+export const ARENA3: MapDef = { ...compiled, presentation: 'switchyard' };

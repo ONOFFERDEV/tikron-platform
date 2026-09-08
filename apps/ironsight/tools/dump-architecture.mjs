@@ -6,13 +6,15 @@ await build({ stdin: { contents: `
 import * as T from 'three';
 import { buildRelayEnvironment } from './client/relay-environment.js';
 import { buildUndertowEnvironment } from './client/undertow-environment.js';
+import { buildSwitchyardEnvironment } from './client/switchyard-environment.js';
 import { buildWedgeGeometry } from './client/site-wedge.js';
 import { architectureMeshes } from './client/site-architecture.js';
 import { ARENA1 } from './src/map/arena1.js';
 import { ARENA2 } from './src/map/arena2.js';
+import { ARENA3 } from './src/map/arena3.js';
 export function dump() {
  const result = {};
- for (const [name, map, build] of [['relay', ARENA1, buildRelayEnvironment], ['undertow', ARENA2, buildUndertowEnvironment]]) {
+ for (const [name, map, build] of [['relay', ARENA1, buildRelayEnvironment], ['undertow', ARENA2, buildUndertowEnvironment], ['switchyard', ARENA3, buildSwitchyardEnvironment]]) {
   const scene = new T.Scene(); build(scene, map, true);
   for (const ramp of map.ramps ?? []) scene.add(new T.Mesh(buildWedgeGeometry(ramp), new T.MeshStandardMaterial({color:0x667a7b,roughness:0.84,side:T.DoubleSide})));
   scene.updateMatrixWorld(true);

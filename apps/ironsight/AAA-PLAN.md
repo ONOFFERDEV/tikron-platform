@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-8 are deployed there, including the first-play
-fixes. Session 9 architecture AO/environment lighting remains local until the
-supervisor publishes it. The owner playtest pause remains active.
+Supervisor reports sessions 1-10 are deployed there, including the persisted-room
+fix. Session 11 Switchyard presentation remains local until the supervisor
+publishes it. Continue development using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -76,13 +76,14 @@ follow-ups, not a claim of human playtest or laptop performance acceptance.
    describes the four-operator solo start accurately. Review bot separation,
    route variety and inactive-seat behavior before tuning difficulty or filling
    twelve seats. Do not infer bot capacity from the shared preview run.
-3. **Art continuity and first-person sleeves.** Crossyard FFA is still the dark,
-   bare legacy arena, visibly different from Relay/Undertow. It is labelled legacy;
-   replacement remains outside this two-map pass. Sniper reload captures show long,
+3. **Art continuity and first-person sleeves.** Session 11 replaces Crossyard's dark
+   blockout presentation with Switchyard's industrial kit, baked lighting and
+   generated substation machinery. Layout/FFA balance remain to be reviewed.
+   Sniper reload captures show long,
    angular forearms across the lower screen. Review them in motion and at normal
    FOV before changing the authored grip or purchased derivative. Remote palm,
    finger and moving reload approval from the guide remains open.
-4. **Training has no guided progression.** Undertow and Crossyard intentionally
+4. **Training has no guided progression.** Undertow and Switchyard intentionally
    have no targets; menu and onboarding now say so and direct shooting practice
    to Relay. There is no completed-step checklist, route tour or target reset
    button. Relay's passive pose names are animation labels rather than lessons.
@@ -131,8 +132,8 @@ floor decals never create invisible walls. Avoid uncollidable pipes across route
 ## Level design
 
 All maps retain the current 60 x 40 m wire extent in this series. `arena1` becomes
-Relay; `arena2` becomes Undertow in milestone 2. Arena3/Crossyard remains available
-as a legacy practice/FFA map until its replacement is accepted. Shared MapDef drives
+Relay; `arena2` becomes Undertow in milestone 2. Session 11 presents arena3 as
+Switchyard, retaining Crossyard's collision layout for practice/FFA. Shared MapDef drives
 server, bots, physics, client geometry and minimap. Existing dressing bundles are
 never applied to a changed collision layout.
 
@@ -325,25 +326,29 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked for Session 10 against the supervisor's owner-facing failure:
+Re-ranked after Session 11. The Session 10 ended/empty-room fix was already
+present and passed its existing real-restoration regression tests. This session
+selected the next visual priority: Crossyard -> Switchyard, now a complete first
+art pass with unchanged collision layout. Continue with the first item below.
 
-1. **Persisted/empty room can stop forever — Session 10 priority, fixed locally.**
-   Expired seats stop simulation; a retained room needs its preset loop restarted
-   on the next join. Cold snapshot/alarm and repeated empty-room regression tests
-   now cover the lifecycle. Supervisor preview verification remains pending.
-2. **Crossyard art continuity.** Replace the legacy FFA arena with a third coherent
-   industrial map, keeping collider authority and per-map loading. Next visual priority.
-3. **Environment richness.** Relay/Undertow need stronger human-scale machinery,
-   wear and purposeful hero dressing. Use Meshy for a clearly useful silhouette;
-   reject the supervisor's dish-like cable drum. Re-budget texture headroom first.
-4. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
+1. **Environment richness and material detail.** All three sites now share the
+   industrial direction, but long clean facades and broad empty floor areas still
+   read simply. Add purposeful human-scale service detail, wear and composition;
+   prioritize Relay, with its tighter texture budget. Meshy can supply a stronger
+   hero silhouette where useful; the supervisor's cable drum remains rejected.
+2. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
    remote reactions and deaths; retain constant light count through hidden groups.
-5. **Solo encounter quality.** Improve bot route variety/separation and examine
+3. **Solo encounter quality.** Improve bot route variety/separation and examine
    inactive seats before increasing fill or difficulty.
-6. **First-play guidance and transitions.** Guided training, authoritative countdowns,
+4. **Switchyard encounter design.** Its art replaces the legacy blockout, but the
+   original open FFA layout still needs owner route/spawn review. Preserve server
+   cover and navigation authority; any future layout change needs migration/tests.
+5. **First-play guidance and transitions.** Guided training, authoritative countdowns,
    and real dropped-network detection; preserve accessible menus and reconnect flow.
-7. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
+6. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
    thermal/cold-driver checks and headphone/owner approval remain unverified.
+7. **Deployed lifecycle qualification.** Local ended-snapshot tests and repeat probes
+   cover recovery; supervisor should still exercise actual preview DO eviction.
 
 ### Session 1 — 2026-09-07
 
@@ -1369,3 +1374,130 @@ Relay dressing should lead the next art session (default: replace Crossyard), an
 whether the existing daylight/amber/teal tone is preferred (default: retain it).
 Continue without waiting; representative hardware, human play/animation/audio and
 supervisor preview verification remain open. No owner approval was requested.
+
+### Session 11 - 2026-09-08: Crossyard becomes Switchyard
+
+Read the standing brief, supervisor status and plan in order. The Session 10
+ended/empty-room fix and three lifecycle tests were already present; reran them
+before art work and retained the implementation. Selected the next ranked visual
+gap: replace the dark Crossyard blockout presentation with **Switchyard**, a power
+distribution depot. Scope apps/ironsight/** on ironsight-aaa; read-only branch/status
+check at entry, no commit/push/deploy. The additional Worker build was dry-run only.
+
+Delivered a complete first art pass, preserving all 11 collision boxes, four true
+ramps, spawn positions, bot navigation and server-verified hits. Switchgear cabinet
+doors, louvers, armoured cases, ground cable raceways and crossing marks explain
+the playable volumes. Three paired electrical gantries with ceramic insulators
+and connected busbars frame an exterior substation; service halls balance the
+skyline. All exterior solids stay beyond movement bounds. The central deck stays
+walkable; cladding stays within 2 cm of real cover. No collision or state-schema
+change, no snapshot migration, no new dependencies or real-time lights/passes.
+Switchyard uses the existing industrial-daylight setup and cached static shadows.
+
+Added original Blender architecture/ground AO bakes, with the same winding/normal
+preservation and single-channel runtime AO pipeline as Relay/Undertow. Architecture
+is **22,712 triangles / 2,206,208 bytes**. Four new architecture tests verify exact
+rendered solid envelopes, bounded cladding, exterior placement and no kit lights.
+`session11-geometry-audit.json` matches every baked oriented triangle at 0.1 mm
+quantization; max normal-component error **0.000100**, within 0.001. Existing two
+map bakes were not regenerated. Generated props are excluded from this original
+architecture bake and do not affect collision.
+
+Meshy: one transformer, **30 credits** (1590 -> 1560), no retries. Strong rectangular
+tank/radiator/three-insulator silhouette, approved at exterior distance after
+opening its thumbnail and inspecting it in the production map. Raw **6,746,160**
+bytes -> **243,392** bytes, **2,599 triangles**, three 512px WebP PBR images. Three
+placements share the mesh and textures; measured source bounds normalize to a
+grounded **7.00 x 5.00 x 3.43 m** envelope, centered at x=10/30/50, z=-8. The loader
+checks bounds and rejects lights. This is a stylized distant prop, not a finished
+close-interaction asset. The weak supervisor cable-drum example remains rejected.
+Prompts/task IDs are versioned in its .meta.json; provenance/rebuild commands are
+in assets/README.md. Both new GLBs are explicitly allowlisted, purchased derivatives
+stay ignored, and raw generation remains under app .inspect.
+
+Deployment/FFA/training now say Switchyard, show an actual map vista, and use
+North Bus / Switch Deck / South Service callouts. arena3 room routing is unchanged.
+Inspector now has reproducible Switchyard cameras, vista export, and per-map asset
+request assertions. It verifies Switchyard never requests Relay/Undertow art and
+the required Relay/Undertow views never request Switchyard assets.
+
+Before/after: `.inspect/session11-before-report.json` and `session11-final-report.json`,
+matching overview/center/service/north/vista/effects PNGs and `session11-delta.json`.
+Opened the matching center, north, service and menu captures, plus final Relay and
+Undertow training captures. Final report includes all required relay/practice-two
+shots, new-map training and real FFA boot: **zero console/runtime/HTTP errors** and
+**zero forbidden offline requests**. FFA boot had four players and authoritative
+damage; it is not a human balance or full-match acceptance test.
+
+Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Matched effects fixtures:
+eleven remote operators plus local weapon, 145 twelve-rifle volleys and 96 blasts
+over 15 seconds, 2,130 steady samples, zero expired effects remaining after drain.
+
+| Switchyard metric | Before (legacy) | Final | Delta |
+|---|---:|---:|---:|
+| Eye-level center calls / triangles | 34 / 734 | 18 / 31,045 | -16 / +30,311 |
+| Stress peak calls / triangles | 235 / 61,344 | 214 / 89,012 | -21 / +27,668 |
+| Stress textures / estimated MiB | 18 / 42.77 | 26 / 61.58 | +8 / +18.81 |
+| Stress median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0.0 / 0.0 / 0.0 |
+| Stress max / first-ready max ms | 7.2 / 7.1 | 7.2 / 7.1 | 0.0 / 0.0 |
+
+The increased texture allocation buys the ground/sign atlases, architecture AO,
+existing daylight PMREM/static shadows and the generated PBR prop. Resource gate
+passes with **2.42 MiB** estimated stress headroom. These are desktop rAF intervals
+and allocation estimates, not GPU timer queries or mid-laptop iGPU/thermal proof.
+The art remains deliberately simple in long facades and floor areas; environment
+richness/material detail is now priority 1, with Relay first. No AAA completion
+or owner visual approval is claimed.
+
+New asset files **+2,710,145 bytes** including metadata/vista; provenance documentation
+adds **3,442 bytes**. Assets **9,161,256 -> 11,874,843 bytes**; public set
+**17,795,795 bytes**, largest file **4,110,491 bytes**, within 40 MiB/25 MiB limits.
+Ground AO is 142,224 bytes, vista 117,060 bytes. No private asset changed.
+
+Final code gates: **pnpm typecheck, pnpm test, pnpm build:client, pnpm audit:assets,
+required map inspection and effects-budget assertions PASS**. Tests: **310 passed,
+3 existing opt-in skips**, 29 passing files + one skipped. Worker dry-run passes
+at **235.27 KiB / gzip 69.94 KiB**. Evidence logs: session11-{typecheck,test,
+build-client,audit-assets,inspector,worker-build}.log; initial lifecycle test log
+is session11-lifecycle.log. No gate thresholds were weakened.
+
+Both requested TDM hitch probes PASS on fixed arena-tdm without clearing
+.wrangler/state: one human plus three bots, warmup -> live in **6.749 / 6.673 s**
+after measurement begins, two deaths and two respawns each, **zero recompiles,
+over-threshold spikes or console errors**. Death times **19.596 / 26.423 s** and
+**19.687 / 25.951 s**. The owned server was stopped 36.3 s after the first report,
+then restarted with its existing durable state for a stronger cold-start check.
+`session11-cold-restart.json` records process/state preservation. Reports:
+`session11-hitch-first.json`, `session11-hitch-second.json` (also `hitch.json`),
+and `session11-lifecycle-probes.json`. Existing tests specifically cold-restore an
+ENDED snapshot through core restoration, with/without alarm expiry, assert bot
+fill/live/movement/input drain, and check repeated empty reuse without duplicate
+ticks. Browser probes do not claim a natural five-minute ended-match eviction on
+the deployed Worker; supervisor qualification remains open.
+
+Rejected intermediate: `session11-after-*` passed resource checks but hid too much
+of the transformer behind the north wall, clipped a deck sign into its ramp, left
+rear busbars dangling and retained legacy menu copy. Corrected/rebaked/reinspected
+as `session11-final-*`; only the latter is final art evidence. No red final code or
+browser gate was accepted. The smaller original sign and lower exterior north wall
+change no playable collider. Remaining low-resolution AO and faceted transformer
+fins are explicit distance/budget compromises for future art review.
+
+Open owner questions, nonblocking: does Switchyard's open substation identity suit
+FFA (default: keep it and collect route/spawn feedback), and should the next pass
+prioritize materials or more machinery (default: improve Relay's service detail
+and wear within its current budget). Continue without waiting. Human grip/audio,
+real multiplayer, target hardware and supervisor preview publication remain open.
+
+Additional new-map gameplay gate: `session11-hitch-ffa.json` / .log PASS with the
+same 150000-ms maximum and unmodified assertions. Switchyard filled three bots,
+entered live, recorded **three deaths / three respawns**, zero recompiles/spikes/
+console errors. Maximum recorded frames across TDM first / TDM cold restart / FFA
+were **54.7 / 54.4 / 59.0 ms**; no recorded frame exceeded 150 ms. The required
+`.inspect/hitch.json` remains the second TDM report, not this supplementary FFA run.
+
+Cleanup verified in `.inspect/session11-cleanup.json`: both owned server trees
+stopped, **zero remaining owned processes, zero port-8796 listeners, zero inspection
+browsers**. Persistent local state was preserved. All three probe commands and
+final inspection exited successfully; generation and Blender processes completed.
+Ready for supervisor review/publication; no commit, push or deployment performed.

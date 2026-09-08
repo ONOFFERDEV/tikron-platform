@@ -7,3 +7,5 @@ assets-src/**
 # Original collider-derived kit only; provenance and deterministic rebuild in README.
 !public/assets/maps/relay-architecture.glb
 !public/assets/maps/undertow-architecture.glb
+!public/assets/maps/switchyard-architecture.glb
+!public/assets/props/switchyard-transformer.glb
