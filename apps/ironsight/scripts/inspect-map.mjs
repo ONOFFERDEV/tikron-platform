@@ -228,7 +228,7 @@ try {
         combat = {layouts, expiry:true, pauseClears:true, normalKey:true};
         await send('Emulation.setDeviceMetricsOverride', {width:1920,height:1080,deviceScaleFactor:1,mobile:false});
       }
-      if (args.includes('--assert-training') && ['onboarding', 'practice-two'].includes(name)) combat = await trainingProbe({ send, evaluate, waitFor, delay,
+      if (args.includes('--assert-training') && ['onboarding', 'practice-two', 'practice-three'].includes(name)) combat = await trainingProbe({ send, evaluate, waitFor, delay,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${name}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'recoil') combat = await recoilProbe({ send, evaluate, waitFor, delay,
         record: async entry => writeFile(join(output, `${prefix}-recoil-${entry.slot}.json`), JSON.stringify(entry, null, 2)),

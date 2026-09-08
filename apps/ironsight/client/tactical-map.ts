@@ -56,7 +56,7 @@ export class TacticalMap {
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
 
-  receivePing(payload: unknown, serverNow: number): void {
+  receivePing(payload: unknown, serverNow: number): TeamPing | undefined {
     if (!payload || typeof payload !== 'object') return;
     const p = payload as TeamPing;
     if (typeof p.from !== 'string' || p.from.length > 128 || !['go', 'enemy'].includes(p.kind) ||
@@ -66,6 +66,7 @@ export class TacticalMap {
     this.pings.delete(p.from);
     if (this.pings.size >= 6) this.pings.delete(this.pings.keys().next().value!);
     this.pings.set(p.from, { ...p });
+    return p;
   }
 
   update(state: ArenaState, myId: string, yaw: number, now: number, serverNow = now, active = true): void {

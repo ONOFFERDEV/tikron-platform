@@ -7,6 +7,7 @@ export class TrainingProgress {
   moved = 0;
   aimedMs = 0;
   hit = false;
+  private pingDone = false;
   readonly objectiveHoldMs = 100000 / MODES.dom.capturePerSec;
   readonly objectiveRadius = MODES.dom.captureRadius;
   heldMs = 0;
@@ -45,8 +46,12 @@ export class TrainingProgress {
   }
 
   confirmHit(): void { if (this.hasTargets) this.hit = true; }
+  /** Called only after validation of a server echo, never on local key-down. */
+  confirmPing(from: string, myId: string, active: boolean): void {
+    if (active && from === myId && this.step === 5) this.pingDone = true;
+  }
   get step(): number {
     return this.moved < 4 ? 0 : this.aimedMs < 500 ? 1 : this.hasTargets && !this.hit ? 2
-      : this.objective && !this.objectiveDone ? 4 : 3;
+      : this.objective && !this.objectiveDone ? 4 : !this.pingDone ? 5 : 3;
   }
 }

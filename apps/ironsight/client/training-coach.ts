@@ -63,7 +63,8 @@ export class TrainingCoach {
     this.card.dataset.step = String(step);
     const binds = settings.binds;
     const move = [binds.forward, binds.left, binds.back, binds.right].map(formatBinding).join(' / ');
-    const titles = ['01 / FIND YOUR FEET', '02 / STEADY YOUR AIM', '03 / LAND A HIT', this.progress.objective ? 'OBJECTIVE REHEARSED' : 'BASICS COMPLETE', '03 / HOLD OBJECTIVE A'];
+    const total = 3 + Number(this.progress.hasTargets) + Number(!!this.progress.objective);
+    const titles = ['01 / FIND YOUR FEET', '02 / STEADY YOUR AIM', '03 / LAND A HIT', 'TRAINING COMPLETE', '03 / HOLD OBJECTIVE A', `0${total} / MARK A ROUTE`];
     const details = [
       `${move} · Move four metres between cover. Use the minimap to keep your bearings.`,
       'Hold right mouse to aim down sights. Keep it steady for half a second.',
@@ -72,9 +73,12 @@ export class TrainingCoach {
         : this.progress.hasTargets ? `Try weapons 1–5 and ${formatBinding(binds.reload)} to reload. Esc → Deployment when you are ready for a match.`
         : 'This site is for exploration, with no targets. Esc → Deployment → Relay training for shooting practice.',
       `Find A on the minimap. Take the north aisle between the concrete screens. Stay within ${this.progress.objectiveRadius} m for ${this.progress.objectiveHoldMs / 1000} s. Rehearsal only; no score.`,
+      binds.ping.length
+        ? `Aim at a route, then press ${formatBinding(binds.ping)}. Look for + on the minimap and YOU / GO HERE. In team matches, allies see your mark for five seconds. Here, only you see it.`
+        : 'Team ping has no key assigned. Esc → Settings → Team ping: choose a key, then resume and mark a route. Training waits for your mark.',
     ];
-    const total = this.progress.hasTargets || this.progress.objective ? 3 : 2;
-    const text = [titles[step]!, details[step]!, step === 3 ? `${total} / ${total} COMPLETE · FREE PRACTICE` : `${step === 4 ? 2 : step} / ${total} COMPLETE · TRAINING`];
+    const done = step === 5 ? total - 1 : step === 4 ? 2 + Number(this.progress.hasTargets) : step;
+    const text = [titles[step]!, details[step]!, step === 3 ? `${total} / ${total} COMPLETE · FREE PRACTICE` : `${done} / ${total} COMPLETE · TRAINING`];
     [this.heading, this.detail, this.track].forEach((node, i) => { if (node.textContent !== text[i]) node.textContent = text[i]!; });
   }
 }

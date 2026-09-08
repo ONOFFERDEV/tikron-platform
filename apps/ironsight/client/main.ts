@@ -132,7 +132,13 @@ async function main(): Promise<void> {
       net.room.send('ping', { yaw: input.yaw, pitch: input.pitch });
     },
   );
-  net.room.onMessage('teamPing', p => tacticalMap.receivePing(p, net.serverNow()));
+  net.room.onMessage('teamPing', payload => {
+    const ping = tacticalMap.receivePing(payload, net.serverNow());
+    const state = net.state;
+    if (ping) training?.progress.confirmPing(ping.from, net.myId,
+      net.online && state?.phase === 'live' && !!state.players[net.myId]?.alive &&
+      document.pointerLockElement === scene.canvas);
+  });
   input.pitch = me0?.pitch ?? 0;
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };

@@ -24,6 +24,8 @@ describe('training objective rehearsal', () => {
     hold(p, 100000 / MODES.dom.capturePerSec - 50);
     expect(p.step).toBe(4);
     hold(p, 50);
+    expect(p.step).toBe(5);
+    p.confirmPing('self', 'self', true);
     expect(p.step).toBe(3);
     p.sample(false, 0, 0, false, 5000);
     expect(p.step).toBe(3); // learned lessons survive pauses/deaths
@@ -48,8 +50,25 @@ describe('training objective rehearsal', () => {
     const relay = new TrainingProgress(true), exploration = new TrainingProgress(false);
     prerequisites(relay); prerequisites(exploration);
     expect(relay.step).toBe(2);
-    expect(exploration.step).toBe(3);
+    expect(exploration.step).toBe(5);
     relay.confirmHit();
+    expect(relay.step).toBe(5);
+    relay.confirmPing('self', 'self', true);
     expect(relay.step).toBe(3);
+  });
+
+  it('requires an active own server echo during the ping lesson, never an earlier or ally mark', () => {
+    const p = new TrainingProgress(false);
+    p.confirmPing('self', 'self', true);
+    prerequisites(p);
+    expect(p.step).toBe(5);
+    p.confirmPing('ally', 'self', true);
+    p.confirmPing('self', 'self', false);
+    expect(p.step).toBe(5);
+    p.confirmPing('self', 'self', true);
+    expect(p.step).toBe(3);
+    p.sample(false, 0, 0, false, 1000);
+    expect(p.step).toBe(3);
+    expect(new TrainingProgress(false).step).toBe(0);
   });
 });

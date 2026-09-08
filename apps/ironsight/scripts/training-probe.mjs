@@ -1,3 +1,4 @@
+import { pingTrainingProbe } from './ping-training-probe.mjs';
 /** Exercise teaching with normal inputs and server state, without mutating lesson state. */
 export async function trainingProbe({ send, evaluate, waitFor, delay, capture }) {
   const step = () => evaluate('document.querySelector("#trainingCoach").dataset.step');
@@ -12,8 +13,9 @@ export async function trainingProbe({ send, evaluate, waitFor, delay, capture })
   await delay(1000);
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'right', buttons: 0, clickCount: 1 });
   const exploration = await evaluate('new URL(location.href).searchParams.get("map") === "arena2"');
-  await waitFor(`document.querySelector("#trainingCoach").dataset.step === "${exploration ? 4 : 2}"`);
-  await capture(exploration ? 'objective' : 'hit');
+  const hasTargets = await evaluate('!["arena2","arena3"].includes(new URL(location.href).searchParams.get("map"))');
+  await waitFor(`document.querySelector("#trainingCoach").dataset.step === "${exploration ? 4 : hasTargets ? 2 : 5}"`);
+  await capture(exploration ? 'objective' : hasTargets ? 'hit' : 'exploration');
   let objective;
   if (exploration) {
     const position = () => evaluate('(() => {const p=window.ironsight.state().players[window.ironsight.myId];return {x:p.x,z:p.z};})()');
@@ -54,15 +56,15 @@ export async function trainingProbe({ send, evaluate, waitFor, delay, capture })
     if (!await evaluate('document.querySelector("#trainingCoach progress").value === 0')) throw Error('Leaving A did not reset the rehearsal');
     await capture('objective-left');
     await walkTo(27,15);
-    await waitFor('document.querySelector("#trainingCoach").dataset.step === "3"');
+    await waitFor('document.querySelector("#trainingCoach").dataset.step === "5"');
     await capture('objective-complete');
     const after = await evaluate('({mode:window.ironsight.state().mode,a:window.ironsight.state().capA,red:window.ironsight.state().redScore,blue:window.ironsight.state().blueScore})');
     if (JSON.stringify(before) !== JSON.stringify(after)) throw Error('Rehearsal altered match scores or capture gauge');
     objective = {route, elapsedMs:Date.now()-started, before, after, pauseResets:true, leavingResets:true,
       holdMs:await evaluate('document.querySelector("#trainingCoach progress").max')};
   }
-  if (!exploration) {
-    for (let i = 0; i < 12 && await step() !== '3'; i++) {
+  if (hasTargets) {
+    for (let i = 0; i < 12 && await step() !== '5'; i++) {
       await evaluate(`(() => { const target=window.ironsight.state().players['bot-idle']; const p=window.ironsight.camPos();
         const dx=target.x-p.x,dz=target.z-p.z; window.ironsight.look(Math.atan2(dx,dz),Math.atan2(1.1-p.y,Math.hypot(dx,dz))); })()`);
       await delay(100);
@@ -71,13 +73,14 @@ export async function trainingProbe({ send, evaluate, waitFor, delay, capture })
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
       await delay(200);
     }
-    if (await step() !== '3') throw Error('Confirmed target hit did not complete training');
-    await capture('complete');
+    if (await step() !== '5') throw Error('Confirmed target hit did not reach ping training');
   }
+  const ping = await pingTrainingProbe({ send, evaluate, waitFor, delay, capture });
   const result = await evaluate(`(() => { const c=document.querySelector('#trainingCoach'),r=c.getBoundingClientRect();
     return { step:c.dataset.step, text:c.textContent, role:c.getAttribute('role'), visible:!c.hidden,
       outsideAim:r.right < innerWidth*.4, fits:r.bottom < innerHeight, players:Object.keys(window.ironsight.state().players).length }; })()`);
   result.objective = objective;
+  result.ping = ping;
   if (!result.visible || !result.outsideAim || !result.fits || result.role !== 'status') throw Error('Training layout/semantics failed');
   result.connectionLayouts = [];
   await waitFor('document.querySelector("#ping strong").textContent !== "MEASURING DELAY"');
