@@ -3,7 +3,7 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-41 are deployed there, including all three expanded maps,
+Supervisor reports sessions 1-42 are deployed there, including all three expanded maps,
 threat audio, weapon handling, combat presentation and shared recoil/accuracy. Session 32
 adds recent spawn-sightline memory. Session 33 adds Undertow orientation landmarks.
 Session 34 adds Switchyard half/lane silhouettes. Session 35 adds a compact training
@@ -14,7 +14,7 @@ faces these arrivals toward inner exits and restores authoritative aim on respaw
 Session 39 adds Undertow objective rehearsal. Session 40 adds rebindable Q team
 pings (aim, then mark; five-second snapshot). Session 41 adds a required own-mark
 training lesson on every map, including unbound-key guidance. Session 42 adds
-rebindable B / Need backup at your location and remains local until supervisor publication. Continue the standing brief defaults.
+rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 43 remains local until supervisor publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -338,8 +338,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 42. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session42-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 43. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session43-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -392,7 +392,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L05 | partial | 10 s warmup and skippable 20 s results; replicated countdown/5-8 s freeze absent. |
 | R-L06 | not yet | No replay capture or highlight sequence. |
 | R-L07 | not yet | No objective/assist-aware MVP selection. |
-| R-L08 | partial | Session40 rebindable Q resolves enemy/go-here from server aim, cover and live targets; allies only, 2 s cooldown, 5 s snapshot, max six markers. Authority tests and three real-input layouts pass. Session42 adds explicit rebindable B backup at a frozen server-derived caller location, sharing cooldown/lifetime/privacy; three layouts and real Settings rebind pass. Wheel, audio/acknowledgement and human muted-mic review remain open. |
+| R-L08 | partial | Session40 rebindable Q resolves enemy/go-here from server aim, cover and live targets; allies only, 2 s cooldown, 5 s snapshot, max six markers. Authority tests and three real-input layouts pass. Session42 adds explicit rebindable B backup at a frozen server-derived caller location, sharing cooldown/lifetime/privacy; three layouts and real Settings rebind pass. Session43 adds a 250 ms hold wheel on the same rebindable ping key: context/go/backup, centre/right-click/pause cancellation, frozen aim and three browser layouts. Audio/acknowledgement and human muted-mic review remain open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Normal bot HP/damage/reaction retained; collision navigation for DOM and patrol. Switchyard authored nine-point circuit omits spawn bays, staggered goal on every spawn. No difficulty progression. |
@@ -411,13 +411,13 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 42 reference audit: all 63 rows retained; static checks reproduced.
-Explicit backup now has its own rebindable key and authoritative caller snapshot.
+Session 43 reference audit: all 63 rows retained; static checks reproduced.
+Explicit context/route/backup selection now shares the rebindable ping key through a hold wheel.
 Re-ranked from partial/not-yet rows: acknowledgement and the combined first-match
 course stay first, followed by broader spawn evidence. The three-seed team
 baselines still do not justify a spawn-policy change. Remaining order retained.
 
-1. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Add ping acknowledgement and an explicit selection wheel; connect Relay shooting and Undertow
+1. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Add ping acknowledgement and communication audio; connect Relay shooting and Undertow
    objective rehearsal into a coherent first-match course. Review pings with
    muted microphones. Countdown and highlight colour choices remain absent;
    real outage timing and RTT comfort need review.
@@ -5699,3 +5699,116 @@ broader evidence warrants changes (yes). Industrial daylight, amber/teal, styliz
 sci-fi, server-verified hits,6v6 team modes and twelve-seat FFA remain defaults.
 Human wayfinding/learning, muted-mic communication, hands, headphones,6v6/RTT,
 iGPU/thermal and other browsers remain open. No answer needed to continue.
+
+
+### Session 43 - 2026-09-09: Hold-to-select contextual team communication
+
+Read the standing brief, Session43 supervisor status, plan and all63 design
+references. Started clean on ironsight-aaa, scope apps/ironsight/**. Reference:
+R-L08, R-L22, R-L14. Concrete target: keep one rebindable contextual ping key,
+open explicit context/go/backup selection after250ms, send only on deliberate
+release, cancel safely, freeze aim while selecting, and fit1920x1080,
+1280x600 and720x900 without overlapping existing HUD. Functional checks pass.
+All63 reference rows retained and static audit rerun. R-L08 remains partial:
+the wheel is implemented; acknowledgement/audio and muted-microphone human
+team review remain open. Re-ranked first-play gap toward those and the combined
+move/aim/shoot/objective/ping first-match course; broader spawn evidence next.
+
+Tap Q now sends the contextual mark on key release (under250ms). Hold Q opens
+three radial choices: up=context, left=Go here, right=Need backup.24px central
+dead zone cancels; right-click, blur, lost pointer lock, death/offline/inactive
+state cancel pending selection. Keyboard repeat cannot reopen a cancelled hold.
+Mouse motion while open selects without turning aim; shooting/ADS are suppressed
+while open and require a fresh press afterwards. Movement continues. B retains
+its direct backup shortcut. Both keys retain normal Settings conflict removal;
+the wheel follows a rebound ping key. The peripheral hint teaches tap/hold.
+Selection uses bounded mouse offsets and a small DOM overlay, updated only when
+its visible selection changes. No timers, scene lights or render passes added.
+
+Server accepts explicit go intent alongside context/backup, resolves its location
+through the existing authoritative aim/cover/bounds calculation, and forces the
+route label. Client position/sender/kind claims remain ignored. All kinds share
+the existing2s cooldown,5s lifetime, team-only privacy and private training echo;
+FFA rejects communication. No state codec, persistence shape, bot, map/collision,
+hit resolution or lifecycle change. Publish client and Worker together for the
+new intent; older servers reject explicit go. No asset/provenance/allowlist change,
+new dependency, bake or Meshy use. Spend0; reported balance1530.
+
+Three new tests cover tap/hold boundaries (including delayed rendering), rebound
+release, repeated/cancelled gestures, radial selection and server route privacy/
+authority/shared cooldown. Final full suite427 passed,6 existing/opt-in skips,
+45 files passed/4 skipped. Typecheck, client build and asset audit pass; evidence
+.inspect/session43-{typecheck,test,build-client,audit-assets}.log.
+
+Real-input wheel probe passes all three layouts, own server backup and route
+echoes, frozen server-observed aim, centre/right-click/pause cancellation, Q->V
+Settings rebinding, old-key rejection, and fast tap after rebinding. Evidence:
+session43-final-report.json, final-inspector.log and final-wheel-{1920,1280,720,
+backup-selected,backup-sent,go-sent,rebound}.png. Reproduce inspect-map.mjs
+--url http://localhost:8796 --shots practice-two,undertow-effects-stress
+--assert-ping-wheel --assert-budgets --prefix session43-final. No teleports,
+lesson writes, fabricated room events, HP edits or bot changes. Before image:
+session43-before-ping-1920.png; final wheel-backup-selected shares the unchanged
+Undertow arrival. Opened both plus720 wheel; selected amber border/underline,
+labels and centre sight gap are readable. Narrow viewport has no HUD overlap.
+This is solo functional evidence, not two-human muted-mic acceptance.
+
+Matched Undertow stress before/final reports: Edge/RTX5070 D3D11,1920x1080,
+balanced/DPR1, eleven remotes plus local rifle,145 twelve-rifle volleys,96 blasts,
+2130 samples with full effect drain. Browsers ran individually without concurrent
+CPU tests. Both budget assertions pass. session43-render-delta.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak draw calls including shadow work|189|189|0|
+|Peak submitted triangles|113966|113966|0|
+|Resident textures|23|23|0|
+|Estimated texture MiB|60.2513|60.2513|0|
+|Median/p95/p99 frame ms|6.9/7.1/7.1|6.9/7.1/7.1|0 rounded|
+|Max frame ms|7.6|7.6|0|
+|First-ready max ms|7.2|7.1|-.1|
+|Browser programs|19|19|0|
+
+Preparation273.8->273.7ms, construction46.1->46.0ms; no improvement claimed.
+Offline stress does not mount the wheel; ordinary-input probe covers it separately.
+Desktop figures do not establish mid-laptop iGPU60fps, human6v6/RTT or thermal/
+cold-driver acceptance. Public25,856,006->25,868,353bytes (+12,347); assets remain
+19,621,558bytes. Client1,928,118 and source map4,318,069bytes. Largest file:
+Switchyard architecture5,858,908bytes. session43-{before-bytes,bytes}.json.
+40MiB total/25MiB per-file asset gates pass. Final stress preceded only an input
+indentation fix; runtime content is unchanged by that final rebuild.
+
+Static session43-reference-audit.json reproduces tools/reference-audit.ts:
+Relay/Undertow23 full/14 waist, Switchyard42/10; no head-height cover. Sprint
+rotations14.44/11.56s,14.22/14.22/10.67s,14.44/14.44/11.11s; all maps150x100m,
+1,250m2/seat. ADS250/200/225/400/165ms, sprint recovery120/100/130/150/90ms,
+3s respawn, enemy/ally foley1.4, confirmed hit pip, two damage cues and five-row
+top-right feed retained. DOM4/8s capture,1point/2s/flag and no side swap still
+differ from reference. No new many-round pacing or side-fairness claim.
+
+Rejected intermediates: typecheck rejected importing DOM wheel code into the
+server test compilation; extracted the pure gesture state machine into its own
+module and kept DOM rendering client-only. Initial shell reads used unsupported
+PowerShell brace paths/nonexistent minimap/backup-probe names; corrected to actual
+files. Selected a radial three-choice hold with direct B retained; acknowledgement
+is a separate next task. No gate thresholds or hitch script changed.
+
+
+The optional training probe initially failed its first movement prerequisite:
+950ms of W left the actual four-metre lesson incomplete, with no console error.
+Failure retained as session43-training-report.json/failure.png/inspector.log.
+Changed only the probe to walk back through the same space for up to3s while
+checking actual lesson completion, always releasing S. No fixed key duration is
+accepted as movement; no threshold or gameplay change. The complete rerun passes
+Relay/Undertow/Switchyard: session43-training-final-report.json and inspector.log,
+per-map lesson/unbound/rebound/completion captures. Nine map/viewport lesson
+layouts fit and avoid HUD/aim overlap. Undertow17.457s route/hold/reset drill,
+4s actual unscored rehearsal, mode3/A100/score0:0 unchanged. Opened its1280 ping
+lesson. Original movement/aim/hit/objective/mark requirements remain intact.
+
+Exact required node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS: session43-required-inspector.log and required-report.json.
+All four accepted before/final/training-final/required reports have zero console
+errors or forbidden offline requests: session43-report-checks.json. Runtime/public
+files fixed through final training, required inspection and combat probe; only
+plan/evidence writes afterwards.

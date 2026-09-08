@@ -7,6 +7,18 @@ export async function trainingProbe({ send, evaluate, waitFor, delay, capture })
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
   await delay(950);
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
+  // The short forward segment can fall short of four metres. Walk back through
+  // the same clear space until the actual lesson credits it; a key duration is
+  // not evidence of displacement (nor should standing against cover count).
+  if (await step() === '0') {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 's', code: 'KeyS', windowsVirtualKeyCode: 83 });
+    try {
+      const deadline = Date.now() + 3000;
+      while (await step() === '0' && Date.now() < deadline) await delay(50);
+    } finally {
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 's', code: 'KeyS', windowsVirtualKeyCode: 83 });
+    }
+  }
   await waitFor('document.querySelector("#trainingCoach").dataset.step === "1"');
   await capture('aim');
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'right', buttons: 2, clickCount: 1 });

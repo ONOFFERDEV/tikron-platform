@@ -83,7 +83,7 @@ export class TacticalMap {
     }
     this.hint.hidden = !active || state.mode === 1 || state.phase !== 'live' || !me.alive;
     const backup = this.settings ? formatBinding(this.settings.get().binds.backup) : 'B';
-    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / aim, then mark\n${backup} / NEED BACKUP / at your location`;
+    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / tap mark, hold wheel\n${backup} / NEED BACKUP / at your location`;
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     const ctx = this.context;
     ctx.clearRect(0, 0, 360, 252); ctx.drawImage(this.floor, 0, 0);

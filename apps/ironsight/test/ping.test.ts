@@ -87,3 +87,16 @@ it('backup snapshots the authoritative caller, shares the contextual budget and 
   await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(50);
   expect(frames(a)).toHaveLength(2);
 });
+
+
+it('explicit route selection preserves server location and team privacy with the shared cooldown', async () => {
+  const h = await createTestRoom(PingArena, { codec: ArenaSchema });
+  const a = await h.connect(), enemy = await h.connect(), ally = await h.connect();
+  await a.send('ping', { yaw: 0, pitch: -.5, intent: 'go', kind: 'enemy', x: 999, from: enemy.id });
+  await h.advance(100);
+  expect(frames(a)).toHaveLength(1); expect(frames(ally)).toHaveLength(1); expect(frames(enemy)).toHaveLength(0);
+  expect(frames(a)[0]!.payload).toMatchObject({ from: a.id, kind: 'go' });
+  expect((frames(a)[0]!.payload as {x: number}).x).toBeLessThan(150);
+  await a.send('ping', { yaw: 0, pitch: 0, intent: 'backup' }); await h.advance(100);
+  expect(frames(a)).toHaveLength(1);
+});

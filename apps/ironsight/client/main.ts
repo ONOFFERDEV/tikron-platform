@@ -537,6 +537,7 @@ async function main(): Promise<void> {
       hud.setNades(me.nades);
     }
     if (state) { hud.setScores(state.redScore, state.blueScore); hud.setMatchContext(state, net.serverNow(), net.myId); }
+    input.updateCommunication(net.online && state?.phase === 'live' && !!state.players[net.myId]?.alive && state.mode !== 1);
     if (state) tacticalMap.update(state, net.myId, input.yaw, now, net.serverNow(), net.online && input.locked);
     const mode = state?.mode ?? 0;
     const modeId = MODE_ORDER[mode] ?? "tdm";

@@ -1,3 +1,4 @@
+import { pingWheelProbe } from './ping-wheel-probe.mjs';
 import { recoilProbe } from './recoil-probe.mjs';
 import { trainingProbe } from './training-probe.mjs';
 import { handlingProbe } from './handling-probe.mjs';
@@ -252,6 +253,8 @@ try {
         combat = {layouts, expiry:true, pauseClears:true, normalKey:true, rebound};
         await send('Emulation.setDeviceMetricsOverride', {width:1920,height:1080,deviceScaleFactor:1,mobile:false});
       }
+      if (args.includes('--assert-ping-wheel') && name === 'practice-two') combat = await pingWheelProbe({ send, evaluate, waitFor, delay, click,
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (args.includes('--assert-training') && ['onboarding', 'practice-two', 'practice-three'].includes(name)) combat = await trainingProbe({ send, evaluate, waitFor, delay,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${name}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'recoil') combat = await recoilProbe({ send, evaluate, waitFor, delay,

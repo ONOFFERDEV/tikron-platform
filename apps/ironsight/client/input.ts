@@ -1,3 +1,5 @@
+import { PingGesture, type PingIntent } from './ping-gesture.js';
+import { PingWheel } from './ping-wheel.js';
 /**
  * Raw input: pointer lock, the keyboard/mouse state, and accumulated look angles.
  * Produces a per-frame {@link MoveIntent} in the SERVER's basis (so the room and the
@@ -34,6 +36,10 @@ export class Input {
   /** Look-sensitivity multiplier (main sets it to fov/HIP_FOV so ADS zoom slows the turn). */
   sensScale = 1;
 
+  private readonly pingGesture = new PingGesture();
+  private readonly pingWheel = new PingWheel();
+  private communicationActive = false;
+
   private readonly held = new Set<string>();
   private firing = false;
   private jumpEdge = false;
@@ -51,7 +57,7 @@ export class Input {
     private readonly onCycle?: (dir: 1 | -1) => void,
     /** KeyG pressed: throw a grenade. */
     private readonly onNade?: () => void,
-    private readonly onPing?: (intent: 'context' | 'backup') => void,
+    private readonly onPing?: (intent: PingIntent) => void,
   ) {
     this.yaw = initialYaw;
     this.bind();
@@ -77,7 +83,7 @@ export class Input {
         } else if (binds.grenade.includes(e.code)) {
           if (!e.repeat) this.onNade?.();
         } else if (binds.ping.includes(e.code)) {
-          if (!e.repeat) this.onPing?.('context');
+          if (!e.repeat && this.communicationActive) this.pingGesture.begin(e.code, performance.now());
         } else if (binds.backup.includes(e.code)) {
           if (!e.repeat) this.onPing?.('backup');
         } else if (e.code.startsWith("Digit")) {
@@ -87,15 +93,25 @@ export class Input {
       }
       if (this.locked) this.held.add(e.code);
     });
-    window.addEventListener("keyup", (e) => this.held.delete(e.code));
+    window.addEventListener("keyup", (e) => {
+      this.held.delete(e.code);
+      const intent = this.pingGesture.release(e.code, performance.now());
+      this.pingWheel.update(this.pingGesture);
+      if (intent && this.locked && this.communicationActive) this.onPing?.(intent);
+    });
     // Losing window focus must not leave keys "stuck" down (tab-out mid-strafe).
     window.addEventListener("blur", () => {
+      this.cancelPing();
       this.held.clear();
       this.firing = false;
       this.adsHeldState = false;
     });
 
     this.canvas.addEventListener("mousedown", (e) => {
+      if (this.pingGesture.open) {
+        if (e.button === 2) this.cancelPing();
+        return;
+      }
       if (e.button === 2) {
         if (this.locked) this.adsHeldState = true;
         return;
@@ -125,6 +141,7 @@ export class Input {
       this.locked = document.pointerLockElement === this.canvas;
       if (this.locked) this.lockRetry = false;
       if (!this.locked) {
+        this.cancelPing();
         this.held.clear();
         this.jumpEdge = false;
         this.reloadEdge = false;
@@ -136,6 +153,9 @@ export class Input {
 
     document.addEventListener("mousemove", (e) => {
       if (!this.locked) return;
+      if (this.pingGesture.move(e.movementX, e.movementY, performance.now())) {
+        this.pingWheel.update(this.pingGesture); return;
+      }
       const s = this.settings.get();
       const sens = MOUSE_SENSITIVITY * s.sensitivity * this.sensScale;
       // Mouse-right must turn the view right: with forward=(sin yaw, cos yaw) and the FPS
@@ -147,6 +167,16 @@ export class Input {
       this.yaw = wrapTau(this.yaw);
     });
   }
+
+  updateCommunication(active: boolean): void {
+    this.communicationActive = active && this.locked;
+    if (!this.communicationActive) this.cancelPing();
+    this.pingGesture.update(performance.now());
+    if (this.pingGesture.open) { this.firing = false; this.adsHeldState = false; }
+    this.pingWheel.update(this.pingGesture);
+  }
+
+  private cancelPing(): void { this.pingGesture.cancel(); this.pingWheel.update(this.pingGesture); }
 
   /** Request pointer lock (from a user gesture, e.g. clicking the resume overlay). */
   lock(): void {
@@ -162,12 +192,12 @@ export class Input {
 
   /** Whether left-fire is currently held (only true while pointer-locked). */
   get isFiring(): boolean {
-    return this.firing && this.locked;
+    return this.firing && this.locked && !this.pingGesture.open;
   }
 
   /** Whether right-click ADS is currently held (only true while pointer-locked). */
   get adsHeld(): boolean {
-    return this.adsHeldState && this.locked;
+    return this.adsHeldState && this.locked && !this.pingGesture.open;
   }
 
   /**
