@@ -22,6 +22,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
     const low = h < 1.5, control = h > 4, screen = d > 8;
+    const accent = x < width / 2 ? 4 : 5;
     add(low ? 2 : control ? 1 : 0, x, (h - .18) / 2, z, w, h - .18, d);
     add(2, x, 0.14, z, w + 0.004, 0.28, d + 0.004);
     add(low ? 5 : 3, x, h - 0.09, z, w + 0.006, 0.18, d + 0.006);
@@ -32,7 +33,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
       // Break the 14m deployment walls into readable service bays.
       for (let pz = b.min.z + 1; pz < b.max.z; pz += 2.2) for (const side of [-1, 1]) {
         add(2, x + side * (w / 2 + 0.004), 1.65, pz, 0.008, 2.2, 1.65);
-        add(4, x + side * (w / 2 + 0.009), 1.65, pz, 0.006, 1.9, 1.36);
+        add(accent, x + side * (w / 2 + 0.009), 1.65, pz, 0.006, 1.9, 1.36);
         add(6, x + side * (w / 2 + 0.013), 2.48, pz, 0.004, 0.035, 1);
       }
     } else {
@@ -44,7 +45,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
             add(1, px, 2.4, face + side * 0.008, 1.0, 0.8, 0.005);
             add(6, px, 2.7, face + side * 0.012, 0.84, 0.025, 0.004);
           }
-          add(5, x, 0.85, face + side * 0.003, 0.8, 1.45, 0.01);
+          add(accent, x, 0.85, face + side * 0.003, 0.8, 1.45, 0.01);
           add(2, x, 0.85, face + side * 0.01, 0.64, 1.30, 0.005);
         } else {
           // Flush turbine end plates: concentric rings with a six-spoke rotor.
@@ -61,7 +62,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
             add(3, px, h * 0.49, face + side * 0.031, 0.25, 0.012, 0.25, true, Math.PI / 2);
           }
         }
-        add(5, x, h - 0.35, face, w - 0.25, 0.12, 0.01);
+        add(accent, x, h - 0.55, face, w - 0.25, 0.5, 0.01);
       }
       for (const side of [-1, 1]) for (let k = 0; k < 6; k++)
         add(2, x + side * (w / 2 + 0.007), 0.7 + k * 0.20, z, 0.012, 0.07, d * 0.65);
@@ -114,6 +115,15 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   context(2, 30, 23, -18, 8, 2, 7);
   context(3, 30, 24.15, -18, 8.2, 0.3, 7.2);
   context(6, 30, 23.2, -14.48, 6.7, 0.35, 0.03);
+  // Forked intake crown: one north-axis silhouette above the repeated low kit.
+  // Entirely beyond the boundary, including the widest crown; no new cover.
+  for (const dx of [-4.5, 4.5]) {
+    add(3, width / 2 + dx, 27, -18, 1.2, 14, 2.4);
+    add(4, width / 2 + dx, 32.8, -18, 1.24, 1.4, 2.44);
+  }
+  add(2, width / 2, 29, -18, 11, 0.7, 3);
+  for (const dx of [-2.4, -1.2, 0, 1.2, 2.4])
+    add(1, width / 2 + dx, 26.5, -18, 0.25, 4.4, 2);
   for (const level of [4, 7.2, 10.4]) {
     context(2, 30, level, -15.49, 3.8, 1.8, 0.025);
     for (let i = -2; i <= 2; i++) context(1, 30 + i * 0.65, level, -15.47, 0.15, 1.5, 0.015);
@@ -124,6 +134,30 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     context(1, x!, (h! - 2.4) / 2, z!, w!, h! - 2.4, d!);
     context(2, x!, h! - 1.2, z!, w! + 0.1, 2.4, d! + 0.1);
     context(4, x!, h! + 0.7, z!, w! * 0.7, 1.4, d! * 0.6);
+  }
+  // West = upright pale filter vessels; east = low amber service gantry.
+  // Shape carries orientation even without colour. Share the baked kit's six
+  // existing materials and atlas, and keep all extents outside the play volume.
+  for (const [z, height] of [[depth * .37, 21], [depth * .49, 26], [depth * .61, 21]] as const) {
+    const x = -8;
+    add(3, x, height / 2, z, 6, height, 6, true);
+    for (const y of [2, height - 4, height - .4])
+      add(4, x, y, z, 6.12, .65, 6.12, true);
+    add(2, x, height + .2, z, 5.5, .5, 5.5, true);
+    add(1, x + 3.12, height / 2, z, .24, height, .8);
+  }
+  for (const z of [depth * .34, depth * .66]) {
+    add(5, width + 5, 6, z, 1.2, 12, 1.2);
+    add(2, width + 5, 1.5, z, 1.3, 3, 1.3);
+  }
+  add(5, width + 5, 12, depth / 2, 1.6, 2, depth * .34);
+  for (let z = depth * .35; z < depth * .66; z += 2)
+    add(2, width + 4.17, 12, z, .04, 1.6, .35, false, Math.PI / 5);
+  // Southern pump-service flues answer the north crown with unequal round stacks.
+  for (const [x, height] of [[width * .43, 18], [width * .49, 14]] as const) {
+    add(2, x, height / 2, depth + 6, 2.4, height, 2.4, true);
+    add(5, x, height - 2, depth + 6, 2.44, 3, 2.44, true);
+    add(3, x, height, depth + 6, 3, .4, 3, true);
   }
   // Floor-only circulation marks; caps retain the authority's positions.
   for (const cap of Object.values(map.caps)) for (const side of [-1, 1]) {
@@ -148,7 +182,8 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     'WEST DECK', 'EAST DECK', 'CLARIFIER ROUTE', 'MAINTENANCE'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#203b43'; ctx.fillRect(0, i * 128, 1024, 128);
-    ctx.fillStyle = '#d7bd80'; ctx.fillRect(18, i * 128 + 22, 10, 84);
+    ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#8ad4bd' : '#e9b567';
+    ctx.fillRect(18, i * 128 + 22, 10, 84);
     ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial'; ctx.fillText(label, 52, i * 128 + 83);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
@@ -165,9 +200,11 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   }
   sign(1, map.caps.b.x, 2.25, 90.016, 0);
   sign(3, width / 2, 22.8, -14.46, 0, 6);
-  sign(3, width / 2, 2.1, 0.015, 0);
+  // One label per face: the former site label overlapped CLARIFIER ROUTE.
   sign(4, 46, 2.35, 44.016, 0, 4);
   sign(5, width - 46, 2.35, 44.016, 0, 4);
   sign(6, width / 2, 2.1, 0.016, 0, 5);
   sign(7, width / 2, 2.1, depth - .015, Math.PI, 6);
+  sign(4, .016, 3.6, depth / 2, Math.PI / 2, 12);
+  sign(5, width - .016, 3.6, depth / 2, -Math.PI / 2, 12);
 }

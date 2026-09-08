@@ -476,3 +476,30 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vist
 GLB: 5,016,936 bytes, 66,092 oriented triangles, ten material primitives.
 Ground AO: 145,770 bytes. Architecture audit matches the original source at
 0.1 mm position tolerance, with zero degenerate triangles. No Meshy credits spent.
+
+
+### Session 33: Undertow orientation kit (2026-09-09)
+
+Original procedural filter vessels identify the west half; the east half has an
+amber service gantry. A forked north control crown and unequal south pump flues
+separate the routes by silhouette. All new structures lie outside the playable
+rectangle. Existing cover receives teal/amber flush cladding; collision remains
+unchanged. The existing sign atlas adds west/east wall labels and removes one
+overlapping north-wall label, with no extra texture. No purchased inputs or Meshy
+credits. Existing original-asset allowlist applies.
+
+`maps/undertow-architecture.glb`: 3,937,488 bytes, 48,928 triangles, one 1024px AO
+image. `undertow-vista.webp`: 128,178 bytes, original production-renderer capture.
+Reproduce from the app directory (PowerShell, Blender 4.5):
+
+```powershell
+node tools/dump-architecture.mjs .inspect/session33-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session33-architecture.json
+python scripts/audit-architecture.py --input .inspect/session33-architecture.json
+pnpm dev:preview
+# In a second terminal after preview is ready:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista --prefix session33-vista --write-vista
+```
+
+No ground AO rebuild is needed: collision boxes/ramps and ground are unchanged;
+the added exterior equipment receives AO in the architecture bake.
