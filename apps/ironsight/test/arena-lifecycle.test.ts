@@ -33,7 +33,8 @@ async function expectPlayable(h: TestRoomHandle<ArenaState>) {
 }
 
 describe("arena lifetime across persisted rounds and empty seats", () => {
-  it.each([false, true])("cold-restores an ended snapshot; expired-before-join=%s", async (expire) => {
+  it.each(["reconnect", "expired", "join-during-disposal"])("cold-restores an ended snapshot: %s", async (scenario) => {
+    const expire = scenario !== "reconnect";
     const first = await createTestRoom(LifecycleArena, { id: "arena-tdm", codec: ArenaSchema });
     await first.connect("old-seat");
     await expectPlayable(first);
@@ -57,7 +58,29 @@ describe("arena lifetime across persisted rounds and empty seats", () => {
     if (expire) {
       // A persisted alarm may be the first event on a cold DO, before any join.
       vi.setSystemTime(Date.now() + 60_000);
-      await restored.room._alarm();
+      if (scenario === "join-during-disposal") {
+        // The core stops ticking BEFORE awaiting durable deletion and calling
+        // onDispose. A join in that gap must not leave an occupied room asleep.
+        const remove = restored.storage.delete.bind(restored.storage);
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        let notifyDeleting!: () => void;
+        const deleting = new Promise<void>(resolve => { notifyDeleting = resolve; });
+        restored.storage.delete = async key => {
+          const result = await remove(key);
+          notifyDeleting();
+          await gate;
+          return result;
+        };
+        const alarm = restored.room._alarm();
+        await deleting;
+        await restored.connect("new-seat");
+        release();
+        await alarm;
+        restored.storage.delete = remove;
+      } else {
+        await restored.room._alarm();
+      }
       expect(restored.snapshot().players["old-seat"]).toBeUndefined();
     }
     await restored.connect(expire ? "new-seat" : "old-seat");
@@ -67,6 +90,10 @@ describe("arena lifetime across persisted rounds and empty seats", () => {
     await player.send("syncView");
     await restored.advance(TICK_MS);
     expect(player.frames().some(f => f.t === "s:msg" && f.type === "ammo")).toBe(true);
+    const room = restored.room as LifecycleArena;
+    const ticks = room.ticks;
+    await restored.advance(10 * TICK_MS);
+    expect(room.ticks - ticks).toBe(10);
   });
 
   it("reuses an empty warm instance twice without duplicate ticks or stale bots", async () => {

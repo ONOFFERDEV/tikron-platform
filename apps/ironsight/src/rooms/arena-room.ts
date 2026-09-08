@@ -235,6 +235,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     for (const id of [...this.botBrains.keys()]) this.removeBot(id);
     this.grenades = [];
     this.restartVotes.clear();
+    // The core stops simulation, then awaits storage cleanup before this hook.
+    // A seat may have joined during that await, before dormant was set. That
+    // join could not resume the loop; finish the empty-room transition here.
+    if (this.clientCount > 0) this.resumeArena();
+  }
+
+  private resumeArena(): void {
+    if (!this.dormant || !this.simulation) return;
+    this.dormant = false;
+    this.resetMatch(Date.now());
+    if (this.gameMode.id !== "practice") this.enterWarmup();
+    super.setSimulationInterval(this.simulation.tick, this.simulation.intervalMs);
   }
 
   /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
@@ -327,12 +339,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   override onJoin(client: Client): void {
-    if (this.dormant && this.simulation) {
-      this.dormant = false;
-      this.resetMatch(Date.now());
-      if (this.gameMode.id !== "practice") this.enterWarmup();
-      super.setSimulationInterval(this.simulation.tick, this.simulation.intervalMs);
-    }
+    this.resumeArena();
     const team = this.gameMode.teams ? this.assignTeam() : 0;
     const p = this.initPlayer(client.id, team);
     this.spawnInto(p, client.id);

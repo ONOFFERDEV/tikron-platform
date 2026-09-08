@@ -3,9 +3,10 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-14 are deployed there, including the persisted-room
-fix, Switchyard, Relay service detail, uplinks and concrete detail. Session 15 ground
-continuity remains local until publication. Continue using the standing brief's active defaults.
+Supervisor reports sessions 1-15 are deployed there, including Switchyard, Relay
+service detail, uplinks, concrete detail and ground continuity. Session 16's
+join-during-disposal recovery fix remains local until publication. Continue using
+the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,13 +327,14 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 15. The supervisor's persisted-ended-room concern took
-precedence: retained the Session 10 fix, passed its three real-core restoration
-regressions and two preserved-state TDM probes including empty reuse. Session 12's
-natural ended-snapshot proof remains applicable; deployed eviction is still open.
-Selected Session 15 visual gap: exterior ground continuity. Fixed architecture
-loading deleting all three aprons, then delivered Relay paving/road/pads and a
-fog-covered horizon. Next default: first-person weapon/operator presentation.
+Re-ranked after Session 16. Selected the supervisor's persisted-ended-room failure
+ahead of art. A new real-core regression reproduced a join during asynchronous
+disposal leaving one seat in warmup without simulation. Fixed occupied-room
+recovery, passed all four lifecycle tests, and verified a naturally ended saved
+round through local cold restart and empty reuse with two green hitch probes.
+Actual deployed eviction/ordering qualification remains open; the harness race
+is not a claim about Cloudflare input-gate scheduling. Next default: first-person
+weapon/operator presentation, with the other visual priorities retained below.
 
 1. **Weapon/operator finish.** First-person sleeves still read as long angular
    tubes against the improving environment. Inspect moving five-weapon reload/grip
@@ -358,10 +360,11 @@ fog-covered horizon. Next default: first-person weapon/operator presentation.
    and real dropped-network detection; preserve accessible menus and reconnect flow.
 6. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
    thermal/cold-driver checks and headphone/owner approval remain unverified.
-7. **Deployed lifecycle qualification.** Local real-restoration tests cover ended
-   snapshots with/without alarm expiry. Session 12's natural round and preserved
-   state browser drill are logged below; actual preview DO eviction remains a
-   supervisor gate, not something inferred from local workerd.
+7. **Deployed lifecycle qualification.** Session 16 adds join-during-disposal to
+   ended-snapshot restoration coverage and repeats the natural ended-round,
+   preserved-state cold restart and empty reuse browser drill. Actual preview DO
+   eviction and storage/connection ordering remain supervisor checks. Escalate
+   any reproduced dead-room feedback ahead of art again.
 
 ### Session 1 — 2026-09-07
 
@@ -1997,3 +2000,112 @@ Relay (default: retain it), and should weapon finish now precede more environmen
 detail (default: yes). Keep industrial daylight, amber/teal, stylized sci-fi and
 6v6 TDM. Human play/audio/animation, target hardware, real RTT and deployed eviction
 acceptance remain open. Ready for supervisor review/publication; no commit/push/deploy.
+
+
+### Session 16 - 2026-09-08: close the join-during-disposal arena recovery gap
+
+Read the standing brief, Session 16 supervisor status and plan in order. Branch
+confirmed from HEAD as ironsight-aaa. Scope apps/ironsight/** only; no git commands,
+commit, push, deployment, SDK edit or dependencies. Worker build is the existing
+dry-run. No Meshy credits spent (1530 remain): the supervisor's persisted-room
+failure explicitly outranks art. The rejected cable drum remains unused.
+
+Reproduced a previously uncovered lifetime ordering: after an ended snapshot is
+cold-restored, an alarm expires its last seat. The core stops simulation before
+awaiting durable deletion and calling onDispose. A join during that await sees
+dormant=false, so onJoin cannot restart the loop. The later onDispose then leaves
+an occupied room dormant. Before the fix, the added real-core regression fails
+with exactly one player instead of four; phase stays warmup and bots never fill.
+Evidence: .inspect/session16-lifecycle-before.log. This demonstrates an ordering
+gap in the current app fix; it does not establish that this exact ordering caused
+the supervisor's older preview observation or bypasses Cloudflare input gates.
+
+Extracted the existing guarded resume path into resumeArena. onJoin still uses
+it; onDispose now also resumes when core clientCount shows a new seated human.
+Bot/runtime cleanup and a fresh safe round remain the empty-room policy. An
+actually empty room remains stopped. The retained preset callback preserves
+queued input draining, lag-history recording and authoritative state flushes.
+No extra polling/watchdog, competing loop, client state authority, collision,
+codec/version, hit rule or renderer changes.
+
+Expanded arena-lifecycle.test.ts with the delayed durable-delete scenario on a
+serialized ended snapshot. The existing immediate reconnect and alarm-before-join
+cases remain, and all three now assert exactly ten ticks over ten intervals in
+addition to four-seat fill, warmup -> live, bot movement and queued ammo sync.
+Repeated warm empty-instance reuse still checks dormancy and duplicate timers.
+The new regression failed before the source change and passes after it; all four
+lifecycle tests pass. The initial waitFor-based test synchronization advanced fake
+time unnecessarily; replaced it with an explicit storage-entry promise before
+final gates. No production timer or assertion threshold was relaxed.
+
+Code gates PASS: pnpm typecheck, pnpm test (319 passed, 3 existing opt-in skips;
+33 passing files and one skipped), pnpm build:client, pnpm build (dry-run),
+pnpm audit:assets. Logs: .inspect/session16-{typecheck,test,build-client,build,
+audit-assets}.log. Worker 235.27 -> 235.35 KiB (+0.08 KiB), gzip 69.94 -> 69.96 KiB.
+Asset/public bytes unchanged: 12,175,155 / 18,160,264; largest file 4,154,030 bytes.
+Both the 40 MiB public and 25 MiB per-file caps pass. No asset/texture additions.
+
+Required Relay and real Undertow practice inspection plus Relay effects stress
+PASS, zero console/runtime/HTTP errors and forbidden offline requests. Opened
+.inspect/session16-final-{relay,practice-two}.png; report and log use the same
+prefix. Compare Session 15 final captures for the unchanged art baseline;
+.inspect/session16-delta.json records the measured comparison. The behavior
+before/after evidence for this session is the failing/passing lifecycle regression
+and persisted-round drill, not an art improvement claim.
+
+Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Relay eye-level remains
+22 calls / 29,706 triangles. Stress (11 remote operators + local rifle/hands,
+145 twelve-rifle volleys, 96 blasts, 2,130 steady samples) remains 220 peak calls /
+90,286 triangles / 30 textures / estimated 63.751 MiB. Median/p95/p99/max remain
+6.9/7.1/7.1/7.5 ms; first-ready max remains 7.1 ms. Deltas at reported precision:
+0 calls, 0 triangles, 0 MiB, 0.0 ms. Effects drain completely. These desktop rAF
+intervals and allocation estimates are not iGPU, thermal, GPU-timer or real 6v6
+acceptance. Existing local workerd tick-backlog warnings remain in the server log.
+
+The natural TDM round used the fixed arena-tdm room and its existing local state.
+The normal 300-second live interval ended at red 19 / blue 39; probe saw 21 deaths
+and 21 respawns, max recorded frame 60.3 ms, zero recompiles / >150 ms frames /
+console errors. It waited 5.5 seconds in ended phase before exiting without a vote.
+Stopped the owned server promptly, then read the durable SQLite snapshot read-only:
+874 bytes, phase ended, stateVersion 4, four players and one human seat, matching
+19/39 score. SHA-256 and database path are in session16-persisted-ended.json and
+session16-persistence-source.json; raw snapshot stays ignored. Opened the natural
+ended screenshot. Reports: .inspect/session16-natural.{json,log},
+session16-natural-ended.png. No durable bytes were injected, replaced or cleared.
+
+Restarted against that same .wrangler/state, then ran the exact required command
+twice: node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json
+--assert. Both PASS. The second launched 85.599 seconds after the first report,
+allowing its seat to expire. No server restart, state clearing, isolated room,
+build or asset writes between these accepted probes. First cold-start population
+included the prior disconnected human seat plus the new human and two bots; by
+the end its expired seat had been replaced by a third bot. Reuse began and ended
+with one human plus three bots. This verifies both restored-seat expiry and bot
+backfill without miscounting the temporarily held seat as an active human.
+
+| Accepted TDM probe | Cold start from ended snapshot | Empty reuse |
+|---|---:|---:|
+| Warmup -> live after measurement starts | 7.484 s | 6.750 s |
+| Deaths / observed respawns | 3 / 2 | 3 / 2 |
+| Maximum recorded frame | 56.3 ms | 56.4 ms |
+| Recompiles / >150 ms frames / console errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Each third death occurred during the post-second-death observation; only two
+respawns were observed. Reports/logs: session16-hitch-{first,second}.{json,log},
+session16-reuse-start.json and session16-lifecycle-probes.json. Required
+.inspect/hitch.json is the second accepted run. This is local workerd persistence
+and reuse evidence, not real deployed Cloudflare eviction or concurrency proof.
+
+Cleanup: session16-preflight-cleanup.json and session16-cleanup.json confirm both
+owned twelve-process server trees stopped, zero remaining owned processes,
+port-8796 listeners or inspection browsers. Durable state is preserved. All final
+gates are green; evidence remains under ignored .inspect. No commit/push/deploy.
+
+Re-ranked the AAA gap list around this session's lifecycle priority and its new
+regression. Next visual default remains first-person sleeve/glove silhouettes and
+moving five-weapon reload/contact, then larger-scale environment wear. Open owner
+questions are nonblocking: should weapon finish precede more environment detail
+(default yes), and retain a fresh round after empty reuse/cold restore (default
+yes). Keep industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM. Human
+grip/audio/route review, representative hardware, real RTT and deployed eviction
+qualification remain open. No owner approval requested; supervisor owns publication.
