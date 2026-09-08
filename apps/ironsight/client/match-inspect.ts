@@ -23,7 +23,31 @@ export function startMatchInspector(): void {
       50, 42, 16, 9, solo, { rows, won: !shot.includes('defeat') });
   }
   const checks: Record<string, boolean> = {};
-  if (shot.startsWith('match-combat')) {
+  if (shot.startsWith('match-network')) {
+    document.body.style.background = "#10242b url('/assets/relay-vista.webp') center / cover fixed";
+    hud.setMode(0); hud.setScores(24, 19); hud.setWeapon(0); hud.setFps(60);
+    const panel = document.querySelector<HTMLElement>('#ping')!;
+    hud.setPing(0, true, 1000);
+    checks.measuring = panel.dataset.quality === 'measuring';
+    hud.setPing(40, true, 2000);
+    checks.low = panel.dataset.quality === 'low';
+    hud.setPing(180, true, 2500);
+    checks.spikeIgnored = panel.dataset.quality === 'low';
+    hud.setPing(180, true, 4500);
+    checks.high = panel.dataset.quality === 'high';
+    hud.setPing(40, false, 4600);
+    checks.offline = panel.textContent!.includes('RECONNECTING') && panel.textContent!.includes('— ms');
+    hud.setPing(40, false, 4700, true);
+    checks.expired = panel.textContent!.includes('CONNECTION LOST');
+    hud.setPing(0, true, 4800);
+    hud.setPing(shot.includes('high') ? 180 : shot.includes('delayed') ? 100 : 35, !shot.includes('offline'), 5500);
+    checks.separateAnnouncement = panel.querySelector('[role="status"]')?.textContent === panel.querySelector('strong')?.textContent
+      && !panel.querySelector('[role="status"]')?.textContent?.includes('fps');
+    const rect = panel.getBoundingClientRect();
+    checks.fits = rect.left >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight;
+    checks.outsideAim = rect.right < innerWidth * .4 || rect.bottom < innerHeight * .4;
+    if (Object.values(checks).some(ok => !ok)) throw Error(`Network HUD checks failed: ${JSON.stringify(checks)}`);
+  } else if (shot.startsWith('match-combat')) {
     const indicator = document.querySelector<HTMLElement>('#damage-direction')!;
     const flash = document.querySelector<HTMLElement>('#damage-flash')!;
     const hitTime = performance.now();

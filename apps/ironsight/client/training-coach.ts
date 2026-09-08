@@ -21,6 +21,8 @@ export class TrainingCoach {
     this.card.setAttribute('aria-atomic', 'true');
     const style = document.createElement('style');
     style.textContent = `#trainingCoach{position:fixed;left:28px;top:238px;width:250px;box-sizing:border-box;padding:16px 18px;background:#10242bf2;border-left:3px solid #edaa52;color:#e8efea;font:12px/1.5 system-ui;pointer-events:none;z-index:8}#trainingCoach[hidden]{display:none}#trainingCoach strong{display:block;font-size:14px;letter-spacing:.7px}#trainingCoach p{margin:8px 0 12px;color:#bdd0ce}#trainingCoach .steps{font-size:10px;letter-spacing:1px;color:#edaa52}#trainingCoach[data-step="3"]{border-color:#64c7cc}#trainingCoach[data-step="3"] .steps{color:#64c7cc}@media(max-height:650px),(max-width:800px){#trainingCoach{top:190px;left:16px;width:205px;padding:10px 12px;font-size:11px}}`;
+    // Leave breathing room under the two-line connection panel on short/narrow screens.
+    style.textContent += '@media(max-height:650px),(max-width:800px){#trainingCoach{top:202px}}';
     this.track.className = 'steps';
     this.card.append(this.heading, this.detail, this.track);
     document.head.append(style);

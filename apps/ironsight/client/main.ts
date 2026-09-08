@@ -539,7 +539,7 @@ async function main(): Promise<void> {
       fpsFrames = 0;
       fpsWindowStart = now;
     }
-    hud.setPing(net.rttMs);
+    hud.setPing(net.rttMs, net.online, now, net.connectionExpired);
 
     hud.setMuted(isMuted() || settings.get().volume === 0);
     if (phase === 'ended' || !net.online) closeGameplayMenus();

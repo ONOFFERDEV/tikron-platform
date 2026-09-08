@@ -9,7 +9,7 @@ import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
 
 // SWITCHYARD_METRICS=1 pnpm exec vitest run test/switchyard-metrics.tool.test.ts
-// Optional METRICS_PREFIX saves independent session evidence.
+// Optional METRICS_PREFIX and METRICS_SEED save independent reproducible rounds.
 // No shortened clocks, changed damage/respawn rules, teleports or scripted routes.
 // In-process room/production bot evidence; not workerd capacity or human balance.
 // @ts-expect-error Node-only opt-in tool.
@@ -18,9 +18,12 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
     // @ts-expect-error Node-only opt-in tool.
     const prefix: string = process.env.METRICS_PREFIX ?? 'session30';
     if (!/^[a-zA-Z0-9-]+$/.test(prefix)) throw new Error('Invalid METRICS_PREFIX');
+    // @ts-expect-error Node-only opt-in tool.
+    const seed = Number(process.env.METRICS_SEED ?? 0x30abc);
+    if (!Number.isInteger(seed) || seed < 1 || seed > 0xffffffff) throw new Error('Invalid METRICS_SEED');
     vi.useFakeTimers(); vi.setSystemTime(1_000_000);
     vi.spyOn(crypto, 'getRandomValues').mockImplementation(arr => {
-      if (arr) new Uint32Array(arr.buffer, arr.byteOffset, 1)[0] = 0x30abc;
+      if (arr) new Uint32Array(arr.buffer, arr.byteOffset, 1)[0] = seed;
       return arr;
     });
     const kills: { vx: number; vz: number; kx: number; kz: number }[] = [];
@@ -33,7 +36,7 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
       const h = await createTestRoom(ArenaRoomImpl, { id: 'arena-ffa', codec: ArenaSchema, sync: 'throttled' });
       // The real simulation fills twelve FFA seats; no observer consumes a slot.
       let liveAt = 0, endedAt = 0;
-      const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
+      const lives: { id: string; team: number; bornMs: number; initial: boolean; x: number; z: number; deathMs?: number; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
       let previous: Record<string, ArenaPlayer> = {};
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
@@ -45,10 +48,14 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
         const players = Object.entries(state.players);
         expect(players).toHaveLength(12);
         for (const [id, p] of players) {
-          if (!p.alive) { active.delete(id); continue; }
+          if (!p.alive) {
+            const ended = active.get(id);
+            if (ended) ended.deathMs = elapsed - liveAt - ended.bornMs;
+            active.delete(id); continue;
+          }
           let life = active.get(id);
-          if (!life) { life = { id, team: p.team, bornMs: elapsed - liveAt, initial: !previous[id] }; active.set(id, life); lives.push(life); }
-          if (life.damageMs === undefined && p.hp < (previous[id]?.hp ?? 100)) life.damageMs = elapsed - liveAt - life.bornMs;
+          if (!life) { life = { id, team: p.team, bornMs: elapsed - liveAt, initial: !previous[id], x: p.x, z: p.z }; active.set(id, life); lives.push(life); }
+          if (life.damageMs === undefined && p.hp < (previous[id]?.alive ? previous[id]!.hp : 100)) life.damageMs = elapsed - liveAt - life.bornMs;
           if (life.losMs === undefined && players.some(([otherId, e]) => {
             if (otherId === id || !e.alive) return false;
             const dx = e.x - p.x, dz = e.z - p.z, dy = e.y - p.y;
@@ -65,7 +72,7 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot twelve-player FFA round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
-        bounds: ARENA3.bounds, seed: 0x30abc, liveAtMs: liveAt, durationMs: endedAt - liveAt,
+        bounds: ARENA3.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         redScore: state.redScore, blueScore: state.blueScore, standings: Object.entries(state.players).map(([id, p]) => ({ id, kills: p.k, deaths: p.d })), lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);

@@ -3,12 +3,13 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-34 are deployed there, including all three expanded maps,
+Supervisor reports sessions 1-35 are deployed there, including all three expanded maps,
 threat audio, weapon handling, combat presentation and shared recoil/accuracy. Session 32
 adds recent spawn-sightline memory. Session 33 adds Undertow orientation landmarks.
 Session 34 adds Switchyard half/lane silhouettes. Session 35 adds a compact training
-coach for movement, aiming and confirmed hits; it remains local until supervisor
-publication. Continue the standing brief defaults.
+coach for movement, aiming and confirmed hits. Session 36 adds readable connection
+delay feedback and three-seed Switchyard contact evidence; it remains local until
+supervisor publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -330,8 +331,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 35. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session35-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 36. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session36-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -343,7 +344,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M04 | met | All-map ground BFS sprint rotations in 10-15 s: Switchyard 14.44/14.44/11.11 s, Undertow 14.22/14.22/10.67 s, Relay 14.44/11.56 s. Does not measure human retakes or vertical shortcuts. |
 | R-M05 | partial | Relay rifle decks, Undertow paired control shortcuts, Switchyard exposed four-ramp 3 m deck crossing both axes. Grounded traversal tested; player value unreviewed. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session32 natural twelve-seat FFA: respawn first-damage median 4.8 s (before 4.2); initial 3.5 s. 20-30 s remains unmet; one seeded round is not a pacing/fairness pass. |
+| R-M07 | not yet | Session36 three distinct-seed natural twelve-bot FFA rounds: observed respawn first-damage medians 4.8/4.5/4.5 s; pooled 4.6 s (636 observed, 13 unobserved). 20-30 s unmet; bot sampling is not human pacing acceptance. |
 | R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session32 adds server sightline memory sampled at most 2 Hz, fading over 3 s; death/expiry/round clear. Occupancy/current-LOS priority retained; regression tests and natural FFA heatmaps. All-exposed fallback and human camping acceptance remain. |
 | R-M10 | partial | Objective cover exists; defensive rings/approach quality not audited. |
@@ -356,7 +357,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Undertow north crown and Switchyard north bus mast remain exterior axis landmarks. Session34 adds distinct side silhouettes; no literal central weenie or all-lane visibility proof. |
 | R-M18 | partial | All maps now ground/3 m decks/6 m roofs plus 1.1 m waist cover. Switchyard four ramps cross both axes both ways grounded. Bots use ground navigation; player vantage review open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session32 before/final natural 300 s twelve-bot FFA rounds: 207/212 kills, JSON/SVG heatmaps and contact comparison PNG. No multi-round side-win or human fairness proof. |
+| R-M20 | partial | Session36 three 300 s twelve-bot FFA rounds: 214/224/215 kills, per-round JSON/SVG heatmaps, pooled contact and birth-sector summaries. Southern third has 443/636 observed respawn contacts. FFA has no side-win statistic; team-mode multi-round and human fairness remain open. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
@@ -395,7 +396,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L16 | partial | Shared movement/combat systems; no staged content progression. |
 | R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
-| R-L19 | partial | Server rewind/plausibility checks and numeric ping; network quality label absent. |
+| R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
 | R-L22 | partial | Minimap exists; contextual pings absent. |
@@ -403,18 +404,23 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 35 reference audit: all 63 rows retained; static checks reproduced. The
-bounded first-play training gap now has movement/aim/hit progression, with zero
-added texture memory. Spawn/contact evidence stays first; subsequent presentation
-work should address objective/ping learning and match flow. Human orientation,
-learning and encounter quality are still unverified.
+Session 36 reference audit: all 63 rows retained; static checks reproduced. Three
+distinct-seed Switchyard rounds reproduce short contact and concentrate sampled
+respawn lives in the south. The bounded presentation item now has RTT-based delay
+labels with zero added texture memory. Spawn-exit review stays first; objective/ping
+learning and match flow follow. Human orientation, learning and encounter quality
+are still unverified.
 
 1. **Spawn fairness and solo encounters (R-M07, R-M09, R-M20).** Current and recent
    LOS scoring implemented; all-exposed pools and very short FFA contact remain.
-   Gather multiple natural rounds and inspect spawn-exit sightlines/route heatmaps.
+   Session36 pooled observed respawn contact is 4.6 s; southern birth sectors
+   account for 443/636 observed contacts. Review southern spawn-exit routes and
+   cover against these three heatmaps; measure a controlled candidate before
+   retuning spawn policy. Team-mode side-win evidence is still missing.
 2. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Extend the new basic coach
-   with objective/ping lessons; contextual pings, countdowns, network-quality label
-   and highlight colour choices remain absent.
+   with objective/ping lessons; contextual pings, countdowns and highlight colour
+   choices remain absent. Session36 supplies delay labels; real outage timing and
+   RTT comfort need review.
 3. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps expanded;
    DOM capture/economy/side-swap and five-minute soft caps differ from reference.
    Gather real encounters before changing movement, TTK or economy together.
@@ -4587,3 +4593,154 @@ prioritize spawn/contact evidence and objective/ping learning next (yes).
 Industrial daylight, amber/teal, stylized sci-fi, server-verified hits and6v6
 team defaults remain. Human hands, headphones, novice learning, real players/RTT,
 iGPU/thermal and browser acceptance remain open. No owner answer needed.
+
+### Session 36 - 2026-09-09: readable connection delay and repeated FFA contact evidence
+
+Read the standing brief, Session36 supervisor status, plan and all 63 references.
+Started clean on ironsight-aaa; scope apps/ironsight/** only. Reference: R-M07,
+R-M09, R-M20, R-L19. Targets: reproduce natural contact across three distinct
+seeds against the 20-30 s reference; replace unexplained numeric ping with a
+stable, readable delay label without adding render resources. The presentation
+implementation checks pass. Contact target remains unmet; all four reference
+rows retain their partial/not-yet qualifications. Static reference audit reproduced,
+all 63 scorecard rows retained, gap list re-ranked toward southern spawn exits.
+
+Connection panel now reads MEASURING DELAY, LOW DELAY, NETWORK DELAY or HIGH
+NETWORK DELAY, with numeric RTT/FPS underneath. Known transport loss immediately
+shows RECONNECTING, then CONNECTION LOST on the existing expired-seat signal.
+This consumes existing Net.online/connectionExpired; no heartbeat, protocol,
+reconnection or room lifecycle change. It does not fix the previously documented
+slow detection of some actual outages. RTT estimates alone cannot establish
+packet loss, jitter, server health or competitive hit fairness.
+
+Presentation defaults: below80 ms low, >=80 ms delayed, >=160 ms high; recovery
+below65/140 ms and two seconds of sustained band change prevent boundary flicker.
+These are authored UX bands, not numbers claimed from R-L19. Invalid/nonpositive
+RTT remains measuring; known disconnect overrides a retained estimate. Only the
+status label enters a polite live region; numeric values update at most2 Hz and
+only when text changes. Text plus teal/amber accents avoid colour-only status.
+The small-screen training card and minimap leave room for the two-line panel.
+
+No lights, passes, GPU textures, geometry, assets or npm dependencies added. No
+collision, bot policy/stats, movement, damage, server-verified hit, codec or room
+change. Meshy spend0, reported balance1530; no asset generation/provenance change
+needed for this DOM/tooling session. Existing purchased derivatives stay ignored.
+
+Opened matched .inspect/session36-before-onboarding.png and
+session36-final-onboarding.png: same camera and target line, clear central combat
+corridor, legible delay label under the minimap. Six offline production-HUD
+fixtures (normal/delayed/high/offline, high at390x844 and1280x600) check measurement,
+spike rejection, sustained high delay, disconnect/expiry, announcement separation,
+viewport fit and aim clearance. All pass in session36-final-report.json; opened
+high-narrow.png. These synthetic estimates test UI, not real adverse networking.
+
+Real-input training probes retain ordinary W movement, right-mouse ADS and
+server-confirmed hits. Relay completes3/3; Undertow2/2 without targets; cards hide
+on pointer unlock. Extended scripts/training-probe.mjs checks actual connection,
+minimap and coach rectangles at1920x1080,1280x600,720x900. Panel-to-card gaps6/9/9px,
+map-to-panel9/9.25/9.25px on both maps; all fit. Evidence session36-layout-report.json,
+layout-inspector.log and six connection-size PNGs; opened the1280px Relay capture.
+Earlier session36-training-report.json/log retain the original progression drill.
+Screen-reader speech, translated labels, real outage/RTT and human comfort remain
+unverified; no broad accessibility or browser support claim.
+
+Switchyard telemetry now accepts validated METRICS_SEED/METRICS_PREFIX and records
+sampled life-start x/z and death time. New-life damage compares against fresh100HP
+instead of the previous dead player's0HP. No shortened clocks, scripted routes,
+teleports, human observer slot, altered bot stats or policy. Three full300 s rounds
+use production twelve-bot FFA in createTestRoom with fake time and seeded aim/spread.
+
+| Seed | Kills | Observed respawn contacts | Unobserved | Median first damage s |
+|---|---:|---:|---:|---:|
+| 224001 | 214 | 206 | 7 | 4.8 |
+| 224002 | 224 | 219 | 3 | 4.5 |
+| 224003 | 215 | 211 | 3 | 4.5 |
+
+Pooled636 observed/649 respawn lives: first-damage p10/median/p90=2.1/4.6/11.4 s;
+340 observed contacts under5 s,11 in20-30 s. Initial36 contacts median3.7 s.
+LOS opportunity median1.2 s (647 observed/two absent). Southern sampled birth
+sectors contain451/649 respawn lives and443/636 observed contacts; west/east
+southern first-damage medians4.1/4.5 s, north6.3/5.8 s. This concentration makes
+southern exits a concrete next review target; it does not establish why the
+spawn selector favours them or justify a policy retune by itself.
+
+Evidence .inspect/session36-seed-{224001,224002,224003}-bot-{round,debug}.json,
+-bot-heatmap.svg and individual test logs. Aggregate session36-contact-summary.json,
+.svg and.log. Reproduce each with SWITCHYARD_METRICS=1, METRICS_SEED=<seed>,
+METRICS_PREFIX=session36-seed-<seed>, pnpm exec vitest run
+ test/switchyard-metrics.tool.test.ts; then node scripts/summarize-contact.mjs
+session36 session36-seed-224001 session36-seed-224002 session36-seed-224003.
+The summary rejects repeated seeds and reports unobserved contacts separately.
+
+Limits:100ms samples,100m eye-segment LOS without FOV, life-start positions can
+already include motion, quantiles use observed contacts only. Instant lethal
+hits between samples can leave damage unobserved; these are never assigned zero.
+Final active lives have no recorded death. This is repeated bot evidence, not a
+controlled before/after gameplay change, deployed capacity or human pacing pass.
+FFA has no spawn-side win rate; team-mode multi-round fairness stays open.
+
+Matched effects stress, session36-render-delta.json: Edge152/RTX5070 D3D11,
+1920x1080 balanced/DPR1, eleven remote operators plus local rifle,145 twelve-rifle
+volleys,96 blasts,2130 samples and complete effect drain. Both --assert-budgets pass.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls including shadow work | 220 | 220 | 0 |
+| Peak submitted triangles | 128906 | 128906 | 0 |
+| Resident textures | 30 | 30 | 0 |
+| Estimated texture MiB | 63.7513 | 63.7513 | 0 |
+| Median/p95/p99 frame interval ms | 6.9/7.1/7.1 | 6.9/7.1/7.1 | 0 |
+| Max / first-ready max ms | 7.2/7.0 | 8.0/7.1 | +.8/+.1 |
+| Browser-resident programs | 27 | 27 | 0 |
+
+Offline effects do not mount the HUD; separate real-input captures validate its
+layout and the full-game hitch gate covers runtime use. No performance improvement
+claimed. Desktop intervals do not establish iGPU60 fps, thermal/cold-driver or
+real6v6/RTT acceptance. Public25,167,281 ->25,179,491 bytes (+12,210); assets
+18,976,213 unchanged. Bundle1,912,974, source map4,289,696; largest remains
+Switchyard architecture5,229,544. Evidence session36-{before-bytes,bytes}.json.
+Public40 MiB and per-file25 MiB caps pass; no new resident texture allocation.
+
+Required pnpm typecheck; pnpm test (411 passed,6 existing/opt-in skips;42 files
+passed/four skipped); pnpm build:client; pnpm audit:assets PASS. Evidence
+.inspect/session36-{typecheck,test,build-client,audit-assets}.log. Three optional
+natural-round runs pass separately. Static session36-reference-audit.json keeps
+cover classes, ground sprint rotations,1,250 m2/seat, handling timers, economy,
+respawn, audio and damage/feed checks; DOM economy mismatches remain open.
+
+Exact required node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS; session36-required-inspector.log and required-report.json.
+All five before/final/training/required/layout reports have zero console errors
+and forbidden offline network requests; session36-report-checks.json.
+
+Exact required node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS; hitch.json and session36-hitch.json/log.
+Twelve seats, two bot-caused deaths and two respawns; zero post-warmup recompiles,
+frames >150 ms, console errors or long tasks. Only frame >24 ms was startup59.7 ms.
+Live6.944 s, first damage30.625 s (23.681 s after live), deaths33.729/88.360 s,
+respawns36.693/92.018 s. Ordinary probe movement, no isolation/storage reset,
+teleport, bot-stat edit or hitch script/threshold change. Stable server log has
+no reload; server-error.log retains simulation-backlog and friendly-hit rejection
+warnings. No unmeasured explanation assigned to those warnings. Relay browser
+stability is separate from Switchyard in-process contact evidence.
+
+Rejected intermediates: no visual asset/model rejected. Baseline retained before
+runtime edits; only documentation/inspection tooling changed during final gates.
+Initial searches named two nonexistent test/tool files and used Windows wildcard
+paths unsupported by rg; corrected using directory searches. No gate assertion
+weakened. Supplemental layout probe added after the green hitch, passed with
+runtime files unchanged. No required test failures or gate reruns were needed.
+
+Cleanup session36-cleanup.json: twelve owned stable-preview processes stopped;
+zero remaining owned processes, port8796 listeners or inspection browsers.
+Earlier preview tree stopped in session36-before-cleanup.json. Whitespace and
+scope checks pass; all changed paths are apps/ironsight/**. No commit, push,
+deployment or publication; supervisor owns preview release.
+
+Open owner questions/defaults: keep concise delay bands and quiet numeric detail
+(yes; calibrate labels after real RTT review); review southern Switchyard exits
+against these three heatmaps before a controlled cover/spawn candidate (yes).
+Keep industrial daylight, amber/teal, stylized sci-fi, server-verified hits and
+six-versus-six team defaults/twelve-seat FFA. Objective/ping teaching, real outage
+detection, moving hands, headphones, novice learning, real players/RTT, iGPU/thermal
+and browser acceptance remain open. No owner answer needed to continue.

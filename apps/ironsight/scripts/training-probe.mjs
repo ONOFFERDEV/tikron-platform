@@ -31,6 +31,22 @@ export async function trainingProbe({ send, evaluate, waitFor, delay, capture })
     return { step:c.dataset.step, text:c.textContent, role:c.getAttribute('role'), visible:!c.hidden,
       outsideAim:r.right < innerWidth*.4, fits:r.bottom < innerHeight, players:Object.keys(window.ironsight.state().players).length }; })()`);
   if (!result.visible || !result.outsideAim || !result.fits || result.role !== 'status') throw Error('Training layout/semantics failed');
+  result.connectionLayouts = [];
+  for (const [width, height] of [[1920, 1080], [1280, 600], [720, 900]]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    await delay(50);
+    const layout = await evaluate(`(() => {
+      const c=document.querySelector('#trainingCoach').getBoundingClientRect();
+      const p=document.querySelector('#ping').getBoundingClientRect();
+      const m=document.querySelector('#tacticalMap').getBoundingClientRect();
+      return {width:innerWidth,height:innerHeight,gap:c.top-p.bottom,mapGap:p.top-m.bottom,
+        fits:c.right<=innerWidth && c.bottom<=innerHeight,delay:document.querySelector('#ping strong').textContent};
+    })()`);
+    if (!layout.fits || layout.gap < 6 || layout.mapGap < 6 || layout.delay === 'MEASURING DELAY') throw Error(`Connection/training overlap or missing clock: ${JSON.stringify(layout)}`);
+    result.connectionLayouts.push(layout);
+    await capture(`connection-${width}`);
+  }
+  await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await evaluate('document.exitPointerLock()');
   await delay(200);
   if (!await evaluate('document.querySelector("#trainingCoach").hidden')) throw Error('Training overlaps paused menu');

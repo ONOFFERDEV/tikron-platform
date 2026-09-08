@@ -7,6 +7,7 @@
 import { MODE_ORDER, isTeamless } from "../src/modes.js";
 import { GAME } from "../src/game-config.js";
 import { damageDirection } from './damage-direction.js';
+import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -131,7 +132,11 @@ const css = `
 #wbar .nades{background:transparent;font-size:10px}
 #scores{top:28px;gap:22px;padding:9px 22px;font-variant-numeric:tabular-nums}
 #mode{top:79px;opacity:.9;color:#dce6df;text-shadow:0 1px 3px #000;font-size:10px}
-#ping{top:194px;left:28px;font-size:10px;letter-spacing:1px;background:#10242bd9}
+#hud #ping{top:194px;left:28px;opacity:1;font-size:10px;line-height:12px;letter-spacing:.7px;background:#10242bf2;padding:6px 10px;border-left:2px solid #64c7cc}
+#ping strong,#ping span{display:block}#ping strong{font-size:10px;color:#bce6df}#ping span{color:#bdd0ce;font-size:9px;letter-spacing:.4px}
+#hud #ping[data-quality="delayed"],#hud #ping[data-quality="high"],#hud #ping[data-quality="offline"]{border-left-color:#edaa52}
+#ping[data-quality="delayed"] strong,#ping[data-quality="high"] strong,#ping[data-quality="offline"] strong{color:#ffd097}
+@media(max-width:800px),(max-height:650px){#hud #ping{top:155px;left:16px}#tacticalMap{transform:scale(.75);transform-origin:top left}}
 #lb{background:#10242bdd;border-top:2px solid #edb467;padding:8px;top:28px}
 #hud #lb{top:245px;left:28px;transform:none;min-width:180px}
 #feed{top:28px;right:28px;font-size:12px}
@@ -384,7 +389,11 @@ export class Hud {
     this.elimination.setAttribute('aria-live', 'polite');
     this.elimination.setAttribute('aria-atomic', 'true');
     this.root.appendChild(this.elimination);
-    this.ping = el("div", "ping"); this.ping.className = "panel"; this.ping.textContent = "-- ms";
+    this.ping = el("div", "ping"); this.ping.className = "panel";
+    this.delayLabel.setAttribute('role', 'status');
+    this.delayLabel.setAttribute('aria-live', 'polite');
+    this.ping.append(this.delayLabel, this.delayNumbers);
+    this.setPing(0);
     this.root.appendChild(this.ping);
     this.vignette = el("div", "vignette"); this.root.appendChild(this.vignette);
     this.damageFlash = el('div', 'damage-flash'); this.root.appendChild(this.damageFlash);
@@ -573,8 +582,29 @@ export class Hud {
     this.vignette.style.boxShadow = 'none';
   }
 
-  setPing(ms: number): void {
-    this.ping.textContent = `${this.fps} fps · ${Math.round(ms)} ms`;
+  private readonly quality = new ConnectionQuality();
+  private readonly delayLabel = document.createElement('strong');
+  private readonly delayNumbers = document.createElement('span');
+  private nextDelayNumbersAt = 0;
+  private wasOnline = true;
+
+  setPing(ms: number, online = true, now = performance.now(), expired = false): void {
+    const band = this.quality.update(ms, online, now);
+    const label = expired && !online ? 'CONNECTION LOST' : DELAY_LABELS[band];
+    if (this.delayLabel.textContent !== label) {
+      this.delayLabel.textContent = label;
+      this.ping.dataset.quality = band;
+      this.ping.title = band === 'high' || band === 'delayed'
+        ? 'Round-trip network delay. Hit confirmations may arrive later. This does not measure packet loss.'
+        : band === 'offline' ? 'Waiting for your room connection.' : 'Estimated round-trip network delay and rendered frames per second.';
+    }
+    // Numbers stay out of the live region and update at most twice a second.
+    if (now >= this.nextDelayNumbersAt || online !== this.wasOnline) {
+      this.nextDelayNumbersAt = now + 500;
+      this.wasOnline = online;
+      const text = `${online && Number.isFinite(ms) && ms > 0 ? Math.round(ms) : '—'} ms RTT · ${this.fps || '—'} fps`;
+      if (this.delayNumbers.textContent !== text) this.delayNumbers.textContent = text;
+    }
   }
 
   private fps = 0;
