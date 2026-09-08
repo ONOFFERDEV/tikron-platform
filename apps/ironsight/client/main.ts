@@ -26,6 +26,7 @@ import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { startMatchInspector } from "./match-inspect.js";
 import { Hud } from "./hud.js";
+import { TrainingCoach } from './training-coach.js';
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
@@ -95,6 +96,7 @@ async function main(): Promise<void> {
   const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
 
   if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1');
+  const training = net.state?.mode === 3 ? new TrainingCoach(practiceMapKeyFromRoomId(net.roomId) === 'arena1', settings) : null;
 
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
@@ -226,6 +228,7 @@ async function main(): Promise<void> {
     }
   });
   net.onHit((e) => {
+    training?.progress.confirmHit();
     hud.showHitmarker(e.head);
     playHit(e.head);
   });
@@ -391,6 +394,8 @@ async function main(): Promise<void> {
     const alive = me?.alive ?? false;
     handling.update(now, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, isSprinting(intent, predictor.isGrounded), intent.ads === true,
       !active || now < reloadUntil || now < swapUntil);
+    training?.update(now, active && document.pointerLockElement === scene.canvas, me?.x ?? 0, me?.z ?? 0,
+      handling.adsProgress >= 1, dt);
 
     // Camera from prediction (local, immediate) — needed here already: a confirmed
     // shot below anchors its tracer/casing to this same live eye position.

@@ -1,4 +1,5 @@
 import { recoilProbe } from './recoil-probe.mjs';
+import { trainingProbe } from './training-probe.mjs';
 import { handlingProbe } from './handling-probe.mjs';
 import { firstPlay, menuProbe } from './first-play.mjs';
 import { spawn } from 'node:child_process';
@@ -199,6 +200,8 @@ try {
             combat.ordinaryPeak !== 16 || combat.threatPeak !== 20 || combat.drained !== 0)
           throw Error(`Threat audio graph failed: ${JSON.stringify(combat)}`);
       }
+      if (args.includes('--assert-training') && ['onboarding', 'practice-two'].includes(name)) combat = await trainingProbe({ send, evaluate, waitFor, delay,
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${name}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'recoil') combat = await recoilProbe({ send, evaluate, waitFor, delay,
         record: async entry => writeFile(join(output, `${prefix}-recoil-${entry.slot}.json`), JSON.stringify(entry, null, 2)),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });

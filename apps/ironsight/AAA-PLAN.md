@@ -3,10 +3,11 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-33 are deployed there, including all three expanded maps,
+Supervisor reports sessions 1-34 are deployed there, including all three expanded maps,
 threat audio, weapon handling, combat presentation and shared recoil/accuracy. Session 32
 adds recent spawn-sightline memory. Session 33 adds Undertow orientation landmarks.
-Session 34 adds Switchyard half/lane silhouettes and remains local until supervisor
+Session 34 adds Switchyard half/lane silhouettes. Session 35 adds a compact training
+coach for movement, aiming and confirmed hits; it remains local until supervisor
 publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -83,10 +84,11 @@ follow-ups, not a claim of human playtest or laptop performance acceptance.
    angular forearms across the lower screen. Review them in motion and at normal
    FOV before changing the authored grip or purchased derivative. Remote palm,
    finger and moving reload approval from the guide remains open.
-4. **Training has no guided progression.** Undertow and Switchyard intentionally
-   have no targets; menu and onboarding now say so and direct shooting practice
-   to Relay. There is no completed-step checklist, route tour or target reset
-   button. Relay's passive pose names are animation labels rather than lessons.
+4. **Training progression is basic.** Session35 recognizes four metres of movement,
+   half a second at full ADS and a confirmed target hit in Relay, with a peripheral
+   progress card. Undertow/Switchyard finish after movement/aim and direct shooting
+   practice to Relay. Objective/ping lessons, a route tour and a target reset button
+   remain absent. Rejoining training restarts the local lesson.
 5. **Precise round-transition countdowns.** Warmup now says it starts automatically;
    results allow twenty seconds and R has a one-second grace against accidental
    reload-to-rematch votes. Neither screen displays a replicated transition
@@ -328,8 +330,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 34. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session34-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 35. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session35-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -383,7 +385,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L06 | not yet | No replay capture or highlight sequence. |
 | R-L07 | not yet | No objective/assist-aware MVP selection. |
 | R-L08 | not yet | No contextual team ping system. |
-| R-L09 | partial | Controls/onboarding and targets; no guided progression/objective/ping lesson. |
+| R-L09 | partial | Session35 peripheral coach recognizes 4 m authoritative movement, 500 ms at full ADS and a confirmed Relay hit. Real-input Relay/Undertow progression and pause-hide probes pass; objective/ping lessons and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow/Switchyard training remains explicitly empty traversal practice. No first-match progression. |
 | R-L11 | partial | Normal bot HP/damage/reaction retained; collision navigation for DOM and patrol. Switchyard authored nine-point circuit omits spawn bays, staggered goal on every spawn. No difficulty progression. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
@@ -401,16 +403,18 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 34 reference audit: all 63 rows retained; static checks reproduced. Both
-Undertow and Switchyard now have distinct perimeter silhouettes with zero added
-texture memory. Re-rank to unresolved contact and first-play presentation; human
-orientation and encounter quality are still unverified.
+Session 35 reference audit: all 63 rows retained; static checks reproduced. The
+bounded first-play training gap now has movement/aim/hit progression, with zero
+added texture memory. Spawn/contact evidence stays first; subsequent presentation
+work should address objective/ping learning and match flow. Human orientation,
+learning and encounter quality are still unverified.
 
 1. **Spawn fairness and solo encounters (R-M07, R-M09, R-M20).** Current and recent
    LOS scoring implemented; all-exposed pools and very short FFA contact remain.
    Gather multiple natural rounds and inspect spawn-exit sightlines/route heatmaps.
-2. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Guided training, contextual
-   pings, countdowns, network-quality label and highlight colour choices.
+2. **First-play/flow/accessibility (R-L08-10, R-L19-23).** Extend the new basic coach
+   with objective/ping lessons; contextual pings, countdowns, network-quality label
+   and highlight colour choices remain absent.
 3. **Layout/mode pacing (R-M04, R-M07, R-M19, R-L02).** All maps expanded;
    DOM capture/economy/side-swap and five-minute soft caps differ from reference.
    Gather real encounters before changing movement, TTK or economy together.
@@ -4470,3 +4474,116 @@ evidence or a bounded first-play presentation improvement (yes). Keep industrial
 daylight, amber/teal, stylized sci-fi, six-versus-six team defaults and twelve-seat
 Switchyard FFA. Hands, headphones, real players/RTT, iGPU/thermal and browser
 acceptance remain open. No owner answer needed; supervisor owns publication.
+
+### Session 35 - 2026-09-09: guided first steps in training
+
+Read standing brief, Session35 status, plan and all 63 references. Started clean
+on ironsight-aaa; scope apps/ironsight/** only. Reference: R-L09. Target: one
+peripheral lesson at a time; recognize 4 m actual movement, 500 ms fully acquired
+ADS, and a server-confirmed target hit. Never assign shooting on empty maps.
+These bounded checks pass. R-L09 remains partial: objective/ping lessons and
+human learning review remain open. All 63 scorecard rows retained, static audit
+reproduced and gap list re-ranked. Spawn fairness remains first overall; selected
+the next bounded first-play item without another evidence-free gameplay retune.
+
+TrainingCoach adds an amber/teal card below the minimap with a current instruction
+and completed-step count. Relay teaches movement/aim/hit; Undertow/Switchyard
+teach movement/aim then direct shooting practice to Relay. Completion suggests
+five weapon slots, reload and deployment, clearing after twelve seconds. Already
+demonstrated aim/hit counts even if movement is still the current lesson.
+Movement samples authoritative x/z displacement, ignores jumps >=2 m and resets
+its reference when inactive. Holding a key at a wall cannot advance it. Aim
+requires full WeaponHandling acquisition plus 500 ms uninterrupted hold. Hits
+consume only Net.onHit confirmation; lesson progress grants no gameplay reward.
+
+Card hides without pointer lock, liveness or connection. Completed steps survive
+an in-page pause/reconnect; rejoining starts a fresh lesson. Movement/reload labels
+follow current binds. A polite atomic status region uses textContent and updates
+text only on step/settings changes. No input interception, animation, audio,
+lights, geometry, GPU textures, passes, dependencies or new assets. No collision,
+room, bot, wire, lifecycle or hit-rule changes. Meshy spend0, reported balance1530;
+no new asset provenance/allowlist needed.
+
+Before .inspect/session35-before-onboarding.png and matched after
+session35-training-onboarding-move.png were both opened: unchanged camera/target
+line, card in the left margin, clear combat corridor. Also opened Relay completion
+and Undertow exploration images. Additional session35-training-onboarding-
+{aim,hit,complete}.png and session35-training-practice-two-{move,aim,exploration}.png
+show real progression. Completion closeup is an interaction capture, not a
+matched before/after view.
+
+New optional inspector --assert-training runs scripts/training-probe.mjs with
+normal W movement, right-mouse ADS, look steering and left-mouse fire. Relay
+reaches3/3 after a confirmed hit; Undertow reaches2/2 with one seat/no targets.
+Both cards fit1920x1080, end left of40% viewport width, have role=status and hide
+on pointer unlock. Evidence session35-training-report.json/log and step PNGs.
+No lesson-state mutation, teleport or replacement hit message. Screen-reader
+speech, narrow-screen ergonomics, rebind interaction and novice learning remain
+human review items; no broad accessibility acceptance claim.
+
+Matched before/final Relay effects: session35-{before,final}-perf-report.json,
+PNG/log and session35-render-delta.json. Edge152/RTX5070 D3D11,1920x1080 balanced,
+eleven remote operators plus local rifle,145 twelve-rifle volleys,96 blasts,
+2130 steady samples and complete effect drain. Both --assert-budgets pass.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls including shadow work | 220 | 220 | 0 |
+| Peak submitted triangles | 128906 | 128906 | 0 |
+| Resident textures | 30 | 30 | 0 |
+| Estimated texture MiB | 63.7513 | 63.7513 | 0 |
+| Median/p95/p99 frame interval ms | 6.9/7.1/7.1 | 6.9/7.1/7.1 | 0 |
+| Max frame interval ms | 7.7 | 8.2 | +.5 |
+| First-ready max ms | 7.1 | 7.1 | 0 |
+| Browser-resident programs | 27 | 27 | 0 |
+
+Offline effects fixtures do not mount training DOM; the separate real-input
+drill verifies its presentation. No performance improvement claimed. Desktop
+intervals do not prove iGPU60 fps, thermal/cold-driver or real6v6/RTT acceptance.
+Public25,167,281 bytes, +12,137 versus Session34's recorded25,155,144 baseline;
+assets18,976,213 unchanged. Bundle1,908,493/source map4,281,967 bytes. Largest
+file remains Switchyard architecture5,229,544. session35-bytes.json records the
+comparison; public40 MiB/per-file25 MiB caps pass.
+
+session35-reference-audit.json reproduces cover classes, ground sprint rotations,
+1,250 m2/seat, ADS/sprint timers, mode economy, respawn, audio and HUD checks.
+No new natural pacing distribution for unchanged gameplay. Short FFA contact,
+DOM economy and objective/ping learning remain open.
+
+Rejected intermediates: first coach draft formatted instructions every frame;
+final caches by step/settings snapshot. No model/visual candidate rejected.
+A Windows wildcard rg query, two nonnumeric Select-Object limits and an exact-
+context log patch failed; corrected without app/evidence loss. No gate assertion,
+threshold or hitch script changed. Final source/public stayed fixed through
+required inspection, effects and hitch; stable server log has no reload.
+Server-error.log retains simulation-backlog and friendly-hit rejection warnings;
+browser gate passed. No attribution of server warnings to an unmeasured cause.
+
+Required pnpm typecheck; pnpm test (408 passed,6 existing/opt-in skips;41 files
+passed/four skipped); pnpm build:client; pnpm audit:assets PASS. Evidence
+.inspect/session35-{typecheck,test,build-client,audit-assets}.log. Exact required
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS; session35-required-inspector.log and required-report.json. Five reports
+have zero console errors/forbidden offline network requests; report-checks.json.
+
+Exact required node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS. Evidence hitch.json, session35-hitch.json/log:
+twelve seats, two bot-caused deaths and two respawns; zero post-warmup recompiles,
+frames >150 ms, console errors or long tasks. Only frame >24 ms was startup62 ms.
+Live7.202 s, first damage28.249 s (21.047 s after live), deaths28.855/101.512 s,
+respawns31.812/104.566 s. Ordinary probe movement; no isolation, storage reset,
+teleport or bot-stat edit. This is Relay stability evidence, not an all-map
+natural-contact distribution.
+
+session35-cleanup.json: eleven owned stable-preview processes stopped; zero
+remaining owned processes, port8796 listeners or inspection browsers. Earlier
+tree stopped in session35-before-cleanup.json. Whitespace/scope checks pass.
+All standing gates green. No commit, push, deploy or external publication;
+supervisor owns preview release.
+
+Open owner questions/defaults: retain three-step Relay/two-step exploration
+coach (yes); restart on rejoin instead of adding account progression (yes);
+prioritize spawn/contact evidence and objective/ping learning next (yes).
+Industrial daylight, amber/teal, stylized sci-fi, server-verified hits and6v6
+team defaults remain. Human hands, headphones, novice learning, real players/RTT,
+iGPU/thermal and browser acceptance remain open. No owner answer needed.
