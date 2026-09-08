@@ -119,6 +119,10 @@ export interface WeaponSpec {
   readonly damageHead: number;
   /** Server-enforced minimum ms between trigger pulls (fire-rate cap). */
   readonly fireIntervalMs: number;
+  /** Time to settle sights; aimed fire is blocked during acquisition. */
+  readonly adsMs: number;
+  /** Recovery after leaving forward grounded sprint. */
+  readonly sprintToFireMs: number;
   readonly mag: number;
   /** Spare rounds available to reload from. */
   readonly reserve: number;
@@ -155,6 +159,8 @@ export interface WeaponSpec {
 const AR_SPEC: WeaponSpec = {
   slot: 1,
   name: "AR",
+  adsMs: 250,
+  sprintToFireMs: 120,
   damageBody: 25,
   damageHead: 50,
   fireIntervalMs: 100,
@@ -177,6 +183,8 @@ const AR_SPEC: WeaponSpec = {
 const SMG_SPEC: WeaponSpec = {
   slot: 2,
   name: "SMG",
+  adsMs: 200,
+  sprintToFireMs: 100,
   damageBody: 20,
   damageHead: 30,
   fireIntervalMs: 65,
@@ -199,6 +207,8 @@ const SMG_SPEC: WeaponSpec = {
 const SHOTGUN_SPEC: WeaponSpec = {
   slot: 3,
   name: "Shotgun",
+  adsMs: 225,
+  sprintToFireMs: 130,
   damageBody: 14, // per pellet (× up to 8)
   damageHead: 20, // per pellet
   fireIntervalMs: 850,
@@ -221,6 +231,8 @@ const SHOTGUN_SPEC: WeaponSpec = {
 const SNIPER_SPEC: WeaponSpec = {
   slot: 4,
   name: "Sniper",
+  adsMs: 400,
+  sprintToFireMs: 150,
   damageBody: 80,
   damageHead: 150,
   fireIntervalMs: 1300,
@@ -243,6 +255,8 @@ const SNIPER_SPEC: WeaponSpec = {
 const PISTOL_SPEC: WeaponSpec = {
   slot: 5,
   name: "Pistol",
+  adsMs: 165,
+  sprintToFireMs: 90,
   damageBody: 34,
   damageHead: 60,
   fireIntervalMs: 160,

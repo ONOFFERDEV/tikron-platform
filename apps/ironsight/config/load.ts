@@ -211,6 +211,10 @@ export function assertModesWireOrder(cfg: GameConfig): string[] {
 export function assertTracerSpeedPositive(cfg: GameConfig): string[] {
   const errs: string[] = [];
   for (const w of cfg.weapons) {
+    for (const field of ['adsMs', 'sprintToFireMs'] as const) {
+      if (!Number.isFinite(w[field]) || w[field] <= 0)
+        errs.push(`weapon "${w.name}".${field} must be finite and positive`);
+    }
     if (!(w.tracerSpeed > 0)) {
       errs.push(`weapon "${w.name}".tracerSpeed must be a positive number, got ${w.tracerSpeed}`);
     }

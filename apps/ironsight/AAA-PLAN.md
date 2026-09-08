@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-24 are deployed there, including layered impacts,
+Supervisor reports sessions 1-25 are deployed there, including layered impacts,
 grounded remote reactions/deaths, weapon audio, combat HUD and Relay weathering.
-Session 25's spawn selection remains local until publication. Continue using the standing
+Session 26's weapon handling remains local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,8 +327,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 25. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session24-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 26. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session26-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -356,7 +356,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M20 | partial | Opt-in map-metrics heatmap exists; no many-round side win-rate acceptance. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Five weapon/falloff profiles and grenades; no melee and human balance unverified. |
-| R-G03 | partial | Sniper tracer and slow fire cadence; no glint or authoritative ready-up. |
+| R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
 | R-G04 | partial | AR still spread zero/moving .02 rad; SMG/sniper/pistol nonzero still; no crouch spread bonus. |
 | R-G05 | not yet | No learnable authoritative recoil sequence. |
 | R-G06 | not yet | No deep-spray hybrid or authoritative ADS/crouch multipliers. |
@@ -372,8 +372,8 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G16 | not yet | Distance low-pass only; no solid-geometry audio occlusion. |
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
-| R-G19 | not yet | All five lack authoritative ADS/sprint-to-fire timers; shared visual 95% ADS ~214 ms. |
-| R-G20 | partial | Shared weapon table controls damage/spread/cadence; missing authoritative handling/recoil fields. |
+| R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
+| R-G20 | partial | Shared table now also owns ADS/sprint timers; same handling model in client/server. Authoritative learnable recoil, crouch/ADS accuracy multipliers remain absent. |
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
 | R-L02 | partial | TDM 50 kills/300 s; DOM 4 s neutral/8 s enemy capture, 1 point/2 s/flag, target 200; no side swap. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -400,14 +400,15 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Re-ranked after Session 25: all-map threat-aware spawn selection delivered. Resolved
-lifecycle recovery stays closed. Shared weapon handling is the next finishable feel gap;
-spawn selection still needs historical/real-match fairness evidence, not another routing pass.
+Re-ranked after Session 26: per-weapon ADS/sprint handling delivered from the top
+finishable gap. Threat audio now leads; deterministic recoil remains a separate
+coordinated prediction/hit-validation change. Resolved lifecycle recovery stays closed.
 
-1. **Shared weapon handling (R-G19, R-G20, R-G04-06).** Authoritative per-weapon ADS,
-   sprint recovery and learnable recoil need a coordinated client/server pass.
-2. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
+1. **Threat audio (R-G14, R-G16, R-L18).** Enemy/ally mix, surface identity and cover
    occlusion; preserve bounded voices and require headphone acceptance.
+2. **Learnable recoil and accuracy (R-G04-06, R-G08, R-G20).** Shared recoil patterns,
+   authoritative ADS/crouch accuracy and predicted claim-ray parity; handling timers
+   are implemented, but high-RTT/mouse comfort still requires player review.
 3. **Spawn fairness and solo encounters (R-M09, R-M20).** All-map/FFA selection now
    avoids available unoccupied sampled-hidden alternatives. Measure real contact,
    recontest and side/route heatmaps; address all-exposed pools and recent enemy LOS.
@@ -3121,3 +3122,142 @@ processes, zero remaining owned processes, port8796 listeners or inspection
 browsers. Both earlier owned preview trees were also stopped. All standing gates
 are green. Evidence remains ignored under .inspect; Session25 is ready for
 supervisor review. No commit, push or deployment.
+
+
+### Session 26 - 2026-09-08: deliberate weapon acquisition and sprint recovery
+
+Read standing brief, Session26 supervisor status, plan and all 63 design references;
+reviewed the existing canonical scorecard before selecting the top finishable gap.
+Confirmed ironsight-aaa via .git/HEAD. Scope apps/ironsight/** only; no git commands,
+commit, push, deployment, dependencies, SDK or purchased-derivative changes. No Meshy
+credits spent (1530 remain): this handling change benefits from shared code and
+existing weapon art. Preserved local room storage and left resolved lifecycle work closed.
+
+Reference: R-G19, R-G20, R-G03. Concrete target: reference-range per-weapon ADS and
+90-150 ms sprint-to-fire recovery; server rejects early shots before spending ammo,
+removing protection or resolving hits. Sight positioning and FOV finish on the same
+finite timer; scope appears only when the sniper finishes acquiring. Timer target
+met in exact boundary tests and the real mouse/control fixture. R-G20 and R-G03
+remain partial: no new recoil/accuracy model or glint; ordinary hip fire is allowed.
+No balance claims about human duels or latency are made from a local browser probe.
+
+| Weapon | ADS before -> final ms | Sprint recovery before -> final ms | Browser sights settled ms | First confirmed aimed shot ms |
+|---|---|---|---:|---:|
+| AR | no authority -> 250 | 0 -> 120 | 257.0 | 308.3 |
+| SMG | no authority -> 200 | 0 -> 100 | 202.7 | 231.4 |
+| Shotgun | no authority -> 225 | 0 -> 130 | 232.5 | 297.1 |
+| Sniper | no authority -> 400 | 0 -> 150 | 406.4 | 428.8 |
+| Pistol | no authority -> 165 | 0 -> 90 | 168.7 | 215.2 |
+
+Browser values are measured from right-button arrival, with left-trigger arrival
+0.4-2.5 ms later. Settled threshold is >=.9999 of visual interpolation; confirmed
+shot includes local scheduling, server ticks and message delivery, not RTT. Previous
+shared exponential ADS reached 95% at ~214 ms, .9999 at measured 656-659 ms for all
+weapons, and did not gate shots (first confirmations ~31-47 ms). Do not compare the
+old 95% number with new 100% completion as if they were identical thresholds.
+Full samples and paired acquiring screenshots: .inspect/session26-before-controls-*
+and session26-verified-controls-*. Baseline uses the original pre-build client;
+its absent ADS intent is the unchanged hip-fire server path. It is animation/input
+baseline evidence, not a separately restored pre-session Worker deployment.
+
+WeaponSpec owns adsMs/sprintToFireMs, including the alternate theme, with finite,
+positive config validation. src/handling.ts shares acquisition/recovery state and
+sprint eligibility between client and server. move carries one optional validated
+boolean ads, using the existing changed-intent/keepalive schedule. Forward grounded
+sprint is incompatible with ADS; trigger/aim cancels sprint to walk on the client.
+Server independently checks posture, grounded state and movement intent; a forged
+ready flag, timer or backdate in the payload does nothing. Repeated ADS keepalives
+preserve acquisition, while reload/swap resets it; spawn/round/seat cleanup clears
+handling. No binary schema, snapshot version, collision, damage, TTK or cadence change.
+Old clients omit ads and retain hip-fire rules; client and Worker should ship together
+for intended presentation. A modified client can choose its own FOV, but gains no
+server accuracy bonus by omitting ADS: this session introduces none.
+
+Server acquisition uses server-recorded input receipt time (not client subtick ts)
+to avoid tick-drain quantization extending the start. The fire check still uses server
+now. A boundary rejection returns owner-only fireBlocked with remaining delay and
+actual magazine; Net restores predicted ammo and lets a still-held trigger retry
+after that delay instead of losing an entire sniper cadence. No queued autonomous
+shot or firing after trigger release. Prediction can still briefly show a cosmetic
+shot before a rejection under jitter; authoritative damage/impacts remain confirmed.
+Recoil, ADS/crouch spread multipliers and high-RTT acceptance are explicit next work.
+
+Added 24 regressions: five-weapon exact ADS/sprint boundaries, batching/clock rewind,
+held keepalive, interruption/switch, malformed fields, no early ammo/protection spend,
+reload reacquisition, production queued sprint-press/release/fire, and the actual Net
+retry/ammo path. Browser-only Net test is included in the DOM tsconfig and excluded
+from Worker typechecking, matching existing client-test organization. Full test suite:
+371 passed, three existing skips; 39 passing files and one skipped.
+
+The new scripts/handling-probe.mjs extends inspect-map's actual pointer/key path.
+Final command: `node scripts/inspect-map.mjs --url http://localhost:8796 --shots handling --assert-handling --prefix session26-verified-controls`.
+All five acquisition/first-shot checks pass; W+Shift then held fire confirms pistol
+recovery (90 ms config; first received shot 123.9 ms). Assertions include an upper
+bound on confirmation after both acquisition and actual trigger arrival. This is a
+local input/network fixture, not physical mouse, headphone, iGPU or 6v6 acceptance.
+Opened paired early sniper captures, final AR sights and actual Undertow practice.
+No added light, texture, pass, geometry, audio asset or runtime bake.
+
+Rejected intermediates: exact room tests initially disabled queueInputs as a field,
+but the preset overwrote it in onCreate; the exact-time subclass now sets it after
+super.onReady, and a separate regression retains production batching. Typecheck
+caught the Net test's DOM globals in the Worker test set; split it into the client
+configuration. First browser candidate rejected a dropped sniper boundary shot;
+receipt-time acquisition plus the bounded retry/ammo correction fixed it. One later
+repeat recorded a 1121.5 ms AR confirmation without recording trigger delivery time;
+retained in session26-final-controls-report.json, not presented as normal handling.
+Strengthened the probe to timestamp the left trigger and bound confirmation latency;
+the final verified run above passes. No standing gate/threshold relaxed. Minor script
+path/Windows decoding errors were corrected before their intended writes.
+
+Final required typecheck, test, build:client and audit:assets PASS; logs under
+.inspect/session26-{typecheck,test,build-client,audit-assets}.log. Exact required
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two`
+PASS, zero console/runtime/HTTP errors (session26-required-inspector.log and copied
+session26-required-report.json). Extended final weapon-ar-ads,weapon-sniper-ads,
+relay,effects-stress --assert-budgets PASS (session26-final.log/report.json).
+Owned preview restarted after final public writes, before final browser gates.
+
+Matched effects fixture: Edge152 / RTX5070 D3D11, 1920x1080 balanced/DPR1, eleven
+remote operators and local rifle/hands, 145 twelve-rifle volleys, 96 blasts, 2130
+steady samples, effects drain. .inspect/session26-delta.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 133302 | 220 / 133302 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.0 / 7.1 | 0 / -.1 / 0 |
+| Max / first-ready max ms | 7.3 / 7.1 | 7.2 / 7.1 | -.1 / 0 |
+| Prepared programs | 27 | 27 | 0 |
+
+No performance improvement claimed: desktop frame intervals/texture estimates do
+not establish weak-GPU, cold-driver, thermal or real-player acceptance. Assets stay
+13,526,417 bytes; public 19,621,683 -> 19,632,950 (+11,267 bundled code/source map),
+largest file 4,228,556 bytes. Total 40 MiB and file 25 MiB caps pass. No binary
+provenance/allowlist additions needed; stress texture headroom stays ~.25 MiB.
+
+Exact live gate PASS:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human/three bots, live at 7.812 s, three deaths/two observed respawns; zero
+post-warmup shader recompiles, frames >150 ms, console errors or long tasks.
+Only frame above 24 ms was startup 58.9 ms. Evidence: .inspect/hitch.json,
+session26-hitch.json/log. No room isolation, storage clearing or lifecycle re-proof.
+Same-run first received nonlethal damage: 8.305 s after live, 2.173/1.951 s after
+respawns (session26-contact-samples.json). Still below R-M07's 20-30 s reference;
+not proof of spawn fairness, first visual contact or a 6v6 distribution. No complete
+natural round observed; existing mode economy numbers remain configuration only.
+
+Re-ranked all scorecard gaps; threat audio next, followed by learnable recoil.
+Open owner questions/defaults: keep these class-specific timers and sprint cancellation
+(yes, tune after real mouse/high-RTT play); proceed to enemy/ally threat audio next
+(yes). Industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM stay active.
+No owner response is needed to continue. Final cleanup evidence follows below.
+
+Cleanup: .inspect/session26-cleanup.json confirms all eleven final preview process-tree
+members stopped, no remaining owned process, port8796 listener or inspection browser.
+Earlier preview trees were also stopped. A PID subsequently reused by an unrelated
+Chrome renderer was verified by its later creation time and left untouched.
+session26-report-checks.json records zero
+errors/forbidden requests in required, effects and controls reports. All standing
+final gates are green. Evidence remains ignored under .inspect. Ready for supervisor
+review/publication; no commit, push or deployment.

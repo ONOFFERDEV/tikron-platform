@@ -8,7 +8,6 @@ import { ARENA3 } from '../src/map/arena3.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { MATCH, MODES, MOVE, WEAPONS } from '../src/config.js';
 import { GAME } from '../src/game-config.js';
-import { VISUALS } from '../config/visuals.js';
 
 const maps = [ARENA1, ARENA2, ARENA3].map(map => {
   const caps = Object.entries(map.caps);
@@ -30,10 +29,10 @@ const maps = [ARENA1, ARENA2, ARENA3].map(map => {
   };
 });
 console.log(JSON.stringify({ note: '1m four-neighbour ground BFS; cap waypoint overrides used where platforms block ground cells. Spawn-to-objective is a travel proxy, NOT measured first contact. Null means unreachable.',
-  maps, weapons: WEAPONS.map(w => ({ name: w.name, adsMs: null, sprintToFireMs: 0,
-    visualAds95PercentMs: -Math.log(0.05) / VISUALS.motion.adsResponse * 1000,
+  maps, weapons: WEAPONS.map(w => ({ name: w.name, adsMs: w.adsMs, sprintToFireMs: w.sprintToFireMs,
+    visualAdsCompleteMs: w.adsMs,
     closeBodyHits: Math.ceil(100 / w.damageBody), closeBodyTtkMs: (Math.ceil(100 / w.damageBody) - 1) * w.fireIntervalMs,
-    note: 'No authoritative ADS/sprint gate. Body TTK assumes one pellet; not a shotgun volley.' })),
+    note: 'Server arrival-time ADS/sprint gate; hip fire does not require ADS. Body TTK assumes one pellet; not a shotgun volley.' })),
   match: MATCH, modes: MODES, dom: { neutralCaptureSeconds: 100 / MODES.dom.capturePerSec,
     enemyCaptureSeconds: 200 / MODES.dom.capturePerSec, pointsPerFlagPerSecond: MODES.dom.pointsPer2s / 2, sideSwap: false },
   audio: { enemyAllyFootstepRatio: 1, hit: GAME.audio.hit, kill: GAME.audio.kill, footstep: GAME.audio.footstep,

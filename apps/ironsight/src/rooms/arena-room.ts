@@ -1,3 +1,4 @@
+import { WeaponHandling, isSprinting } from "../handling.js";
 import {
   IoArenaRoom,
   LagCompensator,
@@ -70,6 +71,7 @@ interface PlayerInput {
   jump: boolean;
   crouch: boolean;
   sprint: boolean;
+  ads?: boolean;
 }
 
 const NO_INPUT: PlayerInput = { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
@@ -180,6 +182,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected startInWarmup = true;
 
   // --- server-only per-player sim state (never synced) ---
+  private readonly handling = new Map<string, WeaponHandling>();
   private readonly inputs = new Map<string, PlayerInput>();
   private readonly vy = new Map<string, number>();
   private readonly grounded = new Map<string, boolean>();
@@ -326,7 +329,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       capC: GAME.match.capNeutral,
     });
 
-    this.onMessage("move", (client, payload) => this.handleMove(client, payload));
+    this.onMessage("move", (client, payload, _seq, input) => this.handleMove(client, payload, input));
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
     this.onMessage("reload", (client) => this.handleReload(client));
@@ -422,6 +425,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.reloadUntil,
       this.lastShotAt,
       this.swapUntil,
+      this.handling,
       this.nadeReadyAt,
       this.primaryWeapon,
       this.respawnAt,
@@ -548,7 +552,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // Speed: crouch < walk < sprint (sprint only while moving forward, grounded).
     let speed: number = MOVE.walk;
     if (p.crouch) speed = MOVE.crouch;
-    else if (inp.sprint && inp.mz > 0 && grounded) speed = MOVE.sprint;
+    else if (isSprinting({ ...inp, crouch: p.crouch }, grounded)) speed = MOVE.sprint;
+    this.updateHandling(id, Date.now());
 
     // Wish direction in world xz: forward = (sin yaw, cos yaw), right = (cos yaw, −sin yaw).
     const sy = Math.sin(p.yaw);
@@ -606,7 +611,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return p.crouch ? PLAYER.crouchEye : PLAYER.standEye;
   }
 
-  private handleMove(client: Client, payload: unknown): void {
+  private handleMove(client: Client, payload: unknown, input?: InputMeta): void {
+    if (!this.state.players[client.id]?.alive) return;
     const prev = this.inputs.get(client.id);
     const mx = clamp(readNum(payload, "mx") ?? 0, -1, 1);
     const mz = clamp(readNum(payload, "mz") ?? 0, -1, 1);
@@ -619,7 +625,21 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       jump,
       crouch: readBool(payload, "crouch"),
       sprint: readBool(payload, "sprint"),
+      ads: readBool(payload, "ads"),
     });
+    this.updateHandling(client.id, input?.receivedAt ?? Date.now());
+  }
+
+  private updateHandling(id: string, now: number): WeaponHandling {
+    let handling = this.handling.get(id);
+    if (!handling) { handling = new WeaponHandling(); this.handling.set(id, handling); }
+    const p = this.state.players[id];
+    if (p) {
+      const inp = this.inputs.get(id) ?? NO_INPUT;
+      const blocked = !p.alive || now < (this.reloadUntil.get(id) ?? 0) || now < (this.swapUntil.get(id) ?? 0);
+      handling.update(now, this.weaponOf(p), isSprinting({ ...inp, crouch: p.crouch || inp.crouch }, this.grounded.get(id) ?? true), inp.ads === true, blocked);
+    }
+    return handling;
   }
 
   private handleLook(client: Client, payload: unknown): void {
@@ -641,6 +661,15 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const now = Date.now();
     const spec = this.weaponOf(shooter);
     const w = shooter.weapon;
+    const handling = this.updateHandling(id, now);
+    if (!handling.canFire) {
+      // A boundary shot may beat its move's server timer by a render/network
+      // scheduling interval. Correct predicted ammo and retry only while held;
+      // never spend an entire sniper fire interval on a shot that did not happen.
+      client.send("fireBlocked", { retryMs: Math.max(TICK_MS, Math.ceil(handling.remainingMs)),
+        mag: this.magArr(id)[w] ?? 0, weapon: spec.slot });
+      return;
+    }
 
     // A weapon swap must settle before the new weapon can fire.
     const swap = this.swapUntil.get(id);
@@ -964,6 +993,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if ((this.reserveArr(id)[w] ?? 0) <= 0) return;
     this.reloadUntil.set(id, now + spec.reloadMs);
     p.reloadEnd = now + spec.reloadMs;
+    this.updateHandling(id, now);
     this.markStateChanged();
     this.ownerClient(id)?.send("ammo", {
       mag: this.magArr(id)[w] ?? 0,
@@ -1005,6 +1035,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.swapUntil.set(id, Date.now() + WEAPON.swapMs);
     p.reloadEnd = 0;
     this.reloadUntil.delete(id); // a swap cancels an in-progress reload
+    this.updateHandling(id, Date.now());
     this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
       mag: this.magArr(id)[idx] ?? 0,
@@ -1288,6 +1319,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.reloadUntil.delete(id);
     this.lastShotAt.delete(id);
     this.swapUntil.delete(id);
+    this.handling.delete(id);
     this.nadeReadyAt.delete(id);
     this.hits.delete(id);
 
@@ -1427,6 +1459,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.reloadUntil,
       this.lastShotAt,
       this.swapUntil,
+      this.handling,
       this.nadeReadyAt,
       this.primaryWeapon,
       this.respawnAt,

@@ -1,3 +1,4 @@
+import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
 import { buildWedgeGeometry } from "./site-wedge.js";
@@ -347,6 +348,8 @@ export class SceneRig {
   // ADS state: adsT eases 0→1, drives FOV + viewmodel centering (+ sniper scope overlay).
   private adsHeld = false;
   private adsT = 0;
+  private adsProgress = 0;
+  private predictedAds: number | null = null;
   private fovCur = HIP_FOV;
   private scopeEl: HTMLDivElement | null = null;
   // Grenade + explosion effects, stepped in render().
@@ -766,8 +769,9 @@ export class SceneRig {
   }
 
   /** ADS hold state (from input). FOV/viewmodel/scope ease toward it every frame. */
-  setAds(held: boolean): void {
+  setAds(held: boolean, progress?: number): void {
     this.adsHeld = held;
+    this.predictedAds = progress ?? null;
   }
 
   /** Camera FOV this frame (main uses it to scale mouse sensitivity while zoomed). */
@@ -788,7 +792,7 @@ export class SceneRig {
   }
   viewmodelDiagnostics() {
     return { weapon: this.weaponIndex, phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
-      magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT,
+      magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT, adsProgress: this.adsProgress, fov: this.fovCur,
       hands: this.hands.group.visible, ...this.getRenderInfo() };
   }
 
@@ -945,16 +949,18 @@ export class SceneRig {
       }
     }
 
-    // ADS: ease adsT, drive FOV + centering; sniper hides the gun behind a scope overlay.
+    // One finite per-weapon timer drives sights and world FOV together.
     const aiming = this.adsHeld && this.pendingWeapon < 0 && progress === null;
-    this.adsT += ((aiming ? 1 : 0) - this.adsT) * (1 - Math.exp(-dt * MOTION.adsResponse));
-    const targetFov = aiming ? (ADS_FOV[this.weaponIndex] ?? HIP_FOV) : HIP_FOV;
-    if (Math.abs(targetFov - this.fovCur) > 0.05) {
-      this.fovCur += (targetFov - this.fovCur) * (1 - Math.exp(-dt * MOTION.adsResponse));
+    const adsMs = GAME.weapons[this.weaponIndex]?.adsMs ?? 250;
+    if (aiming && this.predictedAds !== null) this.adsProgress = this.predictedAds;
+    else this.adsProgress = clamp(this.adsProgress + (aiming ? 1 : -1) * dt * 1000 / adsMs, 0, 1);
+    this.adsT = easeAds(this.adsProgress);
+    this.fovCur = lerp(HIP_FOV, ADS_FOV[this.weaponIndex] ?? HIP_FOV, this.adsT);
+    if (this.camera.fov !== this.fovCur) {
       this.camera.fov = this.fovCur;
       this.camera.updateProjectionMatrix();
     }
-    const scoped = this.weaponIndex === 3 && this.adsT > 0.7;
+    const scoped = this.weaponIndex === 3 && aiming && this.adsProgress >= 1;
     if (this.sightDot) this.sightDot.visible = aiming && this.adsT > 0.95;
     this.viewmodel.visible = !scoped;
     this.toggleScope(scoped);

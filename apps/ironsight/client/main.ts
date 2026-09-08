@@ -1,3 +1,4 @@
+import { WeaponHandling, isSprinting } from "../src/handling.js";
 import { setMasterVolume, isMuted } from "./audio.js";
 /**
  * ironsight client entry point (W-B). Wires the network layer, input, local
@@ -185,6 +186,7 @@ async function main(): Promise<void> {
   let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
   let curWeapon = 0;
+  let handling = new WeaponHandling();
   // Client-side mirror of the server's fire-drop conditions (arena-room.ts's
   // handleFire: mid-reload, empty mag, mid weapon-swap), so predicted-only local
   // feedback (recoil/sound/tracer/casing — see the frame loop below) never fires
@@ -196,6 +198,7 @@ async function main(): Promise<void> {
   let mag: number | null = null;
   let reloadUntil = -1; // performance.now()-based; -1 = not reloading
   let swapUntil = -1; // performance.now()-based; -1 = no pending swap cooldown
+  net.onFireBlocked((authoritativeMag, slot) => { if (slot === curWeapon + 1) mag = authoritativeMag; });
   net.onAmmo((e) => {
     scene.setReload(e.reloadMs ?? 0, WEAPONS[e.weapon - 1]?.reloadMs ?? e.reloadMs ?? 1);
     hud.setAmmo(e.mag, e.reserve, e.reloadMs);
@@ -276,7 +279,7 @@ async function main(): Promise<void> {
   const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
     if (state.phase === "live" && previousPhase !== "live") {
-      reloadUntil = -1; swapUntil = -1; mag = null;
+      reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling();
       scene.setReload(0, 1); net.requestSync();
     }
     previousPhase = state.phase;
@@ -296,6 +299,7 @@ async function main(): Promise<void> {
         playHurt();
       }
       if (wasAlive && !me.alive) {
+        handling = new WeaponHandling();
         deathAt = performance.now();
         respawnSent = false;
         deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
@@ -340,7 +344,7 @@ async function main(): Promise<void> {
   let fpsFrames = 0;
   let fpsWindowStart = last;
   const onAds = (held: boolean): void => {
-    scene.setAds(held);
+    scene.setAds(held, handling.adsProgress);
     // Zoom slows the turn: scale look sensitivity by the live FOV ratio.
     input.sensScale = scene.currentFov / HIP_FOV;
   };
@@ -352,7 +356,7 @@ async function main(): Promise<void> {
 
     // Intents (net enforces the send budget).
     if (net.online !== wasOnline) {
-      buf.length = 0;
+      buf.length = 0; handling = new WeaponHandling();
       if (!net.online && document.pointerLockElement) document.exitPointerLock();
       if (net.online) {
         const restored = net.state?.players[net.myId];
@@ -362,6 +366,10 @@ async function main(): Promise<void> {
       wasOnline = net.online;
     }
     const intent = net.online && state?.phase !== "ended" ? input.intent() : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
+    const active = net.online && state?.phase !== "ended" && !!state?.players[net.myId]?.alive;
+    intent.ads = active && input.adsHeld;
+    // Fire/aim cancel sprint before sending the intent; server enforces recovery.
+    if (input.isFiring || intent.ads) intent.sprint = false;
     net.setMoveIntent(intent, now);
     net.setLook(input.yaw, input.pitch, now);
     predictor.frame(dt, intent, input.yaw);
@@ -371,13 +379,15 @@ async function main(): Promise<void> {
     const me = state?.players[net.myId];
     const phase = state?.phase ?? "live";
     const alive = me?.alive ?? false;
+    handling.update(now, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, isSprinting(intent, predictor.isGrounded), intent.ads === true,
+      !active || now < reloadUntil || now < swapUntil);
 
     // Camera from prediction (local, immediate) — needed here already: a confirmed
     // shot below anchors its tracer/casing to this same live eye position.
     const eye = predictor.eye();
 
     // Firing (server fire interval is the truth; net gates, we kick locally).
-    if (net.online && input.isFiring && alive && phase === "live") {
+    if (net.online && input.isFiring && alive && phase === "live" && handling.canFire) {
       // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
       // server (the real authority) can act on it regardless of our own gate
       // below. canPredictFire mirrors the REST of the server's drop conditions

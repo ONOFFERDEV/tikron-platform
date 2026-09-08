@@ -90,7 +90,7 @@ export class Predictor {
 
     let speed: number = MOVE.walk;
     if (this.crouch) speed = MOVE.crouch;
-    else if (inp.sprint && inp.mz > 0 && this.grounded) speed = MOVE.sprint;
+    else if (inp.sprint && !inp.ads && inp.mz > 0 && this.grounded) speed = MOVE.sprint;
 
     const sy = Math.sin(yaw);
     const cy = Math.cos(yaw);

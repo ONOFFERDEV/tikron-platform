@@ -22,6 +22,7 @@ export interface MoveIntent {
   jump: boolean;
   crouch: boolean;
   sprint: boolean;
+  ads?: boolean;
 }
 
 export interface AmmoEvent {
@@ -158,6 +159,12 @@ export class Net {
     this.room = room;
     this.roomId = roomId;
     this.myId = room.connectionId ?? "";
+    room.onMessage("fireBlocked", p => {
+      if (typeof p !== 'object' || p === null) return;
+      const { retryMs } = p as { retryMs?: unknown };
+      if (typeof retryMs !== 'number' || !Number.isFinite(retryMs)) return;
+      this.lastFireAt = performance.now() - this.fireIntervalMs + Math.min(1000, Math.max(0, retryMs));
+    });
     room.onMessage((message) => {
       if (message.t === "s:welcome") {
         this.link.open = true;
@@ -237,9 +244,10 @@ export class Net {
       i.mx !== this.last.mx ||
       i.mz !== this.last.mz ||
       i.crouch !== this.last.crouch ||
-      i.sprint !== this.last.sprint;
+      i.sprint !== this.last.sprint ||
+      !!i.ads !== !!this.last.ads;
     if (!changed && !i.jump && now - this.lastMoveAt < MOVE_KEEPALIVE_MS) return;
-    this.send("move", { mx: i.mx, mz: i.mz, jump: i.jump, crouch: i.crouch, sprint: i.sprint });
+    this.send("move", { mx: i.mx, mz: i.mz, jump: i.jump, crouch: i.crouch, sprint: i.sprint, ads: i.ads === true });
     this.last = { ...i, jump: false };
     this.lastMoveAt = now;
   }
@@ -317,6 +325,14 @@ export class Net {
 
   onAmmo(cb: (e: AmmoEvent) => void): void {
     this.room.onMessage("ammo", (p) => cb(p as AmmoEvent));
+  }
+  onFireBlocked(cb: (mag: number, slot: number) => void): void {
+    this.room.onMessage("fireBlocked", p => {
+      if (typeof p !== 'object' || p === null) return;
+      const { mag, weapon } = p as { mag?: unknown; weapon?: unknown };
+      if (typeof mag === 'number' && Number.isInteger(mag) && mag >= 0 &&
+          typeof weapon === 'number' && Number.isInteger(weapon) && weapon >= 1 && weapon <= WEAPONS.length) cb(mag, weapon);
+    });
   }
   onHit(cb: (e: HitEvent) => void): void {
     this.room.onMessage("hit", (p) => cb(p as HitEvent));
