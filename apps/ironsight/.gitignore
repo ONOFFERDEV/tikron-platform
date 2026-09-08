@@ -9,3 +9,4 @@ assets-src/**
 !public/assets/maps/undertow-architecture.glb
 !public/assets/maps/switchyard-architecture.glb
 !public/assets/props/switchyard-transformer.glb
+!public/assets/props/relay-uplink.glb

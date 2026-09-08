@@ -1,0 +1,15 @@
+{
+  "name": "relay-uplink",
+  "prompt": "A single industrial microwave communications antenna assembly on a squat rectangular equipment pedestal. Two large vertically stacked circular parabolic dishes facing the same direction, thick rims, central feed horns, exposed mechanical pivot brackets and a sturdy mast. Compact powerful silhouette, hard surface stylized sci-fi industrial machinery, no ground plane, no scenery, no text, no cables hanging loose. Full standalone object.",
+  "texture_prompt": "Warm ivory painted dish faces, graphite structural steel pedestal and pivots, restrained amber safety accents, weathered industrial daylight, subtle panel seams and grime, no writing or logos.",
+  "previewId": "01a08094-2b40-77c7-b659-c11dac4f7621",
+  "refineId": "01a08095-9837-70d6-ae6d-53e600c639b1",
+  "ai_model": "latest",
+  "target_polycount": 3000,
+  "pbr": true,
+  "glbBytes": 7641968,
+  "creditsUsed": 30,
+  "balanceAfter": 1530,
+  "generatedAt": "2026-09-08T10:36:31.457Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan."
+}

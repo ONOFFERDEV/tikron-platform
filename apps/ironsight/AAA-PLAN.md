@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-11 are deployed there, including the persisted-room
-fix and Switchyard. Session 12 Relay service detail remains local until the
-supervisor publishes it. Continue using the standing brief's active defaults.
+Supervisor reports sessions 1-12 are deployed there, including the persisted-room
+fix, Switchyard and Relay service detail. Session 13 uplinks remain local until
+the supervisor publishes them. Continue using the standing brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -326,18 +326,21 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked for Session 12. The supervisor's persisted-ended-room report takes
-precedence: the Session 10 fix and its real-restoration regression tests are
-already present and pass. Session 12 adds natural-ended-round/cold-restart browser
-qualification and retains that implementation. The selected visual gap is Relay's
-blank service facades and floor; the first service-detail/wear pass is delivered.
+Re-ranked for Session 13. The supervisor's persisted-ended-room report takes
+precedence: the Session 10 fix and three real-restoration regression tests remain
+present and pass. Session 12 already proves a natural ended snapshot locally;
+Session 13 repeats preserved-state gameplay qualification and retains the fix.
+The selected visual gap is Relay machinery: paired exterior uplinks now complement
+the original mast, funded by reducing the distant skyline's runtime palette atlas.
 
 1. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
    walls and floor still read simply; improve composition and material response
    without adding texture memory blindly (Relay stress headroom is now ~0.42 MiB).
-   Next default: improve a Relay machinery silhouette or re-budget existing atlases.
-   Meshy is appropriate for a hero prop; the weak cable drum remains rejected.
+   Session 13 adds two generated uplinks with no net texture-memory increase.
+   Next default: re-budget shared texture residency for restrained surface normal/
+   roughness detail on broad architecture, then improve exterior ground continuity.
+   Meshy remains appropriate for machinery; the weak cable drum remains rejected.
 2. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
    remote reactions and deaths; retain constant light count through hidden groups.
 3. **Solo encounter quality.** Improve bot route variety/separation and examine
@@ -1631,3 +1634,126 @@ machinery or material depth (default: a better hero silhouette, first freeing
 texture budget). Keep industrial daylight, amber/teal and stylized sci-fi. Human
 animation/audio/route review, real 6v6/RTT, target hardware and deployed eviction
 remain open. No owner approval requested; ready for supervisor review/publication.
+
+### Session 13 - 2026-09-08: Relay uplinks within the existing texture budget
+
+Read the standing brief, supervisor status and plan in order. The supervisor's
+ended-room concern took precedence: retained the Session 10 fix and reran all three
+real-core lifecycle tests, green (`.inspect/session13-lifecycle.log`). They restore
+an ended serialized snapshot, exercise immediate reconnect and alarm-before-join,
+assert four-seat bot fill, warmup -> live, bot movement and queued input, and reuse
+an empty instance without duplicate ticks. Session 12's natural-ended snapshot
+proof remains applicable. No new lifecycle defect was reproduced or speculative
+server change made; preserved-state browser qualification is recorded below.
+Branch confirmed by reading HEAD: ironsight-aaa. All writes apps/ironsight/** only;
+no git commands, commit, push or deployment. Worker build is its existing dry-run.
+
+Selected the top visual gap: Relay's machinery silhouette. Added two generated
+paired-dish uplink assemblies below the original main antenna, visible along the
+Cooling lane and in the refreshed deployment vista. They share one mesh/PBR set,
+cast into the existing cached shadow map, and load only on Relay before renderer
+preparation. No extra lights/passes, per-frame bakes, dependencies, state/schema,
+collision, player movement or hit-validation changes. Runtime bounds reject empty/
+flat/nonfinite sources and embedded lights, then ground the model from its actual
+bounds. Tests cover transformed source origins, shared GPU resources and keeping
+both instances outside playable space. Inspector asserts presence, per-instance
+triangle/envelope limits, and no Relay prop request from other maps.
+
+Meshy used **30 credits, 1560 -> 1530**, one generation, no retry. Raw **7,641,968**
+bytes -> **279,624** bytes, **2,827 triangles**, three 512px WebP PBR images. The
+result has side-by-side dishes and a tripod instead of the prompt's vertical
+stack/cabinet. Inspected thumbnail, in-map silhouette and close view; accepted as
+secondary exterior machinery, not as a close-interaction hero asset. Faceted
+mechanical joints and uneven panel seams remain a distance/style compromise.
+Two placements at x=25/37, z=-6 have actual **7.00 x 8.861 x 2.693 m** envelopes,
+y=0..8.861 and z=-7.346..-4.654. No generated surface reaches playable bounds.
+Exact prompt/task IDs and provenance/rebuild commands are versioned with explicit
+GLB allowlisting. Raw output stays under .inspect/meshy; no purchased derivative
+changed. The weak supervisor cable-drum remains rejected.
+
+Re-budgeted the distant skyline palette in memory: 1024 -> 512px, once during
+cached loading, preserving glTF color space/UV/sampler settings. This saves
+**4 MiB** including mips and funds the new PBR set's **4 MiB**. Source skyline GLB
+stays private and unchanged. Matched skyline captures retain its broad color
+panels. Stress headroom remains **0.415 MiB**; future material work must re-budget.
+
+Final code gates: **pnpm typecheck, pnpm test, pnpm build:client, pnpm build
+(Worker dry-run), pnpm audit:assets PASS**. Tests **314 passed, 3 existing opt-in
+skips**, 31 passing files plus one skipped. Worker unchanged: **235.27 KiB /
+gzip 69.94 KiB**. Logs .inspect/session13-{typecheck,test,build-client,worker-build,
+audit-assets}.log. Assets **11,875,894 -> 12,171,501 bytes (+295,607)**, including
+new model/metadata, refreshed vista and provenance; public **17,823,585 ->
+18,129,162 bytes (+305,577)**; largest file **4,135,464 bytes**. Both file caps pass.
+
+Before/after evidence: .inspect/session13-before-report.json and
+session13-accepted-report.json, matching relay/cooling/vista/effects-stress PNGs
+and session13-delta.json. Accepted report also includes the uplink close view,
+required Undertow practice boot and deployment menu: **seven views, zero console/
+runtime/HTTP errors and zero forbidden offline requests**. Opened matching cooling
+views, final relay/uplink/vista, accepted Undertow and menu. Refreshed vista is the
+production renderer's screenshot. All final resource assertions pass unchanged.
+
+Edge 152.0.4191.66 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1. Same effects
+workload: eleven remote operators plus local rifle/hands, 145 twelve-rifle volleys,
+96 blasts in 15 seconds, 2,130 steady samples, zero remaining blasts/tracers.
+
+| Relay metric | Before | Accepted | Delta |
+|---|---:|---:|---:|
+| Eye-level calls / triangles | 19 / 21,524 | 21 / 27,178 | +2 / +5,654 |
+| Stress peak calls / triangles | 217 / 82,104 | 219 / 87,758 | +2 / +5,654 |
+| Stress textures / estimated MiB | 25 / 63.585 | 28 / 63.585 | +3 / 0.000 |
+| Stress median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.2 | 0.0 / 0.0 / +0.1 |
+| Stress max / first-ready max ms | 7.2 / 7.1 | 7.3 / 7.1 | +0.1 / 0.0 |
+
+These are desktop rAF intervals and estimated texture allocations, not GPU timers,
+laptop iGPU/thermal acceptance or real multiplayer capacity. No controlled loading
+improvement or AAA completion is claimed. Broad floors/walls and exterior ground
+continuity still need work; those lead the re-ranked environment gap above.
+
+Rejected intermediates: initial x=22/40 placement obscured a dish behind a gantry
+column; moved inward to x=25/37. An initial typecheck rejected inspector access to
+SceneRig's private scene; replaced it with a read-only diagnostic method. The
+session13-final inspection stopped at Undertow's reconnect overlay after the
+vista asset write/reload; local workerd logged internal connection errors. It is
+excluded from acceptance. Finished all asset writes/builds, stopped all twelve
+owned server processes, preserved .wrangler/state and restarted; isolated
+session13-accepted then passed. No assertion or threshold was relaxed. Local
+tick-backlog warnings remain logged, not treated as capacity evidence.
+
+Open owner questions are nonblocking: do the paired uplinks fit Relay (default:
+retain as secondary exterior machinery), and should the next environment pass
+favor surface materials or more props (default: material depth after a texture
+budget review). Keep industrial daylight, amber/teal and stylized sci-fi. Human
+grip/audio/route review, target hardware, real 6v6/RTT and deployed eviction
+acceptance remain open. No owner approval requested.
+
+Both required **150000-ms maximum TDM hitch probes PASS**, on the same fixed
+arena-tdm room and same server process, with **107.889 seconds** between first
+report and second launch to let the original human seat expire. No state clearing,
+room isolation, build, asset write or server restart between these accepted runs.
+The preflight server restart also retained its original .wrangler/state. This
+rechecks local cold startup/empty reuse; the three existing tests specifically
+cover ended snapshot restoration. It does not repeat Session 12's natural
+five-minute match or establish deployed Cloudflare eviction acceptance.
+
+| Accepted TDM probe | First | Reuse after expiry |
+|---|---:|---:|
+| Initial population | 1 human + 3 bots | 1 human + 3 bots |
+| Warmup -> live after measurement starts | 7.378 s | 6.853 s |
+| Deaths / respawns | 3 / 2 | 3 / 2 |
+| Maximum recorded frame | 57.5 ms | 63.7 ms |
+| Recompiles / >150 ms frames / console errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Reports/logs: .inspect/session13-hitch-{first,second}.{json,log},
+session13-lifecycle-probes.json and session13-reuse-start.json. Required
+.inspect/hitch.json is the second accepted run. Both probes encountered a third
+death during the six-second post-second-death observation; two respawns were
+observed, not three. No final gate is red or skipped beyond the three pre-existing
+opt-in unit-test skips.
+
+Cleanup verified in .inspect/session13-cleanup.json: all twelve restarted-server
+root/descendant processes stopped, zero remaining owned processes, zero listeners
+on 8796 and zero inspection browsers. The earlier twelve-process server tree was
+also stopped at preflight restart. Durable state remains preserved; Meshy and
+Blender completed, and inspection scripts closed their browsers. Evidence stays
+under ignored .inspect. Ready for supervisor review; no commit/push/deploy.

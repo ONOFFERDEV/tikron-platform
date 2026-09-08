@@ -217,3 +217,36 @@ node --input-type=module -e "import fs from 'node:fs'; import {execFileSync} fro
 Both new GLBs are explicit original/generated allowlist exceptions in `.gitignore`
 and `scripts/audit-assets.mjs`. Keep raw Meshy output under ignored `.inspect`.
 The 40 MiB public and 25 MiB per-file limits still apply to the complete product.
+
+### Session 13: Relay uplink assemblies
+
+`props/relay-uplink.glb` is original Meshy-generated exterior machinery, created
+2026-09-08 with the project account (30 credits). Exact prompts, task IDs and
+generation metadata are in `props/relay-uplink.meta.json`. The result is a paired,
+side-by-side dish assembly on a tripod, rather than the requested vertical stack
+on a cabinet. It is used as a secondary communications landmark below the original
+mast, entirely outside play. The 2,827-triangle mesh is 279,624 bytes after shrinking
+the 7,641,968-byte raw output to three 512px WebP PBR images. Both placements share
+geometry, materials and textures; no lights, animation, cover or collision is added.
+Bounds are grounded at y=0, centered at x=25/37, z=-6, normalized to at most 7m wide,
+11m tall and 4.2m deep. The inspector records actual envelopes and checks them.
+
+The distant private Relay skyline palette is resized from 1024px to 512px ONCE
+in `client/dressing-loader.ts`, before GPU preparation, retaining glTF UV/color
+space settings. Its private GLB stays unchanged/ignored. This saves 4 MiB including
+mips, funding the new PBR set's 4 MiB. No per-frame resizing or extra pass is used.
+`relay-vista.webp` is refreshed from the production renderer.
+
+Reproduce a variant (generation consumes credits and is not byte-deterministic),
+then compress and inspect from the app directory:
+
+```powershell
+node --input-type=module -e "import fs from 'node:fs'; import {execFileSync} from 'node:child_process'; const m=JSON.parse(fs.readFileSync('public/assets/props/relay-uplink.meta.json')); execFileSync(process.execPath,['tools/meshy-generate.mjs','--name',m.name,'--prompt',m.prompt,'--texture',m.texture_prompt,'--polycount',String(m.target_polycount),'--out','.inspect/meshy'],{stdio:'inherit'});"
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/meshy/relay-uplink/model.glb --output public/assets/props/relay-uplink.glb --size 512 --webp
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,cooling,uplink,vista,effects-stress --assert-budgets --write-vista
+```
+
+Only the explicitly allowlisted compressed GLB and its metadata are versioned;
+raw generated output remains in ignored `.inspect/meshy`. The unrelated rejected
+cable-drum example is not used. Purchased-source derivatives remain ignored.

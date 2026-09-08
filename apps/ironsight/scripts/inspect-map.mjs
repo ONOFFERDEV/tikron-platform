@@ -273,6 +273,14 @@ try {
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
     const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    if (!gameplay && !name.startsWith('menu') && !name.startsWith('undertow-') && !name.startsWith('switchyard-') && report?.uplinks) {
+      if (!assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)
+        throw Error('Relay uplinks not loaded');
+      if (report.uplinks.some(p => p.max[2] >= 0 || Math.abs(p.min[1]) > 0.001 || p.triangles > 5000))
+        throw Error('Relay uplink exceeds exterior geometry budget');
+    }
+    if ((name.startsWith('undertow-') || name.startsWith('switchyard-') || name === 'practice-two' || name === 'practice-three') && assetRequests.some(p => p.includes('relay-uplink')))
+      throw Error('Relay uplinks loaded on another map');
     if (name.startsWith('switchyard-')) {
       for (const required of ['/assets/maps/switchyard-architecture.glb', '/assets/maps/switchyard-ground-ao.png', '/assets/props/switchyard-transformer.glb'])
         if (!assetRequests.includes(required)) throw Error(`Switchyard asset not requested: ${required}`);

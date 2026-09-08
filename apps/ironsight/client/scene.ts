@@ -35,6 +35,7 @@ import { buildRelayEnvironment } from "./relay-environment.js";
 import { buildUndertowEnvironment } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
+import { loadRelayUplinks } from "./relay-props.js";
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
@@ -445,6 +446,9 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
+    if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene).then(() => {
+      this.renderer.shadowMap.needsUpdate = true;
+    }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
@@ -1699,6 +1703,15 @@ export class SceneRig {
    *  so this is "last frame"), programs accumulate for the renderer's
    *  lifetime (one per unique material/defines combination compiled so far). */
   getEffectInfo() { return { explosions: this.booms.length, tracers: this.tracers.length, blastLights: this.blastLights.length }; }
+
+  inspectRelayUplinks() {
+    return this.scene.children.filter(node => node.name === 'relay-uplink').map(node => {
+      const box = new THREE.Box3().setFromObject(node);
+      let triangles = 0;
+      node.traverse(child => { if (child instanceof THREE.Mesh) triangles += (child.geometry.index?.count ?? child.geometry.attributes.position!.count) / 3; });
+      return { min: box.min.toArray(), max: box.max.toArray(), size: box.getSize(new THREE.Vector3()).toArray(), triangles };
+    });
+  }
 
   getRenderInfo(): { calls: number; triangles: number; programs: number; textures: number; geometries: number } {
     const info = this.renderer.info;
