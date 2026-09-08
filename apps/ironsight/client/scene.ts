@@ -451,6 +451,8 @@ export class SceneRig {
     this.muzzle = vm.muzzle;
     this.muzzleLight = vm.light;
     this.camera.add(this.viewmodel);
+    // Keep the light outside the hideable viewmodel subtree so death and scoped ADS never change the scene's light count.
+    this.camera.add(this.muzzleLight);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
     if (options.loadViewmodel !== false) this.assetLoads.push(this.setWeaponVisual(0));
 
@@ -649,7 +651,6 @@ export class SceneRig {
 
     const light = new THREE.PointLight(PALETTE.muzzleLight, 0, 6, 2);
     light.position.set(0, 0.02, -0.74);
-    g.add(light);
 
     return { group: g, muzzle, light };
   }
@@ -660,6 +661,9 @@ export class SceneRig {
     this.muzzleFiredAt = performance.now();
     (this.muzzle.material as THREE.MeshBasicMaterial).opacity = 0.9;
     this.muzzle.rotation.z = Math.random() * Math.PI;
+    this.muzzle.getWorldPosition(this.muzzleWorldScratch);
+    this.camera.worldToLocal(this.muzzleWorldScratch);
+    this.muzzleLight.position.copy(this.muzzleWorldScratch);
     this.muzzleLight.intensity = 3;
   }
 
