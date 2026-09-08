@@ -62,6 +62,24 @@ active and list open questions with your default answer in the session log.
 - Existing inspectors: `scripts/inspect-map.mjs`, `scripts/inspect-rig.mjs`, `client/map-inspect.ts`,
   `scripts/audit-architecture.py`, `scripts/hitch-probe.mjs`.
 
+## Design reference (owner directive 2026-09-08: learn from the best-selling shooters)
+
+`apps/ironsight/AAA-DESIGN-REFERENCE.md` compiles sourced principles and numbers from
+GDC talks, developer blogs and analyses of Call of Duty, Counter-Strike, Valorant, Halo,
+Overwatch, Titanfall/Apex, DOOM, Destiny, Battlefield, Team Fortress 2 and others: map
+design (lanes, timings, cover classes, sightlines, spawns, readability), gunplay and feel
+(TTK, recoil, ADS/reload timing, animation, hit feedback, audio layering), and the fun
+loop (match flow, respawn, end-of-round, killcam, medals, HUD, onboarding, art direction,
+top player complaints). Read it every session. For each session:
+- Pick the gap item, then find the reference principles it touches and state them in the
+  session log as `Reference: R-xx, R-yy` with the concrete target you are aiming for
+  (a number or a checkable rule), and afterwards whether the build now meets it.
+- When the reference and your instinct disagree, follow the reference unless a budget or
+  guardrail forbids it; say so in the log.
+- Maintain a `## Reference scorecard` section at the top of the session log in AAA-PLAN.md:
+  every reference id with status met / partial / not yet / n.a. and the evidence. Re-rank
+  the AAA gap list from the `not yet` and `partial` rows.
+
 ## What "AAA" means here (judge yourself against this every session)
 
 Environment: layered, readable, lived-in spaces with hero props, set dressing, decals,

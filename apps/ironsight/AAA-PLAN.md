@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-20 are deployed there, including layered impacts,
-grounded remote reactions/deaths and weapon audio. Session 21's combat HUD remains
-local until supervisor publication. Continue using the standing
+Supervisor reports sessions 1-21 are deployed there, including layered impacts,
+grounded remote reactions/deaths, weapon audio and the combat HUD. Session 22's
+Relay wall weathering and roof service plates remain local until publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,22 +327,14 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 21. Lifecycle recovery remains resolved; no extra persistence
+Re-ranked after Session 22. Lifecycle recovery remains resolved; no extra persistence
 drill is needed absent a new failure. Sessions 17-20 improve hands, impacts,
 remote reactions and layered weapon audio; Session 21 finishes the killfeed and
-confirmed elimination pass. Next default: environment richness, then scoreboard
-and results presentation. Keep constant lights and the existing texture budgets.
+confirmed elimination pass. Session 22 adds baked Relay wall weathering and roof
+service plates. Next default: scoreboard and results presentation, then exterior
+richness on the other maps. Keep constant lights and the existing texture budgets.
 
-1. **Environment richness and material depth.** Relay now has human-scale service
-   hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
-   walls and floor have restrained concrete relief and roughness (Session 14).
-   Session 15 adds slab paving, flush pads, a service road and a horizon skirt.
-   Broad composition and weathering remain simple. Stress texture headroom is
-   ~0.25 MiB; re-budget before adding textures. Next default: larger-scale wall
-   wear and roof service detail using existing atlases/geometry. Undertow and
-   Switchyard exterior dressing remains sparse. Retain Session 13's paired uplinks.
-   Meshy is appropriate for machinery; the weak cable drum remains rejected.
-2. **Scoreboard and round presentation.** Session 21 adds readable kill weapon,
+1. **Scoreboard and round presentation.** Session 21 adds readable kill weapon,
    headshot/blast, assist and local involvement, plus a bounded confirmed-elimination
    notice. Next presentation default: scoreboard/results hierarchy and readability.
    Preserve authoritative events, accessible menus and reduced-motion settings.
@@ -350,6 +342,15 @@ and results presentation. Keep constant lights and the existing texture budgets.
    approval remains open. Real 6v6 should review remote cue drops under the
    unchanged 20-voice cap. Finger/contact, reaction intensity, moving reload/death
    and the new confirmation's distraction level remain human acceptance items.
+2. **Environment richness and material depth.** Relay now has human-scale service
+   hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
+   walls and floor have restrained concrete relief and roughness (Session 14).
+   Session 15 adds slab paving, flush pads, a service road and a horizon skirt.
+   Session 22 adds baked macro runoff/foundation grime and sixteen flush roof
+   service plates. Stress texture headroom is ~0.25 MiB; re-budget before adding
+   textures. Broader composition still needs work; next default: enrich the sparse
+   Undertow and Switchyard exteriors. Retain Session 13's paired uplinks.
+   Meshy is appropriate for machinery; the weak cable drum remains rejected.
 3. **Solo encounter quality.** Improve bot route variety/separation and examine
    inactive seats before increasing fill or difficulty.
 4. **Switchyard encounter design.** Its art replaces the legacy blockout, but the
@@ -2579,3 +2580,113 @@ tree stopped. session21-cleanup.json confirms all twelve final preview process-t
 members stopped, zero remaining owned processes, port-8796 listeners or inspection
 browsers. All standing final gates green; evidence remains ignored under .inspect.
 Ready for supervisor review/publication. No commit, push or deployment.
+
+
+### Session 22 - 2026-09-08: baked Relay wall weathering and roof service plates
+
+Read standing brief, Session 22 status and plan in order; confirmed ironsight-aaa
+from .git/HEAD. Scope apps/ironsight/** only. No git commands, commit, push,
+deployment, dependencies, SDK or purchased-derivative edits. Worker build uses
+the existing dry-run. No Meshy credits spent (1530 remain): this pass is original
+surface treatment on exact collider-derived architecture. The resolved lifecycle
+issue was not reopened, and local .wrangler/state was preserved.
+
+Completed the top finishable environment item: Relay's broad concrete walls now
+have baked mineral runoff below the parapets, softer damp shoulders and foundation
+grime. tools/weather-architecture.py processes only the original concrete primitive,
+subdividing flat surfaces offline and exporting linear vertex colors. The AO image,
+all other materials and original normals remain intact; UVs/normals interpolate
+over the same surfaces. No displacement, texture additions, runtime weather bake,
+new lights, rendering passes, collision, movement, combat or schema changes.
+
+Sixteen sealed roof hatches/vent plates reuse the existing service atlas and draw.
+All sit 12 mm above the four service-house solids, within their horizontal bounds;
+they add 32 triangles and no overhang or new implied machinery cover. Updated the
+existing cladding test to verify upward normals and each complete roof envelope.
+Its local geometry cap expands from 100 to 132 triangles for those sixteen plates;
+standing render, asset and hitch thresholds remain unchanged. Updated the original
+deployment vista to include the roof detail. Provenance and reproducible commands:
+public/assets/README.md. Existing original-asset allowlists already cover both files.
+
+Rejected intermediates: the first unshared 0.42 m subdivision export was 15,925,420
+bytes / 112,988 concrete triangles, needlessly expensive even though within the
+per-file cap. Shared vertices and a 0.7 m maximum edge reduce the concrete to
+40,428 triangles / 22,996 vertices. The first in-map treatment was too faint below
+the colored cornices, so extended/strengthened its runoff before final acceptance.
+The compact visual export was 2,265,524 bytes; retained original-triangle audit
+references add 81,096 bytes, giving the accepted 2,346,620-byte GLB. These references
+are not render attributes. The tool refuses already-colored input to prevent
+accidental repeated subdivision/weather accumulation; rerun from the original bake.
+
+Extended scripts/audit-architecture.py to verify every new triangle against its
+retained source: containment, winding, summed area, interpolated UVs and normals.
+It then runs the existing exact oriented-triangle/normal comparison against the
+procedural MapDef kit. All three maps pass. Relay's concrete bounds are identical;
+surface area is 2291.7017511888844 -> 2291.701751189482 square metres (floating-point
+roundoff). Evidence: .inspect/session22-weather.json, session22-geometry-audit.json
+and session22-geometry-audit.log. Source/output SHA-256 values are recorded there.
+The initial export and its report remain session22-weather-review.{glb,json}.
+
+Visual evidence: .inspect/session22-before-report.json and paired relay/cooling/
+overview/effects-stress PNGs. The first compact candidate is session22-review-*;
+stronger art and refreshed vista are session22-art-*. Accepted final report and
+six captures: session22-final-{relay,cooling,overview,vista,practice-two,effects-stress}.
+Opened baseline Relay/Cooling, both candidate Relay views, candidate Cooling and
+overview, final overview and real Undertow practice. These are production-renderer
+fixtures; they do not establish human visual or full-match acceptance.
+
+Final pnpm typecheck PASS; pnpm test PASS (337 passed, 3 existing opt-in skips;
+36 passing files, one skipped); pnpm build:client PASS; pnpm build PASS (dry-run
+235.39 KiB / gzip 69.97 KiB); pnpm audit:assets PASS. Logs under .inspect use
+session22-{typecheck,test,build-client,build,audit-assets}.log. Exact required
+relay,practice-two inspector PASS (session22-required-inspector.log), and the
+six-view extended inspector with --assert-budgets PASS (session22-final.log).
+Zero console/runtime/HTTP errors or forbidden offline gameplay network requests.
+Restarted the owned preview after final public writes before these browser gates.
+
+Matched effects workload: eleven remote operators plus local rifle/hands, 145
+twelve-rifle volleys, 96 blasts, 2,130 steady samples; transient effects drain.
+Edge 152 / RTX 5070 Direct3D11 at 1920x1080 balanced/DPR 1. Delta artifact:
+.inspect/session22-delta.json.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 93,190 | 220 / 133,302 | 0 / +40,112 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.0 / 7.1 | 6.9 / 7.0 / 7.1 | 0 / 0 / 0 |
+| Max / first-ready max ms | 7.6 / 7.1 | 7.2 / 7.1 | -0.4 / 0 |
+| Prepared shader programs | 26 | 27 | +1 vertex-color variant |
+
+Relay eye-level remains 22 calls, now 69,818 triangles (+40,112). Vertex buffers
+and downloaded bytes increase in exchange for no added texture allocation. Desktop
+rAF intervals and allocation estimates do not establish GPU timing, target iGPU,
+thermal/cold-driver or real 6v6 acceptance. No performance improvement is claimed.
+Asset bytes 12,179,418 -> 13,526,417 (+1,346,999); public bytes 18,231,553 ->
+19,579,911 (+1,348,358); largest file 4,195,441 bytes. The 40 MiB public / 25 MiB
+per-file caps pass. Stress texture headroom remains about 0.25 MiB.
+
+Re-ranked gaps: scoreboard/results hierarchy next, then richer Undertow/Switchyard
+exteriors. Nonblocking owner questions: retain this restrained mineral-weathered
+Relay treatment (default yes); prioritize scoreboard/results next (default yes).
+Industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM remain defaults.
+Human visual, animation, headphone mix, hardware and real-play acceptance stay open.
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots, warmup -> live at 7.275 seconds, two deaths and two
+observed respawns. Zero post-warmup shader recompiles, frames >150 ms, console
+errors or long tasks. Sole recorded frame above 24 ms: 71.3 ms at startup.
+Evidence: .inspect/hitch.json, session22-hitch.json and session22-hitch.log. No
+room isolation, storage clearing or extra lifecycle drill. Existing local workerd
+tick-backlog warnings remain recorded; no local capacity claim is made.
+
+Final generator check reproduces the shipped GLB byte-for-byte and confirms that
+already-weathered input is rejected without a partial output. Evidence:
+.inspect/session22-generator-check.json and session22-reproduced.json.
+
+Cleanup: .inspect/session22-review-cleanup.json records the earlier owned preview
+shutdown; session22-cleanup.json confirms all twelve final preview process-tree
+members stopped, zero remaining owned processes, port-8796 listeners or inspection
+browsers. All standing final gates and the strengthened architecture audit are
+green. Evidence remains ignored under .inspect. Ready for supervisor review;
+no commit, push or deployment.

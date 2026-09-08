@@ -28,7 +28,7 @@ Original architecture / lighting pipeline (session 9):
 
 | Path | Original source / runtime treatment | Versioned |
 |---|---|---|
-| `maps/relay-architecture.glb` | Exact Relay procedural kit and MapDef ramps, 1024px embedded AO atlas; 1,010,412 bytes | yes, explicit original-only exception |
+| `maps/relay-architecture.glb` | Exact Relay surfaces and MapDef ramps, 1024px embedded AO atlas; Session 22 vertex weathering, 2,346,620 bytes | yes, explicit original-only exception |
 | `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
 | `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
 
@@ -358,3 +358,38 @@ respects both the OS preference and the game setting. Offline fixtures reuse the
 existing Relay vista only for a matched background; gameplay loads no new asset.
 Reproduce: `pnpm build:client`, run the local preview, then
 `node scripts/inspect-map.mjs --url http://localhost:8796 --shots match-combat,match-combat-mobile,match-combat-reduced --prefix session21-final`.
+### Session 22: original baked Relay wall weathering and flush roof service plates
+
+`relay-architecture.glb` remains the allowlisted original procedural kit. After
+the existing Blender architecture/AO bake, `tools/weather-architecture.py` adds
+linear vertex-color mineral runoff and foundation grime to its concrete primitive.
+It subdivides flat triangles offline, interpolates the existing UVs/normals, shares
+vertices, and verifies unchanged bounds/surface area and a 45,000-triangle concrete
+cap. No displacement, image edits, new texture/material, purchased source, runtime
+bake or extra pass. Final GLB: 2,346,620 bytes; the original AO image bytes remain
+intact. Only Relay requests this asset. A fresh bake is required before reapplying;
+the tool refuses an already-colored input instead of compounding weathering.
+
+From the app directory, **after the existing architecture bake**:
+
+```powershell
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/relay-weather.json
+python scripts/audit-architecture.py
+pnpm build:client
+# With the local preview running:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,cooling,overview,vista --prefix relay-weather --write-vista
+```
+
+`client/relay-service-geometry.ts` adds sixteen original flush roof access/vent
+plates using the existing 512x256 service atlas and existing draw. They stay 12 mm
+above the four service-house colliders, with no overhang into routes. The geometry
+test checks roof normals and every full plate envelope, including wall cladding.
+The refreshed original `relay-vista.webp` reflects these roof details in deployment.
+No new asset allowlist entries or Meshy credits are needed. Review evidence and
+accepted/rejected measurements are in `AAA-PLAN.md`, Session 22.
+
+The GLB retains original triangle references for the architecture audit. It checks
+every subdivided triangle's winding, containment, surface area and interpolated
+UV/normal against that original, then compares the original against the MapDef kit.
+These audit references add 81,096 bytes to the compact weathered export and are
+not uploaded as render attributes. All other materials and image bytes are intact.

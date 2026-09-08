@@ -14,8 +14,16 @@ describe('Relay service cladding', () => {
       const face = new T.Box3();
       for (let j = 0; j < 4; j++) face.expandByPoint(new T.Vector3().fromBufferAttribute(positions, i + j));
       expect(colliders.some(c => c.clone().expandByScalar(0.02).containsBox(face))).toBe(true);
-      // Every decal is vertical, lies outside a north/south face, and cannot
-      // appear floating across a route or inside the underlying opaque wall.
+      // Every plate hugs a north/south face or the top of existing solid cover;
+      // roof vents must face upward and cannot extend over an open route.
+      const rooftop = face.max.y - face.min.y < 0.00001;
+      if (rooftop) {
+        expect(geometry.getAttribute('normal').getY(i)).toBeCloseTo(1);
+        expect(colliders.some(c => Math.abs(face.min.y - c.max.y - 0.012) < 0.00001 &&
+          face.min.x >= c.min.x && face.max.x <= c.max.x &&
+          face.min.z >= c.min.z && face.max.z <= c.max.z)).toBe(true);
+        continue;
+      }
       expect(face.max.z - face.min.z).toBeLessThan(0.00001);
       expect(colliders.some(c => Math.min(Math.abs(face.min.z - c.min.z + 0.012),
         Math.abs(face.min.z - c.max.z - 0.012)) < 0.00001 &&
@@ -25,7 +33,7 @@ describe('Relay service cladding', () => {
   });
   it('batches detail with finite atlas coordinates and a small fixed triangle budget', () => {
     expect(geometry.groups).toHaveLength(0);
-    expect(geometry.index!.count / 3).toBeLessThanOrEqual(100);
+    expect(geometry.index!.count / 3).toBeLessThanOrEqual(132); // prior 100 + sixteen roof plates
     const uv = geometry.getAttribute('uv');
     for (const value of uv.array) { expect(Number.isFinite(value)).toBe(true); expect(value).toBeGreaterThan(0); expect(value).toBeLessThan(1); }
   });
