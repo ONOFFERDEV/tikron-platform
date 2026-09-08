@@ -142,9 +142,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v6 expands Undertow. Older snapshots start a
+  // v7 expands Switchyard. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 6;
+  protected override stateVersion = 7;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -1308,6 +1308,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       ? p.team === TEAM.red ? GAME.teams.spawnFacingYaw[0] : GAME.teams.spawnFacingYaw[1]
       : Math.atan2(this.map.bounds.width / 2 - pt.x, this.map.bounds.depth / 2 - pt.z);
     p.pitch = 0;
+    const patrolBrain = this.botBrains.get(id);
+    if (patrolBrain && this.map.patrolWaypoints?.length)
+      patrolBrain.wpIndex = (Number(id.slice(4)) - 1) % patrolBrain.waypoints.length;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
     // weapon, and a fresh set of grenades.
     p.weapon = this.primaryWeapon.get(id) ?? DEFAULT_WEAPON;
@@ -1369,11 +1372,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   // --- bots ---------------------------------------------------------------
 
-  /** Patrol points bots path between: both spawn pools + the map's capture points
+  /** Map-authored patrol circuit when present, otherwise both spawn pools + capture points
    *  (or that cap's `capWaypoints` override, for a cap whose own (x,z) sits inside
    *  solid geometry — see MapDef's doc comment), giving lane coverage without a
    *  dedicated waypoint table in arena1.ts/arena2.ts. */
   private botWaypoints(): { x: number; y: number }[] {
+    if (this.map.patrolWaypoints?.length)
+      return this.map.patrolWaypoints.map(p => ({ x: p.x, y: p.z }));
     const { spawns, caps, capWaypoints } = this.map;
     const capPts = [
       ...(capWaypoints?.a ?? [caps.a]),

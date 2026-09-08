@@ -6,6 +6,8 @@ import { buildSiteGround } from './site-ground.js';
  * millimetre face cladding cannot create a route, opening or extra cover.
  * Substation gantries and machinery stand entirely outside the playable bounds. */
 export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
+  const { width, depth } = map.bounds;
+  const cx = width / 2, cz = depth / 2;
   const colors = [0xb8bcb0, 0x33474c, 0x617a78, 0xdbaa57, 0x458d91, 0xdad6be];
   const materials = colors.map((color, i) => new T.MeshStandardMaterial({
     color, roughness: i === 1 || i === 2 ? 0.74 : 0.91, metalness: i === 1 || i === 2 ? 0.28 : 0.06,
@@ -28,7 +30,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     add(low ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
     add(1, x, base + 0.12, z, w + 0.006, 0.24, d + 0.006);
     add(low ? 3 : 5, x, base + h - 0.08, z, w + 0.008, 0.15, d + 0.008);
-    const accent = z < 20 ? 4 : 3;
+    const accent = z < cz ? 4 : 3;
     for (const side of [-1, 1]) {
       const face = z + side * (d / 2);
       if (low) {
@@ -61,15 +63,15 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     }
   }
   // Retaining walls sit outside the server's clamped rectangle, including trim.
-  for (const z of [-0.46, 40.46]) {
+  for (const z of [-0.46, depth + 0.46]) {
     const height = z < 0 ? 1.4 : 2.8;
-    add(0, 30, height / 2, z, 61.8, height, 0.9, 'exterior');
-    add(1, 30, height - 0.06, z, 61.8, 0.12, 0.91, 'exterior');
-    for (let x = 2; x < 60; x += 4) add(2, x, height / 2, z, 0.2, height, 0.915, 'exterior');
+    add(0, cx, height / 2, z, width + 1.8, height, 0.9, 'exterior');
+    add(1, cx, height - 0.06, z, width + 1.8, 0.12, 0.91, 'exterior');
+    for (let x = 2; x < width; x += 4) add(2, x, height / 2, z, 0.2, height, 0.915, 'exterior');
   }
-  for (const x of [-0.46, 60.46]) {
-    add(1, x, 2.6, 20, 0.9, 5.2, 40, 'exterior');
-    for (let z = 2; z < 40; z += 4) {
+  for (const x of [-0.46, width + 0.46]) {
+    add(1, x, 2.6, cz, 0.9, 5.2, depth, 'exterior');
+    for (let z = 2; z < depth; z += 4) {
       add(2, x, 2.6, z, 0.915, 5.2, 0.18, 'exterior');
       add(4, x, 3.4, z + 1.7, 0.915, 1.2, 2.3, 'exterior');
     }
@@ -77,7 +79,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   // North substation: three portal frames and visible ceramic insulator stacks.
   // The generated transformer sits between these bays; all geometry is beyond z=0.
   for (const z of [-5, -13]) {
-    for (const x of [10, 30, 50]) {
+    for (const x of [cx - 40, cx, cx + 40]) {
       for (const dx of [-5, 5]) {
         add(0, x + dx, 0.45, z, 1.5, 0.9, 1.6, 'exterior');
         add(2, x + dx, 6, z, 0.38, 12, 0.5, 'exterior');
@@ -94,8 +96,17 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       }
     }
   }
+  // One north-axis switching mast; entirely outside play, visible above the deck.
+  add(1, cx, 13, -5, 2, 26, 2, 'exterior');
+  for (const y of [17, 21, 25]) {
+    add(2, cx, y, -5, 14, 0.5, 0.8, 'exterior');
+    for (const dx of [-6, -3, 3, 6]) {
+      add(5, cx + dx, y - 1, -5, 0.65, 1.8, 0.65, 'exterior', true);
+      add(3, cx + dx, y - 2, -5, 0.8, 0.3, 0.8, 'exterior');
+    }
+  }
   // Southern service hall and distant industrial masses balance the open substation.
-  for (const [x, z, w, h, d] of [[16, 51, 24, 9, 15], [46, 55, 20, 15, 18], [-10, 16, 12, 14, 22], [72, 24, 16, 19, 26]] as const) {
+  for (const [x, z, w, h, d] of [[cx - 30, depth + 11, 24, 9, 15], [cx + 30, depth + 15, 20, 15, 18], [-10, cz - 12, 12, 14, 22], [width + 12, cz + 12, 16, 19, 26]] as const) {
     add(0, x, (h - 2) / 2, z, w, h - 2, d, 'exterior');
     add(1, x, h - 1, z, w + 0.1, 2, d + 0.1, 'exterior');
     add(2, x, h + 0.5, z, w * 0.7, 1, d * 0.7, 'exterior');
@@ -104,17 +115,17 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     add(4, x, h - 1, z, w + 0.12, 0.3, d + 0.12, 'exterior');
   }
   // In-ground cable raceways and crossings, not raised rail obstacles.
-  for (const z of [13, 27]) for (const x of [10, 30, 50]) {
+  for (const z of [29, 65]) for (const x of [cx - 40, cx, cx + 40]) {
     add(1, x, 0.002, z, 13, 0.004, 0.30, 'paint');
     for (const side of [-1, 1]) add(5, x, 0.004, z + side * 0.27, 13, 0.005, 0.055, 'paint');
     for (let dx = -2; dx <= 2; dx++) add(3, x + dx * 0.5, 0.005, z + 0.85, 0.19, 0.006, 0.65, 'paint');
   }
-  for (const x of [3, 57]) for (let z = 4; z <= 36; z += 4)
+  for (const x of [3, width - 3]) for (let z = 4; z <= depth - 4; z += 4)
     add(5, x, 0.004, z, 0.085, 0.006, 2, 'paint');
   // Dashed perimeter of the switching deck; the deck itself remains empty.
-  for (const b of map.boxes.filter(b => b.max.y === 1.2)) {
+  for (const b of map.boxes.filter(b => b.min.x === 66 && b.max.x === 84 && b.max.y === 3)) {
     for (const side of [-1, 1])
-      add(3, (b.min.x + b.max.x) / 2, 1.204, (b.min.z + b.max.z) / 2 + side * ((b.max.z - b.min.z) / 2 - 0.10),
+      add(3, (b.min.x + b.max.x) / 2, 3.004, (b.min.z + b.max.z) / 2 + side * ((b.max.z - b.min.z) / 2 - 0.10),
         b.max.x - b.min.x - 0.15, 0.006, 0.08, 'paint');
   }
   for (const [key, transforms] of batches) {
@@ -141,10 +152,10 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 3 - label) / 4);
     const mesh = new T.Mesh(geo, mat); mesh.position.set(x, y, z); mesh.rotation.y = yaw; scene.add(mesh);
   };
-  sign(0, 30, 0.75, 0.006, 0, 7);
-  sign(1, 24, 2.15, 8.024);
-  sign(3, 36, 2.15, 31.976, Math.PI);
-  // The other half of this face meets a ramp. Keep the label on exposed wall.
-  sign(2, 29, 0.8, 22.024, 0, 1.8);
-  sign(0, 30, 2.05, 39.994, Math.PI, 7);
+  sign(0, cx, 0.75, 0.006, 0, 9);
+  sign(1, 25, 2.4, 8.024, 0, 7);
+  sign(1, width - 25, 2.4, 8.024, 0, 7);
+  sign(3, cx, 2.4, 97.976, Math.PI, 7);
+  sign(2, 69, 2.4, 58.024, 0, 4);
+  sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
 }

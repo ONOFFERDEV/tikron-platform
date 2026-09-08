@@ -476,12 +476,9 @@ describe("arena room — ffa (teamless) mode: no false-positive friendly fire", 
     expect(liveState(h).players[shooter.id]!.team).toBe(0);
     expect(liveState(h).players[target.id]!.team).toBe(0); // ffa: everyone is team 0
 
-    // z=23: an open east-west corridor on ARENA3 (ffa's map since the crossyard
-    // shipped) — the old default z=6 line now runs into arena3's north diagonal
-    // wall (x16-32 at z6-8), which would occlude the shot and fail this test
-    // for a reason that has nothing to do with team filtering.
-    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH, z: 23 });
-    place(h, target.id, 20, { z: 23 });
+    // A short open segment on Switchyard's north rifle lane isolates team filtering.
+    place(h, shooter.id, 55, { yaw: Math.PI / 2, pitch: BODY_PITCH, z: 29 });
+    place(h, target.id, 65, { z: 29 });
     await tick(h, 3);
 
     await shooter.send("fire");

@@ -448,3 +448,31 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista 
 The generated GLB is 3,783,288 bytes, ground AO 121,119 bytes. Architecture audit
 verifies 47,176 oriented source triangles and their authored normals at 0.1 mm
 position tolerance. No added image or material texture; no Meshy credits spent.
+
+
+### Session 30: expanded Switchyard (original collider-derived kit)
+
+Switchyard now spans 150 x 100 m. `src/map/arena3.ts` owns its tile geometry,
+twelve distributed screened spawns, three anchors, four six-metre ramps and
+3 m switching deck / 6 m switchgear halls. The original procedural cabinet kit,
+perimeter and exterior switching mast follow that layout. Existing generated
+transformers share one lazy asset and stand north of the current map boundary.
+No purchased inputs or new textures. Existing allowlists cover the same paths.
+Ground AO remains 1024 x 683 R8; architecture AO remains 1024 square, lazy per map.
+
+Reproduce from apps/ironsight with Blender 4.5:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session30-maps.json switchyard
+node tools/dump-architecture.mjs .inspect/session30-architecture.json switchyard
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session30-maps.json
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session30-architecture.json
+python scripts/audit-architecture.py --input .inspect/session30-architecture.json
+pnpm build:client
+# Restart the local preview after writing assets, then capture the actual renderer:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --prefix session30-vista --write-vista
+```
+
+GLB: 5,016,936 bytes, 66,092 oriented triangles, ten material primitives.
+Ground AO: 145,770 bytes. Architecture audit matches the original source at
+0.1 mm position tolerance, with zero degenerate triangles. No Meshy credits spent.

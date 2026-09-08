@@ -43,12 +43,12 @@ export function startMapInspector(): void {
     'undertow-vista': [120, 22, 95, 75, 4, 25],
     'undertow-maintenance': [52, 1.65, 85, 75, 2.5, 88],
     'undertow-stress': [46, 1.65, 27, 65, 1.5, 27],
-    'switchyard-overview': [52, 38, 57, 29, 0, 19],
-    'switchyard-center': [25, 1.65, 25, 31, 2.2, 17],
-    'switchyard-service': [39, 1.65, 13, 47, 2, 7],
-    'switchyard-vista': [48, 13, 37, 26, 4, 8],
-    'switchyard-north': [20, 1.65, 3, 31, 3.5, -5],
-    'switchyard-stress': [8, 1.65, 11, 35, 1.5, 11],
+    'switchyard-overview': [128, 96, 135, 75, 0, 47],
+    'switchyard-center': [58, 1.65, 66, 75, 2.5, 49],
+    'switchyard-service': [57, 1.65, 87, 75, 2, 84],
+    'switchyard-vista': [117, 22, 94, 75, 4, 29],
+    'switchyard-north': [55, 1.65, 29, 95, 2, 29],
+    'switchyard-stress': [46, 1.65, 29, 65, 1.5, 29],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
   const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : shots[shotName] ?? shots.overview!;
@@ -65,7 +65,7 @@ export function startMapInspector(): void {
   const gpu = gl && debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) as string : "unavailable";
   const samples: number[] = [];
   const actors = new Map(Array.from({ length: actorCount }, (_, i) => [`inspect-${i}`, {
-    x: (map === ARENA2 ? 56 : 20) + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 27 : 10) + (i % 3) * 0.6,
+    x: (map === ARENA1 ? 20 : 56) + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 27 : map === ARENA3 ? 29 : 10) + (i % 3) * 0.6,
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
     alive: true, weapon: 0,
   }] as const));

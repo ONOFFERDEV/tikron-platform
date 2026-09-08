@@ -1,62 +1,84 @@
-import type { Box, Bounds, Vec3 } from "../physics.js";
-import { compileTileMap } from "./tilemap.js";
-import type { MapDef } from "./types.js";
+import { compileTileMap } from './tilemap.js';
+import type { MapDef } from './types.js';
 
-/**
- * arena3 — "crossyard", an FFA-only map (60×40 m). A pure data module so the
- * server (authority), the client (rendering), and the bots (navigation) all
- * import the SAME geometry — walls cost zero wire bytes because both sides
- * derive them here, not from state.
- *
- * Authored as an ASCII tile grid (see the legend in tilemap.ts). All terrain,
- * caps a/c, and spawns are 180°-rotationally symmetric about the grid center —
- * (i,j) ↔ (19−i, 29−j) — and each team's own spawn set is closed under that
- * same rotation. Since FFA has no "sides," this rotational symmetry (rather
- * than arena1's mirror symmetry) is what guarantees every spawn's ETA to every
- * cap is fair by construction — geometry does the work the map-timing gate
- * would otherwise have to catch after the fact.
- *
- * A central 2×2 platform (`=`) with a ramp (`< > ^ v`) on each of its four
- * sides is the map's hotspot. Two diagonal walls (`#`) cut the long
- * sightlines across the yard. Because the mode is FFA, the red/blue spawn
- * split is just a spawn-pool partition, not a "team side" — all three caps
- * sit on open floor, so no `capWaypoints` override is needed.
- *
- * Switchyard replaces the original Crossyard presentation without changing this
- * collision grid, spawn pool or navigation. The original industrial kit and its
- * AO bake follow these envelopes; generated substation machinery stays outside.
+/** SWITCHYARD: 150 x 100 m, twelve screened deployment bays.
+ * North bus: 40 m rifle corridor and two-ended control courts.
+ * Switch deck: exposed four-ramp 3 m shortcut between both movement axes.
+ * South service: offset switchgear screens into B's paired-door court.
+ * DOM distances govern the anchors; the public playlist remains FFA.
+ * Tiles own collision, spawns and caps. Dressing never adds playable cover.
  */
-const ROWS_ARENA3: readonly string[] = [
-  "..............................",
-  "..r...........................",
-  ".........................b....",
-  "........########..............",
-  "....................r.XX......",
-  "........1.............XX......",
-  "..............................",
-  ".....x....x...................",
-  "..............v........b......",
-  ".....##......>==..............",
-  "..............==<......##.....",
-  "......b......2.^..............",
-  "...................x....x.....",
-  "..............................",
-  "......XX.............3........",
-  "......XX.r....................",
-  "..............########........",
-  "....b.........................",
-  "...........................r..",
-  "..............................",
+export const SWITCHYARD_ROWS: readonly string[] = [
+  ".....................................#.....................................",
+  ".............r.......................#.......................b.............",
+  "...........................................................................",
+  "..........########.......................................########..........",
+  "...........................................................................",
+  ".......#...........................................................#.......",
+  ".......#....1.................................................3....#.......",
+  ".......#...........................................................#.......",
+  ".......#...........................................................#.......",
+  ".r.....#...........................................................#.....b.",
+  ".......#..#####.............................................#####..#.......",
+  ".......#...........................................................#.......",
+  ".......#...........................................................#.......",
+  ".......#...........................................................#.......",
+  ".........................x.......................x.........................",
+  "...........................................................................",
+  "####...................................................................####",
+  "...........................................................................",
+  "....................XXXXXXX.....................XXXXXXX....................",
+  "....................XXXXXXX.....................XXXXXXX....................",
+  ".......#............XXXXXXX..........v..........XXXXXXX............#.......",
+  ".......#............XXXXXXX......=========......XXXXXXX............#.......",
+  ".......#.........................=========.........................#.......",
+  ".......#.........................=========.........................#.......",
+  ".r.....#........................>=========<........................#.....b.",
+  ".......#...........x........x....=========....x........x...........#.......",
+  ".......#.........................=========.........................#.......",
+  ".......#.........................=========.........................#.......",
+  ".......#.........................=========.........................#.......",
+  ".................XXXXXXXX............^............XXXXXXXX.................",
+  ".................XXXXXXXX.........................XXXXXXXX.................",
+  ".................XXXXXXXX.........................XXXXXXXX.................",
+  "####......................x.....................x......................####",
+  "...........................................................................",
+  "...........................................................................",
+  ".......#...............#####...................#####...............#.......",
+  ".......#...............#####...................#####...............#.......",
+  ".......#...........................................................#.......",
+  ".......#.......XXXXX...................................XXXXX.......#.......",
+  ".r.....#.......XXXXX...................................XXXXX.......#.....b.",
+  ".......#.......XXXXX.......####.............####.......XXXXX.......#.......",
+  ".......#...................####.............####...................#.......",
+  ".......#.........................#..###..#.........................#.......",
+  ".......#.........................#.......#.........................#.......",
+  "......................x..........#.......#..........x......................",
+  "..........#######........#######.#.......#.#######........#######..........",
+  "...................#............##...2...##............#...................",
+  "...................#............##.......##............#...................",
+  ".............r.....#........r...##.......##...b........#.....b.............",
+  "...................#............###########............#...................",
 ];
-
-const compiled: MapDef = compileTileMap(ROWS_ARENA3);
-
-export const ARENA3_BOUNDS: Bounds = compiled.bounds;
-export const ARENA3_BOXES: readonly Box[] = compiled.boxes;
-export const ARENA3_SPAWNS: { readonly red: readonly Vec3[]; readonly blue: readonly Vec3[] } = compiled.spawns;
-export const ARENA3_CAPS: { readonly a: Vec3; readonly b: Vec3; readonly c: Vec3 } = compiled.caps;
-
-/** arena3 packaged as one {@link MapDef} — the single value `mapForMode` (modes.ts)
- *  resolves and threads everywhere; the individual named exports above stay as
- *  aliases so existing direct importers don't need to change. */
-export const ARENA3: MapDef = { ...compiled, presentation: 'switchyard' };
+const compiled = compileTileMap(SWITCHYARD_ROWS);
+export const ARENA3: MapDef = {
+  ...compiled, presentation: 'switchyard',
+  patrolWaypoints: [
+    { x: 25, z: 13 }, { x: 55, z: 29 }, { x: 95, z: 29 }, { x: 125, z: 13 },
+    { x: 123, z: 51 }, { x: 123, z: 87 }, { x: 75, z: 93 },
+    { x: 27, z: 87 }, { x: 27, z: 51 },
+  ],
+  boxes: compiled.boxes.map(b => ({ ...b, max: { ...b.max,
+    y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
+  } })),
+  ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
+    minX: r.axis === 'x' && r.dir === 1 ? r.minX - 4 : r.minX,
+    maxX: r.axis === 'x' && r.dir === -1 ? r.maxX + 4 : r.maxX,
+    minZ: r.axis === 'z' && r.dir === 1 ? r.minZ - 4 : r.minZ,
+    maxZ: r.axis === 'z' && r.dir === -1 ? r.maxZ + 4 : r.maxZ,
+  })),
+};
+export const ARENA3_BOUNDS = ARENA3.bounds;
+export const ARENA3_BOXES = ARENA3.boxes;
+export const ARENA3_SPAWNS = ARENA3.spawns;
+export const ARENA3_CAPS = ARENA3.caps;

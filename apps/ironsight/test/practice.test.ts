@@ -190,11 +190,8 @@ describe("practice room — showcase bots", () => {
 
 describe("practice room — map selection", () => {
   it("an arena3-encoded practice room actually plays on ARENA3 (geometry, not reference equality)", async () => {
-    // Same shooter/target coordinates as the plain ARENA1 duel test above, where
-    // the shot lands — here it must NOT, because ARENA3's north diagonal wall
-    // (x16-32 at z6-8) occludes this z=6 line of sight (see arena-room.test.ts's
-    // ffa test for the same landmark). A blocked shot is the behavioral proof
-    // that mapForRoom actually resolved ARENA3 from this room id, not ARENA1.
+    // Switchyard's x14-16 deployment screen blocks this ray; Relay has no
+    // blocker on this short segment. This proves map selection through hits.
     const h = await createTestRoom(PracticeDuelArena, {
       id: "arena-practice-arena3-occl1",
       codec: ArenaSchema,
@@ -204,8 +201,8 @@ describe("practice room — map selection", () => {
     const target = await h.connect();
     await tick(h, 2);
 
-    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH, z: 7 });
-    place(h, target.id, 20, { z: 7 });
+    place(h, shooter.id, 10, { yaw: Math.PI / 2, pitch: BODY_PITCH, z: 19 });
+    place(h, target.id, 20, { z: 19 });
     await tick(h, 3);
 
     for (let i = 0; i < 4; i++) {

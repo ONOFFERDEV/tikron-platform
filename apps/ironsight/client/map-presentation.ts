@@ -33,8 +33,8 @@ export function mapCallout(map: MapDef, x: number, z: number): string {
       : x < map.bounds.width / 2 ? 'WEST DECK' : 'EAST DECK';
   }
   if (map.presentation === 'switchyard') {
-    if (x < 8 || x > 52) return 'PERIMETER SERVICE';
-    return z < 14 ? '01 / NORTH BUS' : z > 26 ? '03 / SOUTH SERVICE' : '02 / SWITCH DECK';
+    if (x < map.bounds.width * .12 || x > map.bounds.width * .88) return 'PERIMETER SERVICE';
+    return z < map.bounds.depth * .34 ? '01 / NORTH BUS' : z > map.bounds.depth * .66 ? '03 / SOUTH SERVICE' : '02 / SWITCH DECK';
   }
   return 'TRAINING GROUND';
 }

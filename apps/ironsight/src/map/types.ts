@@ -31,6 +31,9 @@ export interface RampDef {
 export interface MapDef {
   /** Game-owned visual kit. Collision remains the boxes/ramps below. */
   readonly presentation?: "relay" | "undertow" | "switchyard";
+  /** Optional non-objective patrol circuit, on navigable ground. Omitting it
+   * preserves the spawn/cap circuit. Used to keep FFA bots out of spawn bays. */
+  readonly patrolWaypoints?: readonly { readonly x: number; readonly z: number }[];
   readonly bounds: Bounds;
   readonly boxes: readonly Box[];
   /** Sloped-surface colliders — see {@link RampDef}. Optional for backward

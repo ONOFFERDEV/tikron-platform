@@ -449,7 +449,7 @@ export class SceneRig {
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
-    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene).then(() => {
+    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
     if (map.presentation) this.assetLoads.push(loadSiteEnvironment(this.scene, this.renderer)
