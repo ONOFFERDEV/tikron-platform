@@ -44,6 +44,18 @@ describe("expanded arena encounters", () => {
 });
 
 describe("botThink — dom objective", () => {
+  it("follows collision navigation around a wall while keeping the real objective as its arrival target", () => {
+    const brain = createBotBrain({ seed: 1, waypoints: [{ x: 0, y: 0 }] });
+    const objective = { x: 30, z: 20 };
+    const decision = botThink(baseView({ objective, navigate: target => {
+      expect(target).toEqual(objective);
+      return { x: 25, z: 10 }; // the next corner is west, though the objective is north
+    } }), brain, 50);
+    expect(decision.move.mx).toBeCloseTo(-1);
+    expect(decision.move.mz).toBeCloseTo(0);
+    expect(decision.fire).toBe(false);
+  });
+
   it("with an objective and no visible enemy, walks straight toward it instead of patrolling", () => {
     const brain = createBotBrain({ seed: 1, waypoints: [{ x: 0, y: 0 }] }); // unused while an objective is set
     const view = baseView({ objective: { x: 30, z: 20 } }); // due "north" of self (30,10)

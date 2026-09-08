@@ -36,13 +36,13 @@ export function startMapInspector(): void {
     spawn: [3, 1.65, 39, 20, 1.8, 28],
     vista: [105, 20, 91, 75, 4.2, 37],
     stress: [8, 1.65, 11, 35, 1.5, 11],
-    'undertow-overview': [52, 38, 57, 29, 0, 19],
-    'undertow-home': [15, 1.65, 21, 28, 1.6, 17],
-    'undertow-center': [30, 1.65, 20, 33, 2, 12],
-    'undertow-deck': [17, 2.85, 9, 30, 1.6, 20],
-    'undertow-vista': [48, 13, 37, 25, 4.0, 9],
-    'undertow-maintenance': [36, 1.65, 35, 23, 2.5, 28],
-    'undertow-stress': [14, 1.65, 16, 33, 1.5, 19],
+    'undertow-overview': [130, 96, 138, 75, 0, 48],
+    'undertow-home': [27, 1.65, 16, 55, 2, 15],
+    'undertow-center': [75, 1.65, 95, 82, 2, 85],
+    'undertow-deck': [45, 4.65, 42, 75, 3, 50],
+    'undertow-vista': [120, 22, 95, 75, 4, 25],
+    'undertow-maintenance': [52, 1.65, 85, 75, 2.5, 88],
+    'undertow-stress': [46, 1.65, 27, 65, 1.5, 27],
     'switchyard-overview': [52, 38, 57, 29, 0, 19],
     'switchyard-center': [25, 1.65, 25, 31, 2.2, 17],
     'switchyard-service': [39, 1.65, 13, 47, 2, 7],
@@ -65,7 +65,7 @@ export function startMapInspector(): void {
   const gpu = gl && debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) as string : "unavailable";
   const samples: number[] = [];
   const actors = new Map(Array.from({ length: actorCount }, (_, i) => [`inspect-${i}`, {
-    x: 20 + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 16 : 10) + (i % 3) * 0.6,
+    x: (map === ARENA2 ? 56 : 20) + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 27 : 10) + (i % 3) * 0.6,
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
     alive: true, weapon: 0,
   }] as const));

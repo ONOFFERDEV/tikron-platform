@@ -142,9 +142,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v5 expands Relay and the shared coordinate envelope. Older snapshots start a
+  // v6 expands Undertow. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 5;
+  protected override stateVersion = 6;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -312,8 +312,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       }
     }
 
-    if (this.map === ARENA1 && this.gameMode.id !== "practice" && this.fillToPlayers === MATCH.fillToPlayers)
-      this.fillToPlayers = MATCH.maxClients; // expanded Relay: six seats per side
+    if (this.map.bounds.width > 60 && this.gameMode.id !== "practice" && this.fillToPlayers === MATCH.fillToPlayers)
+      this.fillToPlayers = MATCH.maxClients; // expanded maps: six seats per side
 
     const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
     this.spreadRng = xorshift32(seed || 1);
@@ -1518,7 +1518,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         pitch: self.pitch,
       },
       enemies,
-      engagementRange: this.map === ARENA1 ? Math.min(40, WEAPONS[self.weapon]?.range ?? 40) : undefined,
+      engagementRange: this.map.bounds.width > 60 ? Math.min(40, WEAPONS[self.weapon]?.range ?? 40) : undefined,
       teamless: ffa,
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,

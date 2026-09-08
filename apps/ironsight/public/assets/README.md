@@ -422,3 +422,29 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --prefix 
 No Meshy generation or new texture/light/pass is added. Existing Meshy uplinks
 move to flank the centered relay mast. Material weathering remains an offline
 vertex-color operation. See AAA-PLAN.md Session 28 for measurements and limits.
+
+
+### Session 29: expanded Undertow (original collider-derived kit)
+
+The 150 x 100 m Undertow layout, paired 3 m control decks, 6 m service buildings,
+B court and perimeter are owned by `src/map/arena2.ts`. The original reclamation
+kit follows these envelopes; the exterior 24 m control stack and clarifiers stay
+outside playable bounds. The lower box and upper cap meet without overlapping
+roof faces. Existing allowlists cover these original files; no purchased input.
+Ground AO remains 1024 x 683 R8, architecture AO 1024 square, lazy per map.
+Reproduce from apps/ironsight using Blender 4.5:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session29-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session29-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session29-maps.json
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session29-architecture.json
+python scripts/audit-architecture.py --input .inspect/session29-architecture.json
+pnpm build:client
+# Restart the local preview after writing assets, then capture its original vista:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista --prefix session29-vista --write-vista
+```
+
+The generated GLB is 3,783,288 bytes, ground AO 121,119 bytes. Architecture audit
+verifies 47,176 oriented source triangles and their authored normals at 0.1 mm
+position tolerance. No added image or material texture; no Meshy credits spent.

@@ -8,7 +8,7 @@ export const SITES = {
     routes: 'Cooling / Relay core / Freight', description: 'Split the core. Control three connected lanes.',
     image: '/assets/relay-vista.webp', map: ARENA1, legacy: false },
   arena2: { name: 'UNDERTOW', number: '02', subtitle: 'WATER RECLAMATION PLANT',
-    routes: 'Control decks / Pump hall / Maintenance', description: 'Cross the pump hall. Hold the three control points.',
+    routes: 'Clarifier route / Control decks / Maintenance', description: 'Cross the pump hall. Hold the three control points.',
     image: '/assets/undertow-vista.webp', map: ARENA2, legacy: false },
   arena3: { name: 'SWITCHYARD', number: '03', subtitle: 'POWER DISTRIBUTION DEPOT',
     routes: 'North bus / Switch deck / South service', description: 'Cross the switch deck. Watch every approach in free-for-all.',
@@ -23,10 +23,14 @@ export function mapCallout(map: MapDef, x: number, z: number): string {
     return z < map.bounds.depth * .34 ? '01 / COOLING' : z > map.bounds.depth * .66 ? '03 / FREIGHT' : '02 / RELAY';
   }
   if (map.presentation === 'undertow') {
-    if (x < 13) return 'WEST SERVICE'; if (x > 47) return 'EAST SERVICE';
-    if (z >= 33) return 'MAINTENANCE';
-    if (z < 14) return x < 22 ? 'WEST DECK' : x > 38 ? 'EAST DECK' : 'PIPE ROUTE';
-    return x < 22 ? 'A / WEST CONTROL' : x > 38 ? 'C / EAST CONTROL' : 'B / PUMP HALL';
+    if (x < map.bounds.width * .12) return 'WEST SERVICE';
+    if (x > map.bounds.width * .88) return 'EAST SERVICE';
+    if (z > map.bounds.depth * .86) return 'B / PUMP HALL';
+    if (z > map.bounds.depth * .65) return 'MAINTENANCE';
+    if (z < map.bounds.depth * .23) return x < map.bounds.width * .3 ? 'A / WEST CONTROL'
+      : x > map.bounds.width * .7 ? 'C / EAST CONTROL' : 'CLARIFIER ROUTE';
+    return z < map.bounds.depth * .33 ? 'CLARIFIER ROUTE'
+      : x < map.bounds.width / 2 ? 'WEST DECK' : 'EAST DECK';
   }
   if (map.presentation === 'switchyard') {
     if (x < 8 || x > 52) return 'PERIMETER SERVICE';

@@ -361,7 +361,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
   // dom once every point is owned) falls through to the legacy logic below,
   // completely unchanged.
-  if (view.objective) return domThink(view.objective, self, enemy, brain, dtMs);
+  if (view.objective) return domThink(view.objective, self, enemy, brain, dtMs, view.navigate);
 
   if (!enemy) {
     brain.lockId = null;
@@ -413,6 +413,7 @@ function domThink(
   enemy: BotEnemyView | null,
   brain: BotBrain,
   dtMs: number,
+  navigate?: BotView["navigate"],
 ): BotDecision {
   let look: BotLookIntent;
   let fire = false;
@@ -445,6 +446,6 @@ function domThink(
   // Default: push toward the objective — converts the world-space direction
   // into a move intent relative to wherever we're currently looking (mirrors
   // how combatStrafe lets a bot strafe sideways while keeping its aim on target).
-  const dir = dirTo(self, objective);
+  const dir = dirTo(self, navigate?.(objective) ?? objective);
   return { look, move: worldToMove(look.yaw, dir.x, dir.z), fire };
 }

@@ -244,7 +244,13 @@ export function moveAndSlide(
       y - surface <= stepUp &&
       insideRampFootprint(pos.x, pos.z, r) &&
       Math.abs(pos.y - rampSurfaceY(r, pos.x, pos.z)) <= 0.02;
-    if (nearSurface || crossedDescending || walkedDownSlope) {
+    // The capsule can remain supported by the deck lip after its center has
+    // entered a steep ramp. Continue that grounded descent once the lip ends.
+    // Require actual previous box support; this must never snap a jumping player.
+    const walkedOffDeck = vyIn <= 0 && y > surface && pos.y - surface <= stepUp
+      && boxes.some(b => Math.abs(b.max.y - r.topY) <= .02
+        && Math.abs(pos.y - b.max.y) <= .02 && overlapsXZ(pos.x, pos.z, radius, b));
+    if (nearSurface || crossedDescending || walkedDownSlope || walkedOffDeck) {
       y = surface;
       vy = 0;
       grounded = true;

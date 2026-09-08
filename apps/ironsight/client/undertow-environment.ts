@@ -6,6 +6,7 @@ import { buildSiteGround } from './site-ground.js';
  * turbine faces/windows are flush cladding, never holes or new playable cover.
  * Pipes, basin and skyline equipment live outside the movement rectangle. */
 export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
+  const { width, depth } = map.bounds;
   const colors = [0x96b3aa, 0x5c7b82, 0x283e48, 0xd7d5bb, 0x648e79, 0xd6a35b, 0x9cdbd2];
   const mats = colors.map((color, i) => i === 6 ? new T.MeshBasicMaterial({ color })
     : new T.MeshStandardMaterial({ color, roughness: i === 2 ? 0.66 : 0.86, metalness: i === 2 ? 0.25 : 0.05 }));
@@ -21,9 +22,9 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
     const low = h < 1.5, control = h > 4, screen = d > 8;
-    add(low ? 2 : control ? 1 : 0, x, h / 2, z, w, h, d);
+    add(low ? 2 : control ? 1 : 0, x, (h - .18) / 2, z, w, h - .18, d);
     add(2, x, 0.14, z, w + 0.004, 0.28, d + 0.004);
-    add(low ? 5 : 3, x, h - 0.10, z, w + 0.006, 0.18, d + 0.006);
+    add(low ? 5 : 3, x, h - 0.09, z, w + 0.006, 0.18, d + 0.006);
     if (low) {
       for (const sign of [-1, 1]) for (let px = b.min.x + 0.25; px < b.max.x; px += 0.45)
         add(5, px, h * 0.7, z + sign * (d / 2 + 0.004), 0.18, 0.12, 0.008);
@@ -67,63 +68,69 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     }
   }
   // Boundary walls and their inset maintenance panels.
-  for (const z of [-0.45, 40.45]) {
-    add(0, 30, 1.3, z, 61.8, 2.6, 0.9); add(2, 30, 2.7, z, 61.8, 0.2, 0.91);
-    for (let x = 3; x < 60; x += 4) add(1, x, 1.4, z, 0.20, 2.8, 0.92);
+  for (const z of [-0.45, depth + 0.45]) {
+    add(0, width / 2, 1.3, z, width + 1.8, 2.6, 0.9); add(2, width / 2, 2.7, z, width + 1.8, 0.2, 0.91);
+    for (let x = 3; x < width; x += 4) add(1, x, 1.4, z, 0.20, 2.8, 0.92);
   }
-  for (const x of [-0.45, 60.45]) {
-    add(2, x, 2.6, 20, 0.9, 5.2, 40);
-    for (let z = 3; z < 40; z += 5) {
+  for (const x of [-0.45, width + 0.45]) {
+    add(2, x, 2.6, depth / 2, 0.9, 5.2, depth);
+    for (let z = 3; z < depth; z += 5) {
       add(1, x, 2.6, z, 0.91, 5.2, 0.24);
       add(4, x, 3.4, z + 1.5, 0.92, 1.4, 2.5);
     }
   }
+  // Source-layout context anchors; outside offsets stay outside expanded bounds.
+  const context: typeof add = (m, x, y, z, w, h, d, round, rx, rz, ry) => {
+    const px = x < 0 ? x : x > 60 ? width + x - 60 : x / 60 * width;
+    const pz = z < 0 ? z : z > 40 ? depth + z - 40 : z / 40 * depth;
+    add(m, px, y, pz, w, h, d, round, rx, rz, ry);
+  };
   // Basin and paired clarifiers: skyline hero stays completely beyond z=0.
-  add(2, 30, -0.01, -13, 54, 0.02, 20);
-  add(4, 30, 0.005, -13, 51, 0.01, 17);
+  context(2, 30, -0.01, -13, width * .9, 0.02, 20);
+  context(4, 30, 0.005, -13, width * .85, 0.01, 17);
   for (let x = 7; x < 57; x += 2.4) {
-    add(1, x, 0.015, -5.6, 1.1, 0.005, 0.025);
-    add(1, x + 0.5, 0.015, -20, 0.7, 0.005, 0.018);
+    context(1, x, 0.015, -5.6, 1.1, 0.005, 0.025);
+    context(1, x + 0.5, 0.015, -20, 0.7, 0.005, 0.018);
   }
   for (const x of [17, 43]) {
-    add(0, x, 4, -13, 11, 8, 11, true);
-    add(2, x, 7.55, -13, 11.15, 0.25, 11.15, true);
-    add(4, x, 8.1, -13, 10.4, 0.6, 10.4, true);
-    add(3, x, 8.48, -13, 8.8, 0.15, 8.8, true);
-    for (const level of [1.1, 5.8]) add(1, x, level, -13, 11.08, 0.16, 11.08, true);
+    context(0, x, 4, -13, 11, 8, 11, true);
+    context(2, x, 7.55, -13, 11.15, 0.25, 11.15, true);
+    context(4, x, 8.1, -13, 10.4, 0.6, 10.4, true);
+    context(3, x, 8.48, -13, 8.8, 0.15, 8.8, true);
+    for (const level of [1.1, 5.8]) context(1, x, level, -13, 11.08, 0.16, 11.08, true);
     for (let i = 0; i < 12; i++) {
       const angle = i * Math.PI / 6;
-      add(1, x + Math.sin(angle) * 5.48, 4, -13 + Math.cos(angle) * 5.48, 0.13, 6.4, 0.12, false, 0, 0, angle);
+      context(1, x + Math.sin(angle) * 5.48, 4, -13 + Math.cos(angle) * 5.48, 0.13, 6.4, 0.12, false, 0, 0, angle);
     }
-    add(5, x, 10.2, -13, 0.7, 3.4, 0.7);
-    add(2, x, 11.75, -13, 12, 0.35, 0.65);
+    context(5, x, 10.2, -13, 0.7, 3.4, 0.7);
+    context(2, x, 11.75, -13, 12, 0.35, 0.65);
     for (const side of [-1, 1]) {
-      add(1, x + side * 4, 2.8, -4, 1, 5.6, 1, true);
-      add(1, x + side * 4, 5.55, -7, 1, 6, 1, true, Math.PI / 2);
+      context(1, x + side * 4, 2.8, -4, 1, 5.6, 1, true);
+      context(1, x + side * 4, 5.55, -7, 1, 6, 1, true, Math.PI / 2);
     }
   }
   // A landmark control stack and steel service bridge; no route-crossing pipes.
-  add(1, 30, 8, -18, 5, 16, 5);
-  add(2, 30, 15, -18, 8, 2, 7);
-  add(3, 30, 16.15, -18, 8.2, 0.3, 7.2);
-  add(6, 30, 15.2, -14.48, 6.7, 0.35, 0.03);
+  context(1, 30, 12, -18, 5, 24, 5);
+  context(2, 30, 23, -18, 8, 2, 7);
+  context(3, 30, 24.15, -18, 8.2, 0.3, 7.2);
+  context(6, 30, 23.2, -14.48, 6.7, 0.35, 0.03);
   for (const level of [4, 7.2, 10.4]) {
-    add(2, 30, level, -15.49, 3.8, 1.8, 0.025);
-    for (let i = -2; i <= 2; i++) add(1, 30 + i * 0.65, level, -15.47, 0.15, 1.5, 0.015);
+    context(2, 30, level, -15.49, 3.8, 1.8, 0.025);
+    for (let i = -2; i <= 2; i++) context(1, 30 + i * 0.65, level, -15.47, 0.15, 1.5, 0.015);
   }
-  add(5, 30, 6.4, -5, 39, 0.5, 1.2);
-  for (let x = 12; x < 50; x += 3) add(2, x, 5.95, -5, 0.12, 0.7, 1);
+  context(5, 30, 6.4, -5, width * .65, 0.5, 1.2);
+  for (let x = 12; x < 50; x += 3) context(2, x, 5.95, -5, 0.12, 0.7, 1);
   for (const [x, z, w, h, d] of [[-10, 11, 12, 13, 18], [71, 26, 15, 17, 24], [18, 53, 22, 10, 14], [49, 55, 17, 14, 18]]) {
-    add(1, x!, (h! - 2.4) / 2, z!, w!, h! - 2.4, d!);
-    add(2, x!, h! - 1.2, z!, w! + 0.1, 2.4, d! + 0.1);
-    add(4, x!, h! + 0.7, z!, w! * 0.7, 1.4, d! * 0.6);
+    context(1, x!, (h! - 2.4) / 2, z!, w!, h! - 2.4, d!);
+    context(2, x!, h! - 1.2, z!, w! + 0.1, 2.4, d! + 0.1);
+    context(4, x!, h! + 0.7, z!, w! * 0.7, 1.4, d! * 0.6);
   }
   // Floor-only circulation marks; caps retain the authority's positions.
   for (const cap of Object.values(map.caps)) for (const side of [-1, 1]) {
     add(3, cap.x + side * 2.7, 0.004, cap.z, 0.08, 0.008, 5.4);
     add(3, cap.x, 0.004, cap.z + side * 2.7, 5.4, 0.008, 0.08);
   }
-  for (const z of [15.2, 34.5]) for (const x of [16, 30, 44]) {
+  for (const z of [depth * .27, depth * .70]) for (const x of [width * .25, width / 2, width * .75]) {
     add(5, x, 0.005, z, 7, 0.01, 0.08);
     for (let i = -2; i <= 2; i++) add(3, x + i * 0.5, 0.006, z + 0.5, 0.2, 0.01, 0.65);
   }
@@ -138,7 +145,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
   const labels = ['A / WEST CONTROL', 'B / PUMP HALL', 'C / EAST CONTROL', 'UNDERTOW / 02',
-    'WEST DECK', 'EAST DECK', 'PIPE ROUTE', 'MAINTENANCE'];
+    'WEST DECK', 'EAST DECK', 'CLARIFIER ROUTE', 'MAINTENANCE'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#203b43'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = '#d7bd80'; ctx.fillRect(18, i * 128 + 22, 10, 84);
@@ -151,12 +158,16 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 7 - label) / 8);
     const mesh = new T.Mesh(geo, material); mesh.position.set(x, y, z); mesh.rotation.y = yaw; scene.add(mesh);
   };
-  for (const [x, label] of [[17, 0], [43, 2]]) {
-    sign(label!, x!, 3.45, 27.99, Math.PI); sign(label!, x!, 3.45, 32.01, 0);
+  // Signs sit on actual solid faces, never on old blockout coordinates.
+  for (const [label, cap] of [[0, map.caps.a], [2, map.caps.c]] as const) {
+    sign(label, cap.x, 2.25, 10.016, 0);
+    sign(label, cap.x, 2.25, 19.984, Math.PI);
   }
-  sign(1, 30, 2.55, 12.016, 0); sign(1, 30, 2.55, 27.984, Math.PI);
-  sign(3, 30, 14.8, -14.46, 0, 6); sign(3, 30, 2.1, 0.015, 0);
-  sign(4, 17, 2.1, 0.015, 0, 4); sign(5, 43, 2.1, 0.015, 0, 4);
-  sign(6, 30, 2.45, 7.984, Math.PI, 4.5);
-  sign(7, 30, 2.1, 39.985, Math.PI, 6);
+  sign(1, map.caps.b.x, 2.25, 90.016, 0);
+  sign(3, width / 2, 22.8, -14.46, 0, 6);
+  sign(3, width / 2, 2.1, 0.015, 0);
+  sign(4, 46, 2.35, 44.016, 0, 4);
+  sign(5, width - 46, 2.35, 44.016, 0, 4);
+  sign(6, width / 2, 2.1, 0.016, 0, 5);
+  sign(7, width / 2, 2.1, depth - .015, Math.PI, 6);
 }
