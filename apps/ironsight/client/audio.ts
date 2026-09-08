@@ -6,6 +6,7 @@
  * decoded buffers.
  */
 import { spatialMix, type SoundPoint } from "./spatial-audio.js";
+import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
 
 const MUTED_KEY = "iron_muted";
@@ -29,6 +30,8 @@ export function playReloadCue(phase: string): void {
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
+const fireBuffers: AudioBuffer[][] = [];
+let fireVariation = 0;
 let muted = false;
 let volume = 1;
 const listener = { x: 0, y: 0, z: 0 };
@@ -70,12 +73,30 @@ function ensure(): AudioContext | null {
   const compressor = ctx.createDynamicsCompressor();
   compressor.threshold.value = -12; compressor.knee.value = 12;
   compressor.ratio.value = 6; compressor.attack.value = 0.003; compressor.release.value = 0.18;
-  master.connect(compressor).connect(ctx.destination);
+  // A compressor's attack can overshoot on synchronized volleys. The final
+  // safety knee is linear below 0.8 and bounds that transient before output.
+  const ceiling = ctx.createWaveShaper();
+  const curve = new Float32Array(2049);
+  for (let i = 0; i < curve.length; i++) {
+    const x = i / (curve.length - 1) * 2 - 1, a = Math.abs(x);
+    curve[i] = Math.sign(x) * (a <= 0.8 ? a : 0.8 + 0.18 * (1 - Math.exp(-(a - 0.8) / 0.18)));
+  }
+  ceiling.curve = curve;
+  master.connect(compressor).connect(ceiling).connect(ctx.destination);
   // One second of white noise, reused for every gunshot.
   const buf = ctx.createBuffer(1, ctx.sampleRate * A.noiseBufferSec, ctx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   noise = buf;
+  for (const [weapon, tone] of A.fireParams.entries()) {
+    const variants: AudioBuffer[] = [];
+    for (let variation = 0; variation < FIRE_VARIANTS; variation++) {
+      const pcm = synthesizeWeaponSound(ctx.sampleRate, weapon, tone, variation);
+      const shot = ctx.createBuffer(1, pcm.length, ctx.sampleRate);
+      shot.copyToChannel(pcm, 0); variants.push(shot);
+    }
+    fireBuffers.push(variants);
+  }
   startAmbient(ctx, master);
   return ctx;
 }
@@ -109,38 +130,21 @@ function ready(): AudioContext | null {
   return c;
 }
 
-/** Gunshot: a noise burst through a bandpass + a body thump, tuned per weapon. */
+/** Mechanical snap, ballistic body and outdoor reflections in one cached source.
+ * One remote voice covers the complete tail; all layers share spatial attenuation. */
 export function playFire(weaponIndex = 0, source?: SoundPoint): void {
   const c = ready();
-  if (!c || !master || !noise) return;
-  const p = A.fireParams[weaponIndex] ?? A.fireParams[0]!;
+  if (!c || !master) return;
+  const variants = fireBuffers[weaponIndex] ?? fireBuffers[0];
+  const buffer = variants?.[fireVariation % FIRE_VARIANTS];
+  if (!buffer) return;
   const bus = spatialBus(c, source); if (!bus) return;
-  const t = c.currentTime;
+  fireVariation++;
   const src = c.createBufferSource();
-  src.buffer = noise;
-  const bp = c.createBiquadFilter();
-  bp.type = "bandpass";
-  bp.frequency.value = p.bp;
-  bp.Q.value = A.fireBandpassQ;
-  const g = c.createGain();
-  g.gain.setValueAtTime(p.gain, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
-  src.connect(bp).connect(g).connect(bus.input);
-  src.start(t);
-  src.stop(t + p.dur + A.fireStopTailSec);
-
-  const osc = c.createOscillator();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(p.thump, t);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(A.fireThumpFreqFloor, p.thump / 3), t + p.dur * A.fireThumpDecayFrac);
-  const og = c.createGain();
-  og.gain.setValueAtTime(A.fireThumpGainStart, t);
-  og.gain.exponentialRampToValueAtTime(0.001, t + p.dur);
-  osc.connect(og).connect(bus.input);
-  osc.start(t);
-  osc.stop(t + p.dur + A.fireStopTailSec);
-  src.onended = () => { src.disconnect(); bp.disconnect(); g.disconnect(); };
-  osc.onended = () => { osc.disconnect(); og.disconnect(); bus.release(); };
+  src.buffer = buffer;
+  src.connect(bus.input);
+  src.onended = () => { src.disconnect(); bus.release(); };
+  src.start(c.currentTime);
 }
 
 /** Grenade detonation: a long low-passed noise rumble + a 50 Hz sub swell. */

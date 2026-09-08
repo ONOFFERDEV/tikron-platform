@@ -3,9 +3,9 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-18 are deployed there, including the sleeve/glove
-finish and layered ballistic impacts. Session 19's remote reaction and grounded
-death presentation remains local until publication. Continue using the standing
+Supervisor reports sessions 1-19 are deployed there, including layered impacts
+and grounded remote reactions/deaths. Session 20's layered weapon audio remains
+local until supervisor publication. Continue using the standing
 brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -327,20 +327,22 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 19. Lifecycle recovery remains resolved; no extra persistence
-drill is needed absent a new failure. Remote hits now layer over locomotion and
-weapon holds, and the death clip finishes with a grounded settled pose.
-Next default: layered weapon audio, then presentation and environment richness.
+Re-ranked after Session 20. Lifecycle recovery remains resolved; no extra persistence
+drill is needed absent a new failure. Sessions 17-19 improve hands, impacts and
+remote reactions; Session 20 adds distinct layered weapon audio with bounded tails.
+Next default: combat HUD/killfeed and round presentation, then environment richness.
 Keep the constant-light and existing texture budgets.
 
-1. **Layered weapon audio and combat polish.** Prioritize distinct mechanical attack,
-   body and environmental tails for the five weapons using the existing synthesis
-   and voice budgets; headphone mix needs human approval. Sessions 17-19 deliver
-   tailored first-person sleeves/gloves, layered ballistic impacts and remote hit
-   layering without standing up out of crouch or losing the two-hand hold. Deaths
-   now finish their inherited fall and settle at the floor. Moving finger/contact,
-   reaction intensity and reload/death acceptance remain human review items.
-   Keep server-confirmed hits and constant light count through hidden groups.
+1. **Combat HUD and round presentation.** Bring the killfeed, confirmed elimination
+   feedback and scoreboard into a clearer, coherent amber/teal hierarchy, with
+   restrained timing and readable team/weapon attribution. Preserve existing
+   authoritative events, accessible menus and reduced-motion settings. Default:
+   finish killfeed/confirmed elimination presentation before another environment
+   pass. Five weapons now have mechanical attack, body and outdoor decay, but
+   headphone mix/comfort approval remains open. Full 6v6 should also review remote
+   cue drop rates with the longer tails sharing the unchanged 20-voice cap.
+   Moving finger/contact, reaction intensity and reload/death review remain human
+   acceptance items. Keep server-confirmed hits and constant light membership.
 2. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
    walls and floor now have restrained concrete relief and roughness (Session 14).
@@ -2377,3 +2379,112 @@ tree members stopped; zero remaining owned processes, port-8796 listeners or
 inspection browsers. Final code, asset, required/extended inspection and live hitch
 gates are green. Evidence stays ignored under .inspect. Ready for supervisor review;
 no commit/push/deploy.
+
+
+### Session 20 - 2026-09-08: layered five-weapon audio and bounded volley output
+
+Read the standing brief, Session 20 status and plan in order; confirmed
+ironsight-aaa from HEAD. Scope apps/ironsight/** only; no git commands, commit,
+push, deployment, new dependencies, SDK or purchased-derivative edits. Worker
+build uses its existing dry-run only. No Meshy credits spent (1530 remain):
+this session's top gap is synthesized audio, so no model or bitmap asset is needed.
+The resolved lifecycle issue was not reopened.
+
+Added original cached synthesis in client/weapon-sound.ts. Each of the five guns
+has a mechanical snap, ballistic crack/body and diffuse filtered outdoor decay,
+with two quiet reflections and three deterministic variants. AR/SMG/shotgun/
+sniper/pistol tails last 320/220/460/580/270 ms. Existing configured frequency,
+body pitch, attack duration and gain still shape each gun. Samples are generated
+once on AudioContext creation; firing chooses an existing buffer and allocates
+one source instead of a source/filter/two gains/oscillator graph. Entire tails
+share the existing spatial bus and release its remote voice on completion.
+No gameplay events, hit authority, render resources, lights or passes changed.
+
+The old master compressor overshot unity on twenty synchronized remote shots
+(measured baseline peak 1.077747). The first layered candidate also failed this
+new stress assertion, so it was rejected. Added one static master safety knee,
+linear below 0.8, after the compressor; accepted stress peak is 0.920745.
+Ordinary measured local peaks remain below 0.51, beneath the safety knee.
+This is a peak bound, not a loudness/comfort certification. No standing gate
+threshold was relaxed. The inspector's explicit --baseline option records old
+over-range peaks; final acceptance ran without it. Initial endpoint tests also
+rejected IEEE negative zero; corrected the assertion to compare absolute silence.
+An initial inspector-authoring command hit a Windows text-encoding error and
+was replaced with explicit UTF-8 file handling before baseline capture.
+
+Audio evidence: .inspect/session20-audio-{before,final}-report.json and paired
+local-{0,1,2,3,4}.wav captures. Final has eleven WAVs: all five weapons, remote
+pan, 25 attempted remote voices (20 admitted), voice recovery (40 admitted across
+two waves), local priority despite saturated remote voices, mute and volume zero.
+Every transient source ends; only the intentional ambient loop remains. Mute and
+volume-zero measured peak are zero. Remote right energy exceeds left as expected.
+A/B playback page: .inspect/session20-audio-review.html. These capture the production
+Web Audio graph in Edge OfflineAudioContext, including master processing/ambience.
+Baseline noise and ambience are random, so WAVs are not identical seeded workloads.
+The after shot buffers are deterministic. No human listening acceptance is claimed.
+
+At 48 kHz cached AudioBuffer storage rises 864,000 -> 1,929,600 bytes (+1,065,600,
+1.016 MiB) across noise, ambience and the fifteen shot variants. The safety curve
+adds 8,196 bytes; transient synthesis scratch arrays are reclaimable. Offline
+initialization plus scheduling measured about 2-4 ms before and 19-22 ms after;
+this moves work to the first audio gesture, not a per-shot bake. Device output
+latency and lower-end startup cost remain unqualified. The longer tails share
+rather than raise the existing 20-remote-voice cap; dense matches can drop excess
+remote cues, and local fire/confirmation remain independent. Keep this in the
+real 6v6 listening review rather than claiming unlimited audible combat sources.
+
+Three new tests cover finite/bounded waveforms and zero endpoints at 44.1/48/96 kHz,
+distinct tail lengths and bounded late energy, reproducible independent variants,
+and cached PCM/tail budgets. pnpm typecheck PASS; pnpm test PASS (337 passed,
+3 existing opt-in skips; 36 passing files, one skipped); pnpm build:client PASS;
+pnpm build PASS (dry-run 235.35 KiB / gzip 69.96 KiB); pnpm audit:assets PASS.
+Logs: .inspect/session20-{typecheck,test,build-client,build,audit-assets}.log.
+Provenance/reproduction: public/assets/README.md. No new binary downloads.
+Asset bytes 12,177,465 -> 12,178,645 (+1,180, provenance); public bytes
+18,209,916 -> 18,217,874 (+7,958); largest file 4,186,622 bytes. Public 40 MiB
+and per-file 25 MiB caps pass.
+
+Before/after visual evidence: .inspect/session20-{before,final}-report.json,
+paired Relay/effects-stress PNGs and final-practice-two.png. Opened before/final
+Relay and final real Undertow gameplay; presentation remains visually stable.
+The exact required relay,practice-two inspector and extended final inspector
+with --assert-budgets both PASS, zero console/runtime/HTTP errors or forbidden
+offline network requests. Logs: session20-required-inspector.log, session20-final.log.
+Delta artifact: .inspect/session20-delta.json, including audio and byte measurements.
+
+Matched Relay effects workload: eleven remote operators plus local rifle/hands,
+145 twelve-rifle volleys, 96 blasts, 2,130 steady samples; transient effects drain.
+Edge 152 / RTX 5070 Direct3D11, 1920x1080 balanced/DPR 1:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 93,190 | 220 / 93,190 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.1 / 7.1 | 0 / 0 / 0 |
+| Max / first-ready max ms | 7.2 / 7.1 | 7.3 / 7.0 | +0.1 / -0.1 |
+
+This rendering fixture does not exercise the full audio workload. Offline audio
+checks separately exercise the production sound graph; live TDM exercises normal
+combat. Desktop rAF/allocation figures are not GPU timing, mid-laptop iGPU,
+thermal/cold-driver or real 6v6 acceptance. No performance improvement is claimed.
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots; warmup -> live at 7.031 s, three deaths and two observed
+respawns (third death during post-second-death observation). Zero shader recompiles,
+frames >150 ms, console errors or long tasks. Sole recorded frame above 24 ms:
+69.6 ms at startup. Evidence: .inspect/hitch.json, session20-hitch.json and
+session20-hitch.log. Restarted the owned server after final bundle/asset writes;
+preserved .wrangler/state and fixed arena-tdm routing, without isolation or clearing.
+
+Re-ranked the gap list: killfeed/confirmed elimination and combat presentation
+next, then environment richness. Nonblocking owner questions: retain short outdoor
+tails and restrained mechanical identities (default yes); prioritize combat HUD
+next (default yes). Headphone mix, moving animation and real-play approval remain
+open. Industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM remain defaults.
+
+Cleanup: .inspect/session20-preflight-cleanup.json and session20-cleanup.json
+confirm owned preview trees stopped, zero remaining owned processes, port-8796
+listeners or inspection browsers. All final code, asset, required/extended browser,
+audio and live hitch checks are green. Evidence remains ignored under .inspect.
+Ready for supervisor review/publication; no commit/push/deploy.

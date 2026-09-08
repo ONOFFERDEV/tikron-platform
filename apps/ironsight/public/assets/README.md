@@ -328,3 +328,22 @@ the inherited death root offset; no per-vertex skin scan or ragdoll. No new down
 assets or lights.
 Reproduce with `pnpm build:client`, then the preview server and
 `node scripts/inspect-map.mjs --url http://localhost:8796 --shots reaction-body,reaction-head,reaction-crouch,reaction-death`.
+
+
+### Session 20: original layered weapon synthesis
+
+`client/weapon-sound.ts` authors mechanical attacks, ballistic body and filtered
+outdoor reflections for AR/SMG/shotgun/sniper/pistol. Three deterministic variants
+per weapon are baked once per AudioContext and share one source per shot, including
+the full spatialized tail. No recorded/purchased samples or new binary downloads.
+At 48 kHz the fifteen mono buffers use 1,065,600 bytes; no GPU textures are added.
+The existing master compressor now feeds a fixed safety knee, linear below 0.8,
+preventing synchronized volleys from exceeding output range.
+
+Reproduce: `pnpm build:client`; `node scripts/inspect-audio.mjs audio-review`.
+The latter renders the production graph in Edge OfflineAudioContext and writes
+eleven WAVs and a JSON report under ignored `.inspect`: five weapons, remote pan,
+saturation, voice recovery, local priority, mute and volume zero. `--baseline`
+permits over-range peaks only when recording an earlier implementation; final
+acceptance must omit it. Offline rendering validates signals/lifecycle, not human
+headphone mix approval, actual browser audio-device latency or occlusion.
