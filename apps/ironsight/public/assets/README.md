@@ -524,3 +524,28 @@ pnpm dev:preview
 # In a second terminal after preview is ready:
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --prefix session34-vista --write-vista
 ```
+
+
+### Session 37: Switchyard northern arrival courts (2026-09-09)
+
+Two inner southern spawn anchors move to screened northern courts. The original
+procedural kit follows four added authoritative full-cover boxes; existing ramp,
+objective and boundary geometry stays in place. Amber exit chevrons are baked
+strips on northern screen faces, reusing the existing material. No purchased
+inputs or Meshy generation. Existing original-asset allowlists apply.
+
+`maps/switchyard-architecture.glb`: 5,858,908 bytes, 74,972 oriented triangles,
+ten material primitives and one 1024px AO image. `maps/switchyard-ground-ao.png`
+is rebaked from the changed colliders (156,996 bytes). The deployment vista is
+refreshed from the production renderer. Reproduce from the app directory:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session37-maps.json switchyard
+node tools/dump-architecture.mjs .inspect/session37-architecture.json switchyard
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session37-maps.json
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session37-architecture.json
+python scripts/audit-architecture.py --input .inspect/session37-architecture.json
+pnpm dev:preview
+# In a second terminal:
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --prefix session37-art --write-vista
+```

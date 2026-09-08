@@ -4,8 +4,32 @@ import { canStand, moveAndSlide, nearestBox } from '../src/physics.js';
 import { PLAYER, MOVE } from '../src/config.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
+import { spawnExposed } from '../src/map/spawn.js';
 
 describe('Switchyard encounter safety', () => {
+  it('new northern arrivals hide the whole body and can leave around either screen end', () => {
+    for (const x of [57, 93]) {
+      const spawn = [...map.spawns.red, ...map.spawns.blue].find(p => p.x === x && p.z === 3)!;
+      expect(spawn).toBeDefined();
+      for (const other of [...map.spawns.red, ...map.spawns.blue]) {
+        if (other === spawn) continue;
+        expect(spawnExposed(spawn, { ...other, id: 'threat', team: 0, alive: true }, map.boxes)).toBe(false);
+      }
+      // Traverse BOTH exits, rather than only proving one BFS path to a cap.
+      for (const exitX of x === 57 ? [42, 66] : [84, 108]) {
+        let p = { ...spawn };
+        for (const target of [{ x: exitX, z: 3 }, { x: exitX, z: 11 }]) {
+          for (let step = 0; step < 200 && Math.hypot(target.x - p.x, target.z - p.z) > .01; step++) {
+            const distance = Math.hypot(target.x - p.x, target.z - p.z), amount = Math.min(.12, distance);
+            p = moveAndSlide(p, PLAYER.radius, PLAYER.standHeight,
+              { x: (target.x - p.x) / distance * amount, y: -.1, z: (target.z - p.z) / distance * amount },
+              -1, map.boxes, map.bounds, MOVE.stepUp, map.ramps).pos;
+          }
+          expect(Math.hypot(target.x - p.x, target.z - p.z)).toBeLessThan(.02);
+        }
+      }
+    }
+  });
   it('screens every spawn from all enemy spawns at standing eye height', () => {
     for (const a of [...map.spawns.red, ...map.spawns.blue]) for (const b of [...map.spawns.red, ...map.spawns.blue]) {
       if (a === b) continue;

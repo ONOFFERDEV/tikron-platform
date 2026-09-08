@@ -1,4 +1,4 @@
-/** node scripts/summarize-contact.mjs session36 session36-seed-224001 session36-seed-224002 session36-seed-224003 */
+/** node scripts/summarize-contact.mjs <output-prefix> <round-prefix> ... */
 import { readFile, writeFile } from 'node:fs/promises';
 
 const [output, ...prefixes] = process.argv.slice(2);
@@ -35,5 +35,5 @@ const bars = rows.map(([label, d], i) => {
   const y = 105 + i * 64;
   return `<text x="24" y="${y}" fill="#e8efea" font-size="16">${label}</text><rect x="195" y="${y - 20}" width="${d.medianSeconds * 16}" height="28" fill="#edaa52"/><text x="${205 + d.medianSeconds * 16}" y="${y}" fill="#e8efea" font-size="15">${d.medianSeconds.toFixed(1)}s (${d.observed}/${d.lives} observed)</text>`;
 }).join('');
-await writeFile(`.inspect/${output}-contact-summary.svg`, `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="390" viewBox="0 0 900 390"><rect width="900" height="390" fill="#10242b"/><g font-family="Arial,sans-serif"><text x="24" y="35" fill="#e8efea" font-size="22">SWITCHYARD / RESPAWN TO FIRST DAMAGE</text><text x="24" y="60" fill="#bdd0ce" font-size="14">Three natural bot rounds / observed-contact medians / no gameplay retune</text><rect x="515" y="75" width="160" height="200" fill="#64c7cc" opacity=".18"/>${bars}<text x="515" y="295" fill="#64c7cc" font-size="14">Reference target: 20–30s</text><text x="24" y="335" fill="#bdd0ce" font-size="14">100ms sampling; unobserved contacts remain censored. FFA has no spawn-side win rate.</text><text x="24" y="360" fill="#bdd0ce" font-size="14">Test-harness bot evidence does not establish human pacing or fairness.</text></g></svg>`);
+await writeFile(`.inspect/${output}-contact-summary.svg`, `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="390" viewBox="0 0 900 390"><rect width="900" height="390" fill="#10242b"/><g font-family="Arial,sans-serif"><text x="24" y="35" fill="#e8efea" font-size="22">SWITCHYARD / RESPAWN TO FIRST DAMAGE</text><text x="24" y="60" fill="#bdd0ce" font-size="14">${rounds.length} natural bot rounds / observed-contact medians</text><rect x="515" y="75" width="160" height="200" fill="#64c7cc" opacity=".18"/>${bars}<text x="515" y="295" fill="#64c7cc" font-size="14">Reference target: 20–30s</text><text x="24" y="335" fill="#bdd0ce" font-size="14">100ms sampling; unobserved contacts remain censored. FFA has no spawn-side win rate.</text><text x="24" y="360" fill="#bdd0ce" font-size="14">Test-harness bot evidence does not establish human pacing or fairness.</text></g></svg>`);
 console.log(JSON.stringify(summary, null, 2));

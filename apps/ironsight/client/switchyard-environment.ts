@@ -61,6 +61,17 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       for (let row = 0; row < 7; row++)
         add(1, face + side * 0.011, base + 0.55 + row * (h - 1.1) / 7, z, 0.004, 0.06, d - 0.5);
     }
+    // Arrival-side wayfinding: two amber chevrons point around each end of a
+    // northern spawn screen. Baked strips reuse the kit material, no sign atlas.
+    const northernArrival = [...map.spawns.red, ...map.spawns.blue].some(s =>
+      s.z < b.min.z && b.min.z - s.z <= 4 && s.x > b.min.x && s.x < b.max.x);
+    if (!low && w >= 12 && northernArrival) for (const direction of [-1, 1]) {
+      const arrowX = x + direction * w * .28;
+      for (const repeat of [0, .65]) for (const vertical of [-1, 1])
+        add(3, arrowX + direction * repeat, base + 1.65 + vertical * .28,
+          b.min.z - .018, .86, .16, .003, 'cladding', false,
+          new T.Euler(0, 0, -direction * vertical * Math.PI / 4));
+    }
   }
   // Retaining walls sit outside the server's clamped rectangle, including trim.
   for (const z of [-0.46, depth + 0.46]) {
