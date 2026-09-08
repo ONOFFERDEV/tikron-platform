@@ -4,7 +4,7 @@
 //   node scripts/hitch-probe.mjs <url> [runMs=90000] [out.json] [--assert] [--mode=tdm|ffa|dom]
 //
 // --assert exits 1 when a shader program is compiled after warm-up (t > 3 s), when any frame
-// after 8 s exceeds 150 ms, or when no death happened (the probe must actually reach the
+// after 8 s exceeds 150 ms, or when fewer than two deaths happened (the probe must reach the
 // death/respawn path). Found the 2026-09-08 death hitch: hiding the viewmodel removed a
 // PointLight from the light count and recompiled every lit material (1,149 ms frame).
 import { spawn } from 'node:child_process';
@@ -47,6 +47,7 @@ try {
     const m = JSON.parse(ev.data);
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.error ? p.reject(Error(JSON.stringify(m.error))) : p.resolve(m.result); }
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.text ?? 'exception');
+    if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(m.params.args);
   });
   await send('Runtime.enable'); await send('Page.enable'); await send('Profiler.enable');
   // three.js hands every renderer to this hook on construction; it is the only supported way to reach it from outside the bundle.
@@ -109,14 +110,15 @@ try {
   const rel = e => ({ ...e, t: Math.round(e.t - data.t0) });
   const worst = [...data.frames].sort((a, b) => b.dt - a.dt).slice(0, 12).map(f => ({ ...rel(f), events: data.events.filter(e => Math.abs(e.t - f.t) < 1500).map(e => `${e.kind}@${Math.round(e.t - f.t)}ms${e.hp !== undefined ? ' hp' + e.hp : ''}${e.to !== undefined ? ' ' + e.from + '->' + e.to : ''}${e.name ? ' ' + e.name : ''}`), profile: attribute(f.t - f.dt, f.t) }));
   const deaths = data.events.filter(e => e.kind === 'death').length;
-  const recompiles = data.events.filter(e => e.kind === 'programs' && e.t - data.t0 > 3000).map(rel);
+  // Count cache-key additions too: replacing one program can leave the count unchanged.
+  const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.t - data.t0 > 8000 && f.dt > 150).map(rel);
   const summary = { url: url.href, runMs, room: data.room, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));
   if (assert) {
-    const failed = recompiles.length > 0 || spikes.length > 0 || deaths === 0 || errors.length > 0;
+    const failed = recompiles.length > 0 || spikes.length > 0 || deaths < 2 || errors.length > 0;
     console.log(JSON.stringify({ hitchGate: failed ? 'FAIL' : 'PASS', deaths, recompiles: recompiles.length, spikes: spikes.length, errors: errors.length }));
     process.exitCode = failed ? 1 : 0;
   }

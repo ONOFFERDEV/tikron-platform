@@ -218,6 +218,24 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly streaks = new Map<string, number>();
   /** Deterministic PRNG for per-shot spread (seeded from state.seed in onReady). */
   private spreadRng: () => number = xorshift32(1);
+  private dormant = false;
+  private simulation: { tick: (dtMs: number) => void; intervalMs: number } | undefined;
+
+  /** Retain the preset callback, including its lag-history recording and flush.
+   * The host can reuse this instance after the last seat expires and the core
+   * stops its interval (including an expired alarm on a cold-restored room). */
+  protected override setSimulationInterval(tick: (dtMs: number) => void, intervalMs: number): void {
+    this.simulation = { tick, intervalMs };
+    super.setSimulationInterval(tick, intervalMs);
+  }
+
+  override onDispose(): void {
+    this.dormant = true;
+    // Bots have no core seats: discard their runtime data when all humans leave.
+    for (const id of [...this.botBrains.keys()]) this.removeBot(id);
+    this.grenades = [];
+    this.restartVotes.clear();
+  }
 
   /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
   private readonly gameMode: GameMode = modeFromRoomId(this.id);
@@ -309,6 +327,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   override onJoin(client: Client): void {
+    if (this.dormant && this.simulation) {
+      this.dormant = false;
+      this.resetMatch(Date.now());
+      if (this.gameMode.id !== "practice") this.enterWarmup();
+      super.setSimulationInterval(this.simulation.tick, this.simulation.intervalMs);
+    }
     const team = this.gameMode.teams ? this.assignTeam() : 0;
     const p = this.initPlayer(client.id, team);
     this.spawnInto(p, client.id);

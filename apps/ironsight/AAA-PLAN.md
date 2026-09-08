@@ -323,6 +323,28 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Session log
 
+## AAA gap list
+
+Re-ranked for Session 10 against the supervisor's owner-facing failure:
+
+1. **Persisted/empty room can stop forever — Session 10 priority, fixed locally.**
+   Expired seats stop simulation; a retained room needs its preset loop restarted
+   on the next join. Cold snapshot/alarm and repeated empty-room regression tests
+   now cover the lifecycle. Supervisor preview verification remains pending.
+2. **Crossyard art continuity.** Replace the legacy FFA arena with a third coherent
+   industrial map, keeping collider authority and per-map loading. Next visual priority.
+3. **Environment richness.** Relay/Undertow need stronger human-scale machinery,
+   wear and purposeful hero dressing. Use Meshy for a clearly useful silhouette;
+   reject the supervisor's dish-like cable drum. Re-budget texture headroom first.
+4. **Weapon/operator finish.** Review sleeves, moving five-weapon reload/grip contact,
+   remote reactions and deaths; retain constant light count through hidden groups.
+5. **Solo encounter quality.** Improve bot route variety/separation and examine
+   inactive seats before increasing fill or difficulty.
+6. **First-play guidance and transitions.** Guided training, authoritative countdowns,
+   and real dropped-network detection; preserve accessible menus and reconnect flow.
+7. **Hardware/audio acceptance.** Mid-laptop iGPU, real 6v6/RTT, Firefox/Safari,
+   thermal/cold-driver checks and headphone/owner approval remain unverified.
+
 ### Session 1 — 2026-09-07
 
 Read root brief, game entry/renderer/maps/tests, asset provenance, rig capture tool,
@@ -1255,3 +1277,95 @@ on the target iGPU). Retain stylized sci-fi, 6v6 TDM/secondary DOM and the exist
 live-release approval gate. Supervisor should review the two original GLB
 allowlist exceptions and include their bakes plus shared HDR when publishing
 this local candidate to preview. No publication performed in this session.
+
+### Session 10 - 2026-09-08: revive persisted and emptied arenas
+
+Selected the supervisor's dead persisted TDM room ahead of art. Scope remained
+apps/ironsight/** on ironsight-aaa; no commit, push or actual deployment. Read the
+standing brief, supervisor status and plan in order. No Meshy credits spent;
+the weak cable-drum example remains rejected. Re-ranked the AAA gap list above;
+Crossyard continuity is the next visual priority.
+
+Root cause: the core stops simulation when the final human seat expires, including
+when an alarm expires a seat restored from an ended snapshot. The host retains the
+room object. Its next onJoin adds a player, but onCreate is not called again, so
+reconcileBots and tickWarmup never execute. The earlier hook-only restore test
+missed the actual restore -> alarm -> empty instance -> new join sequence.
+
+The arena now retains the preset's simulation callback and interval, marks itself
+dormant on disposal, removes bot runtime data and in-flight grenades, and starts a
+fresh round plus the same preset loop on the next join. This retains queued input,
+lag-history recording and authoritative state flushes; no copied simulation loop,
+SDK edit, codec/version change, client position authority or collider change.
+The timer stays stopped while empty. Existing short reconnect behavior is retained.
+
+Added test/arena-lifecycle.test.ts: a real serialized ended snapshot is loaded into
+a NEW room through the core restoration path, both with immediate reconnection
+and with alarm expiry before a new join. Assertions cover four-seat bot fill,
+warmup -> live, moving bots and processed queued syncView input. A third test
+reuses an emptied instance for three cycles and checks exactly ten ticks over ten
+tick intervals and no ticks while empty. Before the fix, two of three tests failed:
+the restored/expired case had only the new human, and warm reuse had frozen bots.
+All three pass afterward. Baseline: .inspect/session10-before-tests.log.
+
+Hardened scripts/hitch-probe.mjs to enforce the standing brief: console.error is
+now collected, shader cache-key additions are checked even when program count
+stays constant, and --assert requires two deaths. No gate thresholds relaxed.
+
+Final gates: pnpm typecheck, pnpm test, pnpm build:client, pnpm audit:assets,
+required relay/practice-two map inspection, and BOTH required 150000-ms maximum
+TDM hitch probes PASS. Tests: **306 passed, 3 existing opt-in skips**, 28 passing
+files plus one skipped. Logs: .inspect/session10-{typecheck,test,build-client,
+audit-assets,inspector}.log. Additional local Worker dry-run passes at **235.23 KiB /
+gzip 69.93 KiB** (.inspect/session10-worker-build.log); no upload/deployment occurred.
+
+Both probes used the same server process and fixed arena-tdm room. The second
+launched about 69 seconds after the first result was written, allowing the prior
+seat to expire. No .wrangler/state clearing, room-ID isolation, or server restart
+between runs. Reports: .inspect/session10-hitch-first.json,
+session10-hitch-second.json; the latter is also .inspect/hitch.json. Summary and
+resource deltas: .inspect/session10-delta.json.
+
+| Observed behavior | First probe | After expiry / second probe |
+|---|---|---|
+| Initial seats | 1 human + 3 bots | 1 human + 3 bots |
+| Live phase, seconds after probe measurement starts | 6.940 | 6.929 |
+| Deaths / subsequent respawns | 2 / 2 | 2 / 2 |
+| Death times, seconds | 19.551 / 59.834 | 14.874 / 22.839 |
+| Maximum recorded frame, including startup, ms | 68.1 | 57.9 |
+| Post-warmup shader recompiles / >150 ms spikes / errors | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Supervisor baseline files already present, repro2-hitch.json / repro3-hitch.json,
+record one seat stuck in warmup and zero deaths over 30/45-second probes. The
+status also reports its separate 150-second failure. These are supervisor baseline
+evidence, not new Session 10 baseline browser runs. The new tests reproduce the
+ended-snapshot cause; the two real-browser probes prove working repeated local
+play. They do not claim a natural five-minute ended-match cold eviction on the
+preview Worker; supervisor deployment/eviction verification remains pending.
+
+Opened both .inspect/session10-final-{relay,practice-two}.png captures. The report
+has zero console/runtime/HTTP errors and forbidden offline requests. Renderer/art
+is unchanged: Relay camera **6.9 ms median, 7.1 ms p95/p99, 7.5 ms max**, 18 calls,
+21,428 triangles, **20.1875 estimated texture MiB**. Original asset delta **0 bytes**;
+texture allocation delta **0 MiB**, no added lights/passes. Assets remain
+**9,161,256 bytes**, public **15,053,267 bytes**, largest **4,090,829 bytes**.
+No controlled before/after frame-time improvement is claimed for this lifecycle
+fix; the 10.2-ms difference between probe maxima reflects separate startup samples.
+These are RTX 5070 / Edge desktop observations, not mid-laptop iGPU acceptance.
+
+Rejected intermediates: two red lifecycle tests before the fix; an initial fixture
+accessed the core's private ctx and failed typecheck, corrected by retaining its
+public constructor context in the test subclass. No art intermediate was shipped.
+Local workerd logged tick-backlog warnings while code/build work overlapped its
+startup; final browser gates remained green. This is not local capacity evidence.
+
+Cleanup: .inspect/session10-cleanup.json confirms all 12 owned server processes
+stopped, zero remaining owned processes, zero port-8796 listeners and zero inspection
+browsers. Persistent local state was preserved. All evidence is under ignored
+.inspect. Only the plan, arena lifecycle, regression tests and hitch probe changed.
+
+Open owner questions are nonblocking: whether Crossyard replacement or richer
+Relay dressing should lead the next art session (default: replace Crossyard), and
+whether the existing daylight/amber/teal tone is preferred (default: retain it).
+Continue without waiting; representative hardware, human play/animation/audio and
+supervisor preview verification remain open. No owner approval was requested.
