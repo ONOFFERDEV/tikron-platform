@@ -76,6 +76,7 @@ describe("SettingsStore persistence", () => {
       sprint: ["ShiftLeft", "ShiftRight"],
       reload: ["KeyR"],
       grenade: ["KeyG"],
+      ping: ["KeyQ"],
     });
   });
 
@@ -108,6 +109,7 @@ describe("SettingsStore persistence", () => {
       sprint: ["ShiftLeft", "ShiftRight"],
       reload: ["KeyR"],
       grenade: ["KeyG"],
+      ping: ["KeyQ"],
     });
   });
 });
@@ -234,4 +236,11 @@ describe("presentation accessibility settings", () => {
     store.setVolume(-2); expect(store.get().volume).toBe(0);
     store.setVolume(NaN); expect(store.get().volume).toBe(1);
   });
+});
+
+it('preserves an older Q binding and allows ping to be rebound without sharing a key', () => {
+  const store = new SettingsStore({ getItem: () => JSON.stringify({ binds: { grenade: ['KeyQ'] } }), setItem: () => {} });
+  expect(store.get().binds.ping).toEqual([]); expect(store.get().binds.grenade).toEqual(['KeyQ']);
+  store.rebind('ping', 'KeyQ');
+  expect(store.get().binds.grenade).toEqual([]); expect(store.get().binds.ping).toEqual(['KeyQ']);
 });

@@ -257,7 +257,8 @@ export interface TextConfig {
       | "crouch"
       | "sprint"
       | "reload"
-      | "grenade",
+      | "grenade"
+      | "ping",
       string
     >;
     /** Shown on a key button while it's waiting for the next keypress. */

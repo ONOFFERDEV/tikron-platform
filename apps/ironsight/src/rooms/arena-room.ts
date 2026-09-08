@@ -1,3 +1,4 @@
+import { PING, resolvePing, type TeamPing } from '../ping.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
 import { WeaponHandling, isSprinting } from "../handling.js";
 import {
@@ -335,6 +336,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       capC: GAME.match.capNeutral,
     });
 
+    this.onMessage("ping", (client, payload) => this.handlePing(client, payload));
     this.onMessage("move", (client, payload, _seq, input) => this.handleMove(client, payload, input));
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
@@ -665,6 +667,27 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const pitch = readNum(payload, "pitch");
     if (yaw !== undefined) p.yaw = ((yaw % TAU) + TAU) % TAU;
     if (pitch !== undefined) p.pitch = clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
+  }
+
+  private handlePing(client: Client, payload: unknown): void {
+    const p = this.state.players[client.id];
+    const yaw = readNum(payload, 'yaw'), pitch = readNum(payload, 'pitch');
+    if (!p?.alive || this.state.phase !== 'live' || this.state.mode === 1 || yaw === undefined || pitch === undefined) return;
+    const now = Date.now();
+    const last = client.data.lastPingAt;
+    if (typeof last === 'number' && now - last < PING.cooldownMs) return;
+    client.data.lastPingAt = now;
+    this.handleLook(client, { yaw, pitch });
+    this.markStateChanged();
+    const targets = Object.entries(this.state.players).filter(([id, t]) => id !== client.id && t.alive)
+      .map(([id, t]) => ({ id, x: t.x, z: t.z, feetY: t.y, headY: t.y + this.hitHeight(t), team: t.team }));
+    const ping: TeamPing = { from: client.id, expiresAt: now + PING.lifetimeMs,
+      ...resolvePing({ x: p.x, y: p.y + this.eyeHeight(p), z: p.z }, dirFromAngles(p.yaw, p.pitch), p.team,
+        targets, this.hitBoxes, this.map.bounds) };
+    for (const recipient of this.clientList()) {
+      const ally = this.state.players[recipient.id];
+      if (recipient.id === client.id || (this.state.mode !== 3 && ally?.team === p.team)) recipient.send('teamPing', ping);
+    }
   }
 
   // --- shooting ---------------------------------------------------------------

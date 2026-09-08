@@ -19,6 +19,7 @@ import { parseRigInspect } from "./rig-inspect-query.js";
 import { startRigInspector } from "./rig-inspect.js";
 import { startMapInspector } from "./map-inspect.js";
 import { startWeaponInspector } from "./weapon-inspect.js";
+import { PING } from "../src/ping.js";
 import { TacticalMap } from "./tactical-map.js";
 import { Net, type ShotEvent } from "./net.js";
 import { Input } from "./input.js";
@@ -109,8 +110,9 @@ async function main(): Promise<void> {
   await scene.prepare();
   me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
-  const tacticalMap = new TacticalMap(map, training?.progress.objective);
+  const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
 
+  let lastPingAt = -Infinity;
   const input = new Input(
     scene.canvas,
     me0?.yaw ?? 0,
@@ -123,7 +125,14 @@ async function main(): Promise<void> {
       net.sendSwitch(next + 1);
     },
     () => net.sendNade(),
+    () => {
+      const state = net.state, now = performance.now();
+      if (!net.online || state?.phase !== 'live' || !state.players[net.myId]?.alive || state.mode === 1 || now - lastPingAt < PING.cooldownMs) return;
+      lastPingAt = now;
+      net.room.send('ping', { yaw: input.yaw, pitch: input.pitch });
+    },
   );
+  net.room.onMessage('teamPing', p => tacticalMap.receivePing(p, net.serverNow()));
   input.pitch = me0?.pitch ?? 0;
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
@@ -522,7 +531,7 @@ async function main(): Promise<void> {
       hud.setNades(me.nades);
     }
     if (state) { hud.setScores(state.redScore, state.blueScore); hud.setMatchContext(state, net.serverNow(), net.myId); }
-    if (state) tacticalMap.update(state, net.myId, input.yaw, now);
+    if (state) tacticalMap.update(state, net.myId, input.yaw, now, net.serverNow(), net.online && input.locked);
     const mode = state?.mode ?? 0;
     const modeId = MODE_ORDER[mode] ?? "tdm";
     const teamless = isTeamless(modeId);

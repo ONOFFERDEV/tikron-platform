@@ -51,6 +51,7 @@ export class Input {
     private readonly onCycle?: (dir: 1 | -1) => void,
     /** KeyG pressed: throw a grenade. */
     private readonly onNade?: () => void,
+    private readonly onPing?: () => void,
   ) {
     this.yaw = initialYaw;
     this.bind();
@@ -75,6 +76,8 @@ export class Input {
           if (!e.repeat) this.reloadEdge = true;
         } else if (binds.grenade.includes(e.code)) {
           if (!e.repeat) this.onNade?.();
+        } else if (binds.ping.includes(e.code)) {
+          if (!e.repeat) this.onPing?.();
         } else if (e.code.startsWith("Digit")) {
           const slot = Number(e.code.slice(5));
           if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
