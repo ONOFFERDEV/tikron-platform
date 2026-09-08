@@ -315,3 +315,16 @@ or cover are inferred. No bitmap, purchased derivative, light or pool is added.
 Reproduce: pnpm build:client; run the preview and node scripts/inspect-map.mjs
 --url http://localhost:8796 --shots impact,effects-stress --prefix impact-review.
 Source: client/vfx.ts; the paired impact fixture is in client/map-inspect.ts.
+
+### Session 19: remote combat animation layering
+
+`client/rig-loader.ts` creates cached, upper-body additive views of the existing
+private player GLB hit clips at load time (spine/neck/head rotations only). The
+original clips, mesh, skin and textures remain unchanged and ignored. Hits blend
+in over 35 ms at 70% strength and out over the final 90 ms; locomotion and authored
+weapon holds continue. The 2.4 s death clip now finishes with a 250 ms settled hold
+(3 s cap, authoritative respawn cancels it). A constant set of support joints grounds
+the inherited death root offset; no per-vertex skin scan or ragdoll. No new downloaded
+assets or lights.
+Reproduce with `pnpm build:client`, then the preview server and
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots reaction-body,reaction-head,reaction-crouch,reaction-death`.

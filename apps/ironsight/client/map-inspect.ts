@@ -10,8 +10,9 @@ export function startMapInspector(): void {
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
   const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
+  const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
   const actorCount = params.get("shot")?.endsWith('stress') ? 11 : 0;
-  const scene = new SceneRig(map, host, { loadActors: actorCount > 0, loadViewmodel: effects });
+  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [51, 33, 52, 28, 0, 16],
@@ -39,7 +40,7 @@ export function startMapInspector(): void {
     'switchyard-stress': [8, 1.65, 11, 35, 1.5, 11],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
-  const shot = shots[shotName] ?? shots.overview!;
+  const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
   scene.camera.lookAt(shot[3], shot[4], shot[5]);
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
@@ -56,6 +57,7 @@ export function startMapInspector(): void {
   let frameCount = 0, last = performance.now(), peakCalls = 0, peakTriangles = 0;
   const firstFrames: number[] = [];
   let drained: unknown;
+  let reactionSampled = false;
   let started = 0, volleyAt = 0, blastAt = 0, volleys = 0, explosions = 0;
   const calls: number[] = [], triangles: number[] = [];
   let peakTextureMiB = 0, peakTextures = 0;
@@ -96,6 +98,10 @@ export function startMapInspector(): void {
       scene.spawnImpact({ x: 22, y: 1.5, z: 22.5 }, { x: 1, y: 0, z: 0 }, false);
       scene.spawnImpact({ x: 22, y: 1.5, z: 23.5 }, { x: 1, y: 0, z: 0 }, true);
     }
+    if (reaction && !reactionSampled) {
+      reactionSampled = scene.inspectReaction(shotName.split("-")[1]!, shotName.endsWith("death") ? 2500 : 120);
+      if (!reactionSampled) { requestAnimationFrame(tick); return; }
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -108,12 +114,13 @@ export function startMapInspector(): void {
     if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
+      reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
-      actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
+      actorCount: reaction ? 1 : actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
         rifles: 12, targetShotsPerRiflePerSecond: 10, observedShotsPerRiflePerSecond: volleys / 15, grenadesPerBurst: 12, burstIntervalMs: 2000 } : null,
       medianCalls: [...calls].sort((a,b) => a-b)[Math.floor(calls.length / 2)],
       peakMeasuredCalls: Math.max(...calls), peakMeasuredTriangles: Math.max(...triangles),

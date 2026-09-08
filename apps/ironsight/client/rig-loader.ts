@@ -26,14 +26,25 @@ export type LocomotionState =
   | "death";
 
 const CROSSFADE_SEC = 0.15;
-// "hit_chest"/"hit_head" are one-shot like "death" (loop once, restart on a
-// repeat request — a rapid follow-up hit replays from the top) but, unlike
-// death, are NOT terminal: setState's `state === "death"` check is a literal
-// string match, so a hit reaction never locks out later states. clampWhenFinished
-// below holds the last frame briefly; scene.ts is the one that explicitly calls
-// setState(locomotion) again once the clip's own duration elapses, crossfading
-// back to whatever's current (see hitChestDuration/hitHeadDuration + syncModelRig).
-const ONE_SHOT_STATES: readonly LocomotionState[] = ["death", "hit_chest", "hit_head"];
+// Hit clips are sampled as a small additive upper-body layer. Locomotion and
+// authored two-hand holds keep running underneath; death remains terminal.
+const ONE_SHOT_STATES: readonly LocomotionState[] = ["death"];
+const reactionClips = new WeakMap<THREE.AnimationClip, THREE.AnimationClip>();
+function upperBodyReaction(source: THREE.AnimationClip): THREE.AnimationClip {
+  const cached = reactionClips.get(source); if (cached) return cached;
+  const clip = source.clone();
+  clip.name = `${source.name}_upper_additive`;
+  clip.tracks = clip.tracks.filter(track => /^(spine_0[123]|neck_01|head)\.quaternion$/.test(track.name));
+  // Reference the source's neutral opening frame, never a weapon-specific hold.
+  THREE.AnimationUtils.makeClipAdditive(clip, 0, source);
+  reactionClips.set(source, clip);
+  return clip;
+}
+
+/** Finish the fall, then hold the settled silhouette briefly. Respawn still wins. */
+export function deathPresentationMs(durationSeconds: number | undefined): number {
+  return durationSeconds === undefined ? 1200 : Math.min(3000, durationSeconds * 1000 + 250);
+}
 
 let cachedGltf: Promise<GLTF> | undefined;
 let warnedOnce = false;
@@ -92,6 +103,8 @@ export interface PlayerRigModel {
    *  against where the rig is actually rendered (hitbox/visual audit). */
   getHeadWorldPos(out: THREE.Vector3): void;
   getFootWorldY(): number | undefined;
+  /** Lowest death support joint; constant bone work, never a vertex scan. */
+  getBodySupportWorldY(): number | undefined;
 }
 
 /** Clones a fresh, independently-posable instance of `gltf` (SkeletonUtils.clone,
@@ -105,6 +118,8 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const headBone = object.getObjectByName("head"); // Synty/UAL Epic-style skeleton naming
   const feet = ['Foot_L', 'Foot_R', 'ball_l', 'ball_r', 'toes_l', 'toes_r']
     .map(name => object.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone);
+  const supports = [...feet, ...['Pelvis', 'spine_03', 'head', 'Hand_L', 'Hand_R']
+    .map(name => object.getObjectByName(name)).filter((bone): bone is THREE.Object3D => !!bone)];
   const footPosition = new THREE.Vector3();
   const mixer = new THREE.AnimationMixer(object);
   const actions = new Map<LocomotionState, THREE.AnimationAction>();
@@ -147,6 +162,20 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
   const hitChestDuration = actions.get("hit_chest")?.getClip().duration;
   const hitHeadDuration = actions.get("hit_head")?.getClip().duration;
 
+  const reactions = new Map<LocomotionState, THREE.AnimationAction>();
+  for (const name of ["hit_chest", "hit_head"] as const) {
+    const source = THREE.AnimationClip.findByName(gltf.animations, name);
+    if (!source) continue;
+    const clip = upperBodyReaction(source);
+    if (!clip.tracks.length) continue;
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true;
+    reactions.set(name, action);
+  }
+  let reaction: THREE.AnimationAction | undefined;
+  let reactionAge = 0;
+  const stopReaction = () => { reaction?.stop(); reaction = undefined; reactionAge = 0; };
+
   let current: THREE.AnimationAction | undefined;
   let state: LocomotionState = "idle";
 
@@ -179,12 +208,21 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
     },
     setState(next: LocomotionState): void {
       if (state === "death") return; // terminal until forceIdle()
+      if (next === "hit_chest" || next === "hit_head") {
+        const hit = reactions.get(next) ?? reactions.get("hit_chest");
+        if (!hit) return;
+        stopReaction(); reaction = hit;
+        hit.reset().setEffectiveWeight(0).play();
+        return;
+      }
+      if (next === "death") stopReaction();
       const restart = ONE_SHOT_STATES.includes(next);
       if (next === state && !restart) return;
       state = next;
       play(next, restart);
     },
     forceIdle(): void {
+      stopReaction();
       state = "idle";
       for (const action of [...actions.values(), ...holds.flatMap(actions => [...actions.values()])]) action.stop();
       const idle = holdActions()?.get("idle") ?? actions.get("idle");
@@ -195,10 +233,22 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
       current = idle;
     },
     update(dt: number): void {
+      if (reaction) {
+        reactionAge += Math.max(0, dt);
+        const duration = reaction.getClip().duration;
+        if (reactionAge >= duration) stopReaction();
+        else reaction.setEffectiveWeight(0.7 * Math.min(1, reactionAge / 0.035, (duration - reactionAge) / 0.09));
+      }
       mixer.update(dt);
     },
     getHeadWorldPos(out: THREE.Vector3): void {
       headBone?.getWorldPosition(out);
+    },
+    getBodySupportWorldY(): number | undefined {
+      if (!supports.length) return undefined;
+      let y = Infinity;
+      for (const bone of supports) { bone.getWorldPosition(footPosition); y = Math.min(y, footPosition.y); }
+      return y;
     },
     getFootWorldY(): number | undefined {
       if (!feet.length) return undefined;

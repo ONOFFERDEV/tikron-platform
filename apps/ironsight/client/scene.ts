@@ -28,7 +28,7 @@ import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
 import { Vfx, makeFlashTexture } from "./vfx.js";
 import { GAME } from "../src/game-config.js";
-import { loadPlayerModel, clonePlayerRig, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
+import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
@@ -188,7 +188,6 @@ const MODEL_CROUCH_SQUASH = 0.8;
 /** How long a model rig stays visible playing its death clip before hiding, once
  *  the server reports the player dead — capped so a very long/missing clip can't
  *  leave a corpse standing around. */
-const DEATH_HOLD_MS = 1200;
 
 interface NadeFx {
   mesh: THREE.Mesh;
@@ -245,10 +244,6 @@ interface PlayerRig {
   /** performance.now() deadline until which a just-died model rig stays visible
    *  playing its death clip; undefined when not mid-death-hold. */
   deadHoldUntil?: number;
-  /** performance.now() deadline until which a hit_chest/hit_head one-shot is
-   *  still playing — syncModelRig skips its own locomotion setState() call
-   *  until this passes; undefined when no hit reaction is in progress. */
-  hitReactionUntil?: number;
   prevX?: number;
   prevZ?: number;
   /** Local Y (relative to `group`, i.e. relative to the feet) of the head/eye
@@ -1025,8 +1020,7 @@ export class SceneRig {
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
    *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
-  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState, serverNow = Date.now()): void {
-    const now = performance.now();
+  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState, serverNow = Date.now(), now = performance.now()): void {
     const seen = this.seenPlayers;
     seen.clear();
     for (const [id, pose] of poses) {
@@ -1054,7 +1048,7 @@ export class SceneRig {
         rig.contact.material.opacity = Math.max(0, 0.48 - (pose.y - floor) * 0.2);
         rig.contact.visible = pose.alive;
       }
-      rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive && rig.hitReactionUntil === undefined, undefined, true,
+      rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive, undefined, true,
         remoteReloadProgress(pose.alive, pose.reloadEnd ?? 0, GAME.weapons[pose.weapon]?.reloadMs ?? 1, serverNow));
     }
     // Map iterators tolerate deleting the current/already-visited key mid-loop
@@ -1083,6 +1077,33 @@ export class SceneRig {
     return rig.weapon.loaded;
   }
 
+  /** Offline fixed-time sample through the normal hit/death transition path. */
+  inspectReaction(kind: string, ageMs: number): boolean {
+    const pose = { x: 10, y: 0, z: 20, yaw: 0, pitch: 0, crouch: kind === "crouch",
+      alive: true, team: 0, weapon: 0 };
+    const poses = new Map([["reaction", pose]]);
+    this.syncPlayers(poses, "", 0, undefined, 1000, 1000);
+    const rig = this.players.get("reaction");
+    if (!rig?.model || !rig.weapon?.loaded) return false;
+    rig.model.forceIdle(); rig.aliveWas = true; rig.deadHoldUntil = undefined;
+    this.syncPlayers(poses, "", 200, undefined, 1000, 1000);
+    if (kind === "death") {
+      pose.alive = false;
+      this.syncPlayers(poses, "", 0, undefined, 1000, 1000);
+    } else this.playHitReaction("reaction", kind === "head");
+    for (let elapsed = 0; elapsed < ageMs;) {
+      const dt = Math.min(10, ageMs - elapsed); elapsed += dt;
+      this.syncPlayers(poses, "", dt, undefined, 1000 + elapsed, 1000 + elapsed);
+    }
+    return true;
+  }
+
+  inspectionReactionInfo(): { visible: boolean; head: number[] | undefined; supportY: number | undefined } {
+    const rig = this.players.get("reaction");
+    const head = rig?.modelRoot?.getObjectByName("head");
+    return { visible: rig?.group.visible ?? false, head: head?.getWorldPosition(new THREE.Vector3()).toArray(), supportY: rig?.model?.getBodySupportWorldY() };
+  }
+
   inspectionHandFocus(): THREE.Vector3 | undefined {
     const root = this.players.get('inspect')?.modelRoot;
     const left = root?.getObjectByName('Hand_L'), right = root?.getObjectByName('Hand_R');
@@ -1103,22 +1124,11 @@ export class SceneRig {
     return { bones, muzzle: rig.weapon.muzzle.position.toArray() };
   }
 
-  /** Plays a one-shot hit-reaction clip on remote player `id` — headshot uses
-   *  "hit_head" if the GLB has it, else falls back to "hit_chest" same as a body
-   *  hit; a true no-op (unchanged behavior) if the rig has neither clip (capsule
-   *  fallback, or an older/backup GLB without them) — see rig-loader.ts's
-   *  hasHitChestClip/hasHitHeadClip. Never called for the local player (main.ts
-   *  guards `e.from`/`h.id !== net.myId`) since first-person has no body model. */
+  /** Server-confirmed upper-body impulse; feet, crouch and weapon holds continue. */
   playHitReaction(id: string, headshot: boolean): void {
     const rig = this.players.get(id);
-    if (!rig || rig.kind !== "model") return;
-    const model = rig.model!;
-    const state: LocomotionState | undefined =
-      headshot && model.hasHitHeadClip ? "hit_head" : model.hasHitChestClip ? "hit_chest" : undefined;
-    if (!state) return;
-    model.setState(state);
-    const dur = (state === "hit_head" ? model.hitHeadDuration : model.hitChestDuration) ?? 0;
-    rig.hitReactionUntil = performance.now() + dur * 1000;
+    if (!rig?.model || rig.aliveWas === false) return;
+    rig.model.setState(headshot ? "hit_head" : "hit_chest");
   }
 
   private syncCapsuleRig(rig: PlayerRig, pose: PlayerPose): void {
@@ -1145,18 +1155,22 @@ export class SceneRig {
 
     if (!pose.alive) {
       if (wasAlive) {
-        // Death edge: play the clip once, hold the rig visible for the shorter of
-        // the clip's own length or DEATH_HOLD_MS, then hide it. Death always wins
-        // over a hit reaction in progress — setState("death") below crossfades
-        // away from it unconditionally (no reacting/interrupt check needed here).
+        // Let the inherited fall reach its final pose before hiding the body.
+        // The authoritative respawn edge below always cancels this local hold.
         model.setState("death");
-        const clipMs = (model.deathDuration ?? DEATH_HOLD_MS / 1000) * 1000;
-        rig.deadHoldUntil = now + Math.min(DEATH_HOLD_MS, clipMs);
-        rig.hitReactionUntil = undefined;
+        rig.deadHoldUntil = now + deathPresentationMs(model.deathDuration);
       }
       const holding = rig.deadHoldUntil !== undefined && now < rig.deadHoldUntil;
       rig.group.visible = holding;
-      if (holding) model.update(dtMs / 1000);
+      if (holding) {
+        model.update(dtMs / 1000);
+        // Source root motion leaves the settled body suspended. Reset the local
+        // anchor before sampling so this correction cannot accumulate per frame.
+        rig.modelRoot!.position.y = -rig.localMinY! * rig.baseScale!;
+        const supportY = model.getBodySupportWorldY();
+        if (supportY !== undefined)
+          rig.modelRoot!.position.y -= Math.max(0, supportY - rig.group.position.y - 0.1);
+      }
       return;
     }
 
@@ -1166,7 +1180,6 @@ export class SceneRig {
       // teleport-to-spawn jump isn't read as an instantaneous sprint next frame.
       model.forceIdle();
       rig.deadHoldUntil = undefined;
-      rig.hitReactionUntil = undefined;
       rig.prevX = pose.x;
       rig.prevZ = pose.z;
     }
@@ -1207,14 +1220,7 @@ export class SceneRig {
           : lateral > 0 ? 'strafe_left' : 'strafe_right';
       else if (forward < -Math.abs(lateral) && !pose.crouch) locomotion = 'backpedal';
     }
-    // A hit_chest/hit_head one-shot in progress pushes locomotion selection aside
-    // until its own duration elapses (playHitReaction sets this deadline) — at
-    // which point setState(locomotion) resumes into whatever's CURRENT (not
-    // whatever it was interrupted from), matching pose/speed same as any other frame.
-    if (rig.hitReactionUntil === undefined || now >= rig.hitReactionUntil) {
-      rig.hitReactionUntil = undefined;
-      model.setState(clip ?? locomotion);
-    }
+    model.setState(clip ?? locomotion);
     model.update(dtSec);
     this.groundCrouch(rig, pose.crouch);
   }

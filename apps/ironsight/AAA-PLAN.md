@@ -3,10 +3,10 @@
 ## OWNER PLAYTEST GUIDE
 
 **Preview:** https://ironsight-next.plain-wave-5d5b.workers.dev
-Supervisor reports sessions 1-16 are deployed there, including Switchyard, Relay
-service detail, uplinks, concrete detail, ground continuity and arena recovery.
-Session 17's first-person sleeve/glove finish remains local until publication. Continue using
-the standing brief's active defaults.
+Supervisor reports sessions 1-18 are deployed there, including the sleeve/glove
+finish and layered ballistic impacts. Session 19's remote reaction and grounded
+death presentation remains local until publication. Continue using the standing
+brief's active defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -327,19 +327,19 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## AAA gap list
 
-Re-ranked after Session 18. The supervisor confirms lifecycle recovery is resolved;
-no extra persistence drill is needed absent a new failure. This session delivers
-layered surface sparks/dust and distinct player impact droplets in the existing pool.
-Next default: remote hit/death presentation, then layered weapon audio, ahead of another
-environment pass. Keep the constant-light and existing texture budgets.
+Re-ranked after Session 19. Lifecycle recovery remains resolved; no extra persistence
+drill is needed absent a new failure. Remote hits now layer over locomotion and
+weapon holds, and the death clip finishes with a grounded settled pose.
+Next default: layered weapon audio, then presentation and environment richness.
+Keep the constant-light and existing texture budgets.
 
-1. **Combat character/impact finish.** First-person sleeves now have tapered oval
-   sections, compression folds, reinforced panels and padded gloves at six draws.
-   Five weapon reload cycles and static contact/ADS captures have engineering
-   coverage; human finger contact and animation acceptance remain open. Next:
-   remote hit reactions/deaths, then layered weapon audio. Session 18 gives surface
-   impacts separate contact/spark/dust lifetimes and player hits elongated droplets;
-   human combat readability and audio acceptance remain open.
+1. **Layered weapon audio and combat polish.** Prioritize distinct mechanical attack,
+   body and environmental tails for the five weapons using the existing synthesis
+   and voice budgets; headphone mix needs human approval. Sessions 17-19 deliver
+   tailored first-person sleeves/gloves, layered ballistic impacts and remote hit
+   layering without standing up out of crouch or losing the two-hand hold. Deaths
+   now finish their inherited fall and settle at the floor. Moving finger/contact,
+   reaction intensity and reload/death acceptance remain human review items.
    Keep server-confirmed hits and constant light count through hidden groups.
 2. **Environment richness and material depth.** Relay now has human-scale service
    hatches, cabinets, vents, safety plates and worn maintenance clearances. Broad
@@ -2278,3 +2278,102 @@ Cleanup: session18-preflight-cleanup.json and session18-cleanup.json record the
 owned server trees stopped. Final twelve-process tree: zero remaining processes,
 port-8796 listeners or inspection browsers. Evidence remains ignored under .inspect.
 Ready for supervisor review/publication; no commit/push/deploy.
+
+
+### Session 19 - 2026-09-08: layered remote reactions and grounded complete deaths
+
+Read the standing brief, Session 19 supervisor status and plan in order; confirmed
+ironsight-aaa from HEAD. Scope apps/ironsight/** only. No commit, push, deployment,
+SDK edit, dependencies or purchased asset changes. The resolved lifecycle issue
+was not reopened. No Meshy credits spent (1530 remain): this animation gap uses
+the existing private clips and needs no new bitmap or model assets.
+
+Selected the top remote combat presentation gap. Full-body hit clips previously
+interrupted locomotion, pulled crouched operators upright and dropped the support
+hand off the weapon. The client now constructs cached additive views containing
+only spine/neck/head rotation tracks, relative to the source clip's opening pose.
+Hits blend in over 35 ms at 70% strength and out over the final 90 ms; locomotion,
+crouch, the current weapon hold, aim and reload continue underneath. Repeated hits
+restart one layer instead of accumulating, and death/respawn cancel it. Server shot
+events remain the sole hit-reaction trigger. No collision, hit validation, schema,
+movement or room changes; private source clips/geometry/textures remain immutable.
+
+The inherited death clip lasts 2.4 seconds but was hidden after 1.2 seconds. It now
+finishes and holds the settled pose for 250 ms, bounded to 3 seconds and cancelled
+by authoritative respawn. Review rejected the first complete fall because its source
+root offset left the body floating: head joint Y was 0.901 m at 2.5 seconds. A fixed
+set of existing support joints now anchors the death pose to the player's floor;
+accepted head Y is 0.197 m and lowest support Y is 0.100 m (mesh clearance). The
+anchor resets before each sample, preventing accumulated corrections. No ragdoll,
+vertex scan, geometry bake, new textures, lights or rendering passes.
+
+Evidence: .inspect/session19-before-report.json and paired reaction-{body,head,
+crouch,death} PNGs; session19-review-*; session19-ungrounded-report.json and
+session19-ungrounded-reaction-death.png preserve the rejected floating body.
+Accepted .inspect/session19-final-report.json and matching PNGs cover all four
+fixed-time production reaction samples, required Relay/real Undertow practice and
+Relay effects stress. Opened baseline/body/crouch, layered body/crouch, rejected and
+grounded death, and final Undertow gameplay captures. Hit samples are at 120 ms;
+death sample is at 2500 ms, advanced in 10 ms steps through the production path.
+These are reproducible pose samples, not human moving-animation acceptance. The
+initial diagnostic iteration used wall-clock hit deadlines with a fixed sample
+clock; corrected the fixture clock and recaptured the baseline before art edits.
+Final fixture samples once after readiness, then renders the frozen result.
+
+Six new tests cover crouch/root/hand preservation, changing locomotion during a
+reaction and recovery to that current state, rapid-hit bounds, distinct headshots,
+death/respawn cancellation, source immutability/instance isolation, full death hold,
+and transformed support-joint sampling. Final pnpm typecheck, pnpm test (334 passed,
+3 existing opt-in skips; 35 passing files and one skipped), pnpm build:client and
+pnpm audit:assets PASS. Logs: .inspect/session19-{typecheck,test,build-client,
+audit-assets}.log. No gate threshold was relaxed. Provenance and reproduction:
+public/assets/README.md. No binary asset changes or additional downloads.
+
+Matched Relay effects stress: eleven remote operators plus local rifle/hands,
+145 twelve-rifle volleys, 96 blasts; effects drain completely. Edge 152 / RTX 5070
+Direct3D11 at 1920x1080 balanced/DPR 1. .inspect/session19-delta.json records:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles | 220 / 93,190 | 220 / 93,190 | 0 / 0 |
+| Textures / estimated MiB | 30 / 63.751 | 30 / 63.751 | 0 / 0.000 |
+| Median / p95 / p99 ms | 6.9 / 7.1 / 7.1 | 6.9 / 7.0 / 7.1 | 0 / -0.1 / 0 |
+| Max / first-ready max ms | 7.2 / 7.1 | 7.8 / 7.1 | +0.6 / 0 |
+
+Relay eye-level remains 22 calls / 29,706 triangles. The corpse sample now submits
+four existing actor/weapon draws that the old prematurely hidden sample omitted;
+no new mesh resources are allocated. Desktop rAF intervals and allocation estimates
+do not establish target iGPU, GPU timing, thermal/cold-driver or real 6v6 acceptance.
+No performance improvement is claimed. Asset bytes 12,176,452 -> 12,177,465 (+1,013,
+provenance); public bytes 18,189,111 -> 18,209,916 (+20,805); largest file 4,181,975
+bytes. The 40 MiB total / 25 MiB per-file caps pass; texture headroom remains tight.
+
+The exact required relay,practice-two inspector and the seven-view extended final
+inspector with --assert-budgets PASS, zero console/runtime/HTTP errors and forbidden
+offline network requests. Logs: session19-required-inspector.log and session19-final.log.
+Restarted the owned server after final bundle/asset writes before browser acceptance;
+preserved .wrangler/state and the fixed arena-tdm room. No lifecycle re-proving,
+room isolation or state clearing. Preflight/review cleanup reports preserve owned
+server process-tree shutdowns. A combined restart/gates shell call was rejected by
+execution policy; separate cleanup, launch and gate calls succeeded without escalation.
+
+Re-ranked gaps: layered weapon audio next, ahead of another environment pass.
+Nonblocking owner questions: retain restrained upper-body reactions that preserve
+stance/hold (default yes); prioritize weapon audio next (default yes). Human finger
+contact, moving reload/reaction/death, headphone mix and real combat approval remain
+open. Industrial daylight, amber/teal, stylized sci-fi and 6v6 TDM remain active defaults.
+
+
+Required live gate PASS with the exact command:
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`.
+One human plus three bots; warmup -> live at 7.921 s, three deaths and three observed
+respawns. Zero post-warmup shader recompiles, frames >150 ms, console errors or long
+tasks. The sole frame above 24 ms was the initial 84.7 ms frame. Evidence:
+.inspect/hitch.json, session19-hitch.json and session19-hitch.log. Existing local
+workerd tick-backlog warnings remain in the server log; no capacity claim is made.
+
+Cleanup: .inspect/session19-cleanup.json confirms all twelve final-server process
+tree members stopped; zero remaining owned processes, port-8796 listeners or
+inspection browsers. Final code, asset, required/extended inspection and live hitch
+gates are green. Evidence stays ignored under .inspect. Ready for supervisor review;
+no commit/push/deploy.
