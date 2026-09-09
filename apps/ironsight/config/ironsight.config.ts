@@ -140,7 +140,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   // --- text: transcribed verbatim (no exported strings in any client module) --
   text: {
     title: "IRONSIGHT", // client/mode-select.ts's fullscreen menu <h1>
-    controlsHintFmt: "{move} move · {sprint} sprint · {crouch} crouch / sprint-slide · {jump} jump · {reload} reload · {grenade} grenade · 1–5 weapons · LMB fire · M mute", // client/hud.ts showLockPrompt
+    controlsHintFmt: "{move} move · {sprint} sprint · {crouch} crouch / sprint-slide · {jump} jump / vault near waist cover · {reload} reload · {grenade} grenade · 1–5 weapons · LMB fire · M mute", // client/hud.ts showLockPrompt
     modeLabels: {
       tdm: { ko: "팀 데스매치", en: "TEAM DEATHMATCH" },
       ffa: { ko: "개인전", en: "FREE-FOR-ALL" },

@@ -389,3 +389,15 @@ export async function inspectThreatAudio() {
     auditMixes = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);
   }
 }
+
+/** Hand contact and sleeve scrape, emitted only by an accepted room traversal. */
+export function playTraversal(source?: SoundPoint, threatGain = 1): void {
+  const c=ready(); if (!c || !master || !noise) return;
+  const bus=spatialBus(c,source,threatGain); if (!bus) return;
+  const t=c.currentTime, src=c.createBufferSource(), filter=c.createBiquadFilter(), gain=c.createGain();
+  src.buffer=noise; filter.type='lowpass'; filter.frequency.value=1300;
+  gain.gain.setValueAtTime(.001,t); gain.gain.linearRampToValueAtTime(.23,t+.015);
+  gain.gain.exponentialRampToValueAtTime(.025,t+.09); gain.gain.exponentialRampToValueAtTime(.001,t+.3);
+  src.connect(filter).connect(gain).connect(bus.input); src.start(t); src.stop(t+.32);
+  src.onended=()=>{src.disconnect();filter.disconnect();gain.disconnect();bus.release();};
+}

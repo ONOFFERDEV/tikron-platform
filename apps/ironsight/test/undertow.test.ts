@@ -6,6 +6,25 @@ import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
 
 describe('Undertow encounter safety', () => {
+  it('keeps ground cover within 12m of sampled rifle, deck-approach and service lanes', () => {
+    for (const [z,from,to] of [[27,20,130],[48,18,65],[48,85,132],[72,18,132],[86,18,132]]) {
+      for(let x=from!;x<=to!;x+=2) {
+        const distance=Math.min(...map.boxes.filter(b=>b.min.y===0).map(b=>
+          Math.hypot(Math.max(b.min.x-x,0,x-b.max.x),Math.max(b.min.z-z!,0,z!-b.max.z))));
+        expect(distance,`lane ${x},${z}`).toBeLessThanOrEqual(12);
+      }
+    }
+  });
+  it('shows the solid central pressure stack above all three lane approaches',()=>{
+    const stack=map.boxes.find(b=>b.min.y===6 && b.max.y===14)!;
+    expect(stack).toBeDefined();const target={x:75,y:13,z:49};
+    for(const [x,z] of [[75,27],[30,50],[120,50],[75,76]]){
+      const eye={x:x!,y:PLAYER.standEye,z:z!};const d=Math.hypot(target.x-eye.x,target.y-eye.y,target.z-eye.z);
+      const dir={x:(target.x-eye.x)/d,y:(target.y-eye.y)/d,z:(target.z-eye.z)/d};
+      expect(nearestBox(eye,dir,map.boxes.filter(b=>b!==stack),d)).toBe(Infinity);
+      expect(nearestBox(eye,dir,[stack],d)).toBeLessThan(d);
+    }
+  });
   it('screens every spawn from all enemy spawns at standing eye height', () => {
     for (const a of map.spawns.red) for (const b of map.spawns.blue) {
       const d = Math.hypot(b.x - a.x, b.z - a.z);
@@ -23,7 +42,7 @@ describe('Undertow encounter safety', () => {
       const seconds = walkSeconds(map, caps[i]!, to, MOVE.sprint);
       expect(seconds).toBeGreaterThanOrEqual(10); expect(seconds).toBeLessThanOrEqual(15);
     }
-    for (const b of map.boxes) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
+    for (const b of map.boxes.filter(b => b.min.y === 0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
     expect(map.spawns.red).toHaveLength(6); expect(map.spawns.blue).toHaveLength(6);
   });
   it('B has two four-metre north entrances visible together from the objective', () => {

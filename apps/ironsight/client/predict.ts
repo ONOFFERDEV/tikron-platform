@@ -16,6 +16,7 @@ import {
   RECONCILE_TAU_MS,
 } from "./config.js";
 import type { MoveIntent } from "./net.js";
+import { WaistTraversal } from '../src/traversal.js';
 import { SprintSlide } from '../src/slide.js';
 
 const TICK_S = TICK_MS / 1000;
@@ -29,6 +30,8 @@ export class Predictor {
   private readonly bounds: Bounds;
   private vy = 0;
   private grounded = true;
+  private traversal = new WaistTraversal();
+  private traversalStep = false;
   private slide = new SprintSlide();
   private offset: Vec3 = { x: 0, y: 0, z: 0 };
   private pendingJump = false;
@@ -80,6 +83,13 @@ export class Predictor {
   }
 
   private step(inp: MoveIntent, yaw: number): void {
+    const traversed = this.traversal.step(TICK_MS, { ...inp, jump: this.pendingJump }, this.grounded,
+      this.pos,yaw,this.boxes,this.bounds,this.ramps);
+    this.traversalStep = traversed !== null;
+    if (traversed) {
+      this.slide = new SprintSlide(); this.pendingJump = false; this.crouch = false;
+      this.pos=traversed.pos; this.vy=0; this.grounded=traversed.grounded; return;
+    }
     const momentum = this.slide.step(TICK_MS, { ...inp, jump: this.pendingJump }, this.grounded, yaw);
     // Crouch (resolved before speed/height, like the server). Standing up is refused
     // when the taller capsule would clip cover/ceiling.
@@ -170,6 +180,7 @@ export class Predictor {
     this.offset = { x: 0, y: 0, z: 0 };
     this.accMs = 0;
     this.slide = new SprintSlide();
+    this.traversal = new WaistTraversal(); this.traversalStep = false;
     this.pendingJump = false;
     this.crouch = false;
   }
@@ -178,7 +189,7 @@ export class Predictor {
    *  respawn may land within the soft threshold of the corpse). */
   setAlive(a: boolean): void {
     if (a && !this.alive) this.respawnSnap = true;
-    if (!a) { this.slide = new SprintSlide(); this.pendingJump = false; }
+    if (!a) { this.traversal = new WaistTraversal(); this.traversalStep = false; this.slide = new SprintSlide(); this.pendingJump = false; }
     this.alive = a;
   }
 
@@ -203,6 +214,8 @@ export class Predictor {
   get isGrounded(): boolean {
     return this.grounded;
   }
+  get isTraversing(): boolean { return this.traversal.active || this.traversalStep; }
+  get traversalProgress(): number { return this.traversal.progress; }
   get isSliding(): boolean { return this.slide.active; }
   get slideProgress(): number { return this.slide.progress; }
 }

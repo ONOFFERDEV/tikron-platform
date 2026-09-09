@@ -21,6 +21,16 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   for (const b of map.boxes) {
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
+    if (b.min.y > 0) {
+      // Central pressure-stack cladding stays within the authoritative envelope.
+      add(1,x,b.min.y+h/2,z,w,h,d);
+      for (const y of [7,10,13]) add(3,x,y,z,w+.004,.28,d+.004);
+      for (const side of [-1,1]) {
+        add(2,x,b.min.y+h/2,z+side*(d/2+.006),w*.64,h*.78,.012);
+        for (const y of [8,9.2,10.4,11.6]) add(4,x,y,z+side*(d/2+.015),w*.55,.55,.008);
+      }
+      continue;
+    }
     const low = h < 1.5, control = h > 4, screen = d > 8;
     const accent = x < width / 2 ? 4 : 5;
     add(low ? 2 : control ? 1 : 0, x, (h - .18) / 2, z, w, h - .18, d);

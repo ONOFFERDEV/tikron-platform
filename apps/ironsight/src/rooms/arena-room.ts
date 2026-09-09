@@ -1,4 +1,5 @@
 import { PING, resolvePing, type TeamPing } from '../ping.js';
+import { WaistTraversal } from '../traversal.js';
 import { SprintSlide } from '../slide.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
 import { WeaponHandling, isSprinting } from "../handling.js";
@@ -145,9 +146,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v7 expands Switchyard. Older snapshots start a
+  // v8 refreshes Undertow collision density. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 7;
+  protected override stateVersion = 8;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -189,6 +190,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly inputs = new Map<string, PlayerInput>();
   private readonly vy = new Map<string, number>();
   private readonly grounded = new Map<string, boolean>();
+  private readonly traversals = new Map<string, WaistTraversal>();
   private readonly slides = new Map<string, SprintSlide>();
   // Per-weapon ammo: arrays indexed by weapon (0..WEAPONS.length−1), so each weapon
   // keeps its own magazine + reserve (PLAN §4: "탄약/재장전 무기별 분리").
@@ -432,6 +434,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.vy,
       this.grounded,
       this.slides,
+      this.traversals,
       this.magByW,
       this.reserveByW,
       this.reloadUntil,
@@ -558,6 +561,23 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const inp = this.inputs.get(id) ?? NO_INPUT;
     let slide = this.slides.get(id);
     if (!slide) { slide = new SprintSlide(); this.slides.set(id, slide); }
+    let traversal = this.traversals.get(id);
+    if (!traversal) { traversal = new WaistTraversal(); this.traversals.set(id, traversal); }
+    const wasTraversing = traversal.active;
+    const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, p.yaw,
+      this.boxes, this.map.bounds, this.map.ramps ?? []);
+    if (traversed) {
+      if (!wasTraversing) this.sendNear('traversal', { id, kind: traversal.kind, x:p.x,y:p.y,z:p.z },p.x,p.z,{ always:[id] });
+      this.slides.set(id, new SprintSlide());
+      inp.jump = false; p.crouch = false;
+      // Treat hands-busy traversal as sprint recovery; the existing weapon table
+      // owns the 90-150 ms reacquisition after the final step.
+      const handling = this.updateHandling(id, Date.now());
+      handling.update(Date.now(), this.weaponOf(p), true, false, true);
+      p.x=traversed.pos.x; p.y=traversed.pos.y; p.z=traversed.pos.z;
+      this.vy.set(id,0); this.grounded.set(id,traversed.grounded);
+      return;
+    }
     const wasSliding = slide.active;
     const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, p.yaw);
 
@@ -666,7 +686,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (p) {
       const inp = this.inputs.get(id) ?? NO_INPUT;
       const blocked = !p.alive || now < (this.reloadUntil.get(id) ?? 0) || now < (this.swapUntil.get(id) ?? 0);
-      handling.update(now, this.weaponOf(p), isSprinting({ ...inp, crouch: p.crouch || inp.crouch }, this.grounded.get(id) ?? true), inp.ads === true, blocked);
+      handling.update(now, this.weaponOf(p), (this.traversals.get(id)?.active ?? false) || isSprinting({ ...inp, crouch: p.crouch || inp.crouch }, this.grounded.get(id) ?? true), inp.ads === true, blocked);
     }
     return handling;
   }
@@ -1125,7 +1145,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private handleNade(client: Client): void {
     const id = client.id;
     const p = this.state.players[id];
-    if (!p || !p.alive || p.nades <= 0) return;
+    if (!p || !p.alive || p.nades <= 0 || this.traversals.get(id)?.active) return;
     const now = Date.now();
     const ready = this.nadeReadyAt.get(id);
     if (ready !== undefined && now < ready) return;
@@ -1349,6 +1369,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private spawnInto(p: ArenaPlayer, id: string): void {
     this.slides.delete(id);
+    this.traversals.delete(id);
     // Every map uses authoritative threat scoring. FFA considers everyone hostile
     // and searches both pools; rotation only breaks equally safe choices.
     const teamed = this.gameMode.teams;
@@ -1530,6 +1551,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.vy,
       this.grounded,
       this.slides,
+      this.traversals,
       this.magByW,
       this.reserveByW,
       this.reloadUntil,

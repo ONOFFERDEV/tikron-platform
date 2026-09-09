@@ -14,7 +14,7 @@ faces these arrivals toward inner exits and restores authoritative aim on respaw
 Session 39 adds Undertow objective rehearsal. Session 40 adds rebindable Q team
 pings (aim, then mark; five-second snapshot). Session 41 adds a required own-mark
 training lesson on every map, including unbound-key guidance. Session 42 adds
-rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; it remains local until supervisor publication. Continue the standing brief defaults.
+rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; this session remains local for supervisor publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -338,8 +338,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 45. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session45-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 46. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session46-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -347,26 +347,26 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 |---|---|---|
 | R-M01 | partial | Session30 adds North bus rifle route, four-ramp Switch deck and offset South service flank; all maps have named lanes. Human route quality remains open. |
 | R-M02 | partial | Undertow B has two 4 m north doors, their sampled approaches visible within default 78-degree FOV from (75,97); standing-eye rays tested. All-objective/human visibility audit incomplete. |
-| R-M03 | met | Session44: Relay 61 full/46 waist, no head-height cover; sampled cooling/service/freight routes have ground cover within 12 m. Undertow23/14 and Switchyard42/10 retained. Test measures proximity, not universal cover-to-cover path length. |
-| R-M04 | met | Session44 Relay ground BFS sprint A-B/B-C14.44 s, A-C11.78 s; previous11.56 s. Undertow14.22/14.22/10.67 s, Switchyard14.44/14.44/11.11 s retained. All in10-15 s; human retakes unmeasured. |
-| R-M05 | partial | Relay rifle decks, Undertow paired control shortcuts, Switchyard exposed four-ramp 3 m deck crossing both axes. Grounded traversal tested; player value unreviewed. |
+| R-M03 | met | Session46: Undertow52full/62waist (114 boxes), Relay61/46 and Switchyard42/10; no head-height cover. Sampled rifle/deck-approach/service lanes have ground cover within12m. Proximity checks do not prove universal8-12m cover-to-cover travel. |
+| R-M04 | met | Session46 Undertow A-B/B-C14.22s, A-C11.33s (was10.67); Relay14.44/14.44/11.78 and Switchyard14.44/14.44/11.11 retained. Ground BFS sprint proxy stays10-15s; assisted traversal/human retakes unmeasured. |
+| R-M05 | partial | Session46 adds shared waist-cover vault/mantle and paired Undertow vault approaches beside the existing3m control shortcuts. Session47 still needs the distinct traversal hook; human route value unreviewed. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session44 natural Relay6v6 seed0x28abc: initial median LOS/damage5.4/13.7 s; respawn4.4/11.55 s. Damage target20-30 s not met. Prior multi-seed Relay/Undertow/FFA samples retained; density is not a pacing pass. |
+| R-M07 | not yet | Session46 natural Undertow6v6 DOM seed0x29abc: initial median LOS/damage7.6/17.65s; respawn6.5/16.8s.20-30s damage target still missed. Relay Session44 misses retained; no pacing pass inferred from density. |
 | R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session38 faces both new northern courts along tested 9 m inner-exit aisles, normalizes spawn yaw for the binary codec, and restores client aim once on revival. Room/wire tests and real respawn drill pass. Safety scoring unchanged; all-exposed fallback and human camping/wayfinding remain open. |
-| R-M10 | partial | Session44 adds close paired A/C cooling courts and B freight shoulders; all cap paths remain reachable. Inner combat shells now visible; exactly-two-entry/co-visibility and human defensive quality remain open. |
+| R-M10 | partial | Session46 closes A/C approaches with waist lips and return cover; B keeps two tested4m north entrances. Relay courts retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
-| R-M12 | partial | All three expanded maps now document distinct route beats and automated traversability; human action-block validation remains open. |
-| R-M13 | partial | Session44 Relay cooling courts/rifle corridor, split-core service screens and amber freight beats plus central striped spine. Existing Undertow/Switchyard half landmarks retained; human callout learning open. |
+| R-M12 | partial | Momentum2/3: slide then650ms collision-verified lift/cross/settle across Undertow waist barriers. Real key captures and route tests pass. Session47 map-specific hook and human action-block validation remain open. |
+| R-M13 | partial | Session46 Undertow clarifier rifle shoulders, paired deck vault lines and staggered pump-service screens reinforce lane themes; pressure stack crowns the center. Existing half silhouettes retained; human callout learning open. |
 | R-M14 | n.a. | No destruction/windows system promised; fixed openings remain authoritative. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
-| R-M17 | partial | Session44 solid14 m central signal spine on6 m Relay core, receiver cassettes in collider envelope. Eye-to-spine rays clear from cooling, both service approaches and freight; final screenshots. Other maps and all reachable-viewpoint/human wayfinding remain open. |
-| R-M18 | partial | Session44 retains ground/3 m decks/6 m roofs and four actual ramps.14 m solid spine is inaccessible from6 m roof, not an added traversable floor. Ground bot paths/ramps remain green; no sunken tier or human vantage acceptance. |
+| R-M17 | partial | Session46 adds solid14m central pressure stack above6m Undertow core. Standing-eye rays from rifle, both deck approaches and pump service see its upper face; render captures pass. Relay spine retained. All viewpoints/human wayfinding remain open. |
+| R-M18 | partial | Session46 preserves ground/3m decks/6m roofs and four clear true ramps.14m pressure-stack top is inaccessible from6m roof, not an additional usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session44 natural Relay6v6 round221.3 s,49:50 with life contact samples and5 m death heatmap. Prior three-seed samples retained. A small sample cannot establish side fairness. |
+| R-M20 | partial | Session46 natural Undertow6v6 DOM300s,164:156,107 deaths with5m heatmap and119 lives. Prior multi-seed samples retained. One changed-layout sample cannot establish side fairness or human pacing. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
-| R-G02 | partial | Session45 adds earned sprint-slide: 300 ms actual run-up, 800 ms / 6.4 m decelerating travel, 1200 ms cooldown, collision/air/ADS/jump/release cancellation. Shared prediction/room tests and real-input captures pass. Five guns and grenades retained; mantle/melee and human balance remain open. |
+| R-G02 | partial | Momentum2/3: Session45 earned sprint-slide plus Session46 grounded waist-cover vault/mantle,650ms with450ms cooldown. No full-cover chain, blocked landings or combat while traversing. Five weapons/grenades retained; melee and human balance open. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
 | R-G04 | met | Session31: stationary cone AR/SMG/shotgun/sniper/pistol 0/.0002/0/.0001/.0002 rad; movement .02/.03/.02/.12/.02 added. Grounded crouch reduces cone 25%; shared accuracy tests. Human burst feel open. |
 | R-G05 | partial | Session31 fixed per-weapon authoritative offsets, four vertical automatic opening shots, later lateral drift; mouse probe and server-ray tests. Secure timed recovery replaces instant release reset; human learning/RTT acceptance open. |
@@ -376,15 +376,15 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G09 | partial | Team tint and five held pose families; human silhouette/hold acceptance open. |
 | R-G10 | partial | Bounded pooled muzzle VFX; per-weapon shape/duration reference acceptance open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
-| R-G12 | partial | Session17 sleeves and reload phases; centre corridor/finger motion needs human review. |
+| R-G12 | partial | Session46 lowers/cants the existing weapon during vaulting; center aiming corridor stays clear in before/rise/reduced captures. No new hand-contact or remote vault clip; moving fingers/holds still need human review. |
 | R-G13 | not yet | Hip FOV remains 78, with Session45 cosmetic +5 sprint / +8 slide; Reduced motion keeps 78. No 90-100 default/110-capped slider. |
-| R-G14 | partial | Session27 enemy/ally foley gain 1.4 retained. Session45 adds surface-filtered slide scrape, equipment transient and landing thud; nearby slide cues use confirmed events and the same threat/occlusion budget. Headphone/identity acceptance open. |
+| R-G14 | partial | Session27 enemy/ally foley1.4 retained. Session46 adds server-confirmed hand-contact/sleeve noise and existing landing thud, using shared spatial/occlusion/voice budget. Session45 slide scrape retained; headphone acceptance open. |
 | R-G15 | partial | Confirmed hit 900/1400 Hz at .28 gain; kill 660/990 Hz at .30. Bypasses voice cap; headphone mix unverified. |
 | R-G16 | partial | Session27 collision-box segment occlusion: .32 gain / 1100 Hz cutoff, event-time only. No ramp-volume occlusion, diffraction, doorway routing or HRTF. |
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session31 shared WeaponSpec/recoil drives server rays, claims, camera and HUD. Session45 SprintSlide runs in both fixed-step movement paths; room validates earned travel, exposes only start/end events and preserves sprint-to-fire recovery. 11 new movement tests plus ordinary-input cancellation/reduced-motion probe pass. Human RTT acceptance open. |
+| R-G20 | met | Session46 WaistTraversal is shared by room and fixed-step predictor; continuous capsule sweep, explicit bounds and supported landing checks. No client target/deadline accepted. Existing90-150ms weapon recovery gates traversal fire; authority/unit/real-key probes pass. Human RTT acceptance open. |
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -398,7 +398,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Normal bot HP/damage/reaction retained; collision navigation for DOM and patrol. Switchyard authored nine-point circuit omits spawn bays, staggered goal on every spawn. No difficulty progression. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Collider authority and bounded VFX; distance-amplified fresnel absent and iGPU acceptance open. |
+| R-L14 | partial | Session46 collider authority and bounded traversal presentation; Reduced motion preserves movement while omitting cosmetic weapon dip/cant. No extra light/pass; prewarmed Undertow detail adds2 resident programs. Distance fresnel and iGPU acceptance open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Shared movement/combat systems; no staged content progression. |
 | R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
@@ -411,15 +411,15 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 45: the 11:10 owner directive puts first-five-minute movement and signature
+Session 46: the 11:10 owner directive puts first-five-minute movement and signature
 moments above another bare density pass. All 63 reference rows retained. Selected
-**Momentum arc, Sessions45-47**; sprint-slide is already playable and on by default.
+**Momentum arc, Sessions45-47**; sprint-slide and waist-cover vault/mantle are playable and on by default.
 Density remains required, paired with traversal rather than abandoned.
 
 1. **Momentum arc / movement that changes play (R-G02, R-G12, R-G19-20, R-M05/12).**
    Session45 ships earned sprint-slide, camera/weapon momentum and surface/gear audio.
-   Session46 target: collision-verified waist-cover mantle/vault with an Undertow
-   density/ground pass. Session47 target: a clear traversal hook and Switchyard
+   Session46 ships collision-verified waist-cover mantle/vault with Undertow
+   density/ground detail. Session47 is next: a clear traversal hook and Switchyard
    density/ground pass; finish the arc playable by default. Preserve server hit
    authority and the 60 fps / asset budgets; human mouse/RTT comfort remains open.
 2. **Signature map events (R-M05, R-M14, R-L16).** After Momentum, pick one complete
@@ -429,17 +429,17 @@ Density remains required, paired with traversal rather than abandoned.
    reset/caps, unique muzzle shapes and sniper glint, and stronger bounded explosion
    effects. No added lights/passes or first-use shader hitches.
 4. **Expanded-map density and encounter fairness (R-M03/07/09/10/13/17/18/20).**
-   Relay107 collider boxes/courts and tiled detail are retained. Undertow and
-   Switchyard still need comparable cover rhythm and >=12 px/m source ground AO,
-   paired with the next two Momentum deliveries above. Relay Session44 natural
-   LOS/damage medians5.4/13.7s initial and4.4/11.55s respawn miss20-30s; no new
-   pacing claim from slide tests. Retain multi-seed/human review and heatmaps.
+   Relay107 and Undertow114 collider boxes/courts plus tiled detail are retained.
+   Switchyard still needs comparable cover rhythm and >=12px/m source ground AO,
+   paired with Session47. Undertow Session46 natural damage medians17.65s initial
+   and16.8s respawn still miss20-30s; Relay Session44 misses remain. Retain
+   multi-seed/human review and heatmaps; density is not a pacing pass.
 5. **Presentation, atmosphere and bot personality (R-L05-07/11-14, R-G09).**
    Deployment/countdown/stingers, real highlight selection, distinct bot roles,
    and bounded atmosphere. Keep the environment readable and lighting constant.
 6. **First-play, flow and accessibility (R-L08-10/19-23).** A combined first-match
    course, ping acknowledgement/audio, countdowns and highlight colour choice.
-   Slide uses the existing rebindable crouch key and is taught in the lock prompt;
+   Slide/vault use existing rebindable crouch/jump keys and the lock prompt;
    do not turn the first match into another long list of prerequisites.
 7. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
    economy/side swap, separate weapon FOV, dedicated view-kick setting, footsteps
@@ -6130,3 +6130,183 @@ inspection and live hitch validation; only plan/evidence writes followed.
 All standing gates green. git diff --check passes, every changed/untracked path
 is apps/ironsight/**, no commit/push/deploy. Candidate remains local and ready
 for supervisor review/publication.
+
+
+### Session 46 - 2026-09-09: Momentum arc 2/3 - vault the Undertow approaches
+
+Read the standing brief, Session46 supervisor status, plan and all63 references;
+reviewed the scorecard and selected the next Momentum delivery. Started clean on
+ironsight-aaa; scope apps/ironsight/** only. Session45 is deployed per supervisor.
+Vault/mantle is playable ON by default this session. Re-ranked the gap list:
+Session47 must finish the arc with a distinct traversal hook and Switchyard density.
+No owner answer, asset-budget exception or publishing action was needed.
+
+Reference: R-G02, R-G12, R-G14, R-G19-20, R-M03-05, R-M07, R-M10-13,
+R-M17-20, R-L14. Targets: grounded jump + forward over1.0-1.25m cover;
+full standing-capsule clearance throughout; no full-cover roof climbing;
+existing90-150ms weapon recovery; cover within12m of sampled lanes;10-15s
+sprint rotations;>=12px/m source ground AO or tiled colour detail. Implemented
+movement/geometry/resource checks pass.20-30s natural damage contact is NOT MET;
+human combat feel, defensive entrances and mid-laptop performance remain open.
+
+Shared src/traversal.ts runs in the room and fixed-step Predictor. Existing jump
+binding + forward selects nearby waist cover (<=.8m from the expanded capsule
+boundary). A thin barrier uses vault; broad waist cover uses mantle onto its top.
+650ms/13ticks: smooth lift, cross, settle, then450ms cooldown. Landing support,
+standing height, continuous expanded-box segment sweeps, exact world bounds and
+conservative ramp volumes are checked before commitment. This rejects even thin
+ceiling obstructions and unsupported corner mantles. Only ground-level waist
+cover qualifies; no assisted chaining from a crate to a full-cover roof. An
+ineligible request remains an ordinary jump. No new key, charge meter or flag.
+
+The room accepts validated existing intents and owns the route, height and time;
+claimed targets/speed/duration are ignored. Releasing forward or turning after
+commitment finishes the bounded650ms route rather than steering through a side
+wall. Death/respawn clears prediction; room spawn/seat expiry clear controllers.
+The standing authoritative hit volume follows actual replicated feet throughout,
+with existing vertical rewind. Snapshot version7->8 starts older snapshots fresh
+to keep stored coordinates out of new cover; the state codec is unchanged. Publish
+client and Worker together for movement/layout compatibility. Fire/ADS are unavailable during traversal; the
+shared weapon handling table applies90-150ms recovery afterward. Grenades are
+blocked while active. Tests cover these rules, both endpoints, prediction reset,
+blocked ceilings/landings/ramps/bounds, supported corners and forged destinations.
+No hit-resolution, bot difficulty, match-economy or spawn-policy retune.
+
+One AOI-filtered server traversal event triggers bounded hand-contact/sleeve noise
+using cached audio buffers, current volume/mute, spatial occlusion and1.4 hostile
+foley weighting. Sources disconnect after320ms. Existing landing thud is retained.
+Camera follows the actual rising feet; the existing weapon lowers.28m and cants
+.3rad pitch/.16rad roll, keeping the aiming corridor clear. Reduced motion removes
+these cosmetic offsets, preserving traversal and78-degree FOV. No new hand-contact
+or remote vault animation clip was authored; remote feet use replicated positions
+and existing poses. Human animation/RTT/headphone comfort remains unaccepted.
+
+Undertow:37->114 collision boxes (23->52full,14->62waist). Paired A/C court
+lips, staggered full pump screens and low deck/service barriers add actual vault
+choices. The original turbine/maintenance kit clads every collider. A solid4x4m
+pressure stack rises from the central6m core to14m, with inset panels/rings.
+Its top is inaccessible, not a fourth usable floor plane. Ground/3m decks/6m
+roofs and all four ramps remain; tests traverse both directions on both decks,
+keep spawn exits/screening, navigate every deployment to every cap, preserve B's
+two co-visible4m north doors and the40m rifle corridor at z25.8/27/28.2.
+Sampled rifle/deck/service routes have cover within12m. These are proximity checks,
+not proof that every route has8-12m cover-to-cover travel. Stack sightline tests
+cover rifle, both deck approaches and pump service; all-viewpoint approval is open.
+
+Rebaked original architecture:3,937,488->6,347,488bytes (+2,410,000),81,208
+source triangles/10material primitives, existing1024-square single-channel AO.
+Ground AO121,119->835,222bytes (+714,103),2048x1365/13.65source px/m.
+AO still multiplies into a512-square colour atlas at load; high source resolution
+is not a claim of high runtime AO resolution. The visible floor-scale improvement
+uses the original128px/0.8m seamless normal/roughness tile for diffuse aggregate
+as well (160px/m). Shared across flat kit/ground/apron, two resident textures,
++.166667MiB including mips. No new asset URL, npm dependency, light or render
+pass; two new program variants are prepared during loading, never first traversal.
+Geometry audit confirms oriented surfaces/authored normals, finite UVs and zero
+degenerates. Evidence session46-{maps,architecture,architecture-audit}.json and
+bake logs. Reproduction/provenance in public/assets/README.md; existing explicit
+allowlists retained. Meshy spend0; reported balance1530. This work needed collider
+matching and reusable surfaces, not another isolated decorative prop.
+
+Wow check: .inspect/session46-verified-vault-{before,rise,after,reduced}.png.
+Opened the before/rise pair, Reduced motion, both map overviews and final deck
+view. Player sentence: "I can vault the barrier and keep pushing down the lane."
+This uses the brief's before/after-stills alternative, not a claimed video or
+human playtest. Real W navigation through the existing Undertow training room,
+then ordinary jump key input; no teleports, isolated live room, HP/bot edits or
+fabricated game events. Server event confirms one vault; authoritative/predicted
+peak feet1.16m, settled server z46.48m. Render-active samples span644.8ms versus
+650ms simulation; settled prediction gap.279m is within the existing reconciliation
+soft allowance, not proof of zero correction or real-RTT feel. Reduced motion
+crosses the same lip backwards, preserves78FOV and removes the cosmetic cant.
+
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+vault,undertow-overview,undertow-home,undertow-deck,undertow-maintenance,undertow-effects-stress
+--assert-budgets --prefix session46-verified (one line). Before/verified map pairs
+and accepted earlier final report have zero console errors/forbidden offline
+requests; session46-report-checks.json. The inspector now requires concrete detail
+on Undertow as well as Relay; Switchyard still requires none. Resource thresholds,
+post-warmup shader allowance and hitch script were not weakened or changed.
+
+Matched Undertow effects stress, Edge152/RTX5070 D3D11,1920x1080 balanced/DPR1,
+11remotes plus local rifle,145twelve-rifle volleys,96blasts,2130samples and full
+effect drain. Browsers ran alone without concurrent tests/bakes. Both budget
+assertions pass; session46-render-delta.json and before/verified reports:
+
+| Metric | Before | Verified | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|189|189|0|
+|Peak submitted triangles|113966|146246|+32280|
+|Resident textures|23|25|+2|
+|Estimated texture MiB|60.2513|60.4180|+.1667|
+|Median/p95/p99 frame ms|6.9/7.1/7.1|6.9/7.1/7.1|0 rounded|
+|Max frame ms|7.2|7.2|0 rounded|
+|First-ready max ms|7.1|7.1|0 rounded|
+|Resident programs after preparation|19|21|+2|
+
+Construction31.2->31.6ms; preparation478.9->309.3ms. Cache/order differs;
+no initialization speedup claimed. Desktop intervals do not establish laptop
+iGPU60fps, cold-driver/thermal or human6v6/RTT acceptance. Final bytes below.
+
+Static session46-reference-audit.json: Undertow A-B/B-C14.22s unchanged,
+A-C10.67->11.33s; all10-15s. Relay14.44/14.44/11.78 and Switchyard14.44/
+14.44/11.11 retained. All maps150x100m/1250m2 per seat. These are ground BFS
+sprint proxies, not vault-route retake timings. ADS250/200/225/400/165ms;
+sprint recovery120/100/130/150/90ms;3s respawn;1.4foley; distinct hit pip,
+two damage cues and five-row top-right killfeed retained. DOM4/8s capture,
+1point/2s/flag and no side swap remain mismatches.
+
+Natural production-bot Undertow6v6 DOM seed0x29abc:300s,164:156,107deaths,
+119lives. Median initial LOS/damage7.6/17.65s; respawn6.5/16.8s.20-30s damage
+target remains NOT MET. LOS is an unobstructed100m eye segment without FOV;
+damage sampled every100ms; unobserved contacts remain absent. Evidence
+session46-bot-{round.json,heatmap.svg}, contact-summary.json and bot-metrics.log.
+Reproduce with UNDERTOW_METRICS=1, METRICS_PREFIX=session46 and pnpm exec vitest
+run test/undertow-metrics.tool.test.ts. Normal production bots/mode/timers;
+no forced paths, kills or accelerated gameplay. One in-process natural round,
+not workerd capacity, many-round side fairness or a matched pacing improvement.
+
+Rejected intermediates: a lane lip intruded into a ramp approach; moved it before
+rebaking and retained the original ramp test. A room fixture approached the broad
+side of a barrier (correctly mantled); moved the fixture to the thin side to test
+vaulting. A respawn fixture was inside new cover; moved it to the clear rifle lane.
+Browser probe initially measured after a slow PNG capture and before the staging
+input had settled; now snapshots action state before capture and compares the
+endpoint against the actual server-start event. No gameplay changes to satisfy
+those probe errors. Final review added supported-corner and world-boundary checks;
+the latter test exposed that canStand covers headroom/cover, not horizontal bounds,
+so traversal now checks bounds explicitly. Client-import tests moved under the
+existing DOM typecheck convention. Two shell commands used the wrong working
+folder and did not execute; redirected JSON encoding was normalized to UTF-8.
+No weak generated asset, shader allowance or reduced gate threshold adopted.
+
+Final pnpm typecheck, pnpm test, pnpm build:client PASS:454passed,6existing/opt-in
+skips;49files passed/4skipped. Evidence session46-{typecheck,test,build-client}.log.
+Exact required node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS: session46-required-inspector.log/report.json, zero console
+errors. Runtime/client assets fixed through verified functional/stress, required
+inspection and the live hitch gate; only plan/provenance/evidence followed.
+
+Open owner questions/defaults: keep jump+forward on waist cover (yes), finish a
+committed650ms route after releasing forward (yes), hands-busy fire/grenade gating
+with existing recovery (yes), and keep conservative ground-level eligibility
+rather than allow full-roof chains (yes). Session47 traversal hook + Switchyard
+cover/ground pass remains next. Industrial daylight, amber/teal, stylized sci-fi,
+server-verified hits and6v6 retained. Human hand/remote pose, headphones, movement
+and RTT,6v6 fairness, iGPU/thermal and other browsers remain open. No owner answer
+required. No commit/push/deploy; supervisor owns review and publication.
+
+
+Final pnpm audit:assets PASS: public27,429,458->30,580,196bytes (+3,150,738);
+assets21,159,144->24,285,577 (+3,126,433, including provenance text).
+Client1,943,987bytes, source map4,350,024; largest file Undertow architecture
+6,347,488bytes.40MiB total/25MiB per-file limits pass, no budget exception.
+Evidence session46-bytes.json and session46-audit-assets.log.
+
+The first exact hitch command exited0 with two bot deaths, zero recompiles,
+>150ms frames/errors/long tasks, but its timeline contained another warmup at
+39.675s alongside a local Worker reload. The preview watcher reloads on documentation
+writes as well. Retained as session46-hitch-watcher.json/log; it is not the final
+uninterrupted-round evidence. No runtime/gate change: rerun below with all files
+held steady. The initial twelve owned preview processes were stopped cleanly;
+final preview cleanup will be recorded separately.

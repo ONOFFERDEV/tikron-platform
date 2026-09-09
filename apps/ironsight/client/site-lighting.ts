@@ -46,18 +46,18 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
   sourceTextures.forEach(t => { t.dispose(); (t.image as ImageBitmap).close?.(); });
-  if (name === 'relay') {
+  if (name === 'relay' || name === 'undertow') {
     const detail = createConcreteDetail();
     gltf.scene.traverse(node => {
       if (node instanceof T.Mesh && node.material instanceof T.MeshStandardMaterial &&
           node.material.metalness < 0.1 && node.material.roughness >= 0.8)
         applyConcreteDetail(node, detail, node.material.roughness < 0.9 ? 0.12 : 0.2);
     });
-    for (const name of ['relay-ground', 'relay-apron']) {
-      const floor = scene.getObjectByName(name);
+    for (const floorName of [`${name}-ground`, `${name}-apron`]) {
+      const floor = scene.getObjectByName(floorName);
       if (floor instanceof T.Mesh) {
         applyConcreteDetail(floor, detail, 0.12);
-        if (name === 'relay-ground' && floor.material instanceof T.MeshStandardMaterial) {
+        if (floorName.endsWith('-ground') && floor.material instanceof T.MeshStandardMaterial) {
           // Colour aggregate uses the same seamless 0.8m tile as roughness.
           // Keep the low-frequency painted atlas; no new texture or draw pass.
           floor.material.onBeforeCompile = shader => {

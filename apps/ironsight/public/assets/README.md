@@ -585,3 +585,38 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots overview,coolin
 
 Existing exact asset allowlist entries remain sufficient. No new binary path,
 dependency, external generation spend or purchased-source derivative is introduced.
+
+
+### Session 46: Undertow vault routes, pressure stack and ground detail
+
+Original collision-derived reclamation kit, with no purchased or generated input.
+`src/map/arena2.ts` now owns 114 boxes (52 full / 62 waist), four true ramps,
+paired home courts and the solid central pressure stack above the 6 m core roof.
+The kit clads the stack inside its 4 x 4 m collider footprint; it adds no visual-only
+cover. Original turbine faces and amber barrier caps reuse the existing materials.
+
+`maps/undertow-architecture.glb`: 6,347,488 bytes, 81,208 source triangles,
+10 material primitives, one embedded 1024-square AO image. The loader retains its
+single-channel AO conversion. `maps/undertow-ground-ao.png`: 835,222 bytes,
+2048 x 1365, 13.65 source pixels/metre. AO is multiplied into the existing 512-square
+colour atlas at load; this is not a claim of 2048-square runtime AO residency.
+Undertow now uses the original procedural 128-square / 0.8 m concrete normal and
+roughness tile, including ground diffuse modulation (160 pixels/metre), shared
+across its flat kit and ground/apron. Two resident textures, 0.166667 MiB including
+mips, no new asset URL, light or render pass. All are prepared before play.
+The existing explicit asset allowlists cover both files; per-map loading remains.
+
+Reproduce from apps/ironsight, Blender 4.5:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session46-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session46-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session46-maps.json --size 2048
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session46-architecture.json
+python scripts/audit-architecture.py --input .inspect/session46-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots vault,undertow-overview,undertow-home,undertow-deck,undertow-maintenance,undertow-effects-stress --assert-budgets --prefix session46-verified
+```
+
+The geometry audit verifies original oriented surfaces/authored normals, finite UVs
+and no degenerates. See AAA-PLAN.md Session 46 for timing, bytes and acceptance limits.

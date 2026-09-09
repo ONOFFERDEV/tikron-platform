@@ -360,21 +360,23 @@ export class SceneRig {
   private readonly debrisMatrix = new THREE.Matrix4();
   private shakeAmp = 0;
   reducedMotion = false;
+  private vaultBlend = 0;
   private slideBlend = 0;
   private sprintBlend = 0;
   private landingDip = 0;
   private airborneMs = 0;
 
   /** Render-only bank/drop; no aim rotation, lights, materials or render passes. */
-  updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean): boolean {
+  updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean, traversing = false): boolean {
     const landed = active && grounded && this.airborneMs >= 100;
     this.airborneMs = active && !grounded ? this.airborneMs + dtMs : 0;
     if (landed) this.landingDip = .055;
     const k = 1 - Math.exp(-dtMs / 75);
+    this.vaultBlend += ((traversing && active ? 1 : 0) - this.vaultBlend) * k;
     this.slideBlend += ((sliding && active ? 1 : 0) - this.slideBlend) * k;
     this.sprintBlend += ((sprinting && active ? 1 : 0) - this.sprintBlend) * k;
     this.landingDip *= Math.exp(-dtMs / 110);
-    if (!active || this.reducedMotion) { this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
+    if (!active || this.reducedMotion) { this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
     return landed;
   }
   private lastFx = performance.now();
@@ -997,12 +999,14 @@ export class SceneRig {
         (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
       lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
-    this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08) * (1 - ads);
+    this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08 + this.vaultBlend * .28) * (1 - ads);
     this.viewmodel.rotation.set(
       pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch + reload.tilt * 0.20,
       pose.yaw * (1 - ads) + this.swayX * steady,
       (this.reducedMotion ? 0 : Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady) - reload.tilt * 0.40,
     );
+    this.viewmodel.rotation.x += this.vaultBlend * .3;
+    this.viewmodel.rotation.z -= this.vaultBlend * .16;
     this.viewmodel.rotation.z -= this.slideBlend * .18 * (1 - ads);
 
     if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
