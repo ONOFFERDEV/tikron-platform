@@ -1,5 +1,6 @@
 import { droneProbe } from './drone-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
+import { rolesProbe } from './roles-probe.mjs';
 import { deploymentProbe } from './deployment-probe.mjs';
 import { blastProbe } from './blast-probe.mjs';
 import { weaponFlashProbe } from './weapon-flash-probe.mjs';
@@ -223,6 +224,9 @@ try {
           capture: async label => { const shot = await send('Page.captureScreenshot', {format:'png'}); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data,'base64')); },
         });
       }
+      if (name === 'tdm' && (args.includes('--assert-roles') || args.includes('--assert-flanks'))) combat = await rolesProbe({send,evaluate,waitFor,delay,flanks:args.includes('--assert-flanks'),
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+      });
       if (name === 'audio') {
         combat = await evaluate('window.ironsight.audioProbe()');
         const m = combat?.mixes;

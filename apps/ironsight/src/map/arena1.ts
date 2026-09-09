@@ -68,6 +68,10 @@ const doors: readonly Box[] = [
 export const ARENA1: MapDef = {
   ...compiled,
   presentation: "relay",
+  flankRoutes: [
+    [{x:27,z:51},{x:27,z:27},{x:61,z:27},{x:89,z:27},{x:123,z:27},{x:123,z:51}],
+    [{x:27,z:51},{x:27,z:75},{x:61,z:75},{x:89,z:75},{x:123,z:75},{x:123,z:51}],
+  ],
   signalCore: { doors, chamber: { min: { x: 70, y: 0, z: 48 }, max: { x: 80, y: 3, z: 52 } } },
   boxes: [...compiled.boxes.filter(b => !(b.min.x === 70 && b.max.x === 80 && b.min.z === 44 && b.max.z === 56)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.2 ? 3 : b.max.y === 2.2 ? 6

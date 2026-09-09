@@ -1,4 +1,5 @@
 import { playDroneCue } from './audio.js';
+import { botLabel } from '../src/bot-roles.js';
 import { DeploymentIntro, type IntroPose } from './deployment-intro.js';
 import { DeploymentIntroView } from './deployment-intro-view.js';
 import { SupportHud } from './support-hud.js';
@@ -174,7 +175,7 @@ async function main(): Promise<void> {
   const name = (id: string): string => {
     if (id === net.myId) return GAME.text.selfName;
     if (id in PRACTICE_SHOWCASE_LABELS) return PRACTICE_SHOWCASE_LABELS[id]!;
-    if (id.startsWith("bot-")) return GAME.text.botNameFmt.replace("{n}", id.slice(4));
+    if (id.startsWith("bot-")) return botLabel(id) ?? GAME.text.botNameFmt.replace("{n}", id.slice(4));
     return id.slice(0, 4);
   };
 

@@ -3,6 +3,7 @@ import { xorshift32 } from "@tikron/sim";
 import { nearestBox, type Box, type Vec3 } from "./physics.js";
 import { PLAYER } from "./config.js";
 import { GAME } from "./game-config.js";
+import type { BotRole } from './bot-roles.js';
 
 /**
  * ironsight server filler bot — a pure brain with no room import.
@@ -56,6 +57,7 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 export interface BotMoveIntent {
+  ads?: boolean;
   mx: number;
   mz: number;
   jump: boolean;
@@ -132,6 +134,8 @@ export interface BotView {
 }
 
 export interface BotBrainOptions {
+  flankRoute?: readonly { x: number; z: number }[];
+  role?: BotRole;
   /** PRNG seed for the aim-noise stream (fixed → reproducible runs). */
   seed: number;
   /** Patrol path in the ground plane (`x`, `z`); the bot loops through it. */
@@ -151,6 +155,9 @@ export interface BotBrainOptions {
 
 /** Per-bot mutable state, held by the caller and threaded through every {@link botThink} call. */
 export interface BotBrain {
+  readonly flankRoute?: readonly { x: number; z: number }[];
+  flank?: { points: readonly { x: number; z: number }[]; index: number; untilMs: number };
+  readonly role?: BotRole;
   sound?: { x: number; z: number; untilMs: number };
   nextSoundMs: number;
   engagementZ?: number;
@@ -173,6 +180,8 @@ export interface BotBrain {
 export function createBotBrain(opts: BotBrainOptions): BotBrain {
   if (opts.waypoints.length === 0) throw new Error("bot brain needs at least one waypoint");
   return {
+    flankRoute: opts.flankRoute,
+    role: opts.role,
     nextSoundMs: 0,
     aimNoiseRad: opts.aimNoiseRad ?? GAME.bots.aimNoiseRad,
     reactionMs: opts.reactionMs ?? GAME.bots.reactionMs,
@@ -201,11 +210,32 @@ export function alertBot(brain: BotBrain, point: { x: number; z: number }, damag
 }
 
 export function resetBotPerception(brain: BotBrain): void {
+  brain.flank = undefined;
   brain.sound = undefined;
   brain.nextSoundMs = 0;
   brain.lockId = null;
   brain.lockMs = 0;
   brain.engagementZ = undefined;
+}
+
+/** One route per life, oriented from the nearer end of an authored lane.
+ * Close fights can interrupt movement but cannot secretly retarget the route.
+ * A 35s deadline bounds stale commitments; DOM/core assignments cancel them. */
+export function startBotFlank(brain: BotBrain, self: {x:number;z:number}): void {
+  const route = brain.flankRoute, first = route?.[0], last = route?.at(-1);
+  if (brain.role !== 'rusher' || !route || !first || !last) return;
+  const reverse = Math.hypot(last.x-self.x,last.z-self.z) < Math.hypot(first.x-self.x,first.z-self.z);
+  brain.flank = { points: reverse ? [...route].reverse() : route, index: 0, untilMs: brain.clockMs + 35000 };
+}
+
+function flankTarget(brain: BotBrain, self: BotPlayerView): {x:number;z:number} | undefined {
+  const route = brain.flank;
+  if (!route) return;
+  if (brain.clockMs >= route.untilMs) { brain.flank = undefined; return; }
+  let point = route.points[route.index];
+  while (point && Math.hypot(point.x-self.x,point.z-self.z) < 1) point = route.points[++route.index];
+  if (!point) brain.flank = undefined;
+  return point;
 }
 
 /** Uses current authoritative cover, including ramps and the core shutters. */
@@ -344,6 +374,27 @@ function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMov
   return strafeAround(brain, self, yaw, brain.engagementZ ?? brain.strafeZ);
 }
 
+/** Role movement consumes only a currently visible target. Losing sight resumes
+ * ordinary navigation; it never pursues the hidden enemy's live coordinates.
+ * SCOUT settles for 2.5s, then moves for 1.5s so it isn't a permanent turret.
+ * RUSH closes through the collision navigator, fighting at nine metres.
+ * All three use the same reaction, aim noise and room weapon/handling gates. */
+function roleCombat(view: BotView, brain: BotBrain, enemy: BotEnemyView, yaw: number): BotMoveIntent {
+  const distance = Math.hypot(enemy.x - view.self.x, enemy.z - view.self.z);
+  if (brain.role === 'rusher' && distance > 9) {
+    const next = view.navigate?.(enemy) ?? enemy;
+    const dir = dirTo(view.self, next);
+    return worldToMove(yaw, dir.x, dir.z);
+  }
+  if (brain.role === 'sniper' && distance >= 14 && brain.lockMs % 4000 < 2500) {
+    return { mx: 0, mz: 0, jump: false, crouch: false, sprint: false, ads: true };
+  }
+  const move = combatStrafe(brain, view.self, yaw);
+  // Anchors retain the rifle's mobile suppression; scouts lower the scope to
+  // relocate or handle a close threat. Rushers never gain stationary ADS aim.
+  return move;
+}
+
 /** Loop the patrol cursor forward once the bot reaches the current waypoint. */
 function advanceWaypoint(brain: BotBrain, self: BotPlayerView): Vec2 {
   const wp = brain.waypoints[brain.wpIndex] ?? { x: self.x, y: self.z };
@@ -414,12 +465,17 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
   // dom once every point is owned) falls through to the legacy logic below,
   // completely unchanged.
-  if (view.objective) return domThink(view.objective, self, enemy, brain, dtMs, view.navigate);
+  if (view.objective) {
+    brain.flank = undefined;
+    return domThink(view.objective, self, enemy, brain, dtMs, view.navigate, view);
+  }
+
+  const flank = flankTarget(brain, self);
 
   if (!enemy) {
     brain.lockId = null;
     brain.lockMs = 0;
-    const wp = advanceWaypoint(brain, self);
+    const wp = flank ? { x: flank.x, y: flank.z } : advanceWaypoint(brain, self);
     const next = view.navigate?.({ x: wp.x, z: wp.y }) ?? { x: wp.x, z: wp.y };
     const look = searchLook(self, brain, next, dtMs);
     const dir = dirTo(self, next);
@@ -441,7 +497,10 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   }
 
   const look = aimAt(brain, self, enemy, dtMs);
-  const move = combatStrafe(brain, self, look.yaw);
+  const next = flank && Math.hypot(enemy.x-self.x,enemy.z-self.z) >= CLOSE_THREAT_M
+    ? view.navigate?.(flank) ?? flank : undefined;
+  const dir = next ? dirTo(self, next) : undefined;
+  const move = dir ? worldToMove(look.yaw, dir.x, dir.z) : roleCombat(view, brain, enemy, look.yaw);
   const fire = brain.lockMs >= brain.reactionMs && aimSettled(self, enemy, look);
   return { look, move, fire };
 }
@@ -468,6 +527,7 @@ function domThink(
   brain: BotBrain,
   dtMs: number,
   navigate?: BotView["navigate"],
+  view?: BotView,
 ): BotDecision {
   let look: BotLookIntent;
   let fire = false;
@@ -494,6 +554,10 @@ function domThink(
 
   const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
   if (distToObjective <= OBJECTIVE_ARRIVE_M) {
+    if (enemy && view && brain.role === 'sniper') {
+      const move = roleCombat(view, brain, enemy, look.yaw);
+      if (move.ads) return { look, move, fire };
+    }
     return { look, move: strafeAround(brain, self, look.yaw, objective.z), fire };
   }
 

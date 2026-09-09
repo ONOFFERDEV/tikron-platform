@@ -7,6 +7,8 @@ import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
 import { ARENA3 } from '../src/map/arena3.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
+import { botRole } from '../src/bot-roles.js';
+import type { BotBrain } from '../src/bots.js';
 
 // SWITCHYARD_METRICS=1 pnpm exec vitest run test/switchyard-metrics.tool.test.ts
 // Optional METRICS_PREFIX and METRICS_SEED save independent reproducible rounds.
@@ -39,6 +41,7 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
       const lives: { id: string; team: number; bornMs: number; initial: boolean; x: number; z: number; deathMs?: number; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
       let previous: Record<string, ArenaPlayer> = {};
+      const routeSamples: {atMs:number;id:string;x:number;z:number;stage:number|null}[]=[];
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
         await h.advance(100);
         const state = h.snapshot();
@@ -46,6 +49,9 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
         if (!liveAt) { liveAt = elapsed; previous = {}; kills.length = 0; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        const brains=(h.room as unknown as {botBrains:Map<string,BotBrain>}).botBrains;
+        if(elapsed%1000===0)for(const [id,p] of players)if(p.alive&&botRole(id)==='rusher')
+          routeSamples.push({atMs:elapsed-liveAt,id,x:p.x,z:p.z,stage:brains.get(id)?.flank?.index??null});
         expect(players).toHaveLength(12);
         for (const [id, p] of players) {
           if (!p.alive) {
@@ -72,7 +78,7 @@ describe.skipIf(process.env.SWITCHYARD_METRICS !== '1')('expanded Switchyard nat
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot twelve-player FFA round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
-        bounds: ARENA3.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
+        bounds: ARENA3.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt, routeSamples,
         redScore: state.redScore, blueScore: state.blueScore, standings: Object.entries(state.players).map(([id, p]) => ({ id, kills: p.k, deaths: p.d })), lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);

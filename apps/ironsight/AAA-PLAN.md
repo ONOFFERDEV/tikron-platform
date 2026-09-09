@@ -23,7 +23,11 @@ Session56 quick check (published per Session57 supervisor, commit 755eb7f): ente
 
 Session57 quick check (published per Session58 supervisor, commit 423d156): click to enter a fresh warmup. A short aerial glide introduces the map and its three routes, then cuts to your operator before the final countdown. Click or press a key to skip; that gesture does not also fire/throw/jump. Reduced motion holds a still view. Training, live joins, waiting lobbies and arrivals with less than 4.5 seconds left go straight to the operator. Deployment2/2 completes the arc by default without extending warmup.
 
-Session58 quick check (local candidate): approach a combat bot from behind without firing. It now acquires enemies in front, and turns toward nearby gunfire or confirmed damage before returning fire through clear cover. Open a gun attack at least 120 degrees behind a full-health enemy, from at least 2 m, and finish that enemy with a gun within 2.5 seconds to earn AMBUSH in your kill confirmation. No extra score. Training targets remain stationary; walk behind IDLE and try a sniper headshot to rehearse the medal. Flank and Counter1/1 is on by default; encounter pacing is still unaccepted.
+Session58 quick check (published per Session59 supervisor, commit 3c1008f): approach a combat bot from behind without firing. It now acquires enemies in front, and turns toward nearby gunfire or confirmed damage before returning fire through clear cover. Open a gun attack at least 120 degrees behind a full-health enemy, from at least 2 m, and finish that enemy with a gun within 2.5 seconds to earn AMBUSH in your kill confirmation. No extra score. Training targets remain stationary; walk behind IDLE and try a sniper headshot to rehearse the medal. Flank and Counter1/1 is on by default; encounter pacing is still unaccepted.
+
+Session59 quick check (retained local candidate; supervisor Session60 reports its hitch gate failed): join TDM/FFA and read the role names in the feed and scoreboard. RUSH carries an SMG and closes on a visible enemy to nine metres; ANCHOR carries an AR and strafes; SCOUT carries the sniper and alternates scoped holds with movement. DOM still prioritizes capture points; scouts can settle once arrived. Respawns restore the role weapon. Training dummies stay stationary. Fireteam 1/2 is on by default; committed flank routes are next.
+
+Session60 quick check (local candidate): in Relay TDM, check Freight as well as Cooling. RUSH pairs take opposite side routes each life, keep moving past distant visible fights, and return toward the far-side service lane. Within8m they fight normally. The same routes run in Switchyard FFA, oriented from the actual spawn. DOM keeps capture priorities; a Relay core assignment cancels a flank. Fireteam2/2 is complete and on by default. No reaction, accuracy, health or damage buff.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -359,20 +363,20 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 58. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session58-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 60. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session60-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
 | Id | Status | Evidence |
 |---|---|---|
-| R-M01 | partial | Session30 adds North bus rifle route, four-ramp Switch deck and offset South service flank; all maps have named lanes. Human route quality remains open. |
+| R-M01 | partial | Session60 adds authored Cooling/Freight and North bus/South service rusher routes. Two route assignments per normal team; actual spawn picks direction. All-spawn collision walks and natural route-stage samples pass. Three named lanes retained; human route quality open. |
 | R-M02 | partial | Undertow B has two 4 m north doors, their sampled approaches visible within default 78-degree FOV from (75,97); standing-eye rays tested. All-objective/human visibility audit incomplete. |
 | R-M03 | met | Session49 Relay111 boxes (65full/46waist), Undertow114 and Switchyard111. Relay adds two0.5m-thick/3m-tall shutters and permanent3m-clear lintel/side walls; standing route and retained wall/roof/spine tests pass. Existing cover-within12m samples retained; universal cover-to-cover travel remains unproven. |
 | R-M04 | met | Session49 closed/open Relay A-B/B-C/A-C14.44/14.44/11.78s; Undertow14.22/14.22/11.33, Switchyard14.44/14.44/11.56. Core approach-to-approach sprint proxy3.11s closed ->1.78s open. Ground BFS respects standing clearance beneath lintels; human retakes unmeasured. |
 | R-M05 | partial | Session49 completes Signal Break2/2 ON by default: same warning/dish/blackout opens the Relay core, holds both exits for occupancy, and seals when clear. Actual W route/held-close captures pass. Momentum retained; other signature events and human route value open. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session58 three paired Relay seeds166588/166589/166590: pooled observed initial13.3->13.3s, respawn11.6->11.0s, lower empirical median; target20-30s missed. One current Undertow round17.6/22.5s; Switchyard3.1/7.5s. Perception improves rear counterplay, not measured pacing. Censored contacts and full distributions retained. |
+| R-M07 | not yet | Session60 paired Relay seeds166588/166589/166590: observed initial12.9->17.1s, respawn12.6->13.7s (lower empirical median), target20-30s missed. Initial35observed/1censored; respawn264/24, under5s3->8. Undertow17.6/21.6s unchanged; Switchyard5.5/7s. No fairness acceptance. |
 | R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session38 faces both new northern courts along tested 9 m inner-exit aisles, normalizes spawn yaw for the binary codec, and restores client aim once on revival. Room/wire tests and real respawn drill pass. Safety scoring unchanged; all-exposed fallback and human camping/wayfinding remain open. |
 | R-M10 | partial | Session47 low returns reinforce Switchyard home courts; B retains paired4m doors. Relay/Undertow court cover retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
@@ -385,7 +389,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session58 three matched natural Relay rounds before/after, plus current Undertow DOM and Switchyard FFA, with heatmaps. Current Relay199.9/217.8/201.8s,41:51/49:50/50:40 and1/2/2 core visitors. No injected routes, damage, clocks or rewards. Three seeds cannot establish side fairness; one other-map sample is a smoke check. |
+| R-M20 | partial | Session60 three matched Relay rounds against retained, unpublished Session59 baseline:246.1/230.1/242.7s,48:50/50:46/50:49,2/2/3 core visitors. Rusher central samples98.5->48.1%; new1s physical positions/active stages, route-dot overlays and all-map natural heatmaps. Both side routes reach far-side return legs. Three seeds cannot establish fairness. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -394,7 +398,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G06 | met | Session31 bounded center-biased deep-spray cone after 8/7/8/8/5 shots; ADS .65/.70/.80/.50/.65 and grounded crouch .75 multiply. Shared function on server/claims, distribution and authority tests; slow weapons settle between shots. |
 | R-G07 | met | Session55 received grenade/mortar impacts add bounded0-1 trauma; roll=trauma squared times smooth7/11Hz waves, <=2degrees, fully decayed within2s. Distance/current cover gated, ADS reduces65%; Reduced motion/death/pause/disconnect clear. Camera quaternion restored after draw, eye/center ray unchanged even during draw. Five regression cases, paired stills, real20s grenade/settings drill and earned mortar captures. Human comfort remains open. |
 | R-G08 | partial | Session31 authoritative aim offset separated from cosmetic weapon kick. Reduced motion preserves the exact aim model; dedicated reduce-view-kick setting remains absent. |
-| R-G09 | partial | Team tint and five held pose families; human silhouette/hold acceptance open. |
+| R-G09 | partial | Session59 combat bots hold role-specific existing SMG/AR/sniper models and pose families. Paired three-operator loadout stills and real20.474s TDM with all three weapons firing. Team silhouettes unchanged; dedicated role skins and human readability/hold acceptance remain open. |
 | R-G10 | met | Session53 five original atlas silhouettes and34/42/50/60/64ms lifetimes (2-4frames at60Hz); local/remote share one source and eight pooled slots. Real22.072s five-weapon input capture:17server shots/7hits,all flashes expire. ADS reduces local size/opacity. Human readability/comfort remains open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
 | R-G12 | partial | Session47 launch uses existing lowered traversal weapon pose; before/flight/landing/reduced captures retain the center aiming corridor. No new hand/remote flight clip; moving pose acceptance remains human work. |
@@ -416,16 +420,16 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session40 rebindable Q resolves enemy/go-here from server aim, cover and live targets; allies only, 2 s cooldown, 5 s snapshot, max six markers. Authority tests and three real-input layouts pass. Session42 adds explicit rebindable B backup at a frozen server-derived caller location, sharing cooldown/lifetime/privacy; three layouts and real Settings rebind pass. Session43 adds a 250 ms hold wheel on the same rebindable ping key: context/go/backup, centre/right-click/pause cancellation, frozen aim and three browser layouts. Audio/acknowledgement and human muted-mic review remain open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Session58 combat bots acquire in a120-degree horizontal cone, track within160, turn at6rad/s, and investigate an expiring1250ms gunshot/damage point. Hearing28m open/10m through cover; no sound grants a target or bypasses LOS/reaction. Respawn forgets lock/sound. Existing objective/core travel and HP/damage/accuracy remain; personalities, deliberate flanks and difficulty progression open. |
+| R-L11 | partial | Session60 Fireteam2/2: rushers commit to six-point side routes once per life, oriented by own spawn; <8m close combat interrupts,35s expiry bounds commitment, DOM/core wins. Existing200ms reaction/.045rad aim noise and SMG/AR/sniper roles unchanged. No hidden-target route selection or stat buffs. Difficulty progression/human balance open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session58 same238calls/150102triangles,63.9388MiB/30textures/33programs/484slots,6.9ms median on RTX5070. AMBUSH retains identical information with Reduced motion and adds no light/pass/texture. Exact hitch has2bot deaths,zero frames>24ms/recompiles/errors. Prior camera/light restoration retained; human/iGPU review open. |
+| R-L14 | partial | Session60 matched238calls/150102triangles,63.9388MiB/30textures/33programs/484slots,6.9ms median on RTX5070. No added light/pass/texture. Unchanged baseline and final exact hitch gates PASS,2deaths each,zero>150ms/recompiles/errors. Final has108.1ms idle-dominant death frame; previous supervisor314ms cause remains unidentified. Human/iGPU acceptance open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session58 Flank and Counter1/1 completes by default: forward bot perception makes a silent rear approach possible, gunfire/damage provides counterplay, and the same authoritative opening earns AMBUSH on a timely gun finish. Reuses current damage history/kill notice; no score bonus or extra HUD panel. Previous arcs retained; human excitement open. |
+| R-L16 | partial | Session60 completes Fireteam2/2 by default: weapon/spacing identities plus north/south rusher commitments. Real20.433s Freight encounter:271shots/12kills, RUSH7 kills observer then continues through lane. Natural rounds confirm route use; human excitement and further content progression open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
-| R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
+| R-L20 | partial | Session59 existing five-row top-right feed/rosters now use stable RUSH/ANCHOR/SCOUT names for combat bots; actual mixed-weapon/assist/local-victim captures pass. Team colour and weapon/HEADSHOT text retained; objective feed and bottom-left convention remain unmet. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
 | R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
 | R-L23 | not yet | No enemy-highlight colour dropdown. |
@@ -433,38 +437,35 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session58: reviewed all63 rows; supervisor confirms Session57 passed and deployed.
-Completed Flank and Counter1/1 by default: forward bot perception, bounded sound
-investigation and a server-earned AMBUSH confirmation. Matched natural rounds
-do not show pacing improvement; keep that reference unmet. Re-ranked from the
-partial/not-yet rows, choosing a coherent role/route arc as the next playable gain.
+Session60: reviewed all63 rows and the supervisor's failed Session59 hitch.
+The unchanged baseline passes the exact probe; no threshold/probe/gameplay
+exception was introduced. Picked and completed the prior top gap, Fireteam2/2.
+Re-ranked from partial/not-yet rows and current natural route/contact evidence.
 
-1. **Bot personalities and deliberate flank routes (R-L11/16, R-G09, R-M05/12/13).**
-   Give distinct bots readable held loadouts and meaningful route commitments,
-   using the new perception/counterplay. Core volunteers still reuse ordinary
-   patrol/combat; no specialist rusher/anchor/sniper behavior. Measure natural
-   route use and preserve shared health/damage/weapon rules.
-2. **Encounter fairness and signature-route value (R-M03/07/09/10/20).**
-   Session58 matched Relay pooled respawn damage11.6->11.0s; current Switchyard
-   one-seed7.5s still misses20-30s. Undertow one-seed22.5s is not acceptance.
-   Core visitors1/2/2 across three current Relay rounds do not establish route
-   fairness. Broader spawn/route evidence and human fights remain necessary.
+1. **Encounter fairness and flank counterplay (R-M03/07/09/10/20, R-L11).**
+   Rushers now use both side lanes and return toward the far-side service lane.
+   Relay initial/respawn contacts17.1/13.7s still miss20-30s, and under5s
+   respawn contacts rose3->8 across paired rounds. Switchyard one-seed7s
+   remains short. Improve readable threat/route counterplay and spawn exposure
+   from broader samples, without making bots stronger through stats.
+2. **Next signature world moment (R-M05/14, R-L12/14/16).** Undertow flood
+   gates/channel changes are the next coherent spectacle candidate; follow
+   the warning/authority/route/counterplay standard of Relay Signal Break.
+   No new real-time lights or render passes. Switchyard crane remains later.
 3. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is complete by
    default; assess slide/vault/launch with actual mouse/RTT and human fights.
-   Improve airborne hands/remote poses if play reveals a problem. Bots still do
-   not deliberately choose launch pads. No Titanfall/Apex-quality claim.
+   Bots still do not deliberately choose launch pads; moving hands/remote
+   flight remain open. No Titanfall/Apex-quality claim.
 4. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
    course, ping acknowledgements, replicated results countdown and highlight
-   colours. Core staging signs, warning and clear-to-seal explanation are in;
-   player learning, muted-mic coordination and colourblind review remain open.
+   colours. Role routes are implemented; coordinated barks/skins and human
+   muted-mic/colourblind review remain open.
 5. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
    economy/side swap, separate weapon FOV, view-kick controls, richer doorway
-   acoustics and human headphone/mouse review remain. Core acoustic occlusion
-   now follows actual shutters, but no HRTF/diffraction is claimed.
-6. **Atmosphere, highlights and other map events (R-L06-07/12-14, R-M05/14/16).**
-   Objective-aware highlights, bounded atmosphere, Undertow flood gates and
-   Switchyard crane events remain candidates. No new real-time lights/passes;
-   choose one coherent future arc after the role/route combat payoff.
+   acoustics and human headphone/mouse review remain.
+6. **Objective-aware highlights and item control (R-L06-07, R-M16).** No replay,
+   objective-aware MVP or contested resource loop. Choose a bounded future
+   arc; do not scatter shallow features across all these gaps.
 7. **Human/device acceptance.** Moving hands/holds,6v6/RTT,iGPU,cold-driver/
    thermal and Firefox/Safari remain open. Desktop fixtures cannot close them.
 
@@ -8535,3 +8536,406 @@ Five processes explicitly stopped, remaining children exited with their parents.
 Evidence: session58-preview-tree.json, session58-cleanup.json. All six required
 gates green. git diff --check clean; all changed paths within apps/ironsight/**.
 No commit, push or deploy. Flank and Counter1/1 is complete by default.
+
+### Session 59 - 2026-09-10: Fireteam arc 1/2 - rushers, anchors and scoped scouts
+
+Read the standing brief, Session59 supervisor status, plan and all63 design
+references. Supervisor confirms Session58 passed, commit3c1008f, preview
+deployment4e7bb34f-91e1-41d4-aebb-5618123df7c7. Picked the top role/route gap.
+Fireteam1/2 is playable and ON by default; Session60 should complete2/2 with
+deliberate flank routes. Updated the63-row reference scorecard and re-ranked
+the gap list using the current role/contact/lane evidence. Branch ironsight-aaa;
+scope apps/ironsight/** only. No commit, push, deploy or new dependency.
+
+Reference: R-L11, R-L16, R-G03, R-G09, R-G19, R-G20, R-M07, R-M20, R-L14, R-L20.
+Targets: three readable weapon/behavior identities, unchanged health/damage/
+perception/aim noise/reaction, collision-navigated visible-target approach,
+bounded scoped holds, preserved objective priority and stationary practice.
+Those implementation checks pass. R-L11 remains partial until deliberate
+flanks/difficulty progression; R-M07 remains unmet. Existing sniper glint,
+weapon flash, tracer, reload, audio and hit validation serve actual bot weapons.
+
+RUSH holds the SMG and closes on a currently visible enemy until within9m,
+following the existing GroundNavigator. At closer range it uses ordinary
+combat strafing. ANCHOR keeps the AR and existing strafe behavior. SCOUT holds
+the sniper; at>=14m it stands and requests ADS for2.5s, then strafes unscoped
+for1.5s in a repeated retained-target-lock cycle. A new acquisition resets the
+cycle/reaction; visual loss resumes patrol and releases ADS. Close targets
+trigger ordinary strafing. The 2.5/1.5s window is an intent schedule, not a
+guarantee of physical displacement through cover or across target switches.
+
+DOM and Relay core assignments retain their existing movement priority over
+role combat. A scout may settle only after it reaches its assigned objective;
+its relocation strafe stays anchored on that objective, not the old lane.
+No role pursues a hidden player's live coordinates: approach uses the enemy
+returned by the existing FOV/range/cover filter. Sound memory is unchanged.
+The room forwards ADS in its existing held input map, so normal shared ADS,
+sprint recovery, accuracy, cadence, ammo, reload and server hits remain in force.
+Hip fire is still allowed while acquisition settles. No HP/damage/accuracy buff.
+
+Correction to Session58's prose: config/ironsight.config.ts actually sets
+reactionMs=200 and aimNoiseRad=.045, with aimHeight=1.0. Session58's150ms was
+the pure fixture's explicit setting, not the live config. This session changes
+none of these values. The reference scorecard now states the actual config.
+
+Paired numeric bot ids choose roles deterministically:1/2 RUSH,3/4 ANCHOR,
+5/6 SCOUT, then repeat. A normally alternating empty12-seat team fill has
+two of each per team. Human replacements/seat trimming can change that mix;
+there is no forced rebalancing or human class restriction. The existing spawn
+primary map restores each bot's role weapon on every respawn. Practice ids
+retain their existing names, weapons and stationary non-firing showcase path.
+The shared identity module labels existing killfeed, assists, death names and
+rosters RUSH/ANCHOR/SCOUT plus seat number. No extra panel or role-state wire
+field; ArenaSchema/stateVersion12 unchanged. Existing operator bodies/team
+colours/weapon holds remain; dedicated role skins and barks are future work.
+
+Eight role tests cover paired identities, malformed/human/practice ids,
+navigated approach and9m boundary, hidden-target loss, configured reaction,
+scope/move cycling and close-target release, all-role DOM/practice behavior,
+objective-local relocation, full normal12-seat role distribution, respawn
+loadouts, room ADS forwarding/release and warmup damage rejection. Existing
+perception, combat, handling and lifecycle suites retained. Final exact
+pnpm typecheck / pnpm test / pnpm build:client / pnpm audit:assets PASS:
+550passed,6existing/opt-in skips;67files passed/4skipped. Evidence:
+.inspect/session59-{typecheck,test,build,audit}-final.log. No test timeout,
+shader/frame threshold, input limit or gameplay gate relaxed.
+
+Wow check: session59-wow-report.json and roles-live-{0s,5s,10s,15s,20s}.png
+under that prefix.20.474s in a normal Relay TDM, ordinary W-key navigation and
+look toward a known map approach.11bots plus one human seat; no player/bot
+position, health, clock, route, loadout, reward or VFX injection. Captured246
+incoming server shot events:145AR,86SMG,15sniper; six confirmed kills include
+all three role weapons. RUSH7 kills the observer with its SMG, followed by a
+normal respawn. The live feed shows role names, weapon causes and assists.
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+roles-before,roles-after,tdm --assert-roles --prefix session59-wow-review.
+Player sentence: "The SMG rushers close in while the scouts cover them with sniper fire."
+
+Reviewed the10s live fight,15s mixed-role feed and20s respawn captures, plus
+session59-wow-roles-before.png -> roles-after.png. The paired offline stills
+use the same three production operators/camera: prior all-AR loadouts versus
+current shared role weapons. They illustrate held-model differences; they
+are not a staged live duel or proof of coordinated teamwork. The real20s
+sequence and natural rounds demonstrate actual firing/behavior. Capture
+intervals include CDP/screenshots and are not performance measurements.
+All four accepted inspector reports have zero console errors and forbidden
+offline gameplay requests; session59-report-checks.json. No human excitement,
+listening, silhouette or moving-hands acceptance is claimed.
+
+Natural-round evidence: session59-after-{166588,166589,166590}-bot-round.json,
+matching heatmaps/debug files and metric logs. Baselines are the retained,
+accepted Session58-after reports with the same seeds. Twelve production bots,
+full clocks/scores/spawn/weapon/support/core rules,100ms observation. The new
+role/ADS/movement/coarse-lane counters are read-only. Reproduce each with
+RELAY_METRICS=1, METRICS_SEED, METRICS_PREFIX and
+pnpm exec vitest run test/relay-metrics.tool.test.ts; then
+node tools/roles-audit.mjs session58-after session59-after session59.
+Summary: session59-role-comparison.json. Trajectories diverge, so individual
+lives are not paired; unobserved damage contacts remain censored, never zero.
+
+| Relay matched seeds | Before | After |
+|---|---:|---:|
+| Round seconds166588/166589/166590 |199.9/217.8/201.8|186.3/197.6/211.6|
+| Final red:blue scores |41:51/49:50/50:40|50:41/50:46/49:50|
+| Pooled observed initial damage median |13.3s|12.9s|
+| Pooled observed respawn damage median |11.0s|12.6s|
+| Observed/censored respawn contacts |257/18|258/22|
+| Observed respawn contacts under5s |8|3|
+| Core visitors by seed |1/2/2|1/1/2|
+
+Medians use the same lower empirical50th percentile. These samples do not
+establish human spawn fairness or side balance. R-M07's20-30s target remains
+missed despite the longer respawn median. Coarse alive-sample role telemetry:
+RUSH19,594/19,798 moving(99.0%), ANCHOR17,360/21,358(81.3%),
+SCOUT11,265/21,846(51.6%) and10,435ADS(47.8%). Pre-ended-frame sampled
+kills/deaths:90/136,129/83,66/66 respectively. These are observational roles,
+not equal-position duels or an accepted weapon balance comparison. The final
+ended-frame kill can be absent from those sampled counters.
+
+The key routing gap is now explicit: RUSH19,505/19,798 samples(98.5%) in the
+central z33-67m third, ANCHOR14,946/21,358(70.0%), SCOUT18,784/21,846(86.0%).
+All three have zero samples south of67m across these rounds. A coarse lane
+band is not a full path audit, but this is enough to prioritize committed
+flank routes over another cosmetic pass in Fireteam2/2. Do not claim the
+existing shared patrol is already a deliberate flank implementation.
+
+Other-map smoke: session59-undertow-bot-round.json/heatmap, seed170684,
+300s,179:160,94kills, initial/respawn observed medians17.6/21.6s,
+80observed/13censored respawn contacts. Switchyard seed199356,300s,190kills,
+7.8/8.9s,181observed/8censored,50observed respawn contacts under5s.
+One round per other map supports viable combat/objective flow, not a causal
+improvement or pacing/fairness acceptance. Role-specific pathing in DOM/FFA
+needs more coverage in the next arc session.
+
+Matched renderer evidence: session59-before-report.json -> final-report.json;
+session59-render-summary.json.1920x1080, balanced/DPR1, Edge152,
+RTX5070/D3D11;11remotes+local,145twelve-rifle volleys,96blasts, two-team
+support fixtures and3s drain. The unchanged all-rifle stress fixture provides
+the matched baseline; actual mixed-weapon combat is covered by the live
+sequence and required hitch probe, not mislabeled as this fixture.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls |238|238|0|
+| Peak submitted triangles |150102|150102|0|
+| Resident textures |30|30|0|
+| Estimated texture MiB |63.9388|63.9388|0|
+| Median/p95/p99 frame ms |6.9/7.1/7.1|6.9/7.1/7.1|0/0/0|
+| Maximum frame ms |7.6|7.3|-.3|
+| First-ready maximum ms |7.1|7.1|0|
+| Prepared programs/geometries |33/165|33/165|0/0|
+
+Construction88.5->85.6ms; preparation1033.3->1050.0ms;484slots unchanged.
+Cache/order varies; no startup speedup claim. Effects drain; unchanged
+240call/64MiB/32texture limits pass. No test/bake/other inspection browser
+overlapped matched timing samples or the hitch gate. This desktop evidence
+does not establish mid-laptop iGPU60fps, cold-driver/thermal, real6v6/RTT,
+other-browser acceptance, networking latency or room capacity.
+
+Public32,914,518->32,917,941bytes(+3,423); assets26,298,891 unchanged;
+client2,051,558->2,052,572(+1,014); source map4,563,461->4,565,870(+2,409).
+Largest remains Switchyard architecture7,184,816bytes.40MiB public/25MiB file
+limits pass without exception. Exact accounting: session59-bytes.json. No new
+asset, texture, geometry, light, render pass, dependency or allowlist entry.
+Meshy spend0; reported balance1530 unchanged. Existing weapon/character/VFX
+assets provide the visible role differences; no purchased derivative edited.
+
+Static references refreshed in session59-reference-audit.json. Maps remain
+150x100m/1250m2 per seat; Relay65full/46waist, Undertow52/62, Switchyard63/48.
+Sprint A-B/B-C/A-C proxies14.44/14.44/11.78,14.22/14.22/11.33,
+14.44/14.44/11.56s. ADS250/200/225/400/165ms; sprint recovery
+120/100/130/150/90ms.3s respawn, dynamic safety scoring, hostile foley1.4,
+hit/kill pips, two damage cues and five-row top-right feed retained. DOM4/8s
+capture,1point/2s/flag,no side swap and78hip FOV remain reference mismatches.
+
+Rejected intermediates: the first role test inherited the prior prose's150ms
+assumption; corrected the assertion to the unchanged200ms config. The added
+room ADS fixture initially aimed through Relay waist cover at z11 and rightly
+did not acquire the target. Moved only the fixture to the legal open z2 aisle;
+the game's perception/cover gates were preserved. Its failing full-suite log
+is retained as session59-test-room-fixture-intermediate.log; final550passed
+supersedes it. Added a separate DOM relocation regression to ensure an arrived
+scout stays anchored on the objective. No performance failure/retry this session.
+
+Open owner questions/defaults: RUSH SMG/ANCHOR AR/SCOUT sniper(yes),9m rusher
+spacing(yes), scoped holds at>=14m with2.5/1.5s retained-lock cycle(yes), role
+names in existing feed/rosters(yes), keep DOM/core assignments first(yes).
+Defaults active; no answer blocks continuation. Next session should add routes,
+not strengthen bots through health/damage buffs. Human excitement/comfort,
+moving hands, real6v6/RTT, iGPU and other-browser/device acceptance remain open.
+
+Required exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS; zero console errors/forbidden requests. Retained
+session59-required-report.json/log and required-{relay,practice-two}.png.
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS on the first Session59 run:2bot-caused deaths,
+zero frames>24ms (therefore zero>150ms), recompiles, long tasks or console
+errors. Profiler setup100.1ms reported separately by the unchanged probe.
+Normal12-seat TDM,25:22 at stop; no forced deaths, room isolation, route/HP/
+clock writes or storage reset. Evidence: session59-hitch.json/log and hitch.json.
+
+Cleanup verified all12 owned preview-tree processes exited, zero8796 listeners,
+zero remaining owned processes and zero inspection/hitch browsers. Root start
+time/command checked; still-live descendants rechecked by creation time and
+command before stopping. Five explicitly stopped, the rest exited with their
+parents. Evidence: session59-preview-tree.json and session59-cleanup.json.
+All six required gates green. git diff --check clean; all changed paths within
+apps/ironsight/**. No commit, push or deploy. Fireteam1/2 is on by default;
+complete its committed flank routes in the next session.
+
+### Session 60 - 2026-09-10: Fireteam arc 2/2 - rush the flanks, return from the side
+
+Read the standing brief, Session60 supervisor status, plan and all63 design
+references. Supervisor says Session59 FAILED hitch and was NOT committed or
+published; its changes were retained. Corrected the owner guide, re-reviewed
+all63 scorecard rows and completed the prior top gap. Fireteam2/2 is playable
+and ON by default. Branch ironsight-aaa; scope apps/ironsight/** only. No
+commit, push, deploy, dependency or SDK/wire/stateVersion change.
+
+First addressed the failed gate. Supervisor observed a313.6ms frame at93.132s,
+zero recompiles/console errors/long tasks, and300of306 profile samples idle.
+That evidence does not identify a game-code cause. Before editing production
+code, ran the exact150000ms hitch probe on the retained Session59 build in
+isolation: PASS,2bot-caused deaths, zero frames>24ms, recompiles, long tasks or
+errors. Evidence: session60-hitch-baseline.json/log. No fake performance fix,
+threshold relaxation, spike filtering, probe flag or added browser flag.
+The supervisor failure remains recorded, not retroactively declared a pass.
+
+Reference: R-L11, R-L16, R-M01, R-M07, R-M20, R-G19, R-G20, R-L14.
+Targets: an authored reachable side route per rusher life, movement commitment
+despite distant visible fights, bounded close-combat interruption/expiry,
+preserved perception and objective priority, and natural use of BOTH sides.
+These implementation/route checks pass. R-M07 remains unmet; difficulty
+progression, human counterplay, excitement and fairness remain unaccepted.
+
+Relay has six-point Cooling and Freight routes; Switchyard has North bus and
+South service routes. MapDef owns these immutable ground coordinates. They
+add no collision or art geometry. The existing GroundNavigator resolves each
+step against the active collision state, including Relay shutters. Rushers in
+paired seats1/2 select north;7/8 select south. Each spawn chooses the nearer
+route end from its own position, so FFA uses actual spawn location rather than
+team assumptions. Normal empty12-seat team fill gets a north and south rusher
+on each team; human replacements can change that mix. No forced rebalancing.
+
+A rusher visits the six points in order, with a1m arrival radius. It keeps
+that movement when it sees a distant opponent while aiming/firing through the
+same FOV, cover,200ms reaction,.045rad aim noise and shared weapon rules.
+Within8m a visible threat gets ordinary role combat; once clear, the same
+route resumes. Route completion or35s of live-brain time releases the bot to
+ordinary combat/patrol; death resets it and spawn starts a new commitment.
+An assigned Relay core objective cancels the remainder. DOM receives no flank
+assignment and keeps capture priorities; training targets stay stationary.
+No live hidden-player coordinates choose or update a flank. No HP, damage,
+accuracy, reaction, movement speed, ammo, support or score buff.
+
+Six new regressions cover distant-target commitment with normal fire delay,
+hidden-target loss, close interruption/resumption, successive stages,
+completion/timeout, spawn direction/reset, objective cancellation, stationary
+training, actual room fill/loadout renewal and DOM exclusion. Both route
+directions from every spawn on Relay and Switchyard are walked in0.12m steps
+through the real navigator; every step checks standing capsule clearance
+including ramps. Existing role/perception/weapon/lifecycle tests retained.
+Final pnpm typecheck / pnpm test / pnpm build:client / pnpm audit:assets PASS:
+556passed,6existing/opt-in skips;68files passed/4skipped. Logs:
+.inspect/session60-{typecheck,test,build,audit}-final.log. No test failed.
+
+Wow check: session60-wow-final-report.json and
+session60-wow-final-roles-live-{0s,5s,10s,15s,20s}.png.20.433s of normal Relay
+TDM after an ordinary W/aim approach to Freight. No position, HP, route,
+clock, loadout or VFX injection.11bots plus the human seat.271incoming server
+shots and12kills; sampled live SMG bots use both sides (160north/188south
+observations, not independent bots). RUSH7 kills the observer in Freight;
+the5s still clearly shows the moving enemy, SMG cause and normal respawn
+countdown. The observer respawns and returns through the service lane;15s
+also captures an earned UAV overhead,20s a natural hostile mortar warning.
+Player sentence: "I can't ignore Freight anymore; an SMG rusher came around the side."
+This is a design sentence, not a human testimonial. Review all five stills;
+no human listening/comfort/excitement approval is implied.
+
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+tdm --assert-flanks --prefix session60-wow-review. The driver walks toward
+Freight before recording; small steering steps and key-up during screenshots
+avoid overshooting navigation corners while CDP encodes images. Captures
+measure neither frame performance nor a staged duel. Report has zero console
+errors/forbidden offline gameplay requests. session60-wow-summary.json keeps
+the counts. Initial session60-wow report passed behavioral assertions but its
+15s still faced cover and failed visual review; retained, superseded by final.
+Only the capture driver changed after that review, not game collision/rules.
+
+Natural evidence: session60-after-{166588,166589,166590}-bot-round.json,
+debug reports, heatmaps and routes.svg. Baseline is the retained, UNPUBLISHED
+Session59-after reports with identical seeds. Twelve production bots, normal
+clocks/scores/spawn protection/weapon/support/core rules; observations at100ms.
+New routeSamples read physical rusher positions and active waypoint index
+each1s. Route-dot overlays never connect respawns with invented path lines.
+No route/position/HP/clock injection. Reproduce with RELAY_METRICS=1,
+METRICS_SEED, METRICS_PREFIX and pnpm exec vitest run
+test/relay-metrics.tool.test.ts, then node tools/roles-audit.mjs
+session59-after session60-after session60 and node tools/flanks-audit.mjs
+session60. Summaries: session60-role-comparison.json / flank-summary.json.
+
+| Relay paired seeds | Before | After |
+|---|---:|---:|
+| Round seconds166588/166589/166590 |186.3/197.6/211.6|246.1/230.1/242.7|
+| Final red:blue |50:41/50:46/49:50|48:50/50:46/50:49|
+| Observed initial damage median |12.9s|17.1s|
+| Observed respawn damage median |12.6s|13.7s|
+| Observed/censored initial contacts |36/0|35/1|
+| Observed/censored respawn contacts |258/22|264/24|
+| Observed respawn contacts under5s |3|8|
+| Core visitor counts |1/1/2|2/2/3|
+| Rusher north/central/south samples |293/19505/0|6623/12389/6743|
+| Rusher sampled kills/deaths |90/136|111/101|
+
+Lower empirical50th percentile on both sets; censored contacts stay absent,
+never zero. Divergent lives are not paired. Rushers' central fraction falls
+98.5->48.1%;25.7% north/26.2% south. All three rounds physically reach stage5,
+the far-side return leg, not a blanket claim that every route completes.
+Rusher moving fraction99.2%; anchors85.7%,scouts54.8% and44.2%ADS. Sampled
+anchor kills/deaths121/103,scout59/88; final ended-frame kill may be absent.
+Not an equal-position weapon balance trial. Increased short respawn contacts
+are explicitly unfavorable evidence; broader fairness/counterplay is next.
+
+Other-map smoke: Undertow seed170684 remains300s,179:160,94kills,
+17.6/21.6s initial/respawn,80observed/13censored respawns, exactly the retained
+Session59 outcome because DOM was deliberately unchanged. Switchyard
+seed199356:300s,183kills,5.5/7s,171observed/12censored respawns,43under5s
+(prior190kills,7.8/8.9s,50under5s). All12FFA bots score4-25kills. Rusher
+1s observations957total/946active,261north/413south, all route stages seen.
+These single rounds support continued play and route use, not causal pacing
+improvement or accepted side/role fairness. Reports/heatmaps/routes:
+session60-{undertow,switchyard}-bot-round.json and corresponding artifacts.
+
+Matched renderer: session60-before-report.json -> session60-final-report.json;
+session60-render-summary.json.1920x1080,balanced/DPR1,Edge152,RTX5070/D3D11.
+Same11remote+local,145twelve-rifle volleys,96blasts,support fixtures and3s
+drain. This unchanged all-rifle fixture measures rendering; mixed-role live
+combat is the separate wow/hitch evidence.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls/triangles |238/150102|238/150102|0/0|
+| Textures/estimated MiB |30/63.9388|30/63.9388|0/0|
+| Programs/geometries/instance slots |33/165/484|33/165/484|0/0/0|
+| Median/p95/p99 ms |6.9/7.1/7.2|6.9/7.1/7.1|0/0/-.1|
+| Maximum ms |7.3|7.3|0|
+| First-ready maximum ms |7.0|7.1|+.1|
+
+Construction86.4->86.8ms, preparation1064->1060.9ms. No startup speedup claim;
+cache/order varies. Effects drain, unchanged240call/64MiB/32texture limits
+pass. No test/bake/other inspection browser overlaps matched timing captures
+or hitch. Desktop evidence does not establish mid-laptop iGPU60fps,
+cold-driver/thermal,real6v6/RTT,other-browser acceptance or room capacity.
+
+Public32,917,941->32,919,653bytes(+1,712). Assets26,298,891 unchanged;
+client2,052,572->2,053,078(+506),source map4,565,870->4,567,076(+1,206).
+Largest Switchyard architecture7,184,816bytes;40MiB public/25MiB file caps
+pass without exception. session60-bytes.json. No new art/texture/geometry,
+light/pass/dependency/allowlist entry. Meshy spend0,reported balance1530;
+existing assets show the behavior. No purchased derivative edited.
+
+Static63-reference review refreshed in session60-reference-audit.json.
+Maps150x100m/1250m2 per seat,Relay65full/46waist,Undertow52/62,
+Switchyard63/48; sprint A-B/B-C/A-C proxies14.44/14.44/11.78,
+14.22/14.22/11.33,14.44/14.44/11.56s. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms,3s respawn/dynamic spawn scoring,
+hostile foley1.4,hit/kill pips,two damage cues,five-row top-right feed retained.
+DOM4/8s capture,1point/2s/flag,no side swap and78hipFOV remain mismatches.
+
+Rejected intermediates: first wow capture's wall-facing still as described
+above. No production/test intermediate failed. The previous supervisor hitch
+was not reproducible in the isolated unchanged baseline; retain uncertainty
+instead of editing unrelated render/game code. No shader/frame threshold,
+input limit or gameplay gate relaxed, no storage reset or forced deaths.
+
+Open owner questions/defaults: one north/south route per rusher life(yes),
+35s commitment bound and<8m close-threat release(yes),fixed map knowledge
+rather than hidden-player pursuit(yes),DOM/core priorities(yes),no combat stat
+buffs(yes). Defaults active; no answer blocks continuation. Human excitement,
+counterplay,6v6/RTT,moving hands,iGPU and other-device acceptance remain open.
+
+Required exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS,zero console errors/forbidden requests. Copies:
+session60-required-report.json/log and required-{relay,practice-two}.png.
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS on the first final-candidate run:2bot-caused
+deaths,zero>150ms frames,recompiles,long tasks or console errors. Normal12-seat
+TDM,17:27 at stop. No forced deaths, isolated test room, route/HP/clock writes
+or storage reset. Evidence: session60-hitch-final.json/log and hitch.json.
+
+Final hitch has TWO frames>24ms:108.1ms at a death and25.8ms later. The death
+window has98of107 CPU samples idle; no shader change or long task. Report this
+residual honestly: the150ms gate passes, but the previous314ms supervisor
+stall's cause remains unidentified and this is not proof of universally smooth
+death delivery. Profiler setup100.3ms is reported separately by the unchanged
+probe. No retries to erase either frame or weaken its threshold.
+
+Cleanup verified all12 owned preview-tree processes exited,zero8796 listeners,
+zero remaining owned processes and zero inspection/hitch browsers. Root and
+descendant creation times/commands rechecked before stopping. Five explicitly
+stopped,the rest exited with parents. Evidence: session60-preview-tree.json,
+session60-cleanup.json and reproducible cleanup.ps1. The initial cleanup guard
+aborted before stopping anything because ConvertFrom-Json had already parsed
+the recorded date; corrected the guard to compare native UTC DateTime values.
+All six required gates green. git diff --check clean; all changed paths within
+apps/ironsight/**. No commit,push or deploy. Fireteam2/2 is complete by default.

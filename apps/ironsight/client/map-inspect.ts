@@ -8,6 +8,7 @@ import { signalFrame } from '../src/signal-event.js';
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
+import { BOT_ROLES } from '../src/bot-roles.js';
 
 /** Deterministic production-renderer review. No matchmaking, no gameplay sockets. */
 export function startMapInspector(): void {
@@ -30,11 +31,12 @@ export function startMapInspector(): void {
   const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
   const muzzleLineup = params.get('shot') === 'muzzle-lineup';
+  const roleLineup = params.get('shot')?.startsWith('roles-') ?? false;
   const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
   const glintReview = params.get('shot')?.startsWith('glint-') ?? false;
   const blastReview = params.get('shot')?.startsWith('blast-') ?? false;
   const introReview = params.get('shot')?.includes('intro-') ?? false;
-  const actorCount = params.get("shot")?.endsWith('stress') || introReview ? 11 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
+  const actorCount = params.get("shot")?.endsWith('stress') || introReview ? 11 : roleLineup ? 3 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview || introReview });
   if (!effects && !blastReview) scene.hideViewmodel();
   let introFixture: IntroPose | undefined;
@@ -74,6 +76,8 @@ export function startMapInspector(): void {
     'mortar-stress': [8,1.65,11,24,2,11],
     'drone-hero': [5,1.65,8,9,2.8,12],
     'muzzle-lineup': [8,1.65,11,14,1.5,11],
+    'roles-before': [8,1.65,11,14,1.5,11],
+    'roles-after': [8,1.65,11,14,1.5,11],
     'muzzle-stress': [8,1.65,11,35,1.5,11],
     'glint-stress': [8,1.65,26,35,1.5,26],
     'drone-stress': [5,1.65,8,9,2.8,12],
@@ -131,6 +135,10 @@ export function startMapInspector(): void {
   if (muzzleLineup || mixedWeapons) for (const [i, actor] of [...actors.values()].entries()) {
     Object.assign(actor, { weapon: i % 5 });
     if (muzzleLineup) Object.assign(actor, { x: 14, z: 8 + i * 1.5 });
+  }
+  if (roleLineup) for (const [i, role] of (['rusher','anchor','sniper'] as const).entries()) {
+    Object.assign(actors.get(`inspect-${i}`)!, { x: 14, z: 9 + i * 2, team: 1,
+      weapon: shotName === 'roles-before' ? 0 : BOT_ROLES[role].weapon });
   }
   if (glintReview) {
     scene.reducedMotion = shotName === 'glint-reduced';

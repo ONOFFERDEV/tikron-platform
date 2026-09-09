@@ -65,6 +65,10 @@ export const SWITCHYARD_ROWS: readonly string[] = [
 const compiled = compileTileMap(SWITCHYARD_ROWS);
 export const ARENA3: MapDef = {
   ...compiled, presentation: 'switchyard',
+  flankRoutes: [
+    [{x:27,z:51},{x:27,z:27},{x:55,z:29},{x:95,z:29},{x:123,z:27},{x:123,z:51}],
+    [{x:27,z:51},{x:27,z:87},{x:61,z:93},{x:89,z:93},{x:123,z:87},{x:123,z:51}],
+  ],
   launchPads: [
     { id: 'WEST / INDUCTION', from: { x: 60, y: 0, z: 55 }, to: { x: 70, y: 3, z: 55 } },
     { id: 'EAST / INDUCTION', from: { x: 90, y: 0, z: 43 }, to: { x: 80, y: 3, z: 43 } },

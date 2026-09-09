@@ -40,6 +40,9 @@ export interface MapDef {
   /** Optional non-objective patrol circuit, on navigable ground. Omitting it
    * preserves the spawn/cap circuit. Used to keep FFA bots out of spawn bays. */
   readonly patrolWaypoints?: readonly { readonly x: number; readonly z: number }[];
+  /** Ground-level side routes, ordered west to east. Rushers commit to one per
+   * life; these are map knowledge, never hidden-player destinations. */
+  readonly flankRoutes?: readonly (readonly { readonly x: number; readonly z: number }[])[];
   readonly bounds: Bounds;
   readonly boxes: readonly Box[];
   /** Sloped-surface colliders — see {@link RampDef}. Optional for backward

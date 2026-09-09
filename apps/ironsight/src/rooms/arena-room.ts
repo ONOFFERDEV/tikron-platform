@@ -49,7 +49,8 @@ import {
   type ModeCtx,
   type ShowcaseBotDef,
 } from "../modes.js";
-import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, type BotBrain, type BotView } from "../bots.js";
+import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, type BotBrain, type BotView } from "../bots.js";
+import { BOT_ROLES, botRole } from '../bot-roles.js';
 import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
 import { GAME } from "../game-config.js";
 
@@ -1528,6 +1529,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.pitch = 0;
     const patrolBrain = this.botBrains.get(id);
     if (patrolBrain) resetBotPerception(patrolBrain);
+    if (patrolBrain) startBotFlank(patrolBrain, p);
     if (patrolBrain && this.map.patrolWaypoints?.length)
       patrolBrain.wpIndex = (Number(id.slice(4)) - 1) % patrolBrain.waypoints.length;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
@@ -1650,7 +1652,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const team = this.gameMode.teams ? this.assignTeam() : 0;
     const p = this.initPlayer(id, team);
     const n = Number(id.slice(4));
-    this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints() }));
+    const role = botRole(id)!;
+    this.primaryWeapon.set(id, BOT_ROLES[role].weapon);
+    // Paired roles in each six-seat block take opposite authored lanes. FFA
+    // orients from the actual spawn; DOM keeps its capture assignment policy.
+    const routes = this.gameMode.id === 'dom' ? undefined : this.map.flankRoutes;
+    const flankRoute = role === 'rusher' && routes?.length ? routes[Math.floor((n - 1) / 6) % routes.length] : undefined;
+    this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints(), role, flankRoute }));
     this.spawnInto(p, id);
     this.markStateChanged();
   }
@@ -1722,6 +1730,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         jump: decision.move.jump,
         crouch: decision.move.crouch,
         sprint: decision.move.sprint,
+        ads: decision.move.ads === true,
       });
       self.yaw = ((decision.look.yaw % TAU) + TAU) % TAU;
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);

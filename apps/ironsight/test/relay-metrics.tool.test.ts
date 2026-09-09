@@ -12,6 +12,8 @@ import { CoreCollision } from '../src/core-gate.js';
 import type { MortarSupport, MortarStrike } from '../src/mortar.js';
 import type { AirSupport, ReconFlight } from '../src/air-support.js';
 import type { ArenaState } from '../src/schema.js';
+import { botRole } from '../src/bot-roles.js';
+import type { BotBrain } from '../src/bots.js';
 
 // RELAY_METRICS=1 pnpm exec vitest run test/relay-metrics.tool.test.ts
 // Optional METRICS_SEED and METRICS_PREFIX retain independent natural rounds.
@@ -50,6 +52,8 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
       const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
       let previous: Record<string, ArenaPlayer> = {};
+      const roles: Record<string, {role: string; weapon: number; samples: number; adsSamples: number; movingSamples: number; lanes: number[]; kills: number; deaths: number}> = {};
+      const routeSamples: {atMs:number;id:string;x:number;z:number;stage:number|null}[]=[];
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
         await h.advance(100);
         const state = h.snapshot();
@@ -57,6 +61,17 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         if (!liveAt) { liveAt = elapsed; previous = {}; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        const held = (h.room as unknown as {inputs: Map<string,{ads?:boolean}>}).inputs;
+        const brains = (h.room as unknown as {botBrains:Map<string,BotBrain>}).botBrains;
+        for (const [id,p] of players) {
+          const row=roles[id] ??= {role:botRole(id)??'unknown',weapon:p.weapon,samples:0,adsSamples:0,movingSamples:0,lanes:[0,0,0],kills:0,deaths:0};
+          row.kills=p.k; row.deaths=p.d;
+          if(!p.alive)continue;
+          row.samples++;if(held.get(id)?.ads)row.adsSamples++;
+          const prev=previous[id];if(prev?.alive&&Math.hypot(p.x-prev.x,p.z-prev.z)>.05)row.movingSamples++;
+          const lane=p.z<33?0:p.z>67?2:1;row.lanes[lane]=(row.lanes[lane]??0)+1;
+          if(elapsed%1000===0&&row.role==='rusher')routeSamples.push({atMs:elapsed-liveAt,id,x:p.x,z:p.z,stage:brains.get(id)?.flank?.index??null});
+        }
         // Read-only production support telemetry; no observer takes a seat and
         // no streak, aim, HP, route or reward is injected by this tool.
         const runtime = h.room as unknown as { droneSupport: DroneSupport; mortarSupport: MortarSupport; airSupport: AirSupport; streaks: Map<string, number>; state: ArenaState };
@@ -97,7 +112,7 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         bounds: ARENA1.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         core:{transitions:coreTransitions,visitors:[...coreVisitors],samples:coreSamples,sampleMs:100},
         support:{maxStreak,droneEarners:[...droneEarners],drones:[...drones.values()],mortars:[...mortarStrikes.values()],flights:[...supportFlights.values()],scans:[...supportScans.values()],peakFlights:supportPeak},
-        redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };
+        redScore: state.redScore, blueScore: state.blueScore, roles, routeSamples, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);
       const solids = ARENA1.boxes.map(b => `<rect x="${b.min.x}" y="${b.min.z}" width="${b.max.x-b.min.x}" height="${b.max.z-b.min.z}" fill="#536b70"/>`).join('');
