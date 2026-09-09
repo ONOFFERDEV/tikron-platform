@@ -248,7 +248,7 @@ try {
       if (name === 'tdm' && (args.includes('--assert-roles') || args.includes('--assert-flanks') || args.includes('--assert-contacts'))) combat = await rolesProbe({send,evaluate,waitFor,delay,flanks:args.includes('--assert-flanks'),contacts:args.includes('--assert-contacts'),
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
       });
-      if (name === 'dom' && args.includes('--assert-breakout')) combat = await breakoutProbe({send,evaluate,waitFor,delay,
+      if (name === 'dom' && (args.includes('--assert-breakout') || args.includes('--assert-orders'))) combat = await breakoutProbe({send,evaluate,waitFor,delay,orders:args.includes('--assert-orders'),
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
       });
       if (name === 'cargo') combat = await cargoProbe({send,evaluate,waitFor,delay,

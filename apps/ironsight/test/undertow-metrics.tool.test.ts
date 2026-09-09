@@ -45,6 +45,7 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       const collision=new CoreCollision(ARENA2),galleryVisitors=new Set<string>(),galleryTransitions:{atMs:number;open:boolean}[]=[];
       let priorOpen=false,gallerySamples=0;
       let previous: Record<string, ArenaPlayer> = {};
+      const objectiveSamples: unknown[] = [];
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
         await h.advance(100);
         const state = h.snapshot();
@@ -52,6 +53,13 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
         if (!liveAt) { liveAt = elapsed; previous = {}; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        if (elapsed % 1000 === 0) {
+          // Read the same targets passed to production brains, without changing them.
+          const room = h.room as unknown as { botView(id: string, p: ArenaPlayer): { objective?: {x:number;z:number} } };
+          objectiveSamples.push({atMs:elapsed-liveAt, capA:state.capA,capB:state.capB,capC:state.capC,
+            players:players.filter(([,p])=>p.alive).map(([id,p])=>({id,team:p.team,x:p.x,z:p.z,
+              objective:room.botView(id,p).objective}))});
+        }
         if(state.coreOpen!==priorOpen){galleryTransitions.push({atMs:elapsed-liveAt,open:state.coreOpen});priorOpen=state.coreOpen;}
         for(const [id,p] of players)if(p.alive&&p.x>68.5&&p.x<81.5&&p.z>48&&p.z<52&&p.y<3){galleryVisitors.add(id);gallerySamples++;}
         expect(players).toHaveLength(12);
@@ -84,7 +92,7 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot 6v6 DOM round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
-        gallery:{visitors:[...galleryVisitors],samples:gallerySamples,transitions:galleryTransitions},
+        objectiveSamples, gallery:{visitors:[...galleryVisitors],samples:gallerySamples,transitions:galleryTransitions},
         bounds: ARENA2.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));

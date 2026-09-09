@@ -1,3 +1,4 @@
+import { DomOrders } from '../dom-orders.js';
 import { DRONE, DroneSupport } from '../drone.js';
 import { AirSupport } from '../air-support.js';
 import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
@@ -284,6 +285,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly coreCollision = new CoreCollision(this.map);
   private readonly coreGate = new CoreGate(this.map.signalCore);
   private readonly corePush = new CorePush(this.map.signalCore);
+  private readonly domOrders = new DomOrders(this.map);
   private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
   private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
@@ -539,6 +541,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       if(this.map.signalCore && (this.gameMode.id==='tdm' || this.map.presentation==='undertow' && this.gameMode.id==='dom'))this.corePush.update(this.state.signalAt,
         signalFrame(this.state.signalAt,this.state.phase,now),this.coreGate.open,
         Object.entries(this.state.players).filter(([id])=>this.botBrains.has(id)).map(([id,p])=>({...p,id})));
+      if (this.gameMode.id === 'dom') this.domOrders.update(now,
+        {a:this.state.capA,b:this.state.capB,c:this.state.capC},
+        Object.entries(this.state.players).map(([id,p]) => ({id,x:p.x,z:p.z,team:p.team,alive:p.alive,
+          bot:this.botBrains.has(id),available:!this.corePush.target(id,this.coreGate.open)})));
       this.tickBots(dtMs);
     }
 
@@ -1784,7 +1790,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
-      objective: this.corePush.target(id,this.coreGate.open) ?? (this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined),
+      objective: this.corePush.target(id,this.coreGate.open) ?? (this.gameMode.id === "dom" ? this.domOrders.target(id) : undefined),
       showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };
   }
@@ -1795,36 +1801,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private showcaseViewFor(id: string): { role: ShowcaseBotDef["role"]; faceYaw: number } | undefined {
     const def = PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id);
     return def ? { role: def.role, faceYaw: PRACTICE_SHOWCASE_FACE_YAW } : undefined;
-  }
-
-  /** DOM-only: the nearest reachable point (a `capWaypoints` anchor, else the
-   *  cap's own centre) among capture points this bot's team hasn't fully secured
-   *  yet (red targets gauge<200, blue targets gauge>0). undefined once every
-   *  point is already owned in this bot's favour — botThink then falls back to
-   *  plain waypoint patrol. "Nearest" ranks by distance from the bot to each
-   *  candidate anchor, not the cap's raw centre, so it picks whichever approach
-   *  side is actually closest for a multi-anchor cap (e.g. cap B's two sides). */
-  private domObjectiveFor(self: ArenaPlayer): { x: number; z: number } | undefined {
-    const caps: { key: "a" | "b" | "c"; point: Vec3; gauge: number }[] = [
-      { key: "a", point: this.map.caps.a, gauge: this.state.capA },
-      { key: "b", point: this.map.caps.b, gauge: this.state.capB },
-      { key: "c", point: this.map.caps.c, gauge: this.state.capC },
-    ];
-    let best: { x: number; z: number } | undefined;
-    let bestDist = Infinity;
-    for (const { key, point, gauge } of caps) {
-      const incomplete = self.team === TEAM.red ? gauge < 200 : gauge > 0;
-      if (!incomplete) continue;
-      const anchors = this.map.capWaypoints?.[key] ?? [point];
-      for (const a of anchors) {
-        const d = Math.hypot(a.x - self.x, a.z - self.z);
-        if (d < bestDist) {
-          bestDist = d;
-          best = { x: a.x, z: a.z };
-        }
-      }
-    }
-    return best;
   }
 
   /** Reuses {@link handleFire} with a stand-in client — bots have no real socket,
@@ -1899,6 +1875,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.domOrders.clear();
     this.botContacts.clear();
     this.airSupport.clear();
     this.mortarSupport.clear();

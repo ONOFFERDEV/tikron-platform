@@ -121,11 +121,9 @@ export interface BotView {
   /** The active room's map geometry, for line-of-sight occlusion (arena1 for
    *  tdm/ffa, arena2 for dom — see modes.ts's mapForMode). */
   boxes: readonly Box[];
-  /** DOM-only: the reachable point (capWaypoints anchor, else the cap's own
-   *  centre) on the nearest capture point this bot's team hasn't fully secured —
-   *  undefined outside dom, or once every point is already owned in this team's
-   *  favour (falls back to the plain waypoint patrol below). Set by the room
-   *  (arena-room.ts's botView), never computed here. */
+  /** Room-assigned reachable capture/defence anchor or event-route target.
+   * Allied assignments commit briefly so distant fights don't attract every bot.
+   * This never supplies enemy positions or changes perception/fire rules. */
   objective?: { x: number; z: number };
   /** Practice-only: demonstrates one locomotion state instead of patrolling/
    *  fighting (see botThink's very first check → {@link showcaseThink}). Every
