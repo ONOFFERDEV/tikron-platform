@@ -125,6 +125,9 @@ export interface BotView {
    * Allied assignments commit briefly so distant fights don't attract every bot.
    * This never supplies enemy positions or changes perception/fire rules. */
   objective?: { x: number; z: number };
+  /** Static map approach to watch AFTER arrival, never a hidden enemy location.
+   * Event-route volunteers omit this so they keep looking along their route. */
+  objectiveWatch?: { x: number; z: number };
   /** Practice-only: demonstrates one locomotion state instead of patrolling/
    *  fighting (see botThink's very first check → {@link showcaseThink}). Every
    *  other mode leaves this undefined. Set by the room. */
@@ -159,6 +162,7 @@ export interface BotBrain {
   sound?: { x: number; z: number; untilMs: number };
   nextSoundMs: number;
   engagementZ?: number;
+  objectiveDuel?: { targetId: string; objectiveX: number; objectiveZ: number; z: number };
   readonly aimNoiseRad: number;
   readonly reactionMs: number;
   readonly aimHeight: number;
@@ -214,6 +218,7 @@ export function resetBotPerception(brain: BotBrain): void {
   brain.lockId = null;
   brain.lockMs = 0;
   brain.engagementZ = undefined;
+  brain.objectiveDuel = undefined;
 }
 
 /** One route per life, oriented from the nearer end of an authored lane.
@@ -460,13 +465,13 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   // Once a real visual target is acquired, don't later turn back to old gunfire.
   if (enemy) brain.sound = undefined;
 
-  // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
-  // dom once every point is owned) falls through to the legacy logic below,
-  // completely unchanged.
+  // Assigned DOM captures/guards and temporary event routes share movement.
+  // Other combat bots retain their role/patrol logic below.
   if (view.objective) {
     brain.flank = undefined;
     return domThink(view.objective, self, enemy, brain, dtMs, view.navigate, view);
   }
+  brain.objectiveDuel = undefined;
 
   const flank = flankTarget(brain, self);
 
@@ -527,6 +532,7 @@ function domThink(
   navigate?: BotView["navigate"],
   view?: BotView,
 ): BotDecision {
+  const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
   let look: BotLookIntent;
   let fire = false;
   if (enemy) {
@@ -541,16 +547,29 @@ function domThink(
   } else {
     brain.lockId = null;
     brain.lockMs = 0;
-    look = searchLook(self, brain, navigate?.(objective) ?? objective, dtMs);
+    const watch = view?.objectiveWatch;
+    if (watch && !brain.sound && distToObjective <= OBJECTIVE_ARRIVE_M) {
+      // Six-second, +/-30-degree sector scan. Keep the existing turn-rate and
+      // acquisition cone: a silent flank behind this guard remains possible.
+      const yaw = Math.atan2(watch.x - objective.x, watch.z - objective.z)
+        + Math.sin(brain.clockMs * TAU / 6000) * Math.PI / 6;
+      look = turnToward(self, yaw, 0, dtMs);
+    } else look = searchLook(self, brain, navigate?.(objective) ?? objective, dtMs);
   }
 
   const enemyDist = enemy ? Math.hypot(enemy.x - self.x, enemy.y - self.y, enemy.z - self.z) : Infinity;
   if (enemy && enemyDist < CLOSE_THREAT_M) {
-    // Very close threat: brief combat-priority evasive strafing beats the push.
-    return { look, move: combatStrafe(brain, self, look.yaw), fire };
+    // Start the dodge where this CLOSE encounter began, not at first distant
+    // sight and never at the legacy z=11 lane. An arrived defender uses the
+    // flag itself. Loss/range exit/reassignment release the local commitment.
+    const duel = brain.objectiveDuel;
+    if (!duel || duel.targetId !== enemy.id || duel.objectiveX !== objective.x || duel.objectiveZ !== objective.z)
+      brain.objectiveDuel = { targetId: enemy.id, objectiveX: objective.x, objectiveZ: objective.z,
+        z: distToObjective <= OBJECTIVE_ARRIVE_M ? objective.z : self.z };
+    return { look, move: strafeAround(brain, self, look.yaw, brain.objectiveDuel!.z), fire };
   }
+  brain.objectiveDuel = undefined;
 
-  const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
   if (distToObjective <= OBJECTIVE_ARRIVE_M) {
     if (enemy && view && brain.role === 'sniper') {
       const move = roleCombat(view, brain, enemy, look.yaw);

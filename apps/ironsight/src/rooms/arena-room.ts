@@ -1768,6 +1768,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private botView(id: string, self: ArenaPlayer): BotView {
     const ffa = !this.gameMode.teams;
+    const routeTarget = this.corePush.target(id, this.coreGate.open);
+    const objective = routeTarget ?? (this.gameMode.id === 'dom' ? this.domOrders.target(id) : undefined);
     const enemies: BotView["enemies"][number][] = [];
     for (const [pid, p] of Object.entries(this.state.players)) {
       if (pid === id || !p.alive) continue;
@@ -1790,7 +1792,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
-      objective: this.corePush.target(id,this.coreGate.open) ?? (this.gameMode.id === "dom" ? this.domOrders.target(id) : undefined),
+      objective,
+      objectiveWatch: objective && !routeTarget && this.gameMode.id === 'dom' ? this.domOrders.watch(self.team) : undefined,
       showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };
   }

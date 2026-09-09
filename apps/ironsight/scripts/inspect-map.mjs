@@ -2,6 +2,7 @@ import { droneProbe } from './drone-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
 import { rolesProbe } from './roles-probe.mjs';
 import { breakoutProbe } from './breakout-probe.mjs';
+import { objectiveHoldProbe } from './objective-hold-probe.mjs';
 import { cargoProbe } from './cargo-probe.mjs';
 import { deploymentProbe } from './deployment-probe.mjs';
 import { blastProbe } from './blast-probe.mjs';
@@ -249,6 +250,9 @@ try {
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
       });
       if (name === 'dom' && (args.includes('--assert-breakout') || args.includes('--assert-orders'))) combat = await breakoutProbe({send,evaluate,waitFor,delay,orders:args.includes('--assert-orders'),
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+      });
+      if (name === 'dom' && args.includes('--assert-holds')) combat = await objectiveHoldProbe({send,evaluate,waitFor,delay,
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
       });
       if (name === 'cargo') combat = await cargoProbe({send,evaluate,waitFor,delay,

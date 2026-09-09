@@ -41,7 +41,9 @@ Session65 quick check (published per Session66 supervisor, commit 9292cd9): Trai
 
 Session66 quick check (published per Session67 supervisor, commit b81ec33): Training / Switchyard, find FREIGHT / 04 at East service. The orange4x3x6m counterweight is full cover. At CARGO SHIFT it retracts flush with the floor for15s: cross directly, but expect to be exposed. Remain on the marked crossing after transfer to see CLEAR TO RAISE; leave and it becomes full cover again. Mute and Reduced motion retain the same cover and text. Cargo Shift2/2 is complete and on by default.
 
-Session67 quick check (local candidate): Undertow DOM, follow a teammate out of deployment and watch the minimap as the round develops. Bots now split their pushes between unfinished flags and leave a defender at secured flags. Nearby human teammates count toward reinforcements; a gallery volunteer temporarily leaves its usual assignment. Split Fronts1/1 is complete and on by default. Contact timing and human balance remain unaccepted; the separate Switchyard startup hitch remains unresolved.
+Session67 quick check (published per Session68 supervisor, commit 133b005): Undertow DOM, follow a teammate out of deployment and watch the minimap as the round develops. Bots now split their pushes between unfinished flags and leave a defender at secured flags. Nearby human teammates count toward reinforcements; a gallery volunteer temporarily leaves its usual assignment. Split Fronts1/1 is complete and on by default. Contact timing and human balance remain unaccepted; the separate Switchyard GPU hitch remains unresolved.
+
+Session68 quick check (local candidate): Undertow DOM, join a teammate at A or C. Arrived guards slowly watch the incoming approach; close fights keep their dodges near the flag instead of pulling them toward an old map lane. Quiet rear flanks remain possible; gunfire and damage still attract attention. Hold and Counter1/1 is complete and on by default. Encounter pacing, human balance and GPU hitches across FFA/DOM remain unaccepted.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -377,8 +379,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 67 (all63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session67-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 68 (all63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session68-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -390,7 +392,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M04 | met | Session66 Switchyard freight approach121->131 atz50: ground BFS sprint1.56s closed ->1.11s open. A-B/B-C/A-C remain14.44/14.44/11.56s in both states; Relay14.44/14.44/11.78 and Undertow14.22/14.22/11.33 retained. Human timing open. |
 | R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session67 matched Undertow seeds170684/5/6: respawn medians20.1/19.1/24.1s ->17.1/17.2/16.9s, below20-30s target. Contacts<5s0/0/0 ->0/0/1; censored lives retained. Split orders improve distribution, not contact-band acceptance. Initial medians16.1/15.6/16.2s; other-map evidence retained in prior sessions. |
+| R-M07 | not yet | Session68 matched Undertow seeds170684/5/6: respawn medians17.1/17.2/16.9s ->17.4/16.7/18.7s, still below20-30s. Contacts<5s0/0/1 ->1/0/0; censored lives retained. Initial medians16.1/15.6/16.2s unchanged. Better local holds do not establish encounter pacing or human fairness. |
 | R-M08 | partial | Session66 FREIGHT / 04 counterweight echoes the orange cargo under the east amber gantry; readable ground-level cover/open/held stills. West capacitor silhouettes retained. Human wayfinding remains open. |
 | R-M09 | partial | Session64 first-seed telemetry locates all9 fast contacts after hidden respawns crossed the north exit. Four collision-backed exit screens remove the sampled firing line without changing spawn scoring/protection. Three matched seeds have0 fast respawn contacts; human camping, all-exposed fallback and side fairness remain open. Session38 arrival aim retained. |
 | R-M10 | partial | Session64 four full-height Undertow exit screens provide covered approaches into existing home courts; sampled early-contact safety improves and all objective paths remain clear. Session47 Switchyard returns retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
@@ -403,7 +405,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session67 three matched natural12-bot DOM rounds plus1s public-target/allied-position samples and heatmaps. Four-plus bots assigned one goal with>=2unfinished flags83-93% ->0% of team samples. Final scores135:200/200:165/140:200; more kills, shorter contacts, one fast respawn remain. .inspect/session67-orders-comparison.json. Assignment diversity is not physical spacing or human side fairness. |
+| R-M20 | partial | Session68 three matched natural12-bot DOM rounds and heatmaps: scores174:173/201:149/185:174, kills103/109/106. Four-plus assignments with>=2unfinished flags remain0. Arrived samples facing within60degrees of incoming approach82.53/58.97/67.25% ->91.00/96.10/96.35%; includes combat turns, not a LOS verdict. .inspect/session68-hold-{comparison,orientation}.json. Pacing and human fairness remain unaccepted. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -434,12 +436,12 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Session67 Split Fronts1/1 ON: public flag/allied-position coordinator,1s review,12s commitments, preferred two attackers/unfinished flag and one guard/secured flag;8m human presence counts. Overflow reinforces least-staffed unfinished flag. Death/leave/gallery release and round reset tested. Normal nav/perception/reaction/HP/damage preserved. Gallery visitors2/2/0 ->3/4/4; human tactics/difficulty progression open. |
+| R-L11 | partial | Session68 Hold and Counter1/1 ON: close objective duels anchor at close acquisition/current flag, released on target loss/range exit/reassignment/death. Arrived DOM guards scan +/-30degrees/6s toward authored opposing deployment centroid; hearing/vision/reaction/fire rules unchanged, silent rear flank retained. Gallery volunteers omit guard scan. Natural duel offsets<=1.191m; split orders retained. Human tactics and difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session67 matched Switchyard stress208calls/166956triangles/28textures/62.1888MiB unchanged;6.9ms median on RTX5070. Required Relay and supplementary changed-mode DOM profiled hitch PASS with two deaths each. Unchanged FFA baseline381.2ms and rejected GPU-fence candidate387.6ms first frames FAIL; no claimed startup fix. iGPU/thermal/real6v6 remain unaccepted. |
+| R-L14 | partial | Session68 matched Switchyard stress208calls/166956triangles/28textures/62.1888MiB unchanged;6.9ms median on RTX5070. Required Relay hitch PASS:98.507s,two deaths,no>24ms frames. Supplementary unchanged FFA FAIL377.8ms startup/904.4ms during combat; changed-mode DOM FAIL314.8ms during combat. Mostly idle CPU, no long tasks/recompiles/errors; cause unresolved, no runtime/probe workaround. iGPU/thermal/real6v6 unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session67 Split Fronts1/1 completes coordinated DOM capture/defence orders by default; same objective movement serves flag pushes, guarding and temporary gallery routes. Natural20.432s follow capture sees simultaneous allies near multiple objectives; human excitement remains open. All three signature map-event arcs retained. |
+| R-L16 | partial | Session68 Hold and Counter1/1 completes local flag duels and approach scanning by default, using existing movement/aim/audio/animation. Natural20s home-court guard capture plus before captures retained; ordinary controls and real bot combat, no state injection. Human excitement remains open. Split Fronts and all three signature map-event arcs retained. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -451,23 +453,26 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session67: all63 references re-reviewed. Split Fronts1/1 is complete and ON;
-DOM assignment pileups fall sharply, but shorter contacts miss the reference band.
-The first-priority startup investigation reproduced FFA stalls and rejected a GPU
-completion-fence workaround. It did not establish or fix their cause.
+Session68: all63 references re-reviewed. Hold and Counter1/1 is complete and ON;
+arrived guards face approaches and close duels stay local. This bounded hold
+problem is resolved in fixtures, but natural contacts still miss the reference
+band. The unchanged FFA preflight and changed-mode DOM check add mid-combat
+GPU stalls to the startup risk.
 
-1. **Switchyard startup hitch (R-L14), preflight priority.** Session67 unchanged
-   FFA381.2ms and fenced preparation387.6ms startup frames both failed. The fence
-   was removed; original profiling, waits, first frame and150ms assertion remain.
-   Use retained GPU/ANGLE traces to isolate the actual trigger; no favorable-run
-   loop, hidden startup frames or claim that stable Three.js programs solve it.
+1. **GPU hitches across FFA/DOM (R-L14), preflight priority.** Session68 unchanged
+   FFA fails377.8ms at startup AND904.4ms at32.062s; two deaths, no long tasks,
+   shader changes or console errors.872/883CPU samples in the latter gap are
+   idle. Changed-mode DOM also fails314.8ms at54.310s with296/301idle samples.
+   Do not label this startup-only or Switchyard-only. Retained GPU/ANGLE traces and the failed
+   Session67 fence rule out a simple completion-wait fix. Isolate the trigger;
+   preserve profiling, all frames and150ms assertion. No favorable-run loop.
 2. **Encounter pacing and hold counterplay (R-M07/09/20, R-L02/11).** Split
-   orders remove four-plus assignments while multiple flags need capture in all
-   three new seeds, but respawn contacts17.1/17.2/16.9s miss20-30s and one<5s
-   contact appeared. Next bounded task: inspect forward flag holds and initial
-   attack routes, preserving the objective split and existing exit screens.
-   Scores135:200/200:165/140:200 do not establish side fairness. Gallery usage
-   improves in these seeds; human guard/push counterplay remains open.
+   orders still prevent four-plus assignments with multiple unfinished flags.
+   Local dodge/guard-facing fixes now land, but respawn contacts17.4/16.7/18.7s
+   miss20-30s and one<5s contact remains. Next bounded task: inspect initial
+   attack-route contact locations and the remaining fast respawn, preserving
+   split orders, local duels and exit screens. Scores174:173/201:149/185:174
+   do not establish side fairness. Human guard/push counterplay remains open.
 3. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
    course, ping acknowledgement, replicated results countdown and enemy-highlight
    colours. Implementable gaps precede additional cosmetics; human readability,
@@ -10231,3 +10236,185 @@ session67-final-audit.json: owned preview process tree stopped, no8796 listener
 or owned inspection browser; all63 canonical scorecard rows present once; diff
 check clean and all changed/untracked source paths under apps/ironsight/**.
 No commit, push or deployment. Six required gates green; FFA startup risk retained.
+
+
+### Session 68 - 2026-09-10: Hold and Counter arc 1/1 - guard the approach, keep the duel local
+
+Read the standing brief, Session68 supervisor status, plan and all63 design
+principles before implementation. Entry branch ironsight-aaa was clean.
+Supervisor confirms Session67 commit133b005 and preview deployment
+4a6f743f-ba01-46a0-b03e-3c97c38fdb6c. This session is a local candidate only.
+
+Reference: R-M07/09/20, R-G20, R-L11/14/16.
+Targets: close objective dodges stay within2m of their local anchor in the
+fixture; arrived guards watch an authored approach with a +/-30degree/6s scan;
+silent rear flanks remain outside acquisition until ordinary hearing/vision
+allows them; preserve reaction/HP/damage/collision and split assignments;
+measure20-30s contacts and disclose misses; original150ms hitch/two deaths.
+Local duel, scan, perception and required-gate targets pass. Contact timing and
+human fairness remain NOT YET/PARTIAL. All63 scorecard rows reviewed and the
+gap list re-ranked; GPU stalls across FFA/DOM remain first priority.
+
+Preflight and unresolved performance evidence:
+
+- Read Session65 GPU/ANGLE trace summaries and Session67's rejected completion
+  fence. No renderer workaround or probe edit is carried forward.
+- The unchanged production FFA preflight FAILED:40,237.7ms,5,612frames,two
+  natural deaths;377.8ms at378ms and904.4ms at32,062ms. The latter has872/883
+  CPU samples idle. No long task, program change or console error. Evidence:
+  .inspect/session68-hitch-before-ffa.json/log. This extends the recorded risk
+  beyond startup; stable Three.js programs do not rule out browser/driver work.
+- After the server-only change, supplementary DOM ALSO FAILED:83,248.6ms,
+  11,943frames,two deaths;314.8ms at54,310ms,296/301samples idle, zero long
+  tasks/recompiles/errors. session68-hitch-dom.json/log retains the failure.
+  The idle-heavy signature resembles the earlier GPU-path stalls, but these
+  CPU profiles alone do not identify the cause. Do not label it Switchyard-only.
+- Required Relay hitch passes below. Neither that pass nor unchanged executable
+  client bytes erase the supplementary failures. No favorable-run loop, reduced
+  profiling, hidden first frame, changed150ms threshold or longer warm-up.
+
+Delivered, Hold and Counter1/1 complete and on by default:
+
+- Found the close-threat objective branch still using the legacy z=11 combat
+  anchor. It could pull a defender off a distant flag or make an advancing bot
+  retreat when a nearby opponent appeared. Three new checks fail on the entry
+  build: the flag fixture drifts3.3m, the en-route fixture retreats3.0m, and a
+  quiet holder turns outside the intended approach sector. Retained in
+  session68-hold-before-tests.log; no existing assertions were weakened.
+- Close objective duels now copy an anchor when the enemy enters the existing
+  8m close-threat range. Arrived defenders use the flag's own anchor; travellers
+  use their current z, not their earlier distant-acquisition position. Existing
+  +/-1.2m strafe amplitude/cadence and normal movement collision remain. Target
+  loss, range exit, objective change, leaving objective mode and death/reset
+  release the commitment. This also repairs the shared event-route duel branch.
+- Quiet arrived DOM holders watch the centroid of the opposing team's authored
+  deployment positions, computed once from map data. They sweep +/-30degrees
+  over6s through the existing turn-rate limiter. It never reads a hidden enemy
+  location. Sound memory and visible combat override the scan. Existing120degree
+  acquisition/160degree tracking cones,150ms reaction, aim noise, health and
+  damage remain. A silent rear approach remains unseen in the regression fixture.
+- Gallery/core volunteers omit approach scanning and retain route facing.
+  Normal TDM/FFA patrols and stationary practice targets retain their behavior.
+  Split Fronts slot counts,12s orders, human occupancy and release rules stay
+  unchanged. No schema/protocol/state-version, SDK or collision-map change.
+- Four new focused regressions cover local hold/travel, late close acquisition,
+  loss/reassignment/reset, bounded scan/rear flank, sound override, cover and
+  reaction delay. Production-room integration additionally verifies both teams'
+  authored watch points and omission for gallery/TDM. Final full suite599passed,
+  6existing opt-in skips,74passed files/4skipped.
+
+Three matched natural twelve-bot DOM rounds, normal300s rules and the same seeds:
+
+| Seed | Before -> final red:blue | Final length s | Kills before -> final | Respawn median s before -> final | Contacts<5s before -> final | Final observed/censored respawns |
+|---|---|---:|---|---|---|---|
+|170684|135:200 ->174:173|300|88->103|17.1->17.4|0->1|93/9|
+|170685|200:165 ->201:149|289.9|94->109|17.2->16.7|0->0|98/8|
+|170686|140:200 ->185:174|300|93->106|16.9->18.7|1->0|96/10|
+
+Before observed/censored respawns78/9,85/9,85/6. Initial contact medians stay
+16.1/15.6/16.2s,12observed/0censored each. All remain below20-30s. One fast
+respawn moved seeds, and the second seed's score gap increased. No fairness,
+win-rate, excitement or overall pacing acceptance follows from these results.
+Gallery visitors3/4/4 ->5/3/3. Four-plus same-goal assignments with>=2unfinished
+flags stay0 across all three rounds. Censored contacts remain absent, never zero.
+
+One-second arrived-holder samples facing within60degrees of the authored
+incoming approach rise548/664 ->839/922,470/797 ->788/820 and620/922 ->870/903
+(82.53/58.97/67.25% ->91.00/96.10/96.35%). These include combat turns and
+event-route holders; they are orientation evidence, not a LOS/occupancy verdict.
+Final close-duel samples88/55/60 have maximum anchor offsets1.1903/1.1651/1.1875m.
+Before did not record duel metadata: no baseline duel-offset comparison claimed.
+Full reports/heatmaps: .inspect/session68-{before,hold}-{170684,170685,170686}-
+bot-{round,debug}.json and bot-heatmap.svg. Baseline reproduces Session67 scores.
+Reproduce with UNDERTOW_METRICS=1, METRICS_SEED and METRICS_PREFIX through
+pnpm exec vitest run test/undertow-metrics.tool.test.ts, then
+node scripts/dom-orders-summary.mjs session68-before session68-hold and
+node scripts/objective-hold-summary.mjs session68-before session68-hold.
+
+Wow check:
+
+- .inspect/session68-wow-court-report.json retains a20,396ms sequence after
+  normal navigation to the home court,27,912ms total,238samples/20visible-holder
+  samples. hold-{0s,5s,10s,15s,20s}.png shows the A guard, capture and ensuing
+  lane fight;0s and10s reviewed at full size. Natural damage/death/respawn are
+  retained, never prevented. A holder need not survive the entire sequence.
+- Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom
+  --assert-holds --prefix session68-wow-court-review. Driver reads state, walks
+  with W and aims normally; no forced position, health, bot state or clock.
+  After a guard departs it watches the incoming lane while remaining at home.
+  Before40s squad capture retained as session68-wow-before-*.
+- Rejected presentations retained: session68-wow-* first opening clipped through
+  a passing teammate; session68-wow-final-* FAILED with only4visible samples
+  after chasing a distant replacement holder. session68-wow-review-* passed
+  but faced the cap's wall after its guard departed. Corrected only capture
+  navigation/framing, not gameplay. Final court capture has zero console errors.
+- Intended player sentence: "My teammate watches this lane while I take another
+  angle." Design intent, not a human testimonial or a claimed flank playtest.
+
+Matched1920x1080 balanced/DPR1 Switchyard stress, Edge152.0.4191.66,
+RTX5070/ANGLE D3D11:11remote actors plus local viewmodel,145twelve-rifle
+volleys,96blasts/15s and3s drain. The first final stress sample overlapped the
+reference-audit build; retained as session68-overlapped-stress-* and excluded.
+The final comparison is isolated: no build/test/bake or second browser during
+stress or hitch measurement. The server-only change has no render-cost change.
+
+| Measurement | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |208 /166956|208 /166956|0 /0|
+| Textures / estimated MiB |28 /62.1888|28 /62.1888|0 /0|
+| Programs / geometries / instance slots |29 /158 /306|29 /158 /306|0 /0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.2|6.9 /7.1 /7.1|0 /0 /-0.1|
+| Maximum / first-ready ms |7.2 /7.1|7.7 /7.1|+0.5 /0|
+| Construction / preparation ms |79.4 /983.5|80.5 /1499.3|+1.1 /+515.8|
+| Public assets bytes |26696582|26696582|0|
+| Client JS / source map bytes |2079460 /4612713|2079460 /4612713|0 /0|
+| Entire public bytes |33389363|33389363|0|
+
+Public31.8426MiB stays below40MiB, largest file7183364bytes below25MiB.
+No new asset, dependency, light, render pass or per-frame bake; four blast lights
+stay fixed. Meshy spend0credits; reported1530balance unchanged. This AI behavior
+uses existing operators/animation and needs no generated prop. Preparation is
+slower in this sample despite identical client/assets; no speedup, cold-driver,
+server tick-cost, laptop iGPU, thermal or real6v6 claim. Exact data/reproduction:
+.inspect/session68-summary.json and session68-summarize.mjs.
+
+Final gates and reference checks:
+
+- pnpm typecheck PASS; pnpm test PASS(599passed/6existing skips);
+  pnpm build:client PASS; pnpm audit:assets PASS. Full logs:
+  session68-{typecheck,test,build-client,audit-assets}.log.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS, zero console errors/forbidden requests. Repeated after the final capture
+  driver edit: session68-required-final-report.json, required-final-{relay,
+  practice-two}.png/log. Earlier required report also retained.
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+  PASS:98,507.4ms,14,185frames,two natural deaths,no>24ms frames,long tasks,
+  recompiles or errors. session68-hitch-final.json/log. Original500us CPU
+  sampling, setup waits, every startup frame and150ms gate unchanged.
+- Supplementary FFA/DOM FAIL as detailed above. All six REQUIRED gates green
+  does not make those checks green. Exit-code records: session68-static-gates.json
+  and session68-browser-gates.json. All three added/updated inspection scripts parse.
+- Static all-reference audit: session68-reference-audit.json/mjs and
+  tools/reference-audit.ts. All maps150x100m/1250m2per-seat; rotations Relay
+  14.44/14.44/11.78,Undertow14.22/14.22/11.33,Switchyard14.44/14.44/11.56s.
+  Cover classes unchanged. ADS250/200/225/400/165ms,sprint recovery120/100/130/
+  150/90ms,respawn3s,hostile foley1.4,hit/kill pips and two damage cues retained.
+  DOM4/8s capture,1point/2s/flag,no side swap,78hipFOV and top-right feed remain
+  reference mismatches. No reference target was silently relaxed.
+
+Open owner questions/defaults: keep local close duels (yes); guards watch the
+authored incoming side while quiet (yes); retain silent flank/hearing counterplay
+and existing combat stats (yes). No answer blocks continued work. Human guard
+readability, contact pace/side fairness, mouse/audio comfort, actual RTT and
+representative iGPU remain open. The next preflight must address the broader
+GPU stall evidence, not assume all stalls happen at Switchyard startup.
+
+Cleanup: first identity check safely stopped before termination because JSON
+StartTime had already decoded to DateTime; corrected the comparison to UTC epoch
+milliseconds. Verified root PID/start time and each descendant identity, then
+stopped the12-process preview tree. session68-preview-tree.json/cleanup.json
+record zero remaining owned processes,8796 listeners or inspection browsers.
+Final scope/reference audit: session68-final-audit.json; all63 canonical rows
+present once, diff check clean, changed/untracked source paths only under
+apps/ironsight/**. No commit, push or deployment. Six required gates green;
+supplementary FFA/DOM GPU failures explicitly retained.

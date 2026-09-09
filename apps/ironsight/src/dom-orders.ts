@@ -17,10 +17,18 @@ export class DomOrders {
   private readonly orders = new Map<string, Order>();
   private nextReview = 0;
   private signature = '';
-  constructor(private readonly map: Pick<MapDef, 'caps' | 'capWaypoints'>) {}
+  private readonly approaches: readonly (Point | undefined)[];
+  constructor(private readonly map: Pick<MapDef, 'caps' | 'capWaypoints'> & Partial<Pick<MapDef, 'spawns'>>) {
+    // Authored deployment-side centres, not live opponent positions. Compute
+    // once; guards watch the incoming lane while retaining ordinary perception.
+    this.approaches = [map.spawns?.blue, map.spawns?.red].map(points => points?.length
+      ? { x: points.reduce((n,p)=>n+p.x,0)/points.length, z: points.reduce((n,p)=>n+p.z,0)/points.length }
+      : undefined);
+  }
 
   clear(): void { this.orders.clear(); this.signature = ''; this.nextReview = 0; }
   target(id: string): Point | undefined { return this.orders.get(id)?.point; }
+  watch(team: number): Point | undefined { return this.approaches[team]; }
 
   update(now: number, gauges: Record<Cap, number>, allies: readonly DomAlly[]): void {
     const bots = allies.filter(p => p.alive && p.bot && p.available);
