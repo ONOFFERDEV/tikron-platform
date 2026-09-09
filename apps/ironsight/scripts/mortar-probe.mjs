@@ -3,7 +3,7 @@
 export async function mortarProbe({ send, evaluate, waitFor, delay, capture, click, reduced = false }) {
   const mouse = type => send('Input.dispatchMouseEvent', { type, x:960,y:540,button:'left',clickCount:1 });
   const key = async (code, key, n) => { for(const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,code,key,windowsVirtualKeyCode:n}); };
-  const read = () => evaluate(`(() => {const I=window.ironsight;return {mortar:I.mortarInfo(),support:I.supportInfo(),
+  const read = () => evaluate(`(() => {const I=window.ironsight;return {mortar:I.mortarInfo(),support:I.supportInfo(),blast:I.blastInfo(),
     me:I.state().players[I.myId],bots:Object.fromEntries(Object.entries(I.state().players).filter(([id])=>id.startsWith('bot-'))),
     title:document.querySelector('#airSupport strong').textContent, detail:document.querySelector('#airSupport span').textContent};})()`);
   const before=await read(); await capture('mortar-before');

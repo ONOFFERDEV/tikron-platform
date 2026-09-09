@@ -16,7 +16,8 @@ pings (aim, then mark; five-second snapshot). Session 41 adds a required own-mar
 training lesson on every map, including unbound-key guidance. Session 42 adds
 rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; supervisor status confirms it is deployed. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; supervisor status confirms it is deployed. Session48 started Signal Break but failed the supervisor test gate and was not published. Session49 fixes both CPU-heavy test timeouts and completes Signal Break with a collision-backed core passage, safe shutter closure, historical shot barriers and limited bot pushes. Supervisor Session50 status confirms Sessions48/49 passed, were committed as f4c5e55 and deployed to preview. Session50 adds earned UAV recon; supervisor Session51 status confirms commit 8f61762 and preview deployment 10df4e62-db09-4eb8-b7ff-05047aef76a5. Session51 adds the five-kill called mortar; Session52 supervisor status confirms commit1308f51 and preview deployment d693dfc0-9273-452d-adbf-a9c91afcf6f8. Continue the standing brief defaults.
 Session53 quick check (published to preview per Session54 supervisor, commit a35bf17): in Training / Relay, switch through1-5 and fire. Look for the amber rifle crown, compact cool SMG fork, broad orange shotgun bloom, narrow sniper lance and small pistol star. Aim down sights to see the reduced local flash; remote shooters keep their full weapon signature.
-Session54 quick check (local candidate): face a sniper down a long lane. A steady white scope glint appears when its held rifle points toward you, including hip fire. It disappears when the sniper turns away, reloads, dies or takes cover. Reduced motion preserves this warning. This is an optical cue, not proof that the shooter has acquired ADS or can fire this instant. Weapon Spectacle2/3; rotational blast trauma follows in3/3.
+Session54 quick check (published per Session55 supervisor, commit b237662): face a sniper down a long lane. A steady white scope glint appears when its held rifle points toward you, including hip fire. It disappears when the sniper turns away, reloads, dies or takes cover. Reduced motion preserves this warning. This is an optical cue, not proof that the shooter has acquired ADS or can fire this instant.
+Session55 quick check (local candidate): throw G into nearby open ground, or earn five kills and call a mortar with V. Nearby visible impacts rock the horizon with a smooth, bounded roll, then settle within two seconds of the last impact. ADS reduces this motion; Reduced motion switches it off. The center aiming ray stays fixed. Weapon Spectacle3/3 completes the arc by default.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -352,8 +353,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 54. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session54-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 55. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session55-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -385,7 +386,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G04 | met | Session31: stationary cone AR/SMG/shotgun/sniper/pistol 0/.0002/0/.0001/.0002 rad; movement .02/.03/.02/.12/.02 added. Grounded crouch reduces cone 25%; shared accuracy tests. Human burst feel open. |
 | R-G05 | partial | Session31 fixed per-weapon authoritative offsets, four vertical automatic opening shots, later lateral drift; mouse probe and server-ray tests. Secure timed recovery replaces instant release reset; human learning/RTT acceptance open. |
 | R-G06 | met | Session31 bounded center-biased deep-spray cone after 8/7/8/8/5 shots; ADS .65/.70/.80/.50/.65 and grounded crouch .75 multiply. Shared function on server/claims, distribution and authority tests; slow weapons settle between shots. |
-| R-G07 | not yet | Session45 adds bounded 2-degree slide bank and 5.5 cm landing dip, disabled by Reduced motion. Still no trauma-driven rotational shake. |
+| R-G07 | met | Session55 received grenade/mortar impacts add bounded0-1 trauma; roll=trauma squared times smooth7/11Hz waves, <=2degrees, fully decayed within2s. Distance/current cover gated, ADS reduces65%; Reduced motion/death/pause/disconnect clear. Camera quaternion restored after draw, eye/center ray unchanged even during draw. Five regression cases, paired stills, real20s grenade/settings drill and earned mortar captures. Human comfort remains open. |
 | R-G08 | partial | Session31 authoritative aim offset separated from cosmetic weapon kick. Reduced motion preserves the exact aim model; dedicated reduce-view-kick setting remains absent. |
 | R-G09 | partial | Team tint and five held pose families; human silhouette/hold acceptance open. |
 | R-G10 | met | Session53 five original atlas silhouettes and34/42/50/60/64ms lifetimes (2-4frames at60Hz); local/remote share one source and eight pooled slots. Real22.072s five-weapon input capture:17server shots/7hits,all flashes expire. ADS reduces local size/opacity. Human readability/comfort remains open. |
@@ -412,7 +413,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session49 picks at most one living bot per team within45m on the public Relay warning; stages at an entry, then uses existing objective movement/aim/reaction through the open exit. Death/completion cancels the push. No HP/speed/accuracy changes; two natural visitors. Difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session54 scope warning has no quality/Reduced-motion suppression, shares the existing flash atlas and tests current cover before a depth-tested draw. Hidden preparation now submits484instance slots, then restores counts. Matched stress238calls; eleven-scope stress239calls/63.9388MiB/30textures/33prepared programs,zero errors. Existing five flash identities and pooled combat effects retained; human/iGPU review open. |
+| R-L14 | partial | Session55 blast response adds no light/pass/texture/GPU allocation; Reduced motion removes only cosmetic roll and keeps hazard/glint cues. Matched stress238calls; eleven-scope239calls,63.9388MiB/30textures/33programs/484prepared slots unchanged. Median6.9ms on RTX5070, zero inspection errors. Human/iGPU review open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session52 one server lock drives the frozen laser/cross, positional charge sound and confirmed sentry tracer; owner sight/tether and dodge/cover checks resolve damage. Air Support3/3 complete and default, with Momentum/Signal Break retained. Human first-five-minutes quality remains open. |
 | R-L17 | partial | Session52 seven confirmed gun kills earn SENTRY ONLINE, seven HUD pips, duration and operator/counterplay guidance; sentry kills use SENTRY killfeed and do not advance rewards. Small trailing-team shutdown score is announced as TEAM RALLY. No broader medal set. |
@@ -426,25 +427,24 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session54: reviewed all63 rows; supervisor confirms Session53 passed and deployed,
-including the retained sentry and pooled effects. Weapon Spectacle2/3 now adds
-sniper glint by default. Its final session targets bounded rotational blast trauma
-with Reduced motion. Encounter fairness and device review remain open.
+Session55: reviewed all63 rows; supervisor confirms Session54 passed and deployed.
+Completed the selected top gap, Weapon Spectacle3/3: five weapon signatures,
+cover-gated sniper glint and bounded blast roll are all on by default. Re-ranked
+remaining partial/not-yet rows for first-five-minutes impact. Encounter fairness,
+comfort and representative device acceptance remain open.
 
-1. **Weapon Spectacle arc3/3 next (R-G07/10/12/17).** Sessions53/54 deliver five
-   muzzle signatures and cover-gated sniper glint by default. Next add bounded rotational
-   blast trauma with Reduced motion in3/3. Current tracer/impact/reload layers are established; the next top
-   first-five-minutes gap is the readable punch of each weapon. Keep the same
-   lights/passes, collider authority and unchanged draw/texture budgets. Air
-   Support3/3 is complete by default with3/5/7, cancellation and mild catch-up;
-   actual player balance and danger/audio comfort still need review.
+1. **Deployment and match-start presentation arc next (R-L05/06/07/16).**
+   Give arrival a deliberate map/objective introduction, a replicated start
+   countdown and a bounded audio sting. Scope one complete arc of at most three
+   sessions; use current map geometry and constant lights/passes. Avoid a long
+   unskippable intro. Objective-aware highlights can follow in a separate arc.
 2. **Encounter fairness and signature-route value (R-M03/07/09/10/13/20).**
    Session52 Relay initial/respawn damage medians13.7/11.8s still miss20-30s;
    Switchyard2.7/6.05s remains the largest miss. Two natural core visitors now
    observed, but one seeded round cannot establish human route use or fairness.
    Test real fights around the core before calling the new shortcut balanced.
-3. **Presentation, atmosphere and bot personality (R-L05-07/11-14, R-G09).**
-   Deployment/countdown/music stings, objective-aware highlights, distinct bot
+3. **Atmosphere and bot personality (R-L06-07/11-14, R-G09).**
+   Objective-aware highlights, distinct bot
    roles and bounded atmosphere. Core volunteers reuse normal combat attributes;
    fuller personalities/skins remain absent. No new real-time lights or passes.
 4. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is complete by
@@ -7851,3 +7851,154 @@ and the expected preview command before terminating that owned tree. No other
 processes stopped. All six required gates green, git diff --check clean, all
 working paths within apps/ironsight/**. No commit, push or deploy. Session54
 completes Weapon Spectacle2/3 by default; proceed to rotational blast trauma3/3.
+
+### Session 55 - 2026-09-10: Weapon Spectacle arc 3/3 - feel the blast, keep the shot
+
+Read the standing brief, Session55 supervisor status, plan and all63 design
+references. Supervisor confirms Session54 passed, committed b237662 and preview
+deployment b034bb2d-49b9-40ef-9d65-2ffce9bdeb82. Selected the top remaining arc
+item and completed Weapon Spectacle3/3 by default. Re-ranked the63 reference
+rows and gap list: deployment/match-start presentation next, then encounter
+fairness. Branch ironsight-aaa; apps/ironsight/** only; no commit/push/deploy.
+
+Reference: R-G07, R-G08, R-G12, R-G20, R-L14. Target: server-confirmed grenade
+and mortar impacts add0-1 trauma; rotation proportional to trauma squared,
+<=2degrees, fully settled within2s of the last impact, render-only. Reduced
+motion disables it, ADS reduces amplitude65%, existing warnings stay visible,
+and the central aim ray/eye/authoritative recoil do not change. Implemented
+targets met; human comfort/competitive feel remain open.
+
+Replaced the old grenade camera x/y jitter with a smooth7/11Hz roll envelope.
+Each visible grenade adds.85 trauma, mortar1, stacking capped at1. Full response
+inside4m, linear falloff to zero at30m; current hit boxes include ramps and
+Relay shutters and suppress responses behind cover. The same received nadeBoom
+and mortarImpact events feed the effect; scheduled mortar warnings never do.
+No wire/schema/state/scoring/physics/bot changes. Existing explosion rings,
+debris, light pool, positional audio, mortar telegraphs and damage cues remain.
+
+Used roll alone deliberately: it preserves the center aiming ray even DURING
+the draw, unlike pitch/yaw displacement. A saved quaternion is restored in
+finally after the render, including its matrices, so gameplay rays, local
+muzzle queries and subsequent frames see the original pose. No positional
+blast motion, random-per-frame jitter, new light/pass/texture/geometry or GPU
+allocation. Existing traversal landing dip/slide bank remain independent.
+Reduced motion, death, ended match, disconnect and unlocked controls clear
+trauma; disabled periods cannot store a burst for resume. Absolute monotonic
+expiry removes timestep dependence and fully clears after background gaps.
+
+Five new tests cover saturated bounds/squared response/exact expiry,
+frame-rate independence/ADS/clock rollback, range/invalid input/real core
+shutters, eye/forward-ray/center projection and quaternion restoration even
+on a thrown renderer error, plus production SceneRig disable/resume routing.
+All515 tests pass,6existing/opt-in skips;63files pass/4skip. New DOM-importing
+test is typechecked by tsconfig.client.json, following the existing split.
+
+Rejected intermediates: the first test import lacked the browser location
+stub; the first typecheck correctly rejected importing SceneRig from the
+Worker-only lib. Fixed fixture initialization and client test inclusion, not
+production globals. Repeated subtraction left5.46e-14 trauma at the exact2s
+endpoint; replaced it with an absolute expiry, retaining the exact-zero test.
+The first stress run accidentally passed rAF's earlier timestamp to render
+while effects were born at performance.now, omitting first-frame flashes.
+Preserved initial-render-report/summary; restricted explicit time sampling
+to the six offline blast stills and repeated the normal production-clock
+stress. No budget, effect lifetime or gate threshold was relaxed.
+
+Wow check: .inspect/session55-wow-blast-{quiet,before,impact,ads,reduced,settled}.png
+and session55-wow-report.json. These are paired production-renderer fixtures:
+before disables only camera response to the SAME explosion; impact samples
+30ms, settled2100ms. Opened the impact and reviewed the actual Training impact
+too. The camera remains at the same eye; the nearby blast banks the horizon.
+Player sentence: "That blast rocked the whole yard, but I could keep my shot lined up."
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+blast-quiet,blast-before,blast-impact,blast-ads,blast-reduced,blast-settled
+--prefix session55-wow.
+
+Additional real-input wow evidence: session55-game-report.json and
+game-blast-play-{before,impact,settled,reduced}.png, via --shots blast-play
+--prefix session55-game.20.029s Training sequence, two received nadeBoom events,
+maximum observed1.30124degrees;912normal and1965Reduced-motion frame samples.
+Second throw follows a real Settings checkbox click; every Reduced-motion
+sample has exactly zero trauma/roll. Ordinary G and movement input, no injected
+state/event/HP/effect, no claimed bot-TDM encounter. Self-damage is real and
+does not drive this cosmetic response; received blast positions do.
+
+Earned mortar integration: --shots mortar --prefix session55-mortar, existing
+five-kill/V drill and20s post-call sequence. session55-mortar-report.json now
+also records read-only blast diagnostics: zero trauma at1500/2450ms warning,
+.67258/.82845/.93135 at3150/3800/4450ms after the three confirmed impacts,
+zero by6500ms. Normal authoritative target damage and nonrecursive support
+checks pass; final warnings/effects drain. This is Training, not human6v6.
+
+Static reference audit refreshed in session55-reference-audit.json using the
+existing tool. Maps remain150x100m/1250m2 per seat; Relay65full/46waist,
+Undertow52/62, Switchyard63/48. Sprint rotation proxies14.44/14.44/11.78,
+14.22/14.22/11.33,14.44/14.44/11.56s. ADS250/200/225/400/165ms and sprint
+recovery120/100/130/150/90ms;3s respawn,1.4hostile foley, hit/kill pip, two
+damage cues and five-row top-right feed unchanged. DOM4/8s capture,
+1point/2s/flag, no side swap and78FOV still miss their references. Session52
+contact/heatmaps remain pacing evidence; no new fairness claim this session.
+
+Open owner questions/defaults: two-degree roll ceiling(yes),65% ADS reduction
+(yes), complete suppression with Reduced motion(yes), no through-cover shock
+(yes). Defaults active; no answer blocks continuation. Meshy balance1530
+unchanged, zero credits spent: this effect needs no new bitmap or hero asset.
+No new dependency or public asset. Human comfort, moving weapon/hand review,
+RTT/6v6,iGPU,cold-driver/thermal and cross-browser acceptance remain open.
+
+Final source gates PASS: pnpm typecheck, pnpm test(515/6skip), pnpm build:client,
+pnpm audit:assets. Logs .inspect/session55-{typecheck,test,audit}-final.log and
+session55-build-client-final.log. pnpm build also PASS, including Worker dry-run
+297.09KiB/84.48KiB gzip; session55-build-final.log. Explicitly no deployment.
+Only offline timestamp sampling changed after the full test run; final typecheck,
+bundle, audit and inspection reran after that correction.
+
+Matched production-clock render evidence: session55-before-report.json ->
+session55-final-report.json, summary session55-render-summary.json. Same
+1920x1080 balanced/DPR1 Edge152/RTX5070 D3D11,11remotes+local,145twelve-rifle
+volleys,96blasts, existing two-team support fixtures and3s effects drain.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|238|238|0|
+|Peak submitted triangles|150102|150102|0|
+|Resident textures|30|30|0|
+|Estimated texture MiB|63.9388|63.9388|0|
+|Median/p95/p99 frame ms|6.9/7.1/7.1|6.9/7.1/7.2|0/0/+.1|
+|Maximum frame ms|7.2|7.5|+.3|
+|First-ready maximum ms|7.1|7.1|0|
+|Prepared programs/geometries|33/165|33/165|0/0|
+
+Construction88.3->89.3ms; preparation1323->1054.7ms, same484prepared
+instance slots. Cache/order varies; no startup speedup claimed. The additional
+eleven-sniper stress is239calls/153842triangles,6.9/7.1/7.2ms,7.3ms max,
+same texture/program budgets and11visible glints. Peak measured blast roll
+1.83286/1.83316degrees, fully zero after drain. No owned test/bake/inspection
+browser overlapped the performance samples. Same240draw/64MiB/32texture
+limits pass. These are localRTX observations, not representative laptopiGPU
+60fps,thermal,cold-driver,human6v6 or network-capacity acceptance.
+
+Exact required node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS with zero console errors and forbidden offline requests.
+Saved session55-required-report.json/log and required-{relay,practice-two}.png.
+All Session55 completed inspector reports are error-free; report-checks.json.
+Public32,843,238->32,853,088bytes(+9,850), assets26,298,891unchanged,
+client2,026,049->2,029,431(+3,382), source map4,524,158(+6,468).
+Largest remains Switchyard architecture7,184,816bytes.40MiB total and25MiB
+per-file caps pass without exception. Exact bytes: session55-bytes.json.
+
+Final exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS on the first Session55 run. Two bot-caused
+deaths, zero frames>24ms (therefore zero>150ms), zero shader recompiles,
+zero console errors and zero long tasks. Profiler setup87.8ms reported
+separately by the unchanged Session53 probe. Normal12-seat TDM,12:15 at stop;
+no HP/clock/route edits, room isolation, forced deaths or storage reset.
+Evidence: session55-hitch.json/log and hitch.json. No runtime edits after
+final source gates and required map captures.
+
+All six required gates green. Cleanup verified all12 recorded preview-tree
+processes stopped, zero8796listeners and zero remaining inspection/hitch
+browsers; session55-cleanup.json and preview-tree.json. Preview root identity
+checked by creation time and command before stopping its owned descendants.
+git diff --check clean; every working-tree path is inside apps/ironsight/**.
+No commit, push or deploy. Weapon Spectacle3/3 is complete by default.

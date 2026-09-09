@@ -1,4 +1,5 @@
 import { SentryDrone } from './sentry-drone.js';
+import { BlastTrauma } from './blast-trauma.js';
 import { ScopeGlints, scopeGlintStrength } from './scope-glint.js';
 import type { DroneFlight } from '../src/drone.js';
 import { easeAds } from "../src/handling.js";
@@ -336,8 +337,18 @@ export class SceneRig {
   private readonly combatFx: CombatFx;
   private readonly blastLights: { light: THREE.PointLight; born: number }[] = [];
   private blastLightCursor = 0;
-  private shakeAmp = 0;
-  reducedMotion = false;
+  private readonly blastTrauma = new BlastTrauma();
+  private blastFeedback = true;
+  private motionReduced = false;
+  get reducedMotion(): boolean { return this.motionReduced; }
+  set reducedMotion(value: boolean) { this.motionReduced = value; if (value) this.blastTrauma.clear(); }
+  setBlastFeedback(active: boolean): void { this.blastFeedback = active; if (!active) this.blastTrauma.clear(); }
+  inspectBlast() { return this.blastTrauma.inspect(); }
+  /** Called only for received grenade/mortar impacts, never predicted warnings. */
+  blastImpact(point: { x: number; y: number; z: number }, strength = .85, now = performance.now()): void {
+    if (this.blastFeedback && !this.reducedMotion)
+      this.blastTrauma.impact(point, this.camera.position, this.hitBoxes, now, strength);
+  }
   private vaultBlend = 0;
   private launchBlend = 0;
   private slideBlend = 0;
@@ -359,7 +370,6 @@ export class SceneRig {
     if (!active || this.reducedMotion) { this.launchBlend = 0; this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
     return landed;
   }
-  private lastFx = performance.now();
   private readonly vfx: Vfx;
   private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
   private readonly diagScratch = new THREE.Vector3(); // reused by getHitboxDiagnostics, diagnostic-only
@@ -850,24 +860,19 @@ export class SceneRig {
     this.combatFx.bounceNade(e);
   }
 
-  boomNade(e: { id: string; x: number; y: number; z: number; r: number }): void {
-    this.combatFx.boom(e, performance.now());
+  boomNade(e: { id: string; x: number; y: number; z: number; r: number }, now = performance.now()): void {
+    this.combatFx.boom(e, now);
     // Flash + expanding ring + debris burst.
     const slot = this.blastLights[this.blastLightCursor]!;
     this.blastLightCursor = (this.blastLightCursor + 1) % this.blastLights.length;
-    slot.born = performance.now(); slot.light.intensity = 60; slot.light.distance = e.r * 4;
+    slot.born = now; slot.light.intensity = 60; slot.light.distance = e.r * 4;
     slot.light.position.set(e.x, e.y + 0.3, e.z);
-    // Camera shake, attenuated by distance to the blast.
-    const d = this.camera.position.distanceTo(new THREE.Vector3(e.x, e.y, e.z));
-    this.shakeAmp = Math.min(0.6, this.shakeAmp + Math.max(0, 1 - d / 30) * 0.45);
+    this.blastImpact(e, .85, now);
   }
 
   private stepFx(now: number): void {
-    const dt = Math.min(0.1, (now - this.lastFx) / 1000);
-    this.lastFx = now;
     this.combatFx.update(now);
     for (const slot of this.blastLights) slot.light.intensity = 60 * Math.max(0, 1 - (now - slot.born) / BOOM_LIFE_MS);
-    this.shakeAmp *= Math.exp(-dt * 6);
   }
 
   /**
@@ -986,12 +991,10 @@ export class SceneRig {
   // --- camera -----------------------------------------------------------------
 
   setView(eye: { x: number; y: number; z: number }, yaw: number, pitch: number): void {
-    const sx = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
-    const sy = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
-    this.camera.position.set(eye.x + sx, eye.y + sy - this.landingDip, eye.z);
+    this.camera.position.set(eye.x, eye.y - this.landingDip, eye.z);
     const cp = Math.cos(pitch);
     this.camera.up.copy(EYE_UP);
-    this.camera.lookAt(eye.x + Math.sin(yaw) * cp + sx, eye.y + Math.sin(pitch) + sy - this.landingDip, eye.z + Math.cos(yaw) * cp);
+    this.camera.lookAt(eye.x + Math.sin(yaw) * cp, eye.y + Math.sin(pitch) - this.landingDip, eye.z + Math.cos(yaw) * cp);
     this.camera.rotateZ(-this.slideBlend * .035);
   }
 
@@ -1647,7 +1650,7 @@ export class SceneRig {
       const now = performance.now();
       this.stepFx(now + 10000); this.updateTracers(now + 10000);
       for (const light of this.blastLights) { light.born = -Infinity; light.light.intensity = 0; }
-      this.shakeAmp = 0; this.lastFx = now;
+      this.blastTrauma.clear();
       // The warm pass temporarily made hidden diagnostic geometry visible.
       // Bake the correct static shadow atlas before the first playable frame.
       this.renderer.shadowMap.needsUpdate = true;
@@ -1661,12 +1664,11 @@ export class SceneRig {
   getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs,
     instanceSlots: this.preparedInstanceSlots }; }
 
-  render(): void {
-    const now = performance.now();
+  render(now = performance.now()): void {
     this.updateTracers(now);
     this.stepFx(now);
     this.vfx.update(now);
-    this.renderer.render(this.scene, this.camera);
+    this.blastTrauma.render(this.camera, this.renderer, this.scene, now, this.adsProgress);
   }
 
   /** Read-only renderer.info snapshot for perf diagnostics/E2E tooling — draw

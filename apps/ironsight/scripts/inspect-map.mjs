@@ -1,4 +1,5 @@
 import { droneProbe } from './drone-probe.mjs';
+import { blastProbe } from './blast-probe.mjs';
 import { weaponFlashProbe } from './weapon-flash-probe.mjs';
 import { mortarProbe } from './mortar-probe.mjs';
 import { supportProbe } from './support-probe.mjs';
@@ -100,7 +101,7 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
@@ -281,6 +282,8 @@ try {
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'flash-play') combat = await weaponFlashProbe({ send, evaluate, delay, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
+      if (name === 'blast-play') combat = await blastProbe({ send, evaluate, delay, waitFor, click,
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'mortar') combat = await mortarProbe({ send, evaluate, delay, waitFor, click, reduced: args.includes('--mortar-reduced'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'support') combat = await supportProbe({ send, evaluate, delay, waitFor, click,
@@ -430,6 +433,12 @@ try {
       const expected = ['glint-before', 'glint-away', 'glint-cover', 'glint-reload', 'glint-dead'].includes(name) ? 0
         : name.endsWith('effects-stress') ? 11 : 1;
       if (report?.glints?.active !== expected) throw Error(`Scope glint ${name}: expected ${expected}, got ${JSON.stringify(report?.glints)}`);
+    }
+    if (name.startsWith('blast-') && !gameplay) {
+      const expected = ['blast-impact', 'blast-ads'].includes(name);
+      if (!report?.blast || (expected ? Math.abs(report.blast.rollRadians) < .002 : report.blast.rollRadians !== 0))
+        throw Error(`Blast motion fixture failed: ${JSON.stringify(report?.blast)}`);
+      if (Math.abs(report.blast.rollRadians) > 2 * Math.PI / 180) throw Error('Blast exceeded two degrees');
     }
     reports.push({ shot: name, report, combat, assetRequests });
     const capture = await send('Page.captureScreenshot', { format: 'png' });

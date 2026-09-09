@@ -7,6 +7,6 @@
     "declarationMap": false,
     "noEmit": true
   },
-  "include": ["client", "test/settings.test.ts", "test/switchyard-architecture.test.ts", "test/impact-vfx.test.ts", "test/handling-client.test.ts", "test/slide-client.test.ts", "test/traversal-client.test.ts", "test/signal-client.test.ts"],
+  "include": ["client", "test/settings.test.ts", "test/switchyard-architecture.test.ts", "test/impact-vfx.test.ts", "test/handling-client.test.ts", "test/slide-client.test.ts", "test/traversal-client.test.ts", "test/signal-client.test.ts", "test/blast-trauma.test.ts"],
   "exclude": ["dist", "node_modules"]
 }

@@ -206,6 +206,7 @@ async function main(): Promise<void> {
     },
     renderInfo: () => scene.getRenderInfo(),
     glintInfo: () => scene.inspectGlints(),
+    blastInfo: () => scene.inspectBlast(),
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
@@ -357,7 +358,7 @@ async function main(): Promise<void> {
   net.room.onMessage('mortarImpact', payload => {
     if (!payload || typeof payload !== 'object') return;
     const p = payload as { x: number; y: number; z: number };
-    if ([p.x,p.y,p.z].every(Number.isFinite)) playBoom(p);
+    if ([p.x,p.y,p.z].every(Number.isFinite)) { scene.blastImpact(p, 1); playBoom(p); }
   });
 
   const droneLocks = new Map<string,number>();
@@ -554,6 +555,7 @@ async function main(): Promise<void> {
     }
 
     scene.reducedMotion = settings.get().reducedMotion;
+    scene.setBlastFeedback(active && input.locked);
     const signal = state ? signalHud.update(state, net.serverNow(), net.online) : undefined;
     if (signal) scene.updateSignal(signal);
     const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, signal?.phase === 'blackout', input.locked) : undefined;

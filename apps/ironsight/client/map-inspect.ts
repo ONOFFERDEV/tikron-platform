@@ -26,9 +26,10 @@ export function startMapInspector(): void {
   const muzzleLineup = params.get('shot') === 'muzzle-lineup';
   const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
   const glintReview = params.get('shot')?.startsWith('glint-') ?? false;
+  const blastReview = params.get('shot')?.startsWith('blast-') ?? false;
   const actorCount = params.get("shot")?.endsWith('stress') ? 11 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
-  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
-  if (!effects) scene.hideViewmodel();
+  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview });
+  if (!effects && !blastReview) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [124, 91, 126, 75, 0, 45],
     'signal-warning': [61,1.65,22,75,28,-15],
@@ -74,7 +75,7 @@ export function startMapInspector(): void {
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
   const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : glintReview && !effects
-    ? [40, 1.65, 26, 78, 1.5, 26] as const : shots[shotName] ?? shots.overview!;
+    ? [40, 1.65, 26, 78, 1.5, 26] as const : blastReview ? [8,1.65,11,24,1.65,11] as const : shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
   scene.camera.lookAt(shot[3], shot[4], shot[5]);
   if (reviewCamera) {
@@ -124,8 +125,9 @@ export function startMapInspector(): void {
   let started = 0, volleyAt = 0, blastAt = 0, volleys = 0, explosions = 0;
   const calls: number[] = [], triangles: number[] = [];
   let peakTextureMiB = 0, peakTextures = 0;
+  let peakBlastDegrees = 0;
   const tick = (now: number) => {
-    const ready = scene.readyForInspection(actorCount) && (!effects || scene.inspectViewmodel(null, false));
+    const ready = scene.readyForInspection(actorCount) && (!(effects || blastReview) || scene.inspectViewmodel(null, shotName === 'blast-ads'));
     if (ready && !started) { started = now; volleyAt = now; blastAt = now; }
     if (ready) firstFrames.push(now - last);
     if (effects && ready && now - started < 15000) {
@@ -190,7 +192,15 @@ export function startMapInspector(): void {
       const origin = scene.getRemoteMuzzleAnchor(`inspect-${i}`);
       if (origin) scene.spawnMuzzleFlash(origin, { x: -1, y: 0, z: 0 }, i);
     }
-    scene.render();
+    let renderAt = now;
+    if (blastReview && frameCount === 150) {
+      scene.reducedMotion = shotName === 'blast-reduced';
+      scene.setBlastFeedback(shotName !== 'blast-before');
+      if (shotName !== 'blast-quiet') scene.boomNade({ id: 'offline-blast', x: 12.5, y: .2, z: 11, r: 5 }, now);
+      renderAt += shotName === 'blast-settled' ? 2100 : 30;
+    }
+    scene.render(blastReview && frameCount === 150 ? renderAt : undefined);
+    peakBlastDegrees = Math.max(peakBlastDegrees, Math.abs(scene.inspectBlast().rollRadians) * 180 / Math.PI);
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
     if (!ready) { frameCount = 0; samples.length = 0; requestAnimationFrame(tick); return; }
@@ -211,11 +221,12 @@ export function startMapInspector(): void {
       mortar: scene.inspectMortar(),
       drone: scene.inspectDrone(),
       glints: scene.inspectGlints(),
+      blast: { ...scene.inspectBlast(), peakDegrees: peakBlastDegrees, fixture: blastReview ? 'Offline confirmed-impact presentation, same event at 30ms; settled at 2100ms. Before disables only camera response.' : null },
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
-      actorCount: reaction ? 1 : actorCount, localViewmodel: effects, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
+      actorCount: reaction ? 1 : actorCount, localViewmodel: effects || blastReview, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
         rifles: 12, targetShotsPerRiflePerSecond: 10, observedShotsPerRiflePerSecond: volleys / 15, grenadesPerBurst: 12, burstIntervalMs: 2000 } : null,
       medianCalls: [...calls].sort((a,b) => a-b)[Math.floor(calls.length / 2)],
       peakMeasuredCalls: Math.max(...calls), peakMeasuredTriangles: Math.max(...triangles),
