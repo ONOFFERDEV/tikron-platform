@@ -30,6 +30,7 @@ export function remoteWeaponTemplate(gltf: Parameters<typeof cloneWeaponBundleNo
 export class RemoteWeapon {
   readonly mount = new THREE.Group();
   readonly muzzle = new THREE.Object3D();
+  readonly scopeLens = new THREE.Object3D();
   loaded = false;
   private index = -1;
   private parts?: { magazine: THREE.Object3D; bolt: THREE.Object3D };
@@ -71,7 +72,7 @@ export class RemoteWeapon {
       this.hand.getWorldScale(this.a);
       this.mount.scale.setScalar(1 / Math.max(0.001, this.a.x));
     } else group.add(this.mount);
-    this.mount.add(this.muzzle);
+    this.mount.add(this.muzzle, this.scopeLens);
   }
 
   setWeapon(index: number): void {
@@ -87,6 +88,7 @@ export class RemoteWeapon {
     this.fallback.raycast = () => {}; // cosmetic attachment is never a hit target
     this.mount.add(this.fallback);
     this.muzzle.position.set(0, 0, length * 0.8);
+    this.placeScope(length);
     const bundle = GAME.weaponVis.bundle;
     const name = bundle?.nodes[index];
     if (!bundle || !name || !this.hand) return;
@@ -105,7 +107,15 @@ export class RemoteWeapon {
       this.mount.add(mesh);
       this.loaded = true;
       this.muzzle.position.copy(tip).multiplyScalar(scale);
+      this.placeScope(length);
     });
+  }
+
+  private placeScope(length: number): void {
+    // Lens sits above and behind the barrel tip in the same animated mount.
+    this.scopeLens.position.copy(this.muzzle.position);
+    this.scopeLens.position.z -= length * .42;
+    this.scopeLens.position.y += .10;
   }
 
   /** Undo last frame before mixer.update, including bones absent from a clip. */
@@ -278,7 +288,7 @@ export class RemoteWeapon {
       (this.fallback.material as THREE.Material).dispose();
       this.fallback = undefined;
     }
-    for (const child of [...this.mount.children]) if (child !== this.muzzle) this.mount.remove(child);
+    for (const child of [...this.mount.children]) if (child !== this.muzzle && child !== this.scopeLens) this.mount.remove(child);
   }
   dispose(): void {
     ++this.generation; // invalidate pending loads even when the same slot returns

@@ -777,3 +777,17 @@ and tracer boxes into `client/combat-fx.ts`:96tracers,32grenades,12blast slots,
 four shared geometries,constructed and warmed once. No new external asset or
 image. Reproduce the stress/drain with `--shots effects-stress --assert-budgets`
 on the same inspector command.
+
+### Session 54: scope glint (original procedural effect)
+
+`client/weapon-flash.ts` fills the sixth unused cell of the existing 256x128
+RGBA8 atlas with an original optical cross. `client/scope-glint.ts` draws up to
+16 scope reflections in one warmed instanced plane draw. The source/sampler and
+131,072-byte allocation are shared with all five flashes; no image download,
+paid generation, new texture allocation, light, pass or collision asset.
+The animated remote weapon supplies the lens anchor. Replicated sniper aim,
+life/reload and current collision boxes gate visibility; hip fire also warns.
+Reduced motion preserves the steady cue. Reproduce with `pnpm build:client`,
+then `node scripts/inspect-map.mjs --url http://localhost:8796 --shots glint-before,glint-ready,glint-away,glint-cover,glint-reduced`.
+These are offline presentation fixtures, not recorded player encounters.
+Full render stress: `--shots glint-effects-stress --assert-budgets`.

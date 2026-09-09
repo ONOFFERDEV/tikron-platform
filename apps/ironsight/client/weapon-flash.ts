@@ -19,6 +19,7 @@ export function flashEnvelope(ageMs: number, index: number): number {
 }
 
 let textures: readonly THREE.Texture[] | undefined;
+let glintTexture: THREE.Texture | undefined;
 
 /** Original analytic flame silhouettes baked once at startup into five 64px
  * cells. No image download, frame-time bake, material define or extra draw.
@@ -50,6 +51,18 @@ export function weaponFlashTextures(): readonly THREE.Texture[] {
       data[i + 3] = Math.round(alpha * 255);
     }
   }
+  // Sixth, previously empty atlas cell: an optical cross with a small white
+  // core. Shares the existing 128KiB allocation; baked only at construction.
+  for (let py = 0; py < cell; py++) for (let px = 0; px < cell; px++) {
+    const x = (px + .5 - 32) / 31, y = (py + .5 - 32) / 31;
+    const r = Math.hypot(x, y);
+    const cross = Math.exp(-Math.abs(x * y) * 170) * Math.max(0, 1 - r / .94) ** 1.8;
+    const core = Math.exp(-r * r * 100);
+    const halo = Math.exp(-r * r * 14) * .15;
+    const i = ((64 + py) * width + 64 + px) * 4;
+    data[i] = 218; data[i + 1] = 239; data[i + 2] = 255;
+    data[i + 3] = r >= .96 ? 0 : Math.round(Math.min(1, cross + core + halo) * 255);
+  }
   const atlas = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
   atlas.name = 'weapon-flash-atlas';
   atlas.colorSpace = THREE.SRGBColorSpace;
@@ -63,7 +76,15 @@ export function weaponFlashTextures(): readonly THREE.Texture[] {
     view.needsUpdate = true;
     return view;
   });
+  glintTexture = atlas.clone();
+  glintTexture.repeat.set(.25, .5); glintTexture.offset.set(.25, .5);
+  glintTexture.needsUpdate = true;
   return textures;
+}
+
+export function scopeGlintTexture(): THREE.Texture {
+  weaponFlashTextures();
+  return glintTexture!;
 }
 
 export function weaponFlashTexture(index: number): THREE.Texture {

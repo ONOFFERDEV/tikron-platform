@@ -25,7 +25,8 @@ export function startMapInspector(): void {
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
   const muzzleLineup = params.get('shot') === 'muzzle-lineup';
   const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
-  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : muzzleLineup ? 5 : reviewEnemy ? 1 : 0;
+  const glintReview = params.get('shot')?.startsWith('glint-') ?? false;
+  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
@@ -44,6 +45,7 @@ export function startMapInspector(): void {
     'drone-hero': [5,1.65,8,9,2.8,12],
     'muzzle-lineup': [8,1.65,11,14,1.5,11],
     'muzzle-stress': [8,1.65,11,35,1.5,11],
+    'glint-stress': [8,1.65,26,35,1.5,26],
     'drone-stress': [5,1.65,8,9,2.8,12],
     'mortar-warning': [8,1.65,11,16,.5,11],
     'mortar-impact': [8,1.65,11,16,2,11],
@@ -71,7 +73,8 @@ export function startMapInspector(): void {
     'switchyard-stress': [46, 1.65, 29, 65, 1.5, 29],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
-  const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : shots[shotName] ?? shots.overview!;
+  const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : glintReview && !effects
+    ? [40, 1.65, 26, 78, 1.5, 26] as const : shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
   scene.camera.lookAt(shot[3], shot[4], shot[5]);
   if (reviewCamera) {
@@ -87,8 +90,8 @@ export function startMapInspector(): void {
   const actors = new Map(Array.from({ length: actorCount }, (_, i) => [`inspect-${i}`, {
     x: (map === ARENA1 ? 20 : 56) + Math.floor(i / 3) * 4, y: 0, z: (map === ARENA2 ? 27 : map === ARENA3 ? 29 : 10) + (i % 3) * 0.6,
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
-    alive: true, weapon: 0,
-  }] as const));
+    alive: true, weapon: 0, reloadEnd: 0,
+  }] satisfies [string, unknown]));
   if (reviewEnemy) {
     const actor = actors.get('inspect-0')!;
     Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
@@ -97,6 +100,22 @@ export function startMapInspector(): void {
   if (muzzleLineup || mixedWeapons) for (const [i, actor] of [...actors.values()].entries()) {
     Object.assign(actor, { weapon: i % 5 });
     if (muzzleLineup) Object.assign(actor, { x: 14, z: 8 + i * 1.5 });
+  }
+  if (glintReview) {
+    scene.reducedMotion = shotName === 'glint-reduced';
+    for (const actor of actors.values()) {
+      Object.assign(actor, { weapon: 3 });
+      if (effects) actor.z += 15;
+      if (!effects) Object.assign(actor, { x: 78, z: 26 });
+      if (shotName === 'glint-near') actor.x = 52;
+      if (shotName === 'glint-far') actor.x = 138;
+      if (shotName === 'glint-cover') { actor.x = 75; actor.z = 50; scene.camera.position.set(63,1.65,50); scene.camera.lookAt(75,1.5,50); }
+      actor.yaw = Math.atan2(scene.camera.position.x - actor.x, scene.camera.position.z - actor.z);
+      if (shotName === 'glint-away') actor.yaw += Math.PI / 2;
+      if (shotName === 'glint-before') actor.reloadEnd = Date.now() + 60000;
+      if (shotName === 'glint-reload') actor.reloadEnd = Date.now() + 60000;
+      if (shotName === 'glint-dead') actor.alive = false;
+    }
   }
   let frameCount = 0, last = performance.now(), peakCalls = 0, peakTriangles = 0;
   const firstFrames: number[] = [];
@@ -191,6 +210,7 @@ export function startMapInspector(): void {
       support: scene.inspectSupport(),
       mortar: scene.inspectMortar(),
       drone: scene.inspectDrone(),
+      glints: scene.inspectGlints(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),

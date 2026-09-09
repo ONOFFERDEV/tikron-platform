@@ -426,6 +426,11 @@ try {
     }
     if (name === 'relay' || name.startsWith('undertow-') || name === 'practice-two')
       if (assetRequests.some(p => p.includes('switchyard'))) throw Error('Switchyard assets loaded on another map');
+    if (name.startsWith('glint-')) {
+      const expected = ['glint-before', 'glint-away', 'glint-cover', 'glint-reload', 'glint-dead'].includes(name) ? 0
+        : name.endsWith('effects-stress') ? 11 : 1;
+      if (report?.glints?.active !== expected) throw Error(`Scope glint ${name}: expected ${expected}, got ${JSON.stringify(report?.glints)}`);
+    }
     reports.push({ shot: name, report, combat, assetRequests });
     const capture = await send('Page.captureScreenshot', { format: 'png' });
     const file = join(output, `${prefix}-${name}.png`);

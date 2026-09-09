@@ -86,6 +86,23 @@ describe("remote weapon presentation", () => {
     expect(tip.y).toBeGreaterThan(0.7); expect(tip.z).toBeGreaterThan(0.24);
     weapon.dispose(); expect(group.children).toHaveLength(0);
   });
+  it('keeps the scope lens on the animated mount across swaps, crouch and pitch', () => {
+    const group = new THREE.Group(), weapon = new RemoteWeapon(group);
+    const lens = weapon.scopeLens;
+    for (const slot of [3, 0, 3, 4, 3]) {
+      weapon.setWeapon(slot);
+      expect(lens.parent).toBe(weapon.mount);
+      expect(lens.position.z).toBeLessThan(weapon.muzzle.position.z);
+      expect(lens.position.y).toBeGreaterThan(weapon.muzzle.position.y);
+    }
+    weapon.update(1.65, 0, true);
+    const standing = lens.getWorldPosition(new THREE.Vector3());
+    weapon.update(.95, 0, true);
+    expect(lens.getWorldPosition(new THREE.Vector3()).y).toBeCloseTo(standing.y - .7);
+    weapon.update(.95, .5, true);
+    expect(lens.getWorldPosition(new THREE.Vector3()).y).toBeGreaterThan(standing.y - .7);
+    weapon.dispose(); expect(group.children).toHaveLength(0);
+  });
   it("measures the barrel tip rather than the off-axis receiver centre", () => {
     const group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1)); body.position.y = -1;

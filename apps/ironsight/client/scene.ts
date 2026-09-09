@@ -1,4 +1,5 @@
 import { SentryDrone } from './sentry-drone.js';
+import { ScopeGlints, scopeGlintStrength } from './scope-glint.js';
 import type { DroneFlight } from '../src/drone.js';
 import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
@@ -264,6 +265,9 @@ export class SceneRig {
   private hitBoxes: readonly Box[];
   private readonly coreCollision: CoreCollision;
   private readonly players = new Map<string, PlayerRig>();
+  private readonly scopeGlints: ScopeGlints;
+  private readonly scopeLens = new THREE.Vector3();
+  private readonly scopeEye = new THREE.Vector3();
   // Reused across every syncPlayers() call (once per render frame) instead of
   // allocating a fresh Set each time purely to track "seen this frame" ids.
   private readonly seenPlayers = new Set<string>();
@@ -458,6 +462,7 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.combatFx = new CombatFx(this.scene);
+    this.scopeGlints = new ScopeGlints(this.scene);
     this.buildArena(map);
     this.reconFlyover = new ReconFlyover(this.scene, map.bounds.width, map.bounds.depth);
     this.mortarFx = new MortarFx(this.scene);
@@ -998,6 +1003,7 @@ export class SceneRig {
   syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState, serverNow = Date.now(), now = performance.now()): void {
     const seen = this.seenPlayers;
     seen.clear();
+    this.scopeGlints.begin();
     for (const [id, pose] of poses) {
       if (id === selfId) continue;
       seen.add(id);
@@ -1025,6 +1031,13 @@ export class SceneRig {
       }
       rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive, undefined, true,
         remoteReloadProgress(pose.alive, pose.reloadEnd ?? 0, GAME.weapons[pose.weapon]?.reloadMs ?? 1, serverNow));
+      if (pose.alive && pose.weapon === 3) {
+        rig.weapon.scopeLens.getWorldPosition(this.scopeLens);
+        this.scopeEye.set(pose.x, pose.y + (pose.crouch ? PLAYER.crouchEye : PLAYER.standEye), pose.z);
+        const strength = scopeGlintStrength(pose, this.scopeEye, this.scopeLens,
+          this.camera.position, this.hitBoxes, serverNow);
+        this.scopeGlints.add(this.scopeLens, strength, this.camera);
+      }
     }
     // Map iterators tolerate deleting the current/already-visited key mid-loop
     // (spec-guaranteed), so this needs no defensive array copy.
@@ -1034,7 +1047,10 @@ export class SceneRig {
         this.players.delete(id);
       }
     }
+    this.scopeGlints.end();
   }
+
+  inspectGlints() { return this.scopeGlints.inspect(); }
 
   /** Network-free preview: same factory, mixer and weapon update as syncPlayers. */
   inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean, sample = 0.75, reload: number | null = null): boolean {

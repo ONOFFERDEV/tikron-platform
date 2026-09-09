@@ -205,6 +205,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    glintInfo: () => scene.inspectGlints(),
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
