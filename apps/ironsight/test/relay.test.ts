@@ -6,6 +6,27 @@ import { PRACTICE_SHOWCASE_BOTS } from "../src/modes.js";
 import { walkSeconds } from "../src/map/nav.js";
 
 describe("Relay encounter safety", () => {
+  it('keeps cover within twelve metres along the cooling, service and freight routes', () => {
+    for (const [z, from, to] of [[27, 20, 130], [50, 20, 66], [50, 84, 130], [76, 20, 130]]) {
+      for (let x = from!; x <= to!; x += 2) {
+        const distance = Math.min(...ARENA1.boxes.filter(b => b.min.y === 0).map(b =>
+          Math.hypot(Math.max(b.min.x - x, 0, x - b.max.x), Math.max(b.min.z - z!, 0, z! - b.max.z))));
+        expect(distance, `route ${x},${z}`).toBeLessThanOrEqual(12);
+      }
+    }
+  });
+  it('exposes the solid signal spine above cover from all three lane approaches', () => {
+    const spine = ARENA1.boxes.find(b => b.min.y === 6 && b.max.y === 14)!;
+    expect(spine).toBeDefined();
+    const target = { x: 75, y: 13, z: 51 };
+    for (const [x, z] of [[75, 27], [30, 50], [120, 50], [75, 76]]) {
+      const eye = { x: x!, y: PLAYER.standEye, z: z! };
+      const length = Math.hypot(target.x-eye.x, target.y-eye.y, target.z-eye.z);
+      const dir = { x: (target.x-eye.x)/length, y: (target.y-eye.y)/length, z: (target.z-eye.z)/length };
+      expect(nearestBox(eye, dir, ARENA1.boxes.filter(b => b !== spine), length)).toBe(Infinity);
+      expect(nearestBox(eye, dir, [spine], length)).toBeLessThan(length);
+    }
+  });
   it("keeps expanded 6v6 density and all objective sprint rotations in the reference band", () => {
     expect(ARENA1.bounds.width * ARENA1.bounds.depth / MATCH.maxClients).toBeGreaterThanOrEqual(1250);
     const caps = Object.values(ARENA1.caps);
@@ -18,7 +39,7 @@ describe("Relay encounter safety", () => {
       const height = box.max.y - box.min.y;
       expect((height >= 1 && height <= 1.25) || height >= 1.75).toBe(true);
     }
-    expect(new Set(ARENA1.boxes.filter(b => b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([3, 6]));
+    expect(new Set(ARENA1.boxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([3, 6]));
     expect(ARENA1.ramps!.every(r => r.topY === 3)).toBe(true);
   });
   it("no team spawn has a direct eye-height shot into any opposing spawn", () => {

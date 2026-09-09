@@ -54,6 +54,14 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
       for (const sx of [-1, 1]) add("metal", x + sx * (w / 2 - 0.06), y + h / 2, z, 0.16, h, d + 0.024);
     } else {
       add(accent, x, y + h - 0.45, z, w + 0.006, 0.38, d + 0.006);
+      if (y >= 6) {
+        // Solid signal spine: stacked receiver cassettes identify the centre
+        // from each lane. Every panel remains within its authoritative volume.
+        for (const side of [-1, 1]) for (const level of [1.8, 3.8, 5.8]) {
+          add('teal', x + side * (w / 2 + 0.004), y + level, z, 0.008, 1.1, d - 0.5);
+          add('pale', x + side * (w / 2 + 0.009), y + level - 0.48, z, 0.006, 0.08, d - 0.8);
+        }
+      }
       if (h === 6 && w === 10 && d === 12) {
         // The shared 6.4m core is a signal coupler, distinct from service houses.
         // Cassette depth is in the collider; only millimetre cladding crosses it.

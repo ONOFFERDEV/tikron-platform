@@ -549,3 +549,39 @@ pnpm dev:preview
 # In a second terminal:
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --prefix session37-art --write-vista
 ```
+
+
+### Session 44: expanded Relay density, signal spine and metre-scale ground colour
+
+Original collider-derived Relay kit only; no purchased or Meshy input. Relay now
+has 107 boxes (61 full / 46 waist), retaining four 3 m ramps. A solid 14 m signal
+spine sits on the 6 m core; its cassettes stay within 12 mm of authoritative cover.
+The new lane screens and objective shoulders use the same material batches.
+
+`maps/relay-architecture.glb`: 3,388,284 bytes, fresh 1024px AO followed by original
+vertex weathering at 2 m subdivision spacing (30,420 concrete triangles, below the
+unchanged 45,000 cap). The 0.7 m and 1.2 m settings exceeded the cap and were rejected.
+`maps/relay-ground-ao.png`: 769,103 bytes, 2048x1365 = 13.65 pixels/metre along both
+axes. The image remains a one-time multiply into the 512px low-frequency colour
+atlas. Close ground grain now modulates colour using the EXISTING 128px / 0.8 m
+roughness tile (160 px/m), alongside its existing normal map; no added texture.
+This is the tiled-detail option, not a 2048px resident colour atlas. Broad painted
+markings/contact colour remain atlas-limited. Source AO resolution alone does not
+claim 13.65 px/m runtime AO. The original tire/repair coordinates now scale with
+map bounds. All work happens during loading/offline, with no new lights or passes.
+
+Reproduce from the app directory:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session44-maps.json relay
+node tools/dump-architecture.mjs .inspect/session44-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-ground-ao.py -- --maps .inspect/session44-maps.json --size 2048
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-architecture.py -- --input .inspect/session44-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session44-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session44-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots overview,cooling,relay,freight,vista,effects-stress --assert-budgets --prefix session44-final
+```
+
+Existing exact asset allowlist entries remain sufficient. No new binary path,
+dependency, external generation spend or purchased-source derivative is introduced.

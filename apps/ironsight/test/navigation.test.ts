@@ -24,8 +24,8 @@ describe("Relay ground navigation", () => {
     }
   });
   it("keeps an unobstructed target direct rather than making an open route zigzag", () => {
-    const nav = new GroundNavigator(ARENA1), target = { x: 40, z: 11 };
-    expect(nav.next({ x: 5, z: 11 }, target)).toEqual(target);
+    const nav = new GroundNavigator(ARENA1), target = { x: 95, z: 27 };
+    expect(nav.next({ x: 55, z: 27 }, target)).toEqual(target);
   });
   it("does not invent a route into a solid objective", () => {
     const nav = new GroundNavigator(ARENA1), from = { x: 5, z: 5 };

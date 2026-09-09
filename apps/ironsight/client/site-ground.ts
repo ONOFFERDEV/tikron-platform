@@ -31,6 +31,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     // Retired freight traffic: paired broad tire wear, patched concrete and
     // maintenance clearances. Painted into this EXISTING opaque ground atlas.
     ctx.save(); ctx.scale(sx, sz);
+    ctx.save(); ctx.scale(map.bounds.width / 60, map.bounds.depth / 40);
     for (const z of [11.3, 28.4]) for (const offset of [-0.55, 0.55]) {
       ctx.strokeStyle = 'rgba(43,55,49,0.15)'; ctx.lineWidth = 0.22;
       ctx.beginPath(); ctx.moveTo(4, z + offset);
@@ -41,6 +42,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
       ctx.fillStyle = '#7d8981'; ctx.fillRect(x, z, w, d);
       ctx.strokeStyle = '#6f7d74'; ctx.lineWidth = 0.055; ctx.strokeRect(x, z, w, d);
     }
+    ctx.restore();
     for (const b of map.boxes) {
       const w = b.max.x - b.min.x, h = b.max.y - b.min.y;
       if (h !== 6 || w < 18) continue;

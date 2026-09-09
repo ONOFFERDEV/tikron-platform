@@ -55,7 +55,19 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
     });
     for (const name of ['relay-ground', 'relay-apron']) {
       const floor = scene.getObjectByName(name);
-      if (floor instanceof T.Mesh) applyConcreteDetail(floor, detail, 0.12);
+      if (floor instanceof T.Mesh) {
+        applyConcreteDetail(floor, detail, 0.12);
+        if (name === 'relay-ground' && floor.material instanceof T.MeshStandardMaterial) {
+          // Colour aggregate uses the same seamless 0.8m tile as roughness.
+          // Keep the low-frequency painted atlas; no new texture or draw pass.
+          floor.material.onBeforeCompile = shader => {
+            shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>',
+              `#include <roughnessmap_fragment>
+              diffuseColor.rgb *= mix(0.70, 1.18, clamp((texelRoughness.g - 0.64) / 0.36, 0.0, 1.0));`);
+          };
+          floor.material.customProgramCacheKey = () => 'relay-ground-aggregate-v1';
+        }
+      }
     }
   }
 }

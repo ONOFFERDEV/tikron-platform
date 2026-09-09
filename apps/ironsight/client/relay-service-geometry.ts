@@ -43,7 +43,8 @@ export function relayServiceGeometry(map: MapDef): T.BufferGeometry {
         face('vent', x + side * 1.6, b.min.y + 2.35, z, 1.48, 0.74, yaw);
         face('label', x + side * 1.6, b.min.y + 1.3, z, 0.54, 0.54, yaw);
       }
-    } else if (h < 1.5 && w >= 1 && d >= 1) {
+    } else if (h < 1.5 && w >= 1 && w <= 2 && d >= 1) {
+      // Cases identify compact equipment crates, not every broad lane barrier.
       for (const side of [-1]) {
         // Below the existing colored identification band; never wraps a corner.
         face('case', x, b.min.y + h * 0.30,
