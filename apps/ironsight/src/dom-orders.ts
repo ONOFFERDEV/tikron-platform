@@ -5,7 +5,8 @@ type Cap = 'a' | 'b' | 'c';
 export interface DomAlly extends Point {
   id: string; team: number; alive: boolean; bot: boolean; available: boolean;
 }
-interface Order { cap: Cap; point: Point; until: number }
+interface Order { cap: Cap; point: Point; until: number;
+  approach?: { points: readonly Point[]; index: number; until: number } }
 const KEYS: readonly Cap[] = ['a', 'b', 'c'];
 export const DOM_ORDERS = { reviewMs: 1000, commitmentMs: 12000, humanRadius: 8 } as const;
 
@@ -18,7 +19,7 @@ export class DomOrders {
   private nextReview = 0;
   private signature = '';
   private readonly approaches: readonly (Point | undefined)[];
-  constructor(private readonly map: Pick<MapDef, 'caps' | 'capWaypoints'> & Partial<Pick<MapDef, 'spawns'>>) {
+  constructor(private readonly map: Pick<MapDef, 'caps' | 'capWaypoints' | 'capApproaches'> & Partial<Pick<MapDef, 'spawns'>>) {
     // Authored deployment-side centres, not live opponent positions. Compute
     // once; guards watch the incoming lane while retaining ordinary perception.
     this.approaches = [map.spawns?.blue, map.spawns?.red].map(points => points?.length
@@ -28,10 +29,25 @@ export class DomOrders {
 
   clear(): void { this.orders.clear(); this.signature = ''; this.nextReview = 0; }
   target(id: string): Point | undefined { return this.orders.get(id)?.point; }
+  approach(id: string): Point | undefined {
+    const route = this.orders.get(id)?.approach;
+    return route?.points[route.index];
+  }
   watch(team: number): Point | undefined { return this.approaches[team]; }
 
   update(now: number, gauges: Record<Cap, number>, allies: readonly DomAlly[]): void {
     const bots = allies.filter(p => p.alive && p.bot && p.available);
+    // Progress every simulation tick, including between assignment reviews.
+    // Close duels interrupt movement; resuming never rewinds a passed corner.
+    for (const p of bots) {
+      const order = this.orders.get(p.id), route = order?.approach;
+      if (!order || !route) continue;
+      if (now >= route.until || this.distance(p, order.cap) <= 4) {
+        order.approach = undefined; continue;
+      }
+      let point = route.points[route.index];
+      while (point && Math.hypot(point.x-p.x,point.z-p.z) < .8) point = route.points[++route.index];
+    }
     const owners = KEYS.map(k => gauges[k] === 200 ? 0 : gauges[k] === 0 ? 1 : -1);
     const signature = `${owners.join(',')}/${bots.map(p => `${p.id}:${p.team}`).sort().join(',')}`;
     if (signature === this.signature && now < this.nextReview) return;
@@ -72,10 +88,24 @@ export class DomOrders {
           -(this.distance(p,b)+(secured(b)&&!allSecured?40:0)) || KEYS.indexOf(a)-KEYS.indexOf(b));
         const cap = candidates[0]!;
         const point = this.anchors(cap).reduce((a,b) => Math.hypot(a.x-p.x,a.z-p.z) <= Math.hypot(b.x-p.x,b.z-p.z) ? a : b);
-        this.orders.set(p.id,{cap,point:{x:point.x,z:point.z},until:now+DOM_ORDERS.commitmentMs});
+        // Renewing the same flag preserves completed/active route progress.
+        // Reassignment, death, departure or a gallery volunteer drops the route.
+        const old = previous.get(p.id);
+        const approach = old?.cap === cap ? old.approach : this.chooseApproach(p,cap,now);
+        this.orders.set(p.id,{cap,point:{x:point.x,z:point.z},until:now+DOM_ORDERS.commitmentMs,approach});
         loads[cap]++;
       }
     }
+  }
+  private chooseApproach(p: Point, cap: Cap, now: number): Order['approach'] {
+    const distance = this.distance(p,cap);
+    if (distance <= 25) return;
+    const routes = this.map.capApproaches?.[cap]?.filter(route => route.length > 0);
+    const points = routes?.reduce<readonly Point[] | undefined>((best,route) => !best ||
+      Math.hypot(route[0]!.x-p.x,route[0]!.z-p.z) < Math.hypot(best[0]!.x-p.x,best[0]!.z-p.z) ? route : best,undefined);
+    // A reinforcement already beyond both entries goes straight to its flag.
+    if (!points || Math.hypot(points[0]!.x-p.x,points[0]!.z-p.z) >= distance) return;
+    return {points,index:0,until:now+45000};
   }
   private anchors(k: Cap): readonly Point[] {
     const anchors = this.map.capWaypoints?.[k];

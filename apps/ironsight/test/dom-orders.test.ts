@@ -61,13 +61,15 @@ it('feeds normal DOM bot movement and yields to the gallery without changing TDM
   for(const mode of ['dom','tdm']) {
     const h=await createTestRoom(ArenaRoomImpl,{id:`arena-${mode}`,codec:ArenaSchema,sync:'throttled'});
     await h.advance(250);
-    const room=h.room as unknown as {botView(id:string,p:ArenaPlayer):{objective?:{x:number;z:number};objectiveWatch?:{x:number;z:number}};
+    const room=h.room as unknown as {botView(id:string,p:ArenaPlayer):{objective?:{x:number;z:number};objectiveWatch?:{x:number;z:number};objectiveApproach?:{x:number;z:number}};
       corePush:{target(id:string,open:boolean):{x:number;z:number}|undefined}};
     const players=Object.entries(h.snapshot().players);
     expect(players).toHaveLength(12);
     if(mode==='dom') {
       const goals=players.filter(([,p])=>p.team===0).map(([id,p])=>JSON.stringify(room.botView(id,p).objective));
       expect(new Set(goals).size).toBe(3);
+      for(const [id,p] of players)if(room.botView(id,p).objective?.z===95)
+        expect(room.botView(id,p).objectiveApproach).toEqual({x:p.x<75?23:127,z:85});
       const first=players[0]!;
       for(const [id,p] of players) {
         const watch=room.botView(id,p).objectiveWatch!;
@@ -76,10 +78,12 @@ it('feeds normal DOM bot movement and yields to the gallery without changing TDM
       }
       const override=vi.spyOn(room.corePush,'target').mockReturnValue({x:65,z:50});
       expect(room.botView(first[0],first[1]).objective).toEqual({x:65,z:50});
-      expect(room.botView(first[0],first[1]).objectiveWatch).toBeUndefined();override.mockRestore();
+      expect(room.botView(first[0],first[1]).objectiveWatch).toBeUndefined();
+      expect(room.botView(first[0],first[1]).objectiveApproach).toBeUndefined();override.mockRestore();
     } else for(const [id,p] of players) {
       expect(room.botView(id,p).objective).toBeUndefined();
       expect(room.botView(id,p).objectiveWatch).toBeUndefined();
+      expect(room.botView(id,p).objectiveApproach).toBeUndefined();
     }
     vi.clearAllTimers();
   }

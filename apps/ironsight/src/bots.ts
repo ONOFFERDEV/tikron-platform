@@ -125,6 +125,8 @@ export interface BotView {
    * Allied assignments commit briefly so distant fights don't attract every bot.
    * This never supplies enemy positions or changes perception/fire rules. */
   objective?: { x: number; z: number };
+  /** Intermediate covered approach, separate from the actual hold/duel anchor. */
+  objectiveApproach?: { x: number; z: number };
   /** Static map approach to watch AFTER arrival, never a hidden enemy location.
    * Event-route volunteers omit this so they keep looking along their route. */
   objectiveWatch?: { x: number; z: number };
@@ -533,6 +535,7 @@ function domThink(
   view?: BotView,
 ): BotDecision {
   const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
+  const travelTarget = view?.objectiveApproach ?? objective;
   let look: BotLookIntent;
   let fire = false;
   if (enemy) {
@@ -554,7 +557,7 @@ function domThink(
       const yaw = Math.atan2(watch.x - objective.x, watch.z - objective.z)
         + Math.sin(brain.clockMs * TAU / 6000) * Math.PI / 6;
       look = turnToward(self, yaw, 0, dtMs);
-    } else look = searchLook(self, brain, navigate?.(objective) ?? objective, dtMs);
+    } else look = searchLook(self, brain, navigate?.(travelTarget) ?? travelTarget, dtMs);
   }
 
   const enemyDist = enemy ? Math.hypot(enemy.x - self.x, enemy.y - self.y, enemy.z - self.z) : Infinity;
@@ -581,6 +584,6 @@ function domThink(
   // Default: push toward the objective — converts the world-space direction
   // into a move intent relative to wherever we're currently looking (mirrors
   // how combatStrafe lets a bot strafe sideways while keeping its aim on target).
-  const dir = dirTo(self, navigate?.(objective) ?? objective);
+  const dir = dirTo(self, navigate?.(travelTarget) ?? travelTarget);
   return { look, move: worldToMove(look.yaw, dir.x, dir.z), fire };
 }

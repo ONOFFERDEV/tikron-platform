@@ -74,6 +74,11 @@ export interface MapDef {
     readonly b?: readonly Vec3[];
     readonly c?: readonly Vec3[];
   };
+  /** Optional covered ground approaches to an objective. The nearest entry is
+   * chosen from the bot's own position; these are map knowledge, never enemy
+   * tracking. The actual capture/guard anchor remains caps/capWaypoints. */
+  readonly capApproaches?: Partial<Record<'a' | 'b' | 'c',
+    readonly (readonly { readonly x: number; readonly z: number }[])[]>>;
 }
 
 export interface LaunchPad {

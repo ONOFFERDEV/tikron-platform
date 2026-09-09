@@ -864,6 +864,33 @@ pnpm build:client
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom --assert-breakout --prefix session64-review
 ```
 
+### Session 70: Undertow Pump Breach
+
+Two original 3 m pump returns extend the southern housings at x62-64 and
+x86-88, z84-88. The collision tiles also shorten their adjacent waist boxes.
+Both break the long z85 firing line; the two existing B court doors stay open.
+The procedural kit follows these authoritative volumes. Two flush B/PUMP HALL
+signs reuse the existing 1024-square signage atlas and material. No purchased
+input, new texture, light, pass or Meshy generation.
+
+`maps/undertow-architecture.glb`: 6,808,284 bytes (+86,864), 87,460 oriented
+triangles (+1,224), ten material primitives and one 1024-square AO image.
+`maps/undertow-ground-ao.png`: 853,630 bytes (+42), 2048 x 1365, 13.65 px/m.
+Existing original-only allowlists and lazy per-map loading still apply.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session70-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session70-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-ground-ao.py -- --maps .inspect/session70-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-architecture.py -- --input .inspect/session70-architecture.json --size 1024 --samples 64
+python scripts/audit-architecture.py --input .inspect/session70-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-maintenance,undertow-effects-stress --assert-budgets --prefix session70-review
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom --assert-approaches --prefix session70-live
+```
+
 ### Session 65: Switchyard Cargo Shift, stage 1 of 2
 
 Original procedural cargo and hoist in `client/cargo-crane.ts`: a corrugated

@@ -1793,6 +1793,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
       objective,
+      objectiveApproach: !routeTarget && this.gameMode.id === 'dom' ? this.domOrders.approach(id) : undefined,
       objectiveWatch: objective && !routeTarget && this.gameMode.id === 'dom' ? this.domOrders.watch(self.team) : undefined,
       showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };

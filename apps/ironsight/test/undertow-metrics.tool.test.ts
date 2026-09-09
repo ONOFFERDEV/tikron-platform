@@ -55,11 +55,12 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
         const players = Object.entries(state.players);
         if (elapsed % 1000 === 0) {
           // Read the same targets passed to production brains, without changing them.
-          const room = h.room as unknown as { botView(id: string, p: ArenaPlayer): { objective?: {x:number;z:number}; objectiveWatch?: {x:number;z:number} };
+          const room = h.room as unknown as { botView(id: string, p: ArenaPlayer): { objective?: {x:number;z:number}; objectiveWatch?: {x:number;z:number}; objectiveApproach?: {x:number;z:number} };
             botBrains: Map<string,{lockId:string|null;objectiveDuel?:{z:number}}> };
           objectiveSamples.push({atMs:elapsed-liveAt, capA:state.capA,capB:state.capB,capC:state.capC,
             players:players.filter(([,p])=>p.alive).map(([id,p])=>({id,team:p.team,x:p.x,z:p.z,yaw:p.yaw,
               objective:room.botView(id,p).objective,watch:room.botView(id,p).objectiveWatch,
+              approach:room.botView(id,p).objectiveApproach,
               target:room.botBrains.get(id)?.lockId,duel:room.botBrains.get(id)?.objectiveDuel}))});
         }
         if(state.coreOpen!==priorOpen){galleryTransitions.push({atMs:elapsed-liveAt,open:state.coreOpen});priorOpen=state.coreOpen;}

@@ -216,6 +216,10 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     sign(label, cap.x, 2.25, 19.984, Math.PI);
   }
   sign(1, map.caps.b.x, 2.25, 90.016, 0);
+  // Pump returns announce the destination before the covered bend. Reuse the
+  // existing atlas and opaque material; both signs sit on real solid faces.
+  sign(1, 61.984, 2.35, 86, -Math.PI / 2, 3.5);
+  sign(1, 88.016, 2.35, 86, Math.PI / 2, 3.5);
   sign(3, width / 2, 22.8, -14.46, 0, 6);
   // One label per face: the former site label overlapped CLARIFIER ROUTE.
   sign(4, 46, 2.35, 44.016, 0, 4);
