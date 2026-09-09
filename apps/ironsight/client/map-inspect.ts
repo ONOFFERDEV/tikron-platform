@@ -9,6 +9,7 @@ import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
 import { BOT_ROLES } from '../src/bot-roles.js';
+import { enemyHighlight } from './actor-appearance.js';
 
 /** Deterministic production-renderer review. No matchmaking, no gameplay sockets. */
 export function startMapInspector(): void {
@@ -32,11 +33,12 @@ export function startMapInspector(): void {
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
   const muzzleLineup = params.get('shot') === 'muzzle-lineup';
   const roleLineup = params.get('shot')?.startsWith('roles-') ?? false;
+  const contrastReview = params.get('shot')?.startsWith('contrast-') ?? false;
   const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
   const glintReview = params.get('shot')?.startsWith('glint-') ?? false;
   const blastReview = params.get('shot')?.startsWith('blast-') ?? false;
   const introReview = params.get('shot')?.includes('intro-') ?? false;
-  const actorCount = params.get("shot")?.endsWith('stress') || introReview ? 11 : roleLineup ? 3 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
+  const actorCount = params.get('shot') === 'contrast-empty-cover' ? 0 : params.get("shot")?.endsWith('stress') || introReview ? 11 : roleLineup || contrastReview ? 3 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview || introReview });
   if (!effects && !blastReview) scene.hideViewmodel();
   let introFixture: IntroPose | undefined;
@@ -155,6 +157,19 @@ export function startMapInspector(): void {
   if (roleLineup) for (const [i, role] of (['rusher','anchor','sniper'] as const).entries()) {
     Object.assign(actors.get(`inspect-${i}`)!, { x: 14, z: 9 + i * 2, team: 1,
       weapon: shotName === 'roles-before' ? 0 : BOT_ROLES[role].weapon });
+  }
+  if (contrastReview) {
+    scene.camera.position.set(8, 1.65, 11); scene.camera.lookAt(14, 1.5, 11);
+    scene.setActorAppearance(0, false, enemyHighlight(shotName.split('-')[1]));
+    scene.reducedMotion = shotName.endsWith('-reduced');
+    for (const [i, actor] of [...actors.values()].entries()) {
+      Object.assign(actor, { x: 14, z: 9 + i * 2, team: i === 0 ? 0 : 1,
+        weapon: i === 2 ? 3 : i });
+    }
+    if (shotName.endsWith('-cover')) {
+      scene.camera.position.set(63, 1.65, 50); scene.camera.lookAt(75, 1.5, 50);
+      for (const actor of actors.values()) Object.assign(actor, { x: 75, z: 50 });
+    }
   }
   if (glintReview) {
     scene.reducedMotion = shotName === 'glint-reduced';
@@ -282,6 +297,7 @@ export function startMapInspector(): void {
       intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
+      actorAppearance: contrastReview ? scene.inspectActorAppearance() : undefined,
       uplinks: scene.inspectRelayUplinks(),
       signal: scene.inspectSignal(),
       support: scene.inspectSupport(),

@@ -217,6 +217,7 @@ async function main(): Promise<void> {
       input.pitch = pitch;
     },
     renderInfo: () => scene.getRenderInfo(),
+    actorAppearance: () => scene.inspectActorAppearance(),
     glintInfo: () => scene.inspectGlints(),
     blastInfo: () => scene.inspectBlast(),
     introInfo: () => ({ ...intro.inspect(), pose: intro.active ? intro.pose(map, introPose) : null,
@@ -622,6 +623,7 @@ async function main(): Promise<void> {
 
     // Remote players interpolated in the past.
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
+    scene.setActorAppearance(me?.team, isTeamless(MODE_ORDER[state?.mode ?? 0] ?? 'tdm'), settings.get().enemyHighlight);
     scene.syncPlayers(poses, net.myId, dt, undefined, net.serverNow());
     for (const [id, p] of poses) {
       if (id === net.myId || !p.alive) { remoteFoley.delete(id); continue; }

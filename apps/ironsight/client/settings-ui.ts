@@ -52,6 +52,8 @@ const css = `
 #settingsPanel .row { display: flex; align-items: center; gap: 10px; }
 #settingsPanel .sensRow input[type="range"] { flex: 1; }
 #settingsPanel .sensValue { width: 52px; text-align: right; opacity: 0.85; }
+#settingsPanel select { margin-left: auto; max-width: 58%; padding: 7px; color: #eef;
+  background: #202733; border: 1px solid #586171; border-radius: 6px; font: inherit; }
 #settingsPanel label.checkRow { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 #settingsPanel .binds { display: flex; flex-direction: column; gap: 6px; }
 #settingsPanel .bindRow { display: flex; align-items: center; gap: 8px; }
@@ -149,6 +151,26 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   const motionHint = document.createElement("small");
   motionHint.textContent = "Removes weapon bob, sway, breathing and blast shake. Aim, recoil and reload cues remain.";
   panel.append(motionRow, motionHint);
+  const highlightRow = document.createElement('label');
+  highlightRow.className = 'row';
+  highlightRow.append('Enemy colour');
+  const highlightInput = document.createElement('select');
+  highlightInput.dataset.setting = 'enemy-highlight';
+  highlightInput.setAttribute('aria-describedby', 'enemyColourHint');
+  for (const [value, label] of [['team', 'Team colours'], ['yellow', 'Yellow'], ['violet', 'Violet']]) {
+    const option = document.createElement('option');
+    option.value = value!; option.textContent = label!; highlightInput.append(option);
+  }
+  highlightInput.value = settings.get().enemyHighlight;
+  highlightInput.addEventListener('change', () => {
+    if (capturingAction !== null) { highlightInput.value = settings.get().enemyHighlight; return; }
+    settings.setEnemyHighlight(highlightInput.value);
+  });
+  highlightRow.append(highlightInput);
+  const highlightHint = document.createElement('small');
+  highlightHint.id = 'enemyColourHint';
+  highlightHint.textContent = 'Changes enemy operators only. Allies and objective colours stay the same.';
+  panel.append(highlightRow, highlightHint);
   const volumeRow = document.createElement("label");
   volumeRow.className = "row sensRow";
   const volumeInput = document.createElement("input");
@@ -243,7 +265,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     if (capturingAction === null) {
       if (e.code === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
       if (e.code === "Tab") {
-        const controls = Array.from(panel.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)"));
+        const controls = Array.from(panel.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled)"));
         const first = controls[0], last = controls.at(-1);
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
@@ -281,6 +303,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     sensValue.textContent = formatSens(settings.get().sensitivity);
     invertInput.checked = settings.get().invertY;
     motionInput.checked = settings.get().reducedMotion;
+    highlightInput.value = settings.get().enemyHighlight;
     volumeInput.value = String(settings.get().volume); volumeValue.textContent = "100%";
     for (const a of BIND_ACTIONS) refreshKeyButton(a);
   });

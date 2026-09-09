@@ -1,4 +1,5 @@
 import { SentryDrone } from './sentry-drone.js';
+import { ActorAppearance, actorColor, type EnemyHighlight } from './actor-appearance.js';
 import { IntroCamera } from './deployment-intro-view.js';
 import type { IntroPose } from './deployment-intro.js';
 import { BlastTrauma } from './blast-trauma.js';
@@ -219,6 +220,7 @@ interface PlayerPose {
  *  the player GLB is loaded) an animated model clone. `kind` discriminates which
  *  fields below are populated — see {@link SceneRig.makeRig}. */
 interface PlayerRig {
+  appearance: ActorAppearance;
   contact?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   weapon?: RemoteWeapon;
   group: THREE.Group;
@@ -1020,6 +1022,22 @@ export class SceneRig {
 
   // --- players ----------------------------------------------------------------
 
+  private viewerTeam: number | undefined;
+  private teamless = false;
+  private enemyHighlight: EnemyHighlight = 'team';
+  setActorAppearance(viewerTeam: number | undefined, teamless: boolean, highlight: EnemyHighlight): void {
+    this.viewerTeam = viewerTeam;
+    this.teamless = teamless;
+    this.enemyHighlight = highlight;
+  }
+
+  inspectActorAppearance() {
+    return [...this.players].map(([id, rig]) => ({ id, team: rig.team,
+      colors: rig.appearance.materials.map(m => m.color.getHex()),
+      versions: rig.appearance.materials.map(m => m.version),
+      depthTest: rig.appearance.materials.every(m => m.depthTest && m.depthWrite && !m.transparent) }));
+  }
+
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
    *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
@@ -1037,6 +1055,8 @@ export class SceneRig {
         this.players.set(id, rig);
       }
       rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
+      rig.appearance.setColor(actorColor(TEAM_COLOR[pose.team] ?? 0xaaaaaa, pose.team,
+        this.viewerTeam, this.teamless, this.enemyHighlight));
       rig.weapon.setWeapon(pose.weapon);
       rig.weapon.beforeAnimation();
       rig.model?.setWeaponHold(pose.weapon);
@@ -1290,7 +1310,11 @@ export class SceneRig {
       hitboxOverlay = buildHitboxOverlay();
       group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
     }
-    return { group, team, kind: "capsule", body, head, hitboxOverlay, contact: this.makeContactShadow(group) };
+    const appearance = new ActorAppearance(body, TEAM_COLOR[team] ?? 0xaaaaaa);
+    // Both fallback meshes shared the source material; retain that sharing.
+    head.material = body.material;
+    mat.dispose();
+    return { group, appearance, team, kind: "capsule", body, head, hitboxOverlay, contact: this.makeContactShadow(group) };
   }
 
   private makeModelRig(id: string, team: number, gltf: GLTF): PlayerRig {
@@ -1320,7 +1344,7 @@ export class SceneRig {
         n.receiveShadow = true;
       }
     });
-    applyTeamTint(object, TEAM_COLOR[team] ?? 0xaaaaaa);
+    const appearance = new ActorAppearance(object, TEAM_COLOR[team] ?? 0xaaaaaa);
 
     group.add(object);
     this.scene.add(group);
@@ -1331,6 +1355,7 @@ export class SceneRig {
     }
     return {
       group,
+      appearance,
       contact: this.makeContactShadow(group),
       team,
       kind: "model",
@@ -1817,28 +1842,6 @@ function clamp(v: number, lo: number, hi: number): number {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
-}
-
-/** Colors the player GLB for its team. A mesh with NO texture map (the original
- *  shape-only UniRig asset) gets a fresh flat team-tinted MeshStandardMaterial.
- *  A mesh that DOES carry a texture map (the KayKit-based asset's authored look)
- *  gets a per-instance clone of its own material with `color` set to the team
- *  tint — `material.color` multiplies the diffuse map in three.js, so this
- *  colors the texture instead of replacing it, preserving the authored detail. */
-function applyTeamTint(object: THREE.Object3D, color: number): void {
-  const tint = new THREE.Color(color);
-  object.traverse((node) => {
-    if (!(node instanceof THREE.Mesh)) return;
-    const tintOne = (m: THREE.Material): THREE.Material => {
-      if ((m as { map?: unknown }).map instanceof THREE.Texture) {
-        const clone = m.clone();
-        (clone as THREE.MeshStandardMaterial).color.set(tint);
-        return clone;
-      }
-      return new THREE.MeshStandardMaterial({ color: tint, roughness: 0.7, metalness: 0.05 });
-    };
-    node.material = Array.isArray(node.material) ? node.material.map(tintOne) : tintOne(node.material);
-  });
 }
 
 // --- per-weapon procedural viewmodels -----------------------------------------

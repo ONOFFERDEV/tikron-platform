@@ -43,7 +43,9 @@ Session66 quick check (published per Session67 supervisor, commit b81ec33): Trai
 
 Session67 quick check (published per Session68 supervisor, commit 133b005): Undertow DOM, follow a teammate out of deployment and watch the minimap as the round develops. Bots now split their pushes between unfinished flags and leave a defender at secured flags. Nearby human teammates count toward reinforcements; a gallery volunteer temporarily leaves its usual assignment. Split Fronts1/1 is complete and on by default. Contact timing and human balance remain unaccepted; the separate Switchyard GPU hitch remains unresolved.
 
-Session68 quick check (local candidate): Undertow DOM, join a teammate at A or C. Arrived guards slowly watch the incoming approach; close fights keep their dodges near the flag instead of pulling them toward an old map lane. Quiet rear flanks remain possible; gunfire and damage still attract attention. Hold and Counter1/1 is complete and on by default. Encounter pacing, human balance and GPU hitches across FFA/DOM remain unaccepted.
+Session68 quick check (published per Session69 supervisor, commit ba440b3): Undertow DOM, join a teammate at A or C. Arrived guards slowly watch the incoming approach; close fights keep their dodges near the flag instead of pulling them toward an old map lane. Quiet rear flanks remain possible; gunfire and damage still attract attention. Hold and Counter1/1 is complete and on by default. Encounter pacing, human balance and GPU hitches across FFA/DOM remain unaccepted.
+
+Session69 quick check (local candidate): operators now have a restrained lit edge against machinery. Open Settings / Enemy colour and choose Yellow or Violet to recolour opponents; Team colours restores the original teams. Allies, objectives and the feed keep their team colours. FFA/training treats every remote operator as an opponent. The setting saves immediately; cover still hides the entire operator. Clear Contact 1/1 is complete and on by default (rim on, team colours default). Human colour-vision/readability acceptance and intermittent GPU stalls remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -379,8 +381,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 68 (all63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session68-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 69 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session69-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -414,7 +416,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G06 | met | Session31 bounded center-biased deep-spray cone after 8/7/8/8/5 shots; ADS .65/.70/.80/.50/.65 and grounded crouch .75 multiply. Shared function on server/claims, distribution and authority tests; slow weapons settle between shots. |
 | R-G07 | met | Session55 received grenade/mortar impacts add bounded0-1 trauma; roll=trauma squared times smooth7/11Hz waves, <=2degrees, fully decayed within2s. Distance/current cover gated, ADS reduces65%; Reduced motion/death/pause/disconnect clear. Camera quaternion restored after draw, eye/center ray unchanged even during draw. Five regression cases, paired stills, real20s grenade/settings drill and earned mortar captures. Human comfort remains open. |
 | R-G08 | partial | Session31 authoritative aim offset separated from cosmetic weapon kick. Reduced motion preserves the exact aim model; dedicated reduce-view-kick setting remains absent. |
-| R-G09 | partial | Session59 combat bots hold role-specific existing SMG/AR/sniper models and pose families. Paired three-operator loadout stills and real20.474s TDM with all three weapons firing. Team silhouettes unchanged; dedicated role skins and human readability/hold acceptance remain open. |
+| R-G09 | partial | Session69 adds a bounded material rim to the existing operator and capsule fallback, with no outline geometry or extra pass. Matched six-metre role stills retain weapons/poses and surface detail. Enemy-only yellow/violet choices and live switching tested. Distinct role skins, all-range silhouette and human hold/readability acceptance remain open. |
 | R-G10 | met | Session53 five original atlas silhouettes and34/42/50/60/64ms lifetimes (2-4frames at60Hz); local/remote share one source and eight pooled slots. Real22.072s five-weapon input capture:17server shots/7hits,all flashes expire. ADS reduces local size/opacity. Human readability/comfort remains open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
 | R-G12 | partial | Session47 launch uses existing lowered traversal weapon pose; before/flight/landing/reduced captures retain the center aiming corridor. No new hand/remote flight clip; moving pose acceptance remains human work. |
@@ -437,27 +439,28 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session68 Hold and Counter1/1 ON: close objective duels anchor at close acquisition/current flag, released on target loss/range exit/reassignment/death. Arrived DOM guards scan +/-30degrees/6s toward authored opposing deployment centroid; hearing/vision/reaction/fire rules unchanged, silent rear flank retained. Gallery volunteers omit guard scan. Natural duel offsets<=1.191m; split orders retained. Human tactics and difficulty progression open. |
-| R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
-| R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session68 matched Switchyard stress208calls/166956triangles/28textures/62.1888MiB unchanged;6.9ms median on RTX5070. Required Relay hitch PASS:98.507s,two deaths,no>24ms frames. Supplementary unchanged FFA FAIL377.8ms startup/904.4ms during combat; changed-mode DOM FAIL314.8ms during combat. Mostly idle CPU, no long tasks/recompiles/errors; cause unresolved, no runtime/probe workaround. iGPU/thermal/real6v6 unaccepted. |
+| R-L12 | partial | Session69 squared Fresnel edge uses the existing opaque material; emissive edge strength rises from .42 to .62 over10-45m. Original map/character palette retained by default. Matched stills show edge separation; no all-lighting/all-range or human readability acceptance. |
+| R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
+| R-L14 | partial | Session69 operator rim uses existing opaque draws; choices change uniforms only. Hidden operators vs empty cover pixel-identical. Matched stress208calls/166956triangles/28textures/62.1888MiB and6.9ms median unchanged on RTX5070. Required Relay hitch63.944s PASS; FFA62.924s PASS with90.1ms startup frame; DOM74.346s PASS/no>24ms frames. Two deaths each. Session68 FFA377.8/904.4ms and DOM314.8ms failures remain unresolved; no runtime/probe workaround. iGPU/thermal/human visibility unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session68 Hold and Counter1/1 completes local flag duels and approach scanning by default, using existing movement/aim/audio/animation. Natural20s home-court guard capture plus before captures retained; ordinary controls and real bot combat, no state injection. Human excitement remains open. Split Fronts and all three signature map-event arcs retained. |
+| R-L16 | partial | Session69 Clear Contact1/1 ON: default operator rim plus optional saved enemy colours. One existing material does surface and edge work; all choices share one shader. Paired role stills and20.705s normal bot TDM navigation retained. Human excitement remains open; all three map events and prior tactics remain. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Session59 existing five-row top-right feed/rosters now use stable RUSH/ANCHOR/SCOUT names for combat bots; actual mixed-weapon/assist/local-victim captures pass. Team colour and weapon/HEADSHOT text retained; objective feed and bottom-left convention remain unmet. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
 | R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
-| R-L23 | not yet | No enemy-highlight colour dropdown. |
+| R-L23 | met | Session69 Settings / Enemy colour: Team colours(default), Yellow, Violet. Existing material tint/rim uniforms only; known opponents override, allies remain, FFA/training all remotes hostile. TDM/FFA keyboard switching,800x600 control, save/reset/invalid migration, stable programs/material versions and pixel-identical hidden-operator/empty-cover images pass. Implemented dropdown check, not human colour-vision acceptance. |
 
 
 ## AAA gap list
 
-Session68: all63 references re-reviewed. Hold and Counter1/1 is complete and ON;
-arrived guards face approaches and close duels stay local. This bounded hold
-problem is resolved in fixtures, but natural contacts still miss the reference
-band. The unchanged FFA preflight and changed-mode DOM check add mid-combat
-GPU stalls to the startup risk.
+Session69: all 63 references re-reviewed. GPU preflight came first: traced FFA
+and ordinary DOM passed, so there was no failing window to attribute or justify
+another renderer workaround. Prior failures remain unresolved. Clear Contact1/1
+finishes the bounded operator-readability/accessibility item this session;
+encounter pacing needs the retained multi-seed route investigation and remains
+unaccepted. The rim is on by default; enemy recolouring is a saved preference.
 
 1. **GPU hitches across FFA/DOM (R-L14), preflight priority.** Session68 unchanged
    FFA fails377.8ms at startup AND904.4ms at32.062s; two deaths, no long tasks,
@@ -465,7 +468,10 @@ GPU stalls to the startup risk.
    idle. Changed-mode DOM also fails314.8ms at54.310s with296/301idle samples.
    Do not label this startup-only or Switchyard-only. Retained GPU/ANGLE traces and the failed
    Session67 fence rule out a simple completion-wait fix. Isolate the trigger;
-   preserve profiling, all frames and150ms assertion. No favorable-run loop.
+   preserve profiling, all frames and150ms assertion. Session69 preflight FFA43.590s
+   (traced) and DOM64.407s (ordinary) pass with two deaths/no>24ms frames;
+   Final ordinary FFA62.924s passes with90.1ms startup frame; DOM74.346s
+   passes with no>24ms frames. These do not erase Session68 failures. No favorable-run loop.
 2. **Encounter pacing and hold counterplay (R-M07/09/20, R-L02/11).** Split
    orders still prevent four-plus assignments with multiple unfinished flags.
    Local dodge/guard-facing fixes now land, but respawn contacts17.4/16.7/18.7s
@@ -474,8 +480,8 @@ GPU stalls to the startup risk.
    split orders, local duels and exit screens. Scores174:173/201:149/185:174
    do not establish side fairness. Human guard/push counterplay remains open.
 3. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
-   course, ping acknowledgement, replicated results countdown and enemy-highlight
-   colours. Implementable gaps precede additional cosmetics; human readability,
+   course, ping acknowledgement and replicated results countdown. Enemy-colour
+   choices now ship in Session69; human colour-vision/role readability,
    role skins/voice barks and accessibility acceptance remain open.
 4. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
    economy/side swap, separate weapon FOV, view-kick control, doorway acoustics
@@ -10418,3 +10424,174 @@ Final scope/reference audit: session68-final-audit.json; all63 canonical rows
 present once, diff check clean, changed/untracked source paths only under
 apps/ironsight/**. No commit, push or deployment. Six required gates green;
 supplementary FFA/DOM GPU failures explicitly retained.
+
+
+### Session 69 - 2026-09-10: Clear Contact arc 1/1 - operator edges and enemy colour choices
+
+Read the standing brief, Session69 supervisor status, plan and all63 reference
+principles in the requested order. Entry branch ironsight-aaa was clean.
+Supervisor confirms Session68 commit ba440b3 and preview deployment
+f5defbec-5f3f-4364-b9ba-94b56be8f508. This session is a local candidate only.
+
+Reference: R-G09, R-L12/13/14/16/23.
+Targets: strengthen the existing character silhouette without extra draws,
+textures, lights or passes; offer saved enemy-only colour choices using the
+same material/shader; preserve opaque cover occlusion, team identity, geometry,
+weapons and hit authority; keyboard access at800x600; no material version or
+program-count change while switching; retain the original150ms/two-death gate.
+Implemented targets pass. Human colour-vision, all-range readability, excitement
+and representative iGPU performance remain unaccepted. R-L23 becomes MET for
+the implemented dropdown; broader clarity rows stay PARTIAL. All63 rows reviewed.
+
+GPU preflight and scope choice:
+
+- Read the Session65 GPU/ANGLE attribution and Session67 rejected completion
+  fence, plus Session68's unchanged FFA and changed-mode DOM failures. The
+  existing evidence includes mid-combat stalls, not only Switchyard startup.
+- Unchanged FFA with the existing optional GPU trace/timing flags PASS:
+  43,589.5ms,6,276frames,two deaths,no>24ms frames,long tasks,recompiles/errors.
+  .inspect/session69-hitch-before-ffa.json/log and -trace.json retain the run.
+  scripts/hitch-trace-summary.mjs reports no failing windows. Tracing changes
+  observation/timing, so this is not an untraced acceptance substitute.
+- Unchanged ordinary DOM preflight PASS:64,407.4ms,9,274frames,two deaths,
+  no>24ms frames,long tasks,recompiles/errors. session69-hitch-before-dom.json/log.
+  No failing trigger was available to attribute this session; no renderer
+  workaround was justified. Prior377.8/904.4/314.8ms failures remain evidence.
+- Chose the bounded first-play operator-readability/accessibility gap after
+  this preflight. Contact pacing still needs the retained multi-seed attack
+  route investigation; this session changes no bot/combat/layout balance to
+  make the timing metric pass. GPU diagnosis and contact routes remain the
+  first two ranked gaps. No probe edit, profiling reduction or favorable-run loop.
+
+Delivered, Clear Contact1/1 complete and on by default:
+
+- ActorAppearance replaces the old tint helper with per-operator owned
+  materials. A squared Fresnel term adds a restrained lit edge to the same
+  standard-material emissive contribution. Strength .42 near to .62 far,
+  smoothly increasing over10-45m of view distance. It never extrudes the mesh,
+  samples hidden state or adds a screen outline, light, draw or render pass.
+  Original texture, skinning geometry, animation, weapon holds and dark details
+  remain. The procedural capsule fallback receives the same material path.
+- The existing preparation fixture compiles and draws this exact shader before
+  controls attach. Team colours remain the default, including for old saves.
+  Settings / Enemy colour adds Yellow and Violet. Only known opponents get
+  the override; allies keep their team tint. FFA and training classify every
+  remote operator as hostile. Unknown viewer team falls back to team colours.
+  Local hands/weapons, objective colours and HUD/feed team colours remain.
+- Changes update the existing diffuse/rim colour uniform references. No material
+  recreation, needsUpdate, shader defines or per-frame hierarchy traversal.
+  Every colour remains opaque, depth-tested and depth-writing; Reduced motion
+  has the same cue. Only existing replicated operators can be drawn.
+- The labelled native select supports keyboard input, visible focus, the modal
+  focus loop, narrow scrolling, immediate persistence and Reset all. Invalid
+  saved values fall back to team colours. Changing another binding protects
+  the select under the panel's existing capture guard.
+- Three focused regressions cover both teams/teamless/unknown classification,
+  texture/geometry sharing and per-operator isolation, live uniform identity
+  without material-version changes, opaque depth state, old/malformed settings,
+  persistence and reset. First typecheck found the new DOM-dependent test in
+  the server tsconfig; moved it into the existing client-test include/exclude
+  pattern. Final typecheck and all602tests pass; no assertion was weakened.
+
+Wow check and actual UI evidence:
+
+- Before/default-after paired stills: .inspect/session69-before-roles-after.png
+  and session69-contrast-roles-after.png, same factory, camera, three loadouts
+  and pose fixture. Reviewed at full size. Edge strength is intentionally
+  restrained; this does not claim new operator art or a major silhouette change.
+- session69-contrast-contrast-{team,yellow,violet}.png shows one unchanged red
+  ally and two opponents in the selected colour. The yellow pair demonstrates
+  the readily visible new choice. Yellow-reduced retains the same cue.
+  Yellow-cover shows the closed core hiding all three operators.
+- Stronger occlusion control: session69-verify-contrast-empty-cover.png vs
+  session69-verify-contrast-yellow-cover.png are pixel-identical at1920x1080:
+  zero differing pixels. Same camera/core, zero vs three operators behind it.
+  .inspect/session69-occlusion.json records the comparison. This checks one
+  real cover fixture; it is not an all-map LOS or human visibility audit.
+- scripts/contrast-probe.mjs opens the actual pause/settings UI, selects with
+  Home/ArrowDown/Enter, closes/resumes, then repeats Team/Yellow/Violet/Team/
+  Yellow. TDM checks11remote actors, unchanged ally colours, stable material
+  versions and33programs at every switch. FFA separately checks all11remotes
+  as opponents with29programs. Stored choice and settings fit at1920/800 widths
+  pass. Reports: session69-{wow,verify}-report.json, matching logs and stills.
+- The TDM probe then runs20,705ms of normal W/look navigation through a real
+  bot round:210samples,310received shot events. roles-live-{0s,5s,10s,15s,20s}
+  stills retain natural movement/damage. Reviewed10s/20s: they mainly show allies
+  and cover, so they are UI/integration evidence, not a staged enemy showcase.
+  The paired operator stills above are the visual wow evidence. No health,
+  position, bot, clock, loadout or support event is injected into live gameplay.
+- Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots tdm
+  --assert-contrast --prefix session69-wow-review; repeat with --shots ffa for
+  teamless coverage. Offline --shots roles-after,contrast-team,contrast-yellow,
+  contrast-violet,contrast-yellow-reduced,contrast-yellow-cover,contrast-empty-cover.
+- Intended player sentence: "I can make enemies stand out from the machinery
+  without losing sight of who is on my team." Design intent, not a testimonial.
+
+Matched1920x1080 balanced/DPR1 Switchyard stress, Edge152.0.4191.66,
+RTX5070/ANGLE D3D11:11remote actors plus local viewmodel,145twelve-rifle volleys,
+96blasts/15s and3s drain. No build/test/bake or second inspection browser ran
+alongside either stress sample or a hitch measurement.
+
+| Measurement | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |208 /166956|208 /166956|0 /0|
+| Textures / estimated MiB |28 /62.1888|28 /62.1888|0 /0|
+| Programs / geometries / instance slots |29 /158 /306|29 /158 /306|0 /0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.1|6.9 /7.1 /7.1|0 /0 /0|
+| Maximum / first-ready ms |7.7 /7.1|7.2 /7.0|-0.5 /-0.1|
+| Construction / preparation ms |56.4 /593.2|57.1 /579.3|+0.7 /-13.9|
+| Public assets bytes |26696582|26696582|0|
+| Client JS / source map bytes |2079460 /4612713|2084840 /4625864|+5380 /+13151|
+| Entire public bytes |33389363|33407894|+18531|
+
+Public31.8603MiB remains below40MiB; largest file7183364bytes below25MiB.
+No new binary asset, dependency, light, render pass or per-frame bake. Four
+blast lights remain fixed. Meshy spend0credits; reported1530balance unchanged.
+This material/UI change uses the existing operators and needs no generated prop.
+Timing differences are sample variability, not a claimed GPU speedup. No iGPU,
+thermal, cold-driver or real6v6/RTT acceptance. Reproduction/data:
+.inspect/session69-summarize.mjs and session69-summary.json; stress files are
+session69-before-* and session69-contrast-*.
+
+Final gates and references:
+
+- pnpm typecheck PASS; pnpm test PASS(602passed/6existing skips,75passed files/
+  4skipped); pnpm build:client PASS; pnpm audit:assets PASS. Full logs:
+  session69-{typecheck,test,build-client,audit-assets}.log and static-gates.json.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS, zero console errors/forbidden requests. session69-required-report.json,
+  required-{relay,practice-two}.png and required.log retain the exact run.
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+  PASS:63,943.7ms,9,208frames,two natural deaths,no>24ms frames,
+  long tasks,recompiles/errors. session69-hitch-final.json/log. Original500us
+  CPU sampling, setup waits, startup frames and150ms assertion unchanged.
+- Supplementary ordinary FFA PASS:62,924.4ms,9,049frames,two deaths.
+  One90.1ms startup frame at716ms is retained (below150ms); no long tasks,
+  shader changes or console errors. This is not a uniformly smooth run.
+- Supplementary ordinary DOM PASS:74,345.8ms,10,705frames,two deaths,
+  no>24ms frames,long tasks,recompiles/errors. session69-hitch-{ffa,dom}.json/log
+  and supplementary-gates.json retain both runs. Neither required-gate success
+  nor unchanged render counts resolves the prior intermittent GPU failures.
+- Refreshed static audit: session69-reference-audit.json/mjs and unchanged
+  tools/reference-audit.ts. All maps150x100m/1250m2per-seat. Rotations Relay
+  14.44/14.44/11.78,Undertow14.22/14.22/11.33,Switchyard14.44/14.44/11.56s;
+  cover classes unchanged. ADS250/200/225/400/165ms,sprint recovery120/100/130/
+  150/90ms,respawn3s,hostile foley1.4,hit/kill pips and two damage cues retained.
+  DOM4/8s capture,1point/2s/flag,no side swap,78hipFOV and top-right feed remain
+  mismatches. No timing/reference target was silently relaxed.
+
+Open owner questions/defaults: keep the subtle rim(yes); keep Team colours as
+old-save/default appearance(yes); offer enemy-only Yellow/Violet(yes). No answer
+blocks continued work. Human colour-vision/readability, distant silhouettes,
+actual mouse/RTT, audio comfort and iGPU remain open. Investigate intermittent
+GPU stalls and initial/remaining-fast contact routes next; no fairness claim.
+
+Cleanup: verified the preview root PID/start time and every descendant identity,
+then stopped the owned12-process tree (five explicit stops; other descendants
+exited with their parents). session69-preview-tree.json and session69-cleanup.json
+record zero owned processes,8796 listeners or inspection browsers remaining.
+Final scope/reference audit: session69-final-audit.json; all63 canonical rows
+appear once, one Session69 entry, clean diff check, all changed/untracked source
+paths under apps/ironsight/** on ironsight-aaa. No commit, push or deployment.
+Six required gates and supplementary FFA/DOM gates green for these runs; prior
+intermittent GPU failures, human colour-vision and iGPU acceptance remain open.

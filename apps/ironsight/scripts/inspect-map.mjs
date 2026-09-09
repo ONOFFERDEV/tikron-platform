@@ -1,4 +1,5 @@
 import { droneProbe } from './drone-probe.mjs';
+import { contrastProbe } from './contrast-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
 import { rolesProbe } from './roles-probe.mjs';
 import { breakoutProbe } from './breakout-probe.mjs';
@@ -239,6 +240,11 @@ try {
         const failed = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
+      }
+      if (args.includes('--assert-contrast') && ['tdm','ffa'].includes(name)) {
+        combat = await contrastProbe({send,evaluate,waitFor,delay,click,teamless:name==='ffa',
+          capture: async label => { const shot=await send('Page.captureScreenshot',{format:'png'});
+            await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64')); }});
       }
       if (name === 'deployment-play') {
         combat = await deploymentProbe({ evaluate, waitFor, delay, send,

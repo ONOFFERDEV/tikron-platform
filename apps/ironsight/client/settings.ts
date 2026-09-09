@@ -29,6 +29,8 @@
 /** The 9 rebindable actions. Digit1-5 (slot select), mouse buttons, and the
  *  scroll-wheel weapon-cycle are intentionally NOT here — those stay fixed
  *  per the spec, so `input.ts` keeps handling them as literal codes. */
+import { enemyHighlight, type EnemyHighlight } from './actor-appearance.js';
+
 export type BindAction =
   | "forward"
   | "back"
@@ -49,6 +51,7 @@ export interface Settings {
   invertY: boolean;
   reducedMotion: boolean;
   volume: number;
+  enemyHighlight: EnemyHighlight;
   binds: Record<BindAction, string[]>;
 }
 
@@ -102,7 +105,7 @@ const DEFAULT_INVERT_Y = false;
 function defaultSettings(): Settings {
   const binds = {} as Record<BindAction, string[]>;
   for (const action of BIND_ACTIONS) binds[action] = [...DEFAULT_BINDS[action]];
-  return { sensitivity: DEFAULT_SENSITIVITY, invertY: DEFAULT_INVERT_Y, reducedMotion: false, volume: 1, binds };
+  return { sensitivity: DEFAULT_SENSITIVITY, invertY: DEFAULT_INVERT_Y, reducedMotion: false, volume: 1, enemyHighlight: 'team', binds };
 }
 
 function clampSensitivity(value: number): number {
@@ -122,6 +125,7 @@ function mergeWithDefaults(raw: unknown): Settings {
   const out = defaultSettings();
   if (raw === null || typeof raw !== "object") return out;
   const r = raw as Record<string, unknown>;
+  out.enemyHighlight = enemyHighlight(r.enemyHighlight);
 
   if (typeof r.sensitivity === "number") out.sensitivity = clampSensitivity(r.sensitivity);
   if (typeof r.invertY === "boolean") out.invertY = r.invertY;
@@ -191,6 +195,11 @@ export class SettingsStore {
 
   setVolume(value: number): void {
     this.current = { ...this.current, volume: Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1 };
+    save(this.storage, this.current);
+  }
+
+  setEnemyHighlight(value: unknown): void {
+    this.current = { ...this.current, enemyHighlight: enemyHighlight(value) };
     save(this.storage, this.current);
   }
 
