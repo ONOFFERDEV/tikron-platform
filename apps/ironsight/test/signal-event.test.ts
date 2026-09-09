@@ -77,7 +77,7 @@ it('replicates Undertow discharge to late seats without allowing input to reset 
   await first.send('syncView',{});await h.advance(50);
   const support=first.frames().filter(f=>f.type==='support').at(-1)?.payload as {flights:unknown[]};
   expect(support.flights).toHaveLength(1); // discharge must not defer an earned launch
-  expect(h.snapshot().coreOpen).toBe(false);
+  expect(h.snapshot().coreOpen).toBe(true);
   const training=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-practice-arena2-flood'});
   await training.connect();await training.advance(50);expect(training.snapshot().signalAt).toBeGreaterThan(Date.now());
 });

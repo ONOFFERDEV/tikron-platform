@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { createTestRoom } from '@tikron/server/testing';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
+import { CoreCollision } from '../src/core-gate.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
@@ -38,6 +39,8 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       let liveAt = 0, endedAt = 0;
       const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
+      const collision=new CoreCollision(ARENA2),galleryVisitors=new Set<string>(),galleryTransitions:{atMs:number;open:boolean}[]=[];
+      let priorOpen=false,gallerySamples=0;
       let previous: Record<string, ArenaPlayer> = {};
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
         await h.advance(100);
@@ -46,6 +49,8 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
         if (!liveAt) { liveAt = elapsed; previous = {}; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        if(state.coreOpen!==priorOpen){galleryTransitions.push({atMs:elapsed-liveAt,open:state.coreOpen});priorOpen=state.coreOpen;}
+        for(const [id,p] of players)if(p.alive&&p.x>68.5&&p.x<81.5&&p.z>48&&p.z<52&&p.y<3){galleryVisitors.add(id);gallerySamples++;}
         expect(players).toHaveLength(12);
         for (const [id, p] of players) {
           if (!p.alive) { active.delete(id); continue; }
@@ -57,7 +62,7 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
             const dx = e.x - p.x, dz = e.z - p.z, dy = e.y - p.y;
             const d = Math.hypot(dx, dy, dz);
             return d > .01 && d <= 100 && nearestBox({ x: p.x, y: p.y + PLAYER.standEye, z: p.z },
-              { x: dx / d, y: dy / d, z: dz / d }, ARENA2.boxes, d) === Infinity;
+              { x: dx / d, y: dy / d, z: dz / d }, collision.hits(state.coreOpen), d) === Infinity;
           })) life.losMs = elapsed - liveAt - life.bornMs;
         }
         previous = structuredClone(state.players);
@@ -68,6 +73,7 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot 6v6 DOM round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
+        gallery:{visitors:[...galleryVisitors],samples:gallerySamples,transitions:galleryTransitions},
         bounds: ARENA2.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));

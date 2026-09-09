@@ -133,11 +133,11 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
-      if (name === 'flood') url.searchParams.set('map', 'arena2');
+      if (name === 'flood' || name === 'gallery') url.searchParams.set('map', 'arena2');
       if (name === 'launch') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
@@ -334,7 +334,7 @@ try {
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'support') combat = await supportProbe({ send, evaluate, delay, waitFor, click,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
-      if (name === 'core') combat = await coreProbe({ send, evaluate, delay, waitFor,
+      if (name === 'core' || name === 'gallery') combat = await coreProbe({ send, evaluate, delay, waitFor, flood:name==='gallery',
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'launch') combat = await launchProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });

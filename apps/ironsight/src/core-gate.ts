@@ -50,22 +50,26 @@ export class CoreGate {
  * ordinary objective movement/aim/reaction and both real collision sets; never
  * moves a player directly or changes accuracy, HP, speed or target visibility. */
 export class CorePush {
+  constructor(private readonly core: MapDef['signalCore']) {}
   private key='';
   private readonly routes=new Map<string,{entry:{x:number;z:number};exit:{x:number;z:number}}>();
   update(epoch:number,frame:SignalFrame,open:boolean,players:readonly (Vec3 & {id:string;team:number;alive:boolean})[]):void {
+    if(!this.core)return;
+    const lo=this.core.chamber.min.x,hi=this.core.chamber.max.x,mid=(lo+hi)/2;
+    const z=(this.core.chamber.min.z+this.core.chamber.max.z)/2;
     const key=`${epoch}:${frame.cycle}`;
     if(frame.phase==='warning' && key!==this.key) {
       this.key=key;this.routes.clear();
       for(const team of [0,1]) {
-        const nearby=players.filter(p=>p.alive && p.team===team && p.y<3 && Math.hypot(p.x-75,p.z-50)<45)
-          .sort((a,b)=>Math.hypot(a.x-75,a.z-50)-Math.hypot(b.x-75,b.z-50)||a.id.localeCompare(b.id))[0];
-        if(nearby){const west=nearby.x<75;this.routes.set(nearby.id,{entry:{x:west?67:83,z:50},exit:{x:west?83:67,z:50}});}
+        const nearby=players.filter(p=>p.alive && p.team===team && p.y<3 && Math.hypot(p.x-mid,p.z-z)<45)
+          .sort((a,b)=>Math.hypot(a.x-mid,a.z-z)-Math.hypot(b.x-mid,b.z-z)||a.id.localeCompare(b.id))[0];
+        if(nearby){const west=nearby.x<mid;this.routes.set(nearby.id,{entry:{x:west?lo-3:hi+3,z},exit:{x:west?hi+3:lo-3,z}});}
       }
     }
     if(frame.phase!=='warning' && !open){this.routes.clear();return;}
     for(const [id,r] of this.routes) {
       const p=players.find(p=>p.id===id);
-      if(!p?.alive || (open && Math.abs(p.z-50)<3 && (r.exit.x>75?p.x>82:p.x<68)))this.routes.delete(id);
+      if(!p?.alive || (open && Math.abs(p.z-z)<3 && (r.exit.x>mid?p.x>hi+2:p.x<lo-2)))this.routes.delete(id);
     }
   }
   target(id:string,open:boolean):{x:number;z:number}|undefined {

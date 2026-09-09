@@ -36,8 +36,8 @@ export class SignalHud {
       this.title.textContent=held ? 'CORE / CLEAR TO SEAL' : frame.phase==='warning' ? 'CORE RELEASE INCOMING' : frame.phase==='blackout' ? (state.coreOpen ? 'CORE OPEN / SIGNAL LOST' : 'CORE RELEASING') : 'SIGNAL RESTORED';
       this.detail.textContent=held ? 'Exit either end. Shutters wait until the passage is clear.' : frame.phase==='warning' ? 'Central transit opens as the minimap drops. Take the shortcut.' : frame.phase==='blackout' ? 'Through the core! Shutters seal after the blackout clears.' : 'Tactical map online. Core transit sealed.';
       if(this.flood) {
-        this.title.textContent=frame.phase==='warning' ? 'PRESSURE DROP / STAND BY' : frame.phase==='blackout' ? 'NORTH SLUICES / DISCHARGING' : 'DISCHARGE COMPLETE';
-        this.detail.textContent=frame.phase==='warning' ? 'North basin gates releasing. Watch the twin lift towers.' : frame.phase==='blackout' ? 'Pressure venting into the exterior basin. Radar stays online.' : 'Sluices lowering. North basin returning to standby.';
+        this.title.textContent=held ? 'MAINTENANCE / CLEAR TO SEAL' : frame.phase==='warning' ? 'PRESSURE DROP / STAND BY' : frame.phase==='blackout' ? (state.coreOpen ? 'MAINTENANCE / OPEN' : 'MAINTENANCE / RELEASING') : 'DISCHARGE COMPLETE';
+        this.detail.textContent=held ? 'Exit either end. Doors wait until the gallery is clear.' : frame.phase==='warning' ? 'North sluices releasing. Central maintenance shortcut opens.' : frame.phase==='blackout' ? 'Cross beneath the pressure stack. Radar stays online.' : 'Sluices lowering. Maintenance gallery sealed.';
       }
       this.root.style.borderColor=frame.phase==='warning' ? '#edaa52' : '#80d5dc';
     }

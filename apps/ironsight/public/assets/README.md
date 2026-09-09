@@ -807,3 +807,34 @@ Reproduce with `pnpm build:client`, then
 These are offline renderer fixtures. `--shots flood` records the real Undertow
 training warning/discharge/recovery through ordinary movement and server time.
 Budget fixture: `--shots undertow-effects-stress --assert-budgets`.
+
+
+### Session 63: Pressure Drop maintenance gallery (original collision-derived kit)
+
+Pressure Drop 2/2 completes the arc. Undertow's central block retains its outer
+68..82 x 40..60 m shell and 6 m roof, with a 14 x 4 x 3 m gallery beneath it.
+Two half-metre shutters are authoritative map boxes. Permanent architecture
+and ground AO exclude moving doors; `client/signal-core.ts` supplies their
+prebuilt original panels, flush trim, status strips and two portal signs.
+The shared 256 x 64 sign atlas reads MAINTENANCE / TRANSIT and OPENS ON
+PRESSURE DROP. No purchased source, Meshy generation, new light or render pass.
+Only the x-length of the shared Relay gallery kit changes for Undertow.
+
+`maps/undertow-architecture.glb`: 6,394,324 bytes (+46,836), 81,844 oriented
+source triangles (+636), ten material primitives and one 1024-square AO image.
+`maps/undertow-ground-ao.png`: 841,165 bytes (+5,943), 2048 x 1365, retaining
+13.65 source pixels/metre and the existing runtime downsample/detail tile.
+The bake audit verifies authored normals, winding, finite UVs and zero
+source/export degenerates. Existing allowlists and per-map loading apply.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session63-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session63-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-ground-ao.py -- --maps .inspect/session63-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-architecture.py -- --input .inspect/session63-architecture.json --size 1024 --samples 64
+python scripts/audit-architecture.py --input .inspect/session63-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots gallery,undertow-gallery-closed,undertow-gallery-open,undertow-gallery-inside --prefix session63-review
+```

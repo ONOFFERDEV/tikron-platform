@@ -63,6 +63,9 @@ export function startMapInspector(): void {
   }
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [124, 91, 126, 75, 0, 45],
+    'undertow-gallery-closed': [61,1.65,48,75,1.65,50],
+    'undertow-gallery-open': [61,1.65,48,75,1.65,50],
+    'undertow-gallery-inside': [73,1.65,50,89,1.65,50],
     'undertow-flood-before': [75,1.65,19,75,13,-7],
     'undertow-flood-warning': [75,1.65,19,75,13,-7],
     'undertow-flood-active': [75,1.65,19,75,13,-7],
@@ -217,11 +220,12 @@ export function startMapInspector(): void {
       const frame=signalFrame(1000,'live',1000+age);
       scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
     }
-    if(map===ARENA2 && (effects || shotName.startsWith('undertow-flood-'))) {
+    if(map===ARENA2 && (effects || shotName.startsWith('undertow-flood-') || shotName.startsWith('undertow-gallery-'))) {
       // Offline schedule fixture, including the first stream/foam submission.
-      const age=effects?6800+now-started:shotName.endsWith('before')?-1:shotName.endsWith('warning')?1000:shotName.endsWith('recovery')?24500:12000;
+      const age=effects?6800+now-started:shotName.endsWith('before')?-1:shotName.endsWith('warning')||shotName.endsWith('closed')?1000:shotName.endsWith('recovery')?24500:12000;
       scene.reducedMotion=shotName.endsWith('reduced');
-      scene.updateSignal(signalFrame(1000,'live',1000+age));
+      const frame=signalFrame(1000,'live',1000+age);
+      scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
     }
     if (effects || shotName === 'recon-flyover') {
       const age = effects ? now - started : 6000;

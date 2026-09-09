@@ -4,17 +4,18 @@ import { SignalArray } from '../client/signal-array.js';
 import { signalFrame } from '../src/signal-event.js';
 import { SignalCore } from '../client/signal-core.js';
 import { Predictor } from '../client/predict.js';
+import { ARENA2 } from '../src/map/arena2.js';
 import { ARENA1 } from '../src/map/arena1.js';
 
-it('matches replicated shutters in prediction and rendering, with constant resources and Reduced motion',()=>{
-  const scene=new THREE.Scene(),core=new SignalCore(scene,ARENA1.signalCore!);
+it.each([ARENA1,ARENA2])('$presentation matches replicated shutters in prediction and rendering with constant resources and Reduced motion',(map)=>{
+  const scene=new THREE.Scene(),core=new SignalCore(scene,map.signalCore!);
   const objects:THREE.Object3D[]=[];scene.traverse(o=>objects.push(o));
   for(const open of [false,true,false,true]) {
     core.setOpen(open);core.update(signalFrame(1000,'live',10500),true);
     expect(core.inspect().shutterY).toBe(open?3:0);
-    const p=new Predictor(ARENA1);p.pos={x:67,y:0,z:50};p.setCoreOpen(open);
-    for(let i=0;i<60;i++)p.frame(50,{mx:0,mz:1,jump:false,crouch:false,sprint:false},Math.PI/2);
-    if(open)expect(p.pos.x).toBeGreaterThan(82);else expect(p.pos.x).toBeLessThan(70);
+    const p=new Predictor(map);p.pos={x:map.signalCore!.chamber.min.x-3,y:0,z:50};p.setCoreOpen(open);
+    for(let i=0;i<85;i++)p.frame(50,{mx:0,mz:1,jump:false,crouch:false,sprint:false},Math.PI/2);
+    if(open)expect(p.pos.x).toBeGreaterThan(map.signalCore!.chamber.max.x+1);else expect(p.pos.x).toBeLessThan(map.signalCore!.chamber.min.x);
   }
   const final:THREE.Object3D[]=[];scene.traverse(o=>final.push(o));
   expect(final).toEqual(objects);expect(final.some(o=>o instanceof THREE.Light)).toBe(false);

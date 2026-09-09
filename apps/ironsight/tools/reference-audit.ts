@@ -17,8 +17,8 @@ const maps = [ARENA1, ARENA2, ARENA3].map(map => {
     map: map.presentation, bounds: map.bounds,
     core: map.signalCore ? {
       // Same ground BFS in both collision states, no simulated speed boost.
-      closedPortalSprintSeconds: walkSeconds(map,{x:67,y:0,z:50},{x:83,y:0,z:50},MOVE.sprint),
-      openPortalSprintSeconds: walkSeconds({...map,boxes:new CoreCollision(map).open},{x:67,y:0,z:50},{x:83,y:0,z:50},MOVE.sprint),
+      closedPortalSprintSeconds: walkSeconds(map,{x:map.signalCore.chamber.min.x-3,y:0,z:50},{x:map.signalCore.chamber.max.x+3,y:0,z:50},MOVE.sprint),
+      openPortalSprintSeconds: walkSeconds({...map,boxes:new CoreCollision(map).open},{x:map.signalCore.chamber.min.x-3,y:0,z:50},{x:map.signalCore.chamber.max.x+3,y:0,z:50},MOVE.sprint),
       openRotations: caps.flatMap(([a,from],i)=>caps.slice(i+1).map(([b,to])=>({from:a,to:b,
         sprintSeconds:walkSeconds({...map,boxes:new CoreCollision(map).open},from,to,MOVE.sprint)}))),
     } : undefined,

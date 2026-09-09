@@ -4,6 +4,7 @@ import { CoreCollision, CoreGate, CorePush } from '../src/core-gate.js';
 import { signalFrame } from '../src/signal-event.js';
 import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA2 } from '../src/map/arena2.js';
+import { ARENA3 } from '../src/map/arena3.js';
 import { GroundNavigator } from '../src/map/navigation.js';
 import { canStand, nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
@@ -15,7 +16,7 @@ afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();});
 it('stages at most one nearby living bot per team, uses open exits and ends the push on crossing/death',()=>{
   const p=(id:string,team:number,x:number,alive=true)=>({id,team,x,y:0,z:50,alive});
   const players=[p('red',0,60),p('red-far',0,10),p('red-second',0,50),p('blue',1,90),p('dead',1,78,false)];
-  const push=new CorePush();push.update(1000,signalFrame(1000,'live',900),false,players);
+  const push=new CorePush(ARENA1.signalCore);push.update(1000,signalFrame(1000,'live',900),false,players);
   expect(push.target('red',false)).toBeUndefined();
   push.update(1000,signalFrame(1000,'live',1000),false,players);
   expect(push.target('red',false)).toEqual({x:67,z:50});expect(push.target('blue',false)).toEqual({x:83,z:50});
@@ -39,7 +40,7 @@ it('opens a standing route through both ends while retaining the walls, roof and
   const goal={x:83,z:50},from={x:67,z:50};
   expect(new GroundNavigator({...ARENA1,boxes:c.open}).next(from,goal)).toEqual(goal);
   expect(new GroundNavigator(ARENA1).next(from,goal)).not.toEqual(goal);
-  expect(new CoreCollision(ARENA2).open).toBe(ARENA2.boxes);
+  expect(new CoreCollision(ARENA3).open).toBe(ARENA3.boxes);
   const projectile=()=>({pos:{x:69.5,y:1,z:50},vel:{x:8,y:0,z:0}});
   const closed=projectile(),open=projectile();
   expect(stepGrenade(closed,.1,0,.5,.1,c.closed,ARENA1.bounds)).toBe(true);
@@ -48,8 +49,8 @@ it('opens a standing route through both ends while retaining the walls, roof and
   expect(open.pos.x).toBeGreaterThan(70);
 });
 
-it('holds BOTH exits for chamber/threshold occupancy, closes when clear and rewinds discrete barriers',()=>{
-  const gate=new CoreGate(ARENA1.signalCore);
+it.each([ARENA1,ARENA2])('$presentation holds BOTH exits for chamber/threshold occupancy, closes when clear and rewinds discrete barriers',(map)=>{
+  const gate=new CoreGate(map.signalCore);
   expect(gate.update(true,[],1000)).toBe(true);
   for(const p of [{x:75,y:0,z:50},{x:69,y:0,z:50},{x:81,y:0,z:50},{x:75,y:2.9,z:50}]) {
     expect(gate.update(false,[p],2000)).toBe(false);expect(gate.open).toBe(true);
@@ -67,10 +68,10 @@ class CoreRoom extends ArenaRoomImpl {
   protected override startInWarmup=false;
   protected override spawnProtectMs=0;
 }
-it('restores an open-core snapshot into the fresh round with matching CLOSED collision and wire state',async()=>{
+it.each(['arena-tdm','arena-dom'])('restores %s into a fresh round with matching CLOSED collision and wire state',async(id)=>{
   vi.useFakeTimers();vi.setSystemTime(1000000);
   class RestoredCore extends CoreRoom { restoreForTest(){this.onRestore();} }
-  const h=await createTestRoom(RestoredCore,{codec:ArenaSchema,id:'arena-tdm'});
+  const h=await createTestRoom(RestoredCore,{codec:ArenaSchema,id});
   await h.connect();await h.advance(50);
   const s=(h.room as unknown as {state:ArenaState}).state;
   // Persisted wire state and a newly constructed in-memory gate intentionally differ.
@@ -78,9 +79,9 @@ it('restores an open-core snapshot into the fresh round with matching CLOSED col
   expect(s.coreOpen).toBe(false);expect(s.signalAt).toBe(0);
   await h.advance(50);expect(h.snapshot().coreOpen).toBe(false);
 });
-it('replicates scheduled opening, rejects forged opening, holds an occupied passage and closes safely',async()=>{
+it.each(['arena-tdm','arena-dom'])('%s replicates opening, rejects forgery, holds occupancy and closes safely',async(id)=>{
   vi.useFakeTimers();vi.setSystemTime(1000000);
-  const h=await createTestRoom(CoreRoom,{codec:ArenaSchema,id:'arena-tdm'});
+  const h=await createTestRoom(CoreRoom,{codec:ArenaSchema,id});
   const player=await h.connect();await h.advance(100);
   const state=(h.room as unknown as {state:ArenaState}).state;
   await player.send('move',{mx:0,mz:0,coreOpen:true});await h.advance(100);
@@ -92,19 +93,20 @@ it('replicates scheduled opening, rejects forged opening, holds an occupied pass
   expect(h.snapshot().coreOpen).toBe(true);
   const late=await h.connect();await h.advance(50);expect(h.snapshot().coreOpen).toBe(true);
   expect(late.frames().length).toBeGreaterThan(0);
-  await player.send('move',{mx:0,mz:1,yaw:Math.PI/2,pitch:0});await h.advance(1600);
+  await player.send('move',{mx:0,mz:1,yaw:Math.PI/2,pitch:0});await h.advance(2100);
   expect(h.snapshot().players[player.id]!.x).toBeGreaterThan(81.5);
   expect(h.snapshot().coreOpen).toBe(false);
   expect(h.snapshot().players[player.id]!.hp).toBe(100);
 });
 
-it.each([false,true])('uses historical shutters for %s hybrid claims and analytic hits at BOTH transitions',async(claim)=>{
+it.each(['arena-tdm','arena-dom'].flatMap(id=>[false,true].map(claim=>({id,claim}))))('uses historical $id shutters for hybrid=$claim at BOTH transitions',async({id,claim})=>{
   vi.useFakeTimers();vi.setSystemTime(1000000);
-  const h=await createTestRoom(CoreRoom,{codec:ArenaSchema,id:'arena-tdm'});
+  const h=await createTestRoom(CoreRoom,{codec:ArenaSchema,id});
   const a=await h.connect(),b=await h.connect();await h.advance(100);
   const s=(h.room as unknown as {state:ArenaState}).state;
-  Object.assign(s.players[a.id]!,{x:67,y:0,z:50,team:0,prot:false,yaw:Math.PI/2,pitch:Math.atan2(1-PLAYER.standEye,16)});
-  Object.assign(s.players[b.id]!,{x:83,y:0,z:50,team:1,prot:false});
+  const from=id==='arena-dom'?65:67,to=id==='arena-dom'?85:83;
+  Object.assign(s.players[a.id]!,{x:from,y:0,z:50,team:0,prot:false,yaw:Math.PI/2,pitch:Math.atan2(1-PLAYER.standEye,to-from)});
+  Object.assign(s.players[b.id]!,{x:to,y:0,z:50,team:1,prot:false});
   vi.setSystemTime(s.signalAt+7700);await h.advance(300); // first open tick
   expect(s.coreOpen).toBe(true);
   const fire=()=>a.send('fire',claim ? {claim:{id:b.id,part:'body'}} : undefined);
@@ -117,4 +119,35 @@ it.each([false,true])('uses historical shutters for %s hybrid claims and analyti
   const rewindHp=s.players[b.id]!.hp;expect(rewindHp).toBeLessThan(openHp);
   await h.advance(200);await fire();await h.advance(50);
   expect(s.players[b.id]!.hp).toBe(rewindHp); // now closed in history too
+});
+
+it('Undertow gallery opens a 14m standing route, retains the shell and handles grenades and bot paths',()=>{
+  const c=new CoreCollision(ARENA2);
+  expect(c.closed.length-c.open.length).toBe(2);
+  for(const z of [48.5,50,51.5])for(let x=65;x<=85;x+=.1)
+    if(!canStand(x,0,z,PLAYER.radius,PLAYER.standHeight,c.open,ARENA2.bounds))expect.fail(`Gallery blocked ${x},${z}`);
+  for(const x of [68.25,81.75])expect(canStand(x,0,50,PLAYER.radius,PLAYER.standHeight,c.closed,ARENA2.bounds)).toBe(false);
+  for(const [y,z] of [[0,47],[0,53],[4,50],[8,50]])
+    expect(canStand(75,y!,z!,PLAYER.radius,PLAYER.standHeight,c.open,ARENA2.bounds)).toBe(false);
+  const eye={x:65,y:1.65,z:50},dir={x:1,y:0,z:0};
+  expect(nearestBox(eye,dir,c.closedHits,20)).toBe(3);
+  expect(nearestBox(eye,dir,c.openHits,20)).toBe(Infinity);
+  const openNav=new GroundNavigator({...ARENA2,boxes:c.open}),closedNav=new GroundNavigator(ARENA2);
+  for(const [from,goal] of [[{x:65,z:50},{x:85,z:50}],[{x:85,z:50},{x:65,z:50}]]) {
+    expect(openNav.next(from!,goal!)).toEqual(goal);
+    expect(closedNav.next(from!,goal!)).not.toEqual(goal);
+  }
+  const projectile=()=>({pos:{x:67.5,y:1,z:50},vel:{x:8,y:0,z:0}});
+  const closed=projectile(),open=projectile();
+  expect(stepGrenade(closed,.1,0,.5,.1,c.closed,ARENA2.bounds)).toBe(true);expect(closed.vel.x).toBeLessThan(0);
+  expect(stepGrenade(open,.1,0,.5,.1,c.open,ARENA2.bounds)).toBe(false);expect(open.pos.x).toBeGreaterThan(68);
+});
+
+it('Undertow warning volunteers use its wider portals and return to normal objectives after crossing',()=>{
+  const push=new CorePush(ARENA2.signalCore),players=[{id:'red',team:0,x:60,y:0,z:50,alive:true},{id:'blue',team:1,x:90,y:0,z:50,alive:true}];
+  push.update(1000,signalFrame(1000,'live',1000),false,players);
+  expect(push.target('red',false)).toEqual({x:65,z:50});expect(push.target('blue',false)).toEqual({x:85,z:50});
+  expect(push.target('red',true)).toEqual({x:85,z:50});expect(push.target('blue',true)).toEqual({x:65,z:50});
+  players[0]!.x=85;players[1]!.x=65;push.update(1000,signalFrame(1000,'live',10000),true,players);
+  expect(push.target('red',true)).toBeUndefined();expect(push.target('blue',true)).toBeUndefined();
 });

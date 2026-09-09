@@ -283,7 +283,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly map: MapDef = mapForRoom(this.gameMode.id, this.id);
   private readonly coreCollision = new CoreCollision(this.map);
   private readonly coreGate = new CoreGate(this.map.signalCore);
-  private readonly corePush = new CorePush();
+  private readonly corePush = new CorePush(this.map.signalCore);
   private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
   private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
@@ -536,7 +536,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
 
     if (this.state.phase === "live" || this.state.phase === "warmup") {
-      if(this.map.signalCore && this.gameMode.id==='tdm')this.corePush.update(this.state.signalAt,
+      if(this.map.signalCore && (this.gameMode.id==='tdm' || this.map.presentation==='undertow' && this.gameMode.id==='dom'))this.corePush.update(this.state.signalAt,
         signalFrame(this.state.signalAt,this.state.phase,now),this.coreGate.open,
         Object.entries(this.state.players).filter(([id])=>this.botBrains.has(id)).map(([id,p])=>({...p,id})));
       this.tickBots(dtMs);
@@ -1784,7 +1784,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
-      objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : this.corePush.target(id,this.coreGate.open),
+      objective: this.corePush.target(id,this.coreGate.open) ?? (this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined),
       showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };
   }

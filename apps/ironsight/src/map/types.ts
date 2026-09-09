@@ -29,7 +29,7 @@ export interface RampDef {
 }
 
 export interface MapDef {
-  /** Relay shutters are part of the CLOSED map; only replicated coreOpen may
+  /** Event shutters are part of the CLOSED map; only replicated coreOpen may
    * remove them. The chamber bounds also define the safe-close occupancy zone. */
   readonly signalCore?: { readonly doors: readonly Box[]; readonly chamber: Box };
   /** Fixed induction-pad trajectories. Server and prediction derive the route;

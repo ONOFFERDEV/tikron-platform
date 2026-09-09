@@ -31,7 +31,9 @@ Session60 quick check (published per Session61 supervisor, commit aa58dce): in R
 
 Session61 quick check (retained local candidate; Session62 supervisor reports a failed hitch gate, so it was not published): join Relay TDM or Undertow DOM. A nearby teammate who holds visual contact for 600 ms can radio a three-second last-seen report: caller role, lane, direction and distance to the frozen mark. Listen for a short two-note ident; watch the diamond on the minimap. One call per team every eight seconds, one per caller every sixteen. Manual pings take priority. Reduced motion and mute retain the text. Contact and Counter1/1 is on by default; FFA/training and bot combat stats remain unchanged.
 
-Session62 quick check (local candidate): Training / Undertow, follow the north Clarifier route and face the twin lift towers. Thirty seconds into the room, PRESSURE DROP warns for eight seconds. The two sluices rise ten metres, discharge into the exterior basin for fifteen seconds, then lower over three seconds. Radar stays online. Reduced motion keeps gate travel and water but omits animated foam. Pressure Drop1/2 is on by default; the collision-backed maintenance-route payoff is required in Session63, so this arc is not complete.
+Session62 quick check (published per Session63 supervisor, commit 5c7cb75): Training / Undertow, follow the north Clarifier route and face the twin lift towers. Thirty seconds into the room, PRESSURE DROP warns for eight seconds. The two sluices rise ten metres, discharge into the exterior basin for fifteen seconds, then lower over three seconds. Radar stays online. Reduced motion keeps gate travel and water but omits animated foam. Pressure Drop1/2 is on by default; the collision-backed maintenance-route payoff is required in Session63, so this arc is not complete.
+
+Session63 quick check (local candidate): Training / Undertow, approach the MAINTENANCE / TRANSIT doors on either side of the central pressure stack. PRESSURE DROP warns at30s; at38s the gallery opens for15s. Cross beneath the stack to the other lane. Stay inside when discharge ends to see CLEAR TO SEAL; both doors wait until you leave. Radar stays online. At most one nearby bot per team volunteers for the route in DOM, then returns to capture duties. Pressure Drop2/2 completes the arc, on by default.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -367,8 +369,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 62. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session62-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 63. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session63-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -376,24 +378,24 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 |---|---|---|
 | R-M01 | partial | Session60 adds authored Cooling/Freight and North bus/South service rusher routes. Two route assignments per normal team; actual spawn picks direction. All-spawn collision walks and natural route-stage samples pass. Three named lanes retained; human route quality open. |
 | R-M02 | partial | Undertow B has two 4 m north doors, their sampled approaches visible within default 78-degree FOV from (75,97); standing-eye rays tested. All-objective/human visibility audit incomplete. |
-| R-M03 | met | Session49 Relay111 boxes (65full/46waist), Undertow114 and Switchyard111. Relay adds two0.5m-thick/3m-tall shutters and permanent3m-clear lintel/side walls; standing route and retained wall/roof/spine tests pass. Existing cover-within12m samples retained; universal cover-to-cover travel remains unproven. |
-| R-M04 | met | Session49 closed/open Relay A-B/B-C/A-C14.44/14.44/11.78s; Undertow14.22/14.22/11.33, Switchyard14.44/14.44/11.56. Core approach-to-approach sprint proxy3.11s closed ->1.78s open. Ground BFS respects standing clearance beneath lintels; human retakes unmeasured. |
-| R-M05 | partial | Session62 Pressure Drop1/2: Undertow twin sluices lift10m, discharge15s into the exterior basin and reset from the shared server epoch. Eight-second warning, late-join/input/UAV tests and real-cycle captures pass. No playable route yet; Session63 must complete the collision-backed maintenance route. Relay Signal Break retained. |
+| R-M03 | met | Session63 Undertow118 boxes (56full/62waist), including two0.5m-thick/3m-tall shutters and permanent3m-clear lintel/side walls. Relay111 and Switchyard111 retained. Standing gallery/shell and existing cover-within12m samples pass; universal cover-to-cover travel unproven. |
+| R-M04 | met | Session63 Undertow gallery approaches4.44s closed ->2.22s open (1m ground BFS at sprint9m/s). Closed/open A-B/B-C/A-C14.22/14.22/11.33s unchanged; Relay14.44/14.44/11.78 and Switchyard14.44/14.44/11.56 retained. Human rotations unmeasured. |
+| R-M05 | partial | Session63 completes Pressure Drop2/2 by default: eight-second warning, exterior discharge and a14x4x3m central maintenance gallery opening for15s, with safe occupied holds. Real-room crossing/closure and historical shot tests pass. Relay core and Switchyard pads retained; human route quality open. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session61 three matched Relay rounds reproduce Session60: initial17.1s (35observed/1censored), respawn13.7s (264/24),8under5s. Undertow17.6/21.6s and Switchyard5.5/7s unchanged. New contact reports aid player awareness; no pacing/fairness improvement claimed. |
+| R-M07 | not yet | Session63 Undertow seeds170684/5/6: initial17.6/18/17.6s; respawn17/23.9/23.3s,9/5/1sub-five-second respawn contacts. First seed worsens from21.6s before; do not claim fairness. Relay17.1/13.7s and Switchyard5.5/7s prior samples retained. |
 | R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session38 faces both new northern courts along tested 9 m inner-exit aisles, normalizes spawn yaw for the binary codec, and restores client aim once on revival. Room/wire tests and real respawn drill pass. Safety scoring unchanged; all-exposed fallback and human camping/wayfinding remain open. |
 | R-M10 | partial | Session47 low returns reinforce Switchyard home courts; B retains paired4m doors. Relay/Undertow court cover retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
-| R-M12 | partial | Session49 warning -> staged approaches -> open-core crossing -> occupied-door hold -> safe exit captured through a real training room. Momentum traversal remains enabled. Human quality of these action blocks remains open. |
+| R-M12 | partial | Session63 real Undertow warning -> open gallery -> crossing -> occupied hold -> safe exit captures pass with ordinary W/aim and natural room clock. Shared Relay action block and Momentum retained; human quality open. |
 | R-M13 | partial | Session57 introduces each map's three existing route names over its actual geometry, with a short skippable glide and still Reduced motion alternative. Three-map and narrow/short captures pass. Session47 lane themes and existing half silhouettes retained; human callout learning open. |
-| R-M14 | partial | Session49 timed4m core opening changes a tested route3.11->1.78s between approaches, with two co-visible ends. Permanent walls/roof/spine remain authoritative. Discrete historical barriers cover both analytic and hybrid shots at opening/closing; no destruction or all-round window loop. |
+| R-M14 | partial | Session63 Undertow14m gallery halves the20m approach route4.44->2.22s. Two co-visible ends, permanent walls/roof/stack, shared discrete historical barriers for analytic/hybrid shots and matching prediction. No destruction or all-round window loop. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session62 repeats natural Undertow seed170684: entire report identical to retained Session61,300s,179:160,94kills,17.6/21.6s initial/respawn medians. No gameplay pacing improvement claimed. Prior three-seed Relay and Switchyard evidence retained; broader side/spawn fairness and human response remain open. |
+| R-M20 | partial | Session63 three natural12-bot DOM rounds:200:104/160:168/200:95 in283.9/300/261.9s,1/2/3gallery visitors. Heatmaps, observed/censored contacts and occupied holds retained. Small sample has two strong red wins; no side fairness acceptance. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -413,7 +415,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session49 CoreCollision serves movement/traversal, predictor, rays, pings, grenades/blasts, spawn checks and both bot navigators. Replicated coreOpen includes occupancy holds; analytic and hybrid fire share historical shutter state. Swept grenade contacts prevent thin-shutter tunnelling; human RTT feel remains open. |
+| R-G20 | met | Session63 shared CoreCollision now also serves Undertow movement/traversal, prediction, rays, pings, grenades/blasts, spawn checks, audio map and both bot navigators. Replicated occupancy holds and historical analytic/hybrid shutter tests pass on both maps. Weapon table unchanged; RTT feel open. |
 | R-L01 | met | Session52 Air Support3/3 ON:3-kill UAV,5-kill mortar,7-kill sentry.12s stationary sentry,60s shared airspace,900ms frozen-point warning,22m range,34damage/1.8s; dodge/cover/owner-death counterplay. One trailing-team gun/grenade operator shutdown earns +1TDM behind5 or +5DOM behind20. Death/seat/round reset and no recursive support earning tested. Human balance open. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -424,12 +426,12 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Session61 adds reports from existing FOV/range/active-cover acquisition only; hearing cannot reveal targets. No bot reads the radio, no change to reaction, accuracy, HP, weapons or routes. Same-seed natural outcomes unchanged. Fireteam2/2 retained; difficulty progression and human counterplay open. |
+| R-L11 | partial | Session63 at most one nearby living bot per team volunteers at the Undertow warning, stages at its actual portal, crosses using normal objective movement and returns to DOM after crossing/death/closure. Three natural seeds show1/2/3visitors. No reaction/accuracy/HP/damage buff; human counterplay/difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session62 Undertow matched stress:196->201calls,149556->150804triangles,24textures/60.5221MiB unchanged,26->29prepared programs,549->599instance slots.6.9ms median unchanged on RTX5070. Session61 supervisor217ms first measured frame was not reproduced in unchanged baseline. Final gates recorded in session log; iGPU/thermal and stall-cause acceptance remain open. |
+| R-L14 | partial | Session63 matched Undertow stress201->207calls,150804->152200triangles,24->25textures,60.5221->60.6055MiB,29programs unchanged,599->625instance slots.6.9ms median unchanged on RTX5070. Gate outcomes in session log; iGPU/thermal and prior supervisor stall cause remain open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session62 Pressure Drop1/2 ON: original twin sluices, shared room epoch, existing PA/HUD.20.306s real training sequence and20.242s muted/reduced sequence retain radar and gate/water information; foam/audio drain. Gameplay route payoff is still required in Session63. Contact and Counter retained; human excitement unaccepted. |
+| R-L16 | partial | Session63 completes Pressure Drop2/2 ON: the same public timer drives exterior sluices and server-owned maintenance doors. Normal/reduced real-room paired stills prove crossing, hold and safe sealing without radar loss. Gallery volunteers create a small timed fight; human excitement remains unaccepted. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -441,29 +443,27 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session62: re-reviewed all63 reference rows. First isolated unchanged hitch
-passed; the supervisor's217ms first-frame stall remains unexplained, not
-declared fixed. Selected the highest finishable feature step: Pressure Drop1/2.
-Re-ranked from partial/not-yet rows and first-five-minutes impact.
+Session63: re-reviewed all63 reference rows and completed the previously top-ranked
+Pressure Drop2/2. Re-ranked from partial/not-yet rows and measured natural play.
+The route is playable and on by default; human acceptance stays open.
 
-1. **Finish Pressure Drop2/2 (R-M05/12/14, R-L14/16).** Session62's shared
-   warning, moving north sluices and exterior discharge are on by default.
-   Session63 must make the drain open a collision-backed Undertow maintenance
-   passage with clear staging, occupancy-safe closure, historical shot barriers,
-   matched rendering/prediction and bot navigation. Re-bake changed geometry;
-   measure route benefit and DOM natural play. Do not call the arc complete
-   until that payoff is playable by default. No water damage or forced movement.
-2. **Encounter fairness and flank counterplay (R-M03/07/09/10/20, R-L11).**
-   Relay17.1/13.7s and Switchyard5.5/7s remain below20-30s; eight Relay and43
-   Switchyard sub-five-second respawn contacts remain unfavorable evidence.
-   New Undertow sample is unchanged17.6/21.6s. Broaden samples and investigate
-   exposed arrivals/exit choices before tuning bots. Squad radio is retained.
+1. **Encounter fairness and flank counterplay (R-M03/07/09/10/20, R-L11).**
+   Next session's top item: investigate exposed arrivals/exit choices with
+   matched natural seeds. Relay17.1/13.7s and Switchyard5.5/7s remain below
+   20-30s. Undertow's new three seeds show17/23.9/23.3s respawn contact and
+   two strong red wins; its first matched seed worsens from21.6 to17s.
+   Preserve censored lives and unfavorable samples. Do not equate more fights
+   or a timed shortcut with fairer spawns. Review gallery volunteers and holds.
+2. **Switchyard signature event (R-M05/12/14, R-L16).** Relay Signal Break and
+   Undertow Pressure Drop now affect routes. Plan a bounded crane/container
+   event arc with real collision, readable warning and safe occupancy; keep
+   the existing induction pads. No cosmetic-only claim of a completed hook.
 3. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is complete
    by default; actual mouse/RTT, moving hands/remote flight and human fights
    remain open. Bots still do not deliberately choose launch pads.
 4. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
    course, manual ping acknowledgement, replicated results countdown and
-   highlight colours. New map event retains text/water under mute/reduced
+   highlight colours. Event text and actual doors remain under mute/reduced
    motion; voice barks/role skins and human accessibility review remain open.
 5. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
    economy/side swap, separate weapon FOV, view-kick controls, richer doorway
@@ -9287,3 +9287,197 @@ session62-cleanup.json and reproducible session62-cleanup.ps1.
 All six required gates green. Final diff check clean; every changed path is
 within apps/ironsight/**. No commit, push or deploy. Pressure Drop1/2 remains
 enabled and the arc's required collision-backed route payoff is next.
+
+
+### Session 63 - 2026-09-10: Pressure Drop arc 2/2 - cross beneath the pressure stack
+
+Read the standing brief, Session63 supervisor status, current plan and all63
+reference principles. Supervisor confirms Session62 passed and was committed
+as5c7cb75/deployed00e28fe3; updated the owner guide accordingly. Selected the
+previous top gap and completed Pressure Drop2/2, playable and ON by default.
+Re-ranked all remaining gaps; encounter/spawn fairness is next. No owner answer
+was needed and no commit, push or deploy was performed in this session.
+
+Reference: R-M03, R-M04, R-M05, R-M12, R-M14, R-M20, R-G20, R-L11,
+R-L14, R-L16. Targets: the same eight-second warning/15-second discharge opens
+one useful two-ended route; minimum3m standing clearance; server-owned
+collision, historical shot barriers, matching prediction; no crushing or forced
+movement; real DOM use; unchanged10-15s objective rotations and render budgets.
+Implementation/route checks pass. Human route quality, excitement and fairness
+remain PARTIAL; contact pacing remains NOT YET. No reference target was relaxed.
+
+The central14x20m pressure block retains its footprint, permanent side walls,
+6m roof and solid14m landmark. A14x4x3m east-west maintenance gallery occupies
+x68..82,z48..52. Two0.5m-thick shutters belong to the CLOSED map. On the real
+server tick at discharge, CoreCollision removes only those doors; existing
+movement/traversal, grenades/blasts, pings, visibility/spawns, audio-map selection,
+client prediction and open/closed bot navigation consume the same state.
+Analytic and hybrid hits rewind the discrete door history at both transitions.
+No new wire field: existing coreOpen carries actual opening and occupied holds.
+No incompatible state shape or version bump; existing onRestore starts a fresh
+round. Client/Worker must ship together; old open tabs need refresh for the new
+map and presentation. No SDK, transport, weapon or damage rule change.
+
+Both exits stay open while a living player or grenade occupies the chamber or
+its1.5m approach guard. No damage/current/teleport on closure. The existing
+CoreGate also applies on Undertow; test cases now cover both real room types,
+late seats, forged move fields, safe movement out, restoration and historical
+analytic/hybrid shots. Standing sweeps at three lateral offsets, retained
+walls/roof/stack, grenade reflection and bidirectional bot routing pass.
+Shared panel renderer now reads the map's x-extents. Doors seek the replicated
+state immediately; trim runners alone animate. Reduced motion preserves the
+same door/collision information and stationary trim. Original sign atlas says
+MAINTENANCE / TRANSIT and OPENS ON PRESSURE DROP; HUD explains the shortcut
+and CLEAR TO SEAL holds. Undertow radar/UAV stay online throughout.
+
+First natural DOM seed170684 opened all three cycles but had zero visitors;
+its score/contact outcomes matched Session62. Rejected leaving the bots unaware
+of the shortcut. Generalized the existing Relay volunteer mechanism to actual
+map portals and enabled it for Undertow DOM: at most one nearby living bot per
+team within45m volunteers at the public warning. It stages outside the door,
+uses normal objective movement/combat to reach the far portal, then returns to
+ordinary capture duties after crossing, death or closure. Other ten bots retain
+DOM choices. No accuracy, HP, reaction, speed, weapon or target-visibility buff.
+Shared Relay volunteer coordinates and selection remain equivalent.
+
+Final pnpm typecheck / pnpm test / pnpm build:client / pnpm audit:assets PASS.
+579passed,6existing/opt-in skips;70files passed/4skipped. Eight additional
+cases relative to Session62, including parametrized room/prediction tests and
+Undertow collision/volunteer checks. Evidence .inspect/session63-{typecheck,
+test,build,audit}-final.log; initial targeted30tests also passed. No failing
+full-suite test or weakened assertion. An intermediate typecheck between edits
+caught the newly required sign arguments; all callers were updated before the
+final checks. No dependency or probe threshold changes.
+
+Wow check: paired real-room before/after stills in
+session63-wow-final-core-{warning,opened,crossing,held,sealed}.png and report.
+Player sentence: "The floodgates dumped the pressure, and I cut straight through
+the machinery while the doors held for me." This is a design sentence, not a
+human testimonial. Actual private Undertow training room, natural clock and
+ordinary W/aim input; no position/HP/clock/route/VFX injection. Both doors open,
+the player crosses to the centre, holds through recovery, exits east and sees
+both seal. HP100 throughout and radar always online at each sampled stage.
+This is paired before/after still evidence, not a20-second bot-video claim:
+opening-to-exit drill17.856s, plus preceding approach/warning. Normal capture
+and17.800s muted/reduced companion retain door/HUD information; reduced shows
+zerofoam. Muting uses the saved master preference. No new audio synthesis;
+Session62's discharge/PA graph remains. Human listening acceptance stays open.
+
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+ gallery --prefix session63-wow-review. Companion adds --intro-reduced
+--contact-muted. Both reports have zero console errors/forbidden offline
+requests. Real390x844 held HUD fits x16..366,y344..394 above vitals; normal
+and reduced captures reviewed. Also reviewed offline matching closed/open and
+inside shots in session63-visual-undertow-gallery-*.png. These layout/visual
+captures do not establish touch/controller support or performance.
+
+Re-baked Undertow permanent architecture and ground AO after the collision cut;
+dynamic doors are excluded from both bakes. Source-to-GLB audit passes81,844
+oriented triangles, finite UVs, no source/export degenerates and authored-normal
+component error<=.000301. Geometry remains ten material primitives and one
+1024-square AO image. Ground2048x1365 retains13.65source pixels/metre and the
+existing runtime downsample/detail tile. Files: session63-{architecture,maps}.json,
+bake logs and session63-architecture-audit.json. Reproducible commands and original
+provenance appended in public/assets/README.md; existing allowlists apply.
+
+Initial Blender invocation inherited local startup settings and failed finding
+the default Principled node. Repeated with --factory-startup, then audited the
+successful output. No Blender defaults or external files changed. No art was
+accepted from the failed attempt. Meshy spend0, reported balance1530: this work
+needs exact collider cladding, supplied by the original procedural kit.
+
+Matched Undertow renderer: session63-before-report.json -> session63-final-report.json,
+1920x1080, balanced/DPR1, Edge152, RTX5070/D3D11. Same11remotes+local,
+145twelve-rifle volleys,96blasts, support and3s drain; final also exercises
+warning/open/close and water submission. No tests, bakes or other inspection
+browser overlapped the matched timing samples. Summary/reproduction:
+.inspect/session63-summary.json and .inspect/session63-summarize.mjs.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls/triangles |201/150804|207/152200|+6/+1396|
+| Textures/estimated MiB |24/60.5221|25/60.6055|+1/+.0833|
+| Programs/geometries/instance slots |29/157/599|29/164/625|0/+7/+26|
+| Median/p95/p99 ms |6.9/7.1/7.1|6.9/7.1/7.2|0/0/+.1|
+| Maximum/first-ready maximum ms |7.3/7.1|7.4/7.1|+.1/0|
+
+Construction74.6->78.5ms; preparation1041.3->987.6ms, no startup speedup claim.
+Existing240call/64MiB/32texture limits pass, effects drain. No new light,
+dynamic shadow, render pass or per-frame bake. Desktop evidence does not
+establish mid-laptop iGPU60fps, thermal/cold-driver,real6v6/RTT or other browsers.
+
+Public32,953,496->33,015,045bytes(+61,549), assets26,299,911->26,354,758(+54,847).
+Undertow architecture6,347,488->6,394,324(+46,836); ground835,222->841,165(+5,943).
+Client2,064,901->2,066,774(+1,873);source map4,588,076->4,592,905(+4,829);
+provenance README+2,068. Largest remains Switchyard architecture7,184,816bytes.
+40MiB public/25MiB file caps pass, with per-map loading and no budget exception.
+
+Natural DOM evidence: session63-undertow[-170685/-170686]-bot-round.json,
+matching bot-debug.json and bot-heatmap.svg. Full production12-bot rounds,
+normal score/capture/respawn/support rules; no scripted route/HP/time shortcuts.
+Seed170684 opening-only intermediate retained as session63-undertow-unrouted-bot-round.json.
+LOS tool now uses current door/ramp hit boxes; contact timing below uses damage,
+so the matched before/after damage measurement remains comparable.
+
+| Seed | Length s | Score red:blue | Kills | Gallery visitors | Initial contact median s | Respawn contact median s | Observed/censored respawns | Respawn contacts<5s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+|170684|283.9|200:104|103|1|17.6|17.0|92/11|9|
+|170685|300.0|160:168|77|2|18.0|23.9|70/5|5|
+|170686|261.9|200:95|80|3|17.6|23.3|69/11|1|
+
+Initial observed/censored12/0,11/1,11/1. Lower empirical50th percentile,
+unobserved contacts absent rather than zero. Same first seed before:300s,
+179:160,94kills,17.6/21.6s initial/respawn and4sub-five-second respawn contacts.
+This worsened pacing sample and two strong red wins are retained, not labeled
+fairness improvements. At least one gallery visitor per seed, but few compared
+to the whole lobby. Natural occupancy holds extend some openings to38.4/49.1/26.6s;
+all sampled cycles subsequently seal. No forced eviction from the gallery.
+Reproduce with UNDERTOW_METRICS=1, METRICS_SEED and METRICS_PREFIX, then
+pnpm exec vitest run test/undertow-metrics.tool.test.ts. Broader matched-side/
+spawn fairness and human event counterplay remain the next high-priority gap.
+
+Static reference audit refreshed in session63-reference-audit.json:150x100m,
+1250m2/seat; Relay65full/46waist,Undertow56/62,Switchyard63/48. Undertow
+portal-to-portal sprint4.44->2.22s, A-B/B-C/A-C14.22/14.22/11.33s in BOTH
+states; other maps' rotations unchanged. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms,3s respawn, dynamic safety scoring,
+hostile foley1.4, hit/kill pips, two damage cues and five-row top-right feed
+remain. DOM4/8s capture,1point/2s/flag,no side swap and78hipFOV stay mismatches.
+
+Open owner questions/defaults:14m gallery instead of water damage/current(yes),
+15s scheduled opening with unlimited occupancy-safe hold(yes),both exits open
+until clear(yes),one nearby volunteer/team then return to DOM(yes, review
+fairness next),radar online and readable mute/reduced presentation(yes).
+Defaults active; no answer blocks progress. Human excitement,headphone mix,
+moving hands/holds,6v6/RTT,iGPU and Firefox/Safari acceptance remain open.
+
+
+Required exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS, zero console errors and forbidden offline requests.
+Evidence session63-required-report.json/log and required-{relay,practice-two}.png.
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS on the first final-candidate run: two natural
+bot-caused deaths, zero frames>24ms (therefore none>150ms), shader recompiles,
+long tasks, console errors or spikes. Normal12-seat TDM,8:10 at stop;
+profiler setup98.9ms reported separately by the unchanged probe. Evidence
+session63-hitch-final.json/log and hitch.json. No forced deaths, isolated
+matchmaking, gameplay-state writes or storage reset.
+
+Additional new-map hitch with --mode=dom and separate output also PASS:
+session63-hitch-undertow.json/log. Two natural deaths,48:41 at stop,29stable
+programs, zero>150ms frames, recompiles, long tasks or console errors. One
+retained92.1ms frame at23.951s; CPU sampling shows85/90samples idle, with
+single samples in movement/instance colour/texture binding/update/loop.
+Profiler setup100.7ms reported separately. This is unfavorable frame evidence,
+not discarded or attributed to the gallery without proof. Earlier supervisor
+idle-dominant stalls remain unexplained. No tests, bakes or inspection browser
+overlapped either final hitch, and no probe budget or sampling logic changed.
+
+Cleanup verified all12 owned preview-tree processes exited, zero8796 listeners,
+zero remaining owned processes and zero inspection/hitch browsers. Rechecked
+creation times/command lines before stopping each process; five explicitly
+stopped, the rest exited with parents. Evidence session63-preview-tree.json,
+session63-cleanup.json and reproducible session63-cleanup.ps1. Other existing
+applications/processes were left running. All six required gates green; final
+diff check clean and every changed path inside apps/ironsight/**. No commit,
+push or deploy. Pressure Drop2/2 is complete and enabled by default.

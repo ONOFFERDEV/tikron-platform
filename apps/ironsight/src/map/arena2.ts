@@ -1,4 +1,4 @@
-import type { Bounds } from '../physics.js';
+import type { Bounds, Box } from '../physics.js';
 import { compileTileMap } from './tilemap.js';
 import type { MapDef } from './types.js';
 
@@ -60,12 +60,23 @@ export const UNDERTOW_ROWS: readonly string[] = [
   ".................................#########.................................",
 ];
 const compiled = compileTileMap(UNDERTOW_ROWS);
+// Pressure Drop releases the two ends of the central maintenance gallery.
+// Permanent side walls and the 6m roof retain the original pressure-block shell.
+const doors: readonly Box[] = [
+  { min: { x: 68, y: 0, z: 48 }, max: { x: 68.5, y: 3, z: 52 } },
+  { min: { x: 81.5, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } },
+];
 export const ARENA2: MapDef = {
   ...compiled,
   presentation: 'undertow',
-  boxes: [...compiled.boxes.map(b => ({ ...b, max: { ...b.max,
+  signalCore: { doors, chamber: { min: { x: 68, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } } },
+  boxes: [...compiled.boxes.filter(b => !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
   } })),
+    { min: { x: 68, y: 0, z: 40 }, max: { x: 82, y: 6, z: 48 } },
+    { min: { x: 68, y: 0, z: 52 }, max: { x: 82, y: 6, z: 60 } },
+    { min: { x: 68, y: 3, z: 48 }, max: { x: 82, y: 6, z: 52 } },
+    ...doors,
     // Solid central pressure stack, inaccessible above the existing 6m roof.
     { min: { x: 73, y: 6, z: 47 }, max: { x: 77, y: 14, z: 51 } },
   ],

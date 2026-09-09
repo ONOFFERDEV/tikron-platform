@@ -410,7 +410,7 @@ export class SceneRig {
   private readonly signalCore?: SignalCore;
   setCoreOpen(open: boolean): void { this.hitBoxes=this.coreCollision.hits(open);this.signalCore?.setOpen(open); }
   updateSignal(frame: SignalFrame): void { this.signalArray?.update(frame, this.reducedMotion);this.signalCore?.update(frame,this.reducedMotion);this.floodWorks?.update(frame,this.reducedMotion); }
-  inspectSignal() { return this.signalArray ? { ...this.signalArray.inspect(), core:this.signalCore?.inspect() } : this.floodWorks?.inspect() ?? null; }
+  inspectSignal() { return this.signalArray ? { ...this.signalArray.inspect(), core:this.signalCore?.inspect() } : (this.floodWorks ? {...this.floodWorks.inspect(),playableRoute:!!this.signalCore,core:this.signalCore?.inspect()} : null); }
 
   constructor(map: MapDef, container: HTMLElement = document.body,
     options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
@@ -483,7 +483,7 @@ export class SceneRig {
     this.sentryDrone = new SentryDrone(this.scene);
     if (map.presentation === 'relay') this.signalArray = new SignalArray(this.scene,map.bounds.width/2);
     if (map.presentation === 'undertow') this.floodWorks = new FloodWorks(this.scene,map.bounds.width/2);
-    if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root); }
+    if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root,map.signalCore,map.presentation==='undertow'); }
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));

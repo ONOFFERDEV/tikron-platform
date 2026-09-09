@@ -12,8 +12,9 @@ export class SignalCore {
   private readonly status = new T.MeshBasicMaterial({ color: 0xedaa52 });
   private readonly runners: T.Mesh[] = [];
   private open = false;
-  constructor(scene: T.Scene, core: NonNullable<MapDef['signalCore']>) {
-    this.root.name = 'relay-core-transit'; this.root.add(this.shutters); scene.add(this.root);
+  constructor(scene: T.Scene, private readonly core: NonNullable<MapDef['signalCore']>) {
+    const lo=core.chamber.min.x, hi=core.chamber.max.x, mid=(lo+hi)/2, length=hi-lo;
+    this.root.name = 'event-maintenance-transit'; this.root.add(this.shutters); scene.add(this.root);
     const solid = new T.MeshStandardMaterial({ vertexColors: true, roughness: .7, metalness: .25 });
     let parts: T.BufferGeometry[] = [];
     const box = (color: number, x: number, y: number, z: number, w: number, h: number, d: number, rx=0) => {
@@ -39,32 +40,32 @@ export class SignalCore {
     }
     batch(this.shutters);
     // Permanent guide housings stay in the side walls/lintel, never in the route.
-    for(const x of [70.01,79.99]) {
+    for(const x of [lo+.01,hi-.01]) {
       for(const z of [47.84,52.16]) box(0x283e46,x,1.5,z,.05,3,.3);
       box(0x203740,x,3.42,50,.04,.78,4);
       for(const z of [48.3,49.15,50,50.85,51.7]) box(0x9caa9d,x,3.85,z,.06,.13,.22);
     }
     // Floor strips are paint; ceiling ribs remain inside the 3m lintel.
     for(const z of [48.15,51.85]) {
-      box(0xac9663,75,.01,z,13,.012,.1);
-      box(0x29474b,75,3.018,z,9.9,.03,.22);
+      box(0xac9663,mid,.01,z,length+3,.012,.1);
+      box(0x29474b,mid,3.018,z,length-.1,.03,.22);
     }
-    for(const x of [71,73,75,77,79]) box(0x344e53,x,3.01,50,.15,.02,3.8);
+    for(let x=lo+1;x<hi;x+=2) box(0x344e53,x,3.01,50,.15,.02,3.8);
     batch(this.root);
     const glowParts:T.BufferGeometry[]=[];
     const glow=(x:number,y:number,z:number,w:number,h:number,d:number)=>{
       const g=new T.BoxGeometry(w,h,d);g.translate(x,y,z);glowParts.push(g);
     };
-    for(const x of [69.975,80.025]) {
+    for(const x of [lo-.025,hi+.025]) {
       for(const z of [47.94,52.06]) {
         glow(x,1.4,z,.015,2.72,.065);
       }
       glow(x,3.07,50,.015,.045,3.4);
     }
     for(const z of [48.004,51.996]) {
-      glow(75,.22,z,9.6,.045,.008);
+      glow(mid,.22,z,length-.4,.045,.008);
       const runner = new T.Mesh(new T.BoxGeometry(.7,.055,.008),new T.MeshBasicMaterial({color:0xc9fff0}));
-      runner.position.set(75,.22,z);this.root.add(runner);this.runners.push(runner);
+      runner.position.set(mid,.22,z);this.root.add(runner);this.runners.push(runner);
     }
     this.root.add(new T.Mesh(mergeGeometries(glowParts),this.status));
     for(const g of glowParts)g.dispose();
@@ -76,25 +77,26 @@ export class SignalCore {
     this.shutters.visible=!open;
   }
   update(frame: SignalFrame, reducedMotion: boolean): void {
+    const lo=this.core.chamber.min.x,hi=this.core.chamber.max.x;
     this.status.color.setHex(this.open ? 0x73dace : 0xedaa52);
     for(const [i,runner] of this.runners.entries()) {
       // Remain flush to the actual wall, including Reduced motion. No flashes.
-      runner.position.x = reducedMotion || !this.open ? 75 : 70.6 + ((frame.elapsedMs / 1400 + i*.5) % 1)*8.8;
+      runner.position.x = reducedMotion || !this.open ? (lo+hi)/2 : lo+.6 + ((frame.elapsedMs / 1400 + i*.5) % 1)*(hi-lo-1.2);
     }
   }
-  inspect() { return { open:this.open, shutterY:this.shutters.position.y, route:{x:[70,80],z:[48,52],height:3} }; }
+  inspect() { return { open:this.open, shutterY:this.shutters.position.y, route:{x:[this.core.chamber.min.x,this.core.chamber.max.x],z:[48,52],height:3} }; }
 }
 
 /** A single tiny immutable sign atlas: 256x64, shared by the two portal headers. */
-export function addCoreSigns(root: T.Object3D): void {
+export function addCoreSigns(root: T.Object3D, core: NonNullable<MapDef['signalCore']>, flood=false): void {
   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
   const ctx=canvas.getContext('2d')!;ctx.fillStyle='#203740';ctx.fillRect(0,0,256,64);
-  ctx.fillStyle='#ecddad';ctx.textAlign='center';ctx.font='bold 25px Arial';ctx.fillText('CORE / TRANSIT',128,29);
-  ctx.fillStyle='#a9ded5';ctx.font='bold 11px Arial';ctx.fillText('OPENS ON SIGNAL BREAK',128,51);
+  ctx.fillStyle='#ecddad';ctx.textAlign='center';ctx.font=flood?'bold 19px Arial':'bold 25px Arial';ctx.fillText(flood?'MAINTENANCE / TRANSIT':'CORE / TRANSIT',128,29);
+  ctx.fillStyle='#a9ded5';ctx.font='bold 11px Arial';ctx.fillText(flood?'OPENS ON PRESSURE DROP':'OPENS ON SIGNAL BREAK',128,51);
   const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;
   const mat=new T.MeshBasicMaterial({map:texture});
-  for(const x of [69.96,80.04]) {
+  for(const x of [core.chamber.min.x-.04,core.chamber.max.x+.04]) {
     const sign=new T.Mesh(new T.PlaneGeometry(3.7,.75),mat);sign.position.set(x,3.43,50);
-    sign.rotation.y=x<75 ? -Math.PI/2 : Math.PI/2;root.add(sign);
+    sign.rotation.y=x<core.chamber.min.x ? -Math.PI/2 : Math.PI/2;root.add(sign);
   }
 }

@@ -19,9 +19,16 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   };
   if (!bakeOnly) buildSiteGround(scene, map, true);
   for (const b of map.boxes) {
+    if (map.signalCore?.doors.includes(b)) continue;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
     if (b.min.y > 0) {
+      if (b.min.y === 3) {
+        // Gallery lintel: every cladding piece stays above standing clearance.
+        add(1,x,b.min.y+h/2,z,w,h,d);
+        add(3,x,b.max.y-.09,z,w+.006,.18,d+.006);
+        continue;
+      }
       // Central pressure-stack cladding stays within the authoritative envelope.
       add(1,x,b.min.y+h/2,z,w,h,d);
       for (const y of [7,10,13]) add(3,x,y,z,w+.004,.28,d+.004);
