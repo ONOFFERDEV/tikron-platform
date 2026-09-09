@@ -41,8 +41,8 @@ export class SignalHud {
         this.detail.textContent=held ? 'Exit either end. Doors wait until the gallery is clear.' : frame.phase==='warning' ? 'North sluices releasing. Central maintenance shortcut opens.' : frame.phase==='blackout' ? 'Cross beneath the pressure stack. Radar stays online.' : 'Sluices lowering. Maintenance gallery sealed.';
       }
       if(this.site==='switchyard') {
-        this.title.textContent=frame.phase==='warning'?'CARGO SHIFT / STAND BY':frame.phase==='blackout'?'EAST GANTRY / TRANSFER':'CARGO SECURED';
-        this.detail.textContent=frame.phase==='warning'?'East crane lifting. Watch the amber double beam.':frame.phase==='blackout'?'Heavy cargo moving between the exterior service berths.':'Transfer complete. East service berth secured.';
+        this.title.textContent=held?'FREIGHT / CLEAR TO RAISE':frame.phase==='warning'?'CARGO SHIFT / COVER DROPS':frame.phase==='blackout'?(state.coreOpen?'FREIGHT / CROSSING OPEN':'FREIGHT / RELEASING'):'FREIGHT COVER RESTORED';
+        this.detail.textContent=held?'Leave the marked crossing. Counterweight waits until clear.':frame.phase==='warning'?'East service cover retracts. Cross fast or take the side route.':frame.phase==='blackout'?'Crane transferring. Freight crossing exposed; radar online.':'Counterweight raised. Use it as full cover again.';
       }
       this.root.style.borderColor=frame.phase==='warning' ? '#edaa52' : '#80d5dc';
     }

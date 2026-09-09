@@ -23,6 +23,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   };
   if (!bakeOnly) buildSiteGround(scene, map);
   for (const b of map.boxes) {
+    if (map.signalCore?.doors.includes(b)) continue;
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2, base = b.min.y;
     const low = h < 1.5, wall = w > 6;

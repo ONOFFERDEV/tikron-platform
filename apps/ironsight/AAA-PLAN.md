@@ -37,7 +37,9 @@ Session63 quick check (published per Session64 supervisor, commit 7f90230): Trai
 
 Session64 quick check (local candidate): Undertow DOM, leave your deployment bay at either end. Full-height machinery now screens the first opening; turn through the gap behind it into the inner lane. Both teams get the same north/south breakout cover. Three matched bot seeds reduce contacts within five seconds of respawn from15 to0, but large score gaps remain. Breakout1/1 is complete and on by default; this is an exit-safety improvement, not overall fairness acceptance.
 
-Session65 quick check (local candidate): Training / Switchyard, follow East service and face the amber gantry. At30s CARGO SHIFT warns for eight seconds; the sealed container rises eight metres, travels28m between exterior berths and lowers during the15s transfer. Radar stays online. Reduced motion retains mechanical travel; mute retains the text. Cargo Shift1/2 is on by default. Session66 must add server-authoritative playable cover with safe occupancy before this arc is complete. Session64 remains retained after its supervisor hitch failure; neither session was published here.
+Session65 quick check (published per Session66 supervisor, commit 9292cd9): Training / Switchyard, follow East service and face the amber gantry. At30s CARGO SHIFT warns for eight seconds; the sealed container rises eight metres, travels28m between exterior berths and lowers during the15s transfer. Radar stays online. Session66 completes Cargo Shift with playable freight cover below.
+
+Session66 quick check (local candidate): Training / Switchyard, find FREIGHT / 04 at East service. The orange4x3x6m counterweight is full cover. At CARGO SHIFT it retracts flush with the floor for15s: cross directly, but expect to be exposed. Remain on the marked crossing after transfer to see CLEAR TO RAISE; leave and it becomes full cover again. Mute and Reduced motion retain the same cover and text. Cargo Shift2/2 is complete and on by default.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -373,8 +375,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 65 (all63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session65-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 66 (all63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session66-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -382,18 +384,18 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 |---|---|---|
 | R-M01 | partial | Session60 adds authored Cooling/Freight and North bus/South service rusher routes. Two route assignments per normal team; actual spawn picks direction. All-spawn collision walks and natural route-stage samples pass. Three named lanes retained; human route quality open. |
 | R-M02 | partial | Undertow B has two 4 m north doors, their sampled approaches visible within default 78-degree FOV from (75,97); standing-eye rays tested. All-objective/human visibility audit incomplete. |
-| R-M03 | met | Session64 Undertow124 boxes (62full/62waist): four3m-tall deployment exit screens, southern returns join existing machinery. Four mirrored head/chest/shoulder LOS fixtures pass in both gate states; every spawn-to-cap navigator walk remains clear. Relay111/Switchyard111 and12m cover samples retained; universal cover-to-cover travel unproven. |
-| R-M04 | met | Session63 Undertow gallery approaches4.44s closed ->2.22s open (1m ground BFS at sprint9m/s). Closed/open A-B/B-C/A-C14.22/14.22/11.33s unchanged; Relay14.44/14.44/11.78 and Switchyard14.44/14.44/11.56 retained. Human rotations unmeasured. |
-| R-M05 | partial | Session65 Cargo Shift1/2 adds a shared-epoch eight-second warning and15s exterior crane transfer by default; playable cover is REQUIRED in Session66, so no completed Switchyard hook claim. Relay core, Undertow maintenance gallery and induction pads retained; human route quality open. |
+| R-M03 | met | Session66 adds one3m full-cover freight counterweight: Switchyard112 boxes closed/111 open; no permanent overlap, clear north/south bypasses, body/eye rays and grenades tested. Relay111/Undertow124 retained. No new head-height cover. |
+| R-M04 | met | Session66 Switchyard freight approach121->131 atz50: ground BFS sprint1.56s closed ->1.11s open. A-B/B-C/A-C remain14.44/14.44/11.56s in both states; Relay14.44/14.44/11.78 and Undertow14.22/14.22/11.33 retained. Human timing open. |
+| R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
 | R-M07 | not yet | Session64 matched Undertow seeds170684/5/6: respawn17/23.9/23.3s ->20.1/19.1/24.1s; sub-five-second contacts9/5/1 ->0/0/0. Unobserved contacts remain censored. One median worsens and scores still diverge; no universal pacing/fairness claim. Relay17.1/13.7s and Switchyard5.5/7s retained. |
-| R-M08 | partial | Session65 east amber crane now carries a sealed orange load28m between berths, opposite the west ribbed capacitor towers. Same-camera before/after and natural training captures reviewed; human wayfinding remains open. |
+| R-M08 | partial | Session66 FREIGHT / 04 counterweight echoes the orange cargo under the east amber gantry; readable ground-level cover/open/held stills. West capacitor silhouettes retained. Human wayfinding remains open. |
 | R-M09 | partial | Session64 first-seed telemetry locates all9 fast contacts after hidden respawns crossed the north exit. Four collision-backed exit screens remove the sampled firing line without changing spawn scoring/protection. Three matched seeds have0 fast respawn contacts; human camping, all-exposed fallback and side fairness remain open. Session38 arrival aim retained. |
 | R-M10 | partial | Session64 four full-height Undertow exit screens provide covered approaches into existing home courts; sampled early-contact safety improves and all objective paths remain clear. Session47 Switchyard returns retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
-| R-M11 | partial | Session65 complete cargo sweep tested against every permanent exterior instance in both directions; moved the east service hall8m farther out after rejecting clipping. Collider-derived gameplay kits and ramps retained; all reachable viewpoints still need player review. |
-| R-M12 | partial | Session65 natural20s crane warning/lift/transfer capture and paired stills establish an exterior action block; authoritative cover payoff required next. Session64 screened DOM breakout and Session63 gallery retained; human quality open. |
+| R-M11 | partial | Session66 freight body stays in its authoritative envelope with <=2cm surface trim, flush down-lock floor and permanent north/south bypasses. Permanent kit exclusion/overlap and live crossing tested. All reachable viewpoints still need player review. |
+| R-M12 | partial | Session66 actual20.408/20.482s normal and muted/reduced training sequences: blocked approach, exposed crossing, occupied hold and safe restoration beneath moving cargo. Paired stills and shorter ground route measured. Human action-block quality open. |
 | R-M13 | partial | Session57 introduces each map's three existing route names over its actual geometry, with a short skippable glide and still Reduced motion alternative. Three-map and narrow/short captures pass. Session47 lane themes and existing half silhouettes retained; human callout learning open. |
-| R-M14 | partial | Session63 Undertow14m gallery halves the20m approach route4.44->2.22s. Two co-visible ends, permanent walls/roof/stack, shared discrete historical barriers for analytic/hybrid shots and matching prediction. No destruction or all-round window loop. |
+| R-M14 | partial | Session66 Switchyard removes full freight cover to open a direct10m crossing;1.56->1.11s ground sprint route, then safe restoration. Discrete historical barriers shared by analytic/hybrid hits; no cosmetic-only opening. All-round windows/destruction remain absent. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
@@ -413,13 +415,13 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
 | R-G12 | partial | Session47 launch uses existing lowered traversal weapon pose; before/flight/landing/reduced captures retain the center aiming corridor. No new hand/remote flight clip; moving pose acceptance remains human work. |
 | R-G13 | not yet | Hip FOV remains 78, with Session45 cosmetic +5 sprint / +8 slide; Reduced motion keeps 78. No 90-100 default/110-capped slider. |
-| R-G14 | partial | Session65 cargo motor/chain takeup uses existing master/mute/limiter; observed loop drains in about3.25s, shared warning/recovery PA ident. Muted/reduced real-room drill retains text and mechanical travel. Hostile foley1.4 and surface cues retained; headphone/comfort acceptance open. |
+| R-G14 | partial | Session66 real normal cargo drill retains the warning/transfer/recovery PA/motor cues; muted/reduced drill has zero motor sources with readable cover/hold text. Hostile foley1.4 and surface cues unchanged; headphone/comfort acceptance open. |
 | R-G15 | partial | Confirmed hit 900/1400 Hz at .28 gain; kill 660/990 Hz at .30. Bypasses voice cap; headphone mix unverified. |
 | R-G16 | partial | Session27 collision-box segment occlusion: .32 gain / 1100 Hz cutoff, event-time only. No ramp-volume occlusion, diffraction, doorway routing or HRTF. |
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session63 shared CoreCollision now also serves Undertow movement/traversal, prediction, rays, pings, grenades/blasts, spawn checks, audio map and both bot navigators. Replicated occupancy holds and historical analytic/hybrid shutter tests pass on both maps. Weapon table unchanged; RTT feel open. |
+| R-G20 | met | Session66 Switchyard joins shared CoreCollision/CoreGate: movement/traversal, prediction, current and historical rays, pings, grenades/blasts, spawns, audio and both bot navigation states. Analytic/hybrid shots tested across both transitions; forged input rejected. Weapon table unchanged; RTT feel open. |
 | R-L01 | met | Session52 Air Support3/3 ON:3-kill UAV,5-kill mortar,7-kill sentry.12s stationary sentry,60s shared airspace,900ms frozen-point warning,22m range,34damage/1.8s; dodge/cover/owner-death counterplay. One trailing-team gun/grenade operator shutdown earns +1TDM behind5 or +5DOM behind20. Death/seat/round reset and no recursive support earning tested. Human balance open. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -433,9 +435,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session63 at most one nearby living bot per team volunteers at the Undertow warning, stages at its actual portal, crosses using normal objective movement and returns to DOM after crossing/death/closure. Three natural seeds show1/2/3visitors. No reaction/accuracy/HP/damage buff; human counterplay/difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session65 matched Switchyard stress198->202calls,164348->165668triangles,27textures/61.8555MiB unchanged;6.9ms median unchanged on RTX5070. GPU traces capture idle-heavy gaps during ANGLE/raster/compositor work and WebGL flush; unprofiled FFA also fails, so the sampling-only hypothesis was rejected. Default500us CPU profiling and every original gate threshold retained. Positive-control220ms stall fails. Reliable cold-GPU fix, iGPU/thermal and real6v6 remain open. |
+| R-L14 | partial | Session66 matched Switchyard stress202->208calls,165668->166956triangles,27->28textures/61.8555->62.1888MiB;6.9ms median unchanged on RTX5070. Fixed lights, passes and GPU resources. Required profiled Relay hitch PASS; supplementary FFA FAILED twice (341.7/439.2/294ms startup frames) with idle-heavy CPU attribution. Thresholds retained; iGPU/thermal/real6v6 and startup stall cause remain unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session65 Cargo Shift1/2 ON: server epoch drives a visible eight-metre lift and28m carry with warning, short motor cue and recovery. Exterior spectacle only; collision-backed cover is required in Session66. Pressure Drop and Signal Break retained; human excitement remains unaccepted. |
+| R-L16 | partial | Session66 completes Cargo Shift2/2 ON: the shared crane transfer retracts freight cover into a direct crossing; players trade protection for access. Occupancy holds the down lock; mute/reduced preserve cover information. Discrete locks, not continuously simulated machinery. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -447,44 +449,40 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session65: re-reviewed all63 principles. First investigated the supervisor hitch
-failure with controlled captures, a deliberately failing positive control and
-GPU traces. Rejected the sampling-only hypothesis and retained the original
-profiled gate. Then started Cargo Shift1/2, the top-ranked bounded signature arc.
-Its exterior transfer is on by default; the mechanical cover payoff remains required.
-A recurring supervisor hitch remains a preflight blocker: use the retained GPU
-traces and do not substitute an unprofiled pass for the required profiled gate.
+Session66: all63 reference principles re-reviewed; Cargo Shift2/2 is complete
+and on by default. Its playable cover, crossing, historical hits and occupied
+hold pass targeted and real-room checks. Human tactical quality remains open.
+The supervisor's intermittent GPU/driver hitch concern remains a preflight
+constraint; no profiled gate or threshold was changed for this feature.
 
-1. **Complete Cargo Shift2/2 (R-M05/12/14, R-L16).** Session66 must connect the
-   announced Switchyard crane cycle to server-owned playable cover, matching
-   collision/prediction/historical hits and safe occupied transitions. Preserve
-   the exterior transfer and induction pads. Do not call the arc complete until
-   the new cover creates a usable tactical choice, on by default.
+1. **Switchyard startup hitch (R-L14), preflight priority.** Both supplementary
+   profiled FFA runs failed:341.7ms, then439.2/294ms in the first measured second.
+   CPU samples were overwhelmingly idle; no long task or Three.js shader change.
+   Required Relay hitch passed. Use retained Session65 GPU traces and these
+   failures to establish a cause; do not rerun until a favorable sample and
+   call it fixed, omit startup frames or change the150ms assertion.
 2. **Encounter fairness and flank counterplay (R-M03/07/09/10/20, R-L11).**
-   Session64 fixes the sampled Undertow exit firing line: fast respawn contacts
-   15->0 across three matched seeds, but20.1/19.1/24.1s medians and114:200 /
-   201:81 scores retain pacing/side uncertainty. Investigate objective clumping
-   and gallery volunteers/holds before retuning combat. Relay17.1/13.7s and
-   Switchyard5.5/7s remain below20-30s. Preserve censored and unfavorable samples;
-   neither symmetric geometry nor more fights establishes fairness.
-3. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is complete
-   by default; actual mouse/RTT, moving hands/remote flight and human fights
-   remain open. Bots still do not deliberately choose launch pads.
+   Next top bounded task: investigate objective clumping and gallery volunteers
+   before retuning combat. Session64 Undertow fast respawn contacts15->0 across
+   three seeds, but20.1/19.1/24.1s medians and114:200/201:81 scores leave pacing
+   and side fairness open. Relay17.1/13.7s and Switchyard5.5/7s remain short.
+   New freight cover is a tactical option, not evidence of fairer encounters.
+3. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is on by
+   default; actual mouse/RTT, moving hands/flight and deliberate bot pad use
+   remain open. Review fights around freight cover and its bypasses too.
 4. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
-   course, manual ping acknowledgement, replicated results countdown and
-   highlight colours. Event text and actual doors remain under mute/reduced
-   motion; voice barks/role skins and human accessibility review remain open.
+   course, manual ping acknowledgement, replicated results countdown and enemy
+   highlight colours. Event mute/reduced checks pass; human accessibility,
+   voice barks/role skins and readable onboarding remain open.
 5. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
-   economy/side swap, separate weapon FOV, view-kick controls, richer doorway
+   economy/side swap, separate weapon FOV, view-kick control, richer doorway
    acoustics and human headphone/mouse review remain.
 6. **Objective-aware highlights and item control (R-L06-07, R-M16).** No replay,
    objective-aware MVP or contested resource loop. Choose one bounded arc.
-7. **Device/performance acceptance.** Session65 traces captured GPU/ANGLE tasks
-   and WebGL flush stalls while JS stayed responsive. Sampling removal and
-   software-canvas/HUD workarounds were rejected. The original profiled gate and
-   every assertion remain; reliable cold-GPU recovery is still open. Retain failing
-   diagnostics. Moving hands/holds, real6v6/RTT,iGPU,cold-driver/thermal and
-   Firefox/Safari remain open.
+7. **Device/performance acceptance.** Session65 GPU/ANGLE/WebGL-flush stalls
+   remain unresolved beyond per-run gates. Preserve failing diagnostics; do not
+   substitute unprofiled passes. Real6v6/RTT,iGPU,cold-driver/thermal and
+   Firefox/Safari remain unaccepted.
 
 ### Session 1 — 2026-09-07
 
@@ -9892,3 +9890,173 @@ records12 owned processes; cleanup confirms zero remaining owned processes,
 zero8796 listeners and zero inspection browsers (`session65-cleanup.json`).
 All working-tree changes remain under apps/ironsight/**, including inherited64.
 No commit, push, deployment or live-site change.
+
+### Session 66 - 2026-09-10: Cargo Shift arc 2/2 - trade freight cover for the crossing
+
+Read the standing brief, Session66 supervisor status, plan and all63 design
+principles. Branch ironsight-aaa was clean at entry. Supervisor confirms Session65
+passed all gates, commit9292cd9, preview deploymentd0c994b5-ef5e-4a7b-a9ef-836f14b6b57d.
+This session changes apps/ironsight/** only; no commit, push or deploy.
+
+Reference: R-M03/04/05/08/11/12/14, R-G14/20, R-L14/16/22.
+Targets: full cover>=1.75m; an actual route/cover trade on the crane's existing
+8s warning/15s transfer; one authoritative collision state shared by rendering,
+prediction and historical hits; no raising through occupants; unchanged10-15s
+objective rotations; fixed lights/passes/resources; mute/reduced retain gameplay
+information. These implemented checks pass. R-M05 is met as an implemented
+route-changing map hook. Human first-five-minutes reaction and tactical quality
+remain open. All63 scorecard rows reviewed, relevant evidence updated and gaps
+re-ranked: Switchyard startup hitch is the preflight priority, followed by
+encounter fairness. This cover is not evidence of improved match balance.
+
+Delivered, Cargo Shift2/2 complete and on by default:
+
+- East service FREIGHT / 04 is a4x3x6m counterweight at x124..128,z46..52.
+  It provides full cover at rest and locks flush with the apron during the
+  existing crane transfer. Crossing directly trades protection for access;
+  north and south bypasses remain available when raised. The exterior crane,
+  induction pads, spawns, bot combat stats and economy retain their behavior.
+- The existing server-only CoreGate drives the existing replicated coreOpen
+  bit. No new message, schema field, protocol or persisted shape. Client intents
+  cannot forge the epoch/lock. Collision, movement/traversal, current/historical
+  analytic and hybrid hits, grenades/blasts, pings, spawns, audio and normal bot
+  navigation use the same open/closed sets. No FFA bot teleport or stat bonus.
+- Full footprint plus1.5m approach guard holds the down lock for living players
+  and grenades when transfer finishes. Standing, crouched/airborne threshold
+  cases stay safe; exiting restores cover without HP change. Late seats inherit
+  the held state. The existing per-round reset behavior is reused unchanged.
+- The visible counterweight follows discrete authoritative locks, as the transit
+  shutters do; it is NOT interpolated through a collider or presented as a
+  continuously simulated lift. The external crane still animates lift/carry/lower.
+  Underfloor weight stays resident; centimetre markings are cosmetic only.
+- Original orange ribbed body, pale corner castings, inset serial panel, marked
+  floor footprint and amber/teal lock bars. One512x128 sign texture shared on
+  both sides. No new realtime light, pass, shadow, dependency or frame-time bake.
+  Dynamic body excluded from permanent kit and ground-shadow generation, so no
+  invisible baked freight block survives the down lock. Existing static bake
+  inputs remain identical; no architecture/AO GLB or image needed regeneration.
+- Warning explains COVER DROPS; open phase says CROSSING OPEN and exposed;
+  occupied recovery says CLEAR TO RAISE / HELD; restoration announces full cover.
+  Existing PA and short motor cue, mute/master/limiter path retained. Radar stays
+  online. Geometry/color plus text retain the same information under Reduced motion.
+  Provenance/reproduction added to public/assets/README.md: pnpm build:client.
+
+Validation and rejected intermediates:
+
+- Five new server/physics cases verify clear envelope/bypasses, movement, body/
+  eye rays, grenades, navigator route, occupied closure, forged input, late seat
+  replication and historical analytic/hybrid hits across BOTH transitions.
+  Client lock test verifies prediction, visible down height, fixed objects,
+  geometry/material references and zero lights. Permanent-kit test explicitly
+  excludes the movable body and rejects any static shell/cladding in its footprint.
+- First full suite failed the old112-static-shell assumption (111 permanent plus
+  one movable body). Updated the test to assert this split and permanent clearance;
+  the failure remains in session66-test-first-failed.log. Final590passed,6existing
+  opt-in skipped;72passed files,4skipped. No test thresholds were weakened.
+- First visual review showed z-fighting from near-coplanar orange panels, ribs,
+  sign and castings. Preserved session66-review-*; separated face depths, retained
+  millimetre/centimetre trim and shortened corner castings away from top/bottom
+  rails. session66-cover-final-* was also an intermediate despite that prefix;
+  its corner/rail overlap was corrected afterwards. Final
+  session66-final-switchyard-cargo-{cover,crossing}.png reviewed.
+- Ground BFS freight approach (121,50)->(131,50), sprint9m/s:1.5556s closed,
+  1.1111s open;14m detour becomes10m direct. This is a modest local shortcut with
+  a cover cost. Switchyard A-B/B-C/A-C14.44/14.44/11.56s remain unchanged in both
+  states. Relay14.44/14.44/11.78, Undertow14.22/14.22/11.33 retained. Switchyard
+  colliders111->112 closed,111 open;3m added full cover, no head-height class.
+  No new encounter timing, heatmap, side fairness or human6v6 claim this session.
+- Static all-reference audit: .inspect/session66-reference-audit.json,
+  reproduced by tools/reference-audit.ts. All150x100m/1250m2per-seat, ADS250/200/
+  225/400/165ms, sprint recovery120/100/130/150/90ms, respawn3s, hostile foley1.4,
+  hit/kill pips and two damage cues retained. DOM4/8s capture,1point/2s/flag,
+  no side swap,78hipFOV and top-right feed remain reference mismatches.
+
+Wow check:
+
+- Paired same-camera cover/crossing stills: session66-final-switchyard-cargo-
+  {cover,crossing}.png. Pre-change vs final matched stress also retained in
+  session66-before/ session66-final reports and stills.
+- Real private Switchyard training: session66-wow-report.json and cargo-
+  diagnostic.json retain a20408ms capture sequence plus warning, open, crossing,
+  held and restored stills. Ordinary W/aim is blocked by raised cover, crosses
+  the down lock, stands inside through recovery, then exits and observes safe
+  full cover. Stable room epoch, online radar, HP100; all11 checks pass.
+- session66-wow-muted-reduced repeats20482ms with mute and Reduced motion;
+  identical collision/hold behavior, zero motor sources, readable800x600 and
+  390x844 event cards. Final screenshots reviewed. Normal drill verifies motor
+  sources end; these silent captures do not establish headphone comfort.
+- No state, clock, health, teleport or event injection. This is training plus
+  paired before/after states, not a twelve-player excitement test.
+- Intended player sentence: "The crane just took away my cover and opened a
+  crossing; I can cut through before it comes back." Design intent, not a quote
+  from a playtester.
+
+Matched1920x1080 balanced/DPR1 stress, Edge152.0.4191.66, RTX5070 / ANGLE D3D11:
+11remote actors plus local viewmodel,145twelve-rifle volleys,96blasts/15s and3s
+drain in both runs. Source/assets frozen for final measurements; no second
+inspection browser, build or test overlapped stress or hitch sampling.
+
+| Measurement | Session66 start | Final | Delta |
+|---|---:|---:|---:|
+| Peak draw calls |202|208|+6|
+| Peak triangles |165668|166956|+1288|
+| Textures / estimated MiB |27 /61.86|28 /62.19|+1 /+0.33|
+| Programs / geometries / instance slots |29 /152 /306|29 /158 /306|0 /+6 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.1|6.9 /7.1 /7.1|0 /0 /0|
+| Max / first-ready-window ms |7.30 /7.10|7.60 /7.10|+0.30 /0|
+| Scene construction / preparation ms |76.70 /1005.30|81.80 /1005.20|5.10 /-0.10|
+| Public assets bytes (includes provenance) |26695958|26696582|+624|
+| Client JS / source map bytes |2074393 /4608164|2079460 /4618069|+5067 /+9905|
+| Entire public bytes |33379123|33394719|+15596|
+
+Public31.85MiB remains below40MiB; largest file Switchyard architecture
+7183364bytes unchanged, below25MiB. Assets grow only by README text;
+no new binary. Texture estimate62.1888MiB/28 below64MiB/32;208calls below240.
+Four blast lights stay constant. Timing differences are observations, not a
+speedup or mid-laptop/iGPU/thermal/cold-driver/real6v6 claim. Meshy spend0credits;
+reported1530balance unchanged. Exact collision-fit counterweight uses the
+original procedural kit. .inspect/session66-summary.json and summarize.mjs
+retain exact bytes/timings, gates, reference and wow results.
+
+Final gates:
+
+- pnpm typecheck PASS; pnpm test PASS (590passed,6existing opt-in skipped).
+- pnpm build:client PASS; pnpm audit:assets PASS. Logs:
+  session66-{typecheck,test,build-client,audit-assets}-final.log.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS, zero console errors/forbidden requests. session66-required-report.json,
+  required-{relay,practice-two}.png and required.log retained.
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+  PASS with original500us CPU sampling and original thresholds: 84777.20ms,
+  12208measured frames, two natural bot deaths. See session66-hitch-final.json/log.
+- Supplementary --mode=ffa FAILED on changed Switchyard: 47941.30ms,
+  6799measured frames, two natural bot deaths. session66-hitch-ffa.json/log.
+  First supplementary FFA run FAILED on its first measured frame:341.7ms at
+  t341ms, with322of328CPU samples idle, no long task, shader change or console
+  error. It still reached two deaths in112190.2ms. Preserved as
+  session66-hitch-ffa-first-failed.json/log. No game/probe change was made before
+  one recurrence run; it ALSO FAILED:439.2ms at464ms and294ms at777ms. CPU idle
+  samples416/427 and274/279, zero long tasks/recompiles/errors, two deaths. The
+  signature resembles inherited idle-heavy startup stalls, but CPU attribution
+  does not establish its cause. Stopped rerunning and retained both failures.
+  All SIX REQUIRED gates green does not mean this supplementary FFA gate passed
+  or imply a fix/universal cold-GPU acceptance. Original
+  sampling, warm-up, first frame, every spike and every threshold retained.
+- Static/browser exit codes: session66-static-gates.json, session66-browser-gates.json.
+  No edits to hitch probe, thresholds, profiling, waits or bot death requirement.
+
+Open owner questions/defaults: keep the cover-for-crossing trade (yes); keep
+counterweight locks discrete so cover matches authority (yes); leave FFA combat
+stats and objective economy unchanged (yes). Human cover clarity, instant-lock
+feel, audio comfort, actual RTT/mouse/6v6 and representative iGPU remain open.
+No answer blocks continued work. Switchyard startup hitch is the next preflight
+priority, then encounter fairness. No owner/performance acceptance is implied.
+
+Cleanup: verified the owned preview root PID/creation time and each descendant
+identity before stopping the12-process tree. session66-preview-tree.json and
+session66-cleanup.json record zero remaining owned processes, zero8796 listeners
+and zero inspection browsers. Final diff check clean; every changed/untracked
+source path stays under apps/ironsight/**. All63 scorecard rows present exactly
+once in the canonical scorecard (session66-final-audit.json). Six required gates
+green; both supplementary FFA failures explicitly retained above. No commit, push
+or deploy.

@@ -114,6 +114,8 @@ export function startMapInspector(): void {
     'switchyard-north': [55, 1.65, 29, 95, 2, 29],
     'switchyard-stress': [46, 1.65, 29, 65, 1.5, 29],
     'switchyard-cargo-before': [143,1.65,53,156,11,40],
+    'switchyard-cargo-cover': [120.5,1.65,50,127,1.4,49],
+    'switchyard-cargo-crossing': [120.5,1.65,50,127,1.4,49],
     'switchyard-cargo-warning': [143,1.65,53,156,11,40],
     'switchyard-cargo-lift': [143,1.65,53,156,11,40],
     'switchyard-cargo-transfer': [143,1.65,53,156,11,40],
@@ -234,9 +236,9 @@ export function startMapInspector(): void {
       scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
     }
     if(map===ARENA3 && (effects || shotName.startsWith('switchyard-cargo-'))) {
-      const age=effects?6800+now-started:shotName.endsWith('before')?-1:shotName.endsWith('warning')?1000:shotName.endsWith('lift')?11000:shotName.endsWith('recovery')?24000:15500;
+      const age=effects?6800+now-started:shotName.endsWith('before')?-1:shotName.endsWith('warning')||shotName.endsWith('cover')?1000:shotName.endsWith('lift')?11000:shotName.endsWith('recovery')?24000:15500;
       scene.reducedMotion=shotName.endsWith('reduced');
-      scene.updateSignal(signalFrame(1000,'live',1000+age));
+      const frame=signalFrame(1000,'live',1000+age);scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
     }
     if (effects || shotName === 'recon-flyover') {
       const age = effects ? now - started : 6000;

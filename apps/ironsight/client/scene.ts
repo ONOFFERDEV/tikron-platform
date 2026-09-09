@@ -28,6 +28,7 @@ import type { ReconFlight } from '../src/air-support.js';
 import { SignalArray } from './signal-array.js';
 import { FloodWorks } from './flood-works.js';
 import { CargoCrane } from './cargo-crane.js';
+import { CargoCounterweight } from './cargo-counterweight.js';
 import { SignalCore, addCoreSigns } from './signal-core.js';
 import { CoreCollision } from '../src/core-gate.js';
 import type { SignalFrame } from '../src/signal-event.js';
@@ -410,7 +411,8 @@ export class SceneRig {
   updateSupport(flights: readonly ReconFlight[], now: number): void { this.reconFlyover.update(flights, now); }
   inspectSupport() { return this.reconFlyover.inspect(); }
   private readonly signalCore?: SignalCore;
-  setCoreOpen(open: boolean): void { this.hitBoxes=this.coreCollision.hits(open);this.signalCore?.setOpen(open); }
+  private readonly cargoCounterweight?: CargoCounterweight;
+  setCoreOpen(open: boolean): void { this.hitBoxes=this.coreCollision.hits(open);this.signalCore?.setOpen(open);this.cargoCounterweight?.setOpen(open); }
   updateSignal(frame: SignalFrame): void {
     this.signalArray?.update(frame, this.reducedMotion);this.signalCore?.update(frame,this.reducedMotion);
     this.floodWorks?.update(frame,this.reducedMotion);this.cargoCrane?.update(frame);
@@ -418,7 +420,7 @@ export class SceneRig {
   inspectSignal() {
     if (this.signalArray) return {...this.signalArray.inspect(),core:this.signalCore?.inspect()};
     if (this.floodWorks) return {...this.floodWorks.inspect(),playableRoute:!!this.signalCore,core:this.signalCore?.inspect()};
-    return this.cargoCrane?.inspect() ?? null;
+    return this.cargoCrane ? {...this.cargoCrane.inspect(),playableRoute:!!this.cargoCounterweight,core:this.cargoCounterweight?.inspect()} : null;
   }
 
   constructor(map: MapDef, container: HTMLElement = document.body,
@@ -493,7 +495,10 @@ export class SceneRig {
     if (map.presentation === 'relay') this.signalArray = new SignalArray(this.scene,map.bounds.width/2);
     if (map.presentation === 'undertow') this.floodWorks = new FloodWorks(this.scene,map.bounds.width/2);
     if (map.presentation === 'switchyard') this.cargoCrane = new CargoCrane(this.scene,map.bounds.width,map.bounds.depth);
-    if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root,map.signalCore,map.presentation==='undertow'); }
+    if (map.signalCore) {
+      if(map.presentation==='switchyard')this.cargoCounterweight=new CargoCounterweight(this.scene,map.signalCore);
+      else {this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root,map.signalCore,map.presentation==='undertow');}
+    }
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));

@@ -75,7 +75,7 @@ it('shares the Switchyard transfer with late FFA seats and rejects attempts to m
   const late=await h.connect();await h.advance(50);
   expect(h.snapshot().signalAt).toBe(epoch);expect(late.frames().length).toBeGreaterThan(0);
   expect(signalFrame(epoch,h.snapshot().phase,Date.now()).phase).toBe('blackout');
-  expect(h.snapshot().coreOpen).toBe(false); // exterior transfer has no playable cover yet
+  expect(h.snapshot().coreOpen).toBe(true); // Freight cover retracts during the shared transfer.
 });
 
 it('replicates Undertow discharge to late seats without allowing input to reset it or blanking earned UAV',async()=>{

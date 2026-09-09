@@ -891,3 +891,13 @@ python scripts/audit-architecture.py --input .inspect/session65-architecture.jso
 pnpm build:client
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots cargo,switchyard-cargo-transfer --prefix session65-review
 ```
+
+### Session 66: original freight counterweight (runtime geometry)
+
+`client/cargo-counterweight.ts` authors the Switchyard gantry counterweight and
+512x128 sign atlas from primitive geometry and Canvas text; no external source,
+purchased derivative or generated binary. It follows the authoritative
+`ARENA3.signalCore` envelope (4x3x6m) and replicated lock state. The down lock is
+flush with the apron, with no baked shadow or permanent architecture at its spot.
+The overhead Session65 crane retains its original mesh and motion. Reproduce with
+`pnpm build:client`; no Blender re-bake or extra public asset file is needed.

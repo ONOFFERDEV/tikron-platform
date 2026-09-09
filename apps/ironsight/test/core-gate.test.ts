@@ -40,7 +40,7 @@ it('opens a standing route through both ends while retaining the walls, roof and
   const goal={x:83,z:50},from={x:67,z:50};
   expect(new GroundNavigator({...ARENA1,boxes:c.open}).next(from,goal)).toEqual(goal);
   expect(new GroundNavigator(ARENA1).next(from,goal)).not.toEqual(goal);
-  expect(new CoreCollision(ARENA3).open).toBe(ARENA3.boxes);
+  const plain={...ARENA3,signalCore:undefined};expect(new CoreCollision(plain).open).toBe(plain.boxes);
   const projectile=()=>({pos:{x:69.5,y:1,z:50},vel:{x:8,y:0,z:0}});
   const closed=projectile(),open=projectile();
   expect(stepGrenade(closed,.1,0,.5,.1,c.closed,ARENA1.bounds)).toBe(true);

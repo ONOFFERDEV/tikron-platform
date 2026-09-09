@@ -74,6 +74,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     }
   }
   for (const box of map.boxes) {
+    if (map.signalCore?.doors.includes(box)) continue; // No baked shadow from retractable cover.
     const x = box.min.x * sx, z = box.min.z * sz, w = (box.max.x - box.min.x) * sx, d = (box.max.z - box.min.z) * sz;
     // Nested translucent fills are baked into an opaque texture once at load.
     for (let ring = 8; ring >= 1; ring--) {

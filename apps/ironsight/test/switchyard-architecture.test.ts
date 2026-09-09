@@ -8,7 +8,7 @@ import { buildSwitchyardEnvironment } from '../client/switchyard-environment.js'
 describe('Switchyard presentation preserves authoritative cover', () => {
   const scene = new T.Scene();
   buildSwitchyardEnvironment(scene, ARENA3, true);
-  const colliders = ARENA3.boxes.map(b => new T.Box3(
+  const colliders = ARENA3.boxes.filter(b=>!ARENA3.signalCore?.doors.includes(b)).map(b => new T.Box3(
     new T.Vector3(b.min.x, b.min.y, b.min.z), new T.Vector3(b.max.x, b.max.y, b.max.z)));
   function instances(prefix: string): T.Box3[] {
     const boxes: T.Box3[] = [];
@@ -22,11 +22,14 @@ describe('Switchyard presentation preserves authoritative cover', () => {
     });
     return boxes;
   }
-  it('renders every existing solid to its exact width, height and depth', () => {
+  it('renders every permanent solid exactly and leaves the retractable freight footprint clear', () => {
     const shells = instances('switchyard-shell-');
     expect(shells).toHaveLength(colliders.length);
     for (const collider of colliders) expect(shells.some(shell =>
       shell.min.distanceTo(collider.min) < 0.00001 && shell.max.distanceTo(collider.max) < 0.00001)).toBe(true);
+    const weight=ARENA3.signalCore!.chamber;
+    const footprint=new T.Box3(new T.Vector3(weight.min.x,.1,weight.min.z),new T.Vector3(weight.max.x,weight.max.y,weight.max.z));
+    for(const part of [...shells,...instances('switchyard-cladding-')])expect(part.intersectsBox(footprint)).toBe(false);
   });
   it('keeps every machinery face within 2 cm of an existing collider', () => {
     const envelopes = colliders.map(b => b.clone().expandByScalar(0.02));

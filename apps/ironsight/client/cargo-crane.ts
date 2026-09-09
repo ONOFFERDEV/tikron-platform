@@ -2,9 +2,9 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SIGNAL, type SignalFrame } from '../src/signal-event.js';
 
-/** Cargo Shift 1/2: the east gantry lifts a twelve-metre cargo module, carries
- * it to the other service berth, and sets it down. Entirely outside play;
- * the next arc stage must add authoritative cover before claiming a route payoff.
+/** Cargo Shift: the east gantry lifts a twelve-metre cargo module, carries
+ * it to the other service berth, and sets it down. This hoist stays outside play;
+ * the paired CargoCounterweight owns the replicated playable cover presentation.
  * Four draw objects, no textures, lights, shadows, or per-frame geometry work. */
 export class CargoCrane {
   readonly root = new T.Group();

@@ -63,8 +63,12 @@ export const SWITCHYARD_ROWS: readonly string[] = [
   "...................#............###########............#...................",
 ];
 const compiled = compileTileMap(SWITCHYARD_ROWS);
+// The gantry's freight counterweight is full cover at rest. During transfer it
+// locks flush with the apron: one replicated gate bit owns cover and crossing.
+const freightCounterweight = { min: { x: 124, y: 0, z: 46 }, max: { x: 128, y: 3, z: 52 } };
 export const ARENA3: MapDef = {
   ...compiled, presentation: 'switchyard',
+  signalCore: { doors: [freightCounterweight], chamber: freightCounterweight },
   flankRoutes: [
     [{x:27,z:51},{x:27,z:27},{x:55,z:29},{x:95,z:29},{x:123,z:27},{x:123,z:51}],
     [{x:27,z:51},{x:27,z:87},{x:61,z:93},{x:89,z:93},{x:123,z:87},{x:123,z:51}],
@@ -89,6 +93,7 @@ export const ARENA3: MapDef = {
   } })),
     // Deck switching spine: solid/inaccessible above the 3m route, no fourth floor.
     { min: { x: 79, y: 3, z: 51 }, max: { x: 81, y: 14, z: 53 } },
+    freightCounterweight,
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minX: r.axis === 'x' && r.dir === 1 ? r.minX - 4 : r.minX,
