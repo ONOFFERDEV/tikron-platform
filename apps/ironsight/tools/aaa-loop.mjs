@@ -119,6 +119,20 @@ async function commitAndDeploy(session) {
 }
 
 let failures = 0; let last = null;
+// --gate-first: a previous loop died mid-session and left uncommitted astra work in the tree.
+// Gate and commit it as that session before starting a new one (or reset it if red).
+if (args.includes('--gate-first') && !DRY) {
+  const dirty = (await sh('git status --porcelain apps/ironsight', { cwd: repo, timeoutMs: 60000 })).full.trim();
+  if (dirty) {
+    const session = (await nextSession()) - 1; // the heading astra already wrote, if any
+    await log(`gate-first: uncommitted work found, gating it as session ${session}`);
+    const g = await gates(`loop${session}-recovered`);
+    const summary = g.results.map(r => `${r.name}:${r.code === 0 ? 'PASS' : 'FAIL'}`).join(' ');
+    if (g.ok) { const c = await commitAndDeploy(session); await log(`gate-first GREEN — ${summary}; ${c.committed ? 'committed ' + c.hash : 'nothing to commit'}`); last = [`Session ${session} was recovered by the supervisor after a loop restart: gates ${summary}, ${c.committed ? `committed as ${c.hash}` : 'nothing to commit'}.`]; }
+    else { await sh('git checkout -- apps/ironsight && git clean -fd apps/ironsight', { cwd: repo, timeoutMs: 120000 }); await log(`gate-first RED — ${summary}; working tree reset`); last = [`Session ${session} was interrupted by a loop restart and its uncommitted work FAILED the gates (${summary}); the tree was reset to the last green commit. Re-plan it as a fresh session.`]; }
+    await jsonl({ session, ok: g.ok, recovered: true, gates: summary });
+  }
+}
 for (let i = 0; i < CAP; i++) {
   if (existsSync(join(state, 'STOP'))) { await log('STOP file present; exiting'); break; }
   if (Date.now() >= UNTIL) { await log(`deadline ${opt('--until')} reached; exiting`); break; }
