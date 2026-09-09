@@ -23,7 +23,9 @@ export function startMapInspector(): void {
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
   const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
-  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : reviewEnemy ? 1 : 0;
+  const muzzleLineup = params.get('shot') === 'muzzle-lineup';
+  const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
+  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : muzzleLineup ? 5 : reviewEnemy ? 1 : 0;
   const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects });
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
@@ -39,6 +41,10 @@ export function startMapInspector(): void {
     'recon-stress': [8,1.65,11,75,24,45],
     'recon-flyover': [30,1.65,24,75,32,34],
     'mortar-stress': [8,1.65,11,24,2,11],
+    'drone-hero': [5,1.65,8,9,2.8,12],
+    'muzzle-lineup': [8,1.65,11,14,1.5,11],
+    'muzzle-stress': [8,1.65,11,35,1.5,11],
+    'drone-stress': [5,1.65,8,9,2.8,12],
     'mortar-warning': [8,1.65,11,16,.5,11],
     'mortar-impact': [8,1.65,11,16,2,11],
     cooling: [52, 1.65, 25, 94, 2.3, 25],
@@ -88,6 +94,10 @@ export function startMapInspector(): void {
     Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
       yaw: Math.atan2(scene.camera.position.x - reviewEnemy[0]!, scene.camera.position.z - reviewEnemy[2]!) });
   }
+  if (muzzleLineup || mixedWeapons) for (const [i, actor] of [...actors.values()].entries()) {
+    Object.assign(actor, { weapon: i % 5 });
+    if (muzzleLineup) Object.assign(actor, { x: 14, z: 8 + i * 1.5 });
+  }
   let frameCount = 0, last = performance.now(), peakCalls = 0, peakTriangles = 0;
   const firstFrames: number[] = [];
   let drained: unknown;
@@ -109,7 +119,7 @@ export function startMapInspector(): void {
           const origin = i === 11 ? scene.getSelfMuzzlePos() : scene.getRemoteMuzzleAnchor(`inspect-${i}`);
           if (!origin) continue;
           const dir = { x: -1, y: 0, z: 0 };
-          scene.spawnMuzzleFlash(origin, dir); scene.spawnCasing(origin, dir);
+          scene.spawnMuzzleFlash(origin, dir, mixedWeapons ? i % 5 : 0); scene.spawnCasing(origin, dir);
           scene.addTracer(origin, dir, 12, false, 300);
           scene.spawnImpact({ x: origin.x - 8, y: 1, z: origin.z }, dir, i % 2 === 0);
         }
@@ -152,6 +162,15 @@ export function startMapInspector(): void {
       scene.updateMortar([0,1].map(team => ({ owner:`fixture-${team}`,team,x:(effects ? 24+team*8 : 16),y:.12,z:11+(!effects ? team*15 : 0),
         startedAt:1000,endsAt:6900 })), 1000 + age);
     }
+    if (effects || shotName.startsWith('drone-')) {
+      const age=effects?now-started:1800;
+      scene.updateDrone([0,1].map(team=>({owner:`fixture-${team}`,team,x:9+team*8,y:3.2,z:12,
+        startedAt:1000,endsAt:13000,lock:{point:{x:18+team*8,y:1.1,z:13},fireAt:1000+Math.floor(age/1800)*1800+900}})),1000+age);
+    }
+    if (muzzleLineup && frameCount === 150) for (let i = 0; i < 5; i++) {
+      const origin = scene.getRemoteMuzzleAnchor(`inspect-${i}`);
+      if (origin) scene.spawnMuzzleFlash(origin, { x: -1, y: 0, z: 0 }, i);
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -171,6 +190,7 @@ export function startMapInspector(): void {
       signal: scene.inspectSignal(),
       support: scene.inspectSupport(),
       mortar: scene.inspectMortar(),
+      drone: scene.inspectDrone(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),

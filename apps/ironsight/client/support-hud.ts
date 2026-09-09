@@ -1,3 +1,5 @@
+import { DRONE, emptyDrone } from '../src/drone.js';
+import { readDrone } from './drone-view.js';
 import { RECON, type SupportView } from '../src/air-support.js';
 import type { ArenaState } from '../src/schema.js';
 import { emptySupport, readSupport } from './support-view.js';
@@ -11,8 +13,9 @@ export class SupportHud {
   private readonly title = document.createElement('strong');
   private readonly detail = document.createElement('span');
   private readonly meter = document.createElement('div');
-  private readonly pips = Array.from({ length: 5 }, () => document.createElement('i'));
+  private readonly pips = Array.from({ length: 7 }, () => document.createElement('i'));
   private mortar = emptyMortar();
+  private drone = emptyDrone();
   private denialUntil = 0;
   private denial = '';
   private current = emptySupport();
@@ -28,6 +31,7 @@ export class SupportHud {
       #supportBanner{position:fixed;top:205px;left:50%;transform:translateX(-50%);width:380px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:13px 20px 14px 67px;border-top:2px solid #edaa52;background:linear-gradient(110deg,#17363ff5,#10242bf5);color:#f1f0e8;pointer-events:none;font:10px Arial;letter-spacing:2px;box-shadow:0 8px 30px #0003}
       #supportBanner::before{content:'';position:absolute;left:17px;top:23px;width:34px;height:34px;background:#edaa52;clip-path:polygon(50% 0,58% 38%,100% 78%,100% 89%,58% 69%,58% 89%,73% 100%,27% 100%,42% 89%,42% 69%,0 89%,0 78%,42% 38%)}#supportBanner strong{display:block;font-size:21px;margin:5px 0;letter-spacing:2px}#supportBanner span{color:#bcd1cc;font-size:10px;letter-spacing:.6px}
       #supportBanner[data-kind=mortar]::before{clip-path:polygon(35% 0,65% 0,80% 25%,80% 65%,63% 85%,72% 100%,50% 92%,28% 100%,37% 85%,20% 65%,20% 25%);transform:rotate(30deg)}
+      #supportBanner[data-kind=drone]::before{clip-path:polygon(0 10%,28% 10%,36% 36%,64% 36%,72% 10%,100% 10%,100% 38%,72% 38%,64% 64%,72% 72%,100% 72%,100% 100%,72% 100%,64% 72%,36% 72%,28% 100%,0 100%,0 72%,28% 72%,36% 64%,28% 38%,0 38%)}
       @media(max-width:800px){#airSupport{bottom:200px;right:16px;width:200px}#supportBanner{top:344px}}
       @media(max-width:520px){#airSupport{top:218px;bottom:auto;width:144px;padding:10px}#supportBanner{top:406px;padding-top:9px;padding-bottom:9px}#supportBanner strong{font-size:17px}}
       @media(max-height:650px) and (min-width:801px){#airSupport{bottom:145px}#supportBanner{top:195px}}`;
@@ -37,6 +41,23 @@ export class SupportHud {
     this.meter.className = 'meter'; this.meter.append(...this.pips);
     this.root.append(this.title, this.detail, this.meter); document.body.append(this.root, this.banner);
   }
+  receiveDrone(payload: unknown, now: number, state: ArenaState | undefined, id: string): void {
+    const next = readDrone(payload, now, this.width, this.depth); if (!next || !state) return;
+    const launched = next.flights.find(f => !this.drone.flights.some(old => old.owner === f.owner && old.startedAt === f.startedAt) && now-f.startedAt<750);
+    this.drone = next;
+    if (!state.players[id]?.alive || !document.pointerLockElement) return;
+    if (launched) {
+      const own=launched.owner===id, friendly=own || state.mode!==3 && launched.team===state.players[id]!.team;
+      this.announce(own?'7 ELIMINATIONS / SUPPORT EARNED':'AIR SUPPORT / SENTRY',own?'SENTRY ONLINE':friendly?'FRIENDLY SENTRY':'HOSTILE SENTRY',
+        friendly?'12 seconds of covering fire. Stay near it and keep sight.':'Move off its laser. Cover or eliminate the operator.',now,own?'earned':friendly?'friendly':'enemy');
+    } else return;
+    this.banner.dataset.kind='drone';
+  }
+  rally(payload: unknown, now: number): void {
+    if (!payload || typeof payload!=='object' || !('bonus' in payload) || ![1,5].includes(payload.bonus as number) || !document.pointerLockElement) return;
+    this.announce('SENTRY SHUTDOWN / TEAM RALLY',`+${payload.bonus} TEAM SCORE`,'Enemy operator eliminated. Airspace clear.',now,'earned');this.banner.dataset.kind='drone';
+  }
+  droneInfo() { return this.drone; }
   receiveMortar(payload: unknown, now: number, state: ArenaState | undefined, id: string): void {
     const next = readMortar(payload, now, this.width, this.depth); if (!next || !state) return;
     const earned = next.available && !this.mortar.available;
@@ -92,7 +113,7 @@ export class SupportHud {
     const me = state.players[id], eligible = playing && online && !!me?.alive && state.phase === 'live' && state.mode !== 1 &&
       (state.mode !== 3 || Object.keys(state.players).length > 1);
     if (!online || !me?.alive || state.phase !== 'live') { this.current = emptySupport(); this.bannerUntil = 0; }
-    if (!online || state.phase !== 'live') this.mortar = emptyMortar();
+    if (!online || state.phase !== 'live') { this.mortar = emptyMortar(); this.drone = emptyDrone(); }
     this.root.hidden = !eligible; this.banner.hidden = !eligible || now >= this.bannerUntil;
     const friendly = this.current.flights.find(f => f.endsAt > now && (f.owner === id || state.mode !== 3 && f.team === me?.team));
     const queued = this.current.queued;
@@ -105,6 +126,15 @@ export class SupportHud {
       label = ownStrike ? 'MORTAR / BARRAGE ACTIVE' : charge ? cooldown ? `MORTAR / BATTERY ${cooldown}s` : 'MORTAR / READY' : this.current.count >= 5 ? 'MORTAR / SPENT THIS LIFE' : `MORTAR / ${this.current.count} OF 5`;
       detail = ownStrike ? 'Three rounds. Eliminate the operator to cancel.' : charge ? (this.settings?.get().binds.support.length === 0 ? 'Bind Call mortar in Settings.' : `[${binding}] Aim at open ground, 8-60m. Three rounds; keep clear.`) : 'Five eliminations without dying. Call a three-round barrage.';
     }
+    const sentry = this.drone.flights.find(f=>now<f.endsAt && (f.owner===id || state.mode!==3 && f.team===me?.team));
+    if ((this.current.count>=5 && !charge && !ownStrike) || this.drone.queued || sentry) {
+      label=sentry?`SENTRY / ${Math.ceil((sentry.endsAt-now)/1000)}s`:this.drone.queued?'SENTRY READY / HOLDING':this.current.count>=DRONE.kills?'SENTRY / DEPLOYED THIS LIFE':`SENTRY / ${this.current.count} OF 7`;
+      detail=sentry?'Holds its position. Keep sight and stay within 30m.':this.drone.queued?'Stay alive. Needs clear sky and team airspace.':'Seven eliminations without dying. Automatic covering fire.';
+      if (charge) detail+=` Mortar ready [${binding}].`;
+    } else if (this.current.count>=5 && charge) detail+=` Sentry: ${this.current.count}/7.`;
+    const locked = me && this.drone.flights.some(f=>f.lock && now<f.lock.fireAt && f.team!==me.team &&
+      Math.hypot(f.lock.point.x-me.x,f.lock.point.z-me.z)<1.4);
+    if (locked) { label='SENTRY / MOVE OFF THE LASER';detail='Strafe or break line of sight. Eliminate its operator.'; }
     const danger = me && this.mortar.strikes.find(s => now < s.startedAt + MORTAR.warningMs + (MORTAR.rounds - 1) * MORTAR.intervalMs &&
       (s.owner === id || s.team !== me.team || state.mode === 3) && Math.hypot(s.x - me.x, s.z - me.z) < MORTAR.radius + 4);
     if (danger) {
@@ -117,7 +147,7 @@ export class SupportHud {
     if (this.detail.textContent !== detail) this.detail.textContent = detail;
     this.root.dataset.count = String(this.current.count);
     this.root.dataset.active = String(!!friendly);
-    for (const [index, pip] of this.pips.entries()) { pip.hidden = this.current.count < 3 && index >= 3; pip.dataset.filled = String(this.current.count > index); }
+    for (const [index, pip] of this.pips.entries()) { pip.hidden = index >= (this.current.count < 3 ? 3 : this.current.count < 5 ? 5 : 7); pip.dataset.filled = String(this.current.count > index); }
     return this.current;
   }
   inspect(): SupportView { return this.current; }

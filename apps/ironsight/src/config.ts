@@ -348,7 +348,7 @@ export const MATCH = {
   // is unreachable in practice
   warmupMs: 10_000, // countdown once minPlayers is met, then a full reset into "live"
   assistWindowMs: 3_000, // prior damage inside this window before a kill counts as an assist
-  killstreakThresholds: [3, 5, 8] as readonly number[], // consecutive-kill counts that broadcast "streak"
+  killstreakThresholds: [3, 5, 7] as readonly number[], // consecutive-kill counts that broadcast "streak"
   fillToPlayers: 4, // bots fill empty seats up to this count while real players are short
 } as const;
 

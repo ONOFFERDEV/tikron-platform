@@ -748,3 +748,32 @@ Reproduce: `pnpm build:client`. Review real earned gameplay with
 `node scripts/inspect-map.mjs --url http://localhost:8796 --shots mortar`;
 review the full two-barrage render pool with `--shots effects-stress,mortar-effects-stress --assert-budgets`.
 No public binary or purchased-source derivative added; existing allowlists suffice.
+
+
+### Session52 original sentry drone / runtime geometry
+
+Original authored geometry in client/sentry-drone.ts: compact ducted-fan chassis,
+twin barrels and rotating blades, vertex colour/shading only. Three fixed instanced
+draws share two sentries and their frozen warning beams/crosses. No source download,
+third-party model, texture, light or binary asset. Reduced motion retains the exact
+warning endpoint and freezes rotor/bob animation. Server-confirmed pulses reuse
+existing tracer/muzzle pools; synthesized charge/fire use the capped spatial bus.
+Reproduce: pnpm build:client, then node scripts/inspect-map.mjs --url
+http://localhost:8796 --shots drone-hero,drone --prefix session52-game-final.
+Only the hero shot is an offline render fixture; drone earns seven normal training
+kills and records20s of server gameplay. Ownership: original project code/geometry.
+# Session 53: weapon flash atlas (original procedural effect)
+
+`client/weapon-flash.ts` bakes five original analytic flame silhouettes once at
+startup: rifle crown, SMG fork, shotgun bloom, sniper lance and pistol star.
+One 256x128 RGBA8 atlas (131,072 bytes of sampled storage, no mipmaps) backs
+immutable UV views shared by the first-person flash and all eight remote slots.
+No external image, purchased derivative, new light or render pass. Lifetimes
+are 50/34/64/60/42 ms respectively. Reproduce with `pnpm build:client`, then
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-ar-flash,weapon-smg-flash,weapon-shotgun-flash,weapon-sniper-flash,weapon-pistol-flash,muzzle-lineup`.
+
+Session53 also moves the existing original grenade spheres, blast rings/debris
+and tracer boxes into `client/combat-fx.ts`:96tracers,32grenades,12blast slots,
+four shared geometries,constructed and warmed once. No new external asset or
+image. Reproduce the stress/drain with `--shots effects-stress --assert-budgets`
+on the same inspector command.

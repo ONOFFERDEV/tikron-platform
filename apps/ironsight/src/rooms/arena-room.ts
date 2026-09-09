@@ -1,3 +1,4 @@
+import { DRONE, DroneSupport } from '../drone.js';
 import { AirSupport } from '../air-support.js';
 import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
 import { signalEpoch, signalFrame } from '../signal-event.js';
@@ -232,6 +233,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly streaks = new Map<string, number>();
   private readonly airSupport = new AirSupport();
   private readonly mortarSupport = new MortarSupport();
+  private readonly droneSupport = new DroneSupport();
   /** Deterministic PRNG for per-shot spread (seeded from state.seed in onReady). */
   private spreadRng: () => number = xorshift32(1);
   private dormant = false;
@@ -248,6 +250,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   override onDispose(): void {
     this.airSupport.clear();
     this.mortarSupport.clear();
+    this.droneSupport.clear();
     this.dormant = true;
     // Bots have no core seats: discard their runtime data when all humans leave.
     for (const id of [...this.botBrains.keys()]) this.removeBot(id);
@@ -401,6 +404,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (!p) return;
     client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, Date.now()));
     client.send('mortar', this.mortarSupport.view(client.id, this.state));
+    client.send('drone', this.droneSupport.view(client.id, this.state, this.hitBoxes));
     const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - Date.now());
     client.send("ammo", {
       mag: this.magArr(client.id)[p.weapon] ?? 0,
@@ -442,6 +446,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected override onSeatExpired(client: Client): void {
     this.airSupport.forget(client.id);
     this.mortarSupport.forget(client.id);
+    this.droneSupport.forget(client.id);
+    this.sendDroneViews();
     this.sendMortarViews();
     this.spawnSightHistory.forget(client.id);
     const id = client.id;
@@ -576,6 +582,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const mortar = this.mortarSupport.tick(this.state, now);
     for (const strike of mortar.impacts) this.explodeMortar(strike);
     if (mortar.changed) this.sendMortarViews();
+    const drone = this.droneSupport.tick(this.state, now, this.hitBoxes, this.map.bounds, this.botBrains);
+    for (const shot of drone.shots) {
+      if (!this.state.players[shot.owner]?.alive || this.state.phase !== 'live') continue;
+      if (this.state.mode === 3) this.ownerClient(shot.owner)?.send('droneShot', shot);
+      else this.sendNear('droneShot', { origin: shot.origin, point: shot.point }, shot.origin.x, shot.origin.z,
+        { always: [shot.owner, ...(shot.victim ? [shot.victim] : [])] });
+      if (shot.victim) this.applyDamage(shot.victim, DRONE.damage, shot.owner, 'drone', undefined, shot.origin);
+      this.markStateChanged();
+    }
+    if (drone.changed) this.sendDroneViews();
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
     // preset right after this returns — same cadence, same Date.now()). Uses
@@ -1301,6 +1317,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
 
     const warmup = this.state.phase === "warmup";
+    // Evaluate the pre-kill deficit, then consume this flight once. Support
+    // cannot farm a shutdown bonus or recursively earn another support tier.
+    const rally = part !== 'mortar' && part !== 'drone'
+      ? this.droneSupport.shutdown(victimId, killerId, this.state, now) : 0;
     victim.alive = false;
     this.spawnSightHistory.forget(victimId);
     victim.reloadEnd = 0;
@@ -1319,13 +1339,21 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           killer.k += 1;
           this.gameMode.onKill(this.modeCtx(), killerId, victimId);
         }
-        if (part !== 'mortar') this.bumpStreak(killerId);
+        if (part !== 'mortar' && part !== 'drone') this.bumpStreak(killerId);
+        if (rally && killer) {
+          if (killer.team === TEAM.red) this.state.redScore += rally;
+          else this.state.blueScore += rally;
+          for (const client of this.clientList()) if (this.state.players[client.id]?.team === killer.team)
+            client.send('droneRally', { bonus: rally });
+        }
       }
     }
     this.hits.delete(victimId);
     this.streaks.delete(victimId);
     this.airSupport.forget(victimId);
     this.mortarSupport.forget(victimId);
+    this.droneSupport.forget(victimId);
+    this.sendDroneViews();
     this.sendMortarViews();
     this.tickSupport(now, true);
 
@@ -1387,12 +1415,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return best;
   }
 
-  /** killer's current kill streak; broadcasts `streak` on 3/5/8 (MATCH.killstreakThresholds). */
+  /** killer's current kill streak; broadcasts `streak` on 3/5/7 (MATCH.killstreakThresholds). */
   private bumpStreak(killerId: string): void {
     const count = (this.streaks.get(killerId) ?? 0) + 1;
     this.streaks.set(killerId, count);
     this.airSupport.earn(killerId, count, this.state);
     this.mortarSupport.earn(killerId, count, this.state);
+    this.droneSupport.earn(killerId, count, this.state);
     if (MATCH.killstreakThresholds.includes(count)) {
       this.broadcast("streak", { id: killerId, count });
     }
@@ -1403,6 +1432,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
     if (changed || force) for (const client of this.clientList())
       client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, now));
+  }
+
+  private sendDroneViews(): void {
+    for (const client of this.clientList()) client.send('drone', this.droneSupport.view(client.id, this.state, this.hitBoxes));
   }
 
   private sendMortarViews(): void {
@@ -1628,6 +1661,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private removeBot(id: string): void {
     this.mortarSupport.forget(id);
+    this.droneSupport.forget(id);
+    this.sendDroneViews();
     this.sendMortarViews();
     delete this.state.players[id];
     this.botBrains.delete(id);
@@ -1827,6 +1862,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private resetMatch(now: number): void {
     this.airSupport.clear();
     this.mortarSupport.clear();
+    this.droneSupport.clear();
     // A fresh round relocates every seat below. Also reset the non-durable gate
     // and its replicated bit, including a snapshot restored from an OPEN core.
     this.coreGate.update(false, [], now);

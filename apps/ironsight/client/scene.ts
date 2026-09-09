@@ -1,3 +1,5 @@
+import { SentryDrone } from './sentry-drone.js';
+import type { DroneFlight } from '../src/drone.js';
 import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
@@ -34,7 +36,9 @@ import { ViewmodelHands } from "./viewmodel-hands.js";
 import { ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
-import { Vfx, makeFlashTexture } from "./vfx.js";
+import { Vfx } from "./vfx.js";
+import { CombatFx, BOOM_LIFE_MS } from './combat-fx.js';
+import { flashEnvelope, weaponFlash, weaponFlashTexture, weaponFlashTextures } from './weapon-flash.js';
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
@@ -91,20 +95,14 @@ function buildHitboxOverlay(): { cylinder: THREE.Mesh; head: THREE.Mesh } {
 const TEAM_COLOR = GAME.teams.colors;
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
-const FWD_Z = new THREE.Vector3(0, 0, 1);
 // Tracer = a short segment travelling from the muzzle to the impact point (not a
 // static beam) — see addTracer/updateTracers. Speed is PER-WEAPON now (each
 // Tracer instance carries its own `speed`, from WeaponSpec.tracerSpeed — user
 // report: "총알 속도가 느린 것 같다," and every weapon sharing one flat 300 m/s
 // was exactly why) — no shared module-level constant anymore.
-const TRACER_SEG_FRAC = 0.15; // segment length as a fraction of the shot's travel distance
-const TRACER_SEG_MAX = 8; // segment length cap (world units) so long shots don't streak forever
-const TRACER_FADE_MS = 25; // brief opacity fade in the final stretch before the head arrives
-const MUZZLE_LIFE_MS = 55;
 const CAP_LEN = PLAYER.standHeight - 2 * PLAYER.radius;
 /** Viewmodel recoil kick per weapon (indexed like WEAPONS: AR/SMG/Shotgun/Sniper/Pistol). */
 const VM_RECOIL = GAME.weaponVis.recoil;
-const NADE_GRAVITY = -22; // matches the server's grenade integrator
 const SWAP_DOWN_MS = GAME.weaponVis.swapDownMs;
 const SWAP_UP_MS = GAME.weaponVis.swapUpMs; // down+up = the server's 350 ms switch delay
 const MUZZLE_Z_DEFAULT = -0.74; // procedural weapons' fixed muzzle depth (buildViewmodel's rest value)
@@ -197,24 +195,6 @@ const MODEL_CROUCH_SQUASH = 0.8;
  *  the server reports the player dead — capped so a very long/missing clip can't
  *  leave a corpse standing around. */
 
-interface NadeFx {
-  mesh: THREE.Mesh;
-  vx: number;
-  vy: number;
-  vz: number;
-}
-
-interface BoomFx {
-  ring: THREE.Mesh;
-  ringMat: THREE.MeshBasicMaterial;
-  parts: THREE.InstancedMesh;
-  positions: THREE.Vector3[];
-  vels: THREE.Vector3[];
-  partMat: THREE.MeshBasicMaterial;
-  born: number;
-}
-const BOOM_LIFE_MS = 650;
-
 interface PlayerPose {
   x: number;
   y: number;
@@ -265,20 +245,7 @@ interface PlayerRig {
   hitboxOverlay?: { cylinder: THREE.Mesh; head: THREE.Mesh };
 }
 
-interface Tracer {
-  mesh: THREE.Mesh;
-  mat: THREE.MeshBasicMaterial;
-  origin: THREE.Vector3;
-  dir: THREE.Vector3; // unit length
-  dist: number; // travel distance (clamped to a visible minimum for point-blank shots)
-  segLen: number;
-  born: number;
-  baseOpacity: number;
-  /** m/s this tracer's segment travels at — WeaponSpec.tracerSpeed at the
-   *  instant addTracer was called, fixed for this tracer's whole lifetime
-   *  (a weapon swap mid-flight can't retroactively speed up an already-fired shot). */
-  speed: number;
-}
+
 
 export class SceneRig {
   private readonly creationStarted = performance.now();
@@ -300,7 +267,7 @@ export class SceneRig {
   // Reused across every syncPlayers() call (once per render frame) instead of
   // allocating a fresh Set each time purely to track "seen this frame" ids.
   private readonly seenPlayers = new Set<string>();
-  private readonly tracers: Tracer[] = [];
+
   // Rigged remote-player model: kicked off once in the constructor (if configured),
   // resolved asynchronously — see makeRig()/upgradeCapsuleRigs(). "absent" covers
   // both "no models.player configured" (neonstrike) and "load failed" (rig-loader
@@ -344,6 +311,7 @@ export class SceneRig {
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
   private muzzleFiredAt = -1e9;
+  private muzzleWeapon = 0;
   private bobPhase = 0;
   private motionSpeed = 0;
   private recoil = 0; // 0..1, decays; drives kick-back + muzzle rise
@@ -361,11 +329,9 @@ export class SceneRig {
   private fovCur = HIP_FOV;
   private scopeEl: HTMLDivElement | null = null;
   // Grenade + explosion effects, stepped in render().
-  private readonly nades = new Map<string, NadeFx>();
-  private readonly booms: BoomFx[] = [];
+  private readonly combatFx: CombatFx;
   private readonly blastLights: { light: THREE.PointLight; born: number }[] = [];
   private blastLightCursor = 0;
-  private readonly debrisMatrix = new THREE.Matrix4();
   private shakeAmp = 0;
   reducedMotion = false;
   private vaultBlend = 0;
@@ -408,6 +374,7 @@ export class SceneRig {
   // Retain a small material reference set so disposing the warm fixtures does
   // not evict their compiled programs before the first real shot/operator.
   private readonly warmedMaterials = new Set<THREE.Material>();
+  private preparedInstanceSlots = 0;
   private environmentLoading = false;
   private contactTexture?: THREE.CanvasTexture;
   private readonly contactGeometry = new THREE.PlaneGeometry(1.25, 1.25);
@@ -415,6 +382,9 @@ export class SceneRig {
   private readonly signalArray?: SignalArray;
   private readonly reconFlyover: ReconFlyover;
   private readonly mortarFx: MortarFx;
+  private readonly sentryDrone: SentryDrone;
+  updateDrone(flights: readonly DroneFlight[], now: number): void { this.sentryDrone.update(flights, now, this.reducedMotion); }
+  inspectDrone() { return this.sentryDrone.inspect(); }
   updateMortar(strikes: readonly MortarStrike[], now: number): void { this.mortarFx.update(strikes, now, this.reducedMotion); }
   inspectMortar() { return this.mortarFx.inspect(); }
   updateSupport(flights: readonly ReconFlight[], now: number): void { this.reconFlyover.update(flights, now); }
@@ -487,9 +457,11 @@ export class SceneRig {
     this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, relay ? 0.12 : VIS.lighting.ambient));
 
     this.vfx = new Vfx(this.scene);
+    this.combatFx = new CombatFx(this.scene);
     this.buildArena(map);
     this.reconFlyover = new ReconFlyover(this.scene, map.bounds.width, map.bounds.depth);
     this.mortarFx = new MortarFx(this.scene);
+    this.sentryDrone = new SentryDrone(this.scene);
     if (map.presentation === 'relay') this.signalArray = new SignalArray(this.scene,map.bounds.width/2);
     if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root); }
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
@@ -700,7 +672,7 @@ export class SceneRig {
 
     const muzzle = new THREE.Mesh(
       new THREE.PlaneGeometry(0.28, 0.28),
-      new THREE.MeshBasicMaterial({ color: PALETTE.muzzle, map: makeFlashTexture(), toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, map: weaponFlashTexture(0), toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
     muzzle.position.set(0, 0.02, -0.74);
     g.add(muzzle);
@@ -715,12 +687,29 @@ export class SceneRig {
   fireRecoil(weaponIndex = this.weaponIndex): void {
     this.recoil = Math.min(1, this.recoil + (VM_RECOIL[weaponIndex] ?? 0.4));
     this.muzzleFiredAt = performance.now();
-    (this.muzzle.material as THREE.MeshBasicMaterial).opacity = 0.9;
-    this.muzzle.rotation.z = Math.random() * Math.PI;
+    this.muzzleWeapon = weaponIndex;
+    const spec = weaponFlash(weaponIndex);
+    (this.muzzle.material as THREE.MeshBasicMaterial).map = weaponFlashTexture(weaponIndex);
+    this.muzzle.rotation.z = spec.rotation;
+    const scale = spec.localScale * (1 - .65 * this.adsT);
+    this.muzzle.scale.set(spec.width / .34 * scale, spec.height / .34 * scale, 1);
+    this.updateMuzzle(this.muzzleFiredAt);
     this.muzzle.getWorldPosition(this.muzzleWorldScratch);
     this.camera.worldToLocal(this.muzzleWorldScratch);
     this.muzzleLight.position.copy(this.muzzleWorldScratch);
     this.muzzleLight.intensity = 3;
+  }
+
+  private updateMuzzle(now: number): void {
+    const intensity = flashEnvelope(now - this.muzzleFiredAt, this.muzzleWeapon);
+    (this.muzzle.material as THREE.MeshBasicMaterial).opacity = .9 * intensity * (1 - .55 * this.adsT);
+    this.muzzleLight.intensity = 3 * intensity;
+  }
+
+  /** Offline stills sample the same effect at an exact shot age. */
+  inspectMuzzle(ageMs: number): void {
+    this.fireRecoil();
+    this.updateMuzzle(this.muzzleFiredAt + ageMs);
   }
 
   /** Start the lower→swap→raise animation toward `index` (no-op if already held/pending). */
@@ -841,69 +830,28 @@ export class SceneRig {
   viewmodelDiagnostics() {
     return { weapon: this.weaponIndex, phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
       magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT, adsProgress: this.adsProgress, fov: this.fovCur,
-      hands: this.hands.group.visible, ...this.getRenderInfo() };
+      hands: this.hands.group.visible,
+      flash: { name: weaponFlash(this.muzzleWeapon).name, lifeMs: weaponFlash(this.muzzleWeapon).lifeMs,
+        opacity: (this.muzzle.material as THREE.MeshBasicMaterial).opacity }, ...this.getRenderInfo() };
   }
 
   // --- grenades + explosions ----------------------------------------------------
 
   spawnNade(e: { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number }): void {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 10, 8),
-      new THREE.MeshStandardMaterial({ color: PALETTE.grenadeMesh, roughness: 0.6, metalness: 0.3 }),
-    );
-    mesh.position.set(e.x, e.y, e.z);
-    this.scene.add(mesh);
-    this.nades.set(e.id, { mesh, vx: e.vx, vy: e.vy, vz: e.vz });
+    this.combatFx.spawnNade(e);
   }
 
   bounceNade(e: { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number }): void {
-    const n = this.nades.get(e.id);
-    if (!n) return;
-    n.mesh.position.set(e.x, e.y, e.z);
-    n.vx = e.vx;
-    n.vy = e.vy;
-    n.vz = e.vz;
+    this.combatFx.bounceNade(e);
   }
 
   boomNade(e: { id: string; x: number; y: number; z: number; r: number }): void {
-    const n = this.nades.get(e.id);
-    if (n) {
-      this.scene.remove(n.mesh);
-      n.mesh.geometry.dispose();
-      (n.mesh.material as THREE.Material).dispose();
-      this.nades.delete(e.id);
-    }
+    this.combatFx.boom(e, performance.now());
     // Flash + expanding ring + debris burst.
     const slot = this.blastLights[this.blastLightCursor]!;
     this.blastLightCursor = (this.blastLightCursor + 1) % this.blastLights.length;
     slot.born = performance.now(); slot.light.intensity = 60; slot.light.distance = e.r * 4;
     slot.light.position.set(e.x, e.y + 0.3, e.z);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: PALETTE.boom.ring, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.55, 40), ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(e.x, Math.max(0.05, e.y) + 0.05, e.z);
-    this.scene.add(ring);
-    const partMat = new THREE.MeshBasicMaterial({
-      color: PALETTE.boom.parts, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    // Each burst shares geometry/material: 18 debris pieces cost one draw call.
-    const parts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), partMat, 18);
-    parts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    // The tiny moving burst has no stable static bounds. Avoid stale frustum culling.
-    parts.frustumCulled = false;
-    const positions: THREE.Vector3[] = [], vels: THREE.Vector3[] = [];
-    for (let i = 0; i < 18; i++) {
-      const position = new THREE.Vector3(e.x, e.y + 0.2, e.z);
-      positions.push(position);
-      parts.setMatrixAt(i, this.debrisMatrix.makeTranslation(position.x, position.y, position.z));
-      const a = (i / 18) * Math.PI * 2;
-      vels.push(new THREE.Vector3(Math.cos(a) * (3 + Math.random() * 5), 4 + Math.random() * 6, Math.sin(a) * (3 + Math.random() * 5)));
-    }
-    this.scene.add(parts);
-    this.booms.push({ ring, ringMat, parts, positions, vels, partMat, born: performance.now() });
     // Camera shake, attenuated by distance to the blast.
     const d = this.camera.position.distanceTo(new THREE.Vector3(e.x, e.y, e.z));
     this.shakeAmp = Math.min(0.6, this.shakeAmp + Math.max(0, 1 - d / 30) * 0.45);
@@ -912,38 +860,8 @@ export class SceneRig {
   private stepFx(now: number): void {
     const dt = Math.min(0.1, (now - this.lastFx) / 1000);
     this.lastFx = now;
-    for (const n of this.nades.values()) {
-      n.vy += NADE_GRAVITY * dt;
-      n.mesh.position.x += n.vx * dt;
-      n.mesh.position.y = Math.max(0.13, n.mesh.position.y + n.vy * dt);
-      n.mesh.position.z += n.vz * dt;
-      n.mesh.rotation.x += dt * 6;
-    }
+    this.combatFx.update(now);
     for (const slot of this.blastLights) slot.light.intensity = 60 * Math.max(0, 1 - (now - slot.born) / BOOM_LIFE_MS);
-    for (let i = this.booms.length - 1; i >= 0; i--) {
-      const b = this.booms[i]!;
-      const t01 = (now - b.born) / BOOM_LIFE_MS;
-      if (t01 >= 1) {
-        this.scene.remove(b.ring);
-        this.scene.remove(b.parts); b.parts.geometry.dispose(); b.parts.dispose();
-        b.ring.geometry.dispose();
-        if (!this.warmedMaterials.has(b.ringMat)) b.ringMat.dispose();
-        if (!this.warmedMaterials.has(b.partMat)) b.partMat.dispose();
-        this.booms.splice(i, 1);
-        continue;
-      }
-      const s = 1 + t01 * 14;
-      b.ring.scale.set(s, s, 1);
-      b.ringMat.opacity = 0.9 * (1 - t01);
-      b.partMat.opacity = 1 - t01;
-      for (const [j, p] of b.positions.entries()) {
-        const v = b.vels[j]!;
-        v.y += NADE_GRAVITY * 0.6 * dt;
-        p.addScaledVector(v, dt);
-        b.parts.setMatrixAt(j, this.debrisMatrix.makeTranslation(p.x, p.y, p.z));
-      }
-      b.parts.instanceMatrix.needsUpdate = true;
-    }
     this.shakeAmp *= Math.exp(-dt * 6);
   }
 
@@ -1036,10 +954,7 @@ export class SceneRig {
     this.viewmodel.rotation.z -= this.vaultBlend * .16;
     this.viewmodel.rotation.z -= this.slideBlend * .18 * (1 - ads);
 
-    if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
-      (this.muzzle.material as THREE.MeshBasicMaterial).opacity = 0;
-      this.muzzleLight.intensity = 0;
-    }
+    this.updateMuzzle(now);
   }
 
   private toggleScope(on: boolean): void {
@@ -1447,30 +1362,7 @@ export class SceneRig {
     hit: boolean,
     speed: number,
   ): void {
-    const travelDist = Math.max(0.5, dist);
-    const segLen = Math.min(travelDist * TRACER_SEG_FRAC, TRACER_SEG_MAX);
-    const d = new THREE.Vector3(dir.x, dir.y, dir.z).normalize();
-    const mat = new THREE.MeshBasicMaterial({
-      color: hit ? PALETTE.tracerHit : PALETTE.tracerMiss,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, segLen), mat);
-    mesh.quaternion.setFromUnitVectors(FWD_Z, d);
-    this.scene.add(mesh);
-    this.tracers.push({
-      mesh,
-      mat,
-      origin: new THREE.Vector3(origin.x, origin.y, origin.z),
-      dir: d,
-      dist: travelDist,
-      segLen,
-      born: performance.now(),
-      baseOpacity: 0.85,
-      speed,
-    });
+    this.combatFx.addTracer(origin, dir, dist, hit, speed, performance.now());
   }
 
   // --- VFX/SFX polish (remote flashes, casings, impacts, footsteps) -------------
@@ -1640,8 +1532,8 @@ export class SceneRig {
     return { id: victimId, part: nearest.point.y >= neckY ? "head" : "body" };
   }
 
-  spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
-    this.vfx.spawnMuzzleFlash(origin, dir);
+  spawnMuzzleFlash(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, weapon = 0): void {
+    this.vfx.spawnMuzzleFlash(origin, dir, weapon);
   }
 
   spawnCasing(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
@@ -1668,32 +1560,11 @@ export class SceneRig {
    *  [headDist − segLen, headDist] window (clamped to not go behind the muzzle),
    *  so it grows out of the muzzle over the first `segLen / speed` seconds, then
    *  cruises at a constant on-screen length. Brightness stays flat until the
-   *  last {@link TRACER_FADE_MS} before the head reaches `dist`, then a short
+   *  last 25ms before the head reaches `dist`, then a short
    *  fade; once it arrives, the tracer is removed outright (no beam left
    *  hanging at the impact point). */
   private updateTracers(now: number): void {
-    for (let i = this.tracers.length - 1; i >= 0; i--) {
-      const t = this.tracers[i]!;
-      const headDist = t.speed * ((now - t.born) / 1000);
-      if (headDist >= t.dist) {
-        this.scene.remove(t.mesh);
-        t.mesh.geometry.dispose();
-        if (!this.warmedMaterials.has(t.mat)) t.mat.dispose();
-        this.tracers.splice(i, 1);
-        continue;
-      }
-      const tailDist = Math.max(0, headDist - t.segLen);
-      const visibleLen = headDist - tailDist;
-      const midDist = (headDist + tailDist) / 2;
-      t.mesh.position.set(
-        t.origin.x + t.dir.x * midDist,
-        t.origin.y + t.dir.y * midDist,
-        t.origin.z + t.dir.z * midDist,
-      );
-      t.mesh.scale.z = visibleLen / t.segLen;
-      const remainingMs = ((t.dist - headDist) / t.speed) * 1000;
-      t.mat.opacity = remainingMs < TRACER_FADE_MS ? t.baseOpacity * (remainingMs / TRACER_FADE_MS) : t.baseOpacity;
-    }
+    this.combatFx.updateTracers(now);
   }
 
   /** Run before input is attached. Compile hidden effect variants and upload their
@@ -1723,25 +1594,37 @@ export class SceneRig {
     this.canvas.style.visibility = 'hidden';
     // Keep the default framebuffer's color-space and sample configuration: a
     // tiny linear render target would warm different material variants.
-    const changed: { object: THREE.Object3D; visible: boolean; culled: boolean }[] = [];
+    const changed: { object: THREE.Object3D; visible: boolean; culled: boolean; count?: number }[] = [];
     try {
       this.boomNade({ id: '__prepare', x: 0, y: 0, z: 0, r: 5 });
       this.addTracer({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: 1 }, 10, false, 300);
       this.scene.traverse(object => {
-        changed.push({ object, visible: object.visible, culled: object.frustumCulled });
+        changed.push({ object, visible: object.visible, culled: object.frustumCulled,
+          count: object instanceof THREE.InstancedMesh ? object.count : undefined });
         object.visible = true; object.frustumCulled = false;
+        // A visible zero-count pool compiles but never submits a draw. Exercise
+        // every slot while the canvas is hidden so sentry/support first use also
+        // warms instance uploads and the driver's draw path, then restore it.
+        if (object instanceof THREE.InstancedMesh) {
+          object.count = object.instanceMatrix.count;
+          this.preparedInstanceSlots += object.count;
+        }
         if (object instanceof THREE.Mesh || object instanceof THREE.Sprite)
           for (const material of Array.isArray(object.material) ? object.material : [object.material])
             this.warmedMaterials.add(material);
       });
+      // Upload every immutable UV view before first play, including weapons not
+      // yet selected. All five share a Source and sampler (one GPU allocation).
+      for (const texture of weaponFlashTextures()) this.renderer.initTexture(texture);
       await this.renderer.compileAsync(this.scene, this.camera);
       this.renderer.render(this.scene, this.camera);
       await nextFrame();
       this.renderer.render(this.scene, this.camera);
       await nextFrame();
     } finally {
-      for (const { object, visible, culled } of changed) {
+      for (const { object, visible, culled, count } of changed) {
         object.visible = visible; object.frustumCulled = culled;
+        if (object instanceof THREE.InstancedMesh && count !== undefined) object.count = count;
       }
       if (rig) this.disposeRig(rig);
       weaponFixture?.removeFromParent();
@@ -1759,7 +1642,8 @@ export class SceneRig {
     }
   }
 
-  getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs }; }
+  getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs,
+    instanceSlots: this.preparedInstanceSlots }; }
 
   render(): void {
     const now = performance.now();
@@ -1773,7 +1657,7 @@ export class SceneRig {
    *  calls and triangles reset every render() call (three.js's own semantics,
    *  so this is "last frame"), programs accumulate for the renderer's
    *  lifetime (one per unique material/defines combination compiled so far). */
-  getEffectInfo() { return { explosions: this.booms.length, tracers: this.tracers.length, blastLights: this.blastLights.length }; }
+  getEffectInfo() { return { ...this.combatFx.inspect(), blastLights: this.blastLights.length }; }
 
   inspectConcreteDetail() {
     let meshes = 0, invalidUv = false;
@@ -1845,7 +1729,7 @@ export class SceneRig {
     const textures = new Set<THREE.Texture>();
     let depthRenderbufferBytes = 0;
     this.scene.traverse(object => {
-      if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
         for (const mat of Array.isArray(object.material) ? object.material : [object.material]) {
           for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value);
         }
@@ -1859,7 +1743,14 @@ export class SceneRig {
     });
     if (this.scene.environment) textures.add(this.scene.environment);
     let bytes = depthRenderbufferBytes;
+    const flashSources = new Set<THREE.Texture['source']>();
     for (const texture of textures) {
+      // UV-only atlas views have identical storage/sampler parameters. Count
+      // their shared GPU allocation once; include Sprite maps in the audit too.
+      if (texture.name === 'weapon-flash-atlas') {
+        if (flashSources.has(texture.source)) continue;
+        flashSources.add(texture.source);
+      }
       const img = texture.image as { width?: number; height?: number } | undefined;
       const channels = texture.format === THREE.RedFormat || texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : 4;
       const component = [THREE.FloatType, THREE.UnsignedIntType, THREE.UnsignedInt248Type, THREE.IntType].includes(texture.type as typeof THREE.FloatType)

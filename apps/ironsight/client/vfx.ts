@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { playFootstep } from "./audio.js";
 import { GAME } from "../src/game-config.js";
+import { flashEnvelope, weaponFlash, weaponFlashTexture } from './weapon-flash.js';
 
 const PALETTE = GAME.palette;
 
@@ -22,31 +23,17 @@ interface Vec3 {
   z: number;
 }
 
-/** Shared radial texture removes the old opaque-looking square flashes. */
-export function makeFlashTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas"); canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext("2d")!;
-  const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  glow.addColorStop(0, "rgba(255,255,255,1)");
-  glow.addColorStop(0.18, "rgba(255,240,190,0.95)");
-  glow.addColorStop(0.45, "rgba(255,170,70,0.4)");
-  glow.addColorStop(1, "rgba(255,120,30,0)");
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, 64, 64);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
 const UP = new THREE.Vector3(0, 1, 0);
 
 // --- remote muzzle flash -------------------------------------------------------
 const MUZZLE_POOL = 8;
-const MUZZLE_LIFE_MS = 70;
 
 interface MuzzleSlot {
   sprite: THREE.Sprite;
   mat: THREE.SpriteMaterial;
   light: THREE.PointLight;
   born: number;
+  weapon: number;
 }
 
 // --- shell casings --------------------------------------------------------------
@@ -92,7 +79,6 @@ interface FootTrack {
 }
 
 export class Vfx {
-  private readonly flashTexture = makeFlashTexture();
   private readonly muzzles: MuzzleSlot[] = [];
   private muzzleCursor = 0;
   private readonly casings: CasingSlot[] = [];
@@ -113,8 +99,8 @@ export class Vfx {
 
   private buildMuzzle(): MuzzleSlot {
     const mat = new THREE.SpriteMaterial({
-      color: PALETTE.muzzle,
-      map: this.flashTexture,
+      color: 0xffffff,
+      map: weaponFlashTexture(0),
       toneMapped: false,
       transparent: true,
       opacity: 0,
@@ -127,7 +113,7 @@ export class Vfx {
     this.scene.add(sprite);
     const light = new THREE.PointLight(PALETTE.muzzleLight, 0, 5, 2);
     this.scene.add(light);
-    return { sprite, mat, light, born: -1e9 };
+    return { sprite, mat, light, born: -1e9, weapon: 0 };
   }
 
   private buildCasing(): CasingSlot {
@@ -161,11 +147,15 @@ export class Vfx {
   // --- spawn API (called from SceneRig) -----------------------------------------
 
   /** Brief flash + point light at a remote shooter's muzzle. */
-  spawnMuzzleFlash(origin: Vec3, dir: Vec3): void {
+  spawnMuzzleFlash(origin: Vec3, _dir: Vec3, weapon = 0): void {
     const slot = this.muzzles[this.muzzleCursor]!;
     this.muzzleCursor = (this.muzzleCursor + 1) % this.muzzles.length;
     slot.sprite.position.set(origin.x, origin.y, origin.z);
-    slot.mat.rotation = Math.atan2(dir.y, dir.x);
+    const spec = weaponFlash(weapon);
+    slot.weapon = weapon;
+    slot.mat.map = weaponFlashTexture(weapon);
+    slot.mat.rotation = spec.rotation;
+    slot.sprite.scale.set(spec.width, spec.height, 1);
     slot.sprite.visible = true;
     slot.mat.opacity = 0.9;
     slot.light.position.copy(slot.sprite.position);
@@ -285,12 +275,12 @@ export class Vfx {
     for (const m of this.muzzles) {
       if (!m.sprite.visible) continue;
       const age = now - m.born;
-      if (age >= MUZZLE_LIFE_MS) {
+      const k = flashEnvelope(age, m.weapon);
+      if (k === 0) {
         m.sprite.visible = false;
         m.mat.opacity = 0;
         m.light.intensity = 0;
       } else {
-        const k = 1 - age / MUZZLE_LIFE_MS;
         m.mat.opacity = 0.9 * k;
         m.light.intensity = 4 * k;
       }

@@ -81,6 +81,12 @@ try {
   await clickCenter();
   await waitFor('!!document.pointerLockElement');
   await delay(500);
+  // Starting V8 sampling synchronously stalls frame delivery (measured ~86 ms).
+  // Complete probe setup before starting the gameplay clock; report its cost separately.
+  await send('Profiler.setSamplingInterval', { interval: 500 });
+  const nowBefore = await evaluate('performance.now()');
+  await send('Profiler.start');
+  const profilerSetupMs = await evaluate('performance.now()') - nowBefore;
   await evaluate(`(() => {
     const P = window.__perf = { frames: [], long: [], events: [], t0: performance.now() };
     const I = window.ironsight; let last = performance.now();
@@ -103,9 +109,6 @@ try {
       if (dt > 24) P.frames.push({ t: Math.round(now), dt: Math.round(dt * 10) / 10, alive: me?.alive, near: Math.round(d), enemies: n, programs: ri.programs, textures: ri.textures, geometries: ri.geometries });
       requestAnimationFrame(loop); };
     requestAnimationFrame(loop); return true; })()`);
-  await send('Profiler.setSamplingInterval', { interval: 500 });
-  const nowBefore = await evaluate('performance.now()');
-  await send('Profiler.start');
   const start = Date.now();
   // Wander in bursts, turn, and fire so the bots engage and kill the probe.
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
@@ -166,7 +169,7 @@ try {
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.dt > 150).map(rel);
-  const summary = { url: url.href, runMs, untilEnded, finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
+  const summary = { url: url.href, runMs, untilEnded, profilerSetupMs, finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));

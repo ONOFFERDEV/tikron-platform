@@ -22,7 +22,8 @@ export function startWeaponInspector(): void {
   const observedPhases = new Set<string>();
   const tick = () => {
     const movingProgress = cycle && cycleFrames < 181 ? cycleFrames / 180 : progress;
-    const ready = scene.inspectViewmodel(movingProgress, shot?.endsWith('-ads') ?? false);
+    const ready = scene.inspectViewmodel(movingProgress, shot?.includes('-ads') ?? false);
+    if (ready && frames >= 19 && scene.readyForInspection(0) && shot?.endsWith('-flash')) scene.inspectMuzzle(12);
     scene.render();
     if (!ready || ++frames < 20 || !scene.readyForInspection(0)) { requestAnimationFrame(tick); return; }
     if (cycle && cycleFrames < 182) {
@@ -34,5 +35,7 @@ export function startWeaponInspector(): void {
       ...(cycle ? { reloadCycle: { frames: cycleFrames, phases: [...observedPhases] } } : {}) };
     flags.__inspectReady = true;
   };
-  requestAnimationFrame(tick);
+  // Match gameplay readiness: don't freeze a weapon still while the map's
+  // asynchronous architecture/ground/shadow preparation is only half loaded.
+  void scene.prepare().then(() => requestAnimationFrame(tick));
 }

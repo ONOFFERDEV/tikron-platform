@@ -1,3 +1,4 @@
+import { playDroneCue } from './audio.js';
 import { SupportHud } from './support-hud.js';
 import { MORTAR } from '../src/mortar.js';
 import { playMortarWhistle } from './audio.js';
@@ -125,6 +126,8 @@ async function main(): Promise<void> {
   const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth, settings);
   net.room.onMessage('support', payload => supportHud.receive(payload, net.serverNow(), net.state, net.myId));
   net.room.onMessage('mortar', payload => supportHud.receiveMortar(payload, net.serverNow(), net.state, net.myId));
+  net.room.onMessage('drone', payload => supportHud.receiveDrone(payload, net.serverNow(), net.state, net.myId));
+  net.room.onMessage('droneRally', payload => supportHud.rally(payload, net.serverNow()));
   net.room.onMessage('mortarDenied', payload => supportHud.denyMortar(payload, net.serverNow()));
   const whistled = new Set<string>();
 
@@ -205,6 +208,7 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
+    droneInfo: () => ({ ...supportHud.droneInfo(), effects: scene.inspectDrone(), serverNow: net.serverNow() }),
     mortarInfo: () => ({ ...supportHud.mortarInfo(), effects: scene.inspectMortar(), serverNow: net.serverNow() }),
     supportInfo: () => ({ ...supportHud.inspect(), aircraft: scene.inspectSupport(), serverNow: net.serverNow() }),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
@@ -280,7 +284,7 @@ async function main(): Promise<void> {
     }
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
-  net.onStreak((e) => { if ((![3, 5].includes(e.count) || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
+  net.onStreak((e) => { if ((![3, 5, 7].includes(e.count) || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
   const remoteSlides = new Map<string, () => void>();
   net.room.onMessage('traversal', payload => {
     const e = payload as { id:string; kind:string; x:number; y:number; z:number };
@@ -311,7 +315,7 @@ async function main(): Promise<void> {
       const tracerSpeed = WEAPONS[e.weapon - 1]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed;
       scene.addTracer(anchor, dir, e.dist, e.hit, tracerSpeed);
       scene.spawnCasing(anchor, dir);
-      scene.spawnMuzzleFlash(anchor, dir);
+      scene.spawnMuzzleFlash(anchor, dir, e.weapon - 1);
       playFire(e.weapon - 1, anchor);
     }
     // Impact FX stays wire-authoritative for everyone — it's the true world-space
@@ -341,12 +345,21 @@ async function main(): Promise<void> {
     playBoom(e);
   });
 
+  net.room.onMessage('droneShot', payload => {
+    if (!payload || typeof payload !== 'object') return;
+    const p=payload as {origin:{x:number;y:number;z:number};point:{x:number;y:number;z:number}};
+    if (!p.origin || !p.point || ![p.origin.x,p.origin.y,p.origin.z,p.point.x,p.point.y,p.point.z].every(Number.isFinite)) return;
+    const d=Math.hypot(p.point.x-p.origin.x,p.point.y-p.origin.y,p.point.z-p.origin.z);if(d<.01 || d>23)return;
+    const dir={x:(p.point.x-p.origin.x)/d,y:(p.point.y-p.origin.y)/d,z:(p.point.z-p.origin.z)/d};
+    scene.addTracer(p.origin,dir,d,false,120);scene.spawnMuzzleFlash(p.origin,dir);playDroneCue(p.origin,'fire');
+  });
   net.room.onMessage('mortarImpact', payload => {
     if (!payload || typeof payload !== 'object') return;
     const p = payload as { x: number; y: number; z: number };
     if ([p.x,p.y,p.z].every(Number.isFinite)) playBoom(p);
   });
 
+  const droneLocks = new Map<string,number>();
   let previousPhase = net.state?.phase;
   net.onHurt(bearing => hud.showDamageDirection(bearing));
   const ingest = (raw: unknown) => {
@@ -545,6 +558,11 @@ async function main(): Promise<void> {
     const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, signal?.phase === 'blackout', input.locked) : undefined;
     scene.updateSupport(support?.flights ?? [], net.serverNow());
     scene.updateMortar(supportHud.mortarInfo().strikes, net.serverNow());
+    scene.updateDrone(supportHud.droneInfo().flights, net.serverNow());
+    for (const f of supportHud.droneInfo().flights) if (f.lock && f.lock.fireAt>net.serverNow() && droneLocks.get(f.owner)!==f.lock.fireAt) {
+      droneLocks.set(f.owner,f.lock.fireAt);if(input.locked)playDroneCue(f,'lock');
+    }
+    for (const id of droneLocks.keys()) if (!supportHud.droneInfo().flights.some(f=>f.owner===id)) droneLocks.delete(id);
     for (const s of supportHud.mortarInfo().strikes) for (let round = 0; round < MORTAR.rounds; round++) {
       const key = `${s.owner}:${s.startedAt}:${round}`, until = s.startedAt + MORTAR.warningMs + round * MORTAR.intervalMs - net.serverNow();
       if (until > 0 && until <= 700 && !whistled.has(key)) {

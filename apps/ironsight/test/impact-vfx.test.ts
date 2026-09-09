@@ -54,3 +54,19 @@ describe("pooled impact presentation", () => {
     vfx.update(1500); expect(visibleParticles(scene)).toHaveLength(0);
   });
 });
+
+it('reuses eight flash slots across weapon switches and keeps all lights present after expiry', () => {
+  vi.spyOn(performance, 'now').mockReturnValue(1000);
+  const scene = new THREE.Scene(), vfx = new Vfx(scene);
+  const objects = [...scene.children];
+  const sprites = objects.filter((o): o is THREE.Sprite => o instanceof THREE.Sprite);
+  const materials = sprites.map(s => s.material);
+  for (let i = 0; i < 100; i++) vfx.spawnMuzzleFlash({ x: 1, y: 2, z: 3 }, { x: 1, y: 0, z: 0 }, i % 5);
+  expect(sprites.filter(s => s.visible)).toHaveLength(8);
+  expect(new Set(sprites.map(s => s.material.map!.source)).size).toBe(1);
+  vfx.update(1065);
+  expect(sprites.every(s => !s.visible && s.material.opacity === 0)).toBe(true);
+  expect(objects.filter(o => o instanceof THREE.PointLight).every(o => o.visible && o.intensity === 0)).toBe(true);
+  expect(scene.children).toEqual(objects);
+  expect(sprites.map(s => s.material)).toEqual(materials);
+});

@@ -466,3 +466,17 @@ export function playMortarWhistle(source: SoundPoint): void {
   tone.connect(gain).connect(bus.input); tone.start(t); tone.stop(t + .7);
   tone.onended = () => { tone.disconnect(); gain.disconnect(); bus.release(); };
 }
+
+/** Directional laser charge and short dual-cannon pulse. Existing capped,
+ * occluded spatial bus and volume controls; every node drains within 900ms. */
+export function playDroneCue(source: SoundPoint, kind: 'lock' | 'fire'): void {
+  const c=ready();if(!c)return;
+  const bus=spatialBus(c,source,1.4);if(!bus)return;
+  const t=c.currentTime,tone=c.createOscillator(),gain=c.createGain(),duration=kind==='lock'?.86:.18;
+  tone.type=kind==='lock'?'sine':'triangle';tone.frequency.setValueAtTime(kind==='lock'?420:180,t);
+  tone.frequency.exponentialRampToValueAtTime(kind==='lock'?1260:55,t+duration*.9);
+  gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(kind==='lock'?.055:.17,t+.025);
+  gain.gain.exponentialRampToValueAtTime(.001,t+duration);
+  tone.connect(gain).connect(bus.input);tone.start(t);tone.stop(t+duration+.01);
+  tone.onended=()=>{tone.disconnect();gain.disconnect();bus.release();};
+}
