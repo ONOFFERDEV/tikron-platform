@@ -132,6 +132,14 @@ for (let i = 0; i < CAP; i++) {
     const prompt = `Continue the ironsight AAA rebuild as Session ${session}. First read apps/ironsight/tools/aaa-loop-brief.md (standing brief, all rules), then apps/ironsight/.inspect/aaa-loop/status.md (supervisor status for this session), then apps/ironsight/AAA-PLAN.md. Repo D:\\webgame-baas, branch ironsight-aaa, scope apps/ironsight/** only, no git commit/push/deploy. End green per the brief and log the session in AAA-PLAN.md.`;
     ask = await run(`omc ask codex --prompt "${prompt}"`, { cwd: repo, timeoutMs: 110 * 60 * 1000, tail: 3000 });
     await log(`astra finished code=${ask.code}`);
+    // A provider that fails before doing any work (usage limit, auth, network) must stop the
+    // loop, not spin every two minutes on an unchanged tree until the deadline (seen 2026-09-09:
+    // 140 no-op iterations after "You've hit your usage limit").
+    const quotaHit = /usage limit|invalid_refresh_token|rate limit|401|429|Provider command failed/i.test(ask.full ?? ask.out);
+    if (ask.code !== 0 || quotaHit) {
+      const changed = (await sh('git status --porcelain apps/ironsight', { cwd: repo, timeoutMs: 60000 })).full.trim();
+      if (!changed) { await log(`astra produced no changes and reported failure (${quotaHit ? 'quota/auth' : 'exit ' + ask.code}); stopping loop. Tail: ${ask.out.slice(-300).replace(/\s+/g, ' ')}`); await jsonl({ session, ok: false, failed: ['astra'], askCode: ask.code, quotaHit }); break; }
+    }
   }
   const tag = `loop${session}`;
   const g = await gates(tag);
