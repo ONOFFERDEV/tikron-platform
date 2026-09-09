@@ -791,3 +791,19 @@ Reduced motion preserves the steady cue. Reproduce with `pnpm build:client`,
 then `node scripts/inspect-map.mjs --url http://localhost:8796 --shots glint-before,glint-ready,glint-away,glint-cover,glint-reduced`.
 These are offline presentation fixtures, not recorded player encounters.
 Full render stress: `--shots glint-effects-stress --assert-budgets`.
+
+### Session 62: Pressure Drop exterior sluices (original procedural geometry)
+
+`client/flood-works.ts` creates the twin lift towers, ribbed gates, shaded water
+sheets and pooled foam once when Undertow loads. Five draw objects, 50 instance
+slots, no image downloads, textures, external sources, light or render pass.
+Vertex colours are authored in code; matrices animate from the replicated map
+event epoch. Every solid and effect stays outside the north movement boundary.
+This is Pressure Drop arc 1/2; the playable maintenance-route payoff is pending.
+No purchased derivative changed and no Meshy credits spent.
+
+Reproduce with `pnpm build:client`, then
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-flood-warning,undertow-flood-active,undertow-flood-reduced`.
+These are offline renderer fixtures. `--shots flood` records the real Undertow
+training warning/discharge/recovery through ordinary movement and server time.
+Budget fixture: `--shots undertow-effects-stress --assert-budgets`.

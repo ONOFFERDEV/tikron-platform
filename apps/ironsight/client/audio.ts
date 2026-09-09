@@ -456,6 +456,21 @@ export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): vo
   air.onended=()=>{air.disconnect();filter.disconnect();tone.disconnect();gain.disconnect();};
 }
 
+/** Undertow PA uses the same warning ident; discharge adds a short filtered
+ * water/servo release. No perpetual loop, new buffer, or delayed cue queue. */
+export function playFloodCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
+  if(phase!=='blackout'){playSignalCue(phase);return;}
+  const c=ready();if(!c||!master||!noise)return;
+  const t=c.currentTime,air=c.createBufferSource(),filter=c.createBiquadFilter(),gain=c.createGain(),servo=c.createOscillator();
+  air.buffer=noise;air.loop=true;filter.type='lowpass';filter.frequency.setValueAtTime(350,t);
+  filter.frequency.exponentialRampToValueAtTime(1800,t+.7);filter.frequency.exponentialRampToValueAtTime(400,t+2.4);
+  servo.type='sine';servo.frequency.setValueAtTime(110,t);servo.frequency.exponentialRampToValueAtTime(45,t+2.4);
+  gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.11,t+.25);gain.gain.exponentialRampToValueAtTime(.001,t+2.4);
+  air.connect(filter).connect(gain);servo.connect(gain);gain.connect(master);
+  air.start(t);servo.start(t);air.stop(t+2.45);servo.stop(t+2.45);
+  air.onended=()=>{air.disconnect();filter.disconnect();servo.disconnect();gain.disconnect();};
+}
+
 /** Short radio-ident and radar chirp. Entire graph drains in <=1.25s, through
  * the existing volume/mute/limiter. No browser speech dependency or extra loop. */
 export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'): void {
@@ -468,6 +483,21 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
     gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(kind === 'pulse' ? .045 : .09, start + .015);
     gain.gain.exponentialRampToValueAtTime(.001, start + .42);
     tone.connect(gain).connect(master); tone.start(start); tone.stop(start + .44);
+    tone.onended = () => { tone.disconnect(); gain.disconnect(); };
+  }
+}
+
+/** Quiet two-note radio ident, not positional enemy audio. The card supplies
+ * direction and lane even with audio muted. Every node drains within 240ms. */
+export function playContactCue(): void {
+  const c = ready(); if (!c || !master) return;
+  const t = c.currentTime;
+  for (const [i, frequency] of [620, 830].entries()) {
+    const tone = c.createOscillator(), gain = c.createGain(), start = t + i * .10;
+    tone.type = 'sine'; tone.frequency.value = frequency;
+    gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(.045, start + .008);
+    gain.gain.exponentialRampToValueAtTime(.001, start + .12);
+    tone.connect(gain).connect(master); tone.start(start); tone.stop(start + .14);
     tone.onended = () => { tone.disconnect(); gain.disconnect(); };
   }
 }

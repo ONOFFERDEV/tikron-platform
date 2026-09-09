@@ -52,12 +52,32 @@ it('replicates one deadline to late seats, ignores forged move fields, and stops
   expect(signalFrame(h.snapshot().signalAt,'live',Date.now()).phase).toBe('idle');
 });
 
-it('keeps other maps and warmup inactive, while Relay practice gets the same real timer',async()=>{
+it('keeps Switchyard and warmup inactive, while both event maps get the same real timer',async()=>{
   expect(signalEpoch('relay',false,1e6)).toBe(0);
-  for(const id of ['arena-practice-arena2-test','arena-practice-arena3-test']) {
+  expect(signalEpoch('undertow',false,1e6)).toBe(0);
+  for(const id of ['arena-practice-arena3-test']) {
     const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id});
     await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBe(0);
   }
   const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-practice-test'});
   await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBeGreaterThan(Date.now());
+});
+
+it('replicates Undertow discharge to late seats without allowing input to reset it or blanking earned UAV',async()=>{
+  const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-dom'});
+  const first=await h.connect();await h.advance(50);
+  const epoch=h.snapshot().signalAt;expect(epoch).toBe(1000000+SIGNAL.firstWarningMs);
+  await first.send('move',{mx:0,mz:0,signalAt:1,coreOpen:true});await h.advance(50);
+  expect(h.snapshot().signalAt).toBe(epoch);expect(h.snapshot().coreOpen).toBe(false);
+  vi.setSystemTime(epoch+8500);await h.advance(50);
+  const late=await h.connect();await h.advance(50);
+  expect(h.snapshot().signalAt).toBe(epoch);expect(late.frames().length).toBeGreaterThan(0);
+  const room=h.room as unknown as {state:ArenaState;airSupport:{earn:(id:string,count:number,state:ArenaState)=>void}};
+  room.airSupport.earn(first.id,3,room.state);await h.advance(100);
+  await first.send('syncView',{});await h.advance(50);
+  const support=first.frames().filter(f=>f.type==='support').at(-1)?.payload as {flights:unknown[]};
+  expect(support.flights).toHaveLength(1); // discharge must not defer an earned launch
+  expect(h.snapshot().coreOpen).toBe(false);
+  const training=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-practice-arena2-flood'});
+  await training.connect();await training.advance(50);expect(training.snapshot().signalAt).toBeGreaterThan(Date.now());
 });

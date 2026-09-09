@@ -65,7 +65,8 @@ export interface ArenaState {
   matchEndMs: number;
   /** Authoritative warmup deadline in server epoch ms; zero while waiting/live/ended. */
   warmupEndMs: number;
-  /** Relay first warning epoch; zero disables the event. Shared across all seats. */
+  /** Map's first warning epoch: Relay realignment / Undertow discharge.
+   * Zero disables the event. Shared across all seats; only Relay blanks radar. */
   signalAt: number;
   /** Actual server shutter state, including occupied-tunnel close holds. */
   coreOpen: boolean;

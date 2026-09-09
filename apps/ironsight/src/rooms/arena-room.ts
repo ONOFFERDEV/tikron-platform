@@ -4,6 +4,7 @@ import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../morta
 import { signalEpoch, signalFrame } from '../signal-event.js';
 import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
 import { PING, resolvePing, type TeamPing } from '../ping.js';
+import { BOT_CONTACT, BotContacts } from '../bot-contacts.js';
 import { WaistTraversal } from '../traversal.js';
 import { SprintSlide } from '../slide.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
@@ -212,6 +213,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly protUntil = new Map<string, number>(); // sim tick
   /** Bot AI state per bot id (created on addBot, discarded on removeBot). */
   private readonly botBrains = new Map<string, BotBrain>();
+  private readonly botContacts = new BotContacts();
 
   /** Grenades currently in flight (stepped every tick). */
   private grenades: Grenade[] = [];
@@ -248,6 +250,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   override onDispose(): void {
+    this.botContacts.clear();
     this.airSupport.clear();
     this.mortarSupport.clear();
     this.droneSupport.clear();
@@ -768,6 +771,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       ...(intent === 'backup' ? { kind: 'backup' as const, x: p.x, z: p.z } : resolvePing({ x: p.x, y: p.y + this.eyeHeight(p), z: p.z }, dirFromAngles(p.yaw, p.pitch), p.team,
         targets, this.hitBoxes, this.map.bounds)) };
     if (intent === 'go') ping.kind = 'go';
+    this.botContacts.yieldToHuman(p.team, now, PING.lifetimeMs);
     for (const recipient of this.clientList()) {
       const ally = this.state.players[recipient.id];
       if (recipient.id === client.id || (this.state.mode !== 3 && ally?.team === p.team)) recipient.send('teamPing', ping);
@@ -1444,7 +1448,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private tickSupport(now: number, force = false): void {
     const changed = this.airSupport.tick(this.state, now,
-      signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
+      this.map.presentation === 'relay' && signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
     if (changed || force) for (const client of this.clientList())
       client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, now));
   }
@@ -1689,6 +1693,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.sendMortarViews();
     delete this.state.players[id];
     this.botBrains.delete(id);
+    this.botContacts.remove(id);
     this.grenades = this.grenades.filter((g) => g.owner !== id);
     for (const m of [
       this.inputs,
@@ -1723,7 +1728,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     for (const [id, brain] of this.botBrains) {
       const self = this.state.players[id];
       if (!self || !self.alive) continue;
-      const decision = botThink(this.botView(id, self), brain, dtMs);
+      const view = this.botView(id, self);
+      const decision = botThink(view, brain, dtMs);
+      if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
+        const contact = this.botContacts.observe(id, view, brain, Date.now());
+        if (contact) for (const recipient of this.clientList()) {
+          const ally = this.state.players[recipient.id];
+          if (ally?.alive && ally.team === self.team &&
+            Math.hypot(ally.x - contact.x, ally.z - contact.z) <= BOT_CONTACT.recipientRange)
+            recipient.send('teamPing', contact);
+        }
+      }
       this.inputs.set(id, {
         mx: decision.move.mx,
         mz: decision.move.mz,
@@ -1884,6 +1899,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.botContacts.clear();
     this.airSupport.clear();
     this.mortarSupport.clear();
     this.droneSupport.clear();

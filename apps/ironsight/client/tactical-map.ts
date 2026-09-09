@@ -1,4 +1,5 @@
 import { PING, type TeamPing } from '../src/ping.js';
+import { contactText } from './contact-presentation.js';
 import type { SupportView } from '../src/air-support.js';
 import { signalFrame } from '../src/signal-event.js';
 import { formatBinding, type SettingsStore } from './settings.js';
@@ -54,6 +55,7 @@ export class TacticalMap {
     this.notice.id = 'teamPingNotice'; this.notice.setAttribute('role', 'status');
     this.notice.style.cssText = 'position:fixed;pointer-events:none;color:#e8eee9;font:11px Arial,sans-serif;left:28px;bottom:144px;width:200px;padding:9px;background:#10242bef;border-left:2px solid #edaa52;line-height:1.5;letter-spacing:1px;overflow-wrap:anywhere';
     this.notice.hidden = true;
+    this.notice.style.whiteSpace = 'pre-line';
     this.hint.style.cssText = 'position:fixed;pointer-events:none;font:10px Arial,sans-serif;left:28px;bottom:100px;width:220px;padding:6px 0;font-size:9px;letter-spacing:1px;color:#c0d6d5;white-space:pre-line;line-height:1.5';
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
@@ -64,7 +66,8 @@ export class TacticalMap {
     if (typeof p.from !== 'string' || p.from.length > 128 || !['go', 'enemy', 'backup'].includes(p.kind) ||
       !Number.isFinite(p.x) || !Number.isFinite(p.z) || !Number.isFinite(p.expiresAt) ||
       p.x < 0 || p.z < 0 || p.x > this.map.bounds.width || p.z > this.map.bounds.depth ||
-      p.expiresAt <= serverNow || p.expiresAt > serverNow + PING.lifetimeMs + 1000) return;
+      p.expiresAt <= serverNow || p.expiresAt > serverNow + PING.lifetimeMs + 1000 ||
+      (p.contact !== undefined && (p.contact !== true || p.kind !== 'enemy' || !/^bot-[1-9]\d*$/.test(p.from)))) return;
     this.pings.delete(p.from);
     if (this.pings.size >= 6) this.pings.delete(this.pings.keys().next().value!);
     this.pings.set(p.from, { ...p });
@@ -77,10 +80,15 @@ export class TacticalMap {
     const me = state.players[myId]; if (!me) return;
     if (!active || state.phase !== 'live' || !me.alive) this.pings.clear();
     for (const [id, ping] of this.pings) if (ping.expiresAt <= serverNow) this.pings.delete(id);
-    const latest = [...this.pings.values()].at(-1);
+    const values = [...this.pings.values()];
+    // A player's manual mark owns the card until it expires. Radio reports can
+    // still draw their frozen diamond without replacing the player's instruction.
+    const latest = values.filter(p => !p.contact).at(-1) ?? values.at(-1);
     this.notice.hidden = !latest;
+    this.notice.dataset.contact = latest?.contact ? 'true' : 'false';
     if (latest) {
-      const text = `${latest.from === myId ? 'YOU' : 'ALLY'} / ${latest.kind === 'enemy' ? 'ENEMY SEEN' : latest.kind === 'backup' ? 'NEED BACKUP' : 'GO HERE'} / ${mapCallout(this.map, latest.x, latest.z)} / ${latest.kind === 'backup' ? 'caller location when sent' : 'last marked location'}`;
+      const text = latest.contact ? contactText(latest, me, yaw, mapCallout(this.map, latest.x, latest.z), serverNow)
+        : `${latest.from === myId ? 'YOU' : 'ALLY'} / ${latest.kind === 'enemy' ? 'ENEMY SEEN' : latest.kind === 'backup' ? 'NEED BACKUP' : 'GO HERE'} / ${mapCallout(this.map, latest.x, latest.z)} / ${latest.kind === 'backup' ? 'caller location when sent' : 'last marked location'}`;
       if (this.notice.textContent !== text) this.notice.textContent = text;
     }
     this.hint.hidden = !active || state.mode === 1 || state.phase !== 'live' || !me.alive;

@@ -7,6 +7,7 @@ import { weaponFlashProbe } from './weapon-flash-probe.mjs';
 import { mortarProbe } from './mortar-probe.mjs';
 import { supportProbe } from './support-probe.mjs';
 import { signalProbe } from './signal-probe.mjs';
+import { floodProbe } from './flood-probe.mjs';
 import { coreProbe } from './core-probe.mjs';
 import { traversalProbe } from './traversal-probe.mjs';
 import { launchProbe } from './launch-probe.mjs';
@@ -91,6 +92,23 @@ try {
     else request.resolve(message.result);
   };
   await send('Page.enable');
+  if (shots.includes('flood')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__floodAudio=[];
+    const source=AudioContext.prototype.createBufferSource;
+    AudioContext.prototype.createBufferSource=function(...args){const node=source.apply(this,args),start=node.start.bind(node);
+      node.start=(...a)=>{if(node.loop&&document.pointerLockElement){const entry={at:performance.now(),ended:false};window.__floodAudio.push(entry);
+        node.addEventListener('ended',()=>{entry.ended=true;entry.endAt=performance.now();});}return start(...a);};return node;};
+  ` });
+  if (args.includes('--contact-muted')) await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `localStorage.setItem('iron_muted','1');`,
+  });
+  if (args.includes('--assert-contacts')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__contactAudio=[];
+    const contactOsc=AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator=function(...args){const osc=contactOsc.apply(this,args),start=osc.start.bind(osc);
+      osc.start=(...a)=>{if([620,830].includes(osc.frequency.value)){const entry={at:performance.now(),frequency:osc.frequency.value,ended:false};
+        window.__contactAudio.push(entry);osc.addEventListener('ended',()=>{entry.ended=true;entry.endAt=performance.now();});}return start(...a);};return osc;};
+  ` });
   if (args.includes('--intro-reduced')) await send('Page.addScriptToEvaluateOnNewDocument', {
     source: `localStorage.setItem('ironsight.settings.v1',JSON.stringify({reducedMotion:true}));`,
   });
@@ -115,10 +133,11 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
+      if (name === 'flood') url.searchParams.set('map', 'arena2');
       if (name === 'launch') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
@@ -224,7 +243,7 @@ try {
           capture: async label => { const shot = await send('Page.captureScreenshot', {format:'png'}); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data,'base64')); },
         });
       }
-      if (name === 'tdm' && (args.includes('--assert-roles') || args.includes('--assert-flanks'))) combat = await rolesProbe({send,evaluate,waitFor,delay,flanks:args.includes('--assert-flanks'),
+      if (name === 'tdm' && (args.includes('--assert-roles') || args.includes('--assert-flanks') || args.includes('--assert-contacts'))) combat = await rolesProbe({send,evaluate,waitFor,delay,flanks:args.includes('--assert-flanks'),contacts:args.includes('--assert-contacts'),
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
       });
       if (name === 'audio') {
@@ -299,6 +318,8 @@ try {
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'vault') combat = await traversalProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
+      if (name === 'flood') combat = await floodProbe({ send, evaluate, delay, waitFor,
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));} });
       if (name === 'signal') combat = await signalProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'drone') combat = await droneProbe({ send, evaluate, delay, waitFor, click, reduced: args.includes('--drone-reduced'),

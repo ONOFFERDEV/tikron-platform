@@ -290,7 +290,7 @@ function aimPoint(p: BotPlayerView, aimHeight: number): Vec3 {
 /** Nearest alive enemy with clear line of sight from the muzzle, else null. `teamless`
  *  skips the team-equality check (FFA: everyone is team=0, so it would otherwise
  *  reject every other player as a false-positive "teammate"). */
-function nearestVisibleEnemy(
+export function nearestVisibleEnemy(
   self: BotView['self'],
   enemies: readonly BotEnemyView[],
   aimHeight: number,

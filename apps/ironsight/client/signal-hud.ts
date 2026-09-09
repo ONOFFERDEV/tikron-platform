@@ -10,7 +10,7 @@ export class SignalHud {
   private previousKey='';
   private previousPhase='';
   private lastSecond=-1;
-  constructor(private readonly cue:(phase:SignalFrame['phase'])=>void) {
+  constructor(private readonly cue:(phase:SignalFrame['phase'])=>void, private readonly flood=false) {
     this.root.id='signalEvent'; this.root.hidden=true;
     this.root.style.cssText='position:fixed;top:28px;left:228px;width:350px;max-width:calc(100vw - 40px);padding:12px 16px;border-left:3px solid #edaa52;background:#10252def;color:#e9f0e9;pointer-events:none;font:11px Arial,sans-serif;letter-spacing:1.5px;box-sizing:border-box';
     this.title.style.cssText='display:block;font-size:14px;margin-bottom:6px';
@@ -35,6 +35,10 @@ export class SignalHud {
       this.previousKey=online ? key : '';this.lastSecond=-1;
       this.title.textContent=held ? 'CORE / CLEAR TO SEAL' : frame.phase==='warning' ? 'CORE RELEASE INCOMING' : frame.phase==='blackout' ? (state.coreOpen ? 'CORE OPEN / SIGNAL LOST' : 'CORE RELEASING') : 'SIGNAL RESTORED';
       this.detail.textContent=held ? 'Exit either end. Shutters wait until the passage is clear.' : frame.phase==='warning' ? 'Central transit opens as the minimap drops. Take the shortcut.' : frame.phase==='blackout' ? 'Through the core! Shutters seal after the blackout clears.' : 'Tactical map online. Core transit sealed.';
+      if(this.flood) {
+        this.title.textContent=frame.phase==='warning' ? 'PRESSURE DROP / STAND BY' : frame.phase==='blackout' ? 'NORTH SLUICES / DISCHARGING' : 'DISCHARGE COMPLETE';
+        this.detail.textContent=frame.phase==='warning' ? 'North basin gates releasing. Watch the twin lift towers.' : frame.phase==='blackout' ? 'Pressure venting into the exterior basin. Radar stays online.' : 'Sluices lowering. North basin returning to standby.';
+      }
       this.root.style.borderColor=frame.phase==='warning' ? '#edaa52' : '#80d5dc';
     }
     const second=Math.ceil(frame.remainingMs/1000);

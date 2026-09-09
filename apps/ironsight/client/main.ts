@@ -1,4 +1,4 @@
-import { playDroneCue } from './audio.js';
+import { playDroneCue, playContactCue } from './audio.js';
 import { botLabel } from '../src/bot-roles.js';
 import { DeploymentIntro, type IntroPose } from './deployment-intro.js';
 import { DeploymentIntroView } from './deployment-intro-view.js';
@@ -8,7 +8,7 @@ import { playMortarWhistle } from './audio.js';
 import { playSupportCue } from './audio.js';
 import { SignalHud } from './signal-hud.js';
 import { CoreCollision } from '../src/core-gate.js';
-import { playSignalCue } from './audio.js';
+import { playSignalCue, playFloodCue } from './audio.js';
 import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
-  const signalHud = new SignalHud(playSignalCue);
+  const signalHud = new SignalHud(map.presentation === 'undertow' ? playFloodCue : playSignalCue, map.presentation === 'undertow');
   const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth, settings);
   net.room.onMessage('support', payload => supportHud.receive(payload, net.serverNow(), net.state, net.myId));
   net.room.onMessage('mortar', payload => supportHud.receiveMortar(payload, net.serverNow(), net.state, net.myId));
@@ -159,8 +159,11 @@ async function main(): Promise<void> {
       net.room.send('mortar', { yaw: input.yaw, pitch: input.pitch }); },
   );
   net.room.onMessage('teamPing', payload => {
-    const ping = tacticalMap.receivePing(payload, net.serverNow());
     const state = net.state;
+    if (!net.online || state?.phase !== 'live' || !state.players[net.myId]?.alive ||
+      document.pointerLockElement !== scene.canvas) return;
+    const ping = tacticalMap.receivePing(payload, net.serverNow());
+    if (ping?.contact) playContactCue();
     if (ping) training?.progress.confirmPing(ping.from, net.myId,
       net.online && state?.phase === 'live' && !!state.players[net.myId]?.alive &&
       document.pointerLockElement === scene.canvas);
@@ -571,7 +574,7 @@ async function main(): Promise<void> {
     scene.setBlastFeedback(active && input.locked);
     const signal = state ? signalHud.update(state, net.serverNow(), net.online) : undefined;
     if (signal) scene.updateSignal(signal);
-    const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, signal?.phase === 'blackout', input.locked) : undefined;
+    const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, map.presentation === 'relay' && signal?.phase === 'blackout', input.locked) : undefined;
     scene.updateSupport(support?.flights ?? [], net.serverNow());
     scene.updateMortar(supportHud.mortarInfo().strikes, net.serverNow());
     scene.updateDrone(supportHud.droneInfo().flights, net.serverNow());
