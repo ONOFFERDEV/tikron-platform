@@ -8,6 +8,7 @@ import { CoreCollision } from '../src/core-gate.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
+import { spawnExposed } from '../src/map/spawn.js';
 
 // UNDERTOW_METRICS=1 pnpm exec vitest run test/undertow-metrics.tool.test.ts
 // Optional METRICS_SEED and METRICS_PREFIX retain independent natural rounds.
@@ -37,7 +38,9 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       const h = await createTestRoom(ArenaRoomImpl, { id: 'arena-dom', codec: ArenaSchema, sync: 'throttled' });
       // The real simulation fills all twelve empty seats. No observer consumes a team slot.
       let liveAt = 0, endedAt = 0;
-      const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
+      const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number;
+        spawn: { x: number; z: number }; threats: { x: number; z: number; distance: number; exposed: boolean }[];
+        damageAt?: { x: number; z: number } }[] = [];
       const active = new Map<string, typeof lives[number]>();
       const collision=new CoreCollision(ARENA2),galleryVisitors=new Set<string>(),galleryTransitions:{atMs:number;open:boolean}[]=[];
       let priorOpen=false,gallerySamples=0;
@@ -55,8 +58,16 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
         for (const [id, p] of players) {
           if (!p.alive) { active.delete(id); continue; }
           let life = active.get(id);
-          if (!life) { life = { id, team: p.team, bornMs: elapsed - liveAt, initial: !previous[id] }; active.set(id, life); lives.push(life); }
-          if (life.damageMs === undefined && p.hp < (previous[id]?.hp ?? 100)) life.damageMs = elapsed - liveAt - life.bornMs;
+          if (!life) {
+            life = { id, team: p.team, bornMs: elapsed - liveAt, initial: !previous[id], spawn: { x: p.x, z: p.z },
+              threats: players.filter(([otherId,e]) => otherId !== id && e.alive && e.team !== p.team).map(([otherId,e]) => ({
+                x:e.x,z:e.z,distance:Math.hypot(e.x-p.x,e.z-p.z),exposed:spawnExposed(p,{...e,id:otherId},collision.hits(state.coreOpen)),
+              })) };
+            active.set(id, life); lives.push(life);
+          }
+          if (life.damageMs === undefined && p.hp < (previous[id]?.hp ?? 100)) {
+            life.damageMs = elapsed - liveAt - life.bornMs; life.damageAt = {x:p.x,z:p.z};
+          }
           if (life.losMs === undefined && players.some(([otherId, e]) => {
             if (otherId === id || !e.alive || e.team === p.team) return false;
             const dx = e.x - p.x, dz = e.z - p.z, dy = e.y - p.y;

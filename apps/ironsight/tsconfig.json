@@ -11,5 +11,5 @@
   // settings.test.ts imports client/settings.ts, which defaults to
   // `window.localStorage` (a DOM global) — it's typechecked under
   // tsconfig.client.json's DOM lib instead, see that file's include.
-  "exclude": ["dist", "node_modules", "test/settings.test.ts", "test/switchyard-architecture.test.ts", "test/impact-vfx.test.ts", "test/handling-client.test.ts", "test/slide-client.test.ts", "test/traversal-client.test.ts", "test/signal-client.test.ts", "test/blast-trauma.test.ts", "test/deployment-intro.test.ts"]
+  "exclude": ["dist", "node_modules", "test/settings.test.ts", "test/switchyard-architecture.test.ts", "test/impact-vfx.test.ts", "test/handling-client.test.ts", "test/slide-client.test.ts", "test/traversal-client.test.ts", "test/signal-client.test.ts", "test/blast-trauma.test.ts", "test/deployment-intro.test.ts", "test/cargo-crane.test.ts"]
 }

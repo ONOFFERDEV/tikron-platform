@@ -1,7 +1,7 @@
 import type { MatchPhase } from './schema.js';
 
-/** One server-authored map-event epoch per round. Relay realignment and
- * Undertow Pressure Drop share a cadence; only Relay disables radar. */
+/** One server-authored map-event epoch per round. All three map events share
+ * a cadence; only Relay realignment disables radar. */
 export const SIGNAL = { firstWarningMs: 30000, warningMs: 8000, blackoutMs: 15000,
   recoveryMs: 3000, periodMs: 90000, turnMs: 6000 } as const;
 export type SignalPhase = 'idle' | 'warning' | 'blackout' | 'recovery';
@@ -32,5 +32,5 @@ export function signalFrame(epoch: number, phase: MatchPhase, now: number): Sign
 
 /** Seed from a room reset, never a join, respawn or client clock. */
 export function signalEpoch(presentation: string | undefined, live: boolean, now: number): number {
-  return (presentation === 'relay' || presentation === 'undertow') && live ? now + SIGNAL.firstWarningMs : 0;
+  return (presentation === 'relay' || presentation === 'undertow' || presentation === 'switchyard') && live ? now + SIGNAL.firstWarningMs : 0;
 }

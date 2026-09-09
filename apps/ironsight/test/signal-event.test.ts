@@ -52,15 +52,30 @@ it('replicates one deadline to late seats, ignores forged move fields, and stops
   expect(signalFrame(h.snapshot().signalAt,'live',Date.now()).phase).toBe('idle');
 });
 
-it('keeps Switchyard and warmup inactive, while both event maps get the same real timer',async()=>{
+it('keeps warmup and unknown maps inactive, while every event map gets the real timer',async()=>{
   expect(signalEpoch('relay',false,1e6)).toBe(0);
   expect(signalEpoch('undertow',false,1e6)).toBe(0);
+  expect(signalEpoch('switchyard',false,1e6)).toBe(0);
+  expect(signalEpoch('unknown',true,1e6)).toBe(0);
   for(const id of ['arena-practice-arena3-test']) {
     const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id});
-    await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBe(0);
+    await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBe(1000000+SIGNAL.firstWarningMs);
   }
   const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-practice-test'});
   await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBeGreaterThan(Date.now());
+});
+
+it('shares the Switchyard transfer with late FFA seats and rejects attempts to move its epoch or cover',async()=>{
+  const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-ffa'});
+  const first=await h.connect();await h.advance(50);
+  const epoch=h.snapshot().signalAt;expect(epoch).toBe(1000000+SIGNAL.firstWarningMs);
+  await first.send('move',{mx:0,mz:0,signalAt:0,coreOpen:true,cargoLift:8});await h.advance(50);
+  expect(h.snapshot().signalAt).toBe(epoch);expect(h.snapshot().coreOpen).toBe(false);
+  vi.setSystemTime(epoch+15500);await h.advance(50);
+  const late=await h.connect();await h.advance(50);
+  expect(h.snapshot().signalAt).toBe(epoch);expect(late.frames().length).toBeGreaterThan(0);
+  expect(signalFrame(epoch,h.snapshot().phase,Date.now()).phase).toBe('blackout');
+  expect(h.snapshot().coreOpen).toBe(false); // exterior transfer has no playable cover yet
 });
 
 it('replicates Undertow discharge to late seats without allowing input to reset it or blanking earned UAV',async()=>{

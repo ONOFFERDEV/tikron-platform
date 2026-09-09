@@ -4,8 +4,24 @@ import { canStand, moveAndSlide, nearestBox } from '../src/physics.js';
 import { PLAYER, MOVE } from '../src/config.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
+import { spawnExposed } from '../src/map/spawn.js';
+import { CoreCollision } from '../src/core-gate.js';
 
 describe('Undertow encounter safety', () => {
+  it('screens all four deployment exits from the opposing home-court firing line', () => {
+    const collision = new CoreCollision(map);
+    // Mirrored versions of the actual Session64 early-damage position and
+    // enemy cluster. Head, torso and both shoulders must clear no firing ray.
+    for (const east of [false, true]) for (const south of [false, true]) {
+      const mirror = (x: number, z: number) => ({ x: east ? 150-x : x, y: 0, z: south ? 100-z : z });
+      const enemy = { ...mirror(28,16), id:'threat', team:1, alive:true };
+      for (const open of [false,true]) for (const z of [25.5,26,26.5]) {
+        const point = mirror(5,z);
+        expect(canStand(point.x,0,point.z,PLAYER.radius,PLAYER.standHeight,collision.boxes(open),map.bounds)).toBe(true);
+        expect(spawnExposed(point,enemy,collision.hits(open))).toBe(false);
+      }
+    }
+  });
   it('keeps ground cover within 12m of sampled rifle, deck-approach and service lanes', () => {
     for (const [z,from,to] of [[27,20,130],[48,18,65],[48,85,132],[72,18,132],[86,18,132]]) {
       for(let x=from!;x<=to!;x+=2) {

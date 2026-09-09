@@ -471,6 +471,24 @@ export function playFloodCue(phase: 'idle'|'warning'|'blackout'|'recovery'): voi
   air.onended=()=>{air.disconnect();filter.disconnect();servo.disconnect();gain.disconnect();};
 }
 
+/** Cargo hoist: bounded motor/chain take-up through the existing mute, master
+ * and limiter. The visual transfer continues silently after this short ident. */
+export function playCargoCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
+  if(phase!=='blackout'){playSignalCue(phase);return;}
+  const c=ready();if(!c||!master||!noise)return;
+  const t=c.currentTime,chain=c.createBufferSource(),filter=c.createBiquadFilter(),gain=c.createGain(),motor=c.createOscillator();
+  chain.buffer=noise;chain.loop=true;filter.type='bandpass';filter.Q.value=1.1;
+  filter.frequency.setValueAtTime(180,t);filter.frequency.exponentialRampToValueAtTime(620,t+1.2);
+  filter.frequency.exponentialRampToValueAtTime(220,t+3.2);
+  motor.type='triangle';motor.frequency.setValueAtTime(58,t);motor.frequency.linearRampToValueAtTime(95,t+1.2);
+  motor.frequency.linearRampToValueAtTime(50,t+3.2);
+  gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.075,t+.12);
+  gain.gain.exponentialRampToValueAtTime(.001,t+3.2);
+  chain.connect(filter).connect(gain);motor.connect(gain);gain.connect(master);
+  chain.start(t);motor.start(t);chain.stop(t+3.25);motor.stop(t+3.25);
+  chain.onended=()=>{chain.disconnect();filter.disconnect();motor.disconnect();gain.disconnect();};
+}
+
 /** Short radio-ident and radar chirp. Entire graph drains in <=1.25s, through
  * the existing volume/mute/limiter. No browser speech dependency or extra loop. */
 export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'): void {

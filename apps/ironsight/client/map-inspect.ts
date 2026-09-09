@@ -113,6 +113,12 @@ export function startMapInspector(): void {
     'switchyard-vista': [117, 22, 94, 75, 4, 29],
     'switchyard-north': [55, 1.65, 29, 95, 2, 29],
     'switchyard-stress': [46, 1.65, 29, 65, 1.5, 29],
+    'switchyard-cargo-before': [143,1.65,53,156,11,40],
+    'switchyard-cargo-warning': [143,1.65,53,156,11,40],
+    'switchyard-cargo-lift': [143,1.65,53,156,11,40],
+    'switchyard-cargo-transfer': [143,1.65,53,156,11,40],
+    'switchyard-cargo-reduced': [143,1.65,53,156,11,40],
+    'switchyard-cargo-recovery': [143,1.65,53,156,11,40],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
   const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : glintReview && !effects
@@ -226,6 +232,11 @@ export function startMapInspector(): void {
       scene.reducedMotion=shotName.endsWith('reduced');
       const frame=signalFrame(1000,'live',1000+age);
       scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
+    }
+    if(map===ARENA3 && (effects || shotName.startsWith('switchyard-cargo-'))) {
+      const age=effects?6800+now-started:shotName.endsWith('before')?-1:shotName.endsWith('warning')?1000:shotName.endsWith('lift')?11000:shotName.endsWith('recovery')?24000:15500;
+      scene.reducedMotion=shotName.endsWith('reduced');
+      scene.updateSignal(signalFrame(1000,'live',1000+age));
     }
     if (effects || shotName === 'recon-flyover') {
       const age = effects ? now - started : 6000;

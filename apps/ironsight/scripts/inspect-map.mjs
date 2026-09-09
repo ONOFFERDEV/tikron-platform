@@ -1,6 +1,8 @@
 import { droneProbe } from './drone-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
 import { rolesProbe } from './roles-probe.mjs';
+import { breakoutProbe } from './breakout-probe.mjs';
+import { cargoProbe } from './cargo-probe.mjs';
 import { deploymentProbe } from './deployment-probe.mjs';
 import { blastProbe } from './blast-probe.mjs';
 import { weaponFlashProbe } from './weapon-flash-probe.mjs';
@@ -92,8 +94,8 @@ try {
     else request.resolve(message.result);
   };
   await send('Page.enable');
-  if (shots.includes('flood')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
-    window.__floodAudio=[];
+  if (shots.includes('flood') || shots.includes('cargo')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__floodAudio=[];window.__cargoAudio=window.__floodAudio;
     const source=AudioContext.prototype.createBufferSource;
     AudioContext.prototype.createBufferSource=function(...args){const node=source.apply(this,args),start=node.start.bind(node);
       node.start=(...a)=>{if(node.loop&&document.pointerLockElement){const entry={at:performance.now(),ended:false};window.__floodAudio.push(entry);
@@ -133,12 +135,12 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
       if (name === 'flood' || name === 'gallery') url.searchParams.set('map', 'arena2');
-      if (name === 'launch') url.searchParams.set('map', 'arena3');
+      if (name === 'launch' || name === 'cargo') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
     else if (!name.startsWith('menu') && !name.startsWith('flow') && !name.startsWith('journey')) {
@@ -245,6 +247,13 @@ try {
       }
       if (name === 'tdm' && (args.includes('--assert-roles') || args.includes('--assert-flanks') || args.includes('--assert-contacts'))) combat = await rolesProbe({send,evaluate,waitFor,delay,flanks:args.includes('--assert-flanks'),contacts:args.includes('--assert-contacts'),
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+      });
+      if (name === 'dom' && args.includes('--assert-breakout')) combat = await breakoutProbe({send,evaluate,waitFor,delay,
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+      });
+      if (name === 'cargo') combat = await cargoProbe({send,evaluate,waitFor,delay,
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+        record: report => writeFile(join(output,`${prefix}-cargo-diagnostic.json`),JSON.stringify(report,null,2)),
       });
       if (name === 'audio') {
         combat = await evaluate('window.ironsight.audioProbe()');

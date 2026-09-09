@@ -8,7 +8,7 @@ import { playMortarWhistle } from './audio.js';
 import { playSupportCue } from './audio.js';
 import { SignalHud } from './signal-hud.js';
 import { CoreCollision } from '../src/core-gate.js';
-import { playSignalCue, playFloodCue } from './audio.js';
+import { playSignalCue, playFloodCue, playCargoCue } from './audio.js';
 import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
@@ -127,7 +127,8 @@ async function main(): Promise<void> {
   me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
-  const signalHud = new SignalHud(map.presentation === 'undertow' ? playFloodCue : playSignalCue, map.presentation === 'undertow');
+  const signalHud = new SignalHud(map.presentation === 'undertow' ? playFloodCue : map.presentation === 'switchyard' ? playCargoCue : playSignalCue,
+    map.presentation ?? 'relay');
   const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth, settings);
   net.room.onMessage('support', payload => supportHud.receive(payload, net.serverNow(), net.state, net.myId));
   net.room.onMessage('mortar', payload => supportHud.receiveMortar(payload, net.serverNow(), net.state, net.myId));

@@ -1,14 +1,17 @@
-// Frame-hitch probe: plays TDM vs bots on a running build and records long frames, shader
-// program (re)compiles, long tasks and a CPU profile attributed to the worst frames.
+// Frame-hitch probe: plays TDM vs bots and records all long frames, shader
+// program (re)compiles, long tasks and CPU attribution.
 //
 //   node scripts/hitch-probe.mjs <url> [runMs=90000] [out.json] [--assert] [--mode=tdm|ffa|dom] [--until-ended]
+// CPU sampling remains on by default. --no-profile is a diagnostic control;
+// --trace adds cross-process tracing and --diagnostic-timing records callback /
+// heartbeat timings. These controls do not replace the ordinary acceptance run.
 //
 // --assert exits 1 when a shader program is compiled after warm-up (t > 3 s), when any frame
 // in the measurement exceeds 150 ms, or when fewer than two deaths happened (the probe must reach the
 // death/respawn path). Found the 2026-09-08 death hitch: hiding the viewmodel removed a
 // PointLight from the light count and recompiled every lit material (1,149 ms frame).
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +22,18 @@ const base = positional[0] ?? 'http://localhost:8796';
 const runMs = Number(positional[1] ?? 90000);
 const out = positional[2] ?? '.inspect/hitch-probe.json';
 const assert = process.argv.includes('--assert');
+// Optional cross-process diagnosis; the ordinary acceptance run stays untraced.
+// V8's "idle" cannot distinguish a compositor/GPU stall from missing BeginFrames.
+const trace = process.argv.includes('--trace');
+// Session65 rejected the sampling-only hypothesis: unprofiled FFA also stalled.
+// Cross-process traces found long GPU/ANGLE tasks while JS stayed responsive.
+// Preserve the original 500us CPU observer in acceptance and retain failures.
+const profileCpu = !process.argv.includes('--no-profile');
+const diagnosticTiming = process.argv.includes('--diagnostic-timing');
+const traceCategories = process.argv.find(a => a.startsWith('--trace-categories='))?.slice(19)
+  ?? 'toplevel,cc,viz,devtools.timeline,blink.user_timing';
+let traceComplete;
+const traced = new Promise(resolve => { traceComplete = resolve; });
 // Optional natural-round evidence: do not shorten at two deaths. Leave the room
 // ended for at least one 5s persistence interval, capture it, then exit without
 // voting. A supervisor can stop/restart workerd and run the normal probe against
@@ -68,10 +83,25 @@ try {
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); clearTimeout(p.timer); m.error ? p.reject(Error(JSON.stringify(m.error))) : p.resolve(m.result); }
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.text ?? 'exception');
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(m.params.args);
+    if (m.method === 'Tracing.tracingComplete') traceComplete(m.params);
   });
-  await send('Runtime.enable'); await send('Page.enable'); await send('Profiler.enable');
+  await send('Runtime.enable'); await send('Page.enable');
+  if (profileCpu) await send('Profiler.enable');
   // three.js hands every renderer to this hook on construction; it is the only supported way to reach it from outside the bundle.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__THREE_DEVTOOLS__ = new EventTarget(); window.__THREE_DEVTOOLS__.addEventListener('observe', e => { if (e.detail && e.detail.isWebGLRenderer) window.__renderer = e.detail; });` });
+  if (diagnosticTiming) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__hitchTiming={callbacks:[],timers:[],visibility:[]};
+    const nativeRaf=window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame=callback=>nativeRaf(timestamp=>{
+      const start=performance.now();try{return callback(timestamp);}finally{
+        const list=window.__hitchTiming.callbacks;list.push({name:callback.name,start,end:performance.now(),timestamp});
+        if(list.length>512)list.shift();
+      }
+    });
+    let heartbeat=performance.now();setInterval(()=>{const now=performance.now(),gap=now-heartbeat;heartbeat=now;
+      const list=window.__hitchTiming.timers;list.push({t:now,gap});if(list.length>128)list.shift();},20);
+    document.addEventListener('visibilitychange',()=>window.__hitchTiming.visibility.push({t:performance.now(),state:document.visibilityState}));
+  ` });
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const url = new URL(base); url.searchParams.set('mode', mode);
   await send('Page.navigate', { url: url.href });
@@ -81,14 +111,17 @@ try {
   await clickCenter();
   await waitFor('!!document.pointerLockElement');
   await delay(500);
-  // Starting V8 sampling synchronously stalls frame delivery (measured ~86 ms).
-  // Complete probe setup before starting the gameplay clock; report its cost separately.
-  await send('Profiler.setSamplingInterval', { interval: 500 });
   const nowBefore = await evaluate('performance.now()');
-  await send('Profiler.start');
-  const profilerSetupMs = await evaluate('performance.now()') - nowBefore;
+  if (profileCpu) {
+    await send('Profiler.setSamplingInterval', { interval: 500 });
+    await send('Profiler.start');
+  }
+  const profilerSetupMs = profileCpu ? await evaluate('performance.now()') - nowBefore : 0;
+  if (trace) await send('Tracing.start', { traceConfig: { includedCategories: traceCategories.split(','),
+    recordMode: 'recordContinuously', traceBufferSizeInKb: 32768 }, transferMode: 'ReturnAsStream' });
   await evaluate(`(() => {
-    const P = window.__perf = { frames: [], long: [], events: [], t0: performance.now() };
+    const P = window.__perf = { frames: [], long: [], events: [], frameCount: 0, t0: performance.now() };
+    performance.mark('ironsight-hitch-start');
     const I = window.ironsight; let last = performance.now();
     let wasAlive = true, hp = 100, seen = new Set(), lastProgs = -1, phase; const seenKeys = new Map();
     P.room = { mode: I.state().mode, players: Object.keys(I.state().players) };
@@ -97,6 +130,7 @@ try {
       return { me, d, n }; };
     new PerformanceObserver(l => { for (const e of l.getEntries()) P.long.push({ t: Math.round(e.startTime), dur: Math.round(e.duration) }); }).observe({ entryTypes: ['longtask'] });
     const loop = () => { const now = performance.now(); const dt = now - last; last = now;
+      P.frameCount++;
       const { me, d, n } = snap(); const ri = I.renderInfo();
       if (I.state().phase !== phase) { phase = I.state().phase; P.events.push({ t: now, kind: 'phase', phase, seats: Object.keys(I.state().players).length }); }
       if (lastProgs >= 0 && ri.programs !== lastProgs) P.events.push({ t: now, kind: 'programs', from: lastProgs, to: ri.programs });
@@ -106,7 +140,9 @@ try {
         if (!wasAlive && me.alive) P.events.push({ t: now, kind: 'respawn' });
         if (me.alive && me.hp < hp) P.events.push({ t: now, kind: 'damage', hp: me.hp, near: Math.round(d) });
         wasAlive = me.alive; hp = me.hp; }
-      if (dt > 24) P.frames.push({ t: Math.round(now), dt: Math.round(dt * 10) / 10, alive: me?.alive, near: Math.round(d), enemies: n, programs: ri.programs, textures: ri.textures, geometries: ri.geometries });
+      if (dt > 24) P.frames.push({ t: Math.round(now), dt: Math.round(dt * 10) / 10, alive: me?.alive, near: Math.round(d), enemies: n, programs: ri.programs, textures: ri.textures, geometries: ri.geometries,
+        timing:window.__hitchTiming?{callbacks:window.__hitchTiming.callbacks.filter(c=>c.end>=now-dt-30).map(c=>({...c,start:c.start-P.t0,end:c.end-P.t0,timestamp:c.timestamp-P.t0})),
+          timers:window.__hitchTiming.timers.filter(c=>c.t>=now-dt-30).map(c=>({...c,t:c.t-P.t0})),visibility:document.visibilityState}:undefined });
       requestAnimationFrame(loop); };
     requestAnimationFrame(loop); return true; })()`);
   const start = Date.now();
@@ -151,8 +187,24 @@ try {
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     await writeFile(out.replace(/\.json$/, '') + '-ended.png', Buffer.from(shot.data, 'base64'));
   }
-  const { profile: prof } = await send('Profiler.stop');
-  const data = JSON.parse(await evaluate('JSON.stringify(window.__perf)'));
+  // Snapshot before exporting diagnostics: trace streaming can take seconds and
+  // must not append unrelated export-time frames to a completed gameplay run.
+  const data = JSON.parse(await evaluate('JSON.stringify({...window.__perf,measurementMs:performance.now()-window.__perf.t0})'));
+  const prof = profileCpu ? (await send('Profiler.stop')).profile : {startTime:0,nodes:[],samples:[],timeDeltas:[]};
+  let traceEndElapsedMs;
+  if (trace) {
+    traceEndElapsedMs = await evaluate(`(() => { const t=performance.now()-window.__perf.t0; performance.mark('ironsight-hitch-end'); return t; })()`);
+    await send('Tracing.end');
+    const { stream } = await traced;
+    const path = out.replace(/\.json$/, '') + '-trace.json';
+    await writeFile(path, '');
+    for (;;) {
+      const chunk = await send('IO.read', { handle: stream, size: 1048576 });
+      await appendFile(path, chunk.base64Encoded ? Buffer.from(chunk.data, 'base64') : chunk.data);
+      if (chunk.eof) break;
+    }
+    await send('IO.close', { handle: stream });
+  }
   // Profile timestamps do not reliably align with performance.timeOrigin on this platform; anchor on the pre-start performance.now().
   const originMs = await evaluate('performance.timeOrigin');
   const profStartPageMs = prof.startTime / 1000 - originMs;
@@ -169,7 +221,8 @@ try {
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.dt > 150).map(rel);
-  const summary = { url: url.href, runMs, untilEnded, profilerSetupMs, finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
+  const summary = { url: url.href, runMs, untilEnded, diagnostics: { profileCpu, trace, diagnosticTiming }, profilerSetupMs, traceEndElapsedMs,
+    measurementMs:data.measurementMs,measuredFrames:data.frameCount,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));

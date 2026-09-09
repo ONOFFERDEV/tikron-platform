@@ -10,7 +10,8 @@ export class SignalHud {
   private previousKey='';
   private previousPhase='';
   private lastSecond=-1;
-  constructor(private readonly cue:(phase:SignalFrame['phase'])=>void, private readonly flood=false) {
+  constructor(private readonly cue:(phase:SignalFrame['phase'])=>void,
+    private readonly site:'relay'|'undertow'|'switchyard'='relay') {
     this.root.id='signalEvent'; this.root.hidden=true;
     this.root.style.cssText='position:fixed;top:28px;left:228px;width:350px;max-width:calc(100vw - 40px);padding:12px 16px;border-left:3px solid #edaa52;background:#10252def;color:#e9f0e9;pointer-events:none;font:11px Arial,sans-serif;letter-spacing:1.5px;box-sizing:border-box';
     this.title.style.cssText='display:block;font-size:14px;margin-bottom:6px';
@@ -35,9 +36,13 @@ export class SignalHud {
       this.previousKey=online ? key : '';this.lastSecond=-1;
       this.title.textContent=held ? 'CORE / CLEAR TO SEAL' : frame.phase==='warning' ? 'CORE RELEASE INCOMING' : frame.phase==='blackout' ? (state.coreOpen ? 'CORE OPEN / SIGNAL LOST' : 'CORE RELEASING') : 'SIGNAL RESTORED';
       this.detail.textContent=held ? 'Exit either end. Shutters wait until the passage is clear.' : frame.phase==='warning' ? 'Central transit opens as the minimap drops. Take the shortcut.' : frame.phase==='blackout' ? 'Through the core! Shutters seal after the blackout clears.' : 'Tactical map online. Core transit sealed.';
-      if(this.flood) {
+      if(this.site==='undertow') {
         this.title.textContent=held ? 'MAINTENANCE / CLEAR TO SEAL' : frame.phase==='warning' ? 'PRESSURE DROP / STAND BY' : frame.phase==='blackout' ? (state.coreOpen ? 'MAINTENANCE / OPEN' : 'MAINTENANCE / RELEASING') : 'DISCHARGE COMPLETE';
         this.detail.textContent=held ? 'Exit either end. Doors wait until the gallery is clear.' : frame.phase==='warning' ? 'North sluices releasing. Central maintenance shortcut opens.' : frame.phase==='blackout' ? 'Cross beneath the pressure stack. Radar stays online.' : 'Sluices lowering. Maintenance gallery sealed.';
+      }
+      if(this.site==='switchyard') {
+        this.title.textContent=frame.phase==='warning'?'CARGO SHIFT / STAND BY':frame.phase==='blackout'?'EAST GANTRY / TRANSFER':'CARGO SECURED';
+        this.detail.textContent=frame.phase==='warning'?'East crane lifting. Watch the amber double beam.':frame.phase==='blackout'?'Heavy cargo moving between the exterior service berths.':'Transfer complete. East service berth secured.';
       }
       this.root.style.borderColor=frame.phase==='warning' ? '#edaa52' : '#80d5dc';
     }

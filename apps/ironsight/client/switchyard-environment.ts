@@ -117,7 +117,9 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     }
   }
   // Southern service hall and distant industrial masses balance the open substation.
-  for (const [x, z, w, h, d] of [[cx - 30, depth + 11, 24, 9, 15], [cx + 30, depth + 15, 20, 15, 18], [-10, cz - 12, 12, 14, 22], [width + 12, cz + 12, 16, 19, 26]] as const) {
+  // The east hall stands behind the gantry's swept cargo envelope (x <= 158.2),
+  // leaving a service apron between its front face at x=162 and the moving load.
+  for (const [x, z, w, h, d] of [[cx - 30, depth + 11, 24, 9, 15], [cx + 30, depth + 15, 20, 15, 18], [-10, cz - 12, 12, 14, 22], [width + 20, cz + 12, 16, 19, 26]] as const) {
     add(0, x, (h - 2) / 2, z, w, h - 2, d, 'exterior');
     add(1, x, h - 1, z, w + 0.1, 2, d + 0.1, 'exterior');
     add(2, x, h + 0.5, z, w * 0.7, 1, d * 0.7, 'exterior');
@@ -146,10 +148,8 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     add(3, x, 20, cz, 1.2, 2.2, 49, 'exterior');
     add(1, x, 21.2, cz, 1.24, .2, 49, 'exterior');
   }
-  add(1, width + 6, 19, cz - 8, 4, 1.2, 4, 'exterior');
-  for (const z of [cz - 9, cz - 7])
-    add(1, width + 6, 13.5, z, .12, 10, .12, 'exterior');
-  add(3, width + 6, 8.5, cz - 8, 1.6, 1.2, 3, 'exterior');
+  // Trolley, hoist cables and cargo are the moving CargoCrane. They are excluded
+  // from this permanent AO/shadow bake so a transfer leaves no frozen duplicate.
   // South service hall's three stepped ventilation monitors answer the north
   // mast with a low, broad roof rhythm. Each sits above the exterior hall only.
   for (const x of [cx - 38, cx - 30, cx - 22]) {

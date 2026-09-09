@@ -838,3 +838,56 @@ python scripts/audit-architecture.py --input .inspect/session63-architecture.jso
 pnpm build:client
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots gallery,undertow-gallery-closed,undertow-gallery-open,undertow-gallery-inside --prefix session63-review
 ```
+
+### Session 64: Undertow deployment breakout screens
+
+Four original full-height machinery screens, authored in `UNDERTOW_ROWS`,
+stagger the north/south exits on both teams' deployment bays. The southern
+screens join the existing pump returns. Collision tiles remain authoritative;
+the existing procedural kit supplies the vent/fan cladding and baked AO.
+No purchased input, new texture, light, render pass or Meshy generation.
+
+`maps/undertow-architecture.glb`: 6,721,420 bytes (+327,096), 86,236 oriented
+source triangles (+4,392), ten material primitives, one 1024-square AO image.
+`maps/undertow-ground-ao.png`: 853,588 bytes (+12,423), 2048 x 1365.
+The original-only allowlists and per-map loading remain applicable.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session64-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session64-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-ground-ao.py -- --maps .inspect/session64-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-architecture.py -- --input .inspect/session64-architecture.json --size 1024 --samples 64
+python scripts/audit-architecture.py --input .inspect/session64-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom --assert-breakout --prefix session64-review
+```
+
+### Session 65: Switchyard Cargo Shift, stage 1 of 2
+
+Original procedural cargo and hoist in `client/cargo-crane.ts`: a corrugated
+4 x 3 x 12 m module, corner castings, locking bars, spreader and four cables.
+Four draw objects seek an absolute room timer; no texture, light, shadow update,
+external model or purchased input. The moving load remains beyond x=153 m at
+all times. This stage is an exterior transfer, not playable cover.
+
+The permanent east gantry's old trolley/hook is removed from the original
+`client/switchyard-environment.ts` bake. The exterior east hall moves eight
+metres farther east to clear the load. A swept-envelope test checks the cargo
+against every permanent exterior instance. Gameplay collision is unchanged.
+
+`maps/switchyard-architecture.glb`: 7,183,364 bytes (-1,452 from Session 64),
+93,704 oriented triangles, ten material primitives, one 1024-square AO image.
+No ground rebake: the authoritative map and ground AO inputs did not change.
+Existing original-asset allowlists and per-map loading apply. Meshy spend: 0.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-architecture.mjs .inspect/session65-architecture.json switchyard
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-architecture.py -- --input .inspect/session65-architecture.json --size 1024 --samples 64
+python scripts/audit-architecture.py --input .inspect/session65-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots cargo,switchyard-cargo-transfer --prefix session65-review
+```
