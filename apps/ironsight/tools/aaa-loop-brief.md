@@ -13,6 +13,54 @@ visible quality." The owner will play the preview between sessions and report fe
 supervisor relays that in status.md. Do not wait for owner answers: keep your defaults
 active and list open questions with your default answer in the session log.
 
+## Owner directive 2026-09-09 — "It is still boring. Make it insanely good."
+
+The owner played the 150 x 100 m build after 43 sessions and called it 시시해 (dull). The
+polish loop is working but the game has no spectacle, no signature moments and little
+feel. From now on sessions are judged on **the wow a first-time player gets in their first
+five minutes**, not on scorecard rows. Rules for this phase:
+
+- Think in **feature arcs of up to 3 sessions**, not 10-minute patches. An arc may land
+  behind a flag in session 1 and 2 as long as every session is green; the arc must be
+  playable and on by default by its last session. Name the arc in the session title.
+- Every session ends with a **"wow check"** in the log: a 20-second headless bot-round
+  capture sequence (or before/after stills) of the new moment, and one sentence a player
+  would say about it. If you cannot name the sentence, the session did not deliver.
+- Use Meshy freely for hero props and signature set pieces (**up to 120 credits/session**),
+  Blender for bakes/animation, and the procedural kit for bulk. Spend on what is seen.
+- Asset budget stays 40 MiB; if a signature feature needs more, log the exact bytes and go
+  to 60 MiB with per-map lazy loading, never beyond.
+
+Backlog of "개쩔게" candidates, ranked by first-five-minutes impact (pick the top one you
+can finish as an arc; do not do them all shallowly):
+1. **Movement that feels AAA**: sprint-slide, mantle/vault onto waist cover, crouch-slide,
+   ledge grab; camera FOV kick and dip on landing; footstep/cloth/gear audio. Titanfall /
+   Apex are the bar. Map hooks that use it: ziplines, jump pads, one-way drops.
+2. **Signature map events (one per map)**: Relay dish re-alignment that blacks out the HUD
+   minimap for 15 s and opens the core; Undertow flood gate that fills/drains the channel
+   lane; Switchyard crane dropping a container that creates or removes cover. Server
+   authoritative, announced, telegraphed, on a timer or objective trigger.
+3. **Streaks and power moments** (R-L01): 3/5/7 streak rewards (UAV sweep, mortar strike
+   on a called point, sentry drone) with announcer, HUD progress and a big audiovisual payoff.
+4. **Weapon spectacle**: per-weapon muzzle flash shapes, smoke, shell ejection, tracer
+   trails, scope glint for the sniper, shotgun pellet spread visual, reload phases with
+   distinct foley, weapon inspect. Explosions with shockwave ring, debris, screen trauma,
+   persistent decals and scorch marks. Hard-edged smoke and flash grenades.
+5. **Atmosphere and post**: bloom + colour grade LUT, god rays through the haze, wind-blown
+   dust/particles, distant flickering lights, animated skyline elements, time-of-day
+   variant per map (Undertow dusk, Switchyard overcast), rain on one map with wet
+   reflections. Keep 60 fps: measure, and add a quality toggle if needed.
+6. **Presentation that hypes**: deployment fly-through camera over the map with the
+   objective callout, match-start countdown with music sting, last-30-seconds music, lead
+   change and capture announcer lines, killcam of your killer, end-of-match Play of the
+   Match replay (R-L06), medals popping in the killfeed, victory/defeat screens with the
+   MVP posing.
+7. **Bots with personality**: rusher / anchor / sniper archetypes, voice barks and
+   callouts on the ping channel, visibly different loadouts and skins; hard bots that
+   flank. Two operator skins per team with distinct silhouettes.
+8. **HUD 2.0**: compact modern HUD, damage numbers toggle, kill-confirm banner with streak
+   count, objective status bar with capture progress, threat direction on the compass.
+
 ## Mission, non-negotiables and working agreement (unchanged from session 1)
 
 - Scope: `apps/ironsight/**` only. Never commit; never push; never deploy. The supervisor
