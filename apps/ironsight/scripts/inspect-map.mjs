@@ -89,6 +89,9 @@ try {
     else request.resolve(message.result);
   };
   await send('Page.enable');
+  if (args.includes('--intro-reduced')) await send('Page.addScriptToEvaluateOnNewDocument', {
+    source: `localStorage.setItem('ironsight.settings.v1',JSON.stringify({reducedMotion:true}));`,
+  });
   if (shots.includes('deployment-play')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
     window.__deploymentAudio=[];
     const original=AudioContext.prototype.createOscillator;
@@ -214,7 +217,8 @@ try {
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
       }
       if (name === 'deployment-play') {
-        combat = await deploymentProbe({ evaluate, waitFor, delay,
+        combat = await deploymentProbe({ evaluate, waitFor, delay, send,
+          introMode: option('--intro-check', null), reduced: args.includes('--intro-reduced'),
           capture: async label => { const shot = await send('Page.captureScreenshot', {format:'png'}); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data,'base64')); },
         });
       }

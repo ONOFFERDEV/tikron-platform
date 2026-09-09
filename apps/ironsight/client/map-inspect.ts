@@ -1,4 +1,9 @@
 import { SceneRig } from "./scene.js";
+import { DeploymentIntro, introPose, type IntroPose } from './deployment-intro.js';
+import { DeploymentIntroView } from './deployment-intro-view.js';
+import { Hud } from './hud.js';
+import { SettingsStore } from './settings.js';
+import type { ArenaState } from '../src/schema.js';
 import { signalFrame } from '../src/signal-event.js';
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
@@ -27,9 +32,32 @@ export function startMapInspector(): void {
   const mixedWeapons = params.get('shot') === 'muzzle-effects-stress';
   const glintReview = params.get('shot')?.startsWith('glint-') ?? false;
   const blastReview = params.get('shot')?.startsWith('blast-') ?? false;
-  const actorCount = params.get("shot")?.endsWith('stress') ? 11 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
-  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview });
+  const introReview = params.get('shot')?.includes('intro-') ?? false;
+  const actorCount = params.get("shot")?.endsWith('stress') || introReview ? 11 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
+  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview || introReview });
   if (!effects && !blastReview) scene.hideViewmodel();
+  let introFixture: IntroPose | undefined;
+  let introChecks: Record<string, boolean> | undefined;
+  if (introReview) {
+    const hud = new Hud(new SettingsStore()); hud.setDeploymentSite(map.presentation ?? 'Relay');
+    const state: ArenaState = {players:{},seed:1,redScore:0,blueScore:0,phase:'warmup',matchEndMs:0,
+      signalAt:0,coreOpen:false,warmupEndMs:10000,mode:map===ARENA2?2:map===ARENA3?1:0,capA:100,capB:0,capC:-100};
+    hud.setMode(state.mode); hud.setMatchContext(state,3000,'self'); hud.updateDeployment(state,3000,'self',true);
+    const view = new DeploymentIntroView(map,new DeploymentIntro(),scene.canvas); view.update(true);
+    introFixture = introPose(map,params.get('shot')?.includes('end') ? .9 : .35,
+      {eye:{x:0,y:0,z:0},target:{x:0,y:0,z:0},fov:68});
+    const copy=document.querySelector<HTMLElement>('.intro-copy')!, banner=document.querySelector<HTMLElement>('#deployment-banner')!;
+    const c=copy.getBoundingClientRect(), b=banner.getBoundingClientRect(), ping=document.querySelector<HTMLElement>('#ping')!.getBoundingClientRect();
+    introChecks = {
+      copyFits:c.left>=0&&c.right<=innerWidth&&c.bottom<=innerHeight&&copy.scrollWidth<=copy.clientWidth,
+      bannerFits:b.left>=0&&b.right<=innerWidth&&b.top>=0&&banner.scrollWidth<=banner.clientWidth,
+      separated:c.top>b.bottom,
+      connectionClear:b.bottom<=ping.top||b.top>=ping.bottom||b.right<=ping.left||b.left>=ping.right,
+      noAnimation:getComputedStyle(copy).animationName==='none',
+      crosshairHidden:getComputedStyle(document.querySelector('#xhair')!).visibility==='hidden',
+    };
+    if(Object.values(introChecks).some(ok=>!ok))throw Error(`Introduction layout failed: ${JSON.stringify(introChecks)}`);
+  }
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [124, 91, 126, 75, 0, 45],
     'signal-warning': [61,1.65,22,75,28,-15],
@@ -199,7 +227,7 @@ export function startMapInspector(): void {
       if (shotName !== 'blast-quiet') scene.boomNade({ id: 'offline-blast', x: 12.5, y: .2, z: 11, r: 5 }, now);
       renderAt += shotName === 'blast-settled' ? 2100 : 30;
     }
-    scene.render(blastReview && frameCount === 150 ? renderAt : undefined);
+    scene.render(blastReview && frameCount === 150 ? renderAt : undefined, introFixture);
     peakBlastDegrees = Math.max(peakBlastDegrees, Math.abs(scene.inspectBlast().rollRadians) * 180 / Math.PI);
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -213,6 +241,7 @@ export function startMapInspector(): void {
     const sorted = [...samples].sort((a, b) => a - b);
     flags.__mapInspect = {
       mapBounds: map.bounds,
+      intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),

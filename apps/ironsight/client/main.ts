@@ -1,4 +1,6 @@
 import { playDroneCue } from './audio.js';
+import { DeploymentIntro, type IntroPose } from './deployment-intro.js';
+import { DeploymentIntroView } from './deployment-intro-view.js';
 import { SupportHud } from './support-hud.js';
 import { MORTAR } from '../src/mortar.js';
 import { playMortarWhistle } from './audio.js';
@@ -163,6 +165,9 @@ async function main(): Promise<void> {
       document.pointerLockElement === scene.canvas);
   });
   input.pitch = me0?.pitch ?? 0;
+  const intro = new DeploymentIntro();
+  const introView = new DeploymentIntroView(map, intro, scene.canvas);
+  const introPose: IntroPose = { eye: {x:0,y:0,z:0}, target: {x:0,y:0,z:0}, fov:68 };
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
 
@@ -209,6 +214,8 @@ async function main(): Promise<void> {
     renderInfo: () => scene.getRenderInfo(),
     glintInfo: () => scene.inspectGlints(),
     blastInfo: () => scene.inspectBlast(),
+    introInfo: () => ({ ...intro.inspect(), pose: intro.active ? intro.pose(map, introPose) : null,
+      aim: {yaw:input.yaw,pitch:input.pitch} }),
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
@@ -465,9 +472,12 @@ async function main(): Promise<void> {
       }
       wasOnline = net.online;
     }
-    const intent = net.online && state?.phase !== "ended" ? input.intent() : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
+    const introducing = state ? intro.update(state, net.serverNow(), now,
+      net.online && input.locked && !!state.players[net.myId]?.alive && !document.hidden, settings.get().reducedMotion) : false;
+    introView.update(introducing);
+    const intent = net.online && state?.phase !== "ended" && !introducing ? input.intent() : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
     const active = net.online && state?.phase !== "ended" && !!state?.players[net.myId]?.alive;
-    intent.ads = active && input.adsHeld;
+    intent.ads = active && !introducing && input.adsHeld;
     // Fire/aim cancel sprint before sending the intent; server enforces recovery.
     if (input.isFiring || intent.ads) intent.sprint = false;
     net.setMoveIntent(intent, now);
@@ -495,7 +505,7 @@ async function main(): Promise<void> {
     const aimPitch = Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, input.pitch + kick.pitch));
 
     // Firing (server fire interval is the truth; net gates, we kick locally).
-    if (net.online && input.isFiring && alive && phase === "live" && handling.canFire) {
+    if (net.online && !introducing && input.isFiring && alive && phase === "live" && handling.canFire) {
       // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
       // server (the real authority) can act on it regardless of our own gate
       // below. canPredictFire mirrors the REST of the server's drop conditions
@@ -589,7 +599,7 @@ async function main(): Promise<void> {
       scene.setView(eye, input.yaw + viewKick.yaw, Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, input.pitch + viewKick.pitch)));
     }
     setAudioListener(scene.camera.position, deathCam?.yaw ?? input.yaw);
-    onAds(alive && input.adsHeld);
+    onAds(alive && !introducing && input.adsHeld);
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
     prevYaw = input.yaw;
@@ -621,7 +631,7 @@ async function main(): Promise<void> {
       remoteFoley.set(id, { phase, y: p.y });
     }
     for (const id of remoteFoley.keys()) if (!poses.has(id)) remoteFoley.delete(id);
-    scene.render();
+    scene.render(undefined, introducing ? intro.pose(map, introPose) : undefined);
 
     // HUD.
     if (me) {

@@ -1,4 +1,6 @@
 import { SentryDrone } from './sentry-drone.js';
+import { IntroCamera } from './deployment-intro-view.js';
+import type { IntroPose } from './deployment-intro.js';
 import { BlastTrauma } from './blast-trauma.js';
 import { ScopeGlints, scopeGlintStrength } from './scope-glint.js';
 import type { DroneFlight } from '../src/drone.js';
@@ -1664,11 +1666,14 @@ export class SceneRig {
   getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs,
     instanceSlots: this.preparedInstanceSlots }; }
 
-  render(now = performance.now()): void {
+  private readonly introCamera = new IntroCamera();
+  render(now = performance.now(), intro?: IntroPose): void {
     this.updateTracers(now);
     this.stepFx(now);
     this.vfx.update(now);
-    this.blastTrauma.render(this.camera, this.renderer, this.scene, now, this.adsProgress);
+    if (intro) this.introCamera.draw(this.camera, this.viewmodel, intro,
+      () => this.renderer.render(this.scene, this.camera));
+    else this.blastTrauma.render(this.camera, this.renderer, this.scene, now, this.adsProgress);
   }
 
   /** Read-only renderer.info snapshot for perf diagnostics/E2E tooling — draw
