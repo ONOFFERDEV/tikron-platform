@@ -15,11 +15,14 @@ import { buildWedgeGeometry } from "./site-wedge.js";
  * `aimDir`, which keeps the crosshair (screen centre) honest with hit registration.
  */
 import * as THREE from "three";
+import { SignalArray } from './signal-array.js';
+import { SignalCore, addCoreSigns } from './signal-core.js';
+import { CoreCollision } from '../src/core-gate.js';
+import type { SignalFrame } from '../src/signal-event.js';
 import { rifleSight } from './rifle-sight.js';
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef, RampDef } from "../src/map/types.js";
-import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
@@ -287,7 +290,8 @@ export class SceneRig {
    *  box-array-based `wallDistance` check. `raycastHitClaim` needs no
    *  equivalent: it raycasts real scene meshes, and ramps get their own wedge
    *  mesh added to `claimTargets` alongside `boxRenders` (see `rampRenders`). */
-  private readonly hitBoxes: readonly Box[];
+  private hitBoxes: readonly Box[];
+  private readonly coreCollision: CoreCollision;
   private readonly players = new Map<string, PlayerRig>();
   // Reused across every syncPlayers() call (once per render frame) instead of
   // allocating a fresh Set each time purely to track "seen this frame" ids.
@@ -404,6 +408,12 @@ export class SceneRig {
   private contactTexture?: THREE.CanvasTexture;
   private readonly contactGeometry = new THREE.PlaneGeometry(1.25, 1.25);
 
+  private readonly signalArray?: SignalArray;
+  private readonly signalCore?: SignalCore;
+  setCoreOpen(open: boolean): void { this.hitBoxes=this.coreCollision.hits(open);this.signalCore?.setOpen(open); }
+  updateSignal(frame: SignalFrame): void { this.signalArray?.update(frame, this.reducedMotion);this.signalCore?.update(frame,this.reducedMotion); }
+  inspectSignal() { return this.signalArray ? { ...this.signalArray.inspect(), core:this.signalCore?.inspect() } : null; }
+
   constructor(map: MapDef, container: HTMLElement = document.body,
     options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
     // Keep the light count stable: adding/removing a light recompiles every
@@ -415,7 +425,8 @@ export class SceneRig {
     const relay = !!map.presentation; // shared industrial daylight lighting
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
-    this.hitBoxes = [...map.boxes, ...this.ramps.flatMap(rampOccluderBoxes)];
+    this.coreCollision = new CoreCollision(map);
+    this.hitBoxes = this.coreCollision.closedHits;
     this.canvas = document.createElement("canvas");
     this.canvas.style.display = "block";
     this.canvas.style.width = "100%";
@@ -467,6 +478,8 @@ export class SceneRig {
 
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
+    if (map.presentation === 'relay') this.signalArray = new SignalArray(this.scene,map.bounds.width/2);
+    if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root); }
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
@@ -1593,6 +1606,9 @@ export class SceneRig {
     }
     const nearest = this.claimRaycaster.intersectObjects(this.claimTargets, true)[0];
     if (!nearest) return undefined;
+    // Collider authority also covers original/baked architecture and the current
+    // shutters (these intentionally are not in the purchased mesh claim list).
+    if (this.wallDistance(eye, dir, maxRange) < nearest.distance) return undefined;
 
     let owner: THREE.Object3D | null = nearest.object;
     while (owner && owner.userData.victimId === undefined) owner = owner.parent;

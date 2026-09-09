@@ -7,6 +7,7 @@ import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
 import { ARENA1 } from '../src/map/arena1.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
+import { CoreCollision } from '../src/core-gate.js';
 
 // RELAY_METRICS=1 pnpm exec vitest run test/relay-metrics.tool.test.ts
 // Optional METRICS_SEED and METRICS_PREFIX retain independent natural rounds.
@@ -36,6 +37,9 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
       const h = await createTestRoom(ArenaRoomImpl, { id: 'arena-tdm', codec: ArenaSchema, sync: 'throttled' });
       // The real simulation fills all twelve empty seats. No observer consumes a team slot.
       let liveAt = 0, endedAt = 0;
+      const collision=new CoreCollision(ARENA1);
+      const coreTransitions:{atMs:number;open:boolean}[]=[], coreVisitors=new Set<string>();
+      let coreSamples=0, priorOpen=false;
       const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
       let previous: Record<string, ArenaPlayer> = {};
@@ -46,6 +50,8 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         if (!liveAt) { liveAt = elapsed; previous = {}; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        if(state.coreOpen!==priorOpen){coreTransitions.push({atMs:elapsed-liveAt,open:state.coreOpen});priorOpen=state.coreOpen;}
+        for(const [id,p] of players)if(p.alive && p.x>70.5 && p.x<79.5 && p.z>48 && p.z<52 && p.y<3){coreVisitors.add(id);coreSamples++;}
         expect(players).toHaveLength(12);
         for (const [id, p] of players) {
           if (!p.alive) { active.delete(id); continue; }
@@ -57,18 +63,19 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
             const dx = e.x - p.x, dz = e.z - p.z, dy = e.y - p.y;
             const d = Math.hypot(dx, dy, dz);
             return d > .01 && d <= 100 && nearestBox({ x: p.x, y: p.y + PLAYER.standEye, z: p.z },
-              { x: dx / d, y: dy / d, z: dz / d }, ARENA1.boxes, d) === Infinity;
+              { x: dx / d, y: dy / d, z: dz / d }, collision.hits(state.coreOpen), d) === Infinity;
           })) life.losMs = elapsed - liveAt - life.bornMs;
         }
         previous = structuredClone(state.players);
       }
       const state = h.snapshot();
       expect(state.phase).toBe('ended');
-      writeFileSync('.inspect/session28-bot-debug.json', JSON.stringify({state,lives,killCount:kills.length},null,2));
+      writeFileSync(`.inspect/${prefix}-bot-debug.json`, JSON.stringify({state,lives,killCount:kills.length},null,2));
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot 6v6 TDM round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
         bounds: ARENA1.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
+        core:{transitions:coreTransitions,visitors:[...coreVisitors],samples:coreSamples,sampleMs:100},
         redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);

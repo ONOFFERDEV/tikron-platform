@@ -20,7 +20,9 @@ export class GroundNavigator {
     const obstacles = [...map.boxes, ...rampBoxes];
     for (let z = 0; z < this.depth; z++) for (let x = 0; x < this.width; x++)
       this.open[z * this.width + x] = Number(canStand(x + 0.5, 0, z + 0.5, PLAYER.radius, PLAYER.standHeight, obstacles, map.bounds));
-    this.expanded = obstacles.map(b => ({ min: { x: b.min.x - PLAYER.radius, y: -1, z: b.min.z - PLAYER.radius },
+    // An overhead lintel is not a ground obstruction. Match the standing-capsule
+    // occupancy grid so clear() can traverse the open Relay core underneath it.
+    this.expanded = obstacles.filter(b => b.min.y < PLAYER.standHeight && b.max.y > 0).map(b => ({ min: { x: b.min.x - PLAYER.radius, y: -1, z: b.min.z - PLAYER.radius },
       max: { x: b.max.x + PLAYER.radius, y: 3, z: b.max.z + PLAYER.radius } }));
   }
   private index(p: Point): number {

@@ -1,4 +1,5 @@
 import { PING, type TeamPing } from '../src/ping.js';
+import { signalFrame } from '../src/signal-event.js';
 import { formatBinding, type SettingsStore } from './settings.js';
 import { mapCallout } from "./map-presentation.js";
 import type { MapDef } from "../src/map/types.js";
@@ -86,7 +87,27 @@ export class TacticalMap {
     const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / tap mark, hold wheel\n${backup} / NEED BACKUP / at your location`;
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     const ctx = this.context;
+    const signal=signalFrame(state.signalAt,state.phase,serverNow);
+    const blackout=this.map.presentation==='relay' && signal.phase==='blackout';
+    this.canvas.dataset.signal=blackout ? 'offline' : 'online';
+    if(blackout) {
+      // Clear the actual canvas; hiding it with an overlay would retain a stale
+      // floor/ally frame. Pings keep expiring and text callouts remain available.
+      ctx.clearRect(0,0,360,252);ctx.fillStyle='#0d1d24';ctx.fillRect(0,0,360,252);
+      ctx.strokeStyle='#35606a';ctx.lineWidth=1;
+      for(let y=24;y<252;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(360,y);ctx.stroke();}
+      ctx.fillStyle='#ffcc88';ctx.textAlign='center';ctx.font='bold 23px Arial';ctx.fillText('SIGNAL LOST',180,113);
+      ctx.fillStyle='#c2dad4';ctx.font='16px Arial';ctx.fillText(`RELINK IN ${Math.ceil(signal.remainingMs/1000)}s`,180,143);
+      this.canvas.setAttribute('aria-label','Tactical map offline during relay realignment');
+      this.label.textContent=mapCallout(this.map,me.x,me.z);return;
+    }
+    this.canvas.setAttribute('aria-label','Your position, teammates and temporary team pings; no enemy tracking');
     ctx.clearRect(0, 0, 360, 252); ctx.drawImage(this.floor, 0, 0);
+    if (this.map.signalCore) {
+      const b=this.map.signalCore.chamber;
+      ctx.fillStyle=state.coreOpen ? '#73dace' : '#ce9f5e';
+      ctx.fillRect(18+b.min.x*this.scale,18+b.min.z*this.scale,(b.max.x-b.min.x)*this.scale,(b.max.z-b.min.z)*this.scale);
+    }
     // The minimap is north-up (+z down); direction matches the server yaw convention.
     const dot = (x: number, z: number, color: string, angle?: number) => {
       ctx.save(); ctx.translate(18 + x * this.scale, 18 + z * this.scale);

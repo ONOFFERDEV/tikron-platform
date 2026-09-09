@@ -1,4 +1,5 @@
 import { SceneRig } from "./scene.js";
+import { signalFrame } from '../src/signal-event.js';
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
@@ -27,6 +28,14 @@ export function startMapInspector(): void {
   if (!effects) scene.hideViewmodel();
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [124, 91, 126, 75, 0, 45],
+    'signal-warning': [61,1.65,22,75,28,-15],
+    'signal-blackout': [61,1.65,22,75,28,-15],
+    'signal-recovery': [61,1.65,22,75,28,-15],
+    'signal-stress': [61,1.65,22,75,28,-15],
+    'core-closed': [63,1.65,48,75,1.65,50],
+    'core-open': [63,1.65,48,75,1.65,50],
+    'core-inside': [73,1.65,50,88,1.65,50],
+    'core-stress': [63,1.65,48,75,1.65,50],
     cooling: [52, 1.65, 25, 94, 2.3, 25],
     uplink: [78, 2.85, 4, 81, 5, -6],
     exterior: [110, 9, 3, 75, 0, -10],
@@ -122,6 +131,13 @@ export function startMapInspector(): void {
       reactionSampled = scene.inspectReaction(shotName.split("-")[1]!, shotName.endsWith("death") ? 2500 : 120);
       if (!reactionSampled) { requestAnimationFrame(tick); return; }
     }
+    if(map === ARENA1 && (effects || shotName.startsWith('signal-') || shotName.startsWith('core-'))) {
+      // Explicit OFFLINE fixture: normal schedule sampled through warning, waves,
+      // rotation and recovery during effects stress; no game state is modified.
+      const age=effects ? 6800 + now-started : shotName==='signal-warning' || shotName==='core-closed' ? 1000 : shotName==='signal-blackout' || shotName==='core-open' || shotName==='core-inside' ? 9300 : 23500;
+      const frame=signalFrame(1000,'live',1000+age);
+      scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -138,6 +154,7 @@ export function startMapInspector(): void {
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),
+      signal: scene.inspectSignal(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),

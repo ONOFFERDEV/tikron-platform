@@ -63,6 +63,10 @@ export interface ArenaState {
   phase: MatchPhase;
   /** Server-clock epoch ms when the round's time limit expires (constant per round). */
   matchEndMs: number;
+  /** Relay first warning epoch; zero disables the event. Shared across all seats. */
+  signalAt: number;
+  /** Actual server shutter state, including occupied-tunnel close holds. */
+  coreOpen: boolean;
   /** Numeric wire encoding of the active game mode — see modes.ts's MODE_ORDER. */
   mode: number;
   /** Domination capture-point gauges (0..200, 100 = neutral, 0 = blue, 200 = red);
@@ -106,4 +110,6 @@ export const ArenaSchema: Codec<ArenaState> = schema({
   capA: "u8",
   capB: "u8",
   capC: "u8",
+  signalAt: "f64",
+  coreOpen: "bool",
 });

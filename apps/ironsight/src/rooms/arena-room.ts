@@ -1,3 +1,5 @@
+import { signalEpoch, signalFrame } from '../signal-event.js';
+import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
 import { PING, resolvePing, type TeamPing } from '../ping.js';
 import { WaistTraversal } from '../traversal.js';
 import { SprintSlide } from '../slide.js';
@@ -33,7 +35,6 @@ import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
-import { rampOccluderBoxes } from "../map/tilemap.js";
 import { ARENA1 } from "../map/arena1.js";
 import {
   modeFromRoomId,
@@ -148,7 +149,7 @@ const TAU = Math.PI * 2;
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // v9 refreshes Switchyard collision density. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 9;
+  protected override stateVersion = 11;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -268,18 +269,20 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
    *  modes.ts's `mapForRoom`, the single source of truth both this room and the
    *  client resolve the practice map through). */
   private readonly map: MapDef = mapForRoom(this.gameMode.id, this.id);
-  private readonly navigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
-  private readonly boxes: readonly Box[] = this.map.boxes;
+  private readonly coreCollision = new CoreCollision(this.map);
+  private readonly coreGate = new CoreGate(this.map.signalCore);
+  private readonly corePush = new CorePush();
+  private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
+  private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
+  private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
+  private get boxes(): readonly Box[] { return this.coreCollision.boxes(this.coreGate.open); }
   /** `boxes` plus each ramp's old step-box approximation (see
    *  {@link rampOccluderBoxes}) — used ONLY for hit-scan/LoS occlusion, never
    *  for movement. Movement (moveAndSlide/canStand) collides against a ramp's
    *  true sloped surface instead (moveAndSlide's `ramps` param); occlusion
    *  keeps the coarser step approximation since a wedge-accurate raycast
    *  isn't worth the added cost for "is this shot/blast blocked." */
-  private readonly hitBoxes: readonly Box[] = [
-    ...this.map.boxes,
-    ...(this.map.ramps ?? []).flatMap(rampOccluderBoxes),
-  ];
+  private get hitBoxes(): readonly Box[] { return this.coreCollision.hits(this.coreGate.open); }
 
   /** True only for practice-on-arena1 — the single gate every showcase-roster
    *  code path (spawn pin, bot fill, view exposure) must check, so map
@@ -334,6 +337,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       blueScore: 0,
       phase: this.startInWarmup ? "warmup" : "live",
       matchEndMs: Date.now() + this.matchTimeMs,
+      signalAt: signalEpoch(this.map.presentation, !this.startInWarmup, Date.now()),
+      coreOpen: false,
       mode: modeIndex(this.gameMode.id),
       capA: GAME.match.capNeutral,
       capB: GAME.match.capNeutral,
@@ -499,7 +504,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.enterWarmup();
     }
 
+    // Apply only on the authoritative tick. Every current collision consumer
+    // (movement, traversal, bots, ping, blast, spawn) observes this same state.
+    if (this.map.signalCore && this.coreGate.update(
+      signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout',
+      [...Object.values(this.state.players).filter(p => p.alive), ...this.grenades.map(g => g.body.pos)], now)) {
+      this.state.coreOpen = this.coreGate.open;
+      this.markStateChanged();
+    }
+
     if (this.state.phase === "live" || this.state.phase === "warmup") {
+      if(this.map.signalCore && this.gameMode.id==='tdm')this.corePush.update(this.state.signalAt,
+        signalFrame(this.state.signalAt,this.state.phase,now),this.coreGate.open,
+        Object.entries(this.state.players).filter(([id])=>this.botBrains.has(id)).map(([id,p])=>({...p,id})));
       this.tickBots(dtMs);
     }
 
@@ -804,6 +821,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // consistently despite an accurate spatial hit-volume — see LAG.interpolationMs's
     // doc comment in src/config.ts for the measured before/after).
     const at = (input?.ts ?? now - client.rttMs) - this.lagInterpolationMs;
+    // Barrier history is discrete: never interpolate an opening. Analytic rays,
+    // claims and tracer endpoints use the SAME rewound barrier state as targets.
+    const shotBoxes = this.coreCollision.hits(this.coreGate.at(at));
     const horizontal = this.rewind(client, at);
     const vertical = this.vertLag.atTime(at);
 
@@ -853,7 +873,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         console.log(JSON.stringify({ tag: "hybridHit", shooter: id, result: "trusted-miss" }));
       } else {
         const claimed = claimRead.value;
-        const result = this.validateClaim(claimed, shooter, targets, origin, baseDir, spec.range, acc);
+        const result = this.validateClaim(claimed, shooter, targets, origin, baseDir, spec.range, acc, shotBoxes);
         if (result.accepted) {
           usedClaim = true;
           const base = claimed.part === "head" ? spec.damageHead : spec.damageBody;
@@ -907,7 +927,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           spec.range,
           shooter.team,
           targets,
-          this.hitBoxes,
+          shotBoxes,
           cfg,
           !this.gameMode.teams,
         );
@@ -924,7 +944,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const dist =
       nearestHitT < Infinity
         ? nearestHitT
-        : Math.min(spec.range, nearestBox(origin, baseDir, this.hitBoxes, spec.range));
+        : Math.min(spec.range, nearestBox(origin, baseDir, shotBoxes, spec.range));
     const victims = [...dmgByVictim.keys()];
     this.sendNear(
       "shot",
@@ -981,6 +1001,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     aimDir: Vec3,
     range: number,
     acc: number,
+    shotBoxes: readonly Box[],
   ): { accepted: true; t: number; angleErrDeg: number } | { accepted: false; reason: string; angleErrDeg?: number } {
     // Not found in `targets` covers dead/protected/self/nonexistent in one
     // check — that array was already filtered down to the valid victim set
@@ -1019,7 +1040,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const tolerance = Math.atan2(HIT.radius + HYBRID.coneMarginM, dist) + acc * Math.SQRT2;
     if (angleErr > tolerance) return { accepted: false, reason: "cone", angleErrDeg };
 
-    const occludeT = nearestBox(origin, toRefDir, this.hitBoxes, dist);
+    const occludeT = nearestBox(origin, toRefDir, shotBoxes, dist);
     if (occludeT < dist) return { accepted: false, reason: "occluded", angleErrDeg };
 
     return { accepted: true, t: dist, angleErrDeg };
@@ -1618,7 +1639,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       teamless: ffa,
       boxes: this.hitBoxes,
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
-      objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : undefined,
+      objective: this.gameMode.id === "dom" ? this.domObjectiveFor(self) : this.corePush.target(id,this.coreGate.open),
       showcase: this.showcaseActive ? this.showcaseViewFor(id) : undefined,
     };
   }
@@ -1713,6 +1734,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.warmupUntil = undefined;
     this.restartVotes.clear();
     this.state.phase = "warmup";
+    this.state.signalAt = 0;
   }
 
   /** Build the read/write surface a {@link GameMode} needs for this tick. */
@@ -1732,6 +1754,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    // A fresh round relocates every seat below. Also reset the non-durable gate
+    // and its replicated bit, including a snapshot restored from an OPEN core.
+    this.coreGate.update(false, [], now);
+    this.state.coreOpen = false;
     this.spawnSightHistory.clear();
     this.roundResult = null;
     this.state.redScore = 0;
@@ -1741,6 +1767,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.state.capC = GAME.match.capNeutral;
     this.state.phase = "live";
     this.state.matchEndMs = now + this.matchTimeMs;
+    this.state.signalAt = signalEpoch(this.map.presentation, true, now);
     this.endedUntil = undefined;
     this.streaks.clear();
     this.hits.clear();

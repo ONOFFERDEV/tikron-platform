@@ -14,7 +14,7 @@ faces these arrivals toward inner exits and restores authoritative aim on respaw
 Session 39 adds Undertow objective rehearsal. Session 40 adds rebindable Q team
 pings (aim, then mark; five-second snapshot). Session 41 adds a required own-mark
 training lesson on every map, including unbound-key guidance. Session 42 adds
-rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; this session remains local for supervisor publication. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; this candidate remains local for supervisor publication. Continue the standing brief defaults.
+rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; supervisor status confirms it is deployed. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; supervisor status confirms it is deployed. Session48 started Signal Break but failed the supervisor test gate and was not published. Session49 fixes both CPU-heavy test timeouts and completes Signal Break with a collision-backed core passage, safe shutter closure, historical shot barriers and limited bot pushes. Sessions48/49 remain a local candidate for supervisor publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
@@ -27,6 +27,8 @@ Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
 | 5-10 min | Join a running Relay TDM with the other player. Fight across cover, open Escape/settings, return, then vote rematch if the round ends. | Correct team/result, hits that agree for both players, clear death/recovery, preserved controls after menus and rematch. |
 
 Session47 quick check: Training / Switchyard, find a teal induction plate beside the central deck, face the JUMP > DECK sign, and press forward + your jump key. Land on the amber target; compare Reduced motion in Settings.
+
+Session48 quick check: Training / Relay, head toward the northern Cooling wall and look up at the dish. Thirty seconds after the room starts, watch the eight-second warning, the six-second turn and 15-second minimap outage. B still sends a text backup callout. Session49 completes the arc locally: the core opens with the blackout. Training / Relay: follow the CORE / TRANSIT signs on the west/east faces of the central spine. The 4m-wide tunnel opens 38s after live starts; cross during the 15s blackout. If you remain inside, the HUD says CLEAR TO SEAL and both doors stay open until you exit. One nearby bot per team can stage for this route in TDM. This candidate is not yet published.
 
 A solo warmup or bots do **not** validate 6v6. If no round finishes within the ten
 minutes, record rematch as untested. Report browser/GPU, map, weapon and the exact
@@ -340,8 +342,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 47. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session47-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 49. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session49-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -349,24 +351,24 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 |---|---|---|
 | R-M01 | partial | Session30 adds North bus rifle route, four-ramp Switch deck and offset South service flank; all maps have named lanes. Human route quality remains open. |
 | R-M02 | partial | Undertow B has two 4 m north doors, their sampled approaches visible within default 78-degree FOV from (75,97); standing-eye rays tested. All-objective/human visibility audit incomplete. |
-| R-M03 | met | Session47: Switchyard63full/48waist (111 boxes), Relay61/46 and Undertow52/62; no head-height cover. Sampled bus/service/outer approaches have cover within12m. Proximity checks do not establish universal8-12m cover-to-cover travel. |
-| R-M04 | met | Session47 ground BFS sprint proxies: Switchyard14.44/14.44/11.56s (A-C was11.11); Relay14.44/14.44/11.78 and Undertow14.22/14.22/11.33. All10-15s; launch-assisted human retakes unmeasured. |
-| R-M05 | partial | Momentum arc complete by default: shared slide/vault plus Session47 Switchyard induction pads provide intentional1.2s routes onto the3m deck. Both collision-verified, real-key launch capture passes. Human route value and signature events on other maps remain open. |
+| R-M03 | met | Session49 Relay111 boxes (65full/46waist), Undertow114 and Switchyard111. Relay adds two0.5m-thick/3m-tall shutters and permanent3m-clear lintel/side walls; standing route and retained wall/roof/spine tests pass. Existing cover-within12m samples retained; universal cover-to-cover travel remains unproven. |
+| R-M04 | met | Session49 closed/open Relay A-B/B-C/A-C14.44/14.44/11.78s; Undertow14.22/14.22/11.33, Switchyard14.44/14.44/11.56. Core approach-to-approach sprint proxy3.11s closed ->1.78s open. Ground BFS respects standing clearance beneath lintels; human retakes unmeasured. |
+| R-M05 | partial | Session49 completes Signal Break2/2 ON by default: same warning/dish/blackout opens the Relay core, holds both exits for occupancy, and seals when clear. Actual W route/held-close captures pass. Momentum retained; other signature events and human route value open. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session47 natural Switchyard FFA seed0x30abc: median initial LOS/damage1.0/2.7s, respawn1.4/6.05s.20-30s damage target still missed. Session46 Undertow17.65/16.8s damage and Relay misses retained; no density-derived pacing claim. |
+| R-M07 | not yet | Session49 final natural Relay6v6 seed0x28abc: median initial LOS/damage5.4/13.7s, respawn4.0/12.3s.20-30s damage target missed. Switchyard Session47 initial/respawn damage2.7/6.05s and Undertow misses retained; no pacing acceptance. |
 | R-M08 | partial | Session34 Switchyard west ribbed capacitor towers versus east broad amber crane, paired central-deck views and matched vista; Session33 Undertow half silhouettes. Human wayfinding remains open. |
 | R-M09 | partial | Session38 faces both new northern courts along tested 9 m inner-exit aisles, normalizes spawn yaw for the binary codec, and restores client aim once on revival. Room/wire tests and real respawn drill pass. Safety scoring unchanged; all-exposed fallback and human camping/wayfinding remain open. |
 | R-M10 | partial | Session47 low returns reinforce Switchyard home courts; B retains paired4m doors. Relay/Undertow court cover retained. Human defensive quality and exact-two-entry audit for every objective remain open. |
 | R-M11 | partial | Collider-derived kits and ramps tested; all reachable viewpoints need player review. |
-| R-M12 | partial | Momentum3/3: slide, collision-verified waist traversal and intentional induction launch above the Switch deck. Real key captures and route/landing tests pass; human action-block quality remains open. |
+| R-M12 | partial | Session49 warning -> staged approaches -> open-core crossing -> occupied-door hold -> safe exit captured through a real training room. Momentum traversal remains enabled. Human quality of these action blocks remains open. |
 | R-M13 | partial | Session47 Switchyard bus shoulders, deck induction plates/landing targets and south service bays reinforce three route themes. Existing west capacitor/east crane silhouettes retained; human callout learning open. |
-| R-M14 | n.a. | No destruction/windows system promised; fixed openings remain authoritative. |
+| R-M14 | partial | Session49 timed4m core opening changes a tested route3.11->1.78s between approaches, with two co-visible ends. Permanent walls/roof/spine remain authoritative. Discrete historical barriers cover both analytic and hybrid shots at opening/closing; no destruction or all-round window loop. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
-| R-M17 | partial | Session47 adds solid14m switching spine above3m Switch deck; standing-eye rays from bus, both pads and south service see its upper face. Relay spine/Undertow pressure stack retained; all-viewpoint/human approval open. |
+| R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session47 natural12-player Switchyard FFA300s,190kills,200lives with5m heatmap/contact data. Prior multi-seed samples retained; one changed-layout round cannot establish human fairness or pacing. |
+| R-M20 | partial | Session49 final natural12-bot Relay TDM192.7s,91kills/101lives,41:50 score,5m death heatmap. Two bots enter the core; observed close holds0.5s/23.2s. Initial zero-visitor round retained. Single seed does not establish fairness, pacing or many-round side win rates. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
@@ -386,7 +388,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session47 room/predictor share MapDef launch pads,1.2s path and continuous capsule checks; actual room feet select the route, client endpoints/deadlines ignored. Existing90-150ms recovery; authority/prediction and real-key probes pass. Human RTT acceptance open. |
+| R-G20 | met | Session49 CoreCollision serves movement/traversal, predictor, rays, pings, grenades/blasts, spawn checks and both bot navigators. Replicated coreOpen includes occupancy holds; analytic and hybrid fire share historical shutter state. Swept grenade contacts prevent thin-shutter tunnelling; human RTT feel remains open. |
 | R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -397,57 +399,58 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session40 rebindable Q resolves enemy/go-here from server aim, cover and live targets; allies only, 2 s cooldown, 5 s snapshot, max six markers. Authority tests and three real-input layouts pass. Session42 adds explicit rebindable B backup at a frozen server-derived caller location, sharing cooldown/lifetime/privacy; three layouts and real Settings rebind pass. Session43 adds a 250 ms hold wheel on the same rebindable ping key: context/go/backup, centre/right-click/pause cancellation, frozen aim and three browser layouts. Audio/acknowledgement and human muted-mic review remain open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Normal bot HP/damage/reaction retained; collision navigation for DOM and patrol. Switchyard authored nine-point circuit omits spawn bays, staggered goal on every spawn. No difficulty progression. |
+| R-L11 | partial | Session49 picks at most one living bot per team within45m on the public Relay warning; stages at an entry, then uses existing objective movement/aim/reaction through the open exit. Death/completion cancels the push. No HP/speed/accuracy changes; two natural visitors. Difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session47 launch path and cover remain server-authoritative; Reduced motion preserves movement with78FOV and no cosmetic cant. No new lights/passes. Switchyard detail adds2 prepared programs, stress61.7513MiB/191calls; iGPU/human acceptance open. |
+| R-L14 | partial | Session49 solid shutter pose follows replicated authority; Reduced motion preserves route, indicators and timings, stopping only wall runners. No new lights/passes; matched Relay stress232calls/63.8346MiB/31textures/28prepared programs; exact hitch passes. Human/iGPU approval remains open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Shared movement/combat systems; no staged content progression. |
+| R-L16 | partial | Signal Break2/2 complete by default: one public server epoch drives warning, dish turn, map disruption, a core route and limited bot staging. Replicated occupancy can hold the route after radar recovery. Actual route and natural bot evidence pass; human tactical value open. |
 | R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
-| R-L22 | partial | Session39 marks actual Undertow A and its 4 m radius during training using the existing 10 Hz minimap; no enemy positions exposed. Session42 adds caller backup snapshots with a teal B diamond alongside +/! contextual marks; no tracking, automatic gunfire reveal or human readability pass. |
+| R-L22 | partial | Session49 retains15s minimap clearing and text callouts; recovered map marks actual coreOpen including held closure. Actual warning/open/interior/recovery/held/sealed capture and390px layout pass. Intentional HUD disruption is not a state-privacy boundary; human value open. |
 | R-L23 | not yet | No enemy-highlight colour dropdown. |
+
 
 ## AAA gap list
 
-Session 47: Momentum arc (Sessions45-47) is implemented and playable ON by default:
-sprint-slide, waist-cover vault/mantle, then Switchyard induction launch routes.
-All63 reference rows retained. The owner first-five-minute directive still outranks
-small cosmetic patches; density work remains paired with actual gameplay moments.
+Session 49: re-ranked all63 references after completing Signal Break2/2 and
+repairing the supervisor's failed Session48 test gate. Momentum and Signal Break
+are on by default in the local candidate. Measured encounter failures and human
+acceptance remain open; a green desktop build is not AAA approval.
 
-1. **Signature map events (R-M05, R-M14, R-L16).** Next select one complete arc of
-   at most3sessions, default Relay dish realignment with a server-timed warning and
-   collision-backed core opening. Deliver a visible, audible payoff before more UI;
-   keep all route/lighting/resource authority and publish no unfinished default arc.
-2. **Streak and weapon spectacle (R-L01/17, R-G03/10/17).** Earned3/5/7 rewards with
-   reset/caps, unique muzzle shapes, sniper glint and stronger bounded explosions.
-   No added lights/passes or first-use shader hitches.
-3. **Encounter fairness after density (R-M03/07/09/10/13/17/18/20).** Relay107,
-   Undertow114 and Switchyard111 collider boxes now have lane cover/courts and tiled
-   detail with2048px source ground AO. Session47 Switchyard FFA damage medians2.7s
-   initial/6.05s respawn remain far below20-30s; Undertow/Relay misses retained.
-   Audit FFA arrivals/exposure and distribution with natural multi-seed/human samples;
-   cover quantity and navigation passes do not establish pacing or fairness.
-4. **Presentation, atmosphere and bot personality (R-L05-07/11-14, R-G09).**
-   Deployment/countdown/stingers, real highlight selection, distinct bot roles and
-   bounded atmosphere. Keep the environment readable and light count constant.
-5. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum implementation is
-   complete by default; assess slide/vault/launch with real mouse/RTT and human
-   fights. Improve airborne hands/remote pose and pad-route choice if play reveals
-   a problem. Existing bots still follow ground routes rather than deliberately
-   choose launch pads. No claim of Titanfall/Apex-quality human feel yet.
-6. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
-   course, ping acknowledgement/audio, countdowns and highlight colour choice.
-   Movement uses existing rebindable crouch/jump keys, pad chevrons and JUMP > DECK
-   signs; avoid another long prerequisite checklist.
-7. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
-   economy/side swap, separate weapon FOV, dedicated view-kick setting, doorway
-   acoustics and human headphone/mouse review remain open.
-8. **Human/device acceptance.** Moving hands/holds,6v6/RTT,iGPU,cold-driver/thermal
-   and Firefox/Safari remain open. Desktop fixtures cannot close these rows.
+1. **Streak and weapon spectacle (R-L01/17, R-G03/10/17).** Next default arc:
+   earned3/5/7 rewards with resets/caps and a visible, audible payoff. Unique
+   muzzle silhouettes, sniper glint and bounded explosion trauma remain strong
+   follow-ups. Keep the existing light/pass, shader and asset budgets.
+2. **Encounter fairness and signature-route value (R-M03/07/09/10/13/20).**
+   Session49 Relay initial/respawn damage medians13.7/12.3s still miss20-30s;
+   Switchyard2.7/6.05s remains the largest miss. Two natural core visitors now
+   observed, but one seeded round cannot establish human route use or fairness.
+   Test real fights around the core before calling the new shortcut balanced.
+3. **Presentation, atmosphere and bot personality (R-L05-07/11-14, R-G09).**
+   Deployment/countdown/music stings, objective-aware highlights, distinct bot
+   roles and bounded atmosphere. Core volunteers reuse normal combat attributes;
+   fuller personalities/skins remain absent. No new real-time lights or passes.
+4. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum is complete by
+   default; assess slide/vault/launch with actual mouse/RTT and human fights.
+   Improve airborne hands/remote poses if play reveals a problem. Bots still do
+   not deliberately choose launch pads. No Titanfall/Apex-quality claim.
+5. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
+   course, ping acknowledgements, replicated transition countdowns and highlight
+   colours. Core staging signs, warning and clear-to-seal explanation are in;
+   player learning, muted-mic coordination and colourblind review remain open.
+6. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
+   economy/side swap, separate weapon FOV, view-kick controls, richer doorway
+   acoustics and human headphone/mouse review remain. Core acoustic occlusion
+   now follows actual shutters, but no HRTF/diffraction is claimed.
+7. **Other signature map events (R-M05/14/16).** Relay's arc is complete.
+   Undertow flood gates and Switchyard crane events remain candidates; choose
+   one complete future arc only after the higher-impact combat payoff.
+8. **Human/device acceptance.** Moving hands/holds,6v6/RTT,iGPU,cold-driver/
+   thermal and Firefox/Safari remain open. Desktop fixtures cannot close them.
 
 ### Session 1 — 2026-09-07
 
@@ -6511,3 +6514,383 @@ preview processes were also stopped before bakes; own Blender jobs exited normal
 Unrelated pre-existing desktop/render processes left untouched. All standing gates
 green. Final diff/scope review stays within apps/ironsight/**; no commit/push/deploy.
 Supervisor owns candidate review and publication. Momentum arc implementation complete.
+
+### Session 48 - 2026-09-09: Signal Break arc 1/2 - the Relay turns and the radar drops
+
+Read the standing brief, Session48 supervisor status, current plan/scorecard and
+all63 design references. Clean starting branch ironsight-aaa; scope remains
+apps/ironsight/**. Selected the top gap as a TWO-session Signal Break arc:
+Session48 delivers the scheduled realignment/blackout and its audiovisual moment;
+Session49 must finish the collision-backed core opening on the same schedule.
+This session's complete warning/blackout/recovery sequence is ON by default in
+Relay TDM and Relay training. The arc's route-changing payoff is explicitly unfinished.
+
+Reference: R-M05, R-M12, R-M14, R-M17, R-L08, R-L14, R-L16, R-L22.
+Checkable targets: first warning30s after live starts,8s advance warning,15s map
+blackout,6s mechanical turn,3s restoration notice,90s cycle; one room-authored
+epoch for every seat and respawn; no collision-changing decoration, new lights,
+passes, textures or shader compilation during play. Timing/resource tests and
+actual-room phase captures pass. R-M05/R-M14 route-opening target remains open
+for Session49; no claim that the full signature arc or human feel is accepted.
+
+The room writes signalAt only on creation/reset (zero during warmup/other maps).
+It is an f64 in the shared codec,8additional payload bytes in a full snapshot,
+constant through the round rather than a per-tick countdown update. Both clients
+and room-side tests use the same signalFrame schedule and server clock. No new
+developer input can request/extend the event; forged move fields are ignored.
+Late join and respawn retain the existing epoch; round end suppresses the event,
+new rounds seed a fresh deadline. Existing cold-restore policy still starts a
+fresh round. Snapshot version9->10; schema fingerprint changes. Supervisor must
+publish client and Worker together and existing tabs need refresh. No deploy here.
+
+During blackout the actual minimap canvas is cleared and redraws a static
+SIGNAL LOST / RELINK countdown: no stale floor/ally image left behind an overlay.
+Location names and ordinary Q/B text callouts remain usable, and pings expire on
+their existing server deadlines. It is an intentional HUD disruption, not a
+security boundary: the room still sends the state needed to render players.
+No enemy tracking or information gained by a graphics setting. Reduced motion
+retains the mechanical dish pose and timing, omitting only expanding light rings.
+The notice uses steady colours, no flicker or screen flash, and phase-only live
+announcements. Joining/reconnecting or skipping a phase does not replay stale
+audio. Three brief synthesized PA/coil cues share master volume, mute and limiter;
+longest1.8s, nodes disconnect on completion, no audio file or persistent loop.
+Human headphone balance/comfort is still unverified.
+
+Replaced the original static north antenna with one original15m-diameter receiver
+on a30m pivot at(75,30,-15). The larger dish turns through1.3rad with smooth
+absolute-time seeking; it does not integrate drift across frames. Radial seams,
+back ribs, receiver struts, actuator, service mast and a steady amber/teal rim
+use two merged solid batches plus a pilot ring. Two pooled translucent annuli
+radiate during the opening2.6s. All SOLID moving and stationary parts stay beyond
+z=0 throughout both directions (sampled full-cycle geometry test). These outside
+boundary parts cast no dynamic or stale baked moving shadow. The existing gantry,
+generated uplinks, central collision-backed spine and playable geometry remain.
+No new real-time light, shadow refresh, texture, render pass or per-frame bake.
+
+Original Relay architecture was rebaked without the old static dish/mast, then
+the existing2m vertex weathering was reapplied. The accepted GLB is3,367,124bytes
+(previous3,388,284; -21,160).2,228source parts,26,720source triangles and11material
+primitives; the unchanged concrete weathering subdivides1,164to30,420triangles.
+Oriented-triangle/authored-normal audit passes, finite UVs, zero degenerate faces
+and one1024-square AO image. No collision/groundAO rebake needed: removed pieces
+are outside the playable boundary. Provenance/reproduction in assets/README.md;
+session48-architecture.json, weather.json, architecture-audit.json and
+bake-architecture.log. No new binary URL/allowlist; no purchased source adopted.
+Meshy spend0, reported balance1530; procedural construction supplies this moving part.
+
+Wow check: session48-verified-signal-{warning,pulse,turn,restored,narrow,phone}.png,
+plus the offline signal-warning/blackout/recovery views in session48-functional.
+Opened the phase/phone views and Relay center/overview; rejected overlapping
+intermediates below. Player sentence: "The giant dish turns, my radar goes dark,
+and I have to keep my team together by landmarks and callouts."
+This uses the brief's before/after-stills alternative, not a video or human playtest.
+The probe walks to the northern court with collision-routed W and watches the
+REAL training room epoch, then sends B during the blackout. No teleports, isolated
+live room, clock/state/HP/bot edits or fabricated events. Actual same-epoch samples:
+warning age416.5ms / yaw-.65 / map online; blackout observed age10710.5ms / map
+offline; later age17756.5ms / yaw+.65; recovery age24093.5ms / map online.
+CDP sampling/capture latency means these observations are not precise boundary
+timing measurements; unit tests cover the exact8,000/23,000ms boundaries.
+Verified text NEED BACKUP survives disruption.720x900 notice bounds404..704,
+y176..238;390x844 bounds16..366,y344..394. Session48-verified-report.json.
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots signal
+--prefix session48-verified. The production schedule is unchanged for the probe.
+
+Matched Relay effects stress: Edge152/RTX5070 D3D11,1920x1080 balanced/DPR1,
+11remotes+local rifle,145twelve-rifle volleys and96blasts in each run, complete
+drain. Final offline stress explicitly samples the real shared event schedule
+through warning, both light rings, the turn and recovery. Resource assertions
+are unchanged and pass; session48-before-report.json vs session48-final-report.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|220|226|+6|
+|Peak submitted triangles|144050|146170|+2120|
+|Resident textures|30|30|0|
+|Estimated texture MiB|63.7513|63.7513|0|
+|Median/p95/p99 frame ms|6.9/7.1/7.2|6.9/7.1/7.1|0/0/-.1 rounded|
+|Max frame ms|20.7|27.8|+7.1|
+|First-ready max ms|7.1|13.9|+6.8|
+|Resident programs after preparation|27|28|+1|
+
+Construction60.2->81.2ms; preparation737.5->1856.8ms. No speedup claimed.
+Second event-facing stress view:55peak calls,91,112triangles, same texture/program
+residency;6.9/7.1/7.3ms median/p95/p99,34.7ms max. It has a different camera with
+many actors out of view, not a matched performance improvement. Both own inspection
+browsers ran alone, without own bakes/tests. Pre-existing/unrelated Blender processes
+were observed on this shared host and left untouched. Desktop measurements do not
+establish mid-laptop iGPU60fps, thermal/cold-driver, network or human6v6 acceptance.
+Reproduce --shots effects-stress,signal-effects-stress --assert-budgets with the
+same inspector. The extra material program is prepared before controls attach.
+
+Static session48-reference-audit.json retains all numeric checks: Relay rotations
+14.44/14.44/11.78s, Undertow14.22/14.22/11.33s, Switchyard14.44/14.44/11.56s
+(A-B/B-C/A-C ground BFS sprint proxies);150x100m/1250m2per seat on all three maps.
+Cover classes/navigation/collision unchanged. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms,3s respawn,1.4hostile foley, distinct hit pip,
+two damage cues and five-row top-right feed remain. DOM4/8s capture,1point/2s/flag,
+no side swap and78FOV remain mismatches. No new contact/heatmap claim for an
+unchanged collision layout; previous natural-round pacing failures stay ranked open.
+
+Validation: pnpm typecheck, pnpm test, pnpm build:client PASS.466tests passed,
+6existing/opt-in skips;52files passed/4skipped. New tests cover exact phase boundaries,
+alternating/seeked pose, warmup/ended/other-map gating, late-seat/respawn deadline
+retention, forged fields, new-round reseeding, complete exterior motion envelope,
+constant resources/no lights and Reduced motion. Client geometry tests follow the
+existing DOM tsconfig convention. Required exact --shots relay,practice-two PASS,
+zero console errors: session48-required-inspector.log and required-report.json.
+All runtime code/assets remained fixed through verified/stress/required/hitch gates.
+
+Rejected intermediates: first composition left the old baked antenna overlapping
+the new receiver; removed the original static assembly from source and rebaked it.
+The original2m wall-weathering pass was explicitly reapplied after the AO bake.
+Initial event notice overlapped the practice header; moved it beside the desktop
+map, to the right on720px, and below the training coach on390px. Intermediate
+captures retained under session48-draft/functional; verified is final gameplay HUD.
+A room test used an invalid practice-room prefix (fell back to Relay); corrected
+the fixture to arena-practice-arena2/3. A read command used a repo-relative path
+from the app directory and failed without changes. The first full test run timed
+out in the existing weapon-sound synthesis test (6.958s against5s); after stopping
+the owned preview processes, exact pnpm test passed unchanged in12.65s.
+session48-test-first.log retained. No assertion, timeout, shader allowance or
+resource threshold relaxed; no new dependency.
+
+Open owner questions/defaults: keep30s first warning /90s recurrence (yes),15s
+minimap loss with text callouts intact (yes), six-second mechanical turn (yes),
+and omit only light-wave motion under Reduced motion (yes). Session49 should
+finish the core opening with shared collision states, safe occupied-door closure,
+matching server movement/hits/grenades/bot navigation and client prediction/render.
+Historical hit checks must select the correct barrier state at the rewound time;
+do not animate a hole before authority opens it. Retain two safe approaches,
+readable telegraph and the current performance/asset gates. Signature route value,
+human fairness, headphones, mouse/RTT,6v6,iGPU and other-browser review remain open.
+Industrial daylight, amber/teal and server-verified hits retained. No owner answer
+required, no commit/push/deploy; supervisor owns review and publication.
+
+The exact required live command node scripts/hitch-probe.mjs
+http://localhost:8796 150000 .inspect/hitch.json --assert PASS on the first run:
+session48-hitch.json/log and hitch.json. Two bot-caused deaths, zero post-warmup
+recompiles, >150ms frames, console errors or long tasks.32frames exceeded24ms;
+worst96.8ms at startup,47.8ms near the first death. Live began8.864s;
+first damage47.362s, deaths48.843/113.270s, respawns51.557/116.563s.
+One uninterrupted warmup->live transition; normal twelve-seat TDM, scores14:15
+at stop, existing collision-routed W gate, no isolated room/storage reset/HP
+edits/forced deaths. This round crossed the first warning, blackout and recovery
+and the first death/respawn occurred during the blackout. It is local stability
+evidence, not human pacing, fairness, latency or laptop qualification.
+
+Final pnpm audit:assets PASS: public32,597,540->32,606,319bytes (+8,779);
+assets26,287,460->26,268,232 (-19,228 including provenance text).
+Client1,958,677bytes; source map4,378,802. Largest file remains Switchyard
+architecture7,184,816bytes.40MiB public/25MiB per-file caps pass; no exception.
+Evidence session48-bytes.json, render-delta.json, report-checks.json and
+audit-assets.log. All six inspector reports have zero console errors/forbidden
+offline network requests. All63 reference rows retained and re-ranked.
+
+Cleanup session48-cleanup.json: all twelve final owned preview processes stopped;
+zero owned processes, port8796 listeners or inspection browsers remain. Initial
+preview's twelve processes were also stopped before the unchanged test rerun.
+Owned Blender exited normally; unrelated host renderers were left alone. The first
+process check caught one terminating child; the subsequent check confirms none.
+Only documentation/provenance/evidence writes followed the completed runtime gates.
+No commit/push/deploy. Session48 is green; Signal Break's core opening is next.
+
+
+### Session 49 - 2026-09-09: Signal Break arc 2/2 - breach the core, hold the shutters
+
+Read the standing brief, Session49 supervisor status, plan/scorecard and all63
+design references. Branch ironsight-aaa; scope apps/ironsight/** only. Session48
+was NOT supervisor-green or published: its candidate remained in the tree.
+First repaired the failed test gate, then finished the required Signal Break arc.
+Both sessions' features are enabled by default locally. No commit/push/deploy.
+
+Reference: R-M02/03/04/05/12/14/17/20, R-G20, R-L11/14/16/22.
+Targets: same30s first-warning/8s telegraph/15s blackout/90s cycle; an actual
+two-ended standing shortcut under the central spine; matching server/client
+collision and historical shots; no occupied closure; constant lights/passes and
+existing240draw/64MiB texture,40MiB public and25MiB per-file gates. Implemented
+checks pass. Human route value, pacing, iGPU60fps and full AAA acceptance remain
+open. No alternate reference numbers or raised thresholds adopted.
+
+Gate repair: weapon-sound.test.ts now counts nonfinite samples during the SAME
+full PCM scan, then asserts zero, avoiding hundreds of thousands of assertion
+objects. Switchyard navigation still tests EVERY capsule sample; it constructs
+a failure only on obstruction. Every route and destination check remains.
+Default5s timeout and maxWorkers4 unchanged. Repair attempt1 passed audio but
+reproduced Switchyard's timeout; repair-final passed466tests before feature work.
+Evidence session49-test-repair.log and test-repair-final.log. This fixes the
+supervisor-reported problem instead of relying on an unchanged retry.
+
+The core's old10x12x6m block becomes two permanent side walls and a3m-clear
+lintel, with two0.5m shutters at x70..70.5 and79.5..80, z48..52. The6m roof and
+14m spine remain solid. Opening removes ONLY the two shutters. Room-owned
+coreOpen drives predictor, visible panels, current hits, grenade/blast collision,
+ping rays, acoustic occlusion, spawn checks and the closed/open bot navigators.
+No client message can request the opening or extend it. Both navigators are
+constructed before play; overhead lintels no longer block ground clear-segment
+checks. The static ground-BFS measurement tool now respects standing clearance
+under overhead geometry too, while remaining a ground-route proxy.
+
+After15s the room waits until the WHOLE chamber plus1.5m approach guard is clear
+of living feet/active grenades before closing BOTH ends. No crush damage,
+teleport or trapped player. A player can intentionally hold the route; there is
+no forced closure timeout. Radar recovery remains exactly scheduled even if a
+door is held. HUD says CLEAR TO SEAL / HELD and explains either exit; recovered
+minimap marks actual open/closed state. A late seat receives the actual bit.
+Round reset also resets the in-memory gate and replicated state, including an
+open-core snapshot under the existing fresh-round cold-restore policy.
+
+Discrete gate transition history retains a2s window/predecessor. Analytic rays,
+hybrid-claim plausibility and tracer endpoints select the SAME historical
+barriers as the target rewind, including shots straddling opening AND closing.
+No interpolation through a partially open barrier. New room tests demonstrate
+blocked-before-opening and allowed-before-closing historical shots in both paths.
+Current ping/blast checks use current cover. New grenade regression exposed
+endpoint-only tunnelling through thin shutters: stepGrenade now sweeps the
+sphere's conservative expanded AABB to the earliest box contact, reflects and
+stops for that tick; the normal bounce correction is sent. Corners are
+conservative, and post-contact remainder is deferred to the next tick. Existing
+grenade tests and new open/closed transit tests pass.
+
+Snapshot version10->11; one appended bool adds1byte to a full state payload
+beyond Session48's8byte epoch. Publish client and Worker together; old tabs
+must refresh. The supervisor owns this publication. No deployment here.
+
+Original shutter slats/chevrons, inset guide rails, teal passage strips and
+two CORE / TRANSIT headers identify the route. Solid panels seek replicated
+open/closed pose immediately; no cosmetic hole precedes authority. Retracted
+panels are concealed in the lintel. Only wall-flush light runners animate;
+Reduced motion stops those while keeping all gameplay information and poses.
+The existing Signal Break PA cues remain master-volume controlled, and phase
+cues cannot double-play when the replicated gate bit arrives. Human headphone
+balance remains unverified. No new light/pass/dynamic shadow/bake or dependency.
+
+Architecture rebaked without moving shutters, with overlapping elevated-kit
+undersides corrected;2m vertex weathering reapplied. Accepted GLB3,385,780bytes
+(+18,656 from Session48),2,244source parts/26,912source triangles/11primitives,
+one1024-square AO image. Concrete1,188->30,620triangles; oriented-triangle,
+authored-normal, finite-UV and degenerate audit PASS. GroundAO2048x1365 from
+109permanent boxes/four ramps:773,641bytes (+4,538),13.65px/m on the long axis.
+No stale shutter shadow. One256x64 immutable sign atlas adds.08333MiB with mips.
+Existing allowlisted original asset paths retained. Meshy spend0; reported
+balance1530. Procedural geometry is appropriate for these exact moving colliders.
+Reproduction/provenance in public/assets/README.md; session49-architecture.json,
+weather.json, architecture-audit.log and both bake logs.
+
+Wow check (brief's before/after-stills alternative): session49-verified-core-
+{warning,opened,crossing,held,phone,sealed}.png and verified-report.json. Opened
+the actual interior/phone frames and initial offline closed/open composition.
+Player sentence: "The radar dies, the core opens, and I can cut straight through
+the fortress while the shutters wait for my team to clear."
+The normal training-room probe uses W and ordinary aim, observes the real epoch,
+crosses from x67 through x75 to x83, waits inside after recovery, then exits.
+No clock/state/position edits, fake events, isolated live room or forced deaths.
+Actual samples: warning/open/inside/held/closed, same epoch, all100HP, map
+online/offline/offline/online/online, shutterY0/3/3/3/0.390px HUD fits x16..366
+and y344..394. First functional views exposed roof z-fighting and concealed
+shutter trim; fixed and rebaked before the verified capture. The probe precedes
+the final TDM-only bot policy; final required inspection/hitch uses that policy.
+
+Static session49-reference-audit.json: Relay111boxes (65full/46waist),
+Undertow114 (52/62), Switchyard111 (63/48). All150x100m/1250m2per seat. Relay
+A-B/B-C/A-C14.44/14.44/11.78s in BOTH states; Undertow14.22/14.22/11.33 and
+Switchyard14.44/14.44/11.56 retained. Core approach sprint proxy3.11->1.78s
+(x67..83,z50); these are ground BFS timings, not measured human retakes.
+ADS250/200/225/400/165ms, sprint recovery120/100/130/150/90ms,3s respawn,
+1.4hostile foley, distinct hit pip, two damage cues and five-row top-right feed
+retained. DOM4/8s capture,1point/2s/flag,no side swap and78FOV still miss references.
+
+Natural production-bot telemetry exposed zero core visitors in the first seed
+0x28abc round (221.3s,49:50,99kills/109lives). Kept this intermediate evidence.
+Final policy recruits at most ONE living nearby bot per team within45m on the
+public warning, stages at an entry, then uses existing objective movement/aim/
+reaction through the exit. Completion/death ends the push. No position, speed,
+HP, accuracy, damage or visibility advantage; training dummies remain stationary.
+Final SAME-seed natural round:192.7s,41:50,91kills/101lives, two core visitors
+(bot-2/bot-12),30interior samples at100ms. Gate opens38/128s; closes53.5/166.2s,
+showing0.5/23.2s occupancy holds. No forced paths or kills in the measuring tool;
+bot tactics are the production change being measured. Initial median LOS/damage
+5.4/13.7s, respawn4.0/12.3s (81/89 damage contacts observed).20-30s target NOT MET.
+One-seed score change is not a fairness or pacing improvement claim. Evidence
+session49-final-bot-{round.json,heatmap.svg,debug.json}, bot-metrics-final.log,
+contact-summary.json. Reproduce RELAY_METRICS=1 METRICS_PREFIX=session49-final
+pnpm exec vitest run test/relay-metrics.tool.test.ts. LOS uses the current gate
+barriers and a100m eye segment without FOV; unsampled contacts remain absent.
+
+Matched Relay effects stress: Edge152/RTX5070 D3D11,1920x1080 balanced/DPR1,
+11remotes+local,145twelve-rifle volleys/96blasts, complete drain. Shared schedule
+crosses warning/opening/closing. Before-report.json vs final-report.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|226|232|+6|
+|Peak submitted triangles|146170|147074|+904|
+|Resident textures|30|31|+1|
+|Estimated texture MiB|63.7513|63.8346|+.0833|
+|Median/p95/p99 frame ms|6.9/7.1/7.2|6.9/7.1/7.1|0/0/-.1 rounded|
+|Max frame ms|27.8|7.3|-20.5|
+|First-ready max ms|13.7|7.1|-6.6|
+|Prepared programs|28|28|0|
+
+Construction98.3->78.3ms; preparation1548.3->1140.9ms. Different cache/order;
+no initialization speedup claimed. Core-facing stress52peak calls/83,614triangles,
+same resident textures/programs,6.9/7.1/7.2ms median/p95/p99,7.3ms max; different
+camera so not a matched performance improvement. No owned tests/bakes/browser
+overlapped these captures. Existing unrelated host processes were left alone.
+Resource thresholds unchanged; no mid-laptop iGPU, thermal/cold-driver, human6v6
+or network-capacity acceptance. Renderer remained unchanged after these reports;
+the subsequent bot staging change is room-only and final hitch covers it.
+
+Final pnpm typecheck, pnpm test, pnpm build:client, pnpm audit:assets PASS.
+474tests passed/6existing or opt-in skips;53files passed/4skipped. Worker build
+dry-run PASS (278.43KiB /79.86KiB gzip), not a deployment. Evidence session49-
+typecheck.log,test-final.log,build-client.log,build-worker.log,audit-assets-final.log.
+Core tests cover clearance, retained solids, both nav states, discrete historical
+hits/claims, safe occupied closure, late seats, forged fields, reset bit, grenade
+sweep and bot selection/exit; client tests cover prediction and fixed resources/
+Reduced motion. Existing ramp/spawn/collision assertions retained; integer-grid
+test explicitly separates the two tested0.5m shutter footprints.
+
+Required node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS, zero console errors (session49-required-*). All five
+inspector reports have zero errors/forbidden offline network requests; report-
+checks.json. Runtime code/assets stayed fixed through final type/test/build,
+required inspection and live hitch. Only documentation/evidence writes followed.
+
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json
+--assert PASS first attempt: two bot-caused deaths, zero post-warmup recompiles,
+>150ms frames, console errors or long tasks. One>24ms frame:96ms startup.
+Live6.457s; first damage30.568s (24.111s after live); deaths31.778/85.323s,
+respawns34.783/88.241s; scores14:19 at stop, twelve-seat normal TDM. Crossed the
+first live event. Existing collision-routed W gate; no isolated room, storage
+reset, forced death, teleport or HP/bot edits. session49-hitch.json/log and
+hitch.json. Local stability evidence only; human/iGPU qualification remains open.
+
+Final public32,606,319->32,659,708bytes (+53,389); assets26,268,232->26,294,040
+(+25,808 including provenance). Client1,966,573bytes, source map4,398,487;
+largest file Switchyard architecture7,184,816.40MiB/25MiB caps pass without
+exception. session49-bytes.json and final asset audit. All63 scorecard rows
+retained and re-ranked; Signal Break's implementation is complete by default.
+
+Rejected intermediates: sample-heavy timeout failures above; thin-shutter
+grenade endpoint tunnelling fixed by sweep; integer-only fixture amended for
+explicit authored shutters; the test helper named restore collided with a
+private SDK method and was renamed restoreForTest. Initial ceiling overlapping
+faces and retracted surface trim corrected before accepted visuals. Initial
+zero-visitor bot round drove limited production staging rather than a scripted
+capture. No weak asset, relaxed assertion/timeout, changed hitch threshold,
+additional dependency or invented acceptance adopted.
+
+Open owner questions/defaults: keep15s scheduled opening with indefinite safe
+occupancy hold (yes), immediate authoritative shutter pose (yes),1nearby bot per
+team responding to the warning (yes), and timed shortcut with no pickup/score
+bonus (yes). Next default arc is earned streak spectacle. Industrial daylight,
+amber/teal, stylized sci-fi, server-verified hits and6v6 team modes retained.
+Human RTT/feel, route fairness, bot mix, headphones, animation and iGPU/browser
+review remain open. No owner answer required. Supervisor owns review/publication.
+
+Cleanup session49-cleanup.json verifies all42 recorded process IDs across the
+four owned preview trees are gone, with zero port8796 listeners or inspection
+browsers. Own Blender bakes exited normally; unrelated host processes were left
+untouched. Final scope/diff check passes within apps/ironsight/**. All standing
+gates green; no commit, push or deploy. Signal Break arc implementation complete.

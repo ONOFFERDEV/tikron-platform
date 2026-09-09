@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { buildSiteGround } from "./site-ground.js";
 import { buildRelayServiceDetail } from './relay-service-detail.js';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from "../src/map/types.js";
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
@@ -38,13 +37,17 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   if (!bakeOnly) buildSiteGround(scene, map);
 
   for (const b of map.boxes) {
+    // Moving shutters have their own prebuilt render kit; never bake a closed
+    // door or its shadow across the passage into the permanent architecture.
+    if (map.signalCore?.doors.includes(b)) continue;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const y = b.min.y;
     const low = h < 1.5;
     // End pillars fill the last 18 cm of each tall volume, rather than placing
     // a second coplanar face on a complete box (which causes depth fighting).
-    add(low ? "dark" : "concrete", x, y + (h - 0.16) / 2, z, low ? w : w - 0.36, h - 0.16, d);
+    const baseInset = y > 0 ? .32 : 0;
+    add(low ? "dark" : "concrete", x, y + baseInset + (h - 0.16 - baseInset) / 2, z, low ? w : w - 0.36, h - 0.16 - baseInset, d);
     add(low ? "metal" : "pale", x, y + h - 0.08, z, w, 0.16, d);
     // Flush foundations and cornices give buildings scale without enlarging collisions.
     add("dark", x, y + 0.16, z, w + 0.006, 0.32, d + 0.006);
@@ -129,55 +132,8 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
       add("teal", x, yy, z, w + 0.02, 0.45, d + 0.02);
   }
   activeBatch = batches;
-  // Relay mast and paired gantry behind the north boundary.
-  add("dark", mastX, 12, -8, 2.4, 24, 2.4);
-  add("pale", mastX, 20, -8, 8, 1.2, 4);
-  add("teal", mastX, 20, -5.94, 5.6, 0.45, 0.1);
-  // Original parabolic antenna: the map's identifying silhouette. It lives
-  // entirely beyond z=0, so the detailed bowl needs no gameplay collider.
-  const dish = new THREE.Group(); dish.position.set(mastX, 25, -8);
-  dish.rotation.set(-0.18, -0.25, 0);
-  const vertices: number[] = [], indices: number[] = [];
-  const rings = 8, segments = 32, radius = 5.2;
-  for (let r = 0; r <= rings; r++) for (let a = 0; a <= segments; a++) {
-    const distance = radius * r / rings, angle = a / segments * Math.PI * 2;
-    vertices.push(Math.cos(angle) * distance, Math.sin(angle) * distance, distance * distance / 16);
-  }
-  for (let r = 0; r < rings; r++) for (let a = 0; a < segments; a++) {
-    const i = r * (segments + 1) + a, next = i + segments + 1;
-    indices.push(i, next, i + 1, i + 1, next, next + 1);
-  }
-  const bowlGeometry = new THREE.BufferGeometry();
-  bowlGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-  bowlGeometry.setIndex(indices); bowlGeometry.computeVertexNormals();
-  const bowlMaterial = new THREE.MeshStandardMaterial({ color: 0xc5cec7, roughness: 0.74, metalness: 0.25, side: THREE.DoubleSide });
-  const bowl = new THREE.Mesh(bowlGeometry, bowlMaterial); bowl.castShadow = true; dish.add(bowl);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.12, 6, segments), mats.metal);
-  rim.position.z = radius * radius / 16; dish.add(rim);
-  const feed = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.28, 3, 8), mats.dark);
-  feed.rotation.x = Math.PI / 2; feed.position.z = 1.8; dish.add(feed);
-  const receiver = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.6, 12), mats.amber);
-  receiver.rotation.x = Math.PI / 2; receiver.position.z = 3.4; dish.add(receiver);
-  // Feed suspension: three authored struts explain how the receiver is held.
-  const braces: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < 3; i++) {
-    const angle = i * Math.PI * 2 / 3 + Math.PI / 6;
-    const start = new THREE.Vector3(Math.cos(angle) * 4.65, Math.sin(angle) * 4.65, 1.36);
-    const end = new THREE.Vector3(0, 0, 3.2), axis = end.clone().sub(start);
-    const geometry = new THREE.CylinderGeometry(0.065, 0.065, axis.length(), 6);
-    geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(THREE.Object3D.DEFAULT_UP, axis.normalize()));
-    geometry.translate(...start.add(end).multiplyScalar(0.5).toArray()); braces.push(geometry);
-  }
-  const bracing = new THREE.Mesh(mergeGeometries(braces)!, mats.metal);
-  braces.forEach(g => g.dispose()); bracing.castShadow = true; dish.add(bracing);
-  // Base actuator and service cabinets all remain beyond the north boundary.
-  add('metal', mastX, 21.8, -8, 3.2, 2.6, 3.2);
-  add('amber', mastX, 22.7, -6.38, 1.7, 0.5, 0.06);
-  for (const side of [-1, 1]) {
-    add('dark', mastX + side * 1.2, 12, -6.79, 0.20, 17, 0.12);
-    add('metal', mastX + side * 3, 1.8, -8, 2, 3.6, 3);
-  }
-  scene.add(dish);
+  // The moving dish and its mast live in SignalArray; only the static gantry
+  // belongs in the architecture bake. Every part remains outside the arena.
   for (const x of [mastX - 9, mastX + 9]) add("amber", x, 8, -3, 0.6, 16, 0.8);
   add("amber", mastX, 15.6, -3, 19, 0.8, 1);
   for (let x = mastX - 8; x < mastX + 9; x += 2) add("dark", x, 15.1, -3, 0.16, 1.5, 0.5, 0.35);
@@ -217,7 +173,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   };
   sign(0, width / 2, 2.1, 0.015, 0, 6);
   sign(2, width / 2, 2.1, depth - .015, Math.PI, 6);
-  sign(3, mastX, 21.4, -5.98, 0, 7);
+  sign(3, mastX, 25.7, -13.4, 0, 6.8);
   for (const side of [-1, 1]) {
     sign(1, width / 2 + side * 5.030, 3.7, 50, side * Math.PI / 2, 3.5);
   }

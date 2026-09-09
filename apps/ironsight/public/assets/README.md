@@ -656,3 +656,68 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-effe
 The source/export audit verifies oriented triangles, authored normals, finite UVs
 and zero degenerates. No raw source binary or new purchased derivative is shipped.
 See AAA-PLAN.md Session 47 for before/after captures, resource deltas and open acceptance.
+
+### Session 48: original Relay realignment assembly
+
+`maps/relay-architecture.glb` is now 3,367,124 bytes (-21,160). Removed the old
+static exterior dish/mast from the original kit, rebaked its 1024px AO, and
+reapplied Session44's 2m concrete vertex-weathering pass. All playable geometry
+is unchanged. Oriented triangles, authored normals, UVs and degenerate-face audit
+pass; 2,228 source parts and 11 material primitives. Existing allowlist applies.
+
+`client/signal-array.ts` builds the replacement original mechanical receiver:
+15m dish on a 30m pivot, radial seams/back ribs, actuator/service mast and two
+pooled light rings. Two merged solid batches, no texture downloads, no new lights
+or passes. Every solid part remains outside the north boundary in all poses.
+No purchased source or Meshy input; generation spend 0. The moving assembly is
+deliberately excluded from the static architecture bake and casts no shadow.
+The existing sign atlas labels the new mast. Runtime phase sampling comes from
+the shared room epoch in `src/signal-event.ts`; Reduced motion omits light waves.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-architecture.mjs .inspect/session48-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session48-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session48-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session48-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots signal --prefix session48-verified
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots effects-stress,signal-effects-stress --assert-budgets --prefix session48-final
+```
+
+### Session 49: Signal Break core transit (original procedural geometry)
+
+The Relay core now has two permanent side walls, a 3m-clear lintel and two
+0.5m shutters authored in `src/map/arena1.ts`. The open passage spans x70..80,
+z48..52 beneath the unchanged 6m roof and 14m signal spine. Only the room's
+replicated `coreOpen` removes the shutters; movement, shots and bot navigation
+share these volumes. `client/signal-core.ts` batches the original shutter slats,
+guide housings, floor paint and steady amber/teal indicators. Concealed retracted
+panels are omitted from rendering. No moving part casts a cached shadow.
+
+One immutable 256x64 canvas atlas supplies the two CORE / TRANSIT headers
+(estimated 0.08333 MiB with mips). No external image, purchased source, new
+asset URL or Meshy generation. The permanent architecture omits both shutters;
+ground AO is baked from the permanent shell, preventing a stale door shadow.
+Elevated kit boxes inset their main body above the foundation to avoid coplanar
+undersides now that the core ceiling is visible. Existing 2m vertex weathering
+is reapplied without new textures or materials.
+
+Accepted `relay-architecture.glb`: 3,385,780 bytes (was 3,367,124; +18,656),
+2,244 source parts / 26,912 source triangles / 11 material primitives, one
+1024-square AO image. Concrete weathering changes 1,188 to 30,620 triangles;
+authored-normal/oriented-triangle/UV audit passes. `relay-ground-ao.png`:
+2048x1365, 773,641 bytes (was 769,103; +4,538). Both are existing allowlisted
+original outputs, lazy-loaded for Relay. No asset-budget exception.
+
+```powershell
+node tools/dump-architecture.mjs .inspect/session49-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session49-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session49-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session49-architecture.json
+node tools/dump-maps.mjs .inspect/session49-maps.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps .inspect/session49-maps.json --size 2048
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots core --prefix session49-verified
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots effects-stress,core-effects-stress --assert-budgets --prefix session49-final
+```

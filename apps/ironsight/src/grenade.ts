@@ -97,11 +97,28 @@ export function stepGrenade(
   bounds: Bounds,
 ): boolean {
   g.vel.y -= gravity * dt;
-  g.pos.x += g.vel.x * dt;
-  g.pos.y += g.vel.y * dt;
-  g.pos.z += g.vel.z * dt;
-
+  // Sweep the sphere's conservative AABB BEFORE advancing. Endpoint-only tests
+  // can tunnel through the new 0.5m shutters (or eject out the wrong face).
+  // Stop at the first contact this tick; the room sends the bounce correction.
+  const delta = { x:g.vel.x*dt, y:g.vel.y*dt, z:g.vel.z*dt };
+  let first=1, normal: Vec3 | undefined;
+  for(const box of boxes) {
+    let enter=-Infinity, leave=Infinity, axis:'x'|'y'|'z'='x', sign=0;
+    for(const key of ['x','y','z'] as const) {
+      const lo=box.min[key]-r,hi=box.max[key]+r,d=delta[key],p=g.pos[key];
+      if(Math.abs(d)<1e-9) { if(p<lo || p>hi){leave=-Infinity;break;} continue; }
+      const a=(lo-p)/d,b=(hi-p)/d,t=Math.min(a,b);
+      if(t>enter){enter=t;axis=key;sign=d>0?-1:1;}
+      leave=Math.min(leave,Math.max(a,b));
+    }
+    if(enter>=0 && enter<=leave && enter<=first) {
+      first=enter;normal={x:0,y:0,z:0};normal[axis]=sign;
+    }
+  }
+  const travel=normal ? Math.max(0,first-1e-5) : 1;
+  g.pos.x += delta.x*travel;g.pos.y += delta.y*travel;g.pos.z += delta.z*travel;
   let bounced = false;
+  if(normal){reflect(g.vel,normal.x,normal.y,normal.z,restitution);bounced=true;}
 
   // Floor / ceiling.
   if (g.pos.y - r <= 0) {

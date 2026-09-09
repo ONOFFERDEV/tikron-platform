@@ -419,3 +419,21 @@ export function playTraversal(source?: SoundPoint, threatGain = 1): void {
   src.connect(filter).connect(gain).connect(bus.input); src.start(t); src.stop(t+.32);
   src.onended=()=>{src.disconnect();filter.disconnect();gain.disconnect();bus.release();};
 }
+
+/** Map-wide PA/relay cue, bounded below confirmed combat transients. Uses the
+ * existing master volume, mute and limiter, with no lingering loop/timers. */
+export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
+  const c=ready();if(!c || !master || !noise || phase==='idle')return;
+  const t=c.currentTime, gain=c.createGain(), tone=c.createOscillator(),
+    air=c.createBufferSource(), filter=c.createBiquadFilter();
+  const blackout=phase==='blackout', duration=blackout ? 1.8 : .85;
+  tone.type=blackout ? 'triangle' : 'sine';
+  tone.frequency.setValueAtTime(blackout ? 150 : phase==='warning' ? 440 : 660,t);
+  tone.frequency.exponentialRampToValueAtTime(blackout ? 38 : phase==='warning' ? 330 : 990,t+duration*.75);
+  air.buffer=noise;filter.type='lowpass';filter.frequency.value=blackout ? 460 : 120;
+  gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(blackout ? .17 : .10,t+.05);
+  gain.gain.exponentialRampToValueAtTime(.001,t+duration);
+  tone.connect(gain);air.connect(filter).connect(gain);gain.connect(master);
+  tone.start(t);air.start(t);tone.stop(t+duration);air.stop(t+duration);
+  air.onended=()=>{air.disconnect();filter.disconnect();tone.disconnect();gain.disconnect();};
+}

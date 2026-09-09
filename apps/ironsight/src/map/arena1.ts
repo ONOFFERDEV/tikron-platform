@@ -61,13 +61,24 @@ export const RELAY_ROWS: readonly string[] = [
   "...................................#####...................................",
 ];
 const compiled = compileTileMap(RELAY_ROWS);
+const doors: readonly Box[] = [
+  { min: { x: 70, y: 0, z: 48 }, max: { x: 70.5, y: 3, z: 52 } },
+  { min: { x: 79.5, y: 0, z: 48 }, max: { x: 80, y: 3, z: 52 } },
+];
 export const ARENA1: MapDef = {
   ...compiled,
   presentation: "relay",
-  boxes: [...compiled.boxes.map(b => ({ ...b, max: { ...b.max,
+  signalCore: { doors, chamber: { min: { x: 70, y: 0, z: 48 }, max: { x: 80, y: 3, z: 52 } } },
+  boxes: [...compiled.boxes.filter(b => !(b.min.x === 70 && b.max.x === 80 && b.min.z === 44 && b.max.z === 56)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.2 ? 3 : b.max.y === 2.2 ? 6
       : b.max.y === 2.5 ? (b.max.x - b.min.x > 2 && b.max.z - b.min.z > 2 ? 6 : 3) : b.max.y,
   } })),
+    // Two co-visible ends, a 4m passage, and the unchanged 6m roof. Dynamic
+    // shutters never remove the roof/spine or either permanent side wall.
+    { min: { x: 70, y: 0, z: 44 }, max: { x: 80, y: 6, z: 48 } },
+    { min: { x: 70, y: 0, z: 52 }, max: { x: 80, y: 6, z: 56 } },
+    { min: { x: 70, y: 3, z: 48 }, max: { x: 80, y: 6, z: 52 } },
+    ...doors,
     // Inaccessible signal spine on the 6m core roof, not another floor tier.
     // Its visible silhouette is authoritative cover even for elevated shots.
     { min: { x: 74, y: 6, z: 48 }, max: { x: 76, y: 14, z: 54 } },

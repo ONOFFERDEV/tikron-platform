@@ -8,7 +8,7 @@ export function startMatchInspector(): void {
   const hud = new Hud(settings);
   const shot = new URLSearchParams(location.search).get('shot') ?? '';
   const state: ArenaState = { players: {}, seed: 1, redScore: 50, blueScore: 42,
-    phase: 'ended', matchEndMs: 0, mode: 0, capA: 100, capB: 100, capC: 100 };
+    phase: 'ended', matchEndMs: 0, signalAt: 0, coreOpen: false, mode: 0, capA: 100, capB: 100, capC: 100 };
   const solo = shot.includes('ffa');
   const rows = ['KESTREL', 'Sable', 'Morrow', 'Echo', 'Vega', 'Peregrine',
     'Rook', 'Sentinel', 'Warden', 'Lark', 'Copper', 'Northstar'].map((name, i) => ({

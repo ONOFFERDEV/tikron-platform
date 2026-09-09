@@ -40,6 +40,8 @@ function makeState(players: Record<string, MockPlayer> = {}): ArenaState {
     capA: 100, // 100 = neutral, 0 = fully blue, 200 = fully red
     capB: 100,
     capC: 100,
+    signalAt: 0,
+    coreOpen: false,
   } as unknown as ArenaState;
 }
 

@@ -126,7 +126,9 @@ describe('Switchyard encounter safety', () => {
         if (d < 0.001) break;
         const amount = Math.min(0.12, d);
         p = { x: p.x + (target.x - p.x) / d * amount, z: p.z + (target.z - p.z) / d * amount };
-        expect(canStand(p.x, 0, p.z, PLAYER.radius, PLAYER.standHeight, map.boxes, map.bounds)).toBe(true);
+        // Check every capsule sample; only construct an assertion on failure.
+        if (!canStand(p.x, 0, p.z, PLAYER.radius, PLAYER.standHeight, map.boxes, map.bounds))
+          expect.fail(`Blocked route sample ${JSON.stringify(p)}`);
       }
       expect(Math.hypot(goal.x - p.x, goal.z - p.z)).toBeLessThan(0.5);
     }

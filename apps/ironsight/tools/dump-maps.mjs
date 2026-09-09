@@ -17,7 +17,8 @@ await build({
   bundle: true, platform: 'node', format: 'esm', outfile: bundle, logLevel: 'warning',
 });
 const maps = await import(pathToFileURL(bundle).href);
-const pick = (m) => ({ bounds: m.bounds, boxes: m.boxes, ramps: m.ramps ?? [] });
+// Bake the permanent shell. Dynamic shutters must not leave a stale ground shadow.
+const pick = (m) => ({ bounds: m.bounds, boxes: m.boxes.filter(b => !m.signalCore?.doors.includes(b)), ramps: m.ramps ?? [] });
 await writeFile(out, JSON.stringify(Object.fromEntries(Object.entries(maps).filter(([key]) => !process.argv[3] || key === process.argv[3]).map(([k, m]) => [k, pick(m)]))));
 await rm(dir, { recursive: true, force: true });
 console.log(`[dump-maps] ${Object.keys(maps).join(', ')} -> ${out}`);

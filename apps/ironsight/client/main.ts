@@ -1,3 +1,6 @@
+import { SignalHud } from './signal-hud.js';
+import { CoreCollision } from '../src/core-gate.js';
+import { playSignalCue } from './audio.js';
 import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
@@ -104,6 +107,9 @@ async function main(): Promise<void> {
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
   // live-debug finding: mousedown target was DIV#app, requestPointerLock calls = 0).
   setAudioMap(map);
+  const coreCollision = new CoreCollision(map);
+  const openAudioMap = { ...map, boxes:coreCollision.open };
+  let lastCoreOpen: boolean | undefined;
   const remoteFoley = new Map<string, { phase: string; y: number }>();
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
   hud.showLockPrompt(true, 'Preparing arena / Loading weapons and effects...');
@@ -111,6 +117,7 @@ async function main(): Promise<void> {
   me0 = net.state?.players[net.myId] ?? me0;
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
+  const signalHud = new SignalHud(playSignalCue);
 
   let lastPingAt = -Infinity;
   const input = new Input(
@@ -186,6 +193,7 @@ async function main(): Promise<void> {
     renderInfo: () => scene.getRenderInfo(),
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
+    signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
     movementInfo: () => ({ launching: predictor.isLaunching, traversing: predictor.isTraversing, traversalProgress: predictor.traversalProgress, sliding: predictor.isSliding, progress: predictor.slideProgress,
       grounded: predictor.isGrounded, crouch: predictor.crouch, pos: { ...predictor.pos } }),
@@ -324,6 +332,11 @@ async function main(): Promise<void> {
   net.onHurt(bearing => hud.showDamageDirection(bearing));
   const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
+    if (state.coreOpen !== lastCoreOpen) {
+      lastCoreOpen = state.coreOpen;
+      predictor.setCoreOpen(state.coreOpen); scene.setCoreOpen(state.coreOpen);
+      setAudioMap(state.coreOpen ? openAudioMap : map);
+    }
     if (state.phase === "live" && previousPhase !== "live") {
       reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
       scene.setReload(0, 1); net.requestSync();
@@ -508,6 +521,7 @@ async function main(): Promise<void> {
     }
 
     scene.reducedMotion = settings.get().reducedMotion;
+    if(state) scene.updateSignal(signalHud.update(state,net.serverNow(),net.online));
     if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active, predictor.isTraversing, predictor.isLaunching))
       playLanding(predictor.pos);
     if (active && predictor.isSliding && !stopSlide) stopSlide = playSlide(predictor.pos);

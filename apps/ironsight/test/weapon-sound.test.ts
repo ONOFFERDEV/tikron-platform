@@ -9,13 +9,16 @@ it('bakes finite, click-free endpoints with distinct weapon decays at supported 
       const pcm = synthesizeWeaponSound(rate, weapon, tone);
       durations.add(pcm.length);
       expect(Math.abs(pcm[0]!)).toBe(0); expect(Math.abs(pcm.at(-1)!)).toBe(0);
-      let energy = 0, tail = 0, peak = 0;
+      let energy = 0, tail = 0, peak = 0, nonFinite = 0;
       for (let i = 0; i < pcm.length; i++) {
         const value = pcm[i]!;
-        expect(Number.isFinite(value)).toBe(true);
+        if (!Number.isFinite(value)) nonFinite++;
         energy += value * value; peak = Math.max(peak, Math.abs(value));
         if (i > rate * 0.15) tail += value * value;
       }
+      // Scan EVERY sample, but avoid constructing hundreds of thousands of
+      // assertion objects on the shared CI host. Same finite-sample invariant.
+      expect(nonFinite, `${rate}Hz weapon ${weapon}`).toBe(0);
       expect(peak).toBeLessThan(1); expect(energy).toBeGreaterThan(1);
       expect(tail).toBeGreaterThan(0.0001); expect(tail).toBeLessThan(energy * 0.15);
     }

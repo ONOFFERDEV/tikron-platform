@@ -18,6 +18,7 @@ import {
 import type { MoveIntent } from "./net.js";
 import { WaistTraversal } from '../src/traversal.js';
 import { SprintSlide } from '../src/slide.js';
+import { CoreCollision } from '../src/core-gate.js';
 
 const TICK_S = TICK_MS / 1000;
 
@@ -25,7 +26,8 @@ export class Predictor {
   pos: Vec3 = { x: 0, y: 0, z: 0 };
   crouch = false;
   alive = true;
-  private readonly boxes: readonly Box[];
+  private boxes: readonly Box[];
+  private readonly collision: CoreCollision;
   private readonly ramps: readonly RampDef[];
   private readonly bounds: Bounds;
   private vy = 0;
@@ -53,12 +55,14 @@ export class Predictor {
   private primed = false;
 
   constructor(map: MapDef) {
+    this.collision = new CoreCollision(map);
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.bounds = map.bounds;
     this.launchPads = map.launchPads;
   }
   private readonly launchPads: MapDef['launchPads'];
+  setCoreOpen(open: boolean): void { this.boxes = this.collision.boxes(open); }
 
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
    *  rate, buffering the jump edge across frames, then decay the render offset. */

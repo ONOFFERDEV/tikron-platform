@@ -1,6 +1,6 @@
 import type { Box, Vec3 } from "../physics.js";
 import type { MapDef, RampDef } from "./types.js";
-import { MOVE } from "../config.js";
+import { MOVE, PLAYER } from "../config.js";
 
 /**
  * Pure, deterministic map walk-time utility — used by the map-timing gate
@@ -11,9 +11,9 @@ import { MOVE } from "../config.js";
  * decoupled from the analytic AABB/ramp collision `physics.ts` uses at runtime.
  *
  * Known limitation (deliberate, conservative, not a bug): a cell is blocked
- * whenever it sits inside a box footprint taller than `MOVE.stepUp`, with no
- * regard for that box's `min.y`. A raised platform you could walk *under*, or
- * climb *onto*, still reads as a solid wall at ground level here — this is a
+ * whenever it sits inside a box footprint taller than `MOVE.stepUp` that
+ * overlaps standing height. Overhead lintels permit ground routes; a platform
+ * you could climb *onto* still reads as a solid wall at ground level here — this is a
  * ground-walk-only approximation and ignores any path that goes up onto a
  * crate or platform. Only ramp footprints are treated as an always-passable
  * override, since a ramp's sloped surface is the map's intended way up.
@@ -41,7 +41,7 @@ function walkableCell(x: number, z: number, map: MapDef): boolean {
     if (insideRampXZ(x, z, r)) return true; // sloped surface: always the way up/across
   }
   for (const b of map.boxes) {
-    if (b.max.y > MOVE.stepUp && insideBoxXZ(x, z, b)) return false;
+    if (b.min.y < PLAYER.standHeight && b.max.y > MOVE.stepUp && insideBoxXZ(x, z, b)) return false;
   }
   return true;
 }

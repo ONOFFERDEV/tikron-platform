@@ -8,12 +8,20 @@ import { ARENA3 } from '../src/map/arena3.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { MATCH, MODES, MOVE, WEAPONS } from '../src/config.js';
 import { GAME } from '../src/game-config.js';
+import { CoreCollision } from '../src/core-gate.js';
 
 const maps = [ARENA1, ARENA2, ARENA3].map(map => {
   const caps = Object.entries(map.caps);
   const point = (key: string, fallback: typeof map.caps.a) => map.capWaypoints?.[key as 'a']?.[0] ?? fallback;
   return {
     map: map.presentation, bounds: map.bounds,
+    core: map.signalCore ? {
+      // Same ground BFS in both collision states, no simulated speed boost.
+      closedPortalSprintSeconds: walkSeconds(map,{x:67,y:0,z:50},{x:83,y:0,z:50},MOVE.sprint),
+      openPortalSprintSeconds: walkSeconds({...map,boxes:new CoreCollision(map).open},{x:67,y:0,z:50},{x:83,y:0,z:50},MOVE.sprint),
+      openRotations: caps.flatMap(([a,from],i)=>caps.slice(i+1).map(([b,to])=>({from:a,to:b,
+        sprintSeconds:walkSeconds({...map,boxes:new CoreCollision(map).open},from,to,MOVE.sprint)}))),
+    } : undefined,
     colliders: map.boxes.map((b, index) => {
       const height = +(b.max.y - b.min.y).toFixed(3);
       return { index, height, class: height < 0.5 ? 'decoration' : height >= 1 && height <= 1.25 ? 'waist' :
