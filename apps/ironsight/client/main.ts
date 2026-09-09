@@ -2,7 +2,7 @@ import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { WeaponHandling, isSprinting } from "../src/handling.js";
-import { setMasterVolume, isMuted, playSlide, playLanding, playTraversal } from "./audio.js";
+import { setMasterVolume, isMuted, playSlide, playLanding, playTraversal, playLaunch } from "./audio.js";
 /**
  * ironsight client entry point (W-B). Wires the network layer, input, local
  * prediction, the three.js scene, the DOM HUD, and synth audio into one frame
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
-    movementInfo: () => ({ traversing: predictor.isTraversing, traversalProgress: predictor.traversalProgress, sliding: predictor.isSliding, progress: predictor.slideProgress,
+    movementInfo: () => ({ launching: predictor.isLaunching, traversing: predictor.isTraversing, traversalProgress: predictor.traversalProgress, sliding: predictor.isSliding, progress: predictor.slideProgress,
       grounded: predictor.isGrounded, crouch: predictor.crouch, pos: { ...predictor.pos } }),
     recoilInfo: () => ({ ...recoil.state, ...recoilSample(recoil.state, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, net.serverNow(), handling.adsProgress >= 1) }),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
@@ -262,9 +262,9 @@ async function main(): Promise<void> {
   net.onStreak((e) => hud.showStreak(name(e.id), e.count));
   const remoteSlides = new Map<string, () => void>();
   net.room.onMessage('traversal', payload => {
-    const e = payload as { id:string; x:number; y:number; z:number };
+    const e = payload as { id:string; kind:string; x:number; y:number; z:number };
     const p=net.state?.players[e.id], me=net.state?.players[net.myId];
-    if (p?.alive) playTraversal(e.id === net.myId ? undefined : e,
+    if (p?.alive) (e.kind === 'launch' ? playLaunch : playTraversal)(e.id === net.myId ? undefined : e,
       e.id === net.myId ? 1 : hostileFoley(p.team,me?.team ?? p.team,isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm')));
   });
   net.room.onMessage('slide', payload => {
@@ -508,7 +508,7 @@ async function main(): Promise<void> {
     }
 
     scene.reducedMotion = settings.get().reducedMotion;
-    if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active, predictor.isTraversing))
+    if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active, predictor.isTraversing, predictor.isLaunching))
       playLanding(predictor.pos);
     if (active && predictor.isSliding && !stopSlide) stopSlide = playSlide(predictor.pos);
     if ((!active || !predictor.isSliding) && stopSlide) { stopSlide(); stopSlide = undefined; }

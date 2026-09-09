@@ -390,6 +390,24 @@ export async function inspectThreatAudio() {
   }
 }
 
+/** Induction coil rise and compressed-air release on an accepted room launch. */
+export function playLaunch(source?: SoundPoint, threatGain = 1): void {
+  const c=ready(); if (!c || !master || !noise) return;
+  const bus=spatialBus(c,source,threatGain); if (!bus) return;
+  const t=c.currentTime, air=c.createBufferSource(), filter=c.createBiquadFilter(),
+    coil=c.createOscillator(), gain=c.createGain();
+  air.buffer=noise; filter.type='bandpass'; filter.Q.value=.7;
+  filter.frequency.setValueAtTime(280,t); filter.frequency.exponentialRampToValueAtTime(2400,t+.16);
+  filter.frequency.exponentialRampToValueAtTime(450,t+.65);
+  coil.type='sine';coil.frequency.setValueAtTime(90,t);coil.frequency.exponentialRampToValueAtTime(620,t+.18);
+  coil.frequency.exponentialRampToValueAtTime(120,t+.7);
+  gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.2,t+.025);
+  gain.gain.exponentialRampToValueAtTime(.001,t+.75);
+  air.connect(filter).connect(gain);coil.connect(gain);gain.connect(bus.input);
+  air.start(t);coil.start(t);air.stop(t+.78);coil.stop(t+.78);
+  air.onended=()=>{air.disconnect();filter.disconnect();coil.disconnect();gain.disconnect();bus.release();};
+}
+
 /** Hand contact and sleeve scrape, emitted only by an accepted room traversal. */
 export function playTraversal(source?: SoundPoint, threatGain = 1): void {
   const c=ready(); if (!c || !master || !noise) return;

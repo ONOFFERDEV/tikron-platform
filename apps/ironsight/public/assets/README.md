@@ -620,3 +620,39 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots vault,undertow-
 
 The geometry audit verifies original oriented surfaces/authored normals, finite UVs
 and no degenerates. See AAA-PLAN.md Session 46 for timing, bytes and acceptance limits.
+
+### Session 47: Switchyard induction deck and density
+
+Original collision-derived switchgear kit, no purchased or generated source input.
+`src/map/arena3.ts` owns 111 boxes (63 full / 48 waist), four ramps, pad trajectories
+and the solid switching spine from the 3 m deck to 14 m. All opaque cover is cladded
+to its authoritative envelope. Induction plates/chevrons and landing targets are
+flush baked markings; their paint does not create collision. Two wall signs reuse
+the existing sign atlas. No extra light, render pass or new asset URL.
+
+`maps/switchyard-architecture.glb`: 7,184,816 bytes; 93,752 source triangles,
+6,926 original parts merged into 10 material primitives; one embedded 1024-square
+AO image, converted to single-channel residency by the existing loader.
+`maps/switchyard-ground-ao.png`: 830,466 bytes, 2048 x 1365, 13.65 source px/m.
+Source ground AO still multiplies into the existing 512-square colour atlas.
+The visible scale improvement also uses the original 128px / 0.8 m seamless
+normal/roughness tile and ground diffuse aggregate (160 px/m), shared across flat
+kit/ground/apron: two resident textures, 0.166667 MiB including mips. Per-map lazy
+loading and the existing explicit allowlist entries remain sufficient.
+
+Reproduce from apps/ironsight, Blender 4.5 (factory settings avoid localized node names):
+
+```powershell
+node tools/dump-maps.mjs .inspect/session47-maps.json switchyard
+node tools/dump-architecture.mjs .inspect/session47-architecture.json switchyard
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps .inspect/session47-maps.json --size 2048
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session47-architecture.json
+python scripts/audit-architecture.py --input .inspect/session47-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots launch,switchyard-overview,switchyard-center,switchyard-north --prefix session47-functional
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-effects-stress --assert-budgets --prefix session47-final
+```
+
+The source/export audit verifies oriented triangles, authored normals, finite UVs
+and zero degenerates. No raw source binary or new purchased derivative is shipped.
+See AAA-PLAN.md Session 47 for before/after captures, resource deltas and open acceptance.

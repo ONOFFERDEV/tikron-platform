@@ -1,4 +1,5 @@
 import { traversalProbe } from './traversal-probe.mjs';
+import { launchProbe } from './launch-probe.mjs';
 import { pingWheelProbe } from './ping-wheel-probe.mjs';
 import { slideProbe } from './slide-probe.mjs';
 import { recoilProbe } from './recoil-probe.mjs';
@@ -93,10 +94,11 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
+      if (name === 'launch') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
     }
     else if (!name.startsWith('menu') && !name.startsWith('flow') && !name.startsWith('journey')) {
@@ -267,6 +269,8 @@ try {
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'vault') combat = await traversalProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
+      if (name === 'launch') combat = await launchProbe({ send, evaluate, delay, click, waitFor,
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'slide') combat = await slideProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'menu-probe') combat = await menuProbe({ send, evaluate, click, waitFor, delay, assertFixed: args.includes('--assert-first-play') });
@@ -386,8 +390,7 @@ try {
     }
     if (report?.concreteDetail) {
       const detail = report.concreteDetail;
-      const otherMap = name.startsWith('switchyard-');
-      if (detail.invalidUv || (otherMap ? detail.meshes !== 0 : detail.meshes < 3 || detail.textures !== 2))
+      if (detail.invalidUv || detail.meshes < 3 || detail.textures !== 2)
         throw Error(`Concrete detail missing, invalid or loaded on another map: ${JSON.stringify(detail)}`);
     }
     if (!gameplay && !name.startsWith('menu') && !name.startsWith('undertow-') && !name.startsWith('switchyard-') && report?.uplinks) {

@@ -146,9 +146,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v8 refreshes Undertow collision density. Older snapshots start a
+  // v9 refreshes Switchyard collision density. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 8;
+  protected override stateVersion = 9;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -565,7 +565,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (!traversal) { traversal = new WaistTraversal(); this.traversals.set(id, traversal); }
     const wasTraversing = traversal.active;
     const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, p.yaw,
-      this.boxes, this.map.bounds, this.map.ramps ?? []);
+      this.boxes, this.map.bounds, this.map.ramps ?? [], this.map.launchPads);
     if (traversed) {
       if (!wasTraversing) this.sendNear('traversal', { id, kind: traversal.kind, x:p.x,y:p.y,z:p.z },p.x,p.z,{ always:[id] });
       this.slides.set(id, new SprintSlide());

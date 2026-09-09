@@ -361,22 +361,24 @@ export class SceneRig {
   private shakeAmp = 0;
   reducedMotion = false;
   private vaultBlend = 0;
+  private launchBlend = 0;
   private slideBlend = 0;
   private sprintBlend = 0;
   private landingDip = 0;
   private airborneMs = 0;
 
   /** Render-only bank/drop; no aim rotation, lights, materials or render passes. */
-  updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean, traversing = false): boolean {
+  updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean, traversing = false, launching = false): boolean {
     const landed = active && grounded && this.airborneMs >= 100;
     this.airborneMs = active && !grounded ? this.airborneMs + dtMs : 0;
     if (landed) this.landingDip = .055;
     const k = 1 - Math.exp(-dtMs / 75);
     this.vaultBlend += ((traversing && active ? 1 : 0) - this.vaultBlend) * k;
+    this.launchBlend += ((launching && active ? 1 : 0) - this.launchBlend) * k;
     this.slideBlend += ((sliding && active ? 1 : 0) - this.slideBlend) * k;
     this.sprintBlend += ((sprinting && active ? 1 : 0) - this.sprintBlend) * k;
     this.landingDip *= Math.exp(-dtMs / 110);
-    if (!active || this.reducedMotion) { this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
+    if (!active || this.reducedMotion) { this.launchBlend = 0; this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
     return landed;
   }
   private lastFx = performance.now();
@@ -977,7 +979,7 @@ export class SceneRig {
     else this.adsProgress = clamp(this.adsProgress + (aiming ? 1 : -1) * dt * 1000 / adsMs, 0, 1);
     this.adsT = easeAds(this.adsProgress);
     this.fovCur = lerp(HIP_FOV, ADS_FOV[this.weaponIndex] ?? HIP_FOV, this.adsT);
-    this.fovCur += (this.slideBlend * 8 + this.sprintBlend * 5 * (1 - this.slideBlend)) * (1 - this.adsT);
+    this.fovCur += (this.launchBlend * 10 + this.slideBlend * 8 + this.sprintBlend * 5 * (1 - this.slideBlend)) * (1 - this.adsT);
     if (this.camera.fov !== this.fovCur) {
       this.camera.fov = this.fovCur;
       this.camera.updateProjectionMatrix();

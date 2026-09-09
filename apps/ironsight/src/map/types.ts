@@ -29,6 +29,9 @@ export interface RampDef {
 }
 
 export interface MapDef {
+  /** Fixed induction-pad trajectories. Server and prediction derive the route;
+   * clients never supply endpoints. Cosmetic pad paint has no collision. */
+  readonly launchPads?: readonly LaunchPad[];
   /** Game-owned visual kit. Collision remains the boxes/ramps below. */
   readonly presentation?: "relay" | "undertow" | "switchyard";
   /** Optional non-objective patrol circuit, on navigable ground. Omitting it
@@ -65,4 +68,10 @@ export interface MapDef {
     readonly b?: readonly Vec3[];
     readonly c?: readonly Vec3[];
   };
+}
+
+export interface LaunchPad {
+  readonly id: string;
+  readonly from: Vec3;
+  readonly to: Vec3;
 }

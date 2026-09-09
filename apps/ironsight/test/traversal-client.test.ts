@@ -1,9 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { Predictor } from '../client/predict.js';
 import { ARENA2 } from '../src/map/arena2.js';
+import { ARENA3 } from '../src/map/arena3.js';
 import { TICK_MS } from '../src/config.js';
 const jump={mx:0,mz:1,crouch:false,sprint:false,jump:true}, yaw=Math.PI/2;
 describe('predicted waist traversal',()=>{
+  it('predicts the exact launch endpoint and clears flight on death/respawn',()=>{
+    const pad=ARENA3.launchPads![0]!,p=new Predictor(ARENA3);
+    p.reconcile(pad.from);p.frame(TICK_MS,jump,yaw);expect(p.isLaunching).toBe(true);
+    for(let i=1;i<24;i++)p.frame(TICK_MS,{...jump,jump:false,mz:0},yaw);
+    expect(p.pos).toEqual(pad.to);
+    p.setAlive(false);p.setAlive(true);p.reconcile(pad.from);
+    p.frame(TICK_MS,jump,yaw);expect(p.isLaunching).toBe(true);
+    p.setAlive(false);expect(p.isLaunching).toBe(false);
+    p.setAlive(true);p.reconcile({x:55,y:0,z:29});p.frame(TICK_MS,{...jump,jump:false,mz:0},yaw);
+    expect(p.pos).toEqual({x:55,y:0,z:29});
+  });
   it('matches the server vault endpoint over an actual Undertow barrier',()=>{
     const p=new Predictor(ARENA2);p.reconcile({x:22,y:0,z:43.2});
     for(let i=0;i<13;i++)p.frame(TICK_MS,{...jump,jump:i===0},0);

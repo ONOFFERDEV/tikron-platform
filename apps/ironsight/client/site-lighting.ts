@@ -46,7 +46,7 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
   sourceTextures.forEach(t => { t.dispose(); (t.image as ImageBitmap).close?.(); });
-  if (name === 'relay' || name === 'undertow') {
+  if (name === 'relay' || name === 'undertow' || name === 'switchyard') {
     const detail = createConcreteDetail();
     gltf.scene.traverse(node => {
       if (node instanceof T.Mesh && node.material instanceof T.MeshStandardMaterial &&

@@ -159,6 +159,23 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       add(5, x, y, depth + 5.49, 4.8, .25, .02, 'exterior');
   }
   // In-ground cable raceways and crossings, not raised rail obstacles.
+  // Flush induction plates: baked concentric bands and flight chevrons make the
+  // route readable without a new material, light, pass or collision volume.
+  for (const pad of map.launchPads ?? []) {
+    const {x,z}=pad.from, direction=Math.sign(pad.to.x-x);
+    add(1,x,.006,z,3.5,.012,3.5,'paint');
+    for (const size of [3.2,2.6]) for(const side of [-1,1]) {
+      add(4,x+side*size/2,.015,z,.1,.008,size,'paint');
+      add(4,x,.015,z+side*size/2,size,.008,.1,'paint');
+    }
+    for(const offset of [-.65,0,.65]) for(const side of [-1,1])
+      add(5,x+direction*offset,.022,z+side*.25,.7,.008,.12,'paint',false,
+        new T.Euler(0,direction*side*Math.PI/4,0));
+    for(const side of [-1,1]) {
+      add(3,pad.to.x+side*1.25,3.009,pad.to.z,.12,.008,2.6,'paint');
+      add(3,pad.to.x,3.009,pad.to.z+side*1.25,2.6,.008,.12,'paint');
+    }
+  }
   for (const z of [29, 65]) for (const x of [cx - 40, cx, cx + 40]) {
     add(1, x, 0.002, z, 13, 0.004, 0.30, 'paint');
     for (const side of [-1, 1]) add(5, x, 0.004, z + side * 0.27, 13, 0.005, 0.055, 'paint');
@@ -183,7 +200,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', '02 / DECK', '03 / SOUTH SERVICE'];
+  const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#283f44'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = i === 1 ? '#79c3c2' : '#e6b76b'; ctx.fillRect(16, i * 128 + 18, 12, 92);
@@ -201,5 +218,10 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   sign(1, width - 25, 2.4, 8.024, 0, 7);
   sign(3, cx, 2.4, 97.976, Math.PI, 7);
   sign(2, 69, 2.4, 58.024, 0, 4);
+  for (const pad of map.launchPads ?? []) {
+    const direction=Math.sign(pad.to.x-pad.from.x);
+    // Label on the actual deck wall directly above the marked pad.
+    sign(2,direction>0?65.976:84.024,2.1,pad.from.z,direction>0?-Math.PI/2:Math.PI/2,3.8);
+  }
   sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
 }

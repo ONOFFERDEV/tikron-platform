@@ -56,7 +56,9 @@ export class Predictor {
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.bounds = map.bounds;
+    this.launchPads = map.launchPads;
   }
+  private readonly launchPads: MapDef['launchPads'];
 
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
    *  rate, buffering the jump edge across frames, then decay the render offset. */
@@ -84,7 +86,7 @@ export class Predictor {
 
   private step(inp: MoveIntent, yaw: number): void {
     const traversed = this.traversal.step(TICK_MS, { ...inp, jump: this.pendingJump }, this.grounded,
-      this.pos,yaw,this.boxes,this.bounds,this.ramps);
+      this.pos,yaw,this.boxes,this.bounds,this.ramps,this.launchPads);
     this.traversalStep = traversed !== null;
     if (traversed) {
       this.slide = new SprintSlide(); this.pendingJump = false; this.crouch = false;
@@ -215,6 +217,7 @@ export class Predictor {
     return this.grounded;
   }
   get isTraversing(): boolean { return this.traversal.active || this.traversalStep; }
+  get isLaunching(): boolean { return this.traversal.kind === 'launch'; }
   get traversalProgress(): number { return this.traversal.progress; }
   get isSliding(): boolean { return this.slide.active; }
   get slideProgress(): number { return this.slide.progress; }

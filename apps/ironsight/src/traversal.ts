@@ -1,11 +1,49 @@
-import { PLAYER } from './config.js';
+import { PLAYER, TICK_MS } from './config.js';
 import { canStand, type Box, type Bounds, type MoveResult, type Vec3 } from './physics.js';
-import type { RampDef } from './map/types.js';
+import type { LaunchPad, RampDef } from './map/types.js';
 import type { SlideInput } from './slide.js';
 
 export const TRAVERSAL = Object.freeze({ reach: .8, durationMs: 650, cooldownMs: 450,
   minHeight: 1, maxHeight: 1.25, maxVaultDepth: 2.2, clearance: .06 });
-type Route = { start: Vec3; end: Vec3; top: number; kind: 'vault' | 'mantle' };
+type Route = { start: Vec3; end: Vec3; top: number; kind: 'vault' | 'mantle' | 'launch' };
+export const LAUNCH = Object.freeze({ radius: 1.5, durationMs: 1200, arcHeight: 5, cooldownMs: 900 });
+
+/** Each simulation segment and its render interpolation is continuously swept.
+ * Full landing footprint must be supported, and every route stays in world bounds.
+ * A pad is intentional: jump + forward, facing its painted flight direction. */
+export function launchRoute(pos: Vec3, yaw: number, pads: readonly LaunchPad[], boxes: readonly Box[],
+  bounds: Bounds, ramps: readonly RampDef[]): Route | null {
+  for (const pad of pads) {
+    if (Math.abs(pos.y-pad.from.y)>.03 || Math.hypot(pos.x-pad.from.x,pos.z-pad.from.z)>LAUNCH.radius) continue;
+    const dx=pad.to.x-pad.from.x,dz=pad.to.z-pad.from.z,length=Math.hypot(dx,dz);
+    if (length<1 || (Math.sin(yaw)*dx+Math.cos(yaw)*dz)/length < .7) continue;
+    const end=pad.to;
+    if (end.y!==0 && !boxes.some(b=>Math.abs(b.max.y-end.y)<.001 &&
+      end.x>=b.min.x+PLAYER.radius && end.x<=b.max.x-PLAYER.radius &&
+      end.z>=b.min.z+PLAYER.radius && end.z<=b.max.z-PLAYER.radius)) continue;
+    const route:Route={start:{...pos},end:{...end},top:0,kind:'launch'};
+    const obstacles=[...boxes,...ramps.map(r=>({min:{x:r.minX,y:0,z:r.minZ},max:{x:r.maxX,y:r.topY,z:r.maxZ}}))];
+    let previous=pos, clear=true;
+    // 24 segments match the fixed 50ms simulation. Each segment is swept, not
+    // just point-tested; tiny ceilings and corner obstructions cannot be skipped.
+    const steps=LAUNCH.durationMs/TICK_MS;
+    for(let i=0;i<=steps;i++) {
+      const next=launchPoint(route,i/steps);
+      if(next.x<PLAYER.radius || next.x>bounds.width-PLAYER.radius || next.z<PLAYER.radius ||
+        next.z>bounds.depth-PLAYER.radius || next.y<0 ||
+        !canStand(next.x,next.y,next.z,PLAYER.radius,PLAYER.standHeight,boxes,bounds) ||
+        obstacles.some(b=>sweptBlocked(previous,next,b))) {clear=false;break;}
+      previous=next;
+    }
+    if(clear)return route;
+  }
+  return null;
+}
+function launchPoint(route:Route,t:number):Vec3 {
+  return {x:route.start.x+(route.end.x-route.start.x)*t,
+    y:route.start.y+(route.end.y-route.start.y)*t+4*LAUNCH.arcHeight*t*(1-t),
+    z:route.start.z+(route.end.z-route.start.z)*t};
+}
 
 /** A jump near waist cover chooses a capsule-clear lift/cross/settle path.
  * Only map geometry and actual feet are inputs; no client target or deadline.
@@ -72,7 +110,7 @@ function sweptBlocked(a: Vec3, b: Vec3, box: Box): boolean {
   return true;
 }
 
-/** Once committed, finishes in 650 ms even if forward is released; death resets
+/** Once committed, finishes the waist/launch route even if forward is released; death resets
  * the controller. Horizontal intent cannot steer a player through the side wall.
  */
 export class WaistTraversal {
@@ -80,26 +118,27 @@ export class WaistTraversal {
   private elapsed = 0;
   private cooldown = 0;
   get active(): boolean { return this.route !== null; }
-  get progress(): number { return this.active ? this.elapsed / TRAVERSAL.durationMs : 0; }
-  get kind(): 'vault' | 'mantle' | null { return this.route?.kind ?? null; }
+  get progress(): number { return this.active ? this.elapsed / (this.kind==='launch'?LAUNCH.durationMs:TRAVERSAL.durationMs) : 0; }
+  get kind(): Route['kind'] | null { return this.route?.kind ?? null; }
   step(dtMs: number, input: SlideInput, grounded: boolean, pos: Vec3, yaw: number,
-    boxes: readonly Box[], bounds: Bounds, ramps: readonly RampDef[]): MoveResult | null {
+    boxes: readonly Box[], bounds: Bounds, ramps: readonly RampDef[], pads: readonly LaunchPad[] = []): MoveResult | null {
     this.cooldown = Math.max(0, this.cooldown - dtMs);
     if (!this.route && this.cooldown === 0 && grounded && input.jump && input.mz > 0 && !input.crouch && !input.ads) {
-      this.route = traversalRoute(pos,yaw,boxes,bounds,ramps); this.elapsed = 0;
+      this.route = launchRoute(pos,yaw,pads,boxes,bounds,ramps) ?? traversalRoute(pos,yaw,boxes,bounds,ramps); this.elapsed = 0;
     }
     const route = this.route;
     if (!route) return null;
-    this.elapsed = Math.min(TRAVERSAL.durationMs,this.elapsed + dtMs);
-    const t = this.elapsed / TRAVERSAL.durationMs;
+    const duration=route.kind==='launch'?LAUNCH.durationMs:TRAVERSAL.durationMs;
+    this.elapsed = Math.min(duration,this.elapsed + dtMs);
+    const t = this.elapsed / duration;
     const ease = (n: number) => { const v=Math.min(1,Math.max(0,n)); return v*v*(3-2*v); };
     const across = ease((t - .3) / .45);
     const y = t < .3 ? route.start.y + (route.top-route.start.y)*ease(t/.3)
       : t < .75 ? route.top : route.top + (route.end.y-route.top)*ease((t-.75)/.25);
-    const next = { x:route.start.x+(route.end.x-route.start.x)*across,
+    const next = route.kind==='launch' ? launchPoint(route,t) : { x:route.start.x+(route.end.x-route.start.x)*across,
       y, z:route.start.z+(route.end.z-route.start.z)*across };
-    const done = this.elapsed === TRAVERSAL.durationMs;
-    if (done) { this.route = null; this.cooldown = TRAVERSAL.cooldownMs; }
+    const done = this.elapsed === duration;
+    if (done) { this.route = null; this.cooldown = route.kind==='launch'?LAUNCH.cooldownMs:TRAVERSAL.cooldownMs; }
     return { pos: next, vy: 0, grounded: done };
   }
 }

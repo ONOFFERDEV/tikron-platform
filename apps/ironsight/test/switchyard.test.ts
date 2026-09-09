@@ -7,6 +7,24 @@ import { GroundNavigator } from '../src/map/navigation.js';
 import { spawnExposed, spawnFacingYaw } from '../src/map/spawn.js';
 
 describe('Switchyard encounter safety', () => {
+  it('grounds cover rhythm along bus shoulders, deck approaches and service bays within twelve metres',()=>{
+    const cover=map.boxes.filter(b=>b.min.y===0 && b.max.y>=1);
+    const distance=(x:number,z:number)=>Math.min(...cover.map(b=>Math.hypot(
+      Math.max(b.min.x-x,0,x-b.max.x),Math.max(b.min.z-z,0,z-b.max.z))));
+    for(const z of [19,29,35,67,73,85])for(let x=20;x<=130;x+=2)
+      expect(distance(x,z),`${x},${z}`).toBeLessThanOrEqual(12);
+    for(const x of [25,125])for(let z=12;z<=88;z+=2)
+      expect(distance(x,z),`${x},${z}`).toBeLessThanOrEqual(12);
+  });
+  it('switching spine is solid above the deck and visible from the three lane approaches',()=>{
+    const spine=map.boxes.find(b=>b.min.y===3 && b.max.y===14)!;
+    expect(spine).toEqual({min:{x:79,y:3,z:51},max:{x:81,y:14,z:53}});
+    for(const from of [{x:55,y:PLAYER.standEye,z:29},{x:60,y:PLAYER.standEye,z:55},{x:90,y:PLAYER.standEye,z:43},{x:75,y:PLAYER.standEye,z:83}]) {
+      const to={x:80,y:13.5,z:52},d=Math.hypot(to.x-from.x,to.y-from.y,to.z-from.z);
+      const ray={x:(to.x-from.x)/d,y:(to.y-from.y)/d,z:(to.z-from.z)/d};
+      expect(nearestBox(from,ray,map.boxes.filter(b=>b!==spine),d)).toBe(Infinity);
+    }
+  });
   it('authored northern views have nine metres of clear eye and capsule travel to an exit', () => {
     expect(map.spawnViews).toHaveLength(2);
     for (const view of map.spawnViews!) {
@@ -63,7 +81,7 @@ describe('Switchyard encounter safety', () => {
       const seconds = walkSeconds(map, caps[i]!, to, MOVE.sprint);
       expect(seconds).toBeGreaterThanOrEqual(10); expect(seconds).toBeLessThanOrEqual(15);
     }
-    for (const b of map.boxes) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
+    for (const b of map.boxes.filter(b=>b.min.y===0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
     expect(map.spawns.red).toHaveLength(6); expect(map.spawns.blue).toHaveLength(6);
   });
   it('B has two four-metre north entrances visible together from the objective', () => {
