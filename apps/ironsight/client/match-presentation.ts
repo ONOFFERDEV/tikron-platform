@@ -1,6 +1,7 @@
 import { MODES } from '../src/config.js';
 import { MODE_ORDER } from '../src/modes.js';
 import type { ArenaState } from '../src/schema.js';
+import { warmupSeconds } from './deployment-presentation.js';
 
 /** Presentation only: time and objectives never decide the round outcome. */
 export function matchBrief(state: ArenaState, serverNow: number, myId: string) {
@@ -11,8 +12,10 @@ export function matchBrief(state: ArenaState, serverNow: number, myId: string) {
     : mode === 'practice' ? 'TRAINING · MOVE, AIM, FIRE, RELOAD'
     : `ELIMINATE THE OPPOSITION · FIRST TO ${MODES.tdm.killTarget}`;
   const seconds = Math.max(0, Math.ceil((state.matchEndMs - serverNow) / 1000));
+  const warmup = warmupSeconds(state, serverNow);
   const clock = state.phase === 'ended' ? 'ROUND COMPLETE'
-    : state.phase === 'warmup' ? 'WARMUP · STARTS AUTOMATICALLY'
+    : state.phase === 'warmup' ? warmup === null ? 'WARMUP · WAITING FOR OPERATORS'
+      : warmup === 0 ? 'WARMUP · STAND BY' : `DEPLOY IN ${warmup}s`
     : mode === 'practice' || !Number.isFinite(seconds) ? 'NO TIME LIMIT'
     : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   return { objective, clock, affiliation: mode === 'tdm' || mode === 'dom' ? `${team} TEAM` : 'SOLO',

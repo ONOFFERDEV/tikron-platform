@@ -7,7 +7,7 @@ import type { SupportView } from '../src/air-support.js';
 import type { Box } from '../src/physics.js';
 
 const p=(team=0,x=6):ArenaPlayer=>({x,y:0,z:11,yaw:Math.PI/2,pitch:0,hp:100,alive:true,prot:false,team,crouch:false,k:0,d:0,weapon:0,nades:2,reloadEnd:0});
-const state=():ArenaState=>({players:{owner:p(),enemy:p(1,16),ally:p(0,30)},seed:1,redScore:0,blueScore:0,phase:'live',mode:0,matchEndMs:1e9,signalAt:0,coreOpen:false,capA:100,capB:100,capC:100});
+const state=():ArenaState=>({players:{owner:p(),enemy:p(1,16),ally:p(0,30)},seed:1,redScore:0,blueScore:0,phase:'live',mode:0,matchEndMs:1e9,signalAt:0,coreOpen:false,warmupEndMs:0,capA:100,capB:100,capC:100});
 const bounds={width:150,depth:100,ceiling:16}, targets=new Map([['enemy',{}]]);
 const wall:Box={min:{x:11,y:0,z:10},max:{x:12,y:5,z:12}};
 const tick=(d:DroneSupport,s:ArenaState,t:number,boxes:readonly Box[]=[])=>d.tick(s,t,boxes,bounds,targets);

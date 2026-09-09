@@ -8,7 +8,7 @@ const player = (team: number, x = 10): ArenaPlayer => ({ x, y: 0, z: 11, team, h
   yaw: 0, pitch: 0, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0 });
 const state = (): ArenaState => ({ players: { red: player(0), ally: player(0), blue: player(1, 90.4), shield: { ...player(1), prot: true },
   dead: { ...player(1), alive: false } }, mode: 0, phase: 'live', seed: 1, redScore: 0, blueScore: 0,
-  signalAt: 0, coreOpen: false, matchEndMs: 1e9, capA: 100, capB: 100, capC: 100 });
+  signalAt: 0, coreOpen: false, warmupEndMs: 0, matchEndMs: 1e9, capA: 100, capB: 100, capC: 100 });
 
 it('earns on the exact third kill; pulses only living unshielded enemies, freezes snapshots and keeps them team-private', () => {
   const a = new AirSupport(), s = state();

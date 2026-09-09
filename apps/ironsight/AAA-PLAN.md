@@ -17,7 +17,9 @@ training lesson on every map, including unbound-key guidance. Session 42 adds
 rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; supervisor status confirms it is deployed. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; supervisor status confirms it is deployed. Session48 started Signal Break but failed the supervisor test gate and was not published. Session49 fixes both CPU-heavy test timeouts and completes Signal Break with a collision-backed core passage, safe shutter closure, historical shot barriers and limited bot pushes. Supervisor Session50 status confirms Sessions48/49 passed, were committed as f4c5e55 and deployed to preview. Session50 adds earned UAV recon; supervisor Session51 status confirms commit 8f61762 and preview deployment 10df4e62-db09-4eb8-b7ff-05047aef76a5. Session51 adds the five-kill called mortar; Session52 supervisor status confirms commit1308f51 and preview deployment d693dfc0-9273-452d-adbf-a9c91afcf6f8. Continue the standing brief defaults.
 Session53 quick check (published to preview per Session54 supervisor, commit a35bf17): in Training / Relay, switch through1-5 and fire. Look for the amber rifle crown, compact cool SMG fork, broad orange shotgun bloom, narrow sniper lance and small pistol star. Aim down sights to see the reduced local flash; remote shooters keep their full weapon signature.
 Session54 quick check (published per Session55 supervisor, commit b237662): face a sniper down a long lane. A steady white scope glint appears when its held rifle points toward you, including hip fire. It disappears when the sniper turns away, reloads, dies or takes cover. Reduced motion preserves this warning. This is an optical cue, not proof that the shooter has acquired ADS or can fire this instant.
-Session55 quick check (local candidate): throw G into nearby open ground, or earn five kills and call a mortar with V. Nearby visible impacts rock the horizon with a smooth, bounded roll, then settle within two seconds of the last impact. ADS reduces this motion; Reduced motion switches it off. The center aiming ray stays fixed. Weapon Spectacle3/3 completes the arc by default.
+Session55 quick check (published per Session56 supervisor, commit e5cbe11): throw G into nearby open ground, or earn five kills and call a mortar with V. Nearby visible impacts rock the horizon with a smooth, bounded roll, then settle within two seconds of the last impact. ADS reduces this motion; Reduced motion switches it off. The center aiming ray stays fixed. Weapon Spectacle3/3 completes the arc by default.
+
+Session56 quick check (local candidate): enter a fresh TDM, DOM or FFA room and click to play during warmup. The map/mode/team banner counts down to the real room deadline, with three short pips and a resolved GO chord when the server starts. Positions reset at start. Late joins see the remaining time; joining a live round skips the start announcement. Training stays immediate. Deployment arc1/2 is on; the short skippable map fly-through is next.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -114,9 +116,9 @@ follow-ups, not a claim of human playtest or laptop performance acceptance.
    button and an integrated first-match course remain absent. Rejoining restarts lessons.
 5. **Precise round-transition countdowns.** Warmup now says it starts automatically;
    results allow twenty seconds and R has a one-second grace against accidental
-   reload-to-rematch votes. Neither screen displays a replicated transition
-   deadline. A future countdown must use server time, including reconnect and
-   late join, rather than a client timer pretending to be authoritative.
+   reload-to-rematch votes. Session56 now replicates the warmup deadline and handles late joins/cancellation.
+   The results intermission still lacks a replicated deadline; keep its future
+   countdown on server time too.
 
 Audio mute/recovery is exercised mechanically; headphone mix, stereo comfort,
 occlusion expectations, real mouse feel and the existing iGPU/6v6/browser gates
@@ -353,8 +355,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 55. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session55-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 56. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session56-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -404,7 +406,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
 | R-L04 | met | 3000 ms live respawn and dynamic scoring retained. Session38 restores authoritative arrival aim once, wraps yaw into codec range, and passes real death/revival with no probe aim correction. Human camping acceptance remains open. |
-| R-L05 | partial | 10 s warmup and skippable 20 s results; replicated countdown/5-8 s freeze absent. |
+| R-L05 | partial | Session56 Deployment1/2: one replicated warmup deadline drives the room start and 10s countdown, 3/2/1 pips, objective/team banner and confirmed-LIVE GO chord. Late joins get remaining time; seat loss cancels; pause/reconnect skips missed cues. No input lock or added wait. Results remain skippable20s without a replicated intermission deadline/5-8s freeze. Fly-through and human flow review next. |
 | R-L06 | not yet | No replay capture or highlight sequence. |
 | R-L07 | not yet | No objective/assist-aware MVP selection. |
 | R-L08 | partial | Session40 rebindable Q resolves enemy/go-here from server aim, cover and live targets; allies only, 2 s cooldown, 5 s snapshot, max six markers. Authority tests and three real-input layouts pass. Session42 adds explicit rebindable B backup at a frozen server-derived caller location, sharing cooldown/lifetime/privacy; three layouts and real Settings rebind pass. Session43 adds a 250 ms hold wheel on the same rebindable ping key: context/go/backup, centre/right-click/pause cancellation, frozen aim and three browser layouts. Audio/acknowledgement and human muted-mic review remain open. |
@@ -413,9 +415,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session49 picks at most one living bot per team within45m on the public Relay warning; stages at an entry, then uses existing objective movement/aim/reaction through the open exit. Death/completion cancels the push. No HP/speed/accuracy changes; two natural visitors. Difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session55 blast response adds no light/pass/texture/GPU allocation; Reduced motion removes only cosmetic roll and keeps hazard/glint cues. Matched stress238calls; eleven-scope239calls,63.9388MiB/30textures/33programs/484prepared slots unchanged. Median6.9ms on RTX5070, zero inspection errors. Human/iGPU review open. |
+| R-L14 | partial | Session56 uses static DOM briefing and bounded immediate audio, no new light/pass/GPU resources. Reduced motion retains identical countdown/objectives. Matched stress238calls/150102triangles,63.9388MiB/30textures/33programs/484slots unchanged;6.9ms median on RTX5070. Responsive screenshots and real bot-start capture pass; human/iGPU review open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session52 one server lock drives the frozen laser/cross, positional charge sound and confirmed sentry tracer; owner sight/tether and dodge/cover checks resolve damage. Air Support3/3 complete and default, with Momentum/Signal Break retained. Human first-five-minutes quality remains open. |
+| R-L16 | partial | Session56 Deployment1/2 uses one room deadline/phase for countdown, objective banner and start sound. Training and live joins add no intro wait; a skippable map introduction completes the next session. Air Support3/3, Momentum and Signal Break remain default. Human first-five-minutes quality remains open. |
 | R-L17 | partial | Session52 seven confirmed gun kills earn SENTRY ONLINE, seven HUD pips, duration and operator/counterplay guidance; sentry kills use SENTRY killfeed and do not advance rewards. Small trailing-team shutdown score is announced as TEAM RALLY. No broader medal set. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -427,17 +429,17 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session55: reviewed all63 rows; supervisor confirms Session54 passed and deployed.
-Completed the selected top gap, Weapon Spectacle3/3: five weapon signatures,
-cover-gated sniper glint and bounded blast roll are all on by default. Re-ranked
-remaining partial/not-yet rows for first-five-minutes impact. Encounter fairness,
-comfort and representative device acceptance remain open.
+Session56: reviewed all63 rows; supervisor confirms Session55 passed and deployed.
+Completed Deployment1/2 by default: authoritative warmup countdown, objective/team
+callout and bounded start audio. Re-ranked partial/not-yet rows: finish the same
+arrival arc next; encounter fairness stays the next independent feature arc.
 
-1. **Deployment and match-start presentation arc next (R-L05/06/07/16).**
-   Give arrival a deliberate map/objective introduction, a replicated start
-   countdown and a bounded audio sting. Scope one complete arc of at most three
-   sessions; use current map geometry and constant lights/passes. Avoid a long
-   unskippable intro. Objective-aware highlights can follow in a separate arc.
+1. **Deployment arc2/2 next (R-L05/16, R-M13/17).** Add a short, skippable
+   fly-through using the existing map geometry/renderer and constant lights/passes.
+   End on the local operator without extending warmup or blocking a running round;
+   Reduced motion uses a still introduction. Preserve Session56's single server
+   deadline, cancellation and no delayed GO audio. Highlights/MVP remain a
+   separate later arc (R-L06/07).
 2. **Encounter fairness and signature-route value (R-M03/07/09/10/13/20).**
    Session52 Relay initial/respawn damage medians13.7/11.8s still miss20-30s;
    Switchyard2.7/6.05s remains the largest miss. Two natural core visitors now
@@ -452,7 +454,7 @@ comfort and representative device acceptance remain open.
    Improve airborne hands/remote poses if play reveals a problem. Bots still do
    not deliberately choose launch pads. No Titanfall/Apex-quality claim.
 5. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
-   course, ping acknowledgements, replicated transition countdowns and highlight
+   course, ping acknowledgements, replicated results countdown and highlight
    colours. Core staging signs, warning and clear-to-seal explanation are in;
    player learning, muted-mic coordination and colourblind review remain open.
 6. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
@@ -8002,3 +8004,154 @@ browsers; session55-cleanup.json and preview-tree.json. Preview root identity
 checked by creation time and command before stopping its owned descendants.
 git diff --check clean; every working-tree path is inside apps/ironsight/**.
 No commit, push or deploy. Weapon Spectacle3/3 is complete by default.
+
+### Session 56 - 2026-09-10: Deployment arc 1/2 - count in the squad
+
+Read the standing brief, Session56 supervisor status, plan and all63 design
+references. Supervisor confirms Session55 passed, committed e5cbe11 and preview
+deployment c6a8a19a-a22f-4ddb-8d4b-b266b2e6703f. Selected the top presentation
+gap and re-ranked the scorecard/gap list. Deployment1/2 is ON by default: the
+countdown, objective callout and start sound. Session57 completes the arc with
+a short skippable map introduction. Scope apps/ironsight/**, branch ironsight-aaa.
+No commit, push, deploy, dependency, public asset or Meshy spend.
+
+Reference: R-L05, R-L16, R-L14, R-G12. Targets: one replicated deadline for the
+existing10s warmup; actual remaining seconds for late joiners; cancellation below
+the seat threshold; GO only on received LIVE. No extra waiting, input/camera
+lock or central20% aiming-corridor obstruction at1920x1080,1280x600,390x844.
+Three pips at3/2/1; one start chord under500ms; GO clears after2200ms of monotonic
+render time. Reduced motion keeps identical information with no animation.
+Implemented checks pass. R-L05 remains partial: results still20s with majority
+skip, no replicated intermission deadline/5-8s freeze; fly-through and human
+flow/listening acceptance remain open.
+
+Added warmupEndMs (f64) to ArenaState/ArenaSchema. The room arms it once when
+the seat threshold is met and uses this SAME epoch for its actual tick-side
+start check, replacing the private tick-count timer. Delayed ticks start on the
+next execution after that deadline, rather than extending warmup by missing
+tick count. Expiry never grants client authority: before LIVE arrives, the HUD
+says STAND BY. Seat expiry clears the deadline; replacement seats arm a fresh
+duration. End/reset/rematch clear it too. Existing scores, spawn reset, combat
+gates, bots, collision and room lifecycle policy remain intact. Changes ride
+the existing tick's markStateChanged. The appended scalar has an8-byte payload;
+no per-tick countdown messages. Snapshot version11->12 intentionally starts
+older snapshots fresh through the existing null migration. Schema fingerprint
+changes: supervisor must publish Worker/client together; old tabs need a refresh.
+
+The peripheral amber banner identifies map/mode/team, explains the objective,
+and warns that positions reset at start. Ten segments fill as seconds pass.
+Confirmed start changes to teal GO / TAKE THE FIELD, then restores the compact
+brief. Duplicate briefing text is hidden only while the expanded version is
+visible. Narrow layouts place it below connection info and keep capture/FFA
+panels beneath it. Static DOM textContent, polite atomic status region, no
+focus/mouse interception. Training stays immediate; initial LIVE joins skip GO.
+Pause/disconnect/background/death suppress the banner and consume missed edges.
+Resuming cannot replay them. Clock corrections cannot replay pips, and a small
+clock-sync error cannot override confirmed LIVE. Monotonic render time bounds
+GO even if the network clock moves backward.
+
+Audio uses the existing gesture-resumed context, master volume/mute and limiter.
+Pips:740Hz triangle,85ms envelope/100ms scheduled life. Start chord:164.81,
+246.94,329.63Hz together,480ms envelope/495ms life. Oscillator/gain nodes disconnect
+on ended. No future number/GO queue or loop. No light, pass, texture, geometry,
+per-frame bake or audio download. Meshy would not improve this UI/audio beat;
+zero credits spent, reported balance1530 unchanged.
+
+Five new tests cover real-room arm/late join/forged fields/boundary; seat-expiry
+cancellation/rearm/delayed tick/rematch;3/2/1/standby/confirmed GO; missed beats,
+clock rewind/pause/reconnect/initial LIVE/practice/invalid values; and monotonic
+GO expiry despite clock correction. Full pnpm typecheck and pnpm test PASS:
+520passed,6existing/opt-in skips,64files passed/4skipped. pnpm build:client and
+pnpm audit:assets PASS. Final logs: .inspect/session56-{typecheck,test,build,audit}-final.log.
+No source or production-inspector edits after these final gates.
+
+Rejected intermediates: awaiting a reconnectable close before advancing fake
+time deadlocked the new expiry test. Kept its promise, advanced the reconnection
+window, then awaited it; no timeout relaxation. Initial narrow still overlapped
+the duplicate brief/connection box; repositioned it and added overlap checks.
+Initial audio observation read AudioParam.value before its scheduled set applied
+and found no matching tones. The inspector now records setValueAtTime's actual
+argument; production audio/assertions were not weakened. Initial evidence remains
+in session56-targeted/game/wow files; final fixtures/game-verified supersede them.
+
+Wow check:20.011s normal12-seat bot TDM sequence in
+.inspect/session56-game-verified-report.json, with deployment-{arrival,three,one,
+go,clear}.png under that prefix. Only matchmaking room identity is isolated with
+the existing --isolated-tdm flag; no phase/deadline/HP/position edits or injected
+gameplay events. One constant deadline through07->01, STAND BY while still warmup,
+then exactly one LIVE/GO edge. GO clears2200.5ms later on the next render frame.
+All three740Hz pips fire once; three chord oscillators fire together once; all
+six end. Observed callbacks92.7-98.5ms after pips,494.0-494.1ms after chord nodes.
+This is audio-graph evidence, not listening approval. Opened/reviewed real GO
+with a teammate leaving spawn. Player sentence:
+"Three, two, one—the squad launches together and I know what we're fighting for."
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+deployment-play --isolated-tdm --prefix session56-game-review.
+
+Paired absence/new-countdown stills and ten production-HUD fixtures:
+session56-wow-final-report.json and match-deployment-*.png (before,countdown,
+go,dom,ffa,waiting,standby,reduced,short,narrow). Existing static vista background;
+not a claimed fly-through/bot encounter. All check sets pass: fit, outside aim,
+no overlap with connection/duplicate brief, status semantics and no animation.
+Reviewed countdown/narrow plus actual game GO. Zero console errors or forbidden
+offline requests. Required exact node scripts/inspect-map.mjs --url
+http://localhost:8796 --shots relay,practice-two PASS with zero errors/forbidden
+requests. Saved session56-required-report.json/log and required-{relay,practice-two}.png.
+
+Matched render evidence: session56-before-report.json -> session56-final-report.json;
+summary session56-render-summary.json. Same1920x1080 balanced/DPR1 Edge152,
+RTX5070/D3D11,11remotes+local,145twelve-rifle volleys,96blasts, support fixtures
+and3s drain. This fixture measures the retained combat renderer; actual DOM
+countdown/start is separately exercised by game-verified and the hitch gate.
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|238|238|0|
+|Peak submitted triangles|150102|150102|0|
+|Resident textures|30|30|0|
+|Estimated texture MiB|63.9388|63.9388|0|
+|Median/p95/p99 frame ms|6.9/7.1/7.1|6.9/7.1/7.2|0/0/+.1|
+|Maximum frame ms|7.6|7.7|+.1|
+|First-ready maximum ms|7.1|7.1|0|
+|Prepared programs/geometries|33/165|33/165|0/0|
+
+Construction60.8->61.7ms; preparation643.5->630.9ms;484slots unchanged. Cache/
+order varies; no startup speedup claim. Same240draw/64MiB/32texture limits pass;
+effects drain. No owned test/bake/other browser overlapped timing captures.
+LocalRTX observations do not establish laptopiGPU60fps, thermal/cold-driver,
+real6v6/RTT, or cross-browser acceptance.
+
+Public32,853,088->32,882,326bytes(+29,238); assets26,298,891 unchanged;
+client2,029,431->2,040,035(+10,604); source map4,524,158->4,542,792(+18,634).
+Largest remains Switchyard architecture7,184,816bytes.40MiB total/25MiB per-file
+budgets pass without exception. Exact bytes: session56-bytes.json.
+
+Static references refreshed in session56-reference-audit.json via the existing
+tools/reference-audit.ts. Maps150x100m/1250m2per seat; Relay65full/46waist,
+Undertow52/62, Switchyard63/48. Sprint A-B/B-C/A-C proxies14.44/14.44/11.78,
+14.22/14.22/11.33,14.44/14.44/11.56s. ADS250/200/225/400/165ms; sprint recovery
+120/100/130/150/90ms;3s respawn/scoring,1.4hostile foley,hit/kill pip,two damage
+cues,five-row top-right feed retained. DOM4/8s capture,1point/2s/flag,no side swap
+and78FOV still miss references. Session52 contact/heatmaps remain pacing evidence;
+no new contact/fairness claim or map/bot change here.
+
+Open owner questions/defaults: retain10s warmup with no extra intro wait(yes);
+restrained synthesized chord(yes); suppress missed pause/reconnect cues(yes);
+short skippable fly-through next, static in Reduced motion(yes). Defaults active;
+no answer blocks continuation. Human excitement/listening,moving hands,6v6/RTT,
+iGPU and browser/device acceptance remain open.
+
+Final exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS on the first Session56 run. Two bot-caused
+deaths; zero frames>24ms (thus zero>150ms), shader recompiles, long tasks or
+console errors. Standard bot TDM without room isolation, forced death, HP/clock
+edits, route changes or storage reset. Evidence: session56-hitch.json/log and
+hitch.json. All six required gates green.
+
+Cleanup verified all12 owned preview-tree processes stopped, zero8796listeners,
+zero remaining owned processes and zero inspection/hitch browsers. Root start
+time and each descendant's creation time/command were checked before stopping.
+Evidence: session56-preview-tree.json and session56-cleanup.json. git diff --check
+clean; every working-tree path is within apps/ironsight/**. No commit, push or
+deploy. Deployment1/2 is complete by default; next session finishes the arc's
+short skippable map introduction.

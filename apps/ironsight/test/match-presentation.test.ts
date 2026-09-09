@@ -3,7 +3,7 @@ import { matchBrief } from '../client/match-presentation.js';
 import type { ArenaState } from '../src/schema.js';
 
 const state: ArenaState = { players: {}, seed: 1, redScore: 0, blueScore: 0,
-  phase: 'live', matchEndMs: 300000, signalAt: 0, coreOpen: false, mode: 0, capA: 100, capB: 100, capC: 100 };
+  phase: 'live', matchEndMs: 300000, signalAt: 0, coreOpen: false, warmupEndMs: 0, mode: 0, capA: 100, capB: 100, capC: 100 };
 
 describe('match briefing', () => {
   it('uses the server clock and clamps expired time without declaring a winner', () => {

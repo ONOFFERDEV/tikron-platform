@@ -150,9 +150,9 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v9 refreshes Switchyard collision density. Older snapshots start a
+  // v12 adds the authoritative warmup deadline. Older snapshots start a
   // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 11;
+  protected override stateVersion = 12;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -222,8 +222,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly spawnSightHistory = new SpawnSightHistory();
   /** Sim tick the post-match intermission ends and the arena resets (phase "ended"). */
   private endedUntil: number | undefined;
-  /** Sim tick the warmup countdown elapses (unset while below {@link warmupMinPlayers}). */
-  private warmupUntil: number | undefined;
   /** One vote per player id; only meaningful while phase is "ended". */
   private roundResult: { winner: string; red: number; blue: number } | null = null;
   private readonly restartVotes = new Set<string>();
@@ -346,6 +344,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       blueScore: 0,
       phase: this.startInWarmup ? "warmup" : "live",
       matchEndMs: Date.now() + this.matchTimeMs,
+      warmupEndMs: 0,
       signalAt: signalEpoch(this.map.presentation, !this.startInWarmup, Date.now()),
       coreOpen: false,
       mode: modeIndex(this.gameMode.id),
@@ -1809,6 +1808,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const { redScore, blueScore } = this.state;
     const w = winner ?? (redScore > blueScore ? "red" : blueScore > redScore ? "blue" : "draw");
     this.state.phase = "ended";
+    this.state.warmupEndMs = 0;
     this.endedUntil = this.currentTick + Math.ceil(this.intermissionMs / TICK_MS);
     this.restartVotes.clear();
     this.roundResult = { winner: w, red: redScore, blue: blueScore };
@@ -1820,15 +1820,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private tickWarmup(now: number): void {
     const seats = Object.keys(this.state.players).length;
     if (seats < this.warmupMinPlayers) {
-      this.warmupUntil = undefined;
+      this.state.warmupEndMs = 0;
       return;
     }
-    if (this.warmupUntil === undefined) {
-      this.warmupUntil = this.currentTick + Math.ceil(this.warmupMs / TICK_MS);
+    if (this.state.warmupEndMs === 0) {
+      this.state.warmupEndMs = now + Math.ceil(this.warmupMs / TICK_MS) * TICK_MS;
       return;
     }
-    if (this.currentTick >= this.warmupUntil) {
-      this.warmupUntil = undefined;
+    if (now >= this.state.warmupEndMs) {
       this.resetMatch(now);
     }
   }
@@ -1837,7 +1836,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
    *  min-players/countdown gate as room creation (M2 µ2b). */
   private enterWarmup(): void {
     this.endedUntil = undefined;
-    this.warmupUntil = undefined;
+    this.state.warmupEndMs = 0;
     this.restartVotes.clear();
     this.state.phase = "warmup";
     this.state.signalAt = 0;
@@ -1875,6 +1874,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.state.capB = GAME.match.capNeutral;
     this.state.capC = GAME.match.capNeutral;
     this.state.phase = "live";
+    this.state.warmupEndMs = 0;
     this.state.matchEndMs = now + this.matchTimeMs;
     this.state.signalAt = signalEpoch(this.map.presentation, true, now);
     this.endedUntil = undefined;

@@ -8,6 +8,7 @@ import { MODE_ORDER, isTeamless } from "../src/modes.js";
 import { GAME } from "../src/game-config.js";
 import { damageDirection } from './damage-direction.js';
 import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
+import { DeploymentBanner } from './deployment-banner.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -239,6 +240,11 @@ export class Hud {
   private voteSent = false;
   private overlayMarkup = "";
   private briefText = "";
+  private deployment?: DeploymentBanner;
+  setDeploymentSite(site: string): void { this.deployment ??= new DeploymentBanner(this.root, site); }
+  updateDeployment(state: ArenaState, now: number, myId: string, active: boolean) {
+    return this.deployment?.update(state, now, myId, active);
+  }
   private trainingHelp = '';
   private readonly muteBadge = el('div', 'audioMuted', 'AUDIO MUTED · M / SETTINGS');
   setMuted(muted: boolean): void { this.muteBadge.hidden = !muted; }

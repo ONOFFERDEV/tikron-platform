@@ -1,4 +1,5 @@
 import { droneProbe } from './drone-probe.mjs';
+import { deploymentProbe } from './deployment-probe.mjs';
 import { blastProbe } from './blast-probe.mjs';
 import { weaponFlashProbe } from './weapon-flash-probe.mjs';
 import { mortarProbe } from './mortar-probe.mjs';
@@ -88,6 +89,14 @@ try {
     else request.resolve(message.result);
   };
   await send('Page.enable');
+  if (shots.includes('deployment-play')) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__deploymentAudio=[];
+    const original=AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator=function(...args){const osc=original.apply(this,args),start=osc.start.bind(osc);
+      let frequency;const set=osc.frequency.setValueAtTime.bind(osc.frequency);osc.frequency.setValueAtTime=(v,t)=>{frequency=v;return set(v,t);};
+      osc.start=(...a)=>{const entry={at:performance.now(),frequency:frequency??osc.frequency.value,ended:false};window.__deploymentAudio.push(entry);
+        osc.addEventListener('ended',()=>{entry.ended=true;entry.endAt=performance.now();});return start(...a);};return osc;};
+  ` });
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__inspectionSockets=[]; const NativeSocket=window.WebSocket; window.WebSocket=class extends NativeSocket { constructor(...args){super(...args);window.__inspectionSockets.push(this);} };` });
   if (args.includes('--isolated-tdm')) {
     const room = `arena-first-play-${Date.now()}`;
@@ -101,9 +110,9 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
-      url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
+      url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
       if (name === 'launch') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
@@ -203,6 +212,11 @@ try {
         const failed = await send('Page.captureScreenshot', { format: 'png' });
         await writeFile(join(output, `${prefix}-${name}-failed.png`), Buffer.from(failed.data, 'base64'));
         throw Error(`Gameplay click failed to engage pointer lock: ${JSON.stringify(await evaluate('({top:document.elementFromPoint(960,540)?.outerHTML,lock:document.pointerLockElement?.outerHTML,focus:document.hasFocus(),url:location.href})'))}; errors=${JSON.stringify(errors)}`);
+      }
+      if (name === 'deployment-play') {
+        combat = await deploymentProbe({ evaluate, waitFor, delay,
+          capture: async label => { const shot = await send('Page.captureScreenshot', {format:'png'}); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data,'base64')); },
+        });
       }
       if (name === 'audio') {
         combat = await evaluate('window.ironsight.audioProbe()');

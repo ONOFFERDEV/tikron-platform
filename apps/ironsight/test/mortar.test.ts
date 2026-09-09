@@ -9,7 +9,7 @@ import type { Box } from '../src/physics.js';
 const p = (team = 0): ArenaPlayer => ({ x: 6, y: 0, z: 11, yaw: Math.PI / 2, pitch: -.1, hp: 100,
   alive: true, prot: false, team, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0 });
 const state = (): ArenaState => ({ players: { owner:p(), ally:p(), enemy:p(1) }, mode:0, phase:'live', seed:1,
-  redScore:0,blueScore:0,signalAt:0,coreOpen:false,matchEndMs:1e9,capA:100,capB:100,capC:100 });
+  redScore:0,blueScore:0,signalAt:0,coreOpen:false,warmupEndMs:0,matchEndMs:1e9,capA:100,capB:100,capC:100 });
 const point = { x: 16, y: .12, z: 11 }, bounds = { width:150, depth:100, ceiling:16 };
 const wall: Box = { min:{x:10,y:0,z:10},max:{x:11,y:3,z:12} };
 it('designates only visible open ground at 8-60m; rejects walls, roofed tunnels, sky, nonfinite and out-of-bounds aim', () => {

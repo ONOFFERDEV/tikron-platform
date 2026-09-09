@@ -63,6 +63,8 @@ export interface ArenaState {
   phase: MatchPhase;
   /** Server-clock epoch ms when the round's time limit expires (constant per round). */
   matchEndMs: number;
+  /** Authoritative warmup deadline in server epoch ms; zero while waiting/live/ended. */
+  warmupEndMs: number;
   /** Relay first warning epoch; zero disables the event. Shared across all seats. */
   signalAt: number;
   /** Actual server shutter state, including occupied-tunnel close holds. */
@@ -112,4 +114,5 @@ export const ArenaSchema: Codec<ArenaState> = schema({
   capC: "u8",
   signalAt: "f64",
   coreOpen: "bool",
+  warmupEndMs: "f64",
 });

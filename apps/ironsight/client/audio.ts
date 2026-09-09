@@ -9,9 +9,27 @@ import type { MapDef } from "../src/map/types.js";
 import { coverMix, footSurface, spatialMix, type SoundPoint } from "./spatial-audio.js";
 import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
+import type { DeploymentCue } from './deployment-presentation.js';
 
 const MUTED_KEY = "iron_muted";
 const A = GAME.audio;
+
+/** Three short countdown pips and a resolved start chord. Called on observed
+ * phase/second edges only; no timer queue can leak a GO after cancellation. */
+export function playDeploymentCue(cue: DeploymentCue): void {
+  const c = ready(); if (!c || !master) return;
+  const t = c.currentTime, duration = cue === 'go' ? .48 : .085;
+  const frequencies = cue === 'go' ? [164.81, 246.94, 329.63] : [740];
+  for (const frequency of frequencies) {
+    const osc = c.createOscillator(), gain = c.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(cue === 'go' ? .065 : .10, t + .008);
+    gain.gain.exponentialRampToValueAtTime(.001, t + duration);
+    osc.connect(gain).connect(master); osc.start(t); osc.stop(t + duration + .015);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+}
 
 /** Short mechanical cues at presentation phase boundaries. No scheduled tails
  * survive death/swap; each transient releases and disconnects within 90 ms. */

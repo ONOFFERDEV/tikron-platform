@@ -35,6 +35,7 @@ import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { startMatchInspector } from "./match-inspect.js";
 import { Hud } from "./hud.js";
+import { playDeploymentCue } from './audio.js';
 import { TrainingCoach } from './training-coach.js';
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
@@ -103,6 +104,7 @@ async function main(): Promise<void> {
   // source of truth (mapForRoom) the room itself resolves from its own id, so
   // a practice session's arena2/arena3 pick can never diverge from the server.
   const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
+  hud.setDeploymentSite(map.presentation ?? 'Relay');
 
   if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1', map.presentation === 'undertow');
   const training = net.state?.mode === 3 ? new TrainingCoach(practiceMapKeyFromRoomId(net.roomId) === 'arena1', settings,
@@ -634,6 +636,11 @@ async function main(): Promise<void> {
     const teamless = isTeamless(modeId);
     hud.setMode(mode);
     hud.setWarmup(phase === "warmup");
+    if (state) {
+      const cue = hud.updateDeployment(state, net.serverNow(), net.myId,
+        net.online && input.locked && !!me?.alive && !document.hidden);
+      if (cue) playDeploymentCue(cue);
+    }
     if (mode === 2 && state) hud.setCaps(state.capA, state.capB, state.capC);
     else hud.hideCaps();
     if (modeId === "ffa" && state) {

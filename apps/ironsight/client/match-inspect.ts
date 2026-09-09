@@ -8,7 +8,7 @@ export function startMatchInspector(): void {
   const hud = new Hud(settings);
   const shot = new URLSearchParams(location.search).get('shot') ?? '';
   const state: ArenaState = { players: {}, seed: 1, redScore: 50, blueScore: 42,
-    phase: 'ended', matchEndMs: 0, signalAt: 0, coreOpen: false, mode: 0, capA: 100, capB: 100, capC: 100 };
+    phase: 'ended', matchEndMs: 0, signalAt: 0, coreOpen: false, warmupEndMs: 0, mode: 0, capA: 100, capB: 100, capC: 100 };
   const solo = shot.includes('ffa');
   const rows = ['KESTREL', 'Sable', 'Morrow', 'Echo', 'Vega', 'Peregrine',
     'Rook', 'Sentinel', 'Warden', 'Lark', 'Copper', 'Northstar'].map((name, i) => ({
@@ -23,7 +23,36 @@ export function startMatchInspector(): void {
       50, 42, 16, 9, solo, { rows, won: !shot.includes('defeat') });
   }
   const checks: Record<string, boolean> = {};
-  if (shot.startsWith('match-network')) {
+  if (shot.startsWith('match-deployment')) {
+    document.body.style.background = "#10242b url('/assets/relay-vista.webp') center / cover fixed";
+    hud.setDeploymentSite(shot.includes('dom') ? 'Undertow' : shot.includes('ffa') ? 'Switchyard' : 'Relay');
+    settings.setReducedMotion(shot.includes('reduced'));
+    state.phase = 'warmup'; state.warmupEndMs = 10000;
+    state.mode = shot.includes('dom') ? 2 : shot.includes('ffa') ? 1 : 0;
+    hud.setMode(state.mode); hud.setScores(0, 0); hud.setWeapon(0);
+    hud.updateDeployment(state, 6500, 'self', true);
+    let now = 7000;
+    if (shot.includes('waiting')) state.warmupEndMs = 0;
+    if (shot.includes('standby')) now = 10000;
+    if (shot.includes('go')) { state.phase = 'live'; state.warmupEndMs = 0; now = 10050; }
+    hud.setMatchContext(state, now, 'self');
+    hud.updateDeployment(state, now, 'self', true);
+    const banner = document.querySelector<HTMLElement>('#deployment-banner')!;
+    const rect = banner.getBoundingClientRect();
+    checks.fits = rect.left >= 0 && rect.right <= innerWidth && banner.scrollWidth <= banner.clientWidth;
+    checks.outsideAim = rect.bottom < innerHeight * .4;
+    checks.liveRegion = banner.getAttribute('role') === 'status' && banner.getAttribute('aria-live') === 'polite';
+    checks.noMotion = getComputedStyle(banner).animationName === 'none';
+    checks.visible = !banner.hidden;
+    checks.noOverlap = ['#ping', '#matchBrief'].every(selector => {
+      const other = document.querySelector<HTMLElement>(selector)!;
+      if (getComputedStyle(other).visibility === 'hidden') return true;
+      const r = other.getBoundingClientRect();
+      return rect.right <= r.left || rect.left >= r.right || rect.bottom <= r.top || rect.top >= r.bottom;
+    });
+    if (Object.values(checks).some(ok => !ok)) throw Error(`Deployment layout failed: ${JSON.stringify(checks)}`);
+    if (shot.includes('before')) { banner.hidden = true; document.querySelector<HTMLElement>('#hud')!.dataset.deploying = 'false'; }
+  } else if (shot.startsWith('match-network')) {
     document.body.style.background = "#10242b url('/assets/relay-vista.webp') center / cover fixed";
     hud.setMode(0); hud.setScores(24, 19); hud.setWeapon(0); hud.setFps(60);
     const panel = document.querySelector<HTMLElement>('#ping')!;
