@@ -103,11 +103,15 @@ export function startMatchInspector(): void {
     checks.bounded = feed.children.length === 5;
     checks.escaped = !feed.querySelector('img') && feed.textContent!.includes('<img');
     checks.remoteSilent = confirm.textContent === '';
+    hud.addKill('Other','Victim','body',1,undefined,{medal:'ambush'});
+    checks.remoteMedalSilent = confirm.textContent === '';
     hud.addKill('Self', 'Self', 'blast', null, undefined, { localKill: true, localVictim: true });
     checks.selfSilent = confirm.textContent === '';
-    hud.addKill('Self', 'First', 'head', 0, undefined, { weapon: 4, localKill: true });
+    hud.addKill('Self', 'First', 'head', 0, undefined, { weapon: 4, localKill: true, medal:'ambush' });
+    checks.ambush = confirm.querySelector('.ambush')?.textContent === 'AMBUSH';
     hud.addKill('Self', 'Latest', 'body', 0, undefined, { weapon: 1, localKill: true });
     checks.latest = confirm.querySelector('.target')?.textContent === 'Latest';
+    checks.medalCleared = !confirm.querySelector('.ambush');
     hud.update(performance.now() + 1900);
     checks.confirmExpired = confirm.textContent === '' && confirm.style.opacity === '0';
     hud.update(performance.now() + 5100);
@@ -122,13 +126,15 @@ export function startMatchInspector(): void {
     hud.setMode(0); hud.setScores(24, 19); hud.setWeapon(0);
     hud.addKill('KESTREL', 'Rook', 'body', 0, undefined, { weapon: 1 });
     hud.addKill('Sable', 'Vega', 'blast', 1, 'Echo', { localVictim: true });
-    hud.addKill('KESTREL', 'Sentinel', 'head', 0, undefined, { weapon: 4, localKill: true });
+    hud.addKill('KESTREL', 'Sentinel', 'head', 0, undefined, { weapon: 4, localKill: true,
+      medal:shot.includes('ambush')?'ambush':undefined });
     const bearing = shot.includes('back') ? Math.PI : shot.includes('left') ? -Math.PI / 2 : shot.includes('front') ? 0 : Math.PI / 2;
     hud.showDamageDirection(bearing); hud.update(performance.now());
     const marker = indicator.firstElementChild!.getBoundingClientRect();
     checks.damageFits = marker.left >= 0 && marker.right <= innerWidth && marker.top >= 0 && marker.bottom <= innerHeight;
     checks.damageOutsideAim = marker.right < innerWidth * .45 || marker.left > innerWidth * .55 || marker.bottom < innerHeight * .4 || marker.top > innerHeight * .6;
     const notice = confirm.getBoundingClientRect();
+    checks.confirmFits = notice.left >= 0 && notice.right <= innerWidth && notice.bottom <= innerHeight && confirm.scrollWidth <= confirm.clientWidth;
     checks.damageClearOfNotice = marker.right <= notice.left || marker.left >= notice.right || marker.bottom <= notice.top || marker.top >= notice.bottom;
     if (Object.values(checks).some(ok => !ok)) throw Error(`Damage layout failed: ${JSON.stringify(checks)}`);
   } else {

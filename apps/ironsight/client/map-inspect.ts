@@ -23,6 +23,7 @@ export function startMapInspector(): void {
     return values;
   };
   const reviewCamera = vector('review-camera', 6), reviewEnemy = vector('review-enemy', 3);
+  const reviewEnemyYaw = vector('review-enemy-yaw', 1);
   const host = document.getElementById("app") ?? document.body;
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
@@ -125,6 +126,7 @@ export function startMapInspector(): void {
     const actor = actors.get('inspect-0')!;
     Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
       yaw: Math.atan2(scene.camera.position.x - reviewEnemy[0]!, scene.camera.position.z - reviewEnemy[2]!) });
+    if (reviewEnemyYaw) actor.yaw = reviewEnemyYaw[0]!;
   }
   if (muzzleLineup || mixedWeapons) for (const [i, actor] of [...actors.values()].entries()) {
     Object.assign(actor, { weapon: i % 5 });
@@ -242,7 +244,7 @@ export function startMapInspector(): void {
     flags.__mapInspect = {
       mapBounds: map.bounds,
       intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
-      spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy } : null,
+      spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),
       signal: scene.inspectSignal(),

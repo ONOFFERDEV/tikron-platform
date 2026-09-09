@@ -64,6 +64,7 @@ const css = `
 #feed .tag{font-size:9px;color:#edaa52;margin-right:5px}
 #elimination{position:absolute;top:calc(50% + 76px);left:50%;transform:translateX(-50%);width:280px;max-width:80vw;padding:10px 18px;border-top:1px solid #edaa5270;background:linear-gradient(90deg,#10242b00,#10242be8 20%,#10242be8 80%,#10242b00);text-align:center;opacity:0;text-shadow:0 2px 4px #07151b}
 #elimination .confirm{font-size:10px;letter-spacing:2px;color:#edaa52}
+#elimination .confirm.ambush{font-size:14px;font-weight:700;letter-spacing:4px;color:#91e1d5}
 #elimination .target{display:block;font-size:18px;font-weight:600;margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #elimination .detail{font-size:10px;letter-spacing:1px;color:#cfdfdf}
 @keyframes feed-in{from{transform:translateX(10px);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -475,7 +476,7 @@ export class Hud {
 
   /** Driven only by confirmed room kills; weapon identifies the killing shot. */
   addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string,
-    details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean } = {}): void {
+    details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean; medal?: 'ambush' } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
     const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
@@ -487,7 +488,8 @@ export class Hud {
     this.kills.push({ node, born: performance.now() });
     while (this.kills.length > 5) this.kills.shift()!.node.remove();
     if (details.localKill && !details.localVictim) {
-      this.elimination.innerHTML = `<span class="confirm">ELIMINATION CONFIRMED</span><span class="target">${esc(victim)}</span><span class="detail">${esc(weapon)}${part === 'head' ? ' / HEADSHOT' : ''}</span>`;
+      const ambush = details.medal === 'ambush';
+      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? 'AMBUSH' : 'ELIMINATION CONFIRMED'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? 'FROM BEHIND / ' : ''}${esc(weapon)}${part === 'head' ? ' / HEADSHOT' : ''}</span>`;
       this.eliminationAt = performance.now();
       this.elimination.style.opacity = '1';
     }

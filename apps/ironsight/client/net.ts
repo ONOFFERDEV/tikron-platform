@@ -38,6 +38,7 @@ export interface HitEvent {
   head: boolean;
 }
 export interface KillEvent {
+  medal?: 'ambush';
   killer: string;
   victim: string;
   part: string;

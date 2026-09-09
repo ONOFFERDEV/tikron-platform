@@ -288,7 +288,7 @@ async function main(): Promise<void> {
   });
   net.onKill((e) => {
     hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam, e.assist ? name(e.assist) : undefined,
-      { weapon: e.weapon, localKill: e.killer === net.myId && e.killer !== e.victim, localVictim: e.victim === net.myId });
+      { weapon: e.weapon, medal: e.medal, localKill: e.killer === net.myId && e.killer !== e.victim, localVictim: e.victim === net.myId });
     if (e.victim === net.myId) {
       killerName = name(e.killer);
       killerId = e.killer;

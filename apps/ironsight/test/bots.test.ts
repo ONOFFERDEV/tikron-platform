@@ -1,7 +1,7 @@
 // [blueprint] — pure botThink()/createBotBrain() behavior on hand-built fixtures;
 // no import of config.ts, GAME, or any weapon/team identity.
 import { describe, it, expect } from "vitest";
-import { botThink, createBotBrain, type BotView } from "../src/bots.js";
+import { alertBot, BOT_PERCEPTION, botHearsShot, botThink, createBotBrain, resetBotPerception, type BotView } from "../src/bots.js";
 
 /**
  * bots.ts is a pure module (see its own doc comment): {@link botThink} takes the
@@ -51,8 +51,10 @@ describe("botThink — dom objective", () => {
       expect(target).toEqual(objective);
       return { x: 25, z: 10 }; // the next corner is west, though the objective is north
     } }), brain, 50);
-    expect(decision.move.mx).toBeCloseTo(-1);
-    expect(decision.move.mz).toBeCloseTo(0);
+    // Facing now turns gradually; reconstruct world movement to check the
+    // same westward route independently of the current look angle.
+    expect(decision.move.mz * Math.sin(decision.look.yaw) + decision.move.mx * Math.cos(decision.look.yaw)).toBeCloseTo(-1);
+    expect(decision.move.mz * Math.cos(decision.look.yaw) - decision.move.mx * Math.sin(decision.look.yaw)).toBeCloseTo(0);
     expect(decision.fire).toBe(false);
   });
 
@@ -189,9 +191,10 @@ describe("botThink — practice showcase bots", () => {
   });
 });
 
-it('turns toward a rear target over time and cannot shoot through the acquisition turn', () => {
+it('turns toward heard rear gunfire over time and cannot shoot through the acquisition turn', () => {
   const brain = createBotBrain({ seed: 1, waypoints: [{ x: 30, y: 40 }], reactionMs: 0, aimNoiseRad: 0 });
   const view = baseView({ enemies: [{ id: 'rear', x: 30, y: 0, z: 0, crouch: false, alive: true, team: 1 }] });
+  alertBot(brain, view.enemies[0]!);
   const first = botThink(view, brain, 50);
   expect(Math.abs(first.look.yaw)).toBeLessThanOrEqual(0.301);
   expect(first.fire).toBe(false);
@@ -202,4 +205,60 @@ it('turns toward a rear target over time and cannot shoot through the acquisitio
   }
   expect(decision.look.yaw).toBeCloseTo(Math.PI, 4);
   expect(decision.fire).toBe(true);
+});
+
+describe('flank and counter perception', () => {
+  const brainFor = () => createBotBrain({ seed: 58, waypoints: [{x:30,y:40}], aimNoiseRad:0, reactionMs:150 });
+  const enemy = (id:string, x:number, z:number) => ({ id,x,y:0,z,crouch:false,alive:true,team:1 });
+  it('leaves a silent rear flank unseen, including at close range; FFA still treats equal teams as hostile', () => {
+    const brain=brainFor(), view=baseView({enemies:[enemy('rear',30,8)]});
+    for(let i=0;i<40;i++) {
+      const d=botThink(view,brain,50); view.self.yaw=d.look.yaw;
+      expect(d.fire).toBe(false); expect(brain.lockId).toBeNull();
+    }
+    view.teamless=true;view.enemies=[{...enemy('front',30,20),team:0}];
+    for(let i=0;i<4;i++)botThink(view,brain,50);
+    expect(brain.lockId).toBe('front');expect(brain.lockMs).toBe(150);
+  });
+  it('uses a 120-degree acquisition cone, 160-degree tracking cone and resets reaction after losing sight', () => {
+    const brain=brainFor(),view=baseView();
+    const at=(degrees:number)=>enemy('target',30+10*Math.sin(degrees*Math.PI/180),10+10*Math.cos(degrees*Math.PI/180));
+    view.enemies=[at(61)];botThink(view,brain,50);expect(brain.lockId).toBeNull();
+    view.enemies=[at(59)];botThink(view,brain,50);expect(brain.lockId).toBe('target');
+    view.enemies=[at(79)];botThink(view,brain,50);expect(brain.lockMs).toBe(50);
+    view.enemies=[at(81)];botThink(view,brain,50);expect(brain.lockId).toBeNull();
+    view.enemies=[at(0)];expect(botThink(view,brain,50).fire).toBe(false);expect(brain.lockMs).toBe(0);
+  });
+  it('copies and expires a sound location, never tracks a hidden moving source or grants a shot through cover', () => {
+    const brain=brainFor(),source={x:30,z:0};alertBot(brain,source);source.x=99;
+    expect(brain.sound?.x).toBe(30);
+    const view=baseView({enemies:[enemy('rear',30,0)],boxes:[{min:{x:20,y:0,z:4},max:{x:40,y:4,z:5}}]});
+    for(let i=0;i<24;i++) {const d=botThink(view,brain,50);view.self.yaw=d.look.yaw;
+      expect(d.fire).toBe(false);expect(brain.lockId).toBeNull();}
+    expect(brain.sound).toBeDefined();botThink(view,brain,50);expect(brain.sound).toBeUndefined();
+  });
+  it('hears open gunfire within 28m, through cover only within 10m, never beyond range', () => {
+    const self=baseView().self, wall=[{min:{x:20,y:0,z:14},max:{x:40,y:4,z:15}}];
+    const source=(z:number)=>({x:30,y:1.65,z});
+    expect(botHearsShot(self,source(38),[])).toBe(true);
+    expect(botHearsShot(self,source(38.01),[])).toBe(false);
+    expect(botHearsShot(self,source(20),wall)).toBe(true);
+    expect(botHearsShot(self,source(20.01),wall)).toBe(false);
+  });
+  it('rate bounds sound refresh, lets confirmed damage override it, and forgets the prior life', () => {
+    const brain=brainFor();alertBot(brain,{x:1,z:2});alertBot(brain,{x:3,z:4});
+    expect(brain.sound?.x).toBe(1);alertBot(brain,{x:3,z:4},true);expect(brain.sound?.x).toBe(3);
+    brain.clockMs+=BOT_PERCEPTION.soundRefreshMs;alertBot(brain,{x:5,z:6});expect(brain.sound?.x).toBe(5);
+    brain.lockId='old';brain.lockMs=900;brain.engagementZ=10;resetBotPerception(brain);
+    expect(brain.sound).toBeUndefined();expect(brain.lockId).toBeNull();expect(brain.lockMs).toBe(0);
+    expect(brain.engagementZ).toBeUndefined();expect(brain.nextSoundMs).toBe(0);
+  });
+  it('keeps objective travel while investigating, and practice dummies ignore the same alert', () => {
+    const brain=brainFor(),view=baseView({objective:{x:30,z:25}});alertBot(brain,{x:30,z:0});
+    const d=botThink(view,brain,50);
+    expect(d.fire).toBe(false);expect(d.move.mz*Math.cos(d.look.yaw)-d.move.mx*Math.sin(d.look.yaw)).toBeCloseTo(1);
+    const practice=botThink({...view,showcase:{role:'idle',faceYaw:0}},brain,50);
+    expect(practice.look.yaw).toBe(0);expect(practice.move.mx).toBe(0);expect(practice.move.mz).toBe(0);
+    expect(practice.fire).toBe(false);
+  });
 });

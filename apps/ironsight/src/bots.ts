@@ -30,6 +30,14 @@ import { GAME } from "./game-config.js";
 
 const TAU = Math.PI * 2;
 
+/** Fair perception, shared by all combat bots. Sound is an expiring location,
+ * never a target id or permission to fire. No hidden-player pursuit. */
+export const BOT_PERCEPTION = {
+  acquireHalfAngle: Math.PI / 3, trackHalfAngle: Math.PI * 4 / 9,
+  hearingRange: 28, occludedHearingRange: 10, soundMemoryMs: 1250,
+  soundRefreshMs: 250, turnRadiansPerSecond: 6,
+} as const;
+
 /**
  * DOM-only: movement toward the objective is the DEFAULT regardless of enemy
  * visibility — aim/fire always track a visible enemy the same way combat does,
@@ -143,6 +151,8 @@ export interface BotBrainOptions {
 
 /** Per-bot mutable state, held by the caller and threaded through every {@link botThink} call. */
 export interface BotBrain {
+  sound?: { x: number; z: number; untilMs: number };
+  nextSoundMs: number;
   engagementZ?: number;
   readonly aimNoiseRad: number;
   readonly reactionMs: number;
@@ -163,6 +173,7 @@ export interface BotBrain {
 export function createBotBrain(opts: BotBrainOptions): BotBrain {
   if (opts.waypoints.length === 0) throw new Error("bot brain needs at least one waypoint");
   return {
+    nextSoundMs: 0,
     aimNoiseRad: opts.aimNoiseRad ?? GAME.bots.aimNoiseRad,
     reactionMs: opts.reactionMs ?? GAME.bots.reactionMs,
     aimHeight: opts.aimHeight ?? GAME.bots.aimHeight,
@@ -178,6 +189,46 @@ export function createBotBrain(opts: BotBrainOptions): BotBrain {
     lockId: null,
     lockMs: 0,
   };
+}
+
+/** Called only for an accepted server shot or confirmed victim damage.
+ * Copy the point: subsequent movement by its source cannot update the memory. */
+export function alertBot(brain: BotBrain, point: { x: number; z: number }, damage = false): void {
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.z)) return;
+  if (!damage && brain.clockMs < brain.nextSoundMs) return;
+  brain.sound = { x: point.x, z: point.z, untilMs: brain.clockMs + BOT_PERCEPTION.soundMemoryMs };
+  brain.nextSoundMs = brain.clockMs + BOT_PERCEPTION.soundRefreshMs;
+}
+
+export function resetBotPerception(brain: BotBrain): void {
+  brain.sound = undefined;
+  brain.nextSoundMs = 0;
+  brain.lockId = null;
+  brain.lockMs = 0;
+  brain.engagementZ = undefined;
+}
+
+/** Uses current authoritative cover, including ramps and the core shutters. */
+export function botHearsShot(self: BotPlayerView, source: Vec3, boxes: readonly Box[]): boolean {
+  const eye = { x: self.x, y: self.y + eyeHeight(self), z: self.z };
+  const dx = source.x - eye.x, dy = source.y - eye.y, dz = source.z - eye.z;
+  const d = Math.hypot(dx, dy, dz);
+  if (d > BOT_PERCEPTION.hearingRange) return false;
+  if (d <= BOT_PERCEPTION.occludedHearingRange) return true;
+  return nearestBox(eye, { x: dx / d, y: dy / d, z: dz / d }, boxes, d) >= d;
+}
+
+function turnToward(self: BotView['self'], yaw: number, pitch: number, dtMs: number): BotLookIntent {
+  const step = Math.max(0, Math.min(100, dtMs)) / 1000;
+  const delta = Math.atan2(Math.sin(yaw - self.yaw), Math.cos(yaw - self.yaw));
+  const turn = BOT_PERCEPTION.turnRadiansPerSecond * step;
+  return { yaw: ((self.yaw + clamp(delta, -turn, turn)) % TAU + TAU) % TAU,
+    pitch: self.pitch + clamp(pitch - self.pitch, -4 * step, 4 * step) };
+}
+
+function searchLook(self: BotView['self'], brain: BotBrain, target: { x: number; z: number }, dtMs: number): BotLookIntent {
+  const point = brain.sound ?? target;
+  return turnToward(self, Math.atan2(point.x - self.x, point.z - self.z), 0, dtMs);
 }
 
 function uniform(brain: BotBrain): number {
@@ -210,12 +261,13 @@ function aimPoint(p: BotPlayerView, aimHeight: number): Vec3 {
  *  skips the team-equality check (FFA: everyone is team=0, so it would otherwise
  *  reject every other player as a false-positive "teammate"). */
 function nearestVisibleEnemy(
-  self: BotPlayerView,
+  self: BotView['self'],
   enemies: readonly BotEnemyView[],
   aimHeight: number,
   teamless: boolean,
   boxes: readonly Box[],
   maxDistance = Infinity,
+  lockId: string | null = null,
 ): BotEnemyView | null {
   const eye: Vec3 = { x: self.x, y: self.y + eyeHeight(self), z: self.z };
   let best: BotEnemyView | null = null;
@@ -228,6 +280,9 @@ function nearestVisibleEnemy(
     const dz = aim.z - eye.z;
     const dist = Math.hypot(dx, dy, dz);
     if (dist === 0 || dist >= bestDist || dist > maxDistance) continue;
+    const bearing = Math.atan2(dx, dz) - self.yaw;
+    const halfAngle = p.id === lockId ? BOT_PERCEPTION.trackHalfAngle : BOT_PERCEPTION.acquireHalfAngle;
+    if (Math.abs(Math.atan2(Math.sin(bearing), Math.cos(bearing))) > halfAngle) continue;
     const dir: Vec3 = { x: dx / dist, y: dy / dist, z: dz / dist };
     if (nearestBox(eye, dir, boxes, dist) < dist) continue;
     best = p;
@@ -247,11 +302,7 @@ function aimAt(brain: BotBrain, self: BotView["self"], enemy: BotPlayerView, dtM
   let yaw = Math.atan2(dx, dz);
   const targetPitch = Math.atan2(dy, horiz) + gaussian(brain) * brain.aimNoiseRad;
   yaw += gaussian(brain) * brain.aimNoiseRad;
-  const step = Math.max(0, Math.min(100, dtMs)) / 1000;
-  const delta = Math.atan2(Math.sin(yaw - self.yaw), Math.cos(yaw - self.yaw));
-  yaw = ((self.yaw + clamp(delta, -6 * step, 6 * step)) % TAU + TAU) % TAU;
-  const pitch = self.pitch + clamp(targetPitch - self.pitch, -4 * step, 4 * step);
-  return { yaw, pitch };
+  return turnToward(self, yaw, targetPitch, dtMs);
 }
 
 /** Don't shoot while still turning through a newly acquired target. */
@@ -340,6 +391,7 @@ function showcaseThink(view: ShowcaseView, _self: BotPlayerView, _brain: BotBrai
  */
 export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
   brain.clockMs += dtMs;
+  if (brain.sound && brain.clockMs >= brain.sound.untilMs) brain.sound = undefined;
   const { self, enemies } = view;
 
   // Practice-only: demonstrate one locomotion state — no aim tracking, no firing.
@@ -347,8 +399,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
 
   if (!self.alive) {
     brain.wpIndex = 0;
-    brain.lockId = null;
-    brain.lockMs = 0;
+    resetBotPerception(brain);
     return {
       move: { mx: 0, mz: 0, jump: false, crouch: false, sprint: false },
       look: { yaw: 0, pitch: 0 },
@@ -356,7 +407,9 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     };
   }
 
-  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes, view.engagementRange);
+  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes, view.engagementRange, brain.lockId);
+  // Once a real visual target is acquired, don't later turn back to old gunfire.
+  if (enemy) brain.sound = undefined;
 
   // DOM-only branch (see BotView.objective's doc comment). Every other mode (and
   // dom once every point is owned) falls through to the legacy logic below,
@@ -368,10 +421,11 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     brain.lockMs = 0;
     const wp = advanceWaypoint(brain, self);
     const next = view.navigate?.({ x: wp.x, z: wp.y }) ?? { x: wp.x, z: wp.y };
-    const yaw = Math.atan2(next.x - self.x, next.z - self.z);
+    const look = searchLook(self, brain, next, dtMs);
+    const dir = dirTo(self, next);
     return {
-      look: { yaw, pitch: 0 },
-      move: { mx: 0, mz: 1, jump: false, crouch: false, sprint: false },
+      look,
+      move: worldToMove(look.yaw, dir.x, dir.z),
       fire: false,
     };
   }
@@ -429,7 +483,7 @@ function domThink(
   } else {
     brain.lockId = null;
     brain.lockMs = 0;
-    look = { yaw: Math.atan2(objective.x - self.x, objective.z - self.z), pitch: 0 };
+    look = searchLook(self, brain, navigate?.(objective) ?? objective, dtMs);
   }
 
   const enemyDist = enemy ? Math.hypot(enemy.x - self.x, enemy.y - self.y, enemy.z - self.z) : Infinity;

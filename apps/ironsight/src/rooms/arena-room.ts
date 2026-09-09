@@ -49,7 +49,8 @@ import {
   type ModeCtx,
   type ShowcaseBotDef,
 } from "../modes.js";
-import { botThink, createBotBrain, type BotBrain, type BotView } from "../bots.js";
+import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, type BotBrain, type BotView } from "../bots.js";
+import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
 import { GAME } from "../game-config.js";
 
 // The active theme's weapon roster — swapping game-config.ts's loaded config
@@ -226,7 +227,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private roundResult: { winner: string; red: number; blue: number } | null = null;
   private readonly restartVotes = new Set<string>();
   /** Recent non-lethal damage per victim, for assist attribution: victim → [{attacker, dmg, at}]. */
-  private readonly hits = new Map<string, { attacker: string; dmg: number; at: number }[]>();
+  private readonly hits = new Map<string, { attacker: string; dmg: number; at: number; ambush?: boolean }[]>();
   /** Current consecutive-kill count per killer id (reset when that player dies). */
   private readonly streaks = new Map<string, number>();
   private readonly airSupport = new AirSupport();
@@ -838,6 +839,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
 
     const origin: Vec3 = { x: shooter.x, y: shooter.y + this.eyeHeight(shooter), z: shooter.z };
+    // Accepted gunfire only: bots can turn toward a short-lived sound, but must
+    // acquire a living enemy in their vision cone and clear cover before firing.
+    if (!this.showcaseActive) for (const [botId, brain] of this.botBrains) {
+      const listener = this.state.players[botId];
+      if (botId === id || !listener?.alive || this.gameMode.teams && listener.team === shooter.team) continue;
+      if (botHearsShot(listener, origin, this.hitBoxes)) alertBot(brain, origin);
+    }
 
     // Rewind both channels to the same instant: the subtick ts when the client
     // supplied one (Tikron's `rewind()` treats this as "the exact moment the
@@ -1300,10 +1308,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   ): void {
     const victim = this.state.players[victimId];
     if (!victim || !victim.alive || victim.prot) return;
+    const firearm = part === 'head' || part === 'body';
+    const opening = dmg > 0 && firearm && killerId !== victimId && ambushOpening(victim, this.state.players[killerId]);
     victim.hp = Math.max(0, victim.hp - dmg);
     // Only a confirmed victim receives this bearing; no attacker id/position or
     // broadcast. A blast points at its detonation, even if its owner has left.
     const origin = source ?? this.state.players[killerId];
+    const brain = this.botBrains.get(victimId);
+    if (brain && origin && dmg > 0 && victim.hp > 0 && !this.showcaseActive) alertBot(brain, origin, true);
     const dx = origin ? origin.x - victim.x : 0;
     const dz = origin ? origin.z - victim.z : 0;
     this.ownerClient(victimId)?.send("hurt", {
@@ -1311,11 +1323,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     });
     const now = Date.now();
     if (victim.hp > 0) {
-      if (killerId !== victimId) this.recordHit(victimId, killerId, dmg, now);
+      if (killerId !== victimId) this.recordHit(victimId, killerId, dmg, now, opening);
       return;
     }
 
     const warmup = this.state.phase === "warmup";
+    const ambush = !warmup && firearm && (opening || this.hits.get(victimId)?.some(hit =>
+      hit.attacker === killerId && hit.ambush && now - hit.at >= 0 && now - hit.at <= AMBUSH_WINDOW_MS));
     // Evaluate the pre-kill deficit, then consume this flight once. Support
     // cannot farm a shutdown bonus or recursively earn another support tier.
     const rally = part !== 'mortar' && part !== 'drone'
@@ -1384,12 +1398,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       killerTeam: this.state.players[killerId]?.team ?? null,
       weapon: weaponSlot ?? null,
       assist,
+      ...(ambush ? { medal: 'ambush' } : {}),
     });
   }
 
-  private recordHit(victimId: string, attackerId: string, dmg: number, at: number): void {
+  private recordHit(victimId: string, attackerId: string, dmg: number, at: number, ambush = false): void {
     const list = this.hits.get(victimId) ?? [];
-    list.push({ attacker: attackerId, dmg, at });
+    list.push({ attacker: attackerId, dmg, at, ...(ambush ? { ambush: true } : {}) });
     this.hits.set(victimId, list);
   }
 
@@ -1512,6 +1527,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       : Math.atan2(this.map.bounds.width / 2 - pt.x, this.map.bounds.depth / 2 - pt.z));
     p.pitch = 0;
     const patrolBrain = this.botBrains.get(id);
+    if (patrolBrain) resetBotPerception(patrolBrain);
     if (patrolBrain && this.map.patrolWaypoints?.length)
       patrolBrain.wpIndex = (Number(id.slice(4)) - 1) % patrolBrain.waypoints.length;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
