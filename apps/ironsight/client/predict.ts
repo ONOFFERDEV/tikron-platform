@@ -16,6 +16,7 @@ import {
   RECONCILE_TAU_MS,
 } from "./config.js";
 import type { MoveIntent } from "./net.js";
+import { SprintSlide } from '../src/slide.js';
 
 const TICK_S = TICK_MS / 1000;
 
@@ -28,6 +29,7 @@ export class Predictor {
   private readonly bounds: Bounds;
   private vy = 0;
   private grounded = true;
+  private slide = new SprintSlide();
   private offset: Vec3 = { x: 0, y: 0, z: 0 };
   private pendingJump = false;
   private accMs = 0;
@@ -78,6 +80,7 @@ export class Predictor {
   }
 
   private step(inp: MoveIntent, yaw: number): void {
+    const momentum = this.slide.step(TICK_MS, { ...inp, jump: this.pendingJump }, this.grounded, yaw);
     // Crouch (resolved before speed/height, like the server). Standing up is refused
     // when the taller capsule would clip cover/ceiling.
     if (this.crouch && !inp.crouch) {
@@ -101,6 +104,7 @@ export class Predictor {
       wx /= wl;
       wz /= wl;
     }
+    if (momentum) { wx = momentum.x; wz = momentum.z; speed = momentum.speed; }
 
     if (this.grounded && this.pendingJump) {
       this.vy = MOVE.jumpSpeed;
@@ -123,6 +127,7 @@ export class Predictor {
       MOVE.stepUp,
       this.ramps,
     );
+    this.slide.observe(Math.hypot(res.pos.x - this.pos.x, res.pos.z - this.pos.z), res.grounded);
     this.pos = res.pos;
     this.vy = res.vy;
     this.grounded = res.grounded;
@@ -164,12 +169,16 @@ export class Predictor {
     this.grounded = true;
     this.offset = { x: 0, y: 0, z: 0 };
     this.accMs = 0;
+    this.slide = new SprintSlide();
+    this.pendingJump = false;
+    this.crouch = false;
   }
 
   /** Liveness gate: a dead→alive transition arms the next reconcile to snap (a
    *  respawn may land within the soft threshold of the corpse). */
   setAlive(a: boolean): void {
     if (a && !this.alive) this.respawnSnap = true;
+    if (!a) { this.slide = new SprintSlide(); this.pendingJump = false; }
     this.alive = a;
   }
 
@@ -194,4 +203,6 @@ export class Predictor {
   get isGrounded(): boolean {
     return this.grounded;
   }
+  get isSliding(): boolean { return this.slide.active; }
+  get slideProgress(): number { return this.slide.progress; }
 }

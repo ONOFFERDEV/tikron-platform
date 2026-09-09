@@ -1,4 +1,5 @@
 import { PING, resolvePing, type TeamPing } from '../ping.js';
+import { SprintSlide } from '../slide.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
 import { WeaponHandling, isSprinting } from "../handling.js";
 import {
@@ -188,6 +189,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly inputs = new Map<string, PlayerInput>();
   private readonly vy = new Map<string, number>();
   private readonly grounded = new Map<string, boolean>();
+  private readonly slides = new Map<string, SprintSlide>();
   // Per-weapon ammo: arrays indexed by weapon (0..WEAPONS.length−1), so each weapon
   // keeps its own magazine + reserve (PLAN §4: "탄약/재장전 무기별 분리").
   private readonly magByW = new Map<string, number[]>();
@@ -429,6 +431,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.inputs,
       this.vy,
       this.grounded,
+      this.slides,
       this.magByW,
       this.reserveByW,
       this.reloadUntil,
@@ -553,6 +556,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private integrate(id: string, p: ArenaPlayer, dt: number): void {
     const inp = this.inputs.get(id) ?? NO_INPUT;
+    let slide = this.slides.get(id);
+    if (!slide) { slide = new SprintSlide(); this.slides.set(id, slide); }
+    const wasSliding = slide.active;
+    const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, p.yaw);
 
     // Crouch (updated before speed/height so this tick uses it). Standing up is
     // rejected if the taller capsule would clip cover/ceiling.
@@ -583,6 +590,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       wx /= wl;
       wz /= wl;
     }
+    if (momentum) { wx = momentum.x; wz = momentum.z; speed = momentum.speed; }
 
     // Jump (edge-triggered): fire only when grounded; consume the request either way.
     if (grounded && inp.jump) {
@@ -606,6 +614,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       MOVE.stepUp,
       this.map.ramps ?? [],
     );
+    slide.observe(Math.hypot(res.pos.x - p.x, res.pos.z - p.z), res.grounded);
+    if (slide.active !== wasSliding) this.sendNear('slide',
+      { id, active: slide.active, x: res.pos.x, y: res.pos.y, z: res.pos.z }, res.pos.x, res.pos.z, { always: [id] });
     p.x = res.pos.x;
     p.y = res.pos.y;
     p.z = res.pos.z;
@@ -1337,6 +1348,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private spawnInto(p: ArenaPlayer, id: string): void {
+    this.slides.delete(id);
     // Every map uses authoritative threat scoring. FFA considers everyone hostile
     // and searches both pools; rotation only breaks equally safe choices.
     const teamed = this.gameMode.teams;
@@ -1517,6 +1529,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.inputs,
       this.vy,
       this.grounded,
+      this.slides,
       this.magByW,
       this.reserveByW,
       this.reloadUntil,

@@ -2,7 +2,7 @@ import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
 import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { WeaponHandling, isSprinting } from "../src/handling.js";
-import { setMasterVolume, isMuted } from "./audio.js";
+import { setMasterVolume, isMuted, playSlide, playLanding } from "./audio.js";
 /**
  * ironsight client entry point (W-B). Wires the network layer, input, local
  * prediction, the three.js scene, the DOM HUD, and synth audio into one frame
@@ -187,6 +187,8 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
+    movementInfo: () => ({ sliding: predictor.isSliding, progress: predictor.slideProgress,
+      grounded: predictor.isGrounded, crouch: predictor.crouch, pos: { ...predictor.pos } }),
     recoilInfo: () => ({ ...recoil.state, ...recoilSample(recoil.state, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, net.serverNow(), handling.adsProgress >= 1) }),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
     hitboxDiag: () => scene.getHitboxDiagnostics(),
@@ -258,6 +260,15 @@ async function main(): Promise<void> {
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
   net.onStreak((e) => hud.showStreak(name(e.id), e.count));
+  const remoteSlides = new Map<string, () => void>();
+  net.room.onMessage('slide', payload => {
+    const e = payload as { id: string; active: boolean; x: number; y: number; z: number };
+    if (e.id === net.myId) return;
+    remoteSlides.get(e.id)?.(); remoteSlides.delete(e.id);
+    const p = net.state?.players[e.id], me = net.state?.players[net.myId];
+    if (e.active && p?.alive) remoteSlides.set(e.id, playSlide(e, e,
+      hostileFoley(p.team, me?.team ?? p.team, isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm'))));
+  });
   net.onShot((e: ShotEvent) => {
     const dir = { x: e.dx, y: e.dy, z: e.dz };
     // Self shots already got their tracer/casing at the moment of firing (see the
@@ -370,6 +381,7 @@ async function main(): Promise<void> {
   let wasOnline = net.online;
   let wasEnded = false;
   let motionX = predictor.eye().x;
+  let stopSlide: (() => void) | undefined;
   let motionZ = predictor.eye().z;
   let prevYaw = input.yaw;
   let prevPitch = input.pitch;
@@ -489,6 +501,13 @@ async function main(): Promise<void> {
       }
     }
 
+    scene.reducedMotion = settings.get().reducedMotion;
+    if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active))
+      playLanding(predictor.pos);
+    if (active && predictor.isSliding && !stopSlide) stopSlide = playSlide(predictor.pos);
+    if ((!active || !predictor.isSliding) && stopSlide) { stopSlide(); stopSlide = undefined; }
+    for (const [id, stop] of remoteSlides) if (!net.online || !state?.players[id]?.alive) { stop(); remoteSlides.delete(id); }
+
     // While dead, hold the frozen death-cam view instead of following input look.
     if (deathCam) {
       scene.setView(deathCam.eye, deathCam.yaw, deathCam.pitch);
@@ -511,7 +530,7 @@ async function main(): Promise<void> {
     setMasterVolume(settings.get().volume);
     scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
     if (!alive) scene.hideViewmodel();
-    scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded);
+    scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded && !predictor.isSliding);
 
     // Remote players interpolated in the past.
     const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
@@ -521,7 +540,7 @@ async function main(): Promise<void> {
       const previous = remoteFoley.get(id);
       const threatGain = hostileFoley(p.team, net.state?.players[net.myId]?.team ?? p.team,
         isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm'));
-      scene.stepFootRemote(id, p, dt, eye, threatGain, footGrounded(p, map));
+      scene.stepFootRemote(id, p, dt, eye, threatGain, footGrounded(p, map) && !remoteSlides.has(id));
       const phase = reloadPose(remoteReloadProgress(p.alive, p.reloadEnd,
         WEAPONS[p.weapon]?.reloadMs ?? 1, net.serverNow())).phase;
       // Seed on AOI entry; never replay an already-running phase.

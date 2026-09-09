@@ -249,6 +249,32 @@ export function playFootstep(atten = 1, source?: SoundPoint, feet?: SoundPoint):
   src.onended = () => { src.disconnect(); lp.disconnect(); g.disconnect(); bus.release(); };
 }
 
+/** Surface scrape + equipment transient. Reuses prepared noise; bounded to 800 ms. */
+export function playSlide(feet: SoundPoint, source?: SoundPoint, threatGain = 1): () => void {
+  const c = ready();
+  if (!c || !master || !noise) return () => {};
+  const bus = spatialBus(c, source, threatGain); if (!bus) return () => {};
+  const t = c.currentTime, src = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
+  src.buffer = noise; src.loop = true;
+  const metal = footSurface(feet, acousticMap) === 'metal';
+  filter.type = 'bandpass'; filter.Q.value = metal ? 1.7 : .6;
+  filter.frequency.setValueAtTime(metal ? 1800 : 950, t);
+  filter.frequency.exponentialRampToValueAtTime(180, t + .8);
+  gain.gain.setValueAtTime(.001, t); gain.gain.linearRampToValueAtTime(.19, t + .025);
+  gain.gain.exponentialRampToValueAtTime(.001, t + .8);
+  src.connect(filter).connect(gain).connect(bus.input); src.start(t); src.stop(t + .82);
+  let ended = false;
+  src.onended = () => { ended = true; src.disconnect(); filter.disconnect(); gain.disconnect(); bus.release(); };
+  playReloadCue('mag-out', source, threatGain);
+  return () => { if (!ended) { gain.gain.cancelScheduledValues(c.currentTime);
+    gain.gain.setTargetAtTime(.001, c.currentTime, .015); src.stop(c.currentTime + .06); } };
+}
+
+export function playLanding(feet: SoundPoint): void {
+  playFootstep(1.4, undefined, feet);
+  playReloadCue('mag-in');
+}
+
 /** Hurt: a short descending low-register thud, distinct from the shooter-side
  *  `playHit` tick — this is the VICTIM's feedback on taking damage. */
 export function playHurt(): void {

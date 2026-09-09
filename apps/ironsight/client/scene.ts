@@ -360,6 +360,23 @@ export class SceneRig {
   private readonly debrisMatrix = new THREE.Matrix4();
   private shakeAmp = 0;
   reducedMotion = false;
+  private slideBlend = 0;
+  private sprintBlend = 0;
+  private landingDip = 0;
+  private airborneMs = 0;
+
+  /** Render-only bank/drop; no aim rotation, lights, materials or render passes. */
+  updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean): boolean {
+    const landed = active && grounded && this.airborneMs >= 100;
+    this.airborneMs = active && !grounded ? this.airborneMs + dtMs : 0;
+    if (landed) this.landingDip = .055;
+    const k = 1 - Math.exp(-dtMs / 75);
+    this.slideBlend += ((sliding && active ? 1 : 0) - this.slideBlend) * k;
+    this.sprintBlend += ((sprinting && active ? 1 : 0) - this.sprintBlend) * k;
+    this.landingDip *= Math.exp(-dtMs / 110);
+    if (!active || this.reducedMotion) { this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
+    return landed;
+  }
   private lastFx = performance.now();
   private readonly vfx: Vfx;
   private readonly muzzleWorldScratch = new THREE.Vector3(); // reused by getSelfMuzzlePos, one per call not per frame
@@ -925,7 +942,7 @@ export class SceneRig {
     const response = 1 - Math.exp(-dt * MOTION.speedResponse);
     this.motionSpeed += ((grounded ? clamp(speed01, 0, 1) : 0) - this.motionSpeed) * response;
     this.bobPhase += dt * MOTION.bobRate * this.motionSpeed;
-    const bobAmt = this.reducedMotion ? 0 : this.motionSpeed * MOTION.bobAmplitude;
+    const bobAmt = this.reducedMotion ? 0 : this.motionSpeed * MOTION.bobAmplitude * (1 - this.slideBlend);
     const bx = Math.cos(this.bobPhase) * bobAmt;
     const by = Math.sin(this.bobPhase * 2) * bobAmt * 0.6;
     const swayResponse = 1 - Math.exp(-dt * MOTION.swayResponse);
@@ -958,6 +975,7 @@ export class SceneRig {
     else this.adsProgress = clamp(this.adsProgress + (aiming ? 1 : -1) * dt * 1000 / adsMs, 0, 1);
     this.adsT = easeAds(this.adsProgress);
     this.fovCur = lerp(HIP_FOV, ADS_FOV[this.weaponIndex] ?? HIP_FOV, this.adsT);
+    this.fovCur += (this.slideBlend * 8 + this.sprintBlend * 5 * (1 - this.slideBlend)) * (1 - this.adsT);
     if (this.camera.fov !== this.fovCur) {
       this.camera.fov = this.fovCur;
       this.camera.updateProjectionMatrix();
@@ -979,11 +997,13 @@ export class SceneRig {
         (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
       lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
     );
+    this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08) * (1 - ads);
     this.viewmodel.rotation.set(
       pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch + reload.tilt * 0.20,
       pose.yaw * (1 - ads) + this.swayX * steady,
       (this.reducedMotion ? 0 : Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady) - reload.tilt * 0.40,
     );
+    this.viewmodel.rotation.z -= this.slideBlend * .18 * (1 - ads);
 
     if (now - this.muzzleFiredAt > MUZZLE_LIFE_MS) {
       (this.muzzle.material as THREE.MeshBasicMaterial).opacity = 0;
@@ -1017,10 +1037,11 @@ export class SceneRig {
   setView(eye: { x: number; y: number; z: number }, yaw: number, pitch: number): void {
     const sx = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
     const sy = !this.reducedMotion && this.shakeAmp > 0.002 ? (Math.random() - 0.5) * this.shakeAmp * 0.12 : 0;
-    this.camera.position.set(eye.x + sx, eye.y + sy, eye.z);
+    this.camera.position.set(eye.x + sx, eye.y + sy - this.landingDip, eye.z);
     const cp = Math.cos(pitch);
     this.camera.up.copy(EYE_UP);
-    this.camera.lookAt(eye.x + Math.sin(yaw) * cp + sx, eye.y + Math.sin(pitch) + sy, eye.z + Math.cos(yaw) * cp);
+    this.camera.lookAt(eye.x + Math.sin(yaw) * cp + sx, eye.y + Math.sin(pitch) + sy - this.landingDip, eye.z + Math.cos(yaw) * cp);
+    this.camera.rotateZ(-this.slideBlend * .035);
   }
 
   // --- players ----------------------------------------------------------------
@@ -1219,7 +1240,9 @@ export class SceneRig {
       locomotion =
         speed < LOCOMOTION_IDLE_MAX ? "idle" : speed < LOCOMOTION_WALK_MAX ? "walk" : model.hasSprintClip ? "sprint" : "run";
     }
-    if (speed >= LOCOMOTION_IDLE_MAX && pose.weapon === 0) {
+    const sliding = pose.crouch && speed > GAME.move.crouch * 1.25;
+    if (sliding && model.hasCrouchClips) locomotion = 'crouch_idle';
+    if (!sliding && speed >= LOCOMOTION_IDLE_MAX && pose.weapon === 0) {
       // Travel relative to the facing direction, never inferred from aim alone.
       const lateral = dx * Math.cos(pose.yaw) - dz * Math.sin(pose.yaw);
       const forward = dx * Math.sin(pose.yaw) + dz * Math.cos(pose.yaw);

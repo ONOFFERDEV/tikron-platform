@@ -1,4 +1,5 @@
 import { pingWheelProbe } from './ping-wheel-probe.mjs';
+import { slideProbe } from './slide-probe.mjs';
 import { recoilProbe } from './recoil-probe.mjs';
 import { trainingProbe } from './training-probe.mjs';
 import { handlingProbe } from './handling-probe.mjs';
@@ -91,7 +92,7 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
@@ -261,6 +262,8 @@ try {
         record: async entry => writeFile(join(output, `${prefix}-recoil-${entry.slot}.json`), JSON.stringify(entry, null, 2)),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'handling') combat = await handlingProbe({ send, evaluate, waitFor, delay, assertFixed: args.includes('--assert-handling'),
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
+      if (name === 'slide') combat = await slideProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'menu-probe') combat = await menuProbe({ send, evaluate, click, waitFor, delay, assertFixed: args.includes('--assert-first-play') });
       if (name === 'reconnect') {
