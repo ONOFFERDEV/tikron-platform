@@ -437,3 +437,19 @@ export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): vo
   tone.start(t);air.start(t);tone.stop(t+duration);air.stop(t+duration);
   air.onended=()=>{air.disconnect();filter.disconnect();tone.disconnect();gain.disconnect();};
 }
+
+/** Short radio-ident and radar chirp. Entire graph drains in <=1.25s, through
+ * the existing volume/mute/limiter. No browser speech dependency or extra loop. */
+export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'): void {
+  const c = ready(); if (!c || !master) return;
+  const notes = kind === 'earned' ? [330, 440, 660, 880] : kind === 'friendly' ? [440, 660, 880] : kind === 'enemy' ? [330, 247, 165] : [1046];
+  const t = c.currentTime;
+  for (const [i, frequency] of notes.entries()) {
+    const tone = c.createOscillator(), gain = c.createGain(), start = t + i * .21;
+    tone.type = kind === 'enemy' ? 'triangle' : 'sine'; tone.frequency.value = frequency;
+    gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(kind === 'pulse' ? .045 : .09, start + .015);
+    gain.gain.exponentialRampToValueAtTime(.001, start + .42);
+    tone.connect(gain).connect(master); tone.start(start); tone.stop(start + .44);
+    tone.onended = () => { tone.disconnect(); gain.disconnect(); };
+  }
+}

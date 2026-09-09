@@ -36,6 +36,8 @@ export function startMapInspector(): void {
     'core-open': [63,1.65,48,75,1.65,50],
     'core-inside': [73,1.65,50,88,1.65,50],
     'core-stress': [63,1.65,48,75,1.65,50],
+    'recon-stress': [8,1.65,11,75,24,45],
+    'recon-flyover': [30,1.65,24,75,32,34],
     cooling: [52, 1.65, 25, 94, 2.3, 25],
     uplink: [78, 2.85, 4, 81, 5, -6],
     exterior: [110, 9, 3, 75, 0, -10],
@@ -138,6 +140,10 @@ export function startMapInspector(): void {
       const frame=signalFrame(1000,'live',1000+age);
       scene.setCoreOpen(frame.phase==='blackout');scene.updateSignal(frame);
     }
+    if (effects || shotName === 'recon-flyover') {
+      const age = effects ? now - started : 6000;
+      scene.updateSupport([0, 1].map(team => ({ owner: `fixture-${team}`, team, startedAt: 1000, endsAt: 13000 })), 1000 + age);
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -155,6 +161,7 @@ export function startMapInspector(): void {
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       uplinks: scene.inspectRelayUplinks(),
       signal: scene.inspectSignal(),
+      support: scene.inspectSupport(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),

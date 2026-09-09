@@ -1,3 +1,5 @@
+import { SupportHud } from './support-hud.js';
+import { playSupportCue } from './audio.js';
 import { SignalHud } from './signal-hud.js';
 import { CoreCollision } from '../src/core-gate.js';
 import { playSignalCue } from './audio.js';
@@ -118,6 +120,8 @@ async function main(): Promise<void> {
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
   const signalHud = new SignalHud(playSignalCue);
+  const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth);
+  net.room.onMessage('support', payload => supportHud.receive(payload, net.serverNow(), net.state, net.myId));
 
   let lastPingAt = -Infinity;
   const input = new Input(
@@ -194,6 +198,7 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
+    supportInfo: () => ({ ...supportHud.inspect(), aircraft: scene.inspectSupport(), serverNow: net.serverNow() }),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
     movementInfo: () => ({ launching: predictor.isLaunching, traversing: predictor.isTraversing, traversalProgress: predictor.traversalProgress, sliding: predictor.isSliding, progress: predictor.slideProgress,
       grounded: predictor.isGrounded, crouch: predictor.crouch, pos: { ...predictor.pos } }),
@@ -267,7 +272,7 @@ async function main(): Promise<void> {
     }
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
-  net.onStreak((e) => hud.showStreak(name(e.id), e.count));
+  net.onStreak((e) => { if ((e.count !== 3 || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
   const remoteSlides = new Map<string, () => void>();
   net.room.onMessage('traversal', payload => {
     const e = payload as { id:string; kind:string; x:number; y:number; z:number };
@@ -521,7 +526,10 @@ async function main(): Promise<void> {
     }
 
     scene.reducedMotion = settings.get().reducedMotion;
-    if(state) scene.updateSignal(signalHud.update(state,net.serverNow(),net.online));
+    const signal = state ? signalHud.update(state, net.serverNow(), net.online) : undefined;
+    if (signal) scene.updateSignal(signal);
+    const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, signal?.phase === 'blackout', input.locked) : undefined;
+    scene.updateSupport(support?.flights ?? [], net.serverNow());
     if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active, predictor.isTraversing, predictor.isLaunching))
       playLanding(predictor.pos);
     if (active && predictor.isSliding && !stopSlide) stopSlide = playSlide(predictor.pos);
@@ -577,7 +585,7 @@ async function main(): Promise<void> {
     }
     if (state) { hud.setScores(state.redScore, state.blueScore); hud.setMatchContext(state, net.serverNow(), net.myId); }
     input.updateCommunication(net.online && state?.phase === 'live' && !!state.players[net.myId]?.alive && state.mode !== 1);
-    if (state) tacticalMap.update(state, net.myId, input.yaw, now, net.serverNow(), net.online && input.locked);
+    if (state) tacticalMap.update(state, net.myId, input.yaw, now, net.serverNow(), net.online && input.locked, support);
     const mode = state?.mode ?? 0;
     const modeId = MODE_ORDER[mode] ?? "tdm";
     const teamless = isTeamless(modeId);

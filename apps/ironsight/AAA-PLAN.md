@@ -14,8 +14,11 @@ faces these arrivals toward inner exits and restores authoritative aim on respaw
 Session 39 adds Undertow objective rehearsal. Session 40 adds rebindable Q team
 pings (aim, then mark; five-second snapshot). Session 41 adds a required own-mark
 training lesson on every map, including unbound-key guidance. Session 42 adds
-rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; supervisor status confirms it is deployed. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; supervisor status confirms it is deployed. Session48 started Signal Break but failed the supervisor test gate and was not published. Session49 fixes both CPU-heavy test timeouts and completes Signal Break with a collision-backed core passage, safe shutter closure, historical shot barriers and limited bot pushes. Sessions48/49 remain a local candidate for supervisor publication. Continue the standing brief defaults.
+rebindable B / Need backup at your location. Session 43 adds hold-Q selection: mouse up for context, left for Go here, right for Need backup; release to send, centre/right-click to cancel. Session 44 adds Relay lane cover/courts, a solid central signal spine and tiled ground colour. Supervisor status confirms Session44 is deployed. Session45 adds sprint-slide (hold forward + sprint, then hold crouch), FOV/weapon momentum and slide/landing foley; supervisor status confirms it is deployed. Session46 adds jump-assisted waist-cover vault/mantle and Undertow density/detail; supervisor status confirms it is deployed. Session47 completes Momentum with Switchyard induction pads, cover density and ground detail; supervisor status confirms it is deployed. Session48 started Signal Break but failed the supervisor test gate and was not published. Session49 fixes both CPU-heavy test timeouts and completes Signal Break with a collision-backed core passage, safe shutter closure, historical shot barriers and limited bot pushes. Supervisor Session50 status confirms Sessions48/49 passed, were committed as f4c5e55 and deployed to preview. Session50 adds earned UAV recon locally; it awaits supervisor publication. Continue the standing brief defaults.
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
+
+Session50 quick check (local candidate): in Relay TDM or Undertow DOM, earn three eliminations without dying. A UAV launches automatically and shares three last-seen radar scans with your team over 12 seconds. Kill its operator to end the flight; Relay blackout blocks scans. A queued UAV waits for team airspace and is lost on death. Training / Relay rehearses the same reward privately by shooting the targets. FFA has no UAV yet. Air Support is a three-session arc: UAV now, called mortar next, support drone last.
+
 
 Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
 
@@ -28,7 +31,7 @@ Try this in 10 minutes with headphones, mouse/keyboard and another player ready:
 
 Session47 quick check: Training / Switchyard, find a teal induction plate beside the central deck, face the JUMP > DECK sign, and press forward + your jump key. Land on the amber target; compare Reduced motion in Settings.
 
-Session48 quick check: Training / Relay, head toward the northern Cooling wall and look up at the dish. Thirty seconds after the room starts, watch the eight-second warning, the six-second turn and 15-second minimap outage. B still sends a text backup callout. Session49 completes the arc locally: the core opens with the blackout. Training / Relay: follow the CORE / TRANSIT signs on the west/east faces of the central spine. The 4m-wide tunnel opens 38s after live starts; cross during the 15s blackout. If you remain inside, the HUD says CLEAR TO SEAL and both doors stay open until you exit. One nearby bot per team can stage for this route in TDM. This candidate is not yet published.
+Session48 quick check: Training / Relay, head toward the northern Cooling wall and look up at the dish. Thirty seconds after the room starts, watch the eight-second warning, the six-second turn and 15-second minimap outage. B still sends a text backup callout. Session49 completes the arc: the core opens with the blackout. Training / Relay: follow the CORE / TRANSIT signs on the west/east faces of the central spine. The 4m-wide tunnel opens 38s after live starts; cross during the 15s blackout. If you remain inside, the HUD says CLEAR TO SEAL and both doors stay open until you exit. One nearby bot per team can stage for this route in TDM. Supervisor Session50 status confirms the core event is published to preview.
 
 A solo warmup or bots do **not** validate 6v6. If no round finishes within the ten
 minutes, record rematch as untested. Report browser/GPU, map, weapon and the exact
@@ -342,8 +345,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 49. Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session49-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 50. Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session50-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -368,7 +371,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session49 final natural12-bot Relay TDM192.7s,91kills/101lives,41:50 score,5m death heatmap. Two bots enter the core; observed close holds0.5s/23.2s. Initial zero-visitor round retained. Single seed does not establish fairness, pacing or many-round side win rates. |
+| R-M20 | partial | Session50 same natural12-bot Relay seed0x28abc:192.7s,41:50,91kills; six earned UAV launches/twelve scans, one peak concurrent flight. Bots retain existing targeting and do not consume recon. Heatmap/contact samples retained; not a pacing/fairness or human6v6 improvement claim. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | partial | Sniper tracer, slow cadence and Session26 400 ms ADS acquisition; hip fire remains immediate, glint absent. |
@@ -389,7 +392,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
 | R-G20 | met | Session49 CoreCollision serves movement/traversal, predictor, rays, pings, grenades/blasts, spawn checks and both bot navigators. Replicated coreOpen includes occupancy holds; analytic and hybrid fire share historical shutter state. Swept grenade contacts prevent thin-shutter tunnelling; human RTT feel remains open. |
-| R-L01 | partial | Streak notices at 3/5/8 reset on death; no tier rewards/catch-up. |
+| R-L01 | partial | Session50 Air Support1/3 enables automatic three-kill UAV:12s, scans at2/6/10s,2.2s fixed snapshots,30s shared team launch cooldown, queued life/death reset and operator-death cancellation. Six natural bot launches. Five-kill mortar/seven-kill drone and explicit catch-up remain for Sessions51/52; no full three-tier acceptance. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
 | R-L04 | met | 3000 ms live respawn and dynamic scoring retained. Session38 restores authoritative arrival aim once, wraps yaw into codec range, and passes real death/revival with no probe aim correction. Human camping acceptance remains open. |
@@ -402,31 +405,34 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session49 picks at most one living bot per team within45m on the public Relay warning; stages at an entry, then uses existing objective movement/aim/reaction through the open exit. Death/completion cancels the push. No HP/speed/accuracy changes; two natural visitors. Difficulty progression open. |
 | R-L12 | partial | Baked illustrative palette/operator contrast; all lighting/player readability unverified. |
 | R-L13 | partial | Team-colour mass on existing operator; torso value separation needs real-play review. |
-| R-L14 | partial | Session49 solid shutter pose follows replicated authority; Reduced motion preserves route, indicators and timings, stopping only wall runners. No new lights/passes; matched Relay stress232calls/63.8346MiB/31textures/28prepared programs; exact hitch passes. Human/iGPU approval remains open. |
+| R-L14 | partial | Session50 preserves gameplay contacts under Reduced motion while omitting the canvas scan ring. Two fixed110-triangle aircraft, no new texture/light/pass/collision. Final matched stress233calls/63.8346MiB/31textures/29prepared programs; final exact two-death hitch passes with no recompiles/errors/spikes. Human/iGPU acceptance remains open. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Signal Break2/2 complete by default: one public server epoch drives warning, dish turn, map disruption, a core route and limited bot staging. Replicated occupancy can hold the route after radar recovery. Actual route and natural bot evidence pass; human tactical value open. |
-| R-L17 | partial | Explicit streak/kill feedback; no broader repeatable medal set. |
+| R-L16 | partial | Session50 one earned server flight drives radio-ident cues, HUD progress/announcement, a visible UAV and private team snapshots. Signal Break and Momentum remain enabled. Arc1/3 is playable; higher support tiers remain next. |
+| R-L17 | partial | Session50 explicit repeatable three-elimination UAV reward with0/3 progress and distinct earned/friendly/enemy announcement. Five/eight legacy notices retained pending the next tiers; no broader medal set. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Five rows, killer/weapon/victim/HEADSHOT text; top-right, team coloured, objective feed absent. |
 | R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
-| R-L22 | partial | Session49 retains15s minimap clearing and text callouts; recovered map marks actual coreOpen including held closure. Actual warning/open/interior/recovery/held/sealed capture and390px layout pass. Intentional HUD disruption is not a state-privacy boundary; human value open. |
+| R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
 | R-L23 | not yet | No enemy-highlight colour dropdown. |
 
 
 ## AAA gap list
 
-Session 49: re-ranked all63 references after completing Signal Break2/2 and
-repairing the supervisor's failed Session48 test gate. Momentum and Signal Break
-are on by default in the local candidate. Measured encounter failures and human
-acceptance remain open; a green desktop build is not AAA approval.
+Session 50: re-ranked all63 references around the new Air Support arc1/3.
+Momentum and Signal Break are confirmed deployed by supervisor status; the
+earned UAV is enabled in this local candidate. Encounter timing and human/device
+acceptance remain open. Complete this arc by Session52 before switching themes.
 
-1. **Streak and weapon spectacle (R-L01/17, R-G03/10/17).** Next default arc:
-   earned3/5/7 rewards with resets/caps and a visible, audible payoff. Unique
-   muzzle silhouettes, sniper glint and bounded explosion trauma remain strong
-   follow-ups. Keep the existing light/pass, shader and asset budgets.
+1. **Air Support arc2/3, then3/3 (R-L01/17/22, R-G20).** Session50's three-kill
+   UAV is playable with caps, death cancellation, snapshots and a flyover. Next:
+   five-kill called mortar with server-validated point/telegraph/blast cover and
+   bounded effects; then seven-kill support drone plus a mild catch-up element.
+   Support damage must not recursively farm support rewards. Keep resets/caps,
+   current collision authority, light/pass/shader and asset budgets. Full3/5/7
+   rewards remain incomplete; weapon silhouettes/glint/trauma follow this arc.
 2. **Encounter fairness and signature-route value (R-M03/07/09/10/13/20).**
-   Session49 Relay initial/respawn damage medians13.7/12.3s still miss20-30s;
+   Session50 Relay initial/respawn damage medians13.7/12.3s still miss20-30s;
    Switchyard2.7/6.05s remains the largest miss. Two natural core visitors now
    observed, but one seeded round cannot establish human route use or fairness.
    Test real fights around the core before calling the new shortcut balanced.
@@ -6894,3 +6900,197 @@ four owned preview trees are gone, with zero port8796 listeners or inspection
 browsers. Own Blender bakes exited normally; unrelated host processes were left
 untouched. Final scope/diff check passes within apps/ironsight/**. All standing
 gates green; no commit, push or deploy. Signal Break arc implementation complete.
+
+
+### Session 50 - 2026-09-09: Air Support arc 1/3 - earn a UAV and light up the map
+
+Read the standing brief, Session50 supervisor status, plan/scorecard and all63
+design references. Branch ironsight-aaa; scope apps/ironsight/** only. Status
+confirms Session49 is green and deployed as f4c5e55; corrected the outdated
+publication note in the playtest guide. No commit, push or deployment here.
+
+Reference: R-L01/14/16/17/22, R-G20. Targets: an actual earned first tier at
+three consecutive eliminations;12s UAV with scans at2/6/10s,2.2s last-seen
+contacts,30s shared team launch cooldown, no extension/stacking, death resets,
+private team delivery, blackout suppression, and a visible/audible payoff
+without new textures/lights/passes. Implemented targets pass. R-L01 remains
+PARTIAL: Session51 should add the five-kill called mortar; Session52 the
+seven-kill support drone and mild catch-up. The whole3/5/7 arc is not complete.
+UAV is ON by default in TDM/DOM, with private Relay training rehearsal. FFA
+retains its existing streak notices and gets no UAV. No new owner answer needed.
+
+AirSupport is a bounded room-local scheduler. Only confirmed non-self kills
+reach the existing streak counter; exactly three queues the first reward.
+No activation/reward client handler exists, and forged support/recon/streak
+messages or extra move fields cannot earn it. A team has at most one flight;
+the next earned life waits for30s airspace cooldown. Death discards its queue,
+and the active operator's death ends that team's flight immediately. Elimination
+of the operator is counterplay, not yet the reference's explicit catch-up bonus.
+Bots earn by the same rule. They do not consume radar in their targeting logic;
+no bot HP, speed, accuracy, damage, reaction, routing or visibility advantage.
+
+Each scan freezes only living, unprotected opponents' x/z at a1m grid. No
+enemy IDs, health or live tracking ride this channel. Recipients share a team
+in TDM/DOM; practice uses a namespaced personal channel despite shared team
+numbers. Opponents see public owner/team/flight times without contacts.
+syncView returns current progress, flights and the ORIGINAL unexpired scan,
+not a fresh sample. Death, expiry, seat loss and round/cold-reset clear the
+appropriate state. Queue keys/cooldowns stay bounded by teams/current seats.
+No binary schema/snapshot change; the existing fresh-round cold-restore policy
+already discards runtime combat state. New clients require this Worker to get
+the support event; old clients ignore it. Supervisor owns joint publication.
+
+Relay blackout consumes scheduled scans without sampling, clears the current
+snapshot and defers a queued launch. The active flight still expires on time;
+relink neither replays missed scans nor extends its lifetime. The canvas itself
+is cleared by the existing Signal Break path. Radar rings are cosmetic and
+omitted by Reduced motion; the same fixed contact boxes and ages remain.
+A small clock lead is clamped to zero visual scan age, preventing a negative
+canvas radius. No collision, hitscan, grenade, navigation or map geometry changed.
+
+Presentation:0/3 progress pips, earned/queued/in-flight/spent states, a distinct
+UAV emblem and earned/friendly/enemy announcement. The twelve-second countdown
+uses server time. Existing five/eight streak notices remain until the later
+tiers, with the new announcement taking priority while visible. The panel hides
+in menus, death, warmup, results, disconnect, FFA and empty exploration practice.
+Training copy identifies private rehearsal. Radio-ident chords distinguish
+earned/friendly/hostile support; short radar chirps mark actual scans. All nodes
+drain through the existing master volume/mute/limiter; no speech-engine service
+or recorded voice line. Headphone balance and human announcement quality are open.
+
+Original delta-wing UAV: hull, twin engine pods/fins and short exhaust strips,
+110triangles in one shared vertex-colour geometry/material, fixed two-mesh pool.
+It crosses above the playable16m ceiling at team-stable32/36m altitude. No
+collision or shootable target is implied; the notice explicitly says to eliminate
+its operator. A final review fixed altitude depending on pool index: ending the
+other team's flight can no longer move this aircraft4m vertically. Regression
+checks compare the same flight with and without its neighbour. No new texture,
+light, shadow, pass, asset download, dependency, per-frame bake or Meshy spend.
+Reported Meshy balance1530 retained. Provenance/reproduction: public/assets/README.md.
+
+Wow check: before/after stills plus20s of actual post-launch sampling in
+session50-final-recon-{before,one-away,earned,earned-phone,2300,4500,6300,10300,
+12500,20000,layout-1920,layout-1280,layout-720,layout-390}.png and final-report.json.
+Opened the actual earned/scan/flyover/phone/reduced captures. Player sentence:
+"Three kills, a UAV flies over, and enemy positions light up for my team."
+The probe aims and fires through normal inputs at the existing bot-idle training
+target across three real respawns; no HP/position/clock/reward edits, teleport,
+fake event, room isolation or forced death. Three server kills earn one flight;
+observed scans show4/5/5contacts, a gap with zero contacts between scans, then
+zero flights/contacts after expiry. The6.3/10.3s samples retain contacts after
+Reduced motion is toggled through real Settings; pause hides both support HUDs.
+Four viewport layouts and the active390px reward fit without overlap with the
+tested existing panels. Portrait still has the game's pre-existing dense HUD;
+this is not a touch/controller or human mobile-play acceptance claim.
+Reproduce: node scripts/inspect-map.mjs --url http://localhost:8796 --shots support.
+The last team-altitude fix leaves these own-team0 poses and paired stress poses
+unchanged; its independent resource/pose test and final live gates cover it.
+
+Natural production-bot evidence: session50-final-bot-{round.json,heatmap.svg,
+debug.json}, bot-metrics.log and contact-summary.json. Same seed0x28abc as
+Session49:192.7s,41:50,91kills/101lives; six earned flights and twelve sampled
+scans, one peak concurrent flight. This independently demonstrates normal bot
+streak triggers, not staged rewards. Bots' combat decisions are unchanged, so
+the identical scores/contact distribution are expected. Initial LOS/damage
+medians5.4/13.7s; respawn4.0/12.3s (81/89 damage lives observed).20-30s remains
+NOT MET. Two natural core visitors retained. No fairness/pacing improvement
+or multi-seed side-win-rate claim. Reproduce RELAY_METRICS=1,
+METRICS_PREFIX=session50-final pnpm exec vitest run test/relay-metrics.tool.test.ts.
+
+Static session50-reference-audit.json retains Relay111boxes (65full/46waist),
+Undertow114 (52/62), Switchyard111 (63/48);150x100m/1250m2per seat. Ground-BFS
+rotation proxies A-B/B-C/A-C: Relay14.44/14.44/11.78s in both shutter states,
+Undertow14.22/14.22/11.33, Switchyard14.44/14.44/11.56. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms,3s respawn,1.4hostile foley, distinct hit/kill
+pip, two damage cues and five-row top-right feed remain. DOM4/8s capture,
+1point/2s/flag, no side swap and78FOV still miss references. All63 scorecard
+rows retained; gap list now prioritizes completing this support arc.
+
+Matched Relay effects stress: Edge152/RTX5070 D3D11,1920x1080 balanced/DPR1,
+eleven remotes plus local,145twelve-rifle volleys/96blasts and complete drain.
+Same camera/event stress, with the new two-flight fixture added. Before-report
+versus final-report, supported by session50-render-delta.json:
+
+| Metric | Before | Final | Delta |
+|---|---:|---:|---:|
+|Peak calls including shadow work|232|233|+1|
+|Peak submitted triangles|147074|147184|+110|
+|Resident textures|31|31|0|
+|Estimated texture MiB|63.8346|63.8346|0|
+|Median/p95/p99 frame ms|6.9/7.1/7.1|6.9/7.1/7.1|0 rounded|
+|Max frame ms|7.3|7.2|-.1|
+|First-ready max ms|7.1|7.0|-.1|
+|Prepared programs|28|29|+1|
+|Geometries|153|154|+1|
+
+Construction82.1->84.3ms; preparation1120.8->394.4ms. Cache/order differs;
+no initialization speedup claimed. Additional recon-facing effects view:
+234peak calls,147184triangles, same textures/programs,6.9/7.1/7.1ms
+median/p95/p99,7.4ms max. Different camera, not a matched improvement.
+No owned tests/bakes/other inspection browser overlapped these captures.
+All unchanged240draw/64MiB texture/32texture thresholds pass. No mid-laptop
+iGPU60fps, cold-driver/thermal, network capacity or human6v6 acceptance implied.
+
+Final pnpm typecheck, pnpm test, pnpm build:client and pnpm audit:assets PASS.
+481tests passed/6existing or opt-in skips,55files passed/4skipped. Seven new
+tests cover earning, privacy, frozen/expired scans, queue/death/round reset,
+blackout/skipped intervals, normal fire authority, forged fields, syncView,
+malformed payloads, fixed resources and stable independent aircraft poses.
+Worker dry-run PASS282.67KiB/80.99KiB gzip; no deployment. Evidence session50-
+typecheck-final.log, test-final.log, build-final.log, worker-dry-run.log and
+audit-assets.log. No assertion, timeout, worker count or budget was relaxed.
+
+Required exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+relay,practice-two PASS, zero errors; required-report.json and inspector.log.
+All five session inspector reports have zero console errors/forbidden offline
+network requests (session50-report-checks.json). Final source remained fixed
+through the post-review type/test/build/audit, required inspection and hitch.
+
+Rejected intermediates: initial generic diamond replaced by a UAV emblem;
+desktop announcement moved below DOM gauges; portrait progress moved alongside
+the training coach after the first image showed overlap with elimination text;
+menus/empty practice no longer show irrelevant support panels. Clock-lead and
+pool-index altitude edge cases fixed before final gates. Initial functional and
+verified captures retained separately. Natural-round scan telemetry now records
+the actual sampledAt, not the last100ms observation of the same snapshot. The
+first cleanup report exposed PowerShell array metadata nesting; its35 recorded
+PIDs were recovered and checked before the final preview cycle. No gate failure
+was hidden or weakened; the final cleanup below is the verified result.
+
+Open owner questions/defaults: automatic three-kill launch (yes), one per life
+and30s team airspace (yes), cancellation when its operator dies (yes), exact
+2/6/10s last-seen pulses (yes), keep recon out of FFA for this team-support arc
+(yes), and continue with five-kill called mortar then seven-kill drone by
+Session52 (yes). Add the explicit mild catch-up in the final tier session.
+Retain industrial daylight, amber/teal, server-verified hits and6v6 team modes.
+Human mouse/RTT, operator fairness, audio, animation, iGPU and other-browser
+review remain open. Supervisor owns review and publication; no owner answer
+is needed to continue the accepted arc.
+
+
+Final exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+.inspect/hitch.json --assert PASS: two bot-caused deaths, zero post-warmup
+shader recompiles, >150ms frames, console errors or long tasks. One>24ms frame,
+87.4ms at startup. Live starts8.005s; first damage37.726s (29.721s after live),
+deaths39.166/90.024s and respawns41.872/93.092s. Normal twelve-seat TDM,
+scores16:15 at stop, existing collision-routed W input, one warmup->live
+transition. No storage reset, isolated live room, HP edit, forced death or
+bot modification. session50-hitch.json/log and hitch.json. The earlier PASS
+before the team-altitude review is retained as session50-hitch-first.json/log
+(two deaths, zero errors/recompiles/spikes,94.3ms max); the final run above
+supersedes it. Local stability evidence, not human/network/iGPU qualification.
+
+Final public 32,659,708->32,703,444bytes
+(+43,736); assets 26,294,040->26,294,847
+(+807, provenance text only). Client 1,980,306bytes
+(+13,733); source map 4,427,683bytes.
+Largest file remains Switchyard architecture7,184,816bytes. Public40MiB and
+per-file25MiB caps pass without exception. session50-bytes.json, render-delta.json
+and audit-assets.log provide the measured resource deltas.
+
+Cleanup session50-cleanup.json verifies all47 recorded process IDs across
+the four owned preview trees are gone, with zero port8796 listeners and zero
+inspection/hitch browsers. No own Blender process was started. Final scope/diff
+check stays within apps/ironsight/**. All required gates green, all63 reference
+rows retained, no commit/push/deploy. Air Support1/3 is playable by default in
+the enabled modes; the next session should deliver its called-mortar tier.

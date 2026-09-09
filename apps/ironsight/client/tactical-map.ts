@@ -1,4 +1,5 @@
 import { PING, type TeamPing } from '../src/ping.js';
+import type { SupportView } from '../src/air-support.js';
 import { signalFrame } from '../src/signal-event.js';
 import { formatBinding, type SettingsStore } from './settings.js';
 import { mapCallout } from "./map-presentation.js";
@@ -7,7 +8,7 @@ import type { ArenaState } from "../src/schema.js";
 import { MODES } from '../src/config.js';
 import type { TrainingObjective } from './training-progress.js';
 
-/** Static floor plan plus self/allies only. Enemy positions are never plotted. */
+/** Static floor plan, allies, pings and explicitly server-granted recon snapshots. */
 export class TacticalMap {
   private readonly canvas = document.createElement("canvas");
   private readonly context: CanvasRenderingContext2D;
@@ -70,7 +71,7 @@ export class TacticalMap {
     return p;
   }
 
-  update(state: ArenaState, myId: string, yaw: number, now: number, serverNow = now, active = true): void {
+  update(state: ArenaState, myId: string, yaw: number, now: number, serverNow = now, active = true, support?: SupportView): void {
     if (now - this.lastAt < 100) return;
     this.lastAt = now;
     const me = state.players[myId]; if (!me) return;
@@ -91,6 +92,7 @@ export class TacticalMap {
     const blackout=this.map.presentation==='relay' && signal.phase==='blackout';
     this.canvas.dataset.signal=blackout ? 'offline' : 'online';
     if(blackout) {
+      this.canvas.dataset.reconContacts = '0';
       // Clear the actual canvas; hiding it with an overlay would retain a stale
       // floor/ally frame. Pings keep expiring and text callouts remain available.
       ctx.clearRect(0,0,360,252);ctx.fillStyle='#0d1d24';ctx.fillRect(0,0,360,252);
@@ -101,7 +103,7 @@ export class TacticalMap {
       this.canvas.setAttribute('aria-label','Tactical map offline during relay realignment');
       this.label.textContent=mapCallout(this.map,me.x,me.z);return;
     }
-    this.canvas.setAttribute('aria-label','Your position, teammates and temporary team pings; no enemy tracking');
+    this.canvas.setAttribute('aria-label','Your position, teammates, team pings and earned UAV last-seen contacts');
     ctx.clearRect(0, 0, 360, 252); ctx.drawImage(this.floor, 0, 0);
     if (this.map.signalCore) {
       const b=this.map.signalCore.chamber;
@@ -140,6 +142,24 @@ export class TacticalMap {
       ctx.fillText('A', x, z - 14);
     }
     if (me.alive) dot(me.x, me.z, "#fff3cf", yaw);
+    const scan = active && me.alive && state.phase === 'live' && support?.scan && support.scan.expiresAt > serverNow ? support.scan : null;
+    this.canvas.dataset.reconContacts = String(scan?.contacts.length ?? 0);
+    if (scan) {
+      const age = Math.max(0, serverNow - scan.sampledAt);
+      ctx.save(); ctx.globalAlpha = Math.max(.3, 1 - age / 2600);
+      for (const contact of scan.contacts) {
+        const x = 18 + contact.x * this.scale, z = 18 + contact.z * this.scale;
+        ctx.strokeStyle = '#ffbd8c'; ctx.fillStyle = '#ff967e'; ctx.lineWidth = 2;
+        ctx.strokeRect(x - 6, z - 6, 12, 12); ctx.fillRect(x - 2, z - 2, 4, 4);
+      }
+      ctx.restore();
+      if (!this.settings?.get().reducedMotion) {
+        ctx.strokeStyle = '#80d5dc88'; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.arc(180, 126, Math.min(205, age * .11), 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.fillStyle = '#ffdab0'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
+      ctx.fillText(`UAV / LAST SEEN ${(age / 1000).toFixed(1)}s`, 338, 245);
+    }
     for (const ping of this.pings.values()) {
       const x = 18 + ping.x * this.scale, z = 18 + ping.z * this.scale;
       ctx.strokeStyle = ping.kind === 'enemy' ? '#ff967e' : ping.kind === 'backup' ? '#80d5dc' : '#ffe0a3'; ctx.lineWidth = 2;

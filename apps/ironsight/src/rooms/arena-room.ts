@@ -1,3 +1,4 @@
+import { AirSupport } from '../air-support.js';
 import { signalEpoch, signalFrame } from '../signal-event.js';
 import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
 import { PING, resolvePing, type TeamPing } from '../ping.js';
@@ -228,6 +229,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly hits = new Map<string, { attacker: string; dmg: number; at: number }[]>();
   /** Current consecutive-kill count per killer id (reset when that player dies). */
   private readonly streaks = new Map<string, number>();
+  private readonly airSupport = new AirSupport();
   /** Deterministic PRNG for per-shot spread (seeded from state.seed in onReady). */
   private spreadRng: () => number = xorshift32(1);
   private dormant = false;
@@ -242,6 +244,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   override onDispose(): void {
+    this.airSupport.clear();
     this.dormant = true;
     // Bots have no core seats: discard their runtime data when all humans leave.
     for (const id of [...this.botBrains.keys()]) this.removeBot(id);
@@ -392,6 +395,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private syncView(client: Client): void {
     const p = this.state.players[client.id];
     if (!p) return;
+    client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, Date.now()));
     const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - Date.now());
     client.send("ammo", {
       mag: this.magArr(client.id)[p.weapon] ?? 0,
@@ -431,6 +435,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   protected override onSeatExpired(client: Client): void {
+    this.airSupport.forget(client.id);
     this.spawnSightHistory.forget(client.id);
     const id = client.id;
     delete this.state.players[id];
@@ -560,6 +565,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     // Grenades in flight: integrate + bounce, detonate on the fuse.
     if (this.grenades.length > 0) this.stepGrenades(dt, now);
+    this.tickSupport(now);
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
     // preset right after this returns — same cadence, same Date.now()). Uses
@@ -1308,6 +1314,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
     this.hits.delete(victimId);
     this.streaks.delete(victimId);
+    this.airSupport.forget(victimId);
+    this.tickSupport(now, true);
 
     // Structured log for offline map-timing/heatmap analysis (map-metrics tool test) —
     // collectible live via `wrangler tail` the same way hybridHit already is. Coordinates
@@ -1370,9 +1378,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private bumpStreak(killerId: string): void {
     const count = (this.streaks.get(killerId) ?? 0) + 1;
     this.streaks.set(killerId, count);
+    this.airSupport.earn(killerId, count, this.state);
     if (MATCH.killstreakThresholds.includes(count)) {
       this.broadcast("streak", { id: killerId, count });
     }
+  }
+
+  private tickSupport(now: number, force = false): void {
+    const changed = this.airSupport.tick(this.state, now,
+      signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
+    if (changed || force) for (const client of this.clientList())
+      client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, now));
   }
 
   // --- spawning / teams -------------------------------------------------------
@@ -1754,6 +1770,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.airSupport.clear();
     // A fresh round relocates every seat below. Also reset the non-durable gate
     // and its replicated bit, including a snapshot restored from an OPEN core.
     this.coreGate.update(false, [], now);
@@ -1777,5 +1794,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.respawnAt.delete(id);
       this.spawnInto(p, id);
     }
+    this.tickSupport(now, true);
   }
 }

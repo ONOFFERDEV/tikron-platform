@@ -721,3 +721,14 @@ node tools/dump-maps.mjs .inspect/session49-maps.json relay
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots core --prefix session49-verified
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots effects-stress,core-effects-stress --assert-budgets --prefix session49-final
 ```
+# Session 50: original recon flyover (runtime geometry)
+
+`client/recon-flyover.ts` authors the UAV from an original delta wing, hull,
+twin engine pods, fins and short exhaust strips. No imported/generated model,
+image, purchased derivative or new public binary. Two meshes share one
+110-triangle geometry and one unlit vertex-colour material; no texture, light,
+shadow, render pass or collision surface is added. Positions seek the room's
+public flight times above the playable ceiling. Reproduce with
+`pnpm build:client`; review `node scripts/inspect-map.mjs --url http://localhost:8796 --shots recon-flyover,recon-effects-stress --assert-budgets`.
+Server-earned gameplay capture: the same inspector with `--shots support`.
+Meshy spend: zero. Existing asset allowlists and private derivatives stay intact.
