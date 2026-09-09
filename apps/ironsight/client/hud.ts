@@ -472,7 +472,7 @@ export class Hud {
     details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
-    const weapon = part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
+    const weapon = part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
     const cause = part === 'head' ? 'HEADSHOT' : part === 'blast' ? 'BLAST' : 'ELIMINATION';
     const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
     node.style.setProperty('--team', color);

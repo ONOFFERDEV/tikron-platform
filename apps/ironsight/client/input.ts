@@ -58,6 +58,7 @@ export class Input {
     /** KeyG pressed: throw a grenade. */
     private readonly onNade?: () => void,
     private readonly onPing?: (intent: PingIntent) => void,
+    private readonly onSupport?: () => void,
   ) {
     this.yaw = initialYaw;
     this.bind();
@@ -84,6 +85,8 @@ export class Input {
           if (!e.repeat) this.onNade?.();
         } else if (binds.ping.includes(e.code)) {
           if (!e.repeat && this.communicationActive) this.pingGesture.begin(e.code, performance.now());
+        } else if (binds.support.includes(e.code)) {
+          if (!e.repeat && this.communicationActive && !this.pingGesture.open) this.onSupport?.();
         } else if (binds.backup.includes(e.code)) {
           if (!e.repeat) this.onPing?.('backup');
         } else if (e.code.startsWith("Digit")) {

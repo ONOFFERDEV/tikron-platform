@@ -40,7 +40,8 @@ export type BindAction =
   | "reload"
   | "grenade"
   | "ping"
-  | "backup";
+  | "backup"
+  | "support";
 
 export interface Settings {
   /** Multiplier applied on top of the base `MOUSE_SENSITIVITY` rad/px constant. */
@@ -75,6 +76,7 @@ export const BIND_ACTIONS: readonly BindAction[] = [
   "grenade",
   "ping",
   "backup",
+  "support",
 ];
 
 /** Matches today's hardcoded `input.ts` behavior exactly, so shipping this
@@ -91,6 +93,7 @@ const DEFAULT_BINDS: Record<BindAction, string[]> = {
   grenade: ["KeyG"],
   ping: ["KeyQ"],
   backup: ["KeyB"],
+  support: ["KeyV"],
 };
 
 const DEFAULT_SENSITIVITY = 1.0;
@@ -127,6 +130,7 @@ function mergeWithDefaults(raw: unknown): Settings {
 
   if (r.binds !== null && typeof r.binds === "object") {
     const rb = r.binds as Record<string, unknown>;
+    if (!('support' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyV'))) out.binds.support = [];
     if (!('backup' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyB'))) out.binds.backup = [];
     if (!('ping' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyQ'))) out.binds.ping = [];
     for (const action of BIND_ACTIONS) {

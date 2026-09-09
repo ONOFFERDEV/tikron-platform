@@ -16,6 +16,8 @@ import { buildWedgeGeometry } from "./site-wedge.js";
  */
 import * as THREE from "three";
 import { ReconFlyover } from './recon-flyover.js';
+import { MortarFx } from './mortar-fx.js';
+import type { MortarStrike } from '../src/mortar.js';
 import type { ReconFlight } from '../src/air-support.js';
 import { SignalArray } from './signal-array.js';
 import { SignalCore, addCoreSigns } from './signal-core.js';
@@ -412,6 +414,9 @@ export class SceneRig {
 
   private readonly signalArray?: SignalArray;
   private readonly reconFlyover: ReconFlyover;
+  private readonly mortarFx: MortarFx;
+  updateMortar(strikes: readonly MortarStrike[], now: number): void { this.mortarFx.update(strikes, now, this.reducedMotion); }
+  inspectMortar() { return this.mortarFx.inspect(); }
   updateSupport(flights: readonly ReconFlight[], now: number): void { this.reconFlyover.update(flights, now); }
   inspectSupport() { return this.reconFlyover.inspect(); }
   private readonly signalCore?: SignalCore;
@@ -484,6 +489,7 @@ export class SceneRig {
     this.vfx = new Vfx(this.scene);
     this.buildArena(map);
     this.reconFlyover = new ReconFlyover(this.scene, map.bounds.width, map.bounds.depth);
+    this.mortarFx = new MortarFx(this.scene);
     if (map.presentation === 'relay') this.signalArray = new SignalArray(this.scene,map.bounds.width/2);
     if (map.signalCore) { this.signalCore=new SignalCore(this.scene,map.signalCore);addCoreSigns(this.signalCore.root); }
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {

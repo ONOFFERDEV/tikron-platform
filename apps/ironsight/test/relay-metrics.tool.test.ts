@@ -8,6 +8,7 @@ import { ARENA1 } from '../src/map/arena1.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
 import { CoreCollision } from '../src/core-gate.js';
+import type { MortarSupport, MortarStrike } from '../src/mortar.js';
 import type { AirSupport, ReconFlight } from '../src/air-support.js';
 import type { ArenaState } from '../src/schema.js';
 
@@ -43,7 +44,7 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
       const coreTransitions:{atMs:number;open:boolean}[]=[], coreVisitors=new Set<string>();
       let coreSamples=0, priorOpen=false;
       const supportFlights = new Map<string, ReconFlight>(), supportScans = new Map<string, {atMs:number;team:number;contacts:number}>();
-      let supportPeak = 0;
+      let supportPeak = 0; const mortarStrikes = new Map<string, MortarStrike>();
       const lives: { id: string; team: number; bornMs: number; initial: boolean; losMs?: number; damageMs?: number }[] = [];
       const active = new Map<string, typeof lives[number]>();
       let previous: Record<string, ArenaPlayer> = {};
@@ -56,8 +57,9 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         const players = Object.entries(state.players);
         // Read-only production support telemetry; no observer takes a seat and
         // no streak, aim, HP, route or reward is injected by this tool.
-        const runtime = h.room as unknown as { airSupport: AirSupport; streaks: Map<string, number>; state: ArenaState };
+        const runtime = h.room as unknown as { mortarSupport: MortarSupport; airSupport: AirSupport; streaks: Map<string, number>; state: ArenaState };
         for (const [id, p] of players) {
+          for (const strike of runtime.mortarSupport.view(id,runtime.state).strikes) mortarStrikes.set(`${strike.owner}:${strike.startedAt}`,strike);
           const view = runtime.airSupport.view(id, runtime.streaks.get(id) ?? 0, runtime.state, Date.now());
           supportPeak = Math.max(supportPeak, view.flights.length);
           for (const f of view.flights) supportFlights.set(`${f.owner}:${f.startedAt}`, f);
@@ -89,7 +91,7 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
       const report = { note: 'One seeded natural production-bot 6v6 TDM round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
         bounds: ARENA1.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         core:{transitions:coreTransitions,visitors:[...coreVisitors],samples:coreSamples,sampleMs:100},
-        support:{flights:[...supportFlights.values()],scans:[...supportScans.values()],peakFlights:supportPeak},
+        support:{mortars:[...mortarStrikes.values()],flights:[...supportFlights.values()],scans:[...supportScans.values()],peakFlights:supportPeak},
         redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);

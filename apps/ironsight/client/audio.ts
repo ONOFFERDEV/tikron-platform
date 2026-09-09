@@ -453,3 +453,16 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
     tone.onended = () => { tone.disconnect(); gain.disconnect(); };
   }
 }
+
+/** Short falling-shell whistle; spatial, capped and released before impact. */
+export function playMortarWhistle(source: SoundPoint): void {
+  const c = ready(); if (!c) return;
+  const bus = spatialBus(c, source, 1.4); if (!bus) return;
+  const t = c.currentTime, tone = c.createOscillator(), gain = c.createGain();
+  tone.type = 'triangle'; tone.frequency.setValueAtTime(1500, t);
+  tone.frequency.exponentialRampToValueAtTime(280, t + .65);
+  gain.gain.setValueAtTime(.001, t); gain.gain.linearRampToValueAtTime(.11, t + .45);
+  gain.gain.exponentialRampToValueAtTime(.001, t + .69);
+  tone.connect(gain).connect(bus.input); tone.start(t); tone.stop(t + .7);
+  tone.onended = () => { tone.disconnect(); gain.disconnect(); bus.release(); };
+}

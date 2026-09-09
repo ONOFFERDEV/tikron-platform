@@ -1,4 +1,6 @@
 import { SupportHud } from './support-hud.js';
+import { MORTAR } from '../src/mortar.js';
+import { playMortarWhistle } from './audio.js';
 import { playSupportCue } from './audio.js';
 import { SignalHud } from './signal-hud.js';
 import { CoreCollision } from '../src/core-gate.js';
@@ -120,8 +122,11 @@ async function main(): Promise<void> {
   scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
   const signalHud = new SignalHud(playSignalCue);
-  const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth);
+  const supportHud = new SupportHud(playSupportCue, map.bounds.width, map.bounds.depth, settings);
   net.room.onMessage('support', payload => supportHud.receive(payload, net.serverNow(), net.state, net.myId));
+  net.room.onMessage('mortar', payload => supportHud.receiveMortar(payload, net.serverNow(), net.state, net.myId));
+  net.room.onMessage('mortarDenied', payload => supportHud.denyMortar(payload, net.serverNow()));
+  const whistled = new Set<string>();
 
   let lastPingAt = -Infinity;
   const input = new Input(
@@ -142,6 +147,8 @@ async function main(): Promise<void> {
       lastPingAt = now;
       net.room.send('ping', { yaw: input.yaw, pitch: input.pitch, intent });
     },
+    () => { if (net.online && net.state?.players[net.myId]?.alive && supportHud.mortarInfo().available)
+      net.room.send('mortar', { yaw: input.yaw, pitch: input.pitch }); },
   );
   net.room.onMessage('teamPing', payload => {
     const ping = tacticalMap.receivePing(payload, net.serverNow());
@@ -198,6 +205,7 @@ async function main(): Promise<void> {
     audioProbe: inspectThreatAudio,
     preparationInfo: () => scene.getPreparationInfo(),
     signalInfo: () => ({ ...scene.inspectSignal(), serverNow:net.serverNow() }),
+    mortarInfo: () => ({ ...supportHud.mortarInfo(), effects: scene.inspectMortar(), serverNow: net.serverNow() }),
     supportInfo: () => ({ ...supportHud.inspect(), aircraft: scene.inspectSupport(), serverNow: net.serverNow() }),
     viewmodelInfo: () => scene.viewmodelDiagnostics(),
     movementInfo: () => ({ launching: predictor.isLaunching, traversing: predictor.isTraversing, traversalProgress: predictor.traversalProgress, sliding: predictor.isSliding, progress: predictor.slideProgress,
@@ -272,7 +280,7 @@ async function main(): Promise<void> {
     }
     if (e.killer === net.myId && e.killer !== e.victim) playKill();
   });
-  net.onStreak((e) => { if ((e.count !== 3 || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
+  net.onStreak((e) => { if ((![3, 5].includes(e.count) || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
   const remoteSlides = new Map<string, () => void>();
   net.room.onMessage('traversal', payload => {
     const e = payload as { id:string; kind:string; x:number; y:number; z:number };
@@ -331,6 +339,12 @@ async function main(): Promise<void> {
   net.onNadeBoom((e) => {
     scene.boomNade(e);
     playBoom(e);
+  });
+
+  net.room.onMessage('mortarImpact', payload => {
+    if (!payload || typeof payload !== 'object') return;
+    const p = payload as { x: number; y: number; z: number };
+    if ([p.x,p.y,p.z].every(Number.isFinite)) playBoom(p);
   });
 
   let previousPhase = net.state?.phase;
@@ -530,6 +544,14 @@ async function main(): Promise<void> {
     if (signal) scene.updateSignal(signal);
     const support = state ? supportHud.update(state, net.myId, net.serverNow(), net.online, signal?.phase === 'blackout', input.locked) : undefined;
     scene.updateSupport(support?.flights ?? [], net.serverNow());
+    scene.updateMortar(supportHud.mortarInfo().strikes, net.serverNow());
+    for (const s of supportHud.mortarInfo().strikes) for (let round = 0; round < MORTAR.rounds; round++) {
+      const key = `${s.owner}:${s.startedAt}:${round}`, until = s.startedAt + MORTAR.warningMs + round * MORTAR.intervalMs - net.serverNow();
+      if (until > 0 && until <= 700 && !whistled.has(key)) {
+        whistled.add(key); if (whistled.size > 24) whistled.delete(whistled.values().next().value!);
+        if (input.locked) playMortarWhistle(s);
+      }
+    }
     if (scene.updateTraversal(dt, predictor.isSliding, isSprinting(intent, predictor.isGrounded), predictor.isGrounded, active, predictor.isTraversing, predictor.isLaunching))
       playLanding(predictor.pos);
     if (active && predictor.isSliding && !stopSlide) stopSlide = playSlide(predictor.pos);

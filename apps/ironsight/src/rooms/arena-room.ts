@@ -1,4 +1,5 @@
 import { AirSupport } from '../air-support.js';
+import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
 import { signalEpoch, signalFrame } from '../signal-event.js';
 import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
 import { PING, resolvePing, type TeamPing } from '../ping.js';
@@ -230,6 +231,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** Current consecutive-kill count per killer id (reset when that player dies). */
   private readonly streaks = new Map<string, number>();
   private readonly airSupport = new AirSupport();
+  private readonly mortarSupport = new MortarSupport();
   /** Deterministic PRNG for per-shot spread (seeded from state.seed in onReady). */
   private spreadRng: () => number = xorshift32(1);
   private dormant = false;
@@ -245,6 +247,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   override onDispose(): void {
     this.airSupport.clear();
+    this.mortarSupport.clear();
     this.dormant = true;
     // Bots have no core seats: discard their runtime data when all humans leave.
     for (const id of [...this.botBrains.keys()]) this.removeBot(id);
@@ -349,6 +352,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     });
 
     this.onMessage("ping", (client, payload) => this.handlePing(client, payload));
+    this.onMessage('mortar', (client, payload) => this.handleMortar(client, payload));
     this.onMessage("move", (client, payload, _seq, input) => this.handleMove(client, payload, input));
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
@@ -396,6 +400,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const p = this.state.players[client.id];
     if (!p) return;
     client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, Date.now()));
+    client.send('mortar', this.mortarSupport.view(client.id, this.state));
     const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - Date.now());
     client.send("ammo", {
       mag: this.magArr(client.id)[p.weapon] ?? 0,
@@ -436,6 +441,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   protected override onSeatExpired(client: Client): void {
     this.airSupport.forget(client.id);
+    this.mortarSupport.forget(client.id);
+    this.sendMortarViews();
     this.spawnSightHistory.forget(client.id);
     const id = client.id;
     delete this.state.players[id];
@@ -566,6 +573,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     // Grenades in flight: integrate + bounce, detonate on the fuse.
     if (this.grenades.length > 0) this.stepGrenades(dt, now);
     this.tickSupport(now);
+    const mortar = this.mortarSupport.tick(this.state, now);
+    for (const strike of mortar.impacts) this.explodeMortar(strike);
+    if (mortar.changed) this.sendMortarViews();
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
     // preset right after this returns — same cadence, same Date.now()). Uses
@@ -1309,12 +1319,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           killer.k += 1;
           this.gameMode.onKill(this.modeCtx(), killerId, victimId);
         }
-        this.bumpStreak(killerId);
+        if (part !== 'mortar') this.bumpStreak(killerId);
       }
     }
     this.hits.delete(victimId);
     this.streaks.delete(victimId);
     this.airSupport.forget(victimId);
+    this.mortarSupport.forget(victimId);
+    this.sendMortarViews();
     this.tickSupport(now, true);
 
     // Structured log for offline map-timing/heatmap analysis (map-metrics tool test) —
@@ -1325,6 +1337,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     console.log(
       JSON.stringify({
         tag: "killPos",
+        part,
         mode: this.gameMode.id,
         weapon: weaponSlot ?? null,
         head: part === "head",
@@ -1379,6 +1392,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const count = (this.streaks.get(killerId) ?? 0) + 1;
     this.streaks.set(killerId, count);
     this.airSupport.earn(killerId, count, this.state);
+    this.mortarSupport.earn(killerId, count, this.state);
     if (MATCH.killstreakThresholds.includes(count)) {
       this.broadcast("streak", { id: killerId, count });
     }
@@ -1389,6 +1403,39 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
     if (changed || force) for (const client of this.clientList())
       client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, now));
+  }
+
+  private sendMortarViews(): void {
+    for (const client of this.clientList()) client.send('mortar', this.mortarSupport.view(client.id, this.state));
+  }
+
+  private handleMortar(client: Client, payload: unknown): void {
+    const p = this.state.players[client.id], yaw = readNum(payload, 'yaw'), pitch = readNum(payload, 'pitch');
+    if (!p?.alive || yaw === undefined || pitch === undefined || this.state.phase !== 'live') return;
+    // No client point, radius, owner, damage or timestamp is read.
+    const point = mortarTarget(p, yaw, pitch, this.hitBoxes, this.map.bounds);
+    const accepted = point && this.mortarSupport.call(client.id, this.state, Date.now(), point);
+    if (accepted) this.sendMortarViews();
+    else client.send('mortarDenied', { reason: point ? 'Mortar unavailable or team battery cooling.' : 'Aim at open ground 8-60m away. Walls and roofs block designation.' });
+  }
+
+  private explodeMortar(strike: MortarStrike): void {
+    if (this.state.phase !== 'live' || !this.state.players[strike.owner]?.alive) return;
+    // Re-check the sky at impact: dynamic cover never becomes a damage bypass.
+    if (nearestBox(strike, { x: 0, y: 1, z: 0 }, this.hitBoxes, 100) < 100) return;
+    const impact = { ...strike, r: MORTAR.radius };
+    if (this.state.mode === 3) this.ownerClient(strike.owner)?.send('mortarImpact', impact);
+    else this.sendNear('mortarImpact', impact, strike.x, strike.z, { always: [strike.owner] });
+    for (const [id, p] of Object.entries(this.state.players)) {
+      if (!p.alive || p.prot || (this.gameMode.teams && p.team === strike.team && id !== strike.owner)) continue;
+      // A private training barrage cannot damage another human in practice.
+      if (this.state.mode === 3 && id !== strike.owner && !this.botBrains.has(id)) continue;
+      const dx = p.x - strike.x, dy = p.y + this.height(p) / 2 - strike.y, dz = p.z - strike.z;
+      const distance = Math.hypot(dx, dy, dz);
+      if (distance >= MORTAR.radius || nearestBox(strike, { x: dx / distance, y: dy / distance, z: dz / distance }, this.hitBoxes, distance) < distance) continue;
+      this.applyDamage(id, Math.round(blastDamage(MORTAR.damage, MORTAR.radius, distance)), strike.owner, 'mortar', undefined, strike);
+    }
+    this.markStateChanged();
   }
 
   // --- spawning / teams -------------------------------------------------------
@@ -1580,6 +1627,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private removeBot(id: string): void {
+    this.mortarSupport.forget(id);
+    this.sendMortarViews();
     delete this.state.players[id];
     this.botBrains.delete(id);
     this.grenades = this.grenades.filter((g) => g.owner !== id);
@@ -1628,6 +1677,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
       if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
       if (decision.fire) this.botFire(id);
+      // Only an already-visible firing solution may be designated; no radar or
+      // hidden target lookup. Same ground/range/cooldown checks as human callers.
+      if (decision.fire && !this.showcaseActive && this.mortarSupport.hasCharge(id)) {
+        const point = mortarTarget(self, self.yaw, self.pitch - .08, this.hitBoxes, this.map.bounds);
+        if (point && this.mortarSupport.call(id, this.state, Date.now(), point)) this.sendMortarViews();
+      }
     }
   }
 
@@ -1771,6 +1826,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private resetMatch(now: number): void {
     this.airSupport.clear();
+    this.mortarSupport.clear();
     // A fresh round relocates every seat below. Also reset the non-durable gate
     // and its replicated bit, including a snapshot restored from an OPEN core.
     this.coreGate.update(false, [], now);
@@ -1795,5 +1851,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       this.spawnInto(p, id);
     }
     this.tickSupport(now, true);
+    this.sendMortarViews();
   }
 }

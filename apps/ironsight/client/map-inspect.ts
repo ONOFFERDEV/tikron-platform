@@ -38,6 +38,9 @@ export function startMapInspector(): void {
     'core-stress': [63,1.65,48,75,1.65,50],
     'recon-stress': [8,1.65,11,75,24,45],
     'recon-flyover': [30,1.65,24,75,32,34],
+    'mortar-stress': [8,1.65,11,24,2,11],
+    'mortar-warning': [8,1.65,11,16,.5,11],
+    'mortar-impact': [8,1.65,11,16,2,11],
     cooling: [52, 1.65, 25, 94, 2.3, 25],
     uplink: [78, 2.85, 4, 81, 5, -6],
     exterior: [110, 9, 3, 75, 0, -10],
@@ -144,6 +147,11 @@ export function startMapInspector(): void {
       const age = effects ? now - started : 6000;
       scene.updateSupport([0, 1].map(team => ({ owner: `fixture-${team}`, team, startedAt: 1000, endsAt: 13000 })), 1000 + age);
     }
+    if (effects || shotName.startsWith('mortar-')) {
+      const age = effects ? now - started : shotName === 'mortar-warning' ? 2400 : 4450;
+      scene.updateMortar([0,1].map(team => ({ owner:`fixture-${team}`,team,x:(effects ? 24+team*8 : 16),y:.12,z:11+(!effects ? team*15 : 0),
+        startedAt:1000,endsAt:6900 })), 1000 + age);
+    }
     scene.render();
     const info = scene.getRenderInfo();
     peakCalls = Math.max(peakCalls, info.calls); peakTriangles = Math.max(peakTriangles, info.triangles);
@@ -162,6 +170,7 @@ export function startMapInspector(): void {
       uplinks: scene.inspectRelayUplinks(),
       signal: scene.inspectSignal(),
       support: scene.inspectSupport(),
+      mortar: scene.inspectMortar(),
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),

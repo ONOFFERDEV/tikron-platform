@@ -183,6 +183,7 @@ export const ironsightConfig: GameConfig = defineConfig({
       actionLabels: {
         ping: "Team ping",
         backup: "Need backup",
+        support: "Call mortar",
         forward: "앞으로",
         back: "뒤로",
         left: "왼쪽",

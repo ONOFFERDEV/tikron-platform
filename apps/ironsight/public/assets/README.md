@@ -732,3 +732,19 @@ public flight times above the playable ceiling. Reproduce with
 `pnpm build:client`; review `node scripts/inspect-map.mjs --url http://localhost:8796 --shots recon-flyover,recon-effects-stress --assert-budgets`.
 Server-earned gameplay capture: the same inspector with `--shots support`.
 Meshy spend: zero. Existing asset allowlists and private derivatives stay intact.
+
+# Session 51: original mortar warning and impact geometry
+
+`client/mortar-fx.ts` creates a fixed pool of four ground rings, two descending
+shells and 48 shaded debris/flash fragments in three instanced draws. Original
+procedural geometry and vertex colours; no imported model, texture, downloaded
+asset, light, shadow, extra pass or collision surface. All material variants
+warm with the existing arena preparation. Reduced motion preserves the exact
+hazard boundary, while reducing the shockwave/debris motion. Short falling-shell
+whistles use the existing spatial audio/voice/mute pipeline; confirmed impacts
+use the existing synthesized explosion. Meshy spend: zero.
+
+Reproduce: `pnpm build:client`. Review real earned gameplay with
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots mortar`;
+review the full two-barrage render pool with `--shots effects-stress,mortar-effects-stress --assert-budgets`.
+No public binary or purchased-source derivative added; existing allowlists suffice.

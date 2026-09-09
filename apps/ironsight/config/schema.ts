@@ -259,7 +259,8 @@ export interface TextConfig {
       | "reload"
       | "grenade"
       | "ping"
-      | "backup",
+      | "backup"
+      | "support",
       string
     >;
     /** Shown on a key button while it's waiting for the next keypress. */
