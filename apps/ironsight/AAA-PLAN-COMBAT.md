@@ -5,9 +5,10 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
 
 ## AAA gap list
 
-1. **Owner rollback bug, repair arc 1/2:** measure prediction against the matching
-   authoritative simulation step; replace delayed-echo correction with acknowledged
-   movement replay. Session 2 takes priority over the bot arc.
+1. **Owner rollback bug, repair arc 1/2:** finish live all-map movement telemetry
+   and deliver the tested `Predictor.connect(net.room)` hook to main. Matched-command
+   replay is implemented; dropped-handshake and full-window retry repairs are tested.
+   Production activation is still a main-stream integration requirement.
 2. **Bot squad tactics, arc 2/3:** multi-level routes through map-authored doors,
    stairs and roofs; validate against the map stream's actual new structures.
 3. **Bot squad tactics, arc 3/3:** role names and tactical radio barks through the
@@ -110,13 +111,61 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L18 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-L19 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
+| R-L19 | partial | Session 2: acknowledged-command replay, bounded retries and unchanged correction thresholds. Live all-map evidence and main-stream activation tracked below. |
 | R-L20 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L21 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-L22 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 2 - 2026-09-11: Rollback repair, arc 1/2 - match the movement step
+
+Reference: **R-L19**, **R-L14**, **R-M18**. Owner bug takes priority over the
+bot/audio arcs. Target: compare each server position with the prediction of its
+acknowledged movement command, keep matched error below the unchanged **0.15 m**
+soft threshold throughout real bot rounds on Relay, Undertow and Switchyard,
+and report terrain-specific p50/p95/max plus soft/snap crossings. The snap
+threshold remains **2.5 m**. A delayed echo is a different simulation instant;
+it is recorded separately and is not the reconciliation error.
+
+Resumed from clean **3edd350** after the quota interruption. The preceding
+Session 2 implementation was already merged, but had no session log: this
+entry covers that implementation and this resumed validation/repair work.
+`main.ts` still uses the legacy position-only path in this worktree. All candidate
+browser runs apply the requested two-line integration **in memory** via an
+inspection-only esbuild/CDP response; no main/net/physics/map source is edited.
+The production path and the hooked candidate are identified separately below.
+
+Implemented contract (already present on resume): `Predictor.connect(room)`
+subscribes to owner-only `movement` snapshots and sends ordered, bounded
+`movementSteps` intents at 20 Hz. Commands contain direction, stance, jump and
+yaw, **never position, velocity or client dt**. The authoritative room integrates
+them with its normal capsule, step-up, ramp, slide and traversal code. An eight
+command window bounds replay/storage; at most two commands consume accumulated
+server tick credit in one tick. Retransmissions cannot buy repeated movement.
+Snapshots carry acknowledged sequence, life epoch, full kinematics and controller
+progress/cooldowns. Death/respawn/reconnect reset the epoch; the client restores
+the acknowledged state and replays only pending commands. The camera absorbs
+small real corrections continuously. Legacy position-only callers retain the
+existing fallback until main integrates the hook.
+
+Resumed repairs: a full pending window previously stopped **sending** as well as
+prediction, so losing its final upstream batch froze the client permanently.
+The regression stuck at ack 16 and failed to resume. The capped predictor now
+retransmits at 20 Hz while its camera/position stay bounded; 144 Hz rendering
+does not increase retries. A separately dropped `movementStart` also froze
+startup; it now retries every 500 ms until the first valid snapshot. Both tests
+were observed failing before their fixes. One-tick ordered delivery jitter
+during an actual jump is also covered. These are delivery fixes, not changes
+to movement speed, collision, damage or reconcile thresholds.
+
+Baseline on resume: asset bytes **30,121,938**, public bytes **37,218,252**,
+largest asset **7,183,364**. No Meshy credits, new asset files, textures, lights,
+passes or geometry changes. Current full suite: **789 passed / 7 skipped**,
+**95 files passed / 5 skipped**; 17 prediction-sync tests and typecheck pass.
+Raw evidence is retained under `.inspect/combat-s2-*`; final live/gate results
+and the integration handoff are appended when complete.
 
 ### Session 1 - 2026-09-11: Bot squad tactics, arc 1/3 — fight, cover, reload
 
