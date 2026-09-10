@@ -1,0 +1,40 @@
+{
+  "name": "field-chest-panel",
+  "prompt": "One standalone front armour panel for a military plate carrier. A solid gently curved rectangular canvas-covered chest plate with clipped upper corners and thick rounded edges, width 30 cm height 36 cm thickness 4 cm. Three simple closed box-shaped ammunition pouches in one row attached across the lower front. A small flat blank patch panel on the upper front. Back is flat and plain. Solid single chest attachment only, no vest, no garment, no shoulder straps, no loose straps, no neck hole, no arms or person. Clean practical game prop, smooth taut fabric planes with straight reinforced seams, no crumpling or folded paper shapes. No logos or writing.",
+  "texture_prompt": "Matte desaturated olive drab woven nylon, subtle dusty fabric grain and reinforced stitched borders, quiet dark seams, no camouflage, no bare metal, no shiny surfaces, no tan plastic. Blank patch panel.",
+  "previewId": "01a08ac8-5f34-76b0-a82a-65c63e6e98c1",
+  "refineId": "01a08ac9-9177-7648-bd9e-cc079b713322",
+  "ai_model": "latest",
+  "target_polycount": 3500,
+  "pbr": true,
+  "glbBytes": 6651012,
+  "creditsUsed": 30,
+  "balanceAfter": 1380,
+  "generatedAt": "2026-09-10T10:09:24.863Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan.",
+  "adoption": {
+    "session": "assets-1",
+    "date": "2026-09-11",
+    "verdict": "Adopted as static supply dressing: full hollow chest rig, NOT the flat chest attachment requested in the source prompt. Pouches face +Z. Normal texture omitted; keep off the soldier rig until fitted and readability-tested.",
+    "bytes": 229180,
+    "sha256": "8757a75da40fa22ce9baf1563075538de3a5a49843cf1edfc83743dfb698889e",
+    "sourceSha256": "e5d4e86edbeced56b767bb9af168938d3d14e2e90f8f0d2b5f275ed53ea8b73a",
+    "sourcePath": ".inspect/assets-session1-kit84/field-chest-panel/model.glb",
+    "triangles": 3550,
+    "meshes": 1,
+    "sizeM": [
+      0.5108966827392578,
+      0.48000001907348633,
+      0.3823782652616501
+    ],
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "textureMaxSize": 512,
+    "textures": 2,
+    "textureFormat": "WebP",
+    "normalMapOmitted": true,
+    "reproducibleCommand": "blender --background --python tools/shrink-glb.py -- --input .inspect/assets-session1-kit84/field-chest-panel/model.glb --output public/assets/props/field-chest-panel.glb --size 512 --webp --height-m 0.48 --omit-normal-map",
+    "review": ".inspect/assets-session1-gallery-field-chest-panel-{front,side,back}.png",
+    "collision": "None supplied. Map stream must fit to authoritative collision or place wholly outside play."
+  }
+}

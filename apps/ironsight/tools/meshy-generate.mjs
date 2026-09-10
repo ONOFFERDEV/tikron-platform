@@ -5,9 +5,10 @@
 //   node tools/meshy-generate.mjs --balance
 //
 // Key: ~/.claude/secrets/meshy.json {"apiKey"}. Output: <out>/<name>/{model.glb,thumbnail.png,meta.json}.
-// A preview+PBR refine costs ~15-20 credits and takes ~5-10 minutes. Raw Meshy GLBs embed 2k
+// A preview+PBR refine has measured 30 credits. Raw Meshy GLBs embed 2k
 // JPEG textures (~6 MB); run tools/shrink-glb.py before shipping.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,6 +28,8 @@ if (flag('--balance')) { console.log(JSON.stringify({ balance: await balance() }
 const name = opt('--name'), prompt = opt('--prompt');
 if (!name || !prompt || !/^[a-z0-9-]+$/.test(name)) throw new Error('usage: --name <slug> --prompt "<text>" [--texture "<text>"] [--polycount N] [--no-pbr] [--preview-only]');
 const out = join(opt('--out', 'D:/game-assets/generated/meshy'), name);
+if (existsSync(join(out, 'model.glb')) || existsSync(join(out, 'task-state.json')))
+  throw new Error(`Output/task already exists at ${out}; inspect its receipt before spending again. Use a new name for a deliberate re-prompt.`);
 await mkdir(out, { recursive: true });
 const before = await balance();
 console.log(`[meshy] balance ${before} credits; generating "${name}"`);
@@ -44,6 +47,8 @@ const { result: previewId } = await api('POST', '/openapi/v2/text-to-3d', {
   mode: 'preview', prompt, ai_model: opt('--ai-model', 'latest'), should_remesh: true, topology: 'triangle',
   target_polycount: Number(opt('--polycount', 3000)), target_formats: ['glb'], auto_size: true, origin_at: 'bottom',
 });
+const taskState = { name, prompt, previewId, balanceBefore: before, startedAt: new Date().toISOString() };
+await writeFile(join(out, 'task-state.json'), JSON.stringify(taskState, null, 2));
 let task = await wait(previewId);
 let refineId;
 if (!flag('--preview-only')) {
@@ -51,15 +56,22 @@ if (!flag('--preview-only')) {
     mode: 'refine', preview_task_id: previewId, enable_pbr: !flag('--no-pbr'), texture_resolution: '2k',
     ...(opt('--texture') ? { texture_prompt: opt('--texture') } : {}), target_formats: ['glb'], auto_size: true, origin_at: 'bottom',
   }));
+  await writeFile(join(out, 'task-state.json'), JSON.stringify({ ...taskState, refineId }, null, 2));
   task = await wait(refineId);
 }
 console.log('');
-const save = async (url, file) => { const buf = Buffer.from(await (await fetch(url)).arrayBuffer()); await writeFile(join(out, file), buf); return buf.length; };
+const save = async (url, file) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Download ${file} failed: ${response.status}`);
+  const buf = Buffer.from(await response.arrayBuffer()); await writeFile(join(out, file), buf); return buf.length;
+};
 const glbBytes = await save(task.model_urls.glb, 'model.glb');
 if (task.thumbnail_url) await save(task.thumbnail_url, 'thumbnail.png');
 const after = await balance();
 const meta = { name, prompt, texture_prompt: opt('--texture') ?? null, previewId, refineId: refineId ?? null, ai_model: task.ai_model ?? opt('--ai-model', 'latest'),
-  target_polycount: Number(opt('--polycount', 3000)), pbr: !flag('--no-pbr') && !flag('--preview-only'), glbBytes, creditsUsed: before - after, balanceAfter: after,
+  target_polycount: Number(opt('--polycount', 3000)), pbr: !flag('--no-pbr') && !flag('--preview-only'), glbBytes,
+  creditsUsed: flag('--batch') ? null : before - after, balanceDeltaDuringTask: before - after, balanceAfter: after,
+  creditAccounting: flag('--batch') ? 'Concurrent task: use the enclosing batch receipt, never sum overlapping balance deltas.' : 'Account balance difference during this task.',
   generatedAt: new Date().toISOString(), license: 'Meshy-generated original asset for this project; see Meshy terms for the account plan.' };
 await writeFile(join(out, 'meta.json'), JSON.stringify(meta, null, 2));
 console.log(JSON.stringify({ out, glbBytes, creditsUsed: meta.creditsUsed, balanceAfter: after }));

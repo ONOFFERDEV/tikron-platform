@@ -1,0 +1,56 @@
+{
+  "name": "ammo-crate-stack",
+  "prompt": "a stack of three closed military ammunition crates with latches and stencil panels. single standalone object, centred, low-poly hard-surface game asset, PBR, desaturated olive drab, grey-brown and rusted steel, matte weathered surfaces, worn paint, military field equipment, no text, no logos, no ground plane, no base",
+  "texture_prompt": "weathered olive drab and grey-brown military paint, dust, rust streaks, scratched metal, matte",
+  "previewId": "01a08be2-47b2-70e5-a86b-dad222eef745",
+  "refineId": "01a08be3-82e5-77f1-8c6c-95f9b8e247a0",
+  "ai_model": "latest",
+  "target_polycount": 3000,
+  "pbr": true,
+  "glbBytes": 6898948,
+  "creditsUsed": null,
+  "balanceAfter": 1170,
+  "generatedAt": "2026-09-10T15:18:30.459Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan.",
+  "sourceReceiptCreditsUsed": 60,
+  "estimatedTaskCredits": 30,
+  "creditAccounting": {
+    "balanceBefore": 1230,
+    "balanceAfter": 1170,
+    "creditsUsed": 60,
+    "accounting": "Two concurrent jobs shared the same account balance interval. The original tool reported 60 for each and summed to 120 incorrectly. Actual account debit is 60 total. Per-job allocation is estimated 30; no new generation was used to repair accounting.",
+    "jobs": [
+      "ammo-crate-stack",
+      "field-generator"
+    ],
+    "allocatedCreditsPerJob": 30,
+    "reserve": 300,
+    "sessionCap": 60,
+    "checkedAt": "2026-09-10T15:23:38.986Z"
+  },
+  "adoption": {
+    "session": "assets-1",
+    "date": "2026-09-11",
+    "verdict": "Adopted: closed stacked crates, worn olive paint, readable latches, grounded base. Tiny generated stencil marks are generic and not real branding.",
+    "bytes": 238624,
+    "sha256": "f89777e0468c38a9b461a3e8815a9291b970526bb0909e5721834ca65181f92e",
+    "sourceSha256": "8f3d6cf6bde68beaa4b4f7fa28ab77a9f3637c94d556e9343971212b0479d4f8",
+    "sourcePath": ".inspect/assets-session1-meshy/ammo-crate-stack/model.glb",
+    "triangles": 2840,
+    "meshes": 1,
+    "sizeM": [
+      0.5311708152294159,
+      1.149999976158142,
+      0.5983162522315979
+    ],
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "textureMaxSize": 512,
+    "textures": 3,
+    "textureFormat": "WebP",
+    "normalMapOmitted": false,
+    "reproducibleCommand": "blender --background --python tools/shrink-glb.py -- --input .inspect/assets-session1-meshy/ammo-crate-stack/model.glb --output public/assets/props/ammo-crate-stack.glb --size 512 --webp --height-m 1.15",
+    "review": ".inspect/assets-session1-gallery-ammo-crate-stack-{front,side,back}.png",
+    "collision": "None supplied. Map stream must fit to authoritative collision or place wholly outside play."
+  }
+}
