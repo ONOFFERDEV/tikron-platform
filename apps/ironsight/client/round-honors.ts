@@ -21,6 +21,9 @@ export function honorsMarkup(mvp: PresentedMvp | undefined, dom: boolean): strin
 }
 
 export const honorsCss = `
+#overlay .nextDeployment{display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;margin-top:16px;padding:12px 16px;border:1px solid #91c9c044;background:#153239;color:#b9d4cd;font-size:10px;letter-spacing:1.2px}
+#overlay .nextDeployment strong{color:#f4c47e;font-size:20px;font-variant-numeric:tabular-nums}
+#overlay .nextDeployment span:last-child{margin-left:auto;letter-spacing:0}
 #overlay .roundHonors{display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:22px;align-items:center;position:relative;margin:20px 0 0;padding:20px 24px;border:1px solid #edaa5259;border-left:3px solid #edaa52;background:linear-gradient(115deg,#5a4226 0%,#283b38 38%,#162e35 85%);overflow:hidden}
 #overlay .honorsSeal{color:#f4c47e;width:92px;height:92px}
 #overlay .honorsSeal svg{width:100%;height:100%}

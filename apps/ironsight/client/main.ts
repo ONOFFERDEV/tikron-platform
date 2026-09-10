@@ -697,6 +697,7 @@ async function main(): Promise<void> {
       hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless, {
         mvp: matchEnd.mvp ? { ...matchEnd.mvp, name: mvpName, isMe: matchEnd.mvp.id === net.myId } : undefined,
         dom: modeId === 'dom',
+        intermissionEndMs: matchEnd.intermissionEndMs, serverNow: net.serverNow(),
         won: teamless ? matchEnd.winner === net.myId : matchEnd.winner === (me?.team === 0 ? 'red' : 'blue'),
         rows: Object.entries(state?.players ?? {}).map(([id, p]) => ({
           name: name(id), k: p.k, d: p.d, team: p.team, isMe: id === net.myId,

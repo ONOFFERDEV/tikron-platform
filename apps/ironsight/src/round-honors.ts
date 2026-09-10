@@ -11,6 +11,8 @@ export interface RoundMvp {
 }
 
 export interface RoundResult {
+  /** Server-clock deadline for automatic return to warmup; older servers omit it. */
+  intermissionEndMs?: number;
   winner: string;
   red: number;
   blue: number;

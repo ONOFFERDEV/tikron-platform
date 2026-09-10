@@ -53,6 +53,8 @@ Session71 quick check (published per Session72 supervisor, commit b43589e): Unde
 
 Session72 quick check (local candidate): finish a TDM or Undertow DOM round. The amber FIELD HONORS card names the winning side's MVP and shows the actual contribution: two points per elimination, one per assist, plus one per shared second of useful flag progress in DOM. Idle ownership earns no capture credit. Listen for the short commendation sting; mute and Reduced motion retain the full award. Draws have no MVP. Field Honors 1/1 is complete and on by default. Replay and human scoring/fairness acceptance remain open.
 
+Session73 quick check (local candidate): finish a round and read NEXT DEPLOYMENT below Field Honors. Its seconds come from the server's shared intermission deadline; late joins see the remaining time. REMATCH still lets the majority return sooner. At zero the display waits for the server, then existing warmup begins. Next Deployment 1/1 is complete and on by default. The configured twenty-second intermission remains; replay and human excitement remain open. Supervisor confirms Session72 is published as commit9a55e3d.
+
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Session50 quick check (published to preview): in Relay TDM or Undertow DOM, earn three eliminations without dying. A UAV launches automatically and shares three last-seen radar scans with your team over 12 seconds. Kill its operator to end the flight; Relay blackout blocks scans. A queued UAV waits for team airspace and is lost on death. Training / Relay rehearses the same reward privately by shooting the targets. FFA has no UAV yet. Air Support is a three-session arc: UAV now, called mortar next, support drone last.
@@ -387,7 +389,7 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 72 (all 63 principles re-reviewed). Met means the stated implemented
+Session 24 first canonical audit (reference restored), updated in Session 73 (all 63 principles re-reviewed). Met means the stated implemented
 check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session72-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
@@ -438,7 +440,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
 | R-L04 | met | 3000 ms live respawn and dynamic scoring retained. Session38 restores authoritative arrival aim once, wraps yaw into codec range, and passes real death/revival with no probe aim correction. Human camping acceptance remains open. |
-| R-L05 | partial | Session57 completes Deployment2/2: skippable aerial glide <=4.5s inside existing warmup, with a 3.5s deadline reserve checked each frame before the final countdown. Click/key consumes the skip; Reduced motion uses a still. Training/live/late/waiting joins bypass; pause/death/disconnect/deadline changes cancel permanently. Session56 countdown/audio retained. Results remain skippable20s without replicated intermission deadline/5-8s freeze; human flow acceptance open. |
+| R-L05 | partial | Session73 Next Deployment1/1 publishes a shared server-clock intermission deadline through matchEnd/syncView. Same clock drives automatic warmup; majority skip retained. Stable text countdown, old-server fallback and server wait at zero; late/forged/boundary/delayed-tick tests plus desktop/narrow/reduced fixtures pass. Results remain skippable20s rather than the reference5-8s freeze. Session57 glide and Session56 warmup countdown retained; human flow acceptance open. |
 | R-L06 | not yet | Session72 Field Honors adds an objective/assist-aware MVP card and a short sting; no replay recording, killer POV or highlight playback. The5s intro/12s replay reference remains unmet. |
 | R-L07 | met | Session72 server MVP: winning seated team only;2/elimination+1/verified assist+1/whole shared useful capture second in DOM. Deterministic objective/assist/death/id ties; no award for draws/practice/zero contribution. Frozen matchEnd+syncView result, expiry/reset cleanup, actual gun-assist and capture-room tests. Natural327.292s DOM capture shows ANCHOR4,14kills/2assists/23s=53. Implemented selection/presentation check, not human scoring acceptance. |
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
@@ -461,18 +463,18 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session72: all63 reference rows reviewed. Field Honors1/1 is complete and ON:
-the winning side receives an objective/assist-aware MVP card, explicit impact
-breakdown and a short commendation sting. Three matched rounds preserve all
-gameplay telemetry. Opening-route audit finds fast attacking rifle-lane contacts
-and a very quiet red home guard; one blanket cover change cannot solve both.
-The traced DOM preflight passes without reproducing the historical GPU stalls.
-Final gate outcomes are recorded in the Session72 entry below.
+Session73: all63 reference rows re-reviewed. Next Deployment1/1 is complete
+and ON: one server-clock intermission deadline drives the results countdown,
+late subscriptions and automatic return to warmup. The supervisor's short
+remaining window favored this bounded flow item after a green hitch preflight;
+opening roles and highlight replay require larger arcs. No encounter, geometry,
+combat or mode-economy improvement is claimed. Priorities below remain ranked
+by unresolved impact; completed results countdown leaves the flow backlog.
 
 1. **Intermittent GPU hitches (R-L14), preflight priority.** Session71's343ms
    first-death DOM failure and Session70's814.7ms ANGLE stall remain unresolved.
-   Session72 preflight94.746s/13,643frames/two deaths has no>24ms frame or shader
-   change. Preserve500us profiling, all measured frames and150ms assertions;
+   Session73 TDM preflight98.986s/14,254frames/two deaths has no>24ms frame or shader
+   change; final TDM69.054s/9,944frames also passes. Preserve500us profiling, all measured frames and150ms assertions;
    per-run passes do not justify dismissing failures or reviving rejected fixes.
 2. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** The fixed
    northern attacking cohort contacts at13.8-20.3s; red home guard bot-1 waits
@@ -484,7 +486,7 @@ Final gate outcomes are recorded in the Session72 entry below.
    that can show a real server-confirmed play, with objective context and
    clear skip/reduced-motion behavior, inside the current performance budget.
 4. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
-   first-match course, ping acknowledgement, replicated results countdown,
+   first-match course, ping acknowledgement,
    role skins/voice barks and human colour/readability acceptance remain open.
 5. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
    DOM scoring/side swap, separate weapon FOV, view-kick control, doorway
@@ -11164,3 +11166,111 @@ rematch controls(yes). No answer blocks development. Human ranking fairness,
 first-play excitement, headphone comfort, controller/colour/RTT and iGPU remain
 open. Next route arc should address fast attackers and quiet guards separately;
 actual highlight replay remains a distinct unimplemented feature.
+
+### Session 73 - 2026-09-10: Next Deployment arc 1/1 - a visible return to play
+
+Read standing brief, Session73 status, plan and all63 reference principles.
+Entry ironsight-aaa was clean. Supervisor confirms Session72 commit9a55e3d
+and deployment668fc137-9740-4ef6-84f3-86270c4f9ca6. Local candidate only;
+no commit, push or deployment. Scope remains apps/ironsight/**.
+
+Reference: R-L05/07/14/16. Target: one authoritative intermission deadline,
+remaining seconds for initial/late subscribers, majority skip, stable keyboard
+focus and a server-confirmed transition at zero. Implemented checks pass.
+R-L05 remains partial:20s skippable results rather than5-8s freeze. R-L06
+replay remains absent. Re-reviewed all63 scorecard rows; encounter pacing
+and replay remain larger priorities. The supervisor's short remaining window
+selected this bounded flow item after preflight; no rushed role/route change.
+
+Delivered, Next Deployment1/1 complete and ON:
+
+- Optional intermissionEndMs on matchEnd and its frozen syncView result.
+  Server expiry uses that same epoch deadline on the next simulation tick,
+  matching warmup's clock model. Existing tick-rounded duration and majority
+  vote remain. Delayed ticks no longer extend results by missed tick counts.
+- NEXT DEPLOYMENT / IN Ns below Field Honors uses the shared client clock
+  and ceiling-rounded seconds. Zero says AWAITING SERVER; no local reset.
+  Older-server absence uses AUTOMATIC / STAND BY without inventing a deadline.
+  Existing connection UI supersedes results while offline.
+- Only textContent changes with the countdown. Result tree, MVP card, scroll
+  and focused buttons survive. Mute/Reduced motion retain all information.
+  No new animation, audio, texture, material, light, pass or per-frame bake.
+- Three new tests cover late/forged deadlines, exact boundary, delayed tick,
+  majority vote, rounding and older-server fallback. Existing exact late-result
+  assertion now includes the actual deadline. Initial full suite failed only
+  that outdated expected object; session73-test-initial-failed.log retained.
+  The assertion was extended, not weakened to ignore the field.
+
+Wow check: paired .inspect/session73-{before,after}-match-dom.png use the
+same fixed offline roster. Reviewed desktop before/after and390x844 after
+at full size: the previously unspecified wait now reads NEXT DEPLOYMENT / IN13s.
+Eight final fixtures cover desktop,1280x600,390x844, Reduced motion, zero,
+older server, FFA and draw. They assert13->12s with identical DOM/focus and
+no local start after zero. Before/after evidence uses the brief's stills option;
+these are offline fixtures, not injected gameplay or a natural result recording.
+Reproduce with node scripts/inspect-map.mjs --url http://localhost:8796 --shots
+match-dom,match-dom-short,match-dom-narrow,match-dom-reduced,match-dom-standby,match-legacy,match-ffa,match-draw
+--prefix session73-review. Final reports/logs/stills use session73-after.
+Intended player sentence: "I know when we are going back in, and we can vote to go sooner."
+Design intent, not a testimonial or AAA spectacle acceptance. Rejected approach:
+a client-local20s timer would mislead late subscribers and diverge during stalls.
+No visual intermediate or generated asset was needed for this code-native UI.
+
+Matched1920x1080 balanced/DPR1 Undertow stress, RTX5070/ANGLE D3D11,
+11remote operators plus local weapon,145twelve-rifle volleys and96blasts/15s:
+
+| Measurement | Before | After | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |209 /159284|209 /159284|0 /0|
+| Textures / estimated MiB |25 /60.6055|25 /60.6055|0 /0|
+| Programs / geometries |29 /168|29 /168|0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.1|6.9 /7.1 /7.1|0 /0 /0|
+| Maximum / first-ready ms |7.2 /7.1|7.2 /7.2|0 /+0.1|
+| Assets including README bytes |26899692|26899692|0|
+| Client JS / source map bytes |2092721 /4638576|2095006 /4642253|+2285 /+3677|
+| Entire public bytes |33631597|33637559|+5962|
+
+Public32.0793MiB remains below40MiB; largest7,183,364bytes below25MiB.
+No dependency, purchased derivative, provenance/allowlist or lazy-load change.
+Fixed four blast lights retained. Meshy0credits; reported1530balance unchanged.
+Timing variation is not a speedup or iGPU/thermal/real6v6 acceptance.
+Data/reproduction: .inspect/session73-summarize.mjs, session73-summary.json
+and session73-{before,after}-report.json/logs. No build/test, second inspection
+browser or bake overlapped stress or acceptance hitch measurements.
+
+Required gates and limits:
+
+- Unchanged TDM preflight PASS:98,986.3ms/14,254frames/two natural deaths,
+  zero>24ms frames, long tasks, shader changes or errors. session73-preflight.json.
+  It does not reproduce or resolve the historical DOM/GPU failures.
+- pnpm typecheck PASS; pnpm test PASS(619passed/six existing skips,
+  79passed files/four skipped); pnpm build:client PASS; pnpm audit:assets PASS.
+  session73-static-gates.json and session73-{typecheck,test,build-client,audit-assets}.log.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS, zero console errors. session73-required-report.json/log retains it;
+  default relay-{relay,practice-two}.png images. Eight results fixtures and
+  matched stress also have zero errors/forbidden requests.
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+  PASS:69,053.6ms/9,944frames/two natural deaths, zero>24ms or>150ms frames,
+  long tasks, shader changes or console errors. Original hitch.json and
+  session73-hitch-final.json/log retained. No profiler, threshold or frame exclusion change.
+- Static map/combat measurements remain those in session72-reference-audit.json:
+  no map, movement, ADS, sprint recovery, respawn, scoring, audio or damage
+  change. Known DOM economy/FOV/killfeed mismatches remain documented.
+  This session makes no all-mode, human, iGPU or universal hitch claim.
+
+Open owner questions/defaults: keep shared countdown(yes), preserve20s and
+majority skip until a larger flow arc(yes), retain still results while replay
+remains unimplemented(yes). No answer blocks progress. Human excitement,
+encounter pacing, replay, colour/audio/RTT and laptop iGPU remain open.
+
+Final cleanup: verified preview root PID/start time at the persisted millisecond
+precision and every descendant's creation identity, then stopped the owned
+12-process tree. session73-preview-tree.json and session73-cleanup.json record
+zero port8796 listeners and zero inspection browsers remaining. Two earlier
+identity checks stopped without killing anything because PowerShell decoded
+the saved date automatically and serialized it at millisecond precision;
+the corrected comparison used Unix milliseconds. All six required gates green.
+Final diff check passes, all63 unique canonical reference rows and one Session73
+log entry remain, and only apps/ironsight/** is changed on ironsight-aaa.
+No commit, push or deployment.

@@ -27,6 +27,8 @@ export function startMatchInspector(): void {
     if (shot === 'match-reconnect') hud.showConnection(false);
     else hud.showMatchEnd(shot.includes('draw') ? 'draw' : solo ? 'KESTREL' : shot.includes('defeat') ? 'blue' : 'red',
       50, 42, 16, 9, solo, { rows, won: !shot.includes('defeat'), dom,
+        intermissionEndMs: shot.includes('legacy') ? undefined : 20000,
+        serverNow: shot.includes('standby') ? 20000 : 7000,
         mvp: shot.includes('draw') || shot.includes('legacy') ? undefined : mvp });
   }
   const checks: Record<string, boolean> = {};
@@ -162,6 +164,16 @@ export function startMatchInspector(): void {
       checks.stableMvp = card === overlay.querySelector('.roundHonors');
       hud.showMatchEnd('red', 50, 42, 1, 0, false, sample);
       checks.oldServer = !overlay.querySelector('.roundHonors');
+      checks.legacyCountdown = overlay.querySelector('[data-next-round]')?.textContent === 'AUTOMATIC / STAND BY';
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 7000 });
+      const countdownCard = overlay.querySelector('.debrief');
+      const focusedButton = document.activeElement;
+      checks.deadlineCountdown = overlay.querySelector('[data-next-round]')?.textContent === 'IN 13s';
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 8000 });
+      checks.stableCountdown = countdownCard === overlay.querySelector('.debrief') && document.activeElement === focusedButton;
+      checks.countdownAdvances = overlay.querySelector('[data-next-round]')?.textContent === 'IN 12s';
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 25000 });
+      checks.noLocalStart = overlay.querySelector('[data-next-round]')?.textContent === 'AWAITING SERVER';
       checks.sorted = overlay.querySelector('tbody tr td:nth-child(2)')?.textContent === 'Tie fewer deaths';
       checks.localRow = overlay.querySelectorAll('tr.me').length === 1;
       checks.zeroDeaths = overlay.querySelector('.personalStats div:last-child strong')?.textContent === '—';

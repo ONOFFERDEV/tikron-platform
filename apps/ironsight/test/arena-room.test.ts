@@ -868,10 +868,11 @@ describe("M4 recovery", () => {
     const h = await createTestRoom(FastArena, { codec: ArenaSchema });
     const a = await h.connect();
     liveState(h).redScore = 2; await tick(h);
+    const intermissionEndMs = Date.now() + Math.ceil(200 / TICK_MS) * TICK_MS;
     const b = await h.connect();
     await b.send("syncView"); await tick(h);
     const result = b.frames().find(f => f.t === 's:msg' && f.type === 'matchEnd');
-    expect(result?.payload).toEqual({ winner: 'red', red: 2, blue: 0 });
+    expect(result?.payload).toEqual({ winner: 'red', red: 2, blue: 0, intermissionEndMs });
     const vote = b.frames().find(f => f.t === 's:msg' && f.type === 'vote');
     expect(vote?.payload).toEqual({ count: 0, need: 2 });
     expect(liveState(h).players[a.id]).toBeDefined();

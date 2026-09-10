@@ -10,6 +10,7 @@ import { damageDirection } from './damage-direction.js';
 import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
 import { honorsCss, honorsMarkup, type PresentedMvp } from './round-honors.js';
+import { intermissionLabel } from './intermission.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -22,6 +23,8 @@ export interface ResultRoster {
   won: boolean;
   mvp?: PresentedMvp;
   dom?: boolean;
+  intermissionEndMs?: number;
+  serverNow?: number;
 }
 
 import { matchBrief } from "./match-presentation.js";
@@ -694,11 +697,15 @@ export class Hud {
     }).join('') : '';
     this.present('end', `<div class="debrief" style="--result-accent:${accent}" role="region" aria-label="Round results"><div class="eyebrow">RELAY / ROUND DEBRIEF</div><div class="resultHeader"><div><h1>${outcome}</h1><div class="resultWinner">${title}</div></div>${scoreLine}</div>`
       + honorsMarkup(roster?.mvp, roster?.dom === true)
+      + '<div class="nextDeployment"><span>NEXT DEPLOYMENT</span><strong data-next-round></strong><span>Vote below to return sooner</span></div>'
       + `<div class="personalStats" aria-label="Your performance"><div><strong>${myKills}</strong><span>ELIMINATIONS</span></div><div><strong>${myDeaths}</strong><span>DEATHS</span></div><div><strong>${myDeaths === 0 ? '—' : (myKills / myDeaths).toFixed(2)}</strong><span>K / D RATIO</span></div></div>`
       + (tables ? `<div class="rosters${teamless ? ' solo' : ''}">${tables}</div>` : '')
       + `<div class="resultFooter"><div><p>${voteLine}</p><p class="hint">The next round starts automatically after intermission. Standings show operators still in the room.</p></div><div class="resultActions">`
       + `<button data-action="restart" ${this.voteSent ? 'disabled' : ''}>${this.voteSent ? 'VOTE SENT / 대기' : 'REMATCH / 다시 플레이 · R'}</button>`
       + `<button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div></div></div>`);
+    const timer = this.overlay.querySelector<HTMLElement>('[data-next-round]');
+    const label = intermissionLabel(roster?.intermissionEndMs, roster?.serverNow ?? NaN);
+    if (timer && timer.textContent !== label) timer.textContent = label;
   }
 
   hideOverlay(): void {

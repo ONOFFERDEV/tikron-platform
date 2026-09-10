@@ -227,7 +227,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** Round-robin spawn cursor per team, so successive spawns don't stack. */
   private readonly spawnRot: Record<number, number> = { [TEAM.red]: 0, [TEAM.blue]: 0 };
   private readonly spawnSightHistory = new SpawnSightHistory();
-  /** Sim tick the post-match intermission ends and the arena resets (phase "ended"). */
+  /** Server-clock ms when the post-match intermission returns to warmup. */
   private endedUntil: number | undefined;
   /** Frozen round evidence, also returned to late subscribers by syncView. */
   private roundResult: RoundResult | null = null;
@@ -529,7 +529,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       }
     } else if (this.state.phase === "warmup") {
       this.tickWarmup(now);
-    } else if (this.endedUntil !== undefined && this.currentTick >= this.endedUntil) {
+    } else if (this.endedUntil !== undefined && now >= this.endedUntil) {
       this.enterWarmup();
     }
 
@@ -1836,10 +1836,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const w = winner ?? (redScore > blueScore ? "red" : blueScore > redScore ? "blue" : "draw");
     this.state.phase = "ended";
     this.state.warmupEndMs = 0;
-    this.endedUntil = this.currentTick + Math.ceil(this.intermissionMs / TICK_MS);
+    this.endedUntil = Date.now() + Math.ceil(this.intermissionMs / TICK_MS) * TICK_MS;
     this.restartVotes.clear();
     const mvp = this.roundHonors.select(this.state, w);
-    this.roundResult = { winner: w, red: redScore, blue: blueScore, ...(mvp ? { mvp } : {}) };
+    this.roundResult = { winner: w, red: redScore, blue: blueScore, intermissionEndMs: this.endedUntil, ...(mvp ? { mvp } : {}) };
     this.broadcast("matchEnd", this.roundResult);
   }
 
