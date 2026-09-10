@@ -34,7 +34,7 @@ export class ViewmodelHands {
       this.group.add(palm, sleeve, cuff); this.hands.push({ palm, sleeve, cuff, side });
     }
   }
-  update(index: number, progress: number | null): void {
+  update(index: number, progress: number | null, issuedCarbine = false): void {
     const pose = reloadPose(progress);
     for (const { palm, sleeve, cuff, side } of this.hands) {
       const right = side === 1;
@@ -46,6 +46,15 @@ export class ViewmodelHands {
         this.wrist.y -= pose.reach * 0.07 + pose.magazine * 0.20;
         this.wrist.x += pose.magazine * 0.052;
         this.wrist.y += pose.bolt * 0.13;
+        if (issuedCarbine) {
+          // Measured carbine mag-well and rear charging-latch contacts. Keep
+          // the firing wrist anchored while the support hand does the work.
+          this.wrist.set(fit.left[0], fit.left[1], fit.left[2]);
+          this.wrist.lerp(this.elbow.set(-.014,-.085,-.355),pose.reach);
+          this.wrist.x += pose.magazine*.052;
+          this.wrist.y -= pose.magazine*.221;
+          this.wrist.lerp(this.elbow.set(.035,.012,-.14+pose.bolt*.045),pose.chargeReach);
+        }
       }
       if (!right && index > 0) {
         // Receiver-space contact points for magazine/battery/slide manipulation.

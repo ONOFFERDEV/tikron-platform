@@ -8,6 +8,15 @@ export function splitRifleMagazine(object: T.Object3D, weapon = 0): { magazine: 
   const magazine = new T.Group(); magazine.name = 'rifle-magazine';
   const bolt = new T.Group(); bolt.name = 'rifle-bolt';
   const owned: T.BufferGeometry[] = [];
+  // Generated weapons are cut/capped offline. Reparent each authored part in
+  // root space; templates share immutable geometry and own only transforms.
+  const authoredMagazine = object.getObjectByName('field-magazine');
+  const authoredBolt = object.getObjectByName('field-bolt');
+  if (object.userData.issuedCarbine && authoredMagazine && authoredBolt) {
+    object.add(magazine, bolt);
+    magazine.attach(authoredMagazine); bolt.attach(authoredBolt);
+    return { magazine, bolt, owned };
+  }
   const p = new T.Vector3();
   object.traverse(node => {
     if (!(node instanceof T.Mesh) || !node.geometry.index) return;

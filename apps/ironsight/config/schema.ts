@@ -410,6 +410,8 @@ export interface WeaponVisConfig {
   swapUpMs: number;
   /** Legacy per-weapon single-file GLBs (untextured, one file per slot). */
   models?: Record<number, string>;
+  /** Textured, independently authored replacements shared by both held views. */
+  overrides?: Record<number, { url: string; node: string }>;
   /** All 5 weapons merged into one GLB (is-armfix's manifest→bundle tool),
    *  each its own named node — takes priority over `models` for any slot it
    *  covers (client/weapon-loader.ts's cloneWeaponBundleNode); a slot absent

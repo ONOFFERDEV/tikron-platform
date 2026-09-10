@@ -2,13 +2,15 @@
 import { describe, it, expect, vi } from "vitest";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RemoteWeapon } from "../client/remote-weapon.js";
-import { loadWeaponModel, weaponMuzzle } from "../client/weapon-loader.js";
+import { loadWeaponModel, weaponMuzzle, weaponSource } from "../client/weapon-loader.js";
+import { GAME } from '../src/game-config.js';
 import { splitRifleMagazine } from '../client/rifle-magazine.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 vi.mock("../client/weapon-loader.js", async importOriginal => ({
   ...await importOriginal<typeof import("../client/weapon-loader.js")>(),
   loadWeaponModel: vi.fn(),
 }));
+const arNode = weaponSource(GAME.weaponVis, 0)!.nodeName!;
 function fixture() {
   const group = new THREE.Group();
   const root = new THREE.Group(); root.scale.setScalar(0.5); group.add(root);
@@ -16,7 +18,7 @@ function fixture() {
   const geometry = new THREE.BoxGeometry(0.1, 0.12, 2);
   const material = new THREE.MeshStandardMaterial();
   const scene = new THREE.Group();
-  for (const name of ["wep_ar", "wep_pistol"]) {
+  for (const name of [arNode, "wep_pistol"]) {
     const gun = new THREE.Mesh(geometry, material); gun.name = name; scene.add(gun);
   }
   return { group, root, hand, geometry, material, gltf: { scene } as GLTF };
@@ -53,7 +55,8 @@ describe("remote weapon presentation", () => {
   it("fits world length independently of player scale, follows the hand, and never becomes a hit target", async () => {
     const f = fixture(); vi.mocked(loadWeaponModel).mockResolvedValue(f.gltf);
     const weapon = new RemoteWeapon(f.group, f.root); weapon.setWeapon(0); await flush();
-    const mesh = weapon.mount.getObjectByName("wep_ar")!;
+    const mesh = weapon.mount.getObjectByName(arNode)!;
+    expect(loadWeaponModel).toHaveBeenCalledWith(weaponSource(GAME.weaponVis, 0)!.url);
     f.group.updateMatrixWorld(true);
     expect(new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3()).z).toBeCloseTo(0.72);
     const before = weapon.muzzle.getWorldPosition(new THREE.Vector3());
@@ -73,7 +76,7 @@ describe("remote weapon presentation", () => {
     const weapon = new RemoteWeapon(f.group, f.root);
     weapon.setWeapon(0); weapon.setWeapon(4);
     resolves[0]!(f.gltf); await flush();
-    expect(weapon.mount.getObjectByName("wep_ar")).toBeUndefined();
+    expect(weapon.mount.getObjectByName(arNode)).toBeUndefined();
     resolves[1]!(f.gltf); await flush();
     expect(weapon.mount.getObjectByName("wep_pistol")).toBeDefined();
     weapon.setWeapon(0); weapon.dispose(); resolves[2]!(f.gltf); await flush();

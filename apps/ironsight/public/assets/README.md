@@ -1314,4 +1314,41 @@ The purchased `models/player.glb` stays ignored and unchanged. Its actual64
 animation clips and original vertices are retained; runtime atlas preparation
 downsamples the shared2048px colour atlas to512px once before play, saving20MiB
 of estimated mipmapped texture residency. No purchased derivative is exported.
-Session86 carbine attempts remain inspection-only, outside public assets.
+Session87 adopts the fitted second carbine below; the first attempt stays rejected.
+
+### Session87 — issued carbine (generated + original fitted parts)
+
+`weapons/field-carbine.glb` replaces the AR in both held views. Meshy generated
+the receiver, polymer stock and handguard; the capped magazine, charging latch
+and open reflex housing are original geometry from `tools/fit-field-carbine.py`.
+No purchased geometry, soldier mesh or animation was read by this export.
+
+Source: Session86 `field-carbine-clean`, generated 2026-09-10T11:11:43.725Z.
+Preview task `01a08b01-f110-74fd-8c88-fa159785be81`; refine task
+`01a08b03-02b8-73e6-9beb-80f32c2982fe`. Requested 3000 triangles, PBR, generic
+issued rifle with no brand/real model, flat receiver, tubular slotted handguard,
+detachable magazine and iron sights; matte parkerised steel, olive polymer,
+rubbed edges, dust and khaki magazine tape. Full prompts/receipt remain in
+`.inspect/session86-meshy/field-carbine-clean/meta.json`. Generated original for
+this project under the account's Meshy terms. Cost: 30 credits in Session86;
+zero new credits in Session87.
+
+Raw 6,910,652 bytes -> 512px WebP intermediate 255,784 bytes -> fitted
+320,296 bytes, 3210 triangles, three meshes sharing one PBR material and two
+512px images (albedo and packed metallic/roughness). The generated normal map
+is deliberately omitted to retain the 32-texture stress budget. The uneven
+front sight and folded magazine underside were rejected during close review.
+SHA256: `c6bc34fa6240ad9db54324d7bad3a85846526951fb1ff75eb3719492c428b5a6`.
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/session86-meshy/field-carbine-clean/model.glb --output .inspect/session86-meshy/field-carbine-clean/shrunk.glb --size 512 --webp
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/fit-field-carbine.py -- --input .inspect/session86-meshy/field-carbine-clean/shrunk.glb --output public/assets/weapons/field-carbine.glb
+```
+
+The fitted +Z-bore asset is 1.20m in grip space, normalized to 0.72m remotely;
+first person keeps its existing 0.65 scale. The barrel tip is measured from
+vertices; the open optic centre is y=0.085 in asset space. Authored magazine
+and latch groups move independently on the existing server-deadline reload.
+Templates and buffers are cached and prepared before play. Shared weapons
+load with the viewmodel; map assets retain per-map lazy loading. The old
+purchased weapon bundle remains private for the other four slots.

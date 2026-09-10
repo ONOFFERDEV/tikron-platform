@@ -51,7 +51,7 @@ import { CombatFx, BOOM_LIFE_MS } from './combat-fx.js';
 import { flashEnvelope, weaponFlash, weaponFlashTexture, weaponFlashTextures } from './weapon-flash.js';
 import { GAME } from "../src/game-config.js";
 import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
-import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle } from "./weapon-loader.js";
+import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, weaponSource } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
 import { buildUndertowEnvironment } from "./undertow-environment.js";
@@ -309,6 +309,7 @@ export class SceneRig {
   private readonly viewmodel = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
   private readonly hands = new ViewmodelHands();
+  private issuedCarbine = false;
   private readonly reload = new ReloadPresentation();
   private magazine?: THREE.Group;
   private bolt?: THREE.Group;
@@ -790,10 +791,9 @@ export class SceneRig {
 
     const transform = VM_WEAPON_TRANSFORMS[index];
     if (!transform) return;
-    const bundle = GAME.weaponVis.bundle;
-    const nodeName = bundle?.nodes[index];
-    const url = nodeName ? bundle!.url : GAME.weaponVis.models?.[index];
-    if (!url) return;
+    const source = weaponSource(GAME.weaponVis, index);
+    if (!source) return;
+    const { url, nodeName } = source;
 
     {
       const gltf = await loadWeaponModel(url);
@@ -824,8 +824,10 @@ export class SceneRig {
       }
       this.sightHeight = sightHeight;
       this.weaponHolder.add(obj);
+      this.issuedCarbine = obj.userData.issuedCarbine === true;
       if (index === 0) {
-        const sight = rifleSight(-bore.x * transform.scale, sightHeight);
+        const sight = rifleSight(-bore.x * transform.scale,
+          this.issuedCarbine ? Number(obj.userData.sightY) * transform.scale : sightHeight, this.issuedCarbine);
         this.weaponHolder.add(sight.object); this.weaponGeometry.push(...sight.geometry);
         this.sightDot = sight.object.getObjectByName('reflex-dot');
         this.sightHeight = sight.centerY;
@@ -840,6 +842,7 @@ export class SceneRig {
    *  (SkeletonUtils-free `Object3D#clone()` in weapon-loader.ts) and must never
    *  be disposed here; only the procedural mesh's fresh-per-call BoxGeometry is. */
   private disposeCurrentWeaponMesh(): void {
+    this.issuedCarbine = false;
     for (const geometry of this.weaponGeometry) geometry.dispose();
     this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined; this.sightDot = undefined;
     for (const child of [...this.weaponHolder.children]) {
@@ -921,7 +924,7 @@ export class SceneRig {
       this.reloadPhase = reload.phase;
       if (this.inspectionReload === undefined) this.reloadCue?.(reload.phase);
     }
-    this.hands.update(this.weaponIndex, progress);
+    this.hands.update(this.weaponIndex, progress, this.issuedCarbine);
     this.hands.group.visible = MOTION.hands;
     if (this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
     if (this.magazine) {
@@ -1671,16 +1674,16 @@ export class SceneRig {
     const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     await nextFrame(); // let the loading message paint before GPU work
     const rigs = this.modelGltf ? ['bot-1','bot-3','bot-5'].map(id => this.makeModelRig(id, 0, this.modelGltf!)) : [];
-    const bundle = GAME.weaponVis.bundle;
-    const weapons = bundle && this.weaponIsModel ? await loadWeaponModel(bundle.url) : undefined;
-    const weaponFixture = weapons?.scene.clone();
-    if (weaponFixture) {
-      if (weapons && bundle) Object.entries(bundle.nodes).forEach(([index, name]) => {
-        const template = remoteWeaponTemplate(weapons, name, Number(index));
-        if (template) weaponFixture.add(template.object.clone());
-      });
-      this.scene.add(weaponFixture);
-    }
+    const weaponFixture = new THREE.Group();
+    if (this.weaponIsModel) await Promise.all(GAME.weapons.map(async (_, index) => {
+      const source = weaponSource(GAME.weaponVis, index);
+      if (!source) return;
+      const weapons = await loadWeaponModel(source.url);
+      if (!weapons) return;
+      const template = source.nodeName ? remoteWeaponTemplate(weapons, source.nodeName, index) : undefined;
+      weaponFixture.add(template ? template.object.clone() : weapons.scene.clone());
+    }));
+    this.scene.add(weaponFixture);
     const oldVisibility = this.canvas.style.visibility;
     this.canvas.style.visibility = 'hidden';
     // Keep the default framebuffer's color-space and sample configuration: a
@@ -1865,15 +1868,19 @@ export class SceneRig {
    * skin matrices and the static shadow target. Driver overhead is not observable. */
   textureBytesEstimate(): number {
     const textures = new Set<THREE.Texture>();
+    const collect = (mat: THREE.Material) => {
+      for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value);
+      if (mat instanceof THREE.ShaderMaterial) {
+        for (const uniform of Object.values(mat.uniforms)) if (uniform.value instanceof THREE.Texture) textures.add(uniform.value);
+      }
+    };
+    // Prepared weapons remain cached/resident even when all visible operators
+    // carry the carbine. Do not report that hidden legacy atlas as a saving.
+    for (const material of this.warmedMaterials) collect(material);
     let depthRenderbufferBytes = 0;
     this.scene.traverse(object => {
       if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
-        for (const mat of Array.isArray(object.material) ? object.material : [object.material]) {
-          for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value);
-          if (mat instanceof THREE.ShaderMaterial) {
-            for (const uniform of Object.values(mat.uniforms)) if (uniform.value instanceof THREE.Texture) textures.add(uniform.value);
-          }
-        }
+        for (const mat of Array.isArray(object.material) ? object.material : [object.material]) collect(mat);
       }
       if (object instanceof THREE.SkinnedMesh && object.skeleton.boneTexture) textures.add(object.skeleton.boneTexture);
       if (object instanceof THREE.DirectionalLight && object.shadow.map) {

@@ -19,6 +19,17 @@
  */
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { WeaponVisConfig } from '../config/schema.js';
+
+/** One selection rule for first person, remote holds and loading-screen warmup. */
+export function weaponSource(config: WeaponVisConfig, index: number): { url: string; nodeName?: string } | undefined {
+  const override = config.overrides?.[index];
+  if (override) return { url: override.url, nodeName: override.node };
+  const nodeName = config.bundle?.nodes[index];
+  if (nodeName) return { url: config.bundle!.url, nodeName };
+  const url = config.models?.[index];
+  return url ? { url } : undefined;
+}
 
 const cache = new Map<string, Promise<GLTF | undefined>>();
 const warnedUrls = new Set<string>();

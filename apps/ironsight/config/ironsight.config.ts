@@ -301,6 +301,7 @@ export const ironsightConfig: GameConfig = defineConfig({
     // weapons merged into one texture-deduped GLB. Must stay a SINGLE-scene GLB —
     // a multi-scene merge makes GLTFLoader expose only the default scene, so the
     // other nodes silently resolve to the procedural fallback.
+    overrides: { 0: { url: '/assets/weapons/field-carbine.glb', node: 'field-carbine' } },
     bundle: {
       url: "/assets/models/weapons-vm.glb",
       nodes: {

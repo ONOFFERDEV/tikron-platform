@@ -3,7 +3,7 @@ import { splitRifleMagazine } from "./rifle-magazine.js";
 import { reloadPose } from "./reload-presentation.js";
 import { GAME } from "../src/game-config.js";
 import { VISUALS } from "../config/visuals.js";
-import { cloneWeaponBundleNode, loadWeaponModel, weaponMuzzle } from "./weapon-loader.js";
+import { cloneWeaponBundleNode, loadWeaponModel, weaponMuzzle, weaponSource } from "./weapon-loader.js";
 
 const MOUNT_OFFSETS = [[0.025, 0.14, 0.12], [0.025, 0.14, 0], [0.025, 0.14, 0.12],
   [0.025, 0.10, -0.02], [0.025, 0.12, 0.08]] as const;
@@ -89,10 +89,10 @@ export class RemoteWeapon {
     this.mount.add(this.fallback);
     this.muzzle.position.set(0, 0, length * 0.8);
     this.placeScope(length);
-    const bundle = GAME.weaponVis.bundle;
-    const name = bundle?.nodes[index];
-    if (!bundle || !name || !this.hand) return;
-    void loadWeaponModel(bundle.url).then(gltf => {
+    const source = weaponSource(GAME.weaponVis, index);
+    const name = source?.nodeName;
+    if (!source || !name || !this.hand) return;
+    void loadWeaponModel(source.url).then(gltf => {
       if (!gltf || generation !== this.generation) return;
       const template = remoteWeaponTemplate(gltf, name, index);
       if (!template) return;
