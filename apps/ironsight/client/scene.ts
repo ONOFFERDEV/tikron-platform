@@ -60,6 +60,7 @@ import { buildSwitchyardEnvironment, loadSwitchyardSupplies } from "./switchyard
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
 import { loadRelayFieldworks } from "./relay-fieldworks.js";
+import { loadRelayYardSupplies } from './relay-yard.js';
 import { fadeRelayDressing } from './relay-palette.js';
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
@@ -496,6 +497,9 @@ export class SceneRig {
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayFieldworks(this.scene, map)
       .catch(error => console.warn('Relay sandbags unavailable; retaining the solid perimeter wall.', error)));
+    if (map.presentation === 'relay') this.assetLoads.push(loadRelayYardSupplies(this.scene).then(() => {
+      this.renderer.shadowMap.needsUpdate = true;
+    }));
     if (map.presentation === 'undertow') this.assetLoads.push(loadUndertowSupplies(this.scene, map).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }));

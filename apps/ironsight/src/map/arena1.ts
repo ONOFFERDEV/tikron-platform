@@ -5,6 +5,7 @@ import { withStructures } from './structures.js';
 import { RELAY_BUILDINGS } from './relay-structures.js';
 import { RELAY_TRENCH, RELAY_TRENCH_CUT } from './relay-trench.js';
 import { excavate } from './terrain.js';
+import { RELAY_YARD_PARTS, isReplacedRelayYardBlock } from './relay-yard.js';
 
 /** RELAY: mirrored deployment screens, three routes and a split central core.
  * Each tile is 2 m. The same geometry drives rendering, movement, shots and bots.
@@ -89,6 +90,7 @@ export const ARENA1: MapDef = withStructures(excavate({
   ],
   signalCore: { doors, chamber: { min: { x: 70, y: 0, z: 48 }, max: { x: 80, y: 3, z: 52 } } },
   boxes: [...compiled.boxes.filter(b =>
+    !isReplacedRelayYardBlock(b) &&
     // Excavation replaces the old small freight-yard crates within its cut.
     !(b.min.x < 112 && b.max.x > 38 && b.min.z < 79 && b.max.z > 73)
     &&
@@ -108,6 +110,7 @@ export const ARENA1: MapDef = withStructures(excavate({
     // Inaccessible signal spine on the 6m core roof, not another floor tier.
     // Its visible silhouette is authoritative cover even for elevated shots.
     { min: { x: 74, y: 6, z: 48 }, max: { x: 76, y: 14, z: 54 } },
+    ...RELAY_YARD_PARTS.map(p => p.box),
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minX: r.dir === 1 ? r.minX - 4 : r.minX,

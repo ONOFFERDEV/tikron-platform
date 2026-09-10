@@ -5,6 +5,7 @@ import type { MapDef } from "../src/map/types.js";
 import { RELAY_FINISH } from './relay-palette.js';
 import { relaySiteBoundary } from './relay-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RELAY_YARD_PARTS } from '../src/map/relay-yard.js';
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
  * Detail is inset into solids; skyline is outside the playable rectangle.
@@ -39,6 +40,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   };
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
+  const yardParts = new Map(RELAY_YARD_PARTS.map(p => [p.box, p]));
 
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // earth tops use the ground atlas
@@ -49,6 +51,23 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const y = b.min.y;
     const structure = structureParts.get(b);
+    const yard = yardParts.get(b);
+    if (yard) {
+      const cargo = yard.finish === 'cargo', bench = yard.finish === 'bench';
+      // Different working finishes, with the full opaque authority envelope.
+      add(cargo || (!yard.west && !bench) ? 'metal' : bench ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
+      if (cargo || (!yard.west && !bench)) {
+        for (const side of [-1, 1]) {
+          for (let px = b.min.x + .18; px < b.max.x - .1; px += .42)
+            add('dark', px, y + h / 2, z + side * (d / 2 + .003), .055, h - .16, .006);
+          add('amber', x, y + .3, z + side * (d / 2 + .006), w - .12, .10, .006);
+        }
+      } else if (bench) {
+        add('metal', x, b.max.y + .004, z, w, .008, d);
+        add('amber', x, y + .82, b.max.z + .004, w - .08, .12, .008);
+      }
+      continue;
+    }
     if (structure) {
       // Thin walls, real lintels and pierced roof slabs must not use the old
       // solid-house kit (its foundations/cassettes would close the openings).
@@ -126,6 +145,10 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   // all vertices remain exterior, so no new gameplay solid is implied.
   for (const p of relaySiteBoundary(width, depth))
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, p.yaw);
+  for (const x of [30.5, 58, 92, 119.5]) {
+    add('paint', x, .008, 89.7, 2.8, .012, .08);
+    add('paint', x - 1.36, .008, 88.4, .08, .012, 2.6);
+  }
   // Painted lane edges, crossing bars and hazard chevrons: flush with the floor.
   for (const z of [25, 50, 75].map(z => z * depth / 100)) {
     for (const [x, w] of [[width * .18, 12], [width / 2, 16], [width * .82, 12]]) {
