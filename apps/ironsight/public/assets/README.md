@@ -1283,3 +1283,35 @@ Fixed-camera pairs, moving-cover views, geometry audit and performance evidence
 are under `.inspect/session85-*`. Meshy spending is zero this session: this
 material pass does not need generated geometry. The soldier/weapon programme
 retains1150 authorized credits; account1380 is the supervisor's last receipt.
+## Session 86: field uniforms and radio (2026-09-10)
+
+`props/field-radio-pack.glb` is an original Meshy-generated prop, first generated
+in Session83 and fitted in Session86. It contains no purchased soldier geometry.
+Preview task `01a08aa5-fbae-701a-9922-1904e5e7db2f`, refine task
+`01a08aa7-707b-740d-b774-e2ca642d7e0a`; generated 2026-09-10T09:31:50.683Z,
+2000-triangle request, 30 credits already charged to Session83. Prompt: a compact
+rectangular olive canvas military radio backpack, flat back, compression straps,
+exposed dark control block and short antenna; no person, brand or insignia.
+Raw source 7,767,328 bytes, 512px WebP intermediate 188,000 bytes. The adopted
+vertex-colour GLB is 260,176 bytes / 1,895 triangles / one mesh / zero textures;
+SHA256 `f929f61404ac98cbd2ad3feb7981ad74e7b66d7f7fce5831b5f53ea45ece153a`.
+
+Reproduce from the retained generated source (Blender4.5):
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/session83-meshy/field-radio-pack/model.glb --output .inspect/session86-radio-shrunk.glb --size 512 --webp
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-radio-colors.py -- --input .inspect/session86-radio-shrunk.glb --output public/assets/props/field-radio-pack.glb
+```
+
+Cycles bakes albedo only into original prop vertex colours; no light is baked.
+`client/field-equipment.ts` loads this only alongside actors, normalizes it to
+0.26 × 0.46 × 0.18m, and `operator-kit.ts` merges it into anchors' existing skinned
+draw with rigid upper-spine weights. Radio triangles cannot produce hit claims.
+Original procedural sleeves, trousers, helmet cover and goggles use the same
+draw and bind-coordinate fabric finish. No additional light or rendering pass.
+
+The purchased `models/player.glb` stays ignored and unchanged. Its actual64
+animation clips and original vertices are retained; runtime atlas preparation
+downsamples the shared2048px colour atlas to512px once before play, saving20MiB
+of estimated mipmapped texture residency. No purchased derivative is exported.
+Session86 carbine attempts remain inspection-only, outside public assets.

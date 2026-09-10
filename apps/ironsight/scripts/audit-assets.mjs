@@ -8,6 +8,7 @@ const approvedDerived = [
 ];
 const approvedOriginal = ['assets/maps/relay-architecture.glb', 'assets/maps/undertow-architecture.glb',
   'assets/maps/switchyard-architecture.glb', 'assets/props/switchyard-transformer.glb', 'assets/props/relay-uplink.glb',
+  'assets/props/field-radio-pack.glb',
   'assets/ui/damage-vignette.png', 'assets/undertow-dusk.hdr', 'assets/undertow-dusk-sky.png',
   'assets/switchyard-overcast.hdr', 'assets/switchyard-overcast-sky.png'];
 const files = [];

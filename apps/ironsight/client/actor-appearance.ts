@@ -48,10 +48,11 @@ export class ActorAppearance {
             #include <emissivemap_fragment>
             float actorEdge = 1.0 - abs(dot(normal, normalize(vViewPosition)));
             float actorRange = smoothstep(10.0, 45.0, length(vViewPosition));
-            totalEmissiveRadiance += actorRimColor * actorEdge * actorEdge * (0.42 + 0.20 * actorRange);
+            totalEmissiveRadiance += actorRimColor * actorEdge * actorEdge * (0.42 + 0.20 * actorRange)
+              ${fieldKit ? '* (0.45 + 0.55 * clamp(vFieldKit.y,0.0,1.0))' : ''};
           `);
         };
-        material.customProgramCacheKey = () => fieldKit ? 'ironsight-field-kit-rim-v1' : 'ironsight-actor-rim-v1';
+        material.customProgramCacheKey = () => fieldKit ? 'ironsight-field-kit-rim-v2' : 'ironsight-actor-rim-v1';
         clones.set(source, material);
         this.materials.push(material);
         return material;

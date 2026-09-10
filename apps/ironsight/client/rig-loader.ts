@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { loadFieldRadio, prepareSoldierAtlas } from './field-equipment.js';
 
 export type LocomotionState =
   | "idle"
@@ -52,7 +53,8 @@ let warnedOnce = false;
 /** Fetches (and caches) the player GLB. Resolves `undefined` — after a single
  *  `console.warn` — on any failure; never rejects. */
 export async function loadPlayerModel(url: string): Promise<GLTF | undefined> {
-  if (!cachedGltf) cachedGltf = new GLTFLoader().loadAsync(url);
+  if (!cachedGltf) cachedGltf = Promise.all([new GLTFLoader().loadAsync(url), loadFieldRadio()])
+    .then(([gltf]) => { prepareSoldierAtlas(gltf.scene); return gltf; });
   try {
     return await cachedGltf;
   } catch (err) {
