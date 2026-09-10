@@ -1,6 +1,8 @@
 import type { Bounds, Box } from '../physics.js';
 import { compileTileMap } from './tilemap.js';
 import type { MapDef } from './types.js';
+import { withStructures } from './structures.js';
+import { UNDERTOW_BUILDINGS, UNDERTOW_CRATES } from './undertow-structures.js';
 
 /** UNDERTOW: 150 x 100 m reclamation works, six deployments per side.
  * Clarifier rifle route (north), paired control-deck shortcuts (middle),
@@ -11,7 +13,8 @@ import type { MapDef } from './types.js';
  * lane. Players can round either end to peek or push the home court.
  * B's southern pump housings end in full-height returns: the approach bends
  * around solid machinery before entering the two existing court doors.
- * Tiles own all cover/spawns/caps; the original kit only clads these volumes.
+ * Tiles own yard cover/spawns/caps; the structure layer replaces the paired
+ * sealed pump housings with ground rooms and +3m holdable roofs.
  */
 export const UNDERTOW_ROWS: readonly string[] = [
   "...........................................................................",
@@ -72,7 +75,7 @@ const doors: readonly Box[] = [
   { min: { x: 68, y: 0, z: 48 }, max: { x: 68.5, y: 3, z: 52 } },
   { min: { x: 81.5, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } },
 ];
-export const ARENA2: MapDef = {
+export const ARENA2: MapDef = withStructures({
   ...compiled,
   presentation: 'undertow',
   // B assaults use Pump service behind the southern housings, then the two
@@ -83,7 +86,9 @@ export const ARENA2: MapDef = {
     [{ x: 127, z: 85 }, { x: 101, z: 85 }, { x: 85, z: 87 }, { x: 81, z: 91 }],
   ] },
   signalCore: { doors, chamber: { min: { x: 68, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } } },
-  boxes: [...compiled.boxes.filter(b => !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)).map(b => ({ ...b, max: { ...b.max,
+  boxes: [...compiled.boxes.filter(b => !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)
+    && !UNDERTOW_BUILDINGS.some(s => b.min.x === s.origin.x && b.max.x === s.origin.x + s.width
+      && b.min.z === s.origin.z && b.max.z === s.origin.z + s.depth)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
   } })),
     { min: { x: 68, y: 0, z: 40 }, max: { x: 82, y: 6, z: 48 } },
@@ -92,12 +97,13 @@ export const ARENA2: MapDef = {
     ...doors,
     // Solid central pressure stack, inaccessible above the existing 6m roof.
     { min: { x: 73, y: 6, z: 47 }, max: { x: 77, y: 14, z: 51 } },
+    ...UNDERTOW_CRATES,
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minZ: r.dir === 1 ? r.minZ - 4 : r.minZ,
     maxZ: r.dir === -1 ? r.maxZ + 4 : r.maxZ,
   })),
-};
+}, UNDERTOW_BUILDINGS);
 export const ARENA2_BOUNDS: Bounds = ARENA2.bounds;
 export const ARENA2_BOXES = ARENA2.boxes;
 export const ARENA2_SPAWNS = ARENA2.spawns;

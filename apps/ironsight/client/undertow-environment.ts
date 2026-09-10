@@ -2,6 +2,8 @@
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
+import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
+import { createPropLibrary } from './prop-library.js';
 
 /** Original reclamation kit. The complete box envelope remains visibly solid;
  * turbine faces/windows are flush cladding, never holes or new playable cover.
@@ -20,10 +22,37 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     batches.set(key, list);
   };
   if (!bakeOnly) buildSiteGround(scene, map, true);
+  const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   for (const b of map.boxes) {
     if (map.signalCore?.doors.includes(b)) continue;
+    if (UNDERTOW_CRATES.includes(b)) continue; // separate detail/fallback pair, never baked twice
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
+    const structure = structureParts.get(b);
+    if (structure) {
+      // Exact thin wall/lintel/slab faces: old turbine cladding would close
+      // the apertures and wrongly move elevated surfaces back to the yard.
+      const console = structure.kind === 'cover';
+      add(console ? 1 : 0, x, b.min.y + h / 2, z, w, h, d);
+      if (console) {
+        add(2, x, b.max.y + .004, z, w, .008, d);
+        add(4, x, b.max.y + .009, z, w * .75, .002, d * .64);
+        for (let i = -.6; i <= .6; i += .3)
+          add(3, x + i, b.max.y + .011, z, .09, .002, .2);
+      } else if (structure.kind === 'wall' && b.min.y === 0 && h >= 1.1) {
+        const accent = x < width / 2 ? 4 : 5;
+        for (const side of [-1, 1]) {
+          if (w > d) {
+            add(accent, x, .43, z + side * (d / 2 + .004), w, .66, .008);
+            add(3, x, .78, z + side * (d / 2 + .004), w, .04, .008);
+          } else {
+            add(accent, x + side * (w / 2 + .004), .43, z, .008, .66, d);
+            add(3, x + side * (w / 2 + .004), .78, z, .008, .04, d);
+          }
+        }
+      }
+      continue;
+    }
     if (b.min.y > 0) {
       if (b.min.y === 3) {
         // Gallery lintel: every cladding piece stays above standing clearance.
@@ -85,6 +114,19 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
       }
       for (const side of [-1, 1]) for (let k = 0; k < 6; k++)
         add(2, x + side * (w / 2 + 0.007), 0.7 + k * 0.20, z, 0.012, 0.07, d * 0.65);
+    }
+  }
+  // Stair nosings and door headers stay millimetres from authoritative faces.
+  // Smooth ramp collision carries movement; the markings only describe it.
+  for (const s of map.structures ?? []) {
+    for (const r of s.ramps) for (let step = 1; step < 18; step++) {
+      const t = step / 18, x = r.dir === 1 ? r.minX + t * (r.maxX - r.minX) : r.maxX - t * (r.maxX - r.minX);
+      add(3, x, r.topY * t + .006, (r.minZ + r.maxZ) / 2, .028, .008, r.maxZ - r.minZ - .08);
+    }
+    for (const offset of [7, 15]) {
+      const x = s.footprint.minX + offset, z = s.footprint.maxZ + .004;
+      add(2, x, 2.54, z, 2.15, .27, .008);
+      add(6, x, 2.58, z + .007, 1.7, .028, .004);
     }
   }
   // Boundary walls and their inset maintenance panels.
@@ -234,4 +276,41 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   sign(7, width / 2, 2.1, depth - .015, Math.PI, 6);
   sign(4, .016, 3.6, depth / 2, Math.PI / 2, 12);
   sign(5, width - .016, 3.6, depth / 2, -Math.PI / 2, 12);
+  for (const s of map.structures ?? []) {
+    const x = (s.footprint.minX + s.footprint.maxX) / 2;
+    sign(x < width / 2 ? 4 : 5, x, 3.6, s.footprint.minZ - .016, Math.PI, 5);
+    // The central window's lintel is only .37m high: keep text inside it.
+    sign(7, x, 2.53, s.footprint.maxZ + .016, 0, 2.7);
+  }
+}
+
+/** Lazy, map-owned issued supplies. Their exact box colliders are present even
+ * while loading or on failure; the procedural fallback is replaced only after
+ * the whole detailed hierarchy is ready, before scene preparation/warm-up. */
+export async function loadUndertowSupplies(scene: T.Scene): Promise<void> {
+  const library = createPropLibrary();
+  const geometry = new T.BoxGeometry(1, 1, 1);
+  const material = new T.MeshStandardMaterial({ color: 0x4c5140, roughness: .92 });
+  const fallback = new T.Group(); fallback.name = 'undertow-supply-fallback';
+  for (const b of UNDERTOW_CRATES) {
+    const mesh = new T.Mesh(geometry, material);
+    mesh.position.set((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
+    mesh.scale.set(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z);
+    mesh.castShadow = mesh.receiveShadow = true; fallback.add(mesh);
+  }
+  scene.add(fallback);
+  try {
+    const props = await Promise.all(UNDERTOW_CRATES.map(async b => {
+      const root = await library.load('ammo-crate-stack');
+      root.position.set((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2);
+      root.traverse(node => { if (node instanceof T.Mesh) node.castShadow = node.receiveShadow = true; });
+      return root;
+    }));
+    const group = new T.Group(); group.name = 'undertow-issued-supplies';
+    group.add(...props); scene.add(group); scene.remove(fallback);
+    geometry.dispose(); material.dispose();
+  } catch (error) {
+    library.dispose();
+    console.warn('Undertow supply detail unavailable; retaining authoritative crate envelopes.', error);
+  }
 }

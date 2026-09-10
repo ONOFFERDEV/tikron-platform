@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { INSPECTION_LEASE_TIMEOUT_MS } from '../scripts/inspection-lease.mjs';
 
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
@@ -81,7 +82,9 @@ async function gates(tag) {
     let up = false;
     for (let i = 0; i < 60 && !up; i++) { try { up = (await fetch(PREVIEW)).status === 200; } catch {} if (!up) await new Promise(r => setTimeout(r, 2000)); }
     if (!up) { results.push({ name: 'server', code: 1, tail: `wrangler dev did not answer on ${PORT}` }); return { ok: false, results }; }
-    ok = await step('inspect', `node scripts/inspect-map.mjs --url ${PREVIEW} --shots relay,practice-two --prefix ${tag}`, { timeoutMs: 10 * 60 * 1000 }) && ok;
+    // The exclusive GPU queue has its own bounded deadline. Do not kill a
+    // healthy waiting inspector before it can start its existing runtime budget.
+    ok = await step('inspect', `node scripts/inspect-map.mjs --url ${PREVIEW} --shots relay,practice-two --prefix ${tag}`, { timeoutMs: INSPECTION_LEASE_TIMEOUT_MS + 10 * 60 * 1000 }) && ok;
     if (ok) {
       try {
         const report = JSON.parse(await readFile(join(app, `.inspect/${tag}-report.json`), 'utf8'));
@@ -90,7 +93,7 @@ async function gates(tag) {
         ok = errs === 0 && ok;
       } catch (e) { results.push({ name: 'inspect-errors', code: 1, tail: String(e) }); ok = false; }
     }
-    ok = await step('hitch', `node scripts/hitch-probe.mjs ${PREVIEW} 150000 .inspect/${tag}-hitch.json --assert`, { timeoutMs: 6 * 60 * 1000 }) && ok;
+    ok = await step('hitch', `node scripts/hitch-probe.mjs ${PREVIEW} 150000 .inspect/${tag}-hitch.json --assert`, { timeoutMs: INSPECTION_LEASE_TIMEOUT_MS + 6 * 60 * 1000 }) && ok;
   } finally { killTree(server.pid); await new Promise(r => setTimeout(r, 1500)); }
   return { ok, results };
 }

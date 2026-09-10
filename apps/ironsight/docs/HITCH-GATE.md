@@ -156,6 +156,15 @@ option with either acceptance assertion. Use a separate run for visual evidence.
 
 ## Shared GPU inspection lease (Session 93)
 
+Session94 fixes the supervisor's scheduling timeout: the outer inspection and
+hitch deadlines now include the lease's existing ten-minute acquisition budget
+plus their original ten-/six-minute execution budgets (twenty/sixteen minutes
+total). Previously a queued hitch was killed after six minutes, before its
+ten-minute lease deadline. Acquisition still fails at ten minutes. The 150-second
+round, frame/first-use limits and assertions are unchanged. This bounds total
+scheduling time; it does not guarantee FIFO fairness or fix GPU stalls. A running
+supervisor must reload this module on restart to adopt the new outer deadline.
+
 `inspect-map.mjs` and `hitch-probe.mjs` acquire the same loopback lease on
 `127.0.0.1:18796` before launching Edge, across repositories and worktrees.
 The next inspector waits until browser cleanup completes. Reports include the
@@ -193,6 +202,26 @@ establish universally stall-free presentation.
 `node tools/audit-inspection-lease.mjs` checks exclusion across two processes,
 handover, recovery after termination, timeout, repeated release and refusal of
 an unrelated listener, on ephemeral ports without launching a browser.
+
+The Session93 Close Hold continuation observed two ten-minute acquisition
+timeouts while another stream launched consecutive probes. New processes could
+reacquire between the waiting inspector's 250ms retries. Waiting retries now run
+every16ms, retaining the same exclusive socket and ten-minute deadline. This
+reduces that scheduling gap; it is not a FIFO queue or a rendering optimization.
+The same standalone lease audit passes. Both timeouts and the explicit restart
+of the still-queued main inspector are retained as
+`.inspect/session93-close-baseline-queue-*`. No other stream's process was stopped.
+
+Close Hold's additional FFA checks retain a new recurring first-frame stall:
+2346.9ms untraced,2369.6ms traced,2349.2ms in the ordinary confirmation.
+The required TDM gate passes(29.7ms maximum); this does not qualify FFA.
+The covered trace has a2947.113ms wall/3.553ms CPU ANGLE worker overlapping
+nearly the entire pause, with responsive timers and6.4ms resumed game callback.
+It supports a GPU/ANGLE wait path, but these trace categories do not identify
+a particular executable or establish a driver defect. No threshold or runtime
+change was made; the second confirmation was cancelled by the predeclared
+stop-on-failure rule. The full evidence and remaining combat-stream request
+are in AAA-PLAN.md Session93 and `.inspect/session93-close-hitch-summary.json`.
 
 ## Capturing a new failure
 

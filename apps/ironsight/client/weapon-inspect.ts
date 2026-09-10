@@ -20,6 +20,8 @@ export function startWeaponInspector(): void {
   const cycle = shot?.endsWith('-cycle') ?? false;
   let cycleFrames = 0;
   const observedPhases = new Set<string>();
+  const framingSamples: { progress: number; framing: ReturnType<SceneRig['inspectViewmodelFraming']> }[] = [];
+  const reviewFrames = new Set([0, 18, 32, 61, 86, 115, 133, 140, 155, 169, 180]);
   const tick = () => {
     const movingProgress = cycle && cycleFrames < 181 ? cycleFrames / 180 : progress;
     const ready = scene.inspectViewmodel(movingProgress, shot?.includes('-ads') ?? false);
@@ -28,11 +30,12 @@ export function startWeaponInspector(): void {
     if (!ready || ++frames < 20 || !scene.readyForInspection(0)) { requestAnimationFrame(tick); return; }
     if (cycle && cycleFrames < 182) {
       observedPhases.add(scene.viewmodelDiagnostics().phase);
+      if (reviewFrames.has(cycleFrames)) framingSamples.push({ progress: movingProgress!, framing: scene.inspectViewmodelFraming() });
       cycleFrames++;
       requestAnimationFrame(tick); return;
     }
-    flags.__mapInspect = { ...scene.viewmodelDiagnostics(),
-      ...(cycle ? { reloadCycle: { frames: cycleFrames, phases: [...observedPhases] } } : {}) };
+    flags.__mapInspect = { ...scene.viewmodelDiagnostics(), framing: scene.inspectViewmodelFraming(),
+      ...(cycle ? { reloadCycle: { frames: cycleFrames, phases: [...observedPhases], framingSamples } } : {}) };
     flags.__inspectReady = true;
   };
   // Match gameplay readiness: don't freeze a weapon still while the map's

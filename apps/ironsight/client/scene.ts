@@ -36,6 +36,7 @@ import { SignalCore, addCoreSigns } from './signal-core.js';
 import { CoreCollision } from '../src/core-gate.js';
 import type { SignalFrame } from '../src/signal-event.js';
 import { rifleSight } from './rifle-sight.js';
+import { VIEWMODEL_FITS, VIEWMODEL_HIP_FOV, viewmodelProjectionScale } from './viewmodel-fit.js';
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, type Box } from "../src/physics.js";
 import type { MapDef, RampDef } from "../src/map/types.js";
@@ -54,7 +55,7 @@ import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigMod
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, weaponSource } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
-import { buildUndertowEnvironment } from "./undertow-environment.js";
+import { buildUndertowEnvironment, loadUndertowSupplies } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
@@ -120,52 +121,22 @@ const SWAP_UP_MS = GAME.weaponVis.swapUpMs; // down+up = the server's 350 ms swi
 const MUZZLE_Z_DEFAULT = -0.74; // procedural weapons' fixed muzzle depth (buildViewmodel's rest value)
 
 interface WeaponVmTransform {
-  /** Uniform scale bringing the model to roughly the same size the procedural
-   *  boxes occupied at this same depth. */
   scale: number;
-  /** Position within weaponHolder (X/Y stay 0 for every slot; only depth varies). */
+  /** Existing mesh-to-grip fit. VIEWMODEL_FITS advances the complete fitted
+   * assembly, so hands, optic and animated magazine cannot be left behind. */
   posZ: number;
-  /** Local Z of this model's own muzzle tip — this.muzzle/muzzleLight move here
-   *  (X/Y stay 0/0.02, matching the procedural convention) while it's held. */
-  muzzleZ: number;
-  /** Correction around the model's own bore axis (applied as `rotation.z`,
-   *  after the shared `rotation.y = Math.PI` flip) — most assets need none;
-   *  is-armfix's muzzle-normalization pipeline (+Z-alignment only) can leave a
-   *  residual roll on asymmetric silhouettes (see VM_WEAPON_TRANSFORMS's SMG/
-   *  Pistol entries), invisible to their 2-point muzzle/stock marker check
-   *  since that only fixes the bore AXIS, not rotation around it. */
   roll?: number;
 }
 
-/**
- * Empirically-tuned per-weapon-slot scale/position/muzzle-tip offsets — index
- * matches WEAPONS' AR/SMG/Shotgun/Sniper/Pistol order. Applies identically to
- * either weaponVis source (a bundle node or a per-file model — see
- * setWeaponVisual): `scale`/`posZ` are visually tuned per slot, then
- * `muzzleZ` is DERIVED (not guessed) from the relationship this file's own
- * transform pipeline creates — `rotation.y = Math.PI` flips local Z, so a
- * model's own measured local max-Z (the muzzle tip, now confirmed at local
- * +Z for every asset — see the bore-test note below) ends up at world
- * `posZ - localMaxZ * scale`.
- *
- * Synty replacement (current values): re-derived for the new
- * SM_Wep_Rifle_Base_01/SMG_01/Shotgun_Plasma_01/Sniper_01/Pistol_01 meshes,
- * replacing the cyber-trooper set entirely (same 5 slots, different source
- * geometry). `posZ` keeps the same ~0.3-unit-out convention the cyber-trooper pass
- * established. Camera-local rest poses and motion now live in weaponVis.presentation.
- *
- * Bore test (confirms rotation, not just assumed): is-armfix's own per-asset
- * red/blue marker renders (muzzle vs stock ends, from their orientation
- * pipeline) plus in-game front-on captures of all 5 muzzle tips agree that
- * local +Z is the muzzle for every asset, so the existing `rotation.y =
- * Math.PI` flip (this viewmodel's own forward is -Z) needs no change.
- */
+/** AR/SMG/shotgun/sniper/pistol source calibration. +Z source bore faces -Z
+ * after the shared flip. Muzzle coordinates are measured on each loaded mesh
+ * and transformed through its matrix; never retain a hand-written muzzle Z. */
 const VM_WEAPON_TRANSFORMS: Record<number, WeaponVmTransform> = {
-  0: { scale: 0.65, posZ: -0.24, muzzleZ: -0.591 }, // AR — SM_Wep_Rifle_Base_01 (localMaxZ 0.54)
-  1: { scale: 0.75, posZ: -0.3, muzzleZ: -0.552 }, // SMG — swapped to SM_Wep_MachinePistol_Gen1_01 (localMaxZ 0.336): the original SM_Wep_SMG_01's open carry-handle silhouette didn't read as a weapon at a glance; is-armfix independently re-measured (not just eyeballed) and found no real roll defect on either candidate, so the swap is purely a readability call. Scale started from this asset's own bounds (closer to Pistol's than to a long gun) rather than reused from the old SMG_01 entry — different mesh, not comparable.
-  2: { scale: 0.5, posZ: -0.3, muzzleZ: -0.63 }, // Shotgun — swapped to SM_Wep_Rifle_Laser_01 (localMaxZ 0.661, nearly identical overall length to the old Shotgun_Plasma_01 so scale carried over as a starting point, muzzleZ re-derived fresh from this asset's own measured bounds, not reused) — this asset's own auto-orient pass genuinely had the muzzle backwards (is-armfix manually corrected with --flip_muzzle); re-verified independently in-game before shipping, see is-anim's report. The muzzle flash sprite's fixed (0, 0.02) local X/Y doesn't visibly land on this mesh's bore (its Y bounds aren't centered on 0 like the other 4 weapons) — cosmetic only, confirmed via instrumented timing that the flash itself fires correctly; tracer/casing/rotation all unaffected.
-  3: { scale: 0.38, posZ: -0.3, muzzleZ: -0.631 }, // Sniper — SM_Wep_Sniper_01 (localMaxZ 0.87)
-  4: { scale: 0.85, posZ: -0.3, muzzleZ: -0.47 }, // Pistol — SM_Wep_Pistol_01 (localMaxZ 0.2); roll: is-armfix re-measured properly (not by eye) and found ~0 on every asset — my -0.2 guess earlier was a false positive, left at 0
+  0: { scale: .65, posZ: -.24 },
+  1: { scale: .75, posZ: -.30 },
+  2: { scale: .50, posZ: -.30 },
+  3: { scale: .38, posZ: -.30 },
+  4: { scale: .85, posZ: -.30 },
 };
 
 /**
@@ -308,6 +279,7 @@ export class SceneRig {
 
   // Viewmodel + its animated offsets.
   private readonly viewmodel = new THREE.Group();
+  private readonly viewmodelProjection = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
   private readonly hands = new ViewmodelHands();
   private issuedCarbine = false;
@@ -327,6 +299,10 @@ export class SceneRig {
   private sightDot?: THREE.Object3D;
   private readonly muzzle: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
+  private readonly casingAnchor = new THREE.Object3D();
+  private sourceMuzzle?: THREE.Object3D;
+  private weaponFov = VIEWMODEL_HIP_FOV;
+  private lastSelfShot?: { muzzle: number[]; casing: number[]; endpoint: number[]; muzzleScreen: number[]; endpointScreen: number[]; sourceError: number };
   private muzzleFiredAt = -1e9;
   private muzzleWeapon = 0;
   private bobPhase = 0;
@@ -520,6 +496,9 @@ export class SceneRig {
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayFieldworks(this.scene, map)
       .catch(error => console.warn('Relay sandbags unavailable; retaining the solid perimeter wall.', error)));
+    if (map.presentation === 'undertow') this.assetLoads.push(loadUndertowSupplies(this.scene).then(() => {
+      this.renderer.shadowMap.needsUpdate = true;
+    }));
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
@@ -530,7 +509,8 @@ export class SceneRig {
     this.viewmodel.add(vm.group);
     this.muzzle = vm.muzzle;
     this.muzzleLight = vm.light;
-    this.camera.add(this.viewmodel);
+    this.viewmodelProjection.add(this.viewmodel);
+    this.camera.add(this.viewmodelProjection);
     // Keep the light outside the hideable viewmodel subtree so death and scoped ADS never change the scene's light count.
     this.camera.add(this.muzzleLight);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
@@ -748,13 +728,14 @@ export class SceneRig {
     const scale = spec.localScale * (1 - .65 * this.adsT);
     this.muzzle.scale.set(spec.width / .34 * scale, spec.height / .34 * scale, 1);
     this.updateMuzzle(this.muzzleFiredAt);
-    this.muzzle.getWorldPosition(this.muzzleWorldScratch);
-    this.camera.worldToLocal(this.muzzleWorldScratch);
-    this.muzzleLight.position.copy(this.muzzleWorldScratch);
-    this.muzzleLight.intensity = 3;
   }
 
   private updateMuzzle(now: number): void {
+    // The light stays outside the hideable subtree. Follow its projected marker
+    // on every animated frame, including recoil, ADS, reload and weapon swaps.
+    this.muzzle.getWorldPosition(this.muzzleWorldScratch);
+    this.camera.worldToLocal(this.muzzleWorldScratch);
+    this.muzzleLight.position.copy(this.muzzleWorldScratch);
     const intensity = flashEnvelope(now - this.muzzleFiredAt, this.muzzleWeapon);
     (this.muzzle.material as THREE.MeshBasicMaterial).opacity = .9 * intensity * (1 - .55 * this.adsT);
     this.muzzleLight.intensity = 3 * intensity;
@@ -791,9 +772,14 @@ export class SceneRig {
     const fallback = buildWeaponMesh(index);
     this.sightHeight = new THREE.Box3().setFromObject(fallback).max.y;
     this.weaponHolder.add(fallback);
+    const fit = VIEWMODEL_FITS[index] ?? VIEWMODEL_FITS[0];
+    // Mesh, sight, magazine, bolt, cuffs and sleeves share this exact translation.
+    this.weaponHolder.position.z = fit.advance;
+    this.hands.group.position.z = fit.advance;
     this.weaponIsModel = false;
-    this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
-    this.muzzleLight.position.set(0, 0.02, MUZZLE_Z_DEFAULT);
+    this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT + fit.advance);
+    this.casingAnchor.position.set(.045, .01, -.28);
+    this.weaponHolder.add(this.casingAnchor);
 
     const transform = VM_WEAPON_TRANSFORMS[index];
     if (!transform) return;
@@ -810,6 +796,7 @@ export class SceneRig {
       if (!obj) return; // bundle loaded but this slot's node is missing — stay procedural
 
       const bore = weaponMuzzle(obj);
+      const sourceBounds = new THREE.Box3().setFromObject(obj);
       const sightHeight = new THREE.Box3().setFromObject(obj).max.y * transform.scale;
       this.disposeCurrentWeaponMesh();
       {
@@ -830,6 +817,11 @@ export class SceneRig {
       }
       this.sightHeight = sightHeight;
       this.weaponHolder.add(obj);
+      // Source-space markers follow the real mesh transform (including any roll).
+      this.sourceMuzzle = new THREE.Object3D();
+      this.sourceMuzzle.position.copy(bore); obj.add(this.sourceMuzzle);
+      this.casingAnchor.position.set(sourceBounds.min.x, bore.y, .025);
+      obj.add(this.casingAnchor);
       this.issuedCarbine = obj.userData.issuedCarbine === true;
       if (index === 0) {
         const sight = rifleSight(-bore.x * transform.scale,
@@ -839,8 +831,9 @@ export class SceneRig {
         this.sightHeight = sight.centerY;
       }
       this.weaponIsModel = true;
-      this.muzzle.position.set(-bore.x * transform.scale, bore.y * transform.scale, transform.posZ - bore.z * transform.scale);
-      this.muzzleLight.position.copy(this.muzzle.position);
+      obj.updateMatrix();
+      this.muzzle.position.copy(bore).applyMatrix4(obj.matrix);
+      this.muzzle.position.z += fit.advance;
     }
   }
 
@@ -849,6 +842,8 @@ export class SceneRig {
    *  be disposed here; only the procedural mesh's fresh-per-call BoxGeometry is. */
   private disposeCurrentWeaponMesh(): void {
     this.issuedCarbine = false;
+    this.sourceMuzzle = undefined;
+    this.casingAnchor.removeFromParent();
     for (const geometry of this.weaponGeometry) geometry.dispose();
     this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined; this.sightDot = undefined;
     for (const child of [...this.weaponHolder.children]) {
@@ -886,9 +881,63 @@ export class SceneRig {
   viewmodelDiagnostics() {
     return { weapon: this.weaponIndex, phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
       magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT, adsProgress: this.adsProgress, fov: this.fovCur,
-      hands: this.hands.group.visible,
+      hands: this.hands.group.visible, weaponFov: this.weaponFov, lastSelfShot: this.lastSelfShot,
       flash: { name: weaponFlash(this.muzzleWeapon).name, lifeMs: weaponFlash(this.muzzleWeapon).lifeMs,
         opacity: (this.muzzle.material as THREE.MeshBasicMaterial).opacity }, ...this.getRenderInfo() };
+  }
+
+  /** Offline camera review only. Compare the same frozen frame with/without the
+   * held model; no extra render, readback or allocation in ordinary gameplay. */
+  inspectViewmodelFraming() {
+    const gl = this.renderer.getContext(), width = gl.drawingBufferWidth, height = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(width * height * 4), background = new Uint8Array(pixels.length);
+    const withoutWeapon = new Uint8Array(pixels.length);
+    const visible = this.viewmodel.visible;
+    const read = (out: Uint8Array) => {
+      this.renderer.render(this.scene, this.camera);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    };
+    read(pixels);
+    this.weaponHolder.visible = false;
+    try { read(withoutWeapon); }
+    finally { this.weaponHolder.visible = true; }
+    this.viewmodel.visible = false;
+    try { read(background); }
+    finally { this.viewmodel.visible = visible; this.renderer.render(this.scene, this.camera); }
+    let occupied = 0, weaponPixels = 0, corridor = 0, aimCorridor = 0;
+    let minX = width, minY = height, maxX = -1, maxY = -1;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (Math.max(Math.abs(pixels[i]! - background[i]!), Math.abs(pixels[i + 1]! - background[i + 1]!),
+        Math.abs(pixels[i + 2]! - background[i + 2]!)) <= 8) continue;
+      const topY = height - 1 - y;
+      occupied++; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      if (Math.max(Math.abs(pixels[i]! - withoutWeapon[i]!), Math.abs(pixels[i + 1]! - withoutWeapon[i + 1]!),
+        Math.abs(pixels[i + 2]! - withoutWeapon[i + 2]!)) > 8) weaponPixels++;
+      minY = Math.min(minY, topY); maxY = Math.max(maxY, topY);
+      if (x >= width * .4 && x < width * .6) {
+        corridor++;
+        if (topY < height * .6) aimCorridor++;
+      }
+    }
+    const screen = (world: THREE.Vector3) => {
+      const p = world.clone().project(this.camera);
+      return [(p.x + 1) * width / 2, (1 - p.y) * height / 2];
+    };
+    const muzzle = this.muzzle.getWorldPosition(new THREE.Vector3());
+    const source = this.sourceMuzzle?.getWorldPosition(new THREE.Vector3());
+    return { width, height, visible, occupiedPixels: occupied, coverage: occupied / (width * height),
+      weaponPixels, weaponCoverage: weaponPixels / (width * height),
+      corridorPixels: corridor, aimCorridorPixels: aimCorridor,
+      bounds: occupied ? [minX, minY, maxX, maxY] : null,
+      muzzleScreen: screen(muzzle), muzzleCamera: this.camera.worldToLocal(muzzle.clone()).toArray(),
+      sightScreen: this.sightDot ? screen(this.sightDot.getWorldPosition(new THREE.Vector3())) : null,
+      sightHeight: this.sightHeight, root: this.viewmodel.position.toArray(),
+      assemblyAdvance: this.weaponHolder.position.z, handAdvance: this.hands.group.position.z,
+      sourceMuzzleError: source ? source.distanceTo(muzzle) : null,
+      lightError: this.muzzleLight.getWorldPosition(new THREE.Vector3()).distanceTo(muzzle),
+      preparation: this.getPreparationInfo(),
+      definition: 'RGB difference >8 against the identical frozen frame without the model. Central strip x40-60%; aim region y0-60%. Scope overlay is excluded.' };
   }
 
   // --- grenades + explosions ----------------------------------------------------
@@ -987,13 +1036,17 @@ export class SceneRig {
     const kick = this.recoil;
     const ads = this.adsT;
     const pose = MOTION.poses[this.weaponIndex] ?? MOTION.poses[0]!;
+    const fit = VIEWMODEL_FITS[this.weaponIndex] ?? VIEWMODEL_FITS[0];
+    this.weaponFov = lerp(VIEWMODEL_HIP_FOV, fit.adsFov, ads);
+    const projectionScale = viewmodelProjectionScale(this.fovCur, this.weaponFov);
+    this.viewmodelProjection.scale.set(projectionScale, projectionScale, 1);
     const steady = lerp(1, MOTION.adsMotion, ads);
     // Centre X on the bore; look just above the sight silhouette, parallel to the barrel.
     this.viewmodel.position.set(
-      lerp(pose.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady,
-      lerp(pose.y, -this.sightHeight - (this.weaponIndex === 0 && this.weaponIsModel ? 0 : MOTION.adsSightClearance), ads) +
-        (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.025,
-      lerp(pose.z, MOTION.adsDepth, ads) + kick * MOTION.recoilBack,
+      lerp(fit.x, -this.muzzle.position.x, ads) + (bx + this.swayX) * steady + reload.tilt * .10,
+      lerp(fit.y, -this.sightHeight - (this.weaponIndex === 0 && this.weaponIsModel ? 0 : MOTION.adsSightClearance), ads) +
+        (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.04,
+      lerp(fit.z, fit.adsZ, ads) + kick * MOTION.recoilBack,
     );
     this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08 + this.vaultBlend * .28) * (1 - ads);
     this.viewmodel.rotation.set(
@@ -1483,6 +1536,29 @@ export class SceneRig {
   getSelfMuzzlePos(): { x: number; y: number; z: number } {
     this.muzzle.getWorldPosition(this.muzzleWorldScratch);
     return { x: this.muzzleWorldScratch.x, y: this.muzzleWorldScratch.y, z: this.muzzleWorldScratch.z };
+  }
+
+  /** Visual path converges from the actual held muzzle onto the unchanged world
+   * aiming ray. Ejected brass starts at the receiver, in the same fitted frame. */
+  fireSelfTracer(endpoint: { x: number; y: number; z: number }, speed: number): void {
+    const muzzle = this.getSelfMuzzlePos();
+    const delta = new THREE.Vector3(endpoint.x - muzzle.x, endpoint.y - muzzle.y, endpoint.z - muzzle.z);
+    const distance = delta.length();
+    if (distance < 1e-6) return;
+    delta.divideScalar(distance);
+    this.addTracer(muzzle, delta, distance, false, speed);
+    const casing = this.casingAnchor.getWorldPosition(new THREE.Vector3());
+    this.spawnCasing(casing, delta);
+    const pixel = (p: THREE.Vector3) => {
+      p.project(this.camera);
+      return [(p.x + 1) * this.canvas.clientWidth / 2, (1 - p.y) * this.canvas.clientHeight / 2];
+    };
+    const source = this.sourceMuzzle?.getWorldPosition(new THREE.Vector3());
+    this.lastSelfShot = { muzzle: [muzzle.x, muzzle.y, muzzle.z], casing: casing.toArray(),
+      endpoint: [endpoint.x, endpoint.y, endpoint.z],
+      muzzleScreen: pixel(new THREE.Vector3(muzzle.x, muzzle.y, muzzle.z)),
+      endpointScreen: pixel(new THREE.Vector3(endpoint.x, endpoint.y, endpoint.z)),
+      sourceError: source ? source.distanceTo(new THREE.Vector3(muzzle.x, muzzle.y, muzzle.z)) : 0 };
   }
 
   /** The currently-rendered world position of a remote player's weapon muzzle, formerly eye

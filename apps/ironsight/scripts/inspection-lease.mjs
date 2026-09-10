@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 const HOST = '127.0.0.1';
 const PORT = 18796;
 const PROTOCOL = 'ironsight-gpu-inspection-v1';
+// Supervisors must budget queue time separately from browser execution time.
+export const INSPECTION_LEASE_TIMEOUT_MS = 600000;
 
 function ownerAt(port) {
   return new Promise((resolve, reject) => {
@@ -32,7 +34,7 @@ function ownerAt(port) {
 /** `port:0` is for the standalone concurrency audit only. Production callers
  * use the same fixed port, including when launched from different worktrees.
  * Acquisition timeout fails visibly; it never bypasses the lease or a gate. */
-export async function acquireInspectionLease(label, { port = PORT, timeoutMs = 600000, onWait = console.log } = {}) {
+export async function acquireInspectionLease(label, { port = PORT, timeoutMs = INSPECTION_LEASE_TIMEOUT_MS, onWait = console.log } = {}) {
   const started = Date.now();
   let announced = false;
   for (;;) {
@@ -68,6 +70,9 @@ export async function acquireInspectionLease(label, { port = PORT, timeoutMs = 6
         throw Error(`Cannot acquire GPU inspection port ${port}: ${error.message}`, { cause: error });
     }
     if (Date.now() - started >= timeoutMs) throw Error(`GPU inspection lease timed out after ${timeoutMs}ms`);
-    await delay(250);
+    // A new sequential probe can bind again inside the old 250ms sleep,
+    // starving an inspector already waiting in another worktree. Retry once
+    // per display interval; exclusivity and the acquisition deadline are unchanged.
+    await delay(16);
   }
 }

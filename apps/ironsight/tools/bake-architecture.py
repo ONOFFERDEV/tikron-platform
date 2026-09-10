@@ -35,7 +35,9 @@ for name, kit in json.loads(Path(args.input).read_text()).items():
     for i, source in enumerate(kit['materials']):
         mat = bpy.data.materials.new(f'{name}-{i}')
         mat.use_nodes = True
-        bsdf = mat.node_tree.nodes.get('Principled BSDF')
+        # Node display names follow the user's Blender language/preferences.
+        # Its API type stays stable in headless bakes on every workstation.
+        bsdf = next(node for node in mat.node_tree.nodes if node.type == 'BSDF_PRINCIPLED')
         bsdf.inputs['Base Color'].default_value = (*source['color'], 1)
         bsdf.inputs['Roughness'].default_value = source['roughness']
         bsdf.inputs['Metallic'].default_value = source['metalness']

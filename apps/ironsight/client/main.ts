@@ -191,6 +191,11 @@ async function main(): Promise<void> {
   const introPose: IntroPose = { eye: {x:0,y:0,z:0}, target: {x:0,y:0,z:0}, fov:68 };
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
+  // Compare shared geometry at matching commands in explicit training reviews.
+  // Keep ordinary play on the established path until combat fixes held ADS/
+  // sprint continuity when an acknowledged-command tick has no queued input.
+  const reviewMovement = net.state?.mode === 3 && new URLSearchParams(location.search).has('movement-review');
+  if (reviewMovement) predictor.connect(net.room);
 
   const name = (id: string): string => {
     if (id === net.myId) return GAME.text.selfName;
@@ -225,7 +230,15 @@ async function main(): Promise<void> {
   // Read-only introspection hook for E2E tooling / automated screenshots: the
   // authoritative state the client already holds, plus a look setter (equivalent to
   // moving the mouse — the server still validates every shot from its own yaw).
+  // Opt-in bounded observation of combat's acknowledged-command error. Delayed
+  // replicated feet are NOT a useful measure of prediction correctness.
+  const movementReview: Parameters<NonNullable<typeof predictor.onCorrection>>[0][] = [];
+  if (reviewMovement) predictor.onCorrection = sample => {
+    movementReview.push(sample);
+    if (movementReview.length > 4096) movementReview.shift();
+  };
   (window as unknown as { ironsight?: unknown }).ironsight = {
+    movementReview: () => movementReview,
     myId: net.myId,
     state: () => net.state,
     look: (yaw: number, pitch: number) => {
@@ -491,8 +504,10 @@ async function main(): Promise<void> {
       buf.length = 0; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
       if (!net.online && document.pointerLockElement) document.exitPointerLock();
       if (net.online) {
+        // The review adapter handles its own welcome/epoch snapshot. The normal
+        // held-input path still needs its existing reconnect position seed.
         const restored = net.state?.players[net.myId];
-        if (restored) predictor.pos = { x: restored.x, y: restored.y, z: restored.z };
+        if (!reviewMovement && restored) predictor.pos = { x: restored.x, y: restored.y, z: restored.z };
         net.requestSync();
       }
       wasOnline = net.online;
@@ -505,7 +520,7 @@ async function main(): Promise<void> {
     intent.ads = active && !introducing && input.adsHeld;
     // Fire/aim cancel sprint before sending the intent; server enforces recovery.
     if (input.isFiring || intent.ads) intent.sprint = false;
-    net.setMoveIntent(intent, now);
+    if (!reviewMovement) net.setMoveIntent(intent, now);
     net.setLook(input.yaw, input.pitch, now);
     predictor.frame(dt, intent, input.yaw);
     input.consumeJump();
@@ -575,19 +590,9 @@ async function main(): Promise<void> {
           y: eye.y + aimDir.y * aimDist,
           z: eye.z + aimDir.z * aimDist,
         };
-        // The tracer/casing themselves start at the viewmodel's muzzle, not the
-        // eye — anchoring to the eye made them appear to fire from dead centre of
-        // the screen. Re-aim from muzzle toward the SAME endpoint above (the
-        // crosshair's true impact point is unchanged; only where the visible
-        // beam originates moves).
-        const muzzle = scene.getSelfMuzzlePos();
-        const toEnd = { x: endpoint.x - muzzle.x, y: endpoint.y - muzzle.y, z: endpoint.z - muzzle.z };
-        const muzzleDist = Math.hypot(toEnd.x, toEnd.y, toEnd.z);
-        const muzzleDir = muzzleDist > 1e-6
-          ? { x: toEnd.x / muzzleDist, y: toEnd.y / muzzleDist, z: toEnd.z / muzzleDist }
-          : aimDir;
-        scene.addTracer(muzzle, muzzleDir, muzzleDist, false, WEAPONS[curWeapon]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed);
-        scene.spawnCasing(muzzle, muzzleDir);
+        // Converge from the fitted visual muzzle onto this world endpoint.
+        // The receiver marker supplies brass ejection in the same held frame.
+        scene.fireSelfTracer(endpoint, WEAPONS[curWeapon]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed);
       }
     }
 

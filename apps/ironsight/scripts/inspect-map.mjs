@@ -1,5 +1,6 @@
 import { droneProbe } from './drone-probe.mjs';
 import { structuresProbe } from './structures-probe.mjs';
+import { undertowPlacesProbe } from './undertow-places-probe.mjs';
 import { trenchProbe } from './trench-probe.mjs';
 import { roundHonorsProbe } from './round-honors-probe.mjs';
 import { contrastProbe } from './contrast-probe.mjs';
@@ -12,6 +13,7 @@ import { cargoProbe } from './cargo-probe.mjs';
 import { deploymentProbe } from './deployment-probe.mjs';
 import { blastProbe } from './blast-probe.mjs';
 import { weaponFlashProbe } from './weapon-flash-probe.mjs';
+import { viewmodelProbe } from './viewmodel-probe.mjs';
 import { mortarProbe } from './mortar-probe.mjs';
 import { supportProbe } from './support-probe.mjs';
 import { signalProbe } from './signal-probe.mjs';
@@ -143,10 +145,11 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['trench-play', 'places-play', 'cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['undertow-places-play', 'viewmodel-play', 'trench-play', 'places-play', 'cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
+      if (name === 'undertow-places-play') { url.searchParams.set('map', 'arena2'); url.searchParams.set('movement-review', '1'); }
       if (name === 'flood' || name === 'gallery') url.searchParams.set('map', 'arena2');
       if (name === 'launch' || name === 'cargo') url.searchParams.set('map', 'arena3');
       if (name.startsWith('practice-')) url.searchParams.set('map', name === 'practice-two' ? 'arena2' : 'arena3');
@@ -257,6 +260,11 @@ try {
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: report => writeFile(join(output, `${prefix}-trench.json`), JSON.stringify(report, null, 2)),
       });
+      if (name === 'undertow-places-play') combat = await undertowPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'),
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
+          await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
+        record: report => writeFile(join(output, `${prefix}-movement.json`), JSON.stringify(report, null, 2)),
+      });
       if (name === 'places-play') combat = await structuresProbe({ send, evaluate, delay, east: args.includes('--places-east'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
@@ -366,6 +374,8 @@ try {
       if (name === 'signal') combat = await signalProbe({ send, evaluate, delay, click, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'drone') combat = await droneProbe({ send, evaluate, delay, waitFor, click, reduced: args.includes('--drone-reduced'),
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
+      if (name === 'viewmodel-play') combat = await viewmodelProbe({ send, evaluate, delay, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
       if (name === 'flash-play') combat = await weaponFlashProbe({ send, evaluate, delay, waitFor,
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); } });
