@@ -4,6 +4,8 @@ import { buildRelayApronGeometry } from './relay-apron.js';
 import { finishRelaySurface, relayGroundTexture, updateRelayGroundTexture } from './relay-surfaces.js';
 import { paintUndertowWetness } from './undertow-wetness.js';
 import { finishUndertowSurface, undertowGroundTexture, updateUndertowGroundTexture } from './undertow-surfaces.js';
+import { finishSwitchyardSurface } from './switchyard-surfaces.js';
+import { paintSwitchyardServiceWear } from './switchyard-service-wear.js';
 
 const groundLoads = new WeakMap<T.Scene, Promise<void>>();
 export function waitForSiteGround(scene: T.Scene): Promise<void> {
@@ -14,7 +16,8 @@ export function waitForSiteGround(scene: T.Scene): Promise<void> {
  * decal or per-frame work. MapDef footprints keep grime attached to real cover. */
 export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void {
   const relay = map.presentation === 'relay';
-  const undertow = map.presentation === 'undertow', metric = relay || undertow;
+  const undertow = map.presentation === 'undertow', switchyard = map.presentation === 'switchyard';
+  const metric = relay || undertow || switchyard;
   const canvas = document.createElement('canvas');
   canvas.width = metric ? 1024 : 512; canvas.height = metric ? Math.round(1024 * map.bounds.depth / map.bounds.width) : 512;
   const ctx = canvas.getContext('2d')!;
@@ -85,6 +88,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     // Aggregate is supplied by the metric tile, not stretched atlas noise.
     ctx.restore();
   }
+  if (switchyard) paintSwitchyardServiceWear(ctx, map);
   for (const box of map.boxes) {
     if (map.signalCore?.doors.includes(box)) continue; // No baked shadow from retractable cover.
     const x = box.min.x * sx, z = box.min.z * sz, w = (box.max.x - box.min.x) * sx, d = (box.max.z - box.min.z) * sz;
@@ -103,7 +107,8 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     wetness.width = canvas.width; wetness.height = canvas.height;
     paintUndertowWetness(wetness, map);
   }
-  const texture = wetness ? undertowGroundTexture(canvas, wetness) : relay ? relayGroundTexture(canvas) : new T.CanvasTexture(canvas);
+  const texture = wetness ? undertowGroundTexture(canvas, wetness) : metric ? relayGroundTexture(canvas) : new T.CanvasTexture(canvas);
+  if (switchyard) texture.name = 'switchyard-ground-intensity';
   if (!metric) texture.colorSpace = T.SRGBColorSpace;
   texture.anisotropy = 4;
   // Blender-baked ground AO (tools/bake-ground-ao.py, same row-0 = north layout)
@@ -130,7 +135,8 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   if (metric) {
     const tint = new T.Color(undertow ? '#607a7b' : '#89928a'), base = new T.Color(undertow ? '#606060' : '#898989').r;
     floor.material.color.copy(tint).multiplyScalar(1 / base);
-    if (undertow) finishUndertowSurface(floor.material, 'ground');
+    if (switchyard) finishSwitchyardSurface(floor.material, 'ground');
+    else if (undertow) finishUndertowSurface(floor.material, 'ground');
     else finishRelaySurface(floor.material, 'ground');
   }
   floor.rotation.x = -Math.PI / 2; floor.position.set(map.bounds.width / 2, -0.012, map.bounds.depth / 2); floor.receiveShadow = true;

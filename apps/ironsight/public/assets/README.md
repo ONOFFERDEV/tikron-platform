@@ -1031,3 +1031,42 @@ Ground plus fine detail is2.1953MiB with mips, up0.6953MiB from1.5000MiB.
 The matched full Undertow stress estimate is61.3008MiB, within64MiB, with
 209draws/159284triangles/25textures/29programs unchanged. These are resource
 measurements on the local RTX5070, not representative laptop-iGPU acceptance.
+
+### Session 77: Switchyard steel and service floor (original runtime assets)
+
+`client/switchyard-surfaces.ts`, `client/switchyard-service-wear.ts` and the
+existing `client/concrete-detail.ts` / `client/site-ground.ts` author this finish
+at map preparation. No downloaded material, purchased derivative, image service,
+new binary, dependency or Meshy spend. Reproduce with `pnpm build:client`, then:
+
+```sh
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-north,switchyard-service,switchyard-center,switchyard-effects-stress --prefix switchyard-surface-review --assert-budgets
+```
+
+Switchyard uses a 1024 x 683 linear R8 ground atlas, 6.83 texels/metre on both
+axes. The tested Relay packer decodes sRGB red intensity, reverses north-first
+canvas rows explicitly and updates the same allocation after the unchanged
+2048 x 1365 ground AO arrives. A material tint retains the base yard colour.
+The atlas holds broad aging, original seed77021 stains, tyre wear and dry grease
+at static cabinet feet. Retracting freight is excluded from footprint stains.
+Ground AO completes before the ordinary shader/texture preparation barrier.
+
+One shared 256-square RGBA8 normal / R8 roughness pair tiles every 0.8 m,
+320 texels/metre, across twelve meshes. Concrete gets fine aggregate and metric
+6 x 5 m slabs / 2.4 x 1.2 m cast panels. Enamel and steel have weaker grain;
+the existing material slots distinguish concrete, steel, coloured enamel and
+ramps. Panel-edge coordinates are recovered once from validated rectangular
+triangle pairs, including duplicated ramp corners. They leave all positions,
+normals, indices and paint/AO UVs intact. Nonrectangular/curved regions stay
+unmarked. Panel-edge float streams total 3,015,296 bytes (2.876 MiB), plus
+861,072 bytes (0.821 MiB) of metric UVs for the two newly detailed steel meshes,
+per CPU/GPU copy, separate from texture memory. No triangles are added.
+
+The existing opaque PBR pass shades rubbed edges, dirt behind seams, a fine
+rolled-steel roughness variation and 18 cm projected anti-slip tread on the
+ramps. Derivatives fade small marks before they alias; there is no displacement,
+extra pass/light, animated resource upload, per-frame CPU bake or new cover.
+The original palette, signs, launch markings and cargo collision stay intact.
+Ground plus detail uses 1.3060 MiB with mips, down 0.1940 MiB from 1.5000 MiB.
+Per-map lazy loading is retained. This completes Surface Detail 3/3 by default;
+human visual/readability and representative laptop-iGPU acceptance remain open.

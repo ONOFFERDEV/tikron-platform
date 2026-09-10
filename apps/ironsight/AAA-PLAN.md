@@ -59,7 +59,9 @@ Session74 quick check (published per Session75 supervisor, commit ed99354): take
 
 Session75 quick check (published per Session76 supervisor, commit bb3fd52): Training / Relay, leave deployment and look along Cooling, then approach the core. The yard has crisp six-by-five-metre slab joints; concrete walls show formwork and recessed tie shading. Fine aggregate and quieter coated steel/paint replace the flat finish while signs and team colours retain priority. Surface Detail1/3 is on by default for Relay. Undertow and Switchyard are the next two stages; representative iGPU and human visual approval remain open.
 
-Session76 quick check (local candidate): Training / Undertow, follow the north basin or south Pump service route. Cast concrete panels and fine grain replace the coarse finish; damp lower walls lead into irregular wet patches with a soft sky sheen. Coated trim stays quieter, and signs retain priority. Surface Detail2/3 is on by default; Switchyard completes the arc next. Human visual and representative iGPU approval remain open.
+Session76 quick check (published per Session77 supervisor, commit1672d51): Training / Undertow, follow the north basin or south Pump service route. Cast concrete panels and fine grain replace the coarse finish; damp lower walls lead into irregular wet patches with a soft sky sheen. Coated trim stays quieter, and signs retain priority. Surface Detail2/3 is on by default; Switchyard completes the arc next. Human visual and representative iGPU approval remain open.
+
+Session77 quick check (local candidate): Training / Switchyard, walk through South service and approach a ramp onto the switching deck. Cabinet edges show rubbed paint and quiet steel grain; ramps have shaded anti-slip tread. The yard has crisp slab joints, fine aggregate and broad service stains. Signs and launch markings retain priority. Surface Detail3/3 completes the arc, on by default across all three maps. Human visual and representative iGPU approval remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -275,7 +277,7 @@ times within 0.75 s, all objectives reachable, no overlapping capture radii.
 | Relay / Undertow structural kit | original procedural geometry from shared colliders; Blender Cycles AO, exact winding/normal audit | lazy original GLBs: 1.01 / 1.55 MB; 1024px R8 AO |
 | Ground AO (Blender 4.5) | collision-only Cycles bake; Standard view transform, existing supervisor pipeline | 1024x683 per map; versioned original PNGs |
 | Environment (Blender 4.5) | original linear radiance gradient + warm halo, one PMREM during preparation | shared 41,273-byte HDR; 1.5 MiB PMREM; no extra lights/passes |
-| Material detail | Session76 Undertow: fine concrete/coated finish, RG8 ground with wetness; Relay metric slabs retained | Undertow stress61.301MiB, Relay63.745MiB; Switchyard next |
+| Material detail | Session77 completes Surface Detail3/3: Switchyard worn steel, ramp tread and R8 ground; Relay slabs and Undertow wet concrete retained | Stress texture MiB: Relay63.745, Undertow61.301, Switchyard61.995; human/device review open |
 | Hero props / skyline accents | purchased Synty sci-fi city, bake only after composition review | <= 6 MB per map |
 | Operator | existing Synty derived player, improve rig/weapon holds | <= 3 MB incl. clips |
 | Rifle / other weapons | existing Synty weapon bundle, recalibrate grip/muzzle | <= 2 MB shared |
@@ -395,8 +397,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 76 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session76-reference-audit.json` (fresh build, identical to Session75);
+Session 24 first canonical audit (reference restored), updated in Session 77 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session77-reference-audit.json` (fresh build, identical to Session76);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -453,9 +455,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
-| R-L12 | partial | Session76 Surface Detail2/3 ON: Undertow cast panels, fine aggregate, damp wall feet and localized wet-ground sheen. Same-camera home/center/maintenance/gallery stills preserve signs, solid cover and quieter painted trim. Relay detail and Session69 actor rim retained. Human all-lighting/readability and Switchyard finish remain open. |
+| R-L12 | partial | Session77 completes Surface Detail3/3 ON: Switchyard worn panel edges, fine steel/enamel, ramp tread and metric service slabs. Matched north/service/center/cargo stills retain signs, solid cover and launch markings. Relay slabs, Undertow wet concrete and actor rim remain. Human all-lighting/readability and broader visual fidelity remain open. |
 | R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
-| R-L14 | partial | Session76 Undertow stress retains209calls/159284triangles/25textures/29programs; texture estimate60.6055->61.3008MiB. RG8 ground packs intensity/wetness; no new draw/light/pass, and AO finishes before preparation. Relay control remains238calls/63.7448MiB. Session74 headless policy stays1500ms presentation/150ms main-thread/25ms p99/5% stalled time; every>150ms gap is reported. Driver freezes, iGPU/thermal and human clarity remain unaccepted. |
+| R-L14 | partial | Session77 Switchyard stress retains208calls/166956triangles/28textures; texture estimate62.1888->61.9948MiB. Programs29->30 are prepared before play. Panel/UV streams add3.697MiB per CPU/GPU copy; no new draw/light/pass. Relay control remains238calls/63.7448MiB. Session74 headless policy stays1500ms presentation/150ms main-thread/25ms p99/5% stalled time, with every>150ms gap reported. Driver freezes, iGPU/thermal and human clarity remain unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
@@ -469,27 +471,27 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session76: all63 reference rows re-reviewed; fresh static measurements match
-Session75. The owner's visual-first directive keeps this material arc first.
-Surface Detail2/3 adds Undertow cast concrete, damp walls and localized wet-ground
-sheen. Complete Switchyard in Session77, on by default and within existing budgets.
+Session77: all63 reference rows re-reviewed; fresh static measurements match
+Session76. Surface Detail3/3 is complete and ON across all three maps. Switchyard
+now has worn steel, ramp tread and fine service concrete within existing budgets.
+The owner's visual-first directive puts per-map lighting/atmosphere next.
 Session74's1500ms headless allowance and five-pair proof remain explicit policy,
 not remediation of player-visible driver freezes; docs/HITCH-GATE.md retains limits.
 Public ceiling is60MiB, per-file25MiB, with per-map lazy loading retained.
 
-1. **Ground and material fidelity (R-L12-14), Surface Detail3/3 next.** Relay has
-   metric slabs; Undertow now has fine concrete/paint separation and packed wet
-   ground at61.301MiB stress residency. Finish Switchyard's coated industrial
-   steel and service floor next. Preserve operator contrast, baked AO and the
-   64MiB/fixed-light/no-extra-pass budget. Measure paired player-height stills
-   and cold local preparation; the whole material gap remains open.
-2. **Lighting, atmosphere and surface wear (R-L12/14, R-M08/17).** Undertow dusk,
-   Switchyard overcast, baked exposure/colour separation, restrained particles,
-   scorch/grime/markings and animated skyline. Use the existing pass and pooled
-   effects; Meshy hero props only where they change the first-five-minute view.
-3. **Operator and weapon fidelity (R-G09/12/18, R-L13/23).** Distinct role skins,
+1. **Per-map lighting and atmosphere (R-L12/14, R-M08/17).** Start with Undertow
+   dusk, then Switchyard overcast: baked exposure/colour separation, restrained
+   haze and skyline depth. Work in an arc of at most three sessions, using the
+   existing pass and fixed lights. Paired cameras and preparation/stress costs
+   are required; no bloom/pass or real-time-light exception is authorized.
+2. **Operator and weapon fidelity (R-G09/12/18, R-L13/23).** Distinct role skins,
    first-person hands, weapon detail and moving reload review. Retain large team
    colour masses, enemy colour choices and unobstructed sights.
+3. **Localized surface wear and hero dressing (R-L12-14, R-M13/17).** Surface
+   Detail's three-map foundation is complete; the full material gap stays open.
+   Reduce repeated cabinet silhouettes with visible maintenance details, authored
+   scorch/grime/markings and selective Meshy hero props. Preserve the64MiB/fixed-
+   light/no-extra-pass budget; measure where a player actually sees the addition.
 4. **GPU/device acceptance (R-L14).** Keep every>150ms gap in evidence. The new
    headless limit is not rendering headroom or60fps acceptance. Investigate new
    owner-visible triggers with per-frame resources and covered cross-process
@@ -11791,3 +11793,180 @@ owned processes, port8796 listeners or inspection browsers remaining. All six
 required gates and supplementary DOM/FFA are green. Scope/diff/reference audit:
 session76-final-audit.json. All changes remain in apps/ironsight/** on ironsight-aaa;
 no commit/push/deploy. Publication remains the supervisor's responsibility.
+
+### Session 77 - 2026-09-10: Surface Detail arc 3/3 - Switchyard's worn steel
+
+Read the standing brief, Session77 supervisor status and AAA plan in order,
+then all63 design principles and canonical scorecard rows. Entry branch
+ironsight-aaa was clean. Supervisor confirms Session76 commit1672d51 and preview
+deployment6698cf3d-5884-45c6-939a-a12512f325fd. This is a local candidate only;
+all changes stay in apps/ironsight/**. No commit, push or deployment.
+
+Reference: **R-L12, R-L13, R-L14**. Targets: distinguish concrete, coated
+switchgear and steel ramps at player height; keep small wear subordinate to
+signs, launch markings and operator colour masses;320texels/metre fine detail,
+<=64MiB resident textures and <=240 stress draws, fixed lights and the existing
+opaque pass. Implementation/resource checks pass; these reference rows remain
+partial pending human readability/device review. **Surface Detail3/3 completes
+the arc, ON by default across Relay, Undertow and Switchyard.** The larger
+material/visual-quality gap is still open. Per-map lighting/atmosphere ranks next.
+
+Delivered:
+
+- Switchyard ground changes from512-square RGBA to1024x683 linear R8. The
+  already-tested Relay packer preserves north-first colour/AO orientation and
+  updates the existing allocation when AO arrives. A material tint preserves
+  the yard's base hue. Six-by-five-metre slab joints and finer aggregate replace
+  the stretched coarse noise. Original seed77021 broad stains, retired tyre
+  tracks and dry grease give the service floor a second scale of wear.
+  Retractable freight is excluded from static cabinet-foot stains.
+- Twelve meshes share the256-square RGBA8 normal/R8 roughness pair at0.8m
+  tiling, up from ten. Authored material slots distinguish concrete, enamel,
+  steel and the four ramps. Quiet coated grain replaces the pebbled paint;
+  cast concrete panels remain2.4x1.2m. No new downloaded texture or map request.
+- Rubbed paint and dirt follow each real rectangular panel edge. Load-time
+  triangle-pair validation accepts only coplanar rectangular faces sharing
+  their diagonal, including duplicated ramp corners. Curved/triangular regions
+  remain unmarked. Positions, normals, indices, paint/AO UVs and collision are
+  untouched. The two meaningful tests cover transformed/scaled metric faces,
+  preserved geometry/AO, actual ramp corners and unsupported surface masks.
+- Rolled-steel roughness and18cm projected anti-slip ramp tread use the existing
+  opaque PBR shader; screen derivatives fade small marks at a distance. The
+  tread is shaded relief, not geometry or a movement/friction change. No new
+  draw, light, shadow request, pass or per-frame CPU bake/resource allocation.
+  All resources and the one additional program are prepared before play.
+- Inspector asserts Switchyard's R8 dimensions, shared fine textures, six
+  surface categories, valid panel coordinates and existing resource limits.
+  Source/provenance and a reproducible inspection command are documented in
+  public/assets/README.md. No SDK, server state, gameplay rule or wire change.
+
+Wow check uses the brief's **matched before/after stills** option, fixed
+production-renderer cameras at1920x1080. Reviewed at full size:
+
+- [North bus before](.inspect/session77-before-switchyard-north.png) -> [after](.inspect/session77-final-switchyard-north.png).
+- [South service before](.inspect/session77-before-switchyard-service.png) -> [after](.inspect/session77-final-switchyard-service.png).
+- [Switching deck before](.inspect/session77-before-switchyard-center.png) -> [after](.inspect/session77-final-switchyard-center.png).
+- [Freight cover before](.inspect/session77-before-switchyard-cargo-cover.png) -> [after](.inspect/session77-final-switchyard-cargo-cover.png).
+- [Freight crossing before](.inspect/session77-before-switchyard-cargo-crossing.png) -> [after](.inspect/session77-final-switchyard-cargo-crossing.png).
+
+Additional [ramp close-up](.inspect/session77-final-close-switchyard-ramp.png):
+eye75,2.15,37, look75,1.6,39. This supplementary image has no original-build
+close-up pair; the five paired cameras above are the before/after proof.
+The final stress still retains eleven operators and the local rifle; signs,
+large team-colour masses and solid cover remain distinct in this fixture.
+These are offline art fixtures, not an injected or purported live bot capture.
+Natural gameplay is covered by the two hitch probes below.
+
+Intended player sentence: **"The switchgear looks like worn metal, and the ramps look like grip plate."**
+This names the intended visible improvement, not a player testimonial or overall
+AAA acceptance. Human excitement/readability remains open.
+
+Rejected intermediates/evidence: session77-candidate-* retains the first art
+pass, stress and ramp close-up. Initial cabinet edge strength0.55 and coated
+normal0.035 were too assertive; final edge strength is0.32 enamel/0.44 steel,
+with normals0.022 enamel/0.025 steel. Fine rolling fades out before subpixel
+aliasing, and broad floor mottling counters an overly uniform candidate floor.
+The initial inspector failed on zero ramp panel coordinates:
+session77-candidate.log. Connected-index rectangle recovery missed the baked
+ramps' duplicated triangle vertices. Geometrically validated triangle pairs
+fix it; the same inspector assertion now passes with72 ramp panel vertices.
+No gate or compiler setting was weakened. The earlier three-camera candidate
+and rejected mapping are not substituted for final evidence.
+
+Matched1920x1080 balanced/DPR1 Switchyard stress, RTX5070 / Edge152 / ANGLE D3D11:
+
+| Measurement | Before | After | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |208 /166956|208 /166956|0 /0|
+| Textures / estimated MiB |28 /62.1888|28 /61.9948|0 /-0.1940|
+| Programs / geometries / prepared instance slots |29 /158 /306|30 /158 /306|+1 /0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.1|6.9 /7.1 /7.1|0 /0 /0|
+| Maximum / first-ready frame ms |14.0 /7.0|7.2 /7.1|-6.8 /+0.1|
+| Stress construction / preparation ms |59.9 /637.2|81.4 /698.9|+21.5 /+61.7|
+| First fresh-profile construction / preparation ms |92.2 /836.6|146.0 /977.6|+53.8 /+141.0|
+| Assets including README bytes |26922752|26925301|+2549|
+| Client JS / source map bytes |2109371 /4668302|2119351 /4685499|+9980 /+17197|
+| Entire public bytes |33701108|33730834|+29726|
+
+Each stress fixture contains11 remote operators plus the local rifle,
+145 twelve-rifle volleys and96 blasts over15s; all effects drain. Relay control
+retains238draws/150102triangles,30textures/63.7448MiB,33programs and6.9/7.1/7.1ms;
+max13.9->14.0ms. These are local renderer fixtures, not laptop-iGPU, thermal,
+network or real6v6 benchmarks. No speedup or driver-fix claim.
+
+First fresh-profile local construction+preparation is0.929->1.124s, +0.195s,
+before play. This includes local preparation, not CDN download time. The fine
+ground/detail combination is1.3060MiB versus1.5000MiB. Texture savings do not
+represent total GPU memory savings: new panel-edge float streams consume
+3,015,296bytes and newly detailed steel UVs861,072bytes, total3,876,368bytes
+(3.697MiB) per CPU/GPU copy. The streams are populated once at load; no index,
+triangle or per-frame upload is added. The resident texture estimate does not
+include these vertex buffers or unobservable driver overhead.
+
+Public32.1682MiB is below60MiB; largest file7,183,364bytes is below25MiB. All
+new downloaded bytes are client/source-map/provenance text, with no new public
+binary. No Meshy spend, dependency or purchased derivative; reported1530credits
+unchanged. Machine evidence: session77-{before,final}-report.json and
+session77-summary.json; node .inspect/session77-summarize.mjs reproduces the
+comparison, including vertex-stream bytes from the loaded original GLB counts.
+
+All63 canonical scorecard rows were re-reviewed and the visual-first gap list
+re-ranked. Fresh tools/reference-audit.ts output deep-equals Session76:
+session77-reference-{audit,comparison}.json. Cover full/waist stays65/46,
+66/62,64/48; A-B/A-C/B-C sprint rotations14.44/11.78/14.44,
+14.22/11.33/14.22,14.44/11.56/14.44s. Spawn travel is not contact timing.
+ADS250/200/225/400/165ms and sprint recovery120/100/130/150/90ms; TDM50/300s,
+respawn3s, DOM4/8s and0.5point/flag/s; hostile foley1.4, hit900/1400Hz at.28gain,
+five-row top-right feed and both damage cues remain. Gameplay numeric gaps stay
+open; no repeated lifecycle or balance acceptance claim.
+
+Required verification:
+
+- pnpm typecheck PASS; pnpm test PASS:633 passed/six existing skips,
+  83 passed files/four skipped. pnpm build:client PASS; pnpm audit:assets PASS.
+  Logs: session77-final-{typecheck,test,build-client,audit-assets}.log.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS, zero console errors: session77-required-report.json/log and retained
+  session77-required-{relay,practice-two}.png. The seven-shot final art/stress
+  review and ramp close-up also have zero errors/forbidden requests. Both
+  final stress budget assertions pass.
+
+Exact required hitch command:
+
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`
+
+PASS under the unchanged Session74 policy. Supplementary FFA uses
+--mode=ffa with its own session77-hitch-ffa.json output. Production code stayed
+frozen through final captures and sequential probes; no test suite, build,
+bake or second browser overlapped them.
+
+| Mode | Seconds / frames | Max frame / callback ms | p99 upper ms | >150ms gaps / time share | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---|
+|TDM|62.981 /9069|14.5 /6.4|8|0 /0.000%|2|PASS|
+|FFA|27.107 /3904|16.1 /11.2|8|0 /0.000%|3|PASS|
+
+Both use default500us CPU profiling and natural bot deaths, with zero console
+errors, shader changes and main-thread long tasks. Raw evidence is
+.inspect/hitch.json, session77-hitch-{tdm,ffa}.json/log and
+session77-acceptance.json. Neither run uses the1500ms host allowance; no frame
+exceeds the original150ms ceiling. The unchanged policy remains1500ms
+presentation/150ms main-thread/25ms p99/5% stalled time. These two clean runs
+do not establish absence of intermittent compositor/driver freezes; no new
+cross-process trace or five-pair proof was collected. Session74 retains the
+dedicated arc evidence. Representative iGPU and broader acceptance stay open.
+
+Open owner questions/defaults: keep restrained wear and steel ramp tread(yes);
+accept the measured local preparation/vertex-memory cost for this candidate
+(yes, pending device review); start the next visual arc with Undertow dusk
+(yes, inside fixed-light/existing-pass constraints). No answer blocks progress.
+Human excitement/readability/moving comfort, laptop iGPU/thermal, intermittent
+driver stalls, real6v6/RTT and Firefox/Safari remain unaccepted. No latency or
+capacity claim.
+
+Cleanup verified preview root71904 against its saved creation identity, then
+each descendant before stopping the owned12-process tree. Evidence:
+session77-preview-tree.json and session77-cleanup.json, with zero owned
+processes, port8796 listeners or inspection browsers remaining. All six
+required gates and supplementary FFA are green. Scope/diff/reference audit:
+session77-final-audit.json. All work remains within apps/ironsight/** on
+ironsight-aaa; no commit/push/deploy. Publication is the supervisor's task.

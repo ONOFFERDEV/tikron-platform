@@ -1728,6 +1728,7 @@ export class SceneRig {
   inspectConcreteDetail() {
     let meshes = 0, invalidUv = false;
     const textures = new Set<THREE.Texture>();
+    const switchyard: Record<string, { meshes: number; panelVertices: number; panelBytes: number; invalid: boolean }> = {};
     this.scene.traverse(node => {
       if (!(node instanceof THREE.Mesh) || !(node.material instanceof THREE.MeshStandardMaterial) ||
           node.material.normalMap?.name !== 'relay-concrete-normal') return;
@@ -1736,8 +1737,19 @@ export class SceneRig {
       if (node.material.roughnessMap) textures.add(node.material.roughnessMap);
       const uv = node.geometry.getAttribute('uv2');
       if (!uv || uv.count !== node.geometry.getAttribute('position').count || ![...uv.array].every(Number.isFinite)) invalidUv = true;
+      const kind = node.material.userData.switchyardSurface as string | undefined;
+      if (kind) {
+        const entry = switchyard[kind] ??= { meshes: 0, panelVertices: 0, panelBytes: 0, invalid: false };
+        entry.meshes++;
+        const panel = node.geometry.getAttribute('switchyardPanel');
+        if (panel) {
+          entry.panelBytes += panel.array.byteLength;
+          for (let i = 0; i < panel.count; i++) if (panel.getZ(i) >= 0.08 && panel.getW(i) >= 0.08) entry.panelVertices++;
+          entry.invalid ||= panel.count !== node.geometry.getAttribute('position').count || ![...panel.array].every(Number.isFinite);
+        } else if (['steel', 'coated', 'deck'].includes(kind)) entry.invalid = true;
+      }
     });
-    return { meshes, textures: textures.size, invalidUv,
+    return { meshes, textures: textures.size, invalidUv, switchyard,
       detailMaps: [...textures].map(t => {
         const image = t.image as { width: number; height: number };
         return { name: t.name, width: image.width, height: image.height,
