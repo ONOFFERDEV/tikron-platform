@@ -5,8 +5,8 @@ import { AirSupport } from '../air-support.js';
 import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
 import { signalEpoch, signalFrame } from '../signal-event.js';
 import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
-import { PING, resolvePing, type TeamPing } from '../ping.js';
-import { BOT_CONTACT, BotContacts } from '../bot-contacts.js';
+import { PING, BOT_CONTACT, resolvePing, type TeamPing } from '../ping.js';
+import { BotRadio } from './bot-radio.js';
 import { WaistTraversal } from '../traversal.js';
 import { SprintSlide } from '../slide.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
@@ -222,7 +222,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly protUntil = new Map<string, number>(); // sim tick
   /** Bot AI state per bot id (created on addBot, discarded on removeBot). */
   private readonly botBrains = new Map<string, BotBrain>();
-  private readonly botContacts = new BotContacts();
+  private readonly botContacts = new BotRadio();
 
   /** Grenades currently in flight (stepped every tick). */
   private grenades: Grenade[] = [];
@@ -1813,15 +1813,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       if (!self || !self.alive) continue;
       const view = this.botView(id, self);
       const decision = botThink(view, brain, dtMs);
-      if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
-        const contact = this.botContacts.observe(id, view, brain, Date.now());
-        if (contact) for (const recipient of this.clientList()) {
-          const ally = this.state.players[recipient.id];
-          if (ally?.alive && ally.team === self.team &&
-            Math.hypot(ally.x - contact.x, ally.z - contact.z) <= BOT_CONTACT.recipientRange)
-            recipient.send('teamPing', contact);
-        }
-      }
       this.inputs.set(id, {
         mx: decision.move.mx,
         mz: decision.move.mz,
@@ -1834,7 +1825,23 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
       if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
       if (decision.reload) this.handleReload({ id } as Client);
+      const previousShotAt = this.lastShotAt.get(id);
       if (decision.fire) this.botFire(id);
+      if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
+        const now = Date.now();
+        const contact = this.botContacts.observe(id, view, brain, now, decision, {
+          reloading: (this.reloadUntil.get(id) ?? 0) > now,
+          // Wall time may advance during hit validation. Compare the accepted
+          // shot marker, not equality with a second Date.now() read afterward.
+          fired: decision.fire && this.lastShotAt.get(id) !== previousShotAt,
+        });
+        if (contact) for (const recipient of this.clientList()) {
+          const ally = this.state.players[recipient.id];
+          if (ally?.alive && ally.team === self.team &&
+            Math.hypot(ally.x - contact.x, ally.z - contact.z) <= BOT_CONTACT.recipientRange)
+            recipient.send('teamPing', contact);
+        }
+      }
       // Only an already-visible firing solution may be designated; no radar or
       // hidden target lookup. Same ground/range/cooldown checks as human callers.
       if (decision.fire && !this.showcaseActive && this.mortarSupport.hasCharge(id)) {

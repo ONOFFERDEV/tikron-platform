@@ -4,6 +4,7 @@ import { nearestBox, type Box, type Vec3 } from "./physics.js";
 import { PLAYER } from "./config.js";
 import { GAME } from "./game-config.js";
 import type { BotRole } from './bot-roles.js';
+import type { TeamPing } from './ping.js';
 
 /**
  * ironsight server filler bot — a pure brain with no room import.
@@ -61,6 +62,33 @@ export function combatBotLabel(id: string): string | undefined {
   return role ? `${BOT_ARCHETYPES[role].label} ${id.slice(4)}` : undefined;
 }
 
+/** Fixed radio vocabulary. Never relay arbitrary text or a live target id. */
+export const SQUAD_BARKS = {
+  contact: 'Contact. Eyes on.',
+  suppress: 'Covering fire. Move up.',
+  reload: 'Changing mag. Cover me.',
+  retreat: 'Taking fire. Falling back.',
+  flank: 'Moving around the flank.',
+  highGround: 'High ground. Holding here.',
+} as const;
+export type SquadBark = keyof typeof SQUAD_BARKS;
+export type SquadPing = TeamPing & { radio: SquadBark };
+
+/** Narrow a server event before presenting it. Standard ping callers cannot
+ * provide radio metadata: the room constructs the entire envelope itself. */
+export function readSquadPing(payload: unknown, now: number): SquadPing | undefined {
+  if (!payload || typeof payload !== 'object' || !Number.isFinite(now)) return;
+  const p = payload as SquadPing;
+  if (typeof p.from !== 'string' || !combatBotArchetype(p.from) || typeof p.radio !== 'string' ||
+    !Object.hasOwn(SQUAD_BARKS, p.radio) || !Number.isFinite(p.x) || !Number.isFinite(p.z) ||
+    !Number.isFinite(p.expiresAt) || p.expiresAt <= now || p.expiresAt > now + 4000) return;
+  const contact = p.radio === 'contact' || p.radio === 'suppress';
+  const kind = contact ? 'enemy' : p.radio === 'reload' || p.radio === 'retreat' ? 'backup' : 'go';
+  if (p.kind !== kind || (contact ? p.contact !== true : p.contact !== undefined)) return;
+  return { from: p.from, kind, x: p.x, z: p.z, expiresAt: p.expiresAt, radio: p.radio,
+    ...(contact ? { contact: true as const } : {}) };
+}
+
 /** y is feet height, when supplied. Never consider the floor below a roof an
  * arrival. A navigator owns the route; the brain only sends movement intents. */
 export interface BotRoutePoint { x: number; z: number; y?: number }
@@ -116,7 +144,7 @@ export interface BotDecision {
   fire: boolean;
   switchSlot?: number;
   reload?: boolean;
-  tactic?: 'reload' | 'retreat' | 'suppress' | 'position' | 'hold';
+  tactic?: 'reload' | 'retreat' | 'suppress' | 'position' | 'hold' | 'flank';
 }
 
 /** The subset of a player's state the bot brain can see (itself or an enemy). */
@@ -664,6 +692,7 @@ function combatThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision 
       look,
       move: worldToMove(look.yaw, dir.x, dir.z),
       fire: false,
+      tactic: flank ? 'flank' : undefined,
     };
   }
 
@@ -683,7 +712,7 @@ function combatThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision 
   const dir = next ? dirTo(self, next) : undefined;
   const move = dir ? worldToMove(look.yaw, dir.x, dir.z) : roleCombat(view, brain, enemy, look.yaw);
   const fire = brain.lockMs >= brain.reactionMs && aimSettled(self, enemy, look);
-  return { look, move, fire };
+  return { look, move, fire, tactic: dir ? 'flank' : undefined };
 }
 
 /**

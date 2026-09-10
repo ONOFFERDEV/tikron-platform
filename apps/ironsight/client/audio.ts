@@ -524,10 +524,12 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
 
 /** Quiet two-note radio ident, not positional enemy audio. The card supplies
  * direction and lane even with audio muted. Every node drains within 240ms. */
-export function playContactCue(): void {
+export function playContactCue(bark?: import('../src/bots.js').SquadBark): void {
   const c = ready(); if (!c || !master) return;
   const t = c.currentTime;
-  for (const [i, frequency] of [620, 830].entries()) {
+  const notes = bark === 'reload' || bark === 'retreat' ? [740, 520]
+    : bark === 'flank' || bark === 'highGround' ? [520, 660] : [620, 830];
+  for (const [i, frequency] of notes.entries()) {
     const tone = c.createOscillator(), gain = c.createGain(), start = t + i * .10;
     tone.type = 'sine'; tone.frequency.value = frequency;
     gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(.045, start + .008);

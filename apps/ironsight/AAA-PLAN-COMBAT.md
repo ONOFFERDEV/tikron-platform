@@ -22,8 +22,13 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    Session 5 retains another stock FFA failure (2155.7 ms and one death);
    Switchyard's north-wall driver contact is reproduced separately. The combat
    navigator avoids it, but the main-owned probe still uses GroundNavigator.
-3. **Bot squad tactics, arc 3/3:** role names and tactical radio barks through the
-   existing ping channel, with team cooldowns and human-callout priority.
+   Session 6 stock passes five final pairs, but the exact radio-hook candidate
+   FFA still fails at **2507.7 ms / 8.830% stalled time**. Keep the presentation
+   investigation open; radio is inactive in FFA, which alone proves no cause.
+3. **Bot squad radio integration:** Session 6 implements six authoritative
+   callouts and a role caption readable with audio muted. The legacy client receives
+   compatible markers by default; main must activate the exact caption/audio
+   hook below before the full three-session bot arc is called complete.
 4. Shared weapon table audit (R-G02–08, R-G19–20).
 5. Layered, occluded firefight audio (R-G14–17), then surface impact feedback.
 6. Retest bot routes as main lands new buildings; DOM keeps ground-objective
@@ -34,6 +39,41 @@ verified-cover reloads. Session 5 delivers arc 2/3: collision-derived multi-leve
 walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 
 ## Cross-stream requests
+
+- **Main / supervisor - Session 6 presentation blocker:** final stock passes
+  five consecutive TDM/FFA pairs, but the exact radio-hook candidate stops at
+  pair 1 FFA with **1533.1 / 2507.7 ms** gaps and **8.830% stalled time**.
+  Callback max **8 ms**, p99 **8 ms**, two deaths, zero errors/recompiles;
+  first-damage/death windows pass. Evidence:
+  `combat-s6-candidate-accept-ffa-1.json` / `combat-s6-candidate-acceptance.json`.
+  Both gaps are untraced; CPU idleness is not a cause. FFA has no radio traffic.
+  No unchanged acceptance retry or threshold/browser/driver change was used
+  to hide the failure. Continue the main-owned presentation investigation;
+  subsequent diagnostic evidence and scope limits are in the session log.
+  The corrected traced diagnostic does not reproduce a gameplay gap and its
+  retained startup windows are uncovered. No new native-work cause is claimed.
+
+- **Main / supervisor - Session 6 squad radio hookup:** in `client/main.ts`'s
+  existing guarded `teamPing` listener, replace
+  `if (ping?.contact) playContactCue();` with:
+
+  ```ts
+  const bark = ping && hud.receiveSquadRadio(ping, net.serverNow());
+  if (bark) playContactCue(bark);
+  else if (ping?.contact && !('radio' in ping)) playContactCue();
+  ```
+
+  Keep the existing online/live/alive/pointer-lock guard and tactical-map
+  validation. The second condition preserves old-server contact sounds without
+  replaying a duplicate/stale new-server radio cue. No other hook is needed:
+  `Hud.update`, death/result damage clearing, and pause already clear captions.
+  This session's inspection bundle applies exactly this hook in memory, with
+  no main/source/driver edits. The production server sends compatible
+  `teamPing` markers by default; rich captions and tactical cue variants stay
+  pending until main activates this hook. Existing SUPPORT/MARKSMAN legacy
+  killfeed/operator-kit naming requests below still apply; the new radio
+  caption itself uses `combatBotLabel` correctly. These are subtitled barks
+  with procedural radio idents, not recorded or synthesized spoken dialogue.
 
 - **Main / supervisor - Session 5 release blockers:** stock
   `combat-s5-final-accept-ffa-1.json` fails at **2155.7 ms** and with **one death**
@@ -212,13 +252,13 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L05 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L06 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L07 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L08 | partial | Existing BotContacts keeps team cooldown and human priority; tactical barks and updated labels need main hooks. |
+| R-L08 | partial | Session 6: six action/sight-validated barks share 8 s/team and 16 s/caller airtime; human pings retain 5 s priority. Real-room routing/forgery tests pass. Exact role-caption/audio hook passes live browser inspection but remains main-owned integration work. |
 | R-L09 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L10 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L11 | partial | Four live profiles; 150-600 ms reactions; identical seeded aim; depth 1/2/3 cover search. Session 5 adds verified multi-level routes and regular/hard marksman positioning, with easy patrol retained. Radio/label arc remains pending. |
+| R-L11 | partial | Four profiles, 150-600 ms reactions, identical seeded aim, depth 1/2/3 cover search and verified multi-level routing. Session 6 natural rounds show six radio kinds across team modes; no FFA radio. Rich caption/audio activation and legacy role/kit names still require main. |
 | R-L12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L14 | partial | No WebGL resource additions. Session 5 code/asset/fixed-camera checks and required TDM pass; repeated FFA fails at 2155.7 ms and one death, with the driver stuck at reproduced Switchyard wall contact. The gameplay gap is untraced; prior Session 3/4 covered compositor waits remain evidence. Five passing pairs not achieved; no iGPU claim. |
+| R-L14 | partial | Session 6 adds no WebGL resources. 824 tests, build/audit, fixed-camera/live/muted inspections and five final stock TDM/FFA pairs pass. Exact radio-hook candidate fails pair 1 FFA at 2507.7 ms / 8.830% stalled time despite two deaths and zero errors/recompiles. Initial stock failure and all prior covered compositor evidence retained; candidate repeatability remains open, no iGPU claim. |
 | R-L15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
@@ -230,6 +270,279 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 6 - 2026-09-11: Bot squad tactics, arc 3/3 - squad radio handoff
+
+Reference: **R-L08**, **R-L11**, **R-L14**, **R-G20**. Targets: six short,
+action-specific callouts, one shared **8 s/team** channel and **16 s/caller**
+limit, **3 s** frozen markers/captions, and human pings owning the channel for
+their full **5 s** lifetime. Contact requires **600 ms** sustained sight plus
+a current geometry/facing/range recheck. No remembered or heard enemy is
+turned into visual intelligence. Ordinary difficulty, damage, aim, movement,
+collision and the **0.15/2.5 m** reconciliation thresholds remain unchanged.
+
+Clean starting branch: `ironsight-aaa-combat`. Main's rollback activation and
+the prior renderer/navigation requests remain open. This checkout still uses
+legacy `net.setMoveIntent`; no main/map/physics file was changed. The Session 5
+retained red FFA evidence remains valid despite the supervisor's green summary.
+No Meshy credits, asset files, dependencies, commit, push or deployment.
+
+Delivered in the combat lane:
+
+- `rooms/bot-radio.ts` combines contact reports and tactical barks under one
+  cooldown. Reloads require the room's accepted reload deadline; suppression
+  requires an accepted shot and current sight. Retreat, moving flank and
+  high-ground hold report the bot's own rounded location. Enemy reports freeze
+  the observed rounded location; no target id or tracking information is sent.
+  Busy action transitions are discarded, so nothing announces an old reload
+  after it ends. The radio consumes no aim RNG and does not issue bot orders.
+- `arena-room.ts` samples radio after normal weapon validation, delivers only
+  to living same-team clients within **50 m** of the marker, excludes FFA and
+  practice, and reuses human-ping priority and round/bot cleanup. Client ping
+  payloads cannot forge `from`, `contact`, or `radio` fields.
+- `bots.ts` owns the six fixed lines and presentation validator. `hud.ts`
+  presents a compact role caption with duplicate/expiry rejection, clears for
+  human marks, death, results and pause, and prepares the same markup during
+  existing compositor warmup. `audio.ts` adds descending reload/retreat and
+  rising movement idents to the existing two-note cue, through the existing
+  mute/volume bus; each graph drains within **240 ms**. No speech service,
+  audio file, timer loop, new WebGL light, texture or pass.
+- Legacy clients display normal enemy/backup/go markers immediately. The
+  exact richer caption/audio hook is ready for main above. **The full arc is
+  integration-pending**, not claimed shipped until that hook is taken.
+
+Initial implementation checks: **PASS** `pnpm typecheck`, `pnpm test`
+(**823 passed / 9 skipped**, **97 files passed / 7 skipped**),
+`pnpm build:client`, `pnpm audit:assets`. Evidence:
+`combat-s6-verified-checks.json` / `combat-s6-verified-*.log`.
+Sixteen new focused radio tests plus the twelve existing contact tests pass;
+all existing prediction tests remain green. Tests cover actual-room accepted
+reload routing and forged metadata, current sight, reaction, bounded airtime,
+human priority, discarded busy transitions, wrong-floor holds and all inactive
+modes. Visual/audio/gate evidence and final measurements follow below.
+
+Natural telemetry is three ordinary **180 s** bot rounds, no player/bot pose,
+loadout, action, clock progression or damage injection. The Node harness uses
+its normal fixed tick; timing below is real wall time around bot decisions,
+not deployed latency/capacity. Initial pre-refinement report, preserved as
+`combat-s6-natural-radio-before-flank-refinement.json`:
+
+| Mode | Contact | Suppress | Reload | Retreat | Flank | High ground | Kills |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TDM | 23 | 0 | 2 | 5 | 3 | 4 | 65 |
+| DOM | 26 | 2 | 2 | 3 | 0 | 0 | 52 |
+| FFA | 0 | 0 | 0 | 0 | 0 | 0 | 110 |
+
+Decision p50/p95/max: TDM **0.355/1.387/5.967 ms**, DOM
+**0.335/0.551/3.064 ms**, FFA **0.297/1.148/3.426 ms**. These timings include
+the normal bot decisions, navigation and radio observer; they do not isolate
+the radio cost. All emitted same-team intervals meet **>=8000 ms**. FFA's
+zero is intentional. Different normal room seeds produce different fights:
+the first retained run had all six types in TDM, and no DOM reload bark.
+
+Rejected/intermediate evidence: the first room fixture ran before the normal
+filler spawn tick and selected an absent bot; waiting **100 ms** before its
+fixed-pose routing assertions corrected the fixture. Both failed logs remain.
+The first natural telemetry assertion incorrectly demanded a reload callout
+in every team mode despite shared airtime; it now requires variety over the
+observed rounds and verifies every team's budget. No production behavior was
+changed to satisfy that expectation. Retained original:
+`combat-s6-natural-radio.json` / `combat-s6-final-natural.log`.
+
+The first baseline inspector invocation used unsupported `--out`; it wrote
+the default prefix. Its report and both stills were preserved as
+`combat-s6-before-*`; all later invocations use the correct `--prefix`.
+The first server launcher referenced its wrapper before creation and exited;
+the later owned wrapper on **8798** is the active one for this session.
+
+Review found and repaired a radio-only timing edge: wall time can advance
+during accepted shot validation, so checking the shot timestamp against a
+later `Date.now()` could lose the suppression bark. The room now compares
+the before/after accepted-shot marker. The real-room regression advances wall
+time **1 ms** inside the fire wrapper, verifies one round consumed and
+`accepted.fired === true`. Post-fix typecheck and all **823 tests** pass:
+`combat-s6-post-{typecheck,test}.log` / result JSON. The client bundle is
+unchanged by this server-only repair; prior client build/audit remain current.
+
+Fixed-camera before/after: **PASS**, no console errors or forbidden requests,
+`combat-s6-{before,after}-report.json` and corresponding Relay/practice-two
+PNGs. Relay stays **27 draws / 200,300 triangles / 16 textures / 25.681 MiB**;
+practice stays **49 draws / 101,470 triangles / 17 textures**. Relay median
+**6.9 / 6.9 ms**, p99 **7.2 / 7.1 ms**, scene preparation
+**1050.4 / 958.4 ms** (before/after). These are host/run observations, not a
+causal rendering improvement or laptop iGPU validation. Asset bytes remain
+**30,121,938**, largest **7,183,364**; public total with client/map files is
+**37,271,383 (+48,998)**. Zero added asset bytes, textures, lights, passes,
+Meshy credits or generated-asset rejects.
+
+Wow check: `combat-s6-wow-verified-report.json`, its `-natural.json`,
+`-radio-live-{0,5,10,15,20}s.png` and three `-radio-{0,1,2}.png` stills record
+**20.547 s** of natural TDM after an **11.701 s** ordinary-input approach.
+**276 shot/kill/ping events**, no console errors or forbidden requests.
+Visible calls: ANCHOR 4 contact, RUSH 8 contact, then **SUPPORT 10 / Covering
+fire. Move up.** Player sentence: **"My squad tells me when it's covering
+the lane."** Only normal W/aim input; no gameplay state, health, pose, loadout
+or clock injection. The exact pending main radio hook is in the inspection
+bundle, clearly separate from stock acceptance.
+
+The three radio events each create a 620/830 Hz pair whose observed end
+events are within **240 ms** of scheduling. The audio observer also catches
+one unrelated **660 Hz** support-sting note (about **651 ms**); it is retained
+and is not assigned to the radio graph. Separate presentation-only fixtures
+pass caption deduplication, human clearing, expiry and pause clearing. Layout
+stills at **1920x1080 / 1366x768 / 800x600** keep the card inside the viewport
+and above vitals; the natural full-size still also shows the contact card
+below it without overlap. These screenshots are not performance samples.
+
+The first wow run completed its 20-second live capture but failed the fixture
+assertion because a hidden ping card has a zero rectangle. Its failed report
+and stills remain `combat-s6-wow-*`. The corrected inspection assertion checks
+overlap only for a visible ping; no runtime layout change was needed. Future
+fixture failures also retain their natural telemetry before failing.
+
+Muted live proof also **PASS**: `combat-s6-muted-report.json`, `-natural.json`
+and its stills. **20.515 s** after **11.402 s** of ordinary approach, two
+visible natural contact captions, **212 events**, **zero observed cue nodes**
+and no errors. The separate lifecycle/layout fixtures pass at all three sizes.
+
+A final radio-truthfulness review separates an active flank path from a flank
+plan temporarily interrupted by a close duel. `BotDecision.tactic` now marks
+actual flank movement, and radio requires that mark; retaining `brain.flank`
+alone is insufficient. A focused regression verifies the close-duel case.
+This changes radio metadata, not movement, aiming, damage, collision or
+navigation. Release typecheck, **824 tests**, build and asset audit pass:
+`combat-s6-release-checks.json` / `combat-s6-release-*.log`. The client JS hash
+is identical before/after this server-metadata refinement; only embedded
+source-map text adds **89 bytes**, taking public total to **37,271,472
+(+49,087 vs session start)**. The earlier client visual proofs remain current.
+
+Initial stock acceptance (`combat-s6-stock-accept-tdm-1.json`) **FAILS**:
+**1807.9 ms** first presentation interval, callback max **8.6 ms**, p99
+**8 ms**, one death in **151.831 s**, zero shader changes/errors. That interval
+has **1727/1740** idle CPU samples; it is untraced and has no assigned cause.
+Death is at **134.434 s**, respawn **137.412 s**. Navigation samples continue
+moving around the map; this run does **not** reproduce a persistent fixed
+wall contact. Do not assign its one-death result to the old driver bug.
+The sequence stopped at this failure. This predates the final flank metadata
+refinement; neither that refinement nor the radio UI is claimed to repair the
+existing presentation stall. Diagnostic and final acceptance results follow.
+
+The separate **10-second** startup diagnostic does not reproduce the gameplay
+gap: max measured interval **24.3 ms**, max callback **20 ms**, no measured
+>150 ms intervals, no errors/recompiles, no deaths (diagnosis, not acceptance).
+It retains loading intervals **185.6 / 284.2 / 178.7 ms**, all before ready
+at **3541.7 ms**. The rolling trace does **not** fully cover those windows,
+so none receives a causal label. Evidence:
+`combat-s6-startup-diagnostic{,-trace,-trace-summary}.json`. This neither
+explains nor erases the untraced stock **1807.9 ms** interval; prior covered
+Session 3/4 compositor evidence remains unchanged.
+
+Final stock acceptance: **five consecutive TDM/FFA pairs PASS**, with the
+unchanged ordinary driver, browser flags, thresholds and two-natural-deaths
+requirement. Every run has **2 deaths**, zero errors/recompiles, and passing
+recorded first-damage/death windows. `combat-s6-release-acceptance.json`,
+`combat-s6-release-accept-stats.json`, and `combat-s6-release-accept-*.json`:
+
+| Pair | TDM max ms / result | FFA max ms / result |
+|---|---|---|
+| 1 | 24.6 / PASS | 13.6 / PASS |
+| 2 | 29.4 / PASS | 13.9 / PASS |
+| 3 | 16.0 / PASS | 14.1 / PASS |
+| 4 | 21.4 / PASS | 326.6 / PASS |
+| 5 | 953.3 / PASS | 14.0 / PASS |
+
+These use the existing documented **1500 ms presentation / 150 ms callback /
+25 ms p99 / 5% stalled-time** policy, not a claim that 953 ms is acceptable
+player experience. FFA 4 retains **326.6 ms** at **44.574 s**, while alive,
+**1.451 s** after first damage; **307/312** CPU samples are idle and stalled
+time is **0.386%**. TDM 5 retains **953.3 ms** at **93.087 s**, while alive,
+**1.308 s** after respawn; **910/919** CPU samples are idle and stalled time
+is **0.988%**. Both are untraced and have no assigned cause. FFA has no squad
+radio messages; neither result establishes a radio/compositor causal link.
+Do not erase these intervals or the initial **1807.9 ms** FAIL when routing
+the main renderer investigation. The final TDM 1 was ready at **3334.2 ms**,
+ran **104.658 s**, and passed with max **24.6 ms** / callback **19.8 ms**.
+
+Final telemetry after the explicit flank-action refinement also **PASS**:
+`combat-s6-natural-radio-verified.json` / `combat-s6-release-natural.log`.
+Three fresh **180 s** rounds use the normal seed/AI/weapon paths; no pose or
+damage injection. Every team interval is still **>=8 s**. Different round
+seeds explain why these counts differ; no balance delta is claimed.
+
+| Mode | Contact | Suppress | Reload | Retreat | Flank | High ground | Kills |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TDM | 25 | 4 | 4 | 3 | 2 | 2 | 57 |
+| DOM | 25 | 5 | 1 | 2 | 0 | 0 | 54 |
+| FFA | 0 | 0 | 0 | 0 | 0 | 0 | 106 |
+
+Final decision p50/p95/max: TDM **0.357/1.492/7.172 ms**, DOM
+**0.305/0.607/3.066 ms**, FFA **0.272/1.183/3.759 ms**. These are local
+Node wall-clock samples with fake game ticks, not an iGPU or deployed-network
+claim. The telemetry waited **578.577 s** for the shared lease and ran after
+the first hooked TDM browser closed. No tests/builds ran concurrently with
+acceptance browsers, and no other stream's process was stopped.
+
+Exact-hook acceptance: TDM 1 **PASS** (**20.7 ms** max, **16.3 ms** callback,
+**8 ms** p99, two deaths). FFA 1 **FAIL**: **1533.1 ms** at **1.533 s** and
+**2507.7 ms** at **41.602 s**, the latter coincident with respawn. It still
+records two natural deaths in **45.762 s**, p99 **8 ms**, callback max
+**8 ms**, zero errors/recompiles, and passing first-damage/death windows
+(**8.4 / 7.9 ms**). Stalled time **4040.8 ms / 8.830%**. CPU profiles are
+**1463/1482** and **2385/2398** idle samples; the intervals are untraced and
+receive no causal label. Ready at **3209.3 ms**. The sequence stops here:
+five passing candidate pairs were **not achieved**. Evidence:
+`combat-s6-candidate-acceptance.json`, `combat-s6-candidate-accept-stats.json`
+and both `combat-s6-candidate-accept-{tdm,ffa}-1.json` files.
+
+The exact three-line main hook also passes a virtual TypeScript compiler-host
+check with **zero diagnostics**, without changing main's source:
+`combat-s6-hook-typecheck.json`. The first synchronous compiler wrapper
+temporarily blocked its lease-owner identity endpoint, so a waiting diagnostic
+failed **before launching a browser** (`combat-s6-candidate-diagnostic.log`).
+The wrapper now runs compilation in a child while its parent services the
+lease; the corrected check passes. This was inspection tooling, not a game
+failure or concurrent browser run.
+
+The next diagnostic (`combat-s6-candidate-diagnostic-2.json`) reproduces a
+**2492.2 ms** first gap with **3.9 ms** callback, zero errors/recompiles and
+no deaths (stop-on-spike diagnosis, not acceptance). A mistyped trace category
+(`blink,user_timing`) omitted the clock anchor, so the summary correctly fails
+with `Missing trace clock anchor`. Keep its report, trace and summary error;
+no native-work attribution is made from this unaligned capture. A corrected
+category capture follows; this is not an unchanged acceptance retry.
+
+Corrected traced diagnostic (`combat-s6-candidate-diagnostic-3.json`) runs
+**72.936 s**, records two natural deaths, max frame **21.1 ms**, callback
+**9.7 ms**, p99 **8 ms**, zero errors/recompiles and zero measured stalls.
+It is an instrumented diagnostic, excluded from the ordinary acceptance
+sequence. Ready at **2896.3 ms**, measurement starts at **5222.1 ms**.
+The **273.6 / 447.3 ms** pre-measurement intervals both have
+`traceCoversWindow: false` in its `-trace-summary.json`; the latter occurs
+after ready. It therefore neither locates nor erases the previous gameplay
+failures. No speculative HUD/renderer fix, gate change or driver claim follows.
+
+Session disposition: **NOT FULLY GREEN**. All final code/resource checks,
+**824 tests**, fixed-camera inspections, natural and muted radio captures,
+virtual main-hook typecheck and five consecutive stock acceptance pairs pass.
+The exact hooked candidate fails FFA presentation acceptance, so the full
+repeatability requirement remains unmet. The combat implementation is ready
+for integration; the arc stays **partial** until main takes the documented
+caption/audio hook and the combined build passes. Main's owner-rollback
+activation remains pending separately. Evidence index:
+`combat-s6-summary.json`; all rejected runs remain on disk.
+
+Open owner questions: none blocking. Default: keep the compatible authoritative
+markers on, preserve human priority and current performance limits, leave
+the exact rich-radio hook with main, and prioritize its presentation/rollback
+integration before the shared weapon-table audit. No new feature flag, asset,
+Meshy credit, light/pass/texture, commit, push or deployment.
+
+Cleanup: verified and stopped only the owned **8798** server tree, root PID
+**83128**, including its Wrangler/workerd children. Port **8798** is free;
+inspection scripts closed their own browsers and released the shared lease.
+Cleanup and final scope evidence: `combat-s6-server-cleanup.json` and
+`combat-s6-final-state.json`. No other stream's process or owned source file
+was changed. Final `git diff --check` passes on `ironsight-aaa-combat`.
 
 ### Session 5 - 2026-09-11: Bot squad tactics, arc 2/3 - fight on every floor
 
