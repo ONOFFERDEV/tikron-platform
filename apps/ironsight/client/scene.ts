@@ -1737,14 +1737,23 @@ export class SceneRig {
       const uv = node.geometry.getAttribute('uv2');
       if (!uv || uv.count !== node.geometry.getAttribute('position').count || ![...uv.array].every(Number.isFinite)) invalidUv = true;
     });
-    return { meshes, textures: textures.size, invalidUv };
+    return { meshes, textures: textures.size, invalidUv,
+      detailMaps: [...textures].map(t => {
+        const image = t.image as { width: number; height: number };
+        return { name: t.name, width: image.width, height: image.height,
+          format: t.format === THREE.RedFormat ? 'R8' : 'RGBA8' };
+      }) };
   }
 
   inspectSiteGround() {
     return this.scene.children.filter((node): node is THREE.Mesh =>
       node instanceof THREE.Mesh && node.userData.siteGround === true).map(node => {
       const bounds = new THREE.Box3().setFromObject(node);
+      const texture = node.material instanceof THREE.MeshStandardMaterial ? node.material.map : null;
+      const image = texture?.image as { width: number; height: number } | undefined;
       return { name: node.name, visible: node.visible, min: bounds.min.toArray(), max: bounds.max.toArray(),
+        atlas: texture && image ? { width: image.width, height: image.height,
+          format: texture.format === THREE.RedFormat ? 'R8' : 'RGBA8', version: texture.version } : null,
         triangles: (node.geometry.index?.count ?? node.geometry.getAttribute('position').count) / 3 };
     });
   }

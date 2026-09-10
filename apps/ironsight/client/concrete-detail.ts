@@ -1,17 +1,19 @@
 import * as T from 'three';
 
-const SIZE = 128;
 const TILE_METRES = 0.8;
 
-/** Original periodic aggregate, generated once during loading. Small enough to
- * share across the entire Relay kit: two RGBA8 mip chains total 0.167 MiB. */
-export function createConcreteDetail(): { normal: T.DataTexture; roughness: T.DataTexture } {
+/** Original periodic aggregate, generated once during loading. The legacy pair
+ * is 0.167 MiB; Relay's finer RGBA8 normal + R8 roughness pair is 0.417 MiB. */
+export function createConcreteDetail(fine = false): { normal: T.DataTexture; roughness: T.DataTexture } {
+  const SIZE = fine ? 256 : 128;
   let seed = 14071;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const height = new Float32Array(SIZE * SIZE);
   // Periodic value noise at three scales; wrapping the samples and derivatives
   // avoids a seam. No image, canvas, shader injection or frame-loop work.
-  for (const [cells, weight] of [[8, 0.4], [32, 0.35], [64, 0.25]] as const) {
+  const octaves: readonly (readonly [number, number])[] = fine
+    ? [[16, 0.2], [64, 0.5], [128, 0.3]] : [[8, 0.4], [32, 0.35], [64, 0.25]];
+  for (const [cells, weight] of octaves) {
     const grid = Float32Array.from({ length: cells * cells }, random);
     const at = (x: number, y: number) => grid[(y % cells) * cells + x % cells]!;
     for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
@@ -25,20 +27,23 @@ export function createConcreteDetail(): { normal: T.DataTexture; roughness: T.Da
       height[i] = height[i]! + T.MathUtils.lerp(a, b, v) * weight;
     }
   }
-  const normal = new Uint8Array(SIZE * SIZE * 4), roughness = new Uint8Array(normal.length);
+  // Relay's finer aggregate uses R8 roughness; the material reads .r explicitly.
+  const normal = new Uint8Array(SIZE * SIZE * 4), roughness = new Uint8Array(SIZE * SIZE * (fine ? 1 : 4));
   const at = (x: number, y: number) => height[((y + SIZE) % SIZE) * SIZE + (x + SIZE) % SIZE]!;
   const n = new T.Vector3();
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
     const i = (y * SIZE + x) * 4;
-    n.set((at(x - 1, y) - at(x + 1, y)) * 2.8,
-      (at(x, y - 1) - at(x, y + 1)) * 2.8, 1).normalize();
+    const slope = fine ? 5.6 : 2.8;
+    n.set((at(x - 1, y) - at(x + 1, y)) * slope,
+      (at(x, y - 1) - at(x, y + 1)) * slope, 1).normalize();
     normal.set([Math.round((n.x * 0.5 + 0.5) * 255), Math.round((n.y * 0.5 + 0.5) * 255),
       Math.round((n.z * 0.5 + 0.5) * 255), 255], i);
     const r = Math.round((0.64 + at(x, y) * 0.36) * 255);
-    roughness.set([r, r, r, 255], i);
+    if (fine) roughness[y * SIZE + x] = r;
+    else roughness.set([r, r, r, 255], i);
   }
   const texture = (data: Uint8Array, name: string) => {
-    const t = new T.DataTexture(data, SIZE, SIZE);
+    const t = new T.DataTexture(data, SIZE, SIZE, fine && data === roughness ? T.RedFormat : T.RGBAFormat);
     t.name = name; t.channel = 2;
     t.wrapS = t.wrapT = T.RepeatWrapping;
     t.generateMipmaps = true; t.minFilter = T.LinearMipmapLinearFilter;

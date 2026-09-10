@@ -973,3 +973,27 @@ It does not eliminate the separately observed compositor/ANGLE stalls.
 The image preloads with the page. It is shared UI; per-map loading is unchanged,
 and no WebGL texture, light or render pass is added. Browser decoded image bytes
 are reported separately from Three.js's texture-residency estimate.
+
+### Session 75: Relay surface finish (original runtime assets)
+
+`client/relay-surfaces.ts`, `client/concrete-detail.ts` and `client/site-ground.ts`
+generate the Relay finish during scene preparation. No downloaded material,
+purchased source or image service is involved; no new public binary is shipped.
+Reproduce with `pnpm build:client`, then inspect Relay/Cooling at the existing
+fixed cameras. Other maps retain their prior material data.
+
+Relay uses one 1024 x 683 linear R8 ground atlas (6.83 texels/metre on each axis),
+one 256-square RGBA8 tangent normal and one 256-square R8 roughness texture.
+Both detail maps repeat every 0.8 m (320 texels/metre). Slab joints at 6 x 5 m,
+concrete formwork at 2.4 x 1.2 m and recessed tie shading use metric coordinates
+and screen derivatives in the existing opaque material pass. Subpixel joints
+fade; there is no relief geometry, displacement, additional pass or live light.
+Coated steel/paint retains its palette and gets a weaker shared fine finish.
+
+The ground stores linear red intensity with a material tint; canvas rows are
+explicitly reversed for the typed upload so north-side AO stays in the north.
+The original 2048 x 1365 ground AO is unchanged and multiplied at load. Ground
+AO completion is now awaited before the scene's shader/texture preparation.
+Finer normal + roughness uses 0.4167 MiB with mips; ground uses 0.8893 MiB.
+Their combined 1.3060 MiB is 0.1940 MiB below the previous 1.5000 MiB allocation.
+No Meshy credits, new dependency, asset allowlist or per-map request is needed.

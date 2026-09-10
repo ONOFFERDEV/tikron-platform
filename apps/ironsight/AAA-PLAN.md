@@ -55,7 +55,9 @@ Session72 quick check (local candidate): finish a TDM or Undertow DOM round. The
 
 Session73 quick check (local candidate): finish a round and read NEXT DEPLOYMENT below Field Honors. Its seconds come from the server's shared intermission deadline; late joins see the remaining time. REMATCH still lets the majority return sooner. At zero the display waits for the server, then existing warmup begins. Next Deployment 1/1 is complete and on by default. The configured twenty-second intermission remains; replay and human excitement remain open. Supervisor confirms Session72 is published as commit9a55e3d.
 
-Session74 quick check (local candidate): take damage in TDM/FFA. The red edge now uses a baked border while the four direction labels and central aiming space remain clear; Reduced motion retains direction without flashing. Raster Budget1/1 also makes the headless hitch policy explicit:1500ms presentation ceiling,150ms main-thread limit,25ms p99 and5% stalled-time budget. Every>150ms gap remains reported. Five consecutive runs of each mode pass that revised policy; driver freezes and representative iGPU acceptance remain open. Next visual arc: Relay ground and material detail.
+Session74 quick check (published per Session75 supervisor, commit ed99354): take damage in TDM/FFA. The red edge now uses a baked border while the four direction labels and central aiming space remain clear; Reduced motion retains direction without flashing. Raster Budget1/1 also makes the headless hitch policy explicit:1500ms presentation ceiling,150ms main-thread limit,25ms p99 and5% stalled-time budget. Every>150ms gap remains reported. Five consecutive runs of each mode pass that revised policy; driver freezes and representative iGPU acceptance remain open.
+
+Session75 quick check (local candidate): Training / Relay, leave deployment and look along Cooling, then approach the core. The yard has crisp six-by-five-metre slab joints; concrete walls show formwork and recessed tie shading. Fine aggregate and quieter coated steel/paint replace the flat finish while signs and team colours retain priority. Surface Detail1/3 is on by default for Relay. Undertow and Switchyard are the next two stages; representative iGPU and human visual approval remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -271,7 +273,7 @@ times within 0.75 s, all objectives reachable, no overlapping capture radii.
 | Relay / Undertow structural kit | original procedural geometry from shared colliders; Blender Cycles AO, exact winding/normal audit | lazy original GLBs: 1.01 / 1.55 MB; 1024px R8 AO |
 | Ground AO (Blender 4.5) | collision-only Cycles bake; Standard view transform, existing supervisor pipeline | 1024x683 per map; versioned original PNGs |
 | Environment (Blender 4.5) | original linear radiance gradient + warm halo, one PMREM during preparation | shared 41,273-byte HDR; 1.5 MiB PMREM; no extra lights/passes |
-| Material detail | tiling concrete/steel normal and roughness maps deferred | preserve ~1.08 MiB stress texture headroom; re-budget first |
+| Material detail | Session75 Relay: metric slab/formwork finish, 256px tiled normal + R8 roughness, compact R8 ground; other maps retain their prior finish | Relay stress63.745MiB, below64; Undertow/Switchyard next |
 | Hero props / skyline accents | purchased Synty sci-fi city, bake only after composition review | <= 6 MB per map |
 | Operator | existing Synty derived player, improve rig/weapon holds | <= 3 MB incl. clips |
 | Rifle / other weapons | existing Synty weapon bundle, recalibrate grip/muzzle | <= 2 MB shared |
@@ -285,7 +287,7 @@ GLBs ignored by default, explicitly allowlist only documented CC0/original asset
 if needed later. No new npm dependencies for M1; Three.js and built-in Node CDP
 are sufficient. Any later dependency requires OSS license and rationale here.
 
-Asset set target <= 40 MB total, <= 25 MiB every individual asset, lazy per map.
+Asset set ceiling <= 60 MiB total (owner decision 2026-09-10), <= 25 MiB every individual asset, lazy per map.
 Current four GLBs total 2,986,272 bytes; obsolete Relay dressing is retained locally
 for rollback but is not requested on the new map. Avoid re-embedding Synty's atlas
 in every individual prop. Bundle/instance by material and map.
@@ -326,7 +328,7 @@ moving actors cannot leave stale silhouettes. Menu uses a real map vista.
 | map structural calls | <= 45 |
 | resident textures | <= 32 textures, estimated <= 64 MiB |
 | texture sizes | shared atlas <= 2048; map signs <= 1024; shadow <= 2048 |
-| downloaded game assets | <= 40 MB whole product, per-map loading |
+| downloaded game assets | <= 60 MiB whole product (owner decision 2026-09-10), per-map loading |
 
 Inspector will report calls/triangles/textures/programs, frame interval samples,
 viewport and GPU identity. Software-rendered Edge screenshots prove boot/rendering,
@@ -449,9 +451,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
-| R-L12 | partial | Session69 squared Fresnel edge uses the existing opaque material; emissive edge strength rises from .42 to .62 over10-45m. Original map/character palette retained by default. Matched stills show edge separation; no all-lighting/all-range or human readability acceptance. |
+| R-L12 | partial | Session75 Surface Detail1/3 ON for Relay: metric6x5m ground slabs,2.4x1.2m concrete formwork/tie shading,320texels/m aggregate and weaker coated steel finish. Matched Relay/Cooling/Freight/spawn stills preserve signs and large colour masses; subpixel joint contrast fades. Session69 actor rim retained. Human all-lighting/readability and remaining maps remain open. |
 | R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
-| R-L14 | partial | Session74 matched Undertow stress stays209 calls/159284triangles,25textures/60.6055MiB,6.9ms median on RTX5070. Traces locate long compositor/ANGLE waits with roughly1ms game renders and no shader/resource/pass churn. Baked damage border and stable HUD nodes reduce raster work. Owner-authorized headless ceiling150->1500ms;150ms main-thread,25ms p99 and5% stalled-time guards. All>150ms frames remain visible; see docs/HITCH-GATE.md and Session74 validation table. Driver freezes, iGPU/thermal and human clarity remain unaccepted. |
+| R-L14 | partial | Session75 Relay stress retains238calls/150102triangles/30textures/33programs, texture estimate63.9388->63.7448MiB; fine material detail adds no draw/light/pass. Ground AO finishes before preparation. Undertow remains209calls/159284triangles/60.6055MiB. Session74's explicit1500ms headless presentation policy and150ms main-thread/25ms p99/5% stalled-time bounds remain unchanged; all>150ms gaps are reported. See docs/HITCH-GATE.md and Session74 five-pair proof. Driver freezes, iGPU/thermal and human clarity remain unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
@@ -465,20 +467,21 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session74: all63 reference rows re-reviewed. Raster Budget1/1 takes the owner's
-GPU priority first: a baked damage border, measured rendering diagnostics and an
-explicit headless gate policy. The1500ms presentation allowance is authorized by
-the2026-09-10 brief; it does not resolve player-visible driver freezes.500us CPU
-sampling, all measured frames, shader guards and natural deaths remain. See the
-Session74 validation table and docs/HITCH-GATE.md for the final proof and limits.
-The owner's visual-first directive now ranks ahead of the prior gameplay backlog.
+Session75: all63 reference rows re-reviewed; fresh static reference measurements
+match Session74. The owner's visual-first directive ranks ahead of gameplay work.
+Surface Detail1/3 gives Relay metric slabs/formwork and fine concrete/coated steel,
+with less texture residency. Complete the same arc on Undertow in Session76 and
+Switchyard in Session77, each on by default and measured within existing budgets.
+Session74's1500ms headless allowance and five-pair proof remain explicit policy,
+not remediation of player-visible driver freezes; docs/HITCH-GATE.md retains limits.
 Public ceiling is60MiB, per-file25MiB, with per-map lazy loading retained.
 
-1. **Ground and material fidelity (R-L12-14), next visual arc.** Expanded150x100m
-   maps still expose stretched ground detail and flat concrete/steel. Start with
-   Relay's first deployment route: tiled colour/normal/roughness detail, material
-   scale and wear, with matched player-height stills and measured texture/load
-   cost. Preserve operator contrast and the fixed-light/no-extra-pass budget.
+1. **Ground and material fidelity (R-L12-14), Surface Detail2/3 next.** Relay now
+   has crisp metric joints and320texels/m fine aggregate with compact R8 data.
+   Undertow's wet concrete/maintenance floor is next, then Switchyard's coated
+   industrial steel. Preserve per-map character, operator contrast, baked AO and
+   the64MiB/fixed-light/no-extra-pass budget. Measure paired player-height stills
+   and cold local preparation; do not claim the entire material gap is closed.
 2. **Lighting, atmosphere and surface wear (R-L12/14, R-M08/17).** Undertow dusk,
    Switchyard overcast, baked exposure/colour separation, restrained particles,
    scorch/grime/markings and animated skyline. Use the existing pass and pooled
@@ -11474,3 +11477,166 @@ All changes remain in apps/ironsight/** on ironsight-aaa. No commit, push or dep
 The supervisor retains publication ownership; this entry does not claim a new preview deployment.
 Final diff/scope audit: `.inspect/session74-final-audit.json`;63 unique canonical
 reference rows, one Session74 log entry,15 changed files all within the app.
+
+### Session 75 - 2026-09-10: Surface Detail arc 1/3 - Relay's poured yard
+
+Read the standing brief, Session75 supervisor status and plan in order, then
+all63 design principles and the current scorecard. Entry branch ironsight-aaa
+was clean. Supervisor confirms Session74 commit ed99354 and preview deployment
+57a04fdb-5e9c-4d99-b8fd-da67d3fc7ab7. This is a local candidate only, confined to
+apps/ironsight/**; no commit, push or deployment.
+
+Reference: **R-L12, R-L13, R-L14**. Targets: replace the stretched first-route
+floor with readable metric construction detail; keep environment contrast below
+operator/sign masses; retain collision, fixed light count, one opaque pass,
+<=64MiB texture residency and <=240 stress draws. Implementation/resource checks
+pass. These rows remain partial because human readability, other-map material
+work, iGPU and driver acceptance remain open. Surface Detail1/3 is ON by default
+for Relay; Session76 targets Undertow wet concrete, Session77 Switchyard steel.
+The full arc is not yet complete. No feature flag or owner answer is required.
+
+Delivered:
+
+- Original6x5m slab joints, restrained pour variance,2.4x1.2m concrete formwork
+  and recessed tie shading. Joints use metric projected UVs and screen derivatives
+  in the existing material shader; subpixel contrast fades at grazing/distant
+  views. These are surface marks, not holes, displacement or additional cover.
+- A finer0.8m tile:256-square tangent normal plus R8 roughness,320texels/m.
+  Concrete receives fine aggregate; coated steel/paint gets a weaker finish.
+  Existing paint/AO UVs, palette, signs, silhouettes and all geometry remain.
+  Thirteen Relay meshes share two detail textures, up from nine; no new draw,
+  light, shadow request, pass or per-frame CPU bake/resource allocation.
+- Relay's512-square RGBA ground becomes1024x683 linear R8,6.83texels/m in both
+  axes. A material tint restores the base hue. This atlas holds broad aging/AO;
+  metric tiles and derivative-filtered joints supply close-range detail. The
+  unchanged2048x1365 baked AO is sampled at load. No claim of2048 ground colour.
+- Explicit north/south row reversal for typed uploads, and a preparation barrier
+  for ground AO. The base remains opaque if optional AO fails; the normal warmup
+  now waits for the AO composition rather than allowing a late texture upload.
+- Inspector reports atlas/detail formats and dimensions and asserts Relay's
+  R8 layout,256px pair, valid UVs and existing resource limits. Two meaningful
+  tests cover asymmetric north/south linear-light packing, allocation reuse,
+  deterministic fine detail and the combined old/new memory budget.
+
+Wow check uses the brief's **matched before/after stills** option. Fixed production
+renderer cameras at1920x1080, reviewed at full size:
+
+- [Relay before](.inspect/session75-before-relay.png) -> [Relay after](.inspect/session75-final-relay.png).
+- [Cooling before](.inspect/session75-before-cooling.png) -> [Cooling after](.inspect/session75-final-cooling.png).
+- [Freight before](.inspect/session75-before-freight.png) -> [Freight after](.inspect/session75-final-freight.png).
+- [Deployment before](.inspect/session75-before-spawn.png) -> [Deployment after](.inspect/session75-final-spawn.png).
+- Downward ground pair: session75-before-ground-cooling.png ->
+  session75-final-ground-cooling.png, eye52,1.65,25 and look60,0,24.
+  Final contrast-team and core-open fixtures retain operator separation and
+  the clear collision-backed tunnel; these are offline inspection fixtures.
+
+Intended player sentence: **"The yard looks built from poured slabs and cast panels now."**
+This names the delivered visible change, not a player testimonial or overall AAA
+acceptance. Natural bot play is covered by the hitch probes below; these paired
+art stills do not pretend to be a20-second live round.
+
+Rejected intermediates/evidence: session75-candidate-* retained. The first normal
+field read too coarse and the joints stayed too dark far away. Finer noise octaves,
+lower coated-surface strength and subpixel coverage improve the final image.
+The candidate also used implicit flipY for typed data; final packing explicitly
+reverses rows and tests an asymmetric atlas. Two initial typecheck failures
+(DOM-only canvas typing in a Node test, then unknown texture.image typing in the
+inspection report) are retained in session75-typecheck-{dom,image}-type-failure.log;
+both were fixed without weakening checks. A reference-audit shell redirection
+wrote UTF16; a Node UTF8 writer corrected the evidence format before comparison.
+
+Matched1920x1080 balanced/DPR1 Relay stress, RTX5070 / Edge152 / ANGLE D3D11:
+
+| Measurement | Before | After | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |238 /150102|238 /150102|0 /0|
+| Textures / estimated MiB |30 /63.9388|30 /63.7448|0 /-0.1940|
+| Programs / geometries |33 /165|33 /165|0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.2|6.9 /7.1 /7.2|0 /0 /0|
+| Max / first-ready frame ms |201.4 /7.1|13.9 /7.1|-187.5 /0|
+| Stress construction / preparation ms |59.4 /600.3|83.8 /1303.4|+24.4 /+703.1|
+| First fresh-profile Relay construction / preparation ms |89.4 /886.3|155.3 /2582.8|+65.9 /+1696.5|
+| Assets including README bytes |26919126|26920675|+1549|
+| Client JS / source map bytes |2096915 /4645657|2102070 /4655051|+5155 /+9394|
+| Entire public bytes |33662381|33678479|+16098|
+
+Both stress runs use11 remote operators plus the local rifle and96 blasts over15s;
+143 twelve-rifle volleys before,145 after (the earlier stall loses two cadence
+windows). All effects drain. Undertow control retains209calls/159284triangles,
+25textures/~60.6055MiB,29programs and6.9/7.1/7.2ms median/p95/p99. Max34.7->14ms.
+No clean-run speedup or driver-fix claim: the before201.4ms gap remains evidence.
+
+First fresh-profile local preparation is slower in this sample: construction+
+preparation0.976->2.738s, before play. Other final Relay cameras prepare in less
+time; these are local browser/driver measurements, not CDN download or iGPU
+benchmarks. The new finishes add shader work within the same pass; normal warmup
+prepares it. GPU/device acceptance is still required before claiming60fps broadly.
+R8 ground+detail uses1.3060MiB vs1.5000MiB previously. Public32.1183MiB remains
+below60MiB; largest file7,183,364bytes below25MiB. No new downloaded binary,
+dependency, purchased derivative, Meshy spend or per-map request. Reported1530
+Meshy balance unchanged. Provenance/reproduction is in public/assets/README.md.
+Machine evidence: session75-{before,final}-report.json and session75-summary.json;
+reproduce totals with node .inspect/session75-summarize.mjs.
+
+Fresh tools/reference-audit.ts output deep-equals Session74, retained in
+session75-reference-audit.json and session75-reference-comparison.json. Cover
+full/waist counts remain65/46 Relay,66/62 Undertow,64/48 Switchyard; closed-route
+sprint A-B/A-C/B-C remains14.44/11.78/14.44,14.22/11.33/14.22,
+14.44/11.56/14.44s. Spawn travel is still not encounter timing. ADS250/200/225/
+400/165ms and sprint recovery120/100/130/150/90ms; TDM50/300s, respawn3s,
+DOM4/8s and0.5point/flag/s; hostile foley1.4, hit900/1400Hz at.28gain,
+five-row top-right feed and both damage cues remain. Gameplay numeric gaps stay
+open; all63 canonical scorecard rows were re-reviewed, not promoted wholesale.
+
+Required verification:
+
+- pnpm typecheck PASS; pnpm test PASS:629 passed/six existing skips,
+  81 passed files/four skipped. pnpm build:client PASS; pnpm audit:assets PASS
+  (rerun after the asset README update). session75-static-gates.json and
+  session75-final-{typecheck,test,build-client,audit-assets}.log.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+  PASS with zero console errors: session75-required-report.json/log. The final
+  eight-shot review and ground closeup also have zero errors/forbidden requests;
+  both stress budget assertions pass. Final production code stayed frozen during
+  the acceptance probes; no build, test suite, bake or second browser overlaps them.
+
+Exact required command:
+
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`
+
+PASS under the unchanged Session74 policy. The supplementary FFA command uses
+the same arguments plus `--mode=ffa` and its own session75-hitch-ffa.json output.
+
+| Mode | Seconds / frames | Max frame / callback ms | p99 upper ms | >150ms gaps / time share | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---|
+|TDM|103.062 / 14525|1106.0 / 21.6|13|2 / 1.647%|2|PASS|
+|FFA|51.071 / 7087|516.8 / 22.7|14|3 / 2.934%|2|PASS|
+
+Both have zero console errors, shader changes and long tasks; default500us CPU
+profiling, all measured frames and natural bot deaths remain. Raw evidence is
+`.inspect/hitch.json`, session75-hitch-{tdm,ffa}.json/log. TDM's1106/591.4ms
+gaps and FFA's516.8/500.7/480.8ms gaps are retained. These would fail the original
+150ms ceiling. They pass the explicit1500ms presentation/150ms main-thread/
+25ms p99/5% stalled-time policy from docs/HITCH-GATE.md, which was not changed
+this session. No covered cross-process trace was collected here, so these gaps
+are not attributed to a specific cause. Session74's five consecutive TDM+FFA
+proof remains the dedicated arc evidence; these are this visual stage's new
+checks. No claim that the underlying compositor/driver stall has disappeared.
+
+Open owner questions/defaults: keep restrained joints/fine coated finish(yes),
+accept the measured preparation cost in exchange for visible detail(yes for the
+local candidate; device review remains open), finish Undertow then Switchyard
+within this three-session arc(yes). No answer blocks progress. Human excitement,
+readability, moving shimmer/comfort, mid-laptop iGPU/thermal, driver stalls,
+real6v6/RTT and Firefox/Safari remain unaccepted.
+
+Cleanup: verified preview root61924 against its saved Unix-ms creation identity,
+then each descendant before stopping the owned12-process tree. Evidence:
+session75-preview-tree.json and session75-cleanup.json, with zero owned processes,
+port8796 listeners or inspection browsers remaining. The first cleanup attempt
+stopped after an exiting child lost its Get-Process StartTime; the resume guard
+then rejected a nested PowerShell JSON array. The corrected helper resumes only
+the saved verified identities and reads stable CIM creation dates. No unrelated
+process was targeted. Final scope/diff/reference/session-entry audit is retained
+in session75-final-audit.json. All six required gates green, supplementary FFA
+green, no commit/push/deploy. Publication remains the supervisor's responsibility.
