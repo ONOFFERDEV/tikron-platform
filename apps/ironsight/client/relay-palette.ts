@@ -6,7 +6,10 @@ import type { MeshStandardMaterial, MeshStandardMaterialParameters } from 'three
 export const RELAY_FINISH = {
   concrete: { color: 0x929185, roughness: 0.96, metalness: 0 },
   pale: { color: 0xa4a18f, roughness: 0.88, metalness: 0 },
-  dark: { color: 0x383d36, roughness: 0.86, metalness: 0.18 },
+  // Existing coping and foundation cladding share faces with the concrete bake.
+  // Resolve depth ties consistently in both the fallback and baked materials.
+  dark: { color: 0x383d36, roughness: 0.86, metalness: 0.18,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 },
   metal: { color: 0x64665c, roughness: 0.78, metalness: 0.32 },
   amber: { color: 0x887958, roughness: 0.9, metalness: 0 },
   teal: { color: 0x637166, roughness: 0.9, metalness: 0 },

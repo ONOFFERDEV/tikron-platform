@@ -58,6 +58,7 @@ import { buildUndertowEnvironment } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
+import { loadRelayFieldworks } from "./relay-fieldworks.js";
 import { fadeRelayDressing } from './relay-palette.js';
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
@@ -514,6 +515,8 @@ export class SceneRig {
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayUplinks(this.scene, map.bounds.width / 2).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
+    if (map.presentation === 'relay') this.assetLoads.push(loadRelayFieldworks(this.scene, map)
+      .catch(error => console.warn('Relay sandbags unavailable; retaining the solid perimeter wall.', error)));
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
@@ -1803,6 +1806,10 @@ export class SceneRig {
           format: texture.format === THREE.RedFormat ? 'R8' : texture.format === THREE.RGFormat ? 'RG8' : 'RGBA8', version: texture.version } : null,
         triangles: (node.geometry.index?.count ?? node.geometry.getAttribute('position').count) / 3 };
     });
+  }
+
+  inspectRelayFieldworks() {
+    return this.scene.getObjectByName('relay-service-detail')?.userData.fieldworks ?? null;
   }
 
   inspectRelayUplinks() {

@@ -1,0 +1,42 @@
+{
+  "name": "field-sandbag-single",
+  "prompt": "ONE single realistic filled canvas sandbag, a heavy soft rectangular burlap sack lying flat on its broad side, isolated. Approximate real dimensions 60 centimetres long, 30 centimetres wide, 18 centimetres high. Weight settled on a flat bottom. Bulging smooth rounded rectangular cushion shape, slightly sagging middle, tight stitched folded short end and pinched rounded corners, subtle natural wrinkled cloth, fully sealed. This is one individual sand-filled sack for building a military fortification. Realistic prop, no stylization, no hard edges, no stacks, no bricks, no background or ground.",
+  "texture_prompt": "Faded dusty grey-khaki coarse canvas sack, fine woven fibres, dark sewn seam around edge, subtle dirt at bottom, creases around folded ends, real heavy cloth filled with sand. Desaturated matte fabric, no labels or symbols.",
+  "previewId": "01a08b5d-8d37-72a7-8051-e45b08d115cb",
+  "refineId": "01a08b5f-049f-7643-bb1b-befb15c55d8d",
+  "ai_model": "latest",
+  "target_polycount": 1000,
+  "pbr": true,
+  "glbBytes": 8104804,
+  "creditsUsed": 30,
+  "balanceAfter": 1230,
+  "generatedAt": "2026-09-10T12:52:05.171Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan.",
+  "output": "public/assets/props/relay-field-sandbags.glb",
+  "processing": "shrink-glb.py --size 512 --webp; pack-field-sandbag.py; runtime three-course assembly and shared service atlas",
+  "bytes": 83456,
+  "sha256": "927db93d34e31719cc658f6c9ab308481eb4536c6f74adc9ad8499078f71766e",
+  "rawSha256": "0d87b6aa1dd8a65df759935c4ba7ed590c649c45e49e1e9ace8190c11c5e15a2",
+  "meshes": 1,
+  "materials": 1,
+  "images": 1,
+  "triangles": 1043,
+  "geometryBytes": 54770,
+  "sessionCredits": 90,
+  "rejectedCandidates": [
+    {
+      "name": "relay-field-sandbags",
+      "previewId": "01a08b53-fb2e-704d-93df-a42a67fd69ea",
+      "refineId": "01a08b55-2e3a-711d-bdf7-5854718152b0",
+      "credits": 30,
+      "reason": "Angular tiny courses; rejected in map inspector"
+    },
+    {
+      "name": "relay-sandbag-course",
+      "previewId": "01a08b59-6b6d-72f4-9c71-26ddcdece6de",
+      "refineId": "01a08b5a-c14d-77a2-87d0-6394e7d362eb",
+      "credits": 30,
+      "reason": "Folded slab silhouette and wrong course count; rejected in map inspector"
+    }
+  ]
+}

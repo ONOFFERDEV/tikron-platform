@@ -2,9 +2,9 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from '../src/map/types.js';
 
-// Original painted service hardware. One 512x256 atlas (0.67 MiB with mips),
-// one draw, no transparency sorting, lights, external assets or animated work.
-export const ATLAS_W = 512, ATLAS_H = 256;
+// Service hardware occupies the original upper-left 512x256 region. Fieldworks
+// shares this atlas/draw: scars below it, generated canvas sacks at upper right.
+export const ATLAS_W = 1024, ATLAS_H = 1024;
 export const tiles = {
   hatch: [0, 0, 128, 256], cabinet: [128, 0, 128, 256],
   vent: [256, 0, 256, 128], label: [256, 128, 128, 128], case: [384, 128, 128, 128],

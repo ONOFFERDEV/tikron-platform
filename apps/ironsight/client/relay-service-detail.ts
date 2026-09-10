@@ -1,6 +1,8 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry } from './relay-service-geometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { paintRelayDamage, relayDamageGeometry } from './relay-fieldworks.js';
 
 export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   const canvas = document.createElement('canvas'); canvas.width = ATLAS_W; canvas.height = ATLAS_H;
@@ -72,7 +74,10 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
     for (let i = 0; i < 10; i++) rect('#564b39', x + 7 + random() * (w - 14), y + 8, 1 + random() * 2, 8 + random() * 24);
     c.restore();
   }
+  paintRelayDamage(c);
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
-  const mesh = new T.Mesh(relayServiceGeometry(map), new T.MeshStandardMaterial({ map: texture, roughness: 0.91 }));
+  const parts = [relayServiceGeometry(map), relayDamageGeometry(map)];
+  const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose());
+  const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ map: texture, roughness: 0.94, alphaTest: .28 }));
   mesh.name = 'relay-service-detail'; mesh.receiveShadow = true; scene.add(mesh);
 }

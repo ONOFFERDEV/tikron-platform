@@ -302,6 +302,7 @@ export function startMapInspector(): void {
       actorAppearance: contrastReview || roleLineup ? scene.inspectActorAppearance() : undefined,
       operatorKits: actorCount ? scene.inspectOperatorKits() : undefined,
       uplinks: scene.inspectRelayUplinks(),
+      fieldworks: scene.inspectRelayFieldworks(),
       signal: scene.inspectSignal(),
       support: scene.inspectSupport(),
       mortar: scene.inspectMortar(),

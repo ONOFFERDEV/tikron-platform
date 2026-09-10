@@ -1368,3 +1368,54 @@ images and source materials stay unchanged; both held views share cached
 finish materials, and split reload parts retain object-space detail. Purchased
 derivatives remain ignored. Meshy cost: zero new credits. Reproduce with
 `pnpm build:client`, then `node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-smg-hip,weapon-shotgun-reload-out,weapon-sniper-hip,weapon-pistol-hip`.
+
+### Session89 - Relay fieldworks (generated sack, original assembly and damage)
+
+`props/relay-field-sandbags.glb` contains one original Meshy-generated filled
+canvas sack. Preview `01a08b5d-8d37-72a7-8051-e45b08d115cb`, refine
+`01a08b5f-049f-7643-bb1b-befb15c55d8d`, generated 2026-09-10. Full prompts,
+source/output hashes and rejected task IDs are in the adjacent metadata JSON.
+The raw 8,104,804 bytes shrink to 86,988; removing unused normal/metallic/AO
+images and smoothing the sack produces 83,456 bytes, 1,043 triangles, one
+mesh/material and one 512px WebP albedo. The source geometry accessors occupy
+54,770 bytes. Coincident source vertices are welded before recalculating smooth
+prop normals; UV seams remain intact. Architecture normals are never changed. The source hash
+is `0d87b6aa1dd8a65df759935c4ba7ed590c649c45e49e1e9ace8190c11c5e15a2`;
+the shipped hash is `927db93d34e31719cc658f6c9ab308481eb4536c6f74adc9ad8499078f71766e`.
+
+Reproduce from the ignored Session89 raw source with Blender 4.5:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/session89-meshy/field-sandbag-single/model.glb --output .inspect/session89-sandbag-single-512.glb --size 512 --webp
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/pack-field-sandbag.py -- --input .inspect/session89-sandbag-single-512.glb --output public/assets/props/relay-field-sandbags.glb
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots fieldworks-wall --review-camera 71,1.65,8,75,3.25,0
+```
+
+To regenerate the source, pass the recorded `prompt`, `texture_prompt` and
+`target_polycount` from `props/relay-field-sandbags.meta.json` to
+`tools/meshy-generate.mjs --name field-sandbag-single --out .inspect/session89-meshy`.
+Generation consumes credits and is nondeterministic; the processing/assembly
+above is reproducible from the retained source. Session spend: **90 credits**,
+including two rejected 30-credit wall candidates. The accepted sack cost 30.
+Balance after all three: 1,230; owner programme remaining: 1,000 of 1,300.
+No purchased derivative is exported or newly versioned.
+
+`client/relay-fieldworks.ts` fits the sack to 0.67 x 0.235 x 0.44 m and merges
+96 copies into eight staggered three-course sections, wholly outside the north
+movement boundary, seated on the existing 2.9 m coping. It also paints original
+shallow spall, chip clusters and powder aprons on four existing service shelters.
+Wall patches stay within 17 mm of intact solid faces; residue is a flat decal
+19 mm above ground. These are static battle traces, not destructible openings.
+The collision map, architecture bake and ground AO remain unchanged.
+
+Relay lazy-loads the sack before scene preparation. Its albedo is dyed dusty
+khaki and copied once into the existing service atlas, expanded from 512x256
+to 1024x1024 (0.6667 -> 5.3333 MiB with mipmaps). Service plates, damage and
+sacks remain one opaque, alpha-tested draw. No new resident texture, light,
+pass or per-frame CPU bake. The intermediate source textures/geometry are
+disposed after packing. Other maps never request the sack. The alpha-tested
+material is included in normal loading-time WebGL preparation.
+The existing dark coping/foundation material also resolves coplanar depth ties
+with a fixed polygon offset in both the procedural fallback and baked kit;
+this removes the flickering concrete/trim seam without changing geometry.
