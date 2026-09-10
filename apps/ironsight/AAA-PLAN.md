@@ -69,7 +69,9 @@ Session79 quick check (published per Session80 supervisor, commit057e989): choos
 
 Session80 quick check (published per Session81 supervisor, commit592b974): open a fresh TDM or Free for all room. Arena preparation now also prepares combat UI before mouse control is enabled. The first hit, elimination and results keep the same appearance. First Fight1/1 is ON by default. Five complete-observation bot pairs pass the150ms first-damage/death check; early loading/presentation costs and representative device acceptance remain documented below.
 
-Session81 quick check (local candidate): follow your squad out of Relay deployment. RUSH wears a light single-shoulder carrier, ANCHOR broader paired plates and pouches, and SCOUT a raised asymmetric collar and compact back module. Graphite underlayers and pale chest bars separate the kit from the team colour. Enemy colour settings also tint the armour. Field Kit1/1 is complete and ON by default; equipment grants no extra health or damage. First-person fidelity and human role/readability acceptance remain open.
+Session81 quick check (published per Session82 supervisor, commit c1c374b): follow your squad out of Relay deployment. RUSH wears a light single-shoulder carrier, ANCHOR broader paired plates and pouches, and SCOUT a raised asymmetric collar and compact back module. Graphite underlayers and pale chest bars separate the kit from the team colour. Enemy colour settings also tint the armour. Field Kit1/1 is complete and ON by default; equipment grants no extra health or damage. First-person fidelity and human role/readability acceptance remain open.
+
+Session82 quick check (local candidate): Training / Relay, aim and reload each weapon with 1-5 and R. Your sleeves now have shaped graphite reinforcement, fitted webbing, stitched edges and pale identification bars; the gloves carry small raised ribs. Field Sleeves1/1 is complete and ON by default. The equipment follows the existing grips and reloads. Weapon surfaces and human moving-grip acceptance remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -405,8 +407,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 81 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session81-reference-audit.json` (fresh build, identical to Session80);
+Session 24 first canonical audit (reference restored), updated in Session 82 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session82-reference-audit.json` (fresh build, identical to Session81);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -443,7 +445,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G09 | partial | Session81 Field Kit1/1 ON: stable RUSH/ANCHOR/SCOUT carriers, shoulders, pouches and thigh guards with distinct breadth/asymmetry. Three original bind-pose geometries share the existing skinned draw and atlas. Paired six-metre role stills, 18 actual-asset pose audits and a20.813s natural TDM sequence. Held animations/head/foot normalization preserved; human all-range silhouette and moving-grip acceptance remain open. |
 | R-G10 | met | Session53 five original atlas silhouettes and34/42/50/60/64ms lifetimes (2-4frames at60Hz); local/remote share one source and eight pooled slots. Real22.072s five-weapon input capture:17server shots/7hits,all flashes expire. ADS reduces local size/opacity. Human readability/comfort remains open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
-| R-G12 | partial | Session47 launch uses existing lowered traversal weapon pose; before/flight/landing/reduced captures retain the center aiming corridor. No new hand/remote flight clip; moving pose acceptance remains human work. |
+| R-G12 | partial | Session82 Field Sleeves1/1 adds fitted reinforcement/webbing/stitches within the existing six hand draws and 4000-triangle ceiling. Thirty five-weapon hip/ADS/reload/cycle fixtures retain the aiming corridor and existing muzzle/grip transforms. Session47 lowered traversal pose remains; human moving-grip and flight acceptance remain open. |
 | R-G13 | not yet | Hip FOV remains 78, with Session45 cosmetic +5 sprint / +8 slide; Reduced motion keeps 78. No 90-100 default/110-capped slider. |
 | R-G14 | partial | Session66 real normal cargo drill retains the warning/transfer/recovery PA/motor cues; muted/reduced drill has zero motor sources with readable cover/hold text. Hostile foley1.4 and surface cues unchanged; headphone/comfort acceptance open. |
 | R-G15 | partial | Confirmed hit 900/1400 Hz at .28 gain; kill 660/990 Hz at .30. Bypasses voice cap; headphone mix unverified. |
@@ -479,18 +481,19 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session81: all63 canonical rows re-reviewed; fresh static measurements equal
-Session80. Field Kit1/1 completes the bounded operator silhouette/material pass,
+Session82: all63 canonical rows re-reviewed; fresh static measurements equal
+Session81. Field Sleeves1/1 completes the bounded first-person forearm/glove pass,
 ON by default, with no added textures, draw calls, lights or render passes.
-The broader character/weapon gap remains partial. Session80's compositor proof
+The broader weapon/grip gap remains partial. Session80's compositor proof
 and documented cold-cache residue stand; this session changes no gate policy.
 Public ceiling60MiB, per-file25MiB and per-map lazy loading remain. Switchyard
 still has only5461 estimated texture bytes free, so texture growth must first
 release residency. The visual-first ranking is:
 
 1. **First-person weapon and hand fidelity (R-G12/18, R-G09).** Next: stronger
-   weapon surface detail, convincing grip and moving reload review. Keep the
-   centre aiming corridor clear. Field Kit supplies remote role silhouettes;
+   weapon surface detail and moving grip/reload review. Field Sleeves now gives
+   forearms visible reinforcement and webbing; keep the centre aiming corridor
+   clear. Field Kit supplies remote role silhouettes;
    human all-range/colour/held-pose review remains open. Free texture residency
    before adding maps; use the existing draw budget.
 2. **Localized surface wear and hero dressing (R-L12-14, R-M13/17).** Surface
@@ -12693,3 +12696,146 @@ processes, port8796 listeners or inspection browsers remain. Required gates,
 supplementary FFA/DOM, the63-row reference audit and scope/diff checks are green.
 The frozen-bundle verification is session81-final-audit.json. All work remains
 local under apps/ironsight/**; the supervisor owns commit and publication.
+
+### Session 82 - 2026-09-10: Field Sleeves arc 1/1 - equipped hands in the first-person view
+
+Read the standing brief, Session82 status and AAA plan in order, then all63
+design principles and canonical scorecard rows. Entry ironsight-aaa was clean.
+Supervisor confirms Session81 commit c1c374b and preview deployment
+df96d221-11c0-4950-90de-9675816b1077. Selected the top visual gap's first-person
+hands: the matched baseline shows large, plain green forearms beneath the rifle.
+Field Sleeves1/1 is complete and ON by default. Scope apps/ironsight/** only;
+no commit, push or deploy. The supervisor's three-minute remaining run window
+was too short for this work plus full verification; verification was completed
+past16:00KST rather than claiming unrun gates.
+
+Reference: **R-G12, R-G18, R-L12, R-L13**, constrained by R-L14. Targets:
+visible forearm material/shape separation, the existing centre aiming corridor,
+six hand draws, <4000 hand triangles, no extra texture/light/pass and stable
+buffers through all five reloads. Those bounded checks pass. Weapon surfaces,
+separate weapon FOV and human moving-grip/readability acceptance remain partial.
+
+Delivered original tapered graphite reinforcement, fitted webbing straps, seam
+stitches, two pale identification bars and raised glove ribs. The surface patches
+follow the sleeve's oval taper and merge into its existing geometry; glove ribs
+merge into the glove. Their transforms follow the existing wrist/elbow frames.
+No grip, muzzle, camera, animation timeline, gameplay rule, hitbox or server change.
+The first-person value bands echo Session81's remote field kit. No new binary
+asset, dependency, purchased derivative or Meshy spend; reported1530 credits
+unchanged. Reproduction/provenance is in public/assets/README.md.
+
+**Wow check (the brief's before/after-stills option):** matched1920x1080 camera,
+weapon and reload phase in [the comparison gallery](.inspect/session82-review.html).
+Primary pairs: [rifle before](.inspect/session82-before-weapon-ar.png) ->
+[rifle after](.inspect/session82-final-poses-weapon-ar.png), and
+[reload before](.inspect/session82-before-weapon-ar-reload-out.png) ->
+[reload after](.inspect/session82-final-poses-weapon-ar-reload-out.png).
+Four more paired views cover ADS, bolt reach, pistol and sniper. Intended player
+sentence: **"My operator's kit finally carries through to the hands."** This is
+an intended response, not player testimony or overall AAA acceptance.
+
+Thirty final fixtures cover five weapons at hip/ADS/magazine-out/magazine-in/
+bolt plus182-frame reload cycles. All have zero console/forbidden-network errors;
+representative reaches, side loading, pistol insertion and sight pictures were
+reviewed at full size. Existing tests cover finite outward surfaces, six draws,
+the4000-triangle ceiling, and each weapon's wrist continuity, reload cancellation
+and stable buffer identities over241 samples. No test threshold was changed.
+Six paired diagnostic reports retain identical muzzle, FOV, ADS, calls, programs,
+textures and geometry counts. The source wrist placements are unchanged; these
+checks do not establish that every pre-existing grip is anatomically correct.
+
+Geometry:3144 ->3920 triangles across both hands (+776); decoded attributes/
+indices343784 ->378896bytes (+35112). Still six draws. The initial rounded glove
+ribs produced4496triangles and failed the existing budget test. Replaced only
+those tiny ribs with12-triangle boxes; the final suite passes. Rejected evidence:
+session82-candidate-test.log and session82-after-* stills/report. Accepted images
+use session82-final-poses-*. The first preview launch referenced a nonexistent
+workspace pnpm binary and exited; the installed pnpm entry then started local
+wrangler successfully. No global wrangler installation or gate workaround.
+
+On RTX5070 / Edge152 / ANGLE D3D11,1920x1080,balanced/DPR1:
+
+| Stress fixture | Calls before -> after | Triangles before -> after | Texture MiB (unchanged) | Max frame ms before -> after |
+|---|---:|---:|---:|---:|
+|Relay mixed weapons|237 ->237|150212 ->150988|63.7448|7.3 ->13.8|
+|Undertow|209 ->209|166544 ->167320|63.3008|7.3 ->7.2|
+|Switchyard|208 ->208|174216 ->174992|63.9948|13.9 ->7.6|
+
+All before/after medians6.9ms,p95/p99 7.1ms; unchanged programs33/29/30 and
+textures30/26/29. Each15s fixture has eleven remote operators, twelve weapon
+streams,145volleys and96blasts, then drains effects.16fixed lights, cached shadows
+and one environment preparation remain. No timing speedup claim from these single
+runs; desktop measurements do not prove the laptop iGPU/thermal target. Texture
+estimates exclude driver/compositor/buffer overhead. Switchyard residency remains
+only5461estimated bytes below64MiB: release residency before texture growth.
+
+Fresh-profile local construction+preparation before -> after: Relay1.3392 ->
+1.2853s, Undertow0.8479 ->0.8366s, Switchyard0.8439 ->0.8595s. Preparation alone
+is1184.9 ->1128.1,736.1 ->733.1,738.8 ->748.2ms. These are local first-load
+scene/preparation observations, not CDN/network performance or isolated CPU costs.
+
+| Bytes | Before | After | Delta |
+|---|---:|---:|---:|
+|assets|27486035|27486783|748|
+|public|34367569|34374202|6633|
+|client|2145575|2147437|1862|
+|source map|4735276|4739299|4023|
+
+Asset growth is documentation only. Public32.7818MiB <60MiB; largest file7183364
+bytes <25MiB. Per-map loading stays lazy. Measurements reproduce with
+node .inspect/session82-summarize.mjs; raw reports are session82-{before,final}-
+stress-report.json, session82-{before,final-poses}-report.json and
+session82-geometry-audit.json (bundle its adjacent TS using esbuild to regenerate).
+Frozen client SHA256:b60ab71340caa53f3a63f1c0b5da653849941d7a590954a8271b3fcee194931b.
+
+All63 canonical reference rows re-reviewed and gap ranking updated. Fresh
+tools/reference-audit.ts output deep-equals Session81; evidence is
+session82-reference-{audit,comparison}.json. Full/waist cover65/46,66/62,64/48;
+A-B/A-C/B-C sprint rotations14.44/11.78/14.44,14.22/11.33/14.22,
+14.44/11.56/14.44s. Spawn travel is not contact timing. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms; TDM50/300s,respawn3s,DOM4/8s and0.5point/
+flag/s; hostile foley1.4,hit900/1400Hz at.28gain,top-right five-row feed and both
+damage cues unchanged. Weapon surface/grip fidelity remains the next visual item.
+
+Open owner questions/defaults: retain these restrained field sleeves(yes);
+prioritize weapon materials and moving grip review next(yes); add textile maps
+only after freeing residency(yes). No answer blocks progress. Human visual,
+comfort,role/colour readability,iGPU/thermal,real6v6/RTT and Firefox/Safari remain
+unaccepted. No latency/capacity claim. Final gates and process cleanup follow.
+
+**Session82 final verification and cleanup.** pnpm typecheck PASS; pnpm test
+PASS (641passed,6existing skips;85passed files,4skipped); pnpm build:client PASS;
+pnpm audit:assets PASS. Logs: session82-final-{typecheck,test,build-client,
+audit-assets}.log. Exact required inspector command
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two`
+PASS with zero console errors; report and both stills retained as session82-required-*.
+All three stress budgets and all30 weapon fixtures PASS without console errors.
+
+Exact `node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`
+PASS; retained as session82-hitch-tdm.json/log. Supplementary FFA uses --assert
+and --assert-first-use. Sequential cold-browser profiles,500us CPU sampling,
+two natural bot deaths each; no second browser/build/test overlaps acceptance.
+
+| Mode | Seconds / frames | Max frame / callback ms | p99 upper ms | First damage / death ms | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---|
+|TDM|59.892 /8624|14.5 /7.8|8|8.8 /8.8|2|PASS|
+|FFA|39.158 /5639|14.6 /6.9|8|8.0 /8.7|2|PASS|
+
+Zero gameplay intervals >150ms, shader recompiles or console errors in both.
+All early intervals remain in the raw reports: TDM has275.2ms during loading,
+FFA336.8ms during loading; neither has an observed after-ready/pre-profiler
+interval >150ms. First-ready maxima68.6/68.2ms; page ready at3.4540/2.8628s.
+No trace was collected to attribute the two loading gaps. Session80's accepted
+five-pair compositor proof and documented cold-cache residue stand; no gate
+policy change or universal stall-removal claim. Session74's explicit policy is
+1500ms presentation/150ms main-thread/25ms p99/5% stalled time; first-use checks
+retain150ms. Compact evidence: session82-hitch-summary.json and its adjacent
+reproduction script. Human/device performance acceptance remains open.
+
+Root PID43468 and its recorded creation time matched before shutdown. Captured
+11owned preview processes, checked descendant identities and stopped the tree;
+5explicit stops, remaining children exited with parents. session82-preview-tree.json
+and session82-cleanup.json confirm zero owned processes, port8796listeners and
+inspection browsers remaining. Frozen-bundle/scope/report verification is
+session82-final-audit.json. All work stays local under apps/ironsight/**;
+publication remains with the supervisor.

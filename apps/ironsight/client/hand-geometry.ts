@@ -9,9 +9,9 @@ function tint(geometry: T.BufferGeometry, hex: number): T.BufferGeometry {
   return geometry;
 }
 
-/** Original tailored sleeve, authored once in a unit-length wrist/elbow frame.
- * Oval sections, compression folds and a longitudinal reinforced panel replace
- * the straight hexagonal tube. Vertex colour costs no texture or extra draw. */
+/** Original field sleeve in a unit-length wrist/elbow frame. Reinforcement,
+ * webbing and stitches merge into the cloth draw at construction; no texture,
+ * per-frame geometry or independent attachment can drift away during reload. */
 export function sleeveGeometry(): T.BufferGeometry {
   const rings = [
     [-0.5, .061], [-.38, .063], [-.20, .058], [-.05, .052],
@@ -27,7 +27,7 @@ export function sleeveGeometry(): T.BufferGeometry {
       const fold = r > 3 && r < 11 ? Math.sin(angle + r * .7) * .008 : 0;
       positions.push(Math.sin(angle) * radius, y + fold, Math.cos(angle) * radius * .82);
       const panel = s >= 4 && s <= 8;
-      const shade = new T.Color(panel ? 0x394a4b : 0x596b68);
+      const shade = new T.Color(panel ? 0x303e3e : 0x50605b);
       shade.multiplyScalar(r === 5 || r === 9 ? .78 : 1);
       colors.push(shade.r, shade.g, shade.b);
       if (r < rings.length - 1 && s < sides) {
@@ -36,6 +36,40 @@ export function sleeveGeometry(): T.BufferGeometry {
       }
     }
   }
+  // Surface-fitted patches follow the same tapered oval as the cloth. Positive
+  // local Z faces the player over the forearm, including the support-hand reach.
+  const radiusAt = (y: number) => {
+    for (let i = 1; i < rings.length; i++) {
+      const [end, radius] = rings[i]!, [start, previous] = rings[i - 1]!;
+      if (y <= end) return T.MathUtils.lerp(previous, radius, (y - start) / (end - start));
+    }
+    return rings[rings.length - 1]![1];
+  };
+  const patch = (rows: readonly number[], angles: readonly number[], lift: number, hex: number, bevel = false) => {
+    const start = positions.length / 3;
+    for (let r = 0; r < rows.length; r++) for (let s = 0; s < angles.length; s++) {
+      const y = rows[r]!, angle = angles[s]!;
+      const edge = r === 0 || r === rows.length - 1 || s === 0 || s === angles.length - 1;
+      const radius = radiusAt(y) + (bevel && edge ? .0015 : lift);
+      positions.push(Math.sin(angle) * radius, y, Math.cos(angle) * radius * .82);
+      const shade = new T.Color(hex).multiplyScalar(bevel && edge ? .65 : 1);
+      colors.push(shade.r, shade.g, shade.b);
+      if (r < rows.length - 1 && s < angles.length - 1) {
+        const a = start + r * angles.length + s, b = a + angles.length;
+        indices.push(a, a + 1, b, a + 1, b + 1, b);
+      }
+    }
+  };
+  patch([-.32, -.29, -.20, -.05, .08, .14, .18], [-1.12, -1.02, -.64, 0, .64, 1.02, 1.12], .006, 0x344344, true);
+  const around = Array.from({ length: 17 }, (_, i) => i / 16 * Math.PI * 2);
+  for (const y of [-.24, .22]) {
+    patch([y - .034, y - .026, y + .026, y + .034], around, .009, 0x222e30, true);
+    patch([y - .004, y + .004], around, .0095, 0x62716b);
+  }
+  // Two quiet recognition bars and short seam stitches, all opaque vertex colour.
+  for (const y of [.10, .135]) patch([y, y + .014], [-.42, 0, .42], .007, 0xb2b6a0);
+  for (const angle of [-.96, .96]) for (const y of [-.16, -.10, -.04, .02])
+    patch([y, y + .018], [angle - .014, angle + .014], .007, 0x8c9788);
   const geometry = new T.BufferGeometry();
   geometry.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
@@ -58,6 +92,10 @@ export function gloveGeometry(side: number): T.BufferGeometry {
   }
   pad(side * -.012, .023, .015, .025, .022, .045, 0x293335);
   pad(side * .050, -.004, .022, .008, .039, .023, 0x425352);
+  // Raised back-of-hand ribs leave the authored palm and trigger contact intact.
+  for (const y of [-.016, -.004, .008])
+    parts.push(tint(new T.BoxGeometry(.004, .004, .022).toNonIndexed()
+      .translate(side * .055, y, .022), 0x819087));
   const merged = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); return merged;
 }
 

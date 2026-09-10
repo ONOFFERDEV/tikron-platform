@@ -1171,3 +1171,15 @@ pale chest identification strip share one shader with the existing enemy rim and
 colour choices. The private source GLB and its textures remain unchanged/ignored;
 no purchased-source derivative is exported or versioned. Measured geometry,
 resident textures and before/after evidence are in the Session81 AAA plan log.
+
+## Session82: original first-person field sleeves
+
+`client/hand-geometry.ts` generates tapered forearm reinforcement, two fitted
+webbing straps, seam stitches, pale identification bars and glove ribs. These
+original vertex-coloured surfaces merge into the existing six hand draws; they
+use no texture, extra material, purchased derivative or per-frame geometry.
+The existing wrist/grip and server-driven reload paths place the entire sleeve.
+Reproduce with `pnpm build:client`, then
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-ar,weapon-ar-ads,weapon-ar-reload-out`.
+Matched before/after stills, all-weapon pose review and performance measurements
+are recorded in the Session82 AAA plan log. No binary asset is added.
