@@ -36,6 +36,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     const list = activeBatch.get(m) ?? []; list.push(matrix.clone()); activeBatch.set(m, list);
   };
   if (!bakeOnly) buildSiteGround(scene, map);
+  const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
 
   for (const b of map.boxes) {
     // Moving shutters have their own prebuilt render kit; never bake a closed
@@ -44,6 +45,28 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const y = b.min.y;
+    const structure = structureParts.get(b);
+    if (structure) {
+      // Thin walls, real lintels and pierced roof slabs must not use the old
+      // solid-house kit (its foundations/cassettes would close the openings).
+      // Every structural face is the exact authoritative box, including the
+      // underside. Decorative paint is at most 8mm beyond a solid surface.
+      const console = structure.kind === 'cover';
+      add(console ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
+      if (console) {
+        add('metal', x, b.max.y + .004, z, w, .008, d);
+      } else if (structure.kind === 'wall' && y === 0 && h >= 1.1) {
+        if (w > d) for (const side of [-1, 1]) {
+          add('teal', x, .46, z + side * (d / 2 + .004), w, .66, .008);
+          add('pale', x, .80, z + side * (d / 2 + .004), w, .04, .008);
+        }
+        else for (const side of [-1, 1]) {
+          add('teal', x + side * (w / 2 + .004), .46, z, .008, .66, d);
+          add('pale', x + side * (w / 2 + .004), .80, z, .008, .04, d);
+        }
+      }
+      continue;
+    }
     const low = h < 1.5;
     // End pillars fill the last 18 cm of each tall volume, rather than placing
     // a second coplanar face on a complete box (which causes depth fighting).

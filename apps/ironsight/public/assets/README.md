@@ -1419,3 +1419,44 @@ material is included in normal loading-time WebGL preparation.
 The existing dark coping/foundation material also resolves coplanar depth ties
 with a fixed polygon offset in both the procedural fallback and baked kit;
 this removes the flickering concrete/trim seam without changing geometry.
+
+### Session 90: Places A — enterable Relay communications room
+
+Original procedural architecture, no purchased input or new Meshy asset. The
+structure layer in `src/map/structures.ts` cuts door/window openings and a stair
+void into the same boxes used by the server. `relay-structures.ts` replaces one
+sealed 22x6m shelter with COMMS / 01: two doorways, four firing windows, two
+solid consoles, an internal ramp and a +3m roof with waist parapets and a drop.
+The renderer uses exact structural boxes; the prior sealed-house dressing is
+removed from that footprint. The existing service atlas supplies labels,
+console faces and tread paint in formerly unused space. No new texture image,
+light, pass or per-frame bake. The 1024-square atlas retains its 5.3333MiB size.
+
+Fresh `maps/relay-architecture.glb`: 3,475,616 bytes, eight material primitives,
+2,290 original parts / 27,460 triangles before vertex weathering. Concrete goes
+from 1,572 to 31,528 triangles; oriented surfaces, normals and barycentric UVs
+pass the existing bake audit. Five ramps share one material in the export.
+The weathering tool now selects the concrete's explicit `relay-0` identity;
+the field palette changed its roughness to .96, invalidating the former .92
+material heuristic. `maps/relay-ground-ao.png`: 786,913 bytes, 2048x1365,
+143 permanent boxes and five ramps. Existing allowlists and Relay-only loads
+apply. Both bakes add 103,108 bytes together; no additional resident texture.
+The deployment vista is refreshed from the same fixed vista camera.
+
+Reproduce from `apps/ironsight`:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session90-maps.json relay
+node tools/dump-architecture.mjs .inspect/session90-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps .inspect/session90-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session90-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session90-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session90-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --write-vista --prefix places-vista
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --prefix places-proof
+```
+
+`docs/STRUCTURES.md` records authoring constraints and deferred ground-only bot
+routing. Session90's review gallery and AAA-PLAN log carry matched full-overhead,
+exterior and roof stills, live traversal, contact metrics and final frame gates.

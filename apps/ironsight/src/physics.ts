@@ -251,7 +251,10 @@ export function moveAndSlide(
       && boxes.some(b => Math.abs(b.max.y - r.topY) <= .02
         && Math.abs(pos.y - b.max.y) <= .02 && overlapsXZ(pos.x, pos.z, radius, b));
     if (nearSurface || crossedDescending || walkedDownSlope || walkedOffDeck) {
-      y = surface;
+      // A capsule straddling a ramp/deck junction still rests on the deck.
+      // Do not let slope glue undo the box-top landing and pull its feet into
+      // that slab. Descend onto the slope once the capsule clears the lip.
+      y = Math.max(surface, landTop ?? surface);
       vy = 0;
       grounded = true;
     }

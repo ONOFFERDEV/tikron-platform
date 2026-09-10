@@ -16,7 +16,8 @@ export function dump() {
  const result = {};
  for (const [name, map, build] of [['relay', ARENA1, buildRelayEnvironment], ['undertow', ARENA2, buildUndertowEnvironment], ['switchyard', ARENA3, buildSwitchyardEnvironment]]) {
   const scene = new T.Scene(); build(scene, map, true);
-  for (const ramp of map.ramps ?? []) scene.add(new T.Mesh(buildWedgeGeometry(ramp), new T.MeshStandardMaterial({color:0x667a7b,roughness:0.84,side:T.DoubleSide})));
+  const rampMaterial = new T.MeshStandardMaterial({color:0x667a7b,roughness:0.84,side:T.DoubleSide});
+  for (const ramp of map.ramps ?? []) scene.add(new T.Mesh(buildWedgeGeometry(ramp), rampMaterial));
   scene.updateMatrixWorld(true);
   const materials = [], ids = new Map(), meshes = [];
   for (const mesh of architectureMeshes(scene)) {

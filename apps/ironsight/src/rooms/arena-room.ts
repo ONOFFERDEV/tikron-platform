@@ -156,9 +156,10 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v12 adds the authoritative warmup deadline. Older snapshots start a
-  // fresh match via the default null migration; client/server codecs ship together.
-  protected override stateVersion = 12;
+  // v13 replaces Relay's sealed Cooling shelter with an enterable structure.
+  // Reset older snapshots so saved players cannot restore inside new walls or
+  // above the replaced roof. Default null migration starts a fresh match.
+  protected override stateVersion = 13;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the

@@ -1,6 +1,6 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
-import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry } from './relay-service-geometry.js';
+import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry, relayStructureDetail } from './relay-service-geometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { paintRelayDamage, relayDamageGeometry } from './relay-fieldworks.js';
 
@@ -60,6 +60,17 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   rect('#b8b498', 424, 149, 50, 30); text('R / 07', 427, 169, 12, '#273b41');
   for (let x = 423; x < 473; x += 4) rect('#bdc1ab', x, 207, 2, 18);
   bolts(390, 134, 116, 116);
+  // Places A occupies unused atlas space; no additional image or draw.
+  rect('#d0c6a5', 512, 512, 512, 64); rect('#303a33', 520, 520, 496, 48);
+  text('COMMS / 01', 563, 557, 37, '#d5d1b9');
+  rect('#3a4238', 512, 576, 256, 128);
+  text('ROOF ACCESS', 526, 623, 28); text('UP / 03 M', 542, 677, 28, '#c6b681');
+  rect('#38423b', 512, 704, 256, 256);
+  for (let y = 716; y < 920; y += 48) {
+    rect('#1d2725', 522, y, 138, 36); rect('#768777', 526, y + 4, 130, 2);
+    for (let k = 0; k < 4; k++) { rect('#acaf97', 674 + k * 19, y + 4, 11, 11); rect('#222d27', 674 + k * 19, y + 20, 11, 9); }
+  }
+  text('FIELD RELAY // 07', 533, 945, 17);
   // Deterministic edge chips, fastener runoff and scuffs. Baked once at creation;
   // keep central labels readable and large color fields quiet at combat distance.
   for (const [x, y, w, h] of Object.values(tiles)) {
@@ -76,7 +87,7 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   }
   paintRelayDamage(c);
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
-  const parts = [relayServiceGeometry(map), relayDamageGeometry(map)];
+  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map)].filter(g => g.hasAttribute('position'));
   const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose());
   const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ map: texture, roughness: 0.94, alphaTest: .28 }));
   mesh.name = 'relay-service-detail'; mesh.receiveShadow = true; scene.add(mesh);

@@ -1,4 +1,5 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
+import type { CompiledStructure } from './structures.js';
 
 /**
  * The shape every map module (arena1, arena2, …) exports as one value, so the
@@ -29,6 +30,8 @@ export interface RampDef {
 }
 
 export interface MapDef {
+  /** Authored buildings; each part references the SAME box in boxes below. */
+  readonly structures?: readonly CompiledStructure[];
   /** Event shutters are part of the CLOSED map; only replicated coreOpen may
    * remove them. The chamber bounds also define the safe-close occupancy zone. */
   readonly signalCore?: { readonly doors: readonly Box[]; readonly chamber: Box };

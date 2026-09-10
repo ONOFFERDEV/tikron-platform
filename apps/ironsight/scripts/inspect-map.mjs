@@ -1,4 +1,5 @@
 import { droneProbe } from './drone-probe.mjs';
+import { structuresProbe } from './structures-probe.mjs';
 import { roundHonorsProbe } from './round-honors-probe.mjs';
 import { contrastProbe } from './contrast-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
@@ -139,7 +140,7 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['places-play', 'cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
@@ -248,6 +249,11 @@ try {
           capture: async label => { const shot=await send('Page.captureScreenshot',{format:'png'});
             await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64')); }});
       }
+      if (name === 'places-play') combat = await structuresProbe({ send, evaluate, delay,
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
+          await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
+        record: report => writeFile(join(output, `${prefix}-structures.json`), JSON.stringify(report, null, 2)),
+      });
       if (name === 'deployment-play') {
         combat = await deploymentProbe({ evaluate, waitFor, delay, send,
           introMode: option('--intro-check', null), reduced: args.includes('--intro-reduced'),

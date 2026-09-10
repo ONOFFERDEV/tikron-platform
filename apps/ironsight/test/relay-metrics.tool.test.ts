@@ -54,6 +54,7 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
       let previous: Record<string, ArenaPlayer> = {};
       const roles: Record<string, {role: string; weapon: number; samples: number; adsSamples: number; movingSamples: number; lanes: number[]; kills: number; deaths: number}> = {};
       const routeSamples: {atMs:number;id:string;x:number;z:number;stage:number|null}[]=[];
+      const structureSamples: { atMs: number; structure: string; id: string; x: number; y: number; z: number }[] = [];
       for (let elapsed = 100; elapsed <= 320000; elapsed += 100) {
         await h.advance(100);
         const state = h.snapshot();
@@ -61,6 +62,11 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         if (!liveAt) { liveAt = elapsed; previous = {}; }
         if (state.phase === 'ended') { endedAt = elapsed; break; }
         const players = Object.entries(state.players);
+        for (const structure of ARENA1.structures ?? []) for (const [id, p] of players) {
+          const b = structure.footprint;
+          if (p.alive && p.x > b.minX && p.x < b.maxX && p.z > b.minZ && p.z < b.maxZ)
+            structureSamples.push({ atMs: elapsed - liveAt, structure: structure.id, id, x: p.x, y: p.y, z: p.z });
+        }
         const held = (h.room as unknown as {inputs: Map<string,{ads?:boolean}>}).inputs;
         const brains = (h.room as unknown as {botBrains:Map<string,BotBrain>}).botBrains;
         for (const [id,p] of players) {
@@ -112,7 +118,7 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         bounds: ARENA1.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         core:{transitions:coreTransitions,visitors:[...coreVisitors],samples:coreSamples,sampleMs:100},
         support:{maxStreak,droneEarners:[...droneEarners],drones:[...drones.values()],mortars:[...mortarStrikes.values()],flights:[...supportFlights.values()],scans:[...supportScans.values()],peakFlights:supportPeak},
-        redScore: state.redScore, blueScore: state.blueScore, roles, routeSamples, lives, kills, cells: Object.fromEntries(cells) };
+        redScore: state.redScore, blueScore: state.blueScore, roles, routeSamples, structureSamples, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);
       const solids = ARENA1.boxes.map(b => `<rect x="${b.min.x}" y="${b.min.z}" width="${b.max.x-b.min.x}" height="${b.max.z-b.min.z}" fill="#536b70"/>`).join('');

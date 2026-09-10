@@ -80,8 +80,11 @@ def main():
         for primitive in mesh['primitives']:
             material = doc['materials'][primitive['material']]
             pbr = material.get('pbrMetallicRoughness', {})
-            if pbr.get('metallicFactor', 1) != 0 or not 0.91 < pbr.get('roughnessFactor', 1) < 0.94:
+            # The field palette raised concrete roughness from .92 to .96.
+            # Select its authored material identity, not a former tuning value.
+            if material.get('name') != 'relay-0':
                 continue
+            assert pbr.get('metallicFactor', 1) == 0 and 0.9 <= pbr.get('roughnessFactor', 1) <= 1
             attrs = primitive['attributes']
             assert set(attrs) == {'POSITION', 'NORMAL', 'TEXCOORD_0'}, 'Use a fresh unweathered bake'
             data = {key: read(index) for key, index in attrs.items()}

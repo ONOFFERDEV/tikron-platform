@@ -35,11 +35,12 @@ describe("Relay encounter safety", () => {
       expect(seconds).toBeGreaterThanOrEqual(10);
       expect(seconds).toBeLessThanOrEqual(15);
     }
-    for (const box of ARENA1.boxes) {
+    // Raised lintels/slabs are structural support, not freestanding cover.
+    for (const box of ARENA1.boxes.filter(b => b.min.y === 0)) {
       const height = box.max.y - box.min.y;
       expect((height >= 1 && height <= 1.25) || height >= 1.75).toBe(true);
     }
-    expect(new Set(ARENA1.boxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([3, 6]));
+    expect(new Set(ARENA1.boxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([2.72, 3, 6]));
     expect(ARENA1.ramps!.every(r => r.topY === 3)).toBe(true);
   });
   it("no team spawn has a direct eye-height shot into any opposing spawn", () => {
@@ -63,11 +64,18 @@ describe("Relay encounter safety", () => {
       expect(walkSeconds(ARENA1, ARENA1.spawns.red[0]!, { x: bot.x, y: 0, z: bot.z })).toBeLessThan(Infinity);
     }
   });
-  it("all solid volumes mirror east/west, including their gameplay heights", () => {
-    for (const a of ARENA1.boxes) {
-      expect(ARENA1.boxes.some(b => b.min.x === ARENA1.bounds.width - a.max.x && b.max.x === ARENA1.bounds.width - a.min.x
+  it("keeps the mirrored yard around the single authored building proof", () => {
+    const building = new Set(ARENA1.structures!.flatMap(s => s.parts.map(p => p.box)));
+    // Places A deliberately opens one former solid footprint. Map-wide paired
+    // power positions are Places B; every untouched yard solid stays mirrored.
+    const yard = ARENA1.boxes.filter(b => !building.has(b));
+    const original = { min: { x: 34, y: 0, z: 34 }, max: { x: 56, y: 6, z: 40 } };
+    const mirrored = [...yard, original];
+    for (const a of mirrored) {
+      expect(mirrored.some(b => b.min.x === ARENA1.bounds.width - a.max.x && b.max.x === ARENA1.bounds.width - a.min.x
         && b.min.z === a.min.z && b.max.z === a.max.z && b.max.y === a.max.y)).toBe(true);
     }
+    expect(ARENA1.structures![0]!.footprint).toEqual({ minX: 34, maxX: 56, minZ: 34, maxZ: 40 });
   });
   it("rifle test corridor stays open, so combat tests measure hits rather than walls", () => {
     for (const z of [25.8, 27, 28.2]) {

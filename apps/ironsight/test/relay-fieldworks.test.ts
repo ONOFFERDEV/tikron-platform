@@ -8,7 +8,7 @@ describe('Relay fieldworks authority and packing', () => {
   it('backs every vertical scar with one intact collider and keeps residue flat on open ground', () => {
     const patches = relayDamagePatches(ARENA1), geometry = relayDamageGeometry(ARENA1);
     const positions = geometry.getAttribute('position');
-    expect(patches.length).toBe(24);
+    expect(patches.length).toBe(18); // Three sealed shelters; the fourth is now enterable.
     for (const [i, patch] of patches.entries()) {
       const bounds = new T.Box3();
       for (let j = 0; j < 4; j++) bounds.expandByPoint(new T.Vector3().fromBufferAttribute(positions, i * 4 + j));
@@ -24,7 +24,7 @@ describe('Relay fieldworks authority and packing', () => {
       }
     }
     expect(relayDamagePatches(ARENA2)).toEqual([]);
-    expect(geometry.index!.count / 3).toBe(48);
+    expect(geometry.index!.count / 3).toBe(36);
     const uv = geometry.getAttribute('uv');
     for (let i = 0; i < uv.count; i++) {
       expect(uv.getX(i)).toBeGreaterThan(0); expect(uv.getX(i)).toBeLessThan(.5);

@@ -258,7 +258,9 @@ export function rampOccluderBoxes(r: RampDef): Box[] {
 
   const boxes: Box[] = [];
   for (let s = 0; s < 3; s++) {
-    const h = STEP_HEIGHTS[s]!;
+    // Expanded decks and structure stairs rise to 3m. The original fixed
+    // 0.4/0.8/1.2 values let shots pass through their upper half.
+    const h = STEP_HEIGHTS[s]! * (r.topY / STEP_HEIGHTS[2]);
     // dir=+1: height rises toward maxCoord, so step s's segment is at index s.
     // dir=-1: height rises toward minCoord, so step s's segment is mirrored (2-s).
     const k = r.dir === 1 ? s : 2 - s;
