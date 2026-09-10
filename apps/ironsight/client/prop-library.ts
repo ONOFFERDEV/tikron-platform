@@ -37,6 +37,11 @@ export const PROP_LIBRARY = {
     category: 'supplies', triangles: 2840, bytes: 238624,
     placement: 'Three closed issued crates, long vertical axis Y. Outside play or fitted against matching authoritative cover.',
   },
+  'fuel-drum-cluster': {
+    url: '/assets/props/fuel-drum-cluster.glb', sizeM: [1.490802, .9, 1.507426], origin: 'base-centre',
+    category: 'supplies', triangles: 3119, bytes: 195664,
+    placement: 'Three battered olive drums: two upright, one horizontal with its round end toward +Z. Static supply dressing only, no explosion or damage behavior. Keep outside play or within matching authoritative cover; do not stretch to waist-cover height.',
+  },
   'relay-uplink': {
     url: '/assets/props/relay-uplink.glb', sizeM: [7, 8.86056, 2.69281], origin: 'base-centre',
     category: 'machinery', triangles: 2827, bytes: 279624,

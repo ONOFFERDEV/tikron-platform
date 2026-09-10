@@ -1609,3 +1609,64 @@ trench-level captures, three natural bot-round heatmaps and both entrance drills
 The bots follow the yard/trench heightfield; upper bridge and roof routing are
 not claimed. Layout authoring and wire-version requirements are in
 `../../docs/STRUCTURES.md`.
+
+### Assets stream Session 2 - battered fuel supply drums (2026-09-11)
+
+`props/fuel-drum-cluster.glb` adds a seventh lazy registry name,
+`fuel-drum-cluster`: **195,664 bytes, 3,119 triangles, one material, two embedded
+512px WebP images**. The envelope is **1.490802 x 0.9 x 1.507426 m**, Y-up,
+base-centred. Two drums stand upright; a third lies horizontally with its round
+end toward +Z. Meshy returned three drums despite the four-drum source prompt;
+the reviewed three-drum grouping is intentional. They are battered static
+supply dressing. No damage, explosion or collision behavior is implied. Keep
+them outside play or within matching authoritative cover, and preserve their
+0.9m height instead of stretching them into waist cover. Placement belongs to
+the map stream.
+
+Generated original under the account's Meshy terms; no purchased input, real
+brand, model name or unit insignia. Raw source: 7,171,576 bytes; preview
+`01a08bf4-dafe-7079-84f2-23ddc9c951ac`, refine
+`01a08bf6-0cb7-7165-a1fe-f3ae7ed3b4ea`. The adjacent `.meta.json` retains the
+exact historical prompts, source/shipped SHA256, metre measurements, review
+verdict, processing command and batch receipt. Both Meshy jobs finished in
+four minutes: **60 credits total**, account **1170 -> 1110**, with an estimated
+30-credit allocation each. The paired generator was rejected again: folded
+cabinet panels, malformed pipework and poor mechanical construction. None of
+its bytes or textures enter public. The 60-credit session cap is exhausted;
+no extra paid repair or generation was submitted.
+
+The raw drum shading was rejected. Removing its normal map alone did not
+resolve the triangular artifacts; rebuilding normals without welding the
+duplicated vertices also left disconnected shading. The adopted version uses
+an opt-in `--smooth-angle-deg 50` processing step: weld coincident seam vertices
+at 0.000001 source units, clear custom corner normals and smooth below the
+chosen angle. Per-corner UVs and face winding are retained. This option is for
+individually reviewed standalone generated props; **never apply it to the
+overlapping architecture kit**. Existing shrink behavior and shipped props
+remain unchanged when the option is omitted. The unused generated normal map
+is omitted, saving 1.333 MiB estimated mipmapped RGBA residency. The adopted
+drums require 2.667 MiB if loaded.
+
+Reproduce processing from the retained source with Blender 4.5:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/shrink-glb.py -- --input .inspect/assets-session2-meshy/fuel-drum-cluster/model.glb --output public/assets/props/fuel-drum-cluster.glb --size 512 --webp --height-m .9 --omit-normal-map --smooth-angle-deg 50
+node .inspect/inspect-assets-session2.mjs --url http://localhost:8797
+```
+
+Generation used `node tools/meshy-batch.mjs --concurrency 4 --only
+field-generator,fuel-drum-cluster --out .inspect/assets-session2-meshy
+--budget-credits 60 --reserve-credits 300`. After review, future prompt wording
+was changed from “low-poly” to realistic manufactured construction and clean
+shading; the API still requests 3000 triangles. The generator prompt is also
+simplified for a future session. These revisions have not been generated yet;
+reproduction of this source uses the historical prompt in the metadata, not
+the revised queue. Generation remains paid and nondeterministic.
+
+Evidence is retained under `.inspect/assets-session2-*`: thumbnail and
+front/side/back candidate reviews; normal-map, clay, smooth-only and welded
+diagnostics; final GLB review; a complete metre-scale prop row with a 2m
+reference; and matched before/after supply gallery views. Geometry, load,
+frame, budget and hitch results are recorded in `AAA-PLAN-ASSETS.md`.
+The game entrypoint does not import the library yet, so this addition creates
+zero game downloads or resident textures until the map stream integrates it.

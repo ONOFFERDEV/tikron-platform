@@ -25,9 +25,12 @@ if (!Number.isInteger(CONCURRENCY) || CONCURRENCY < 1 || CONCURRENCY > 4) throw 
 if (!Number.isInteger(BUDGET) || BUDGET < 0 || BUDGET > 150) throw Error('Budget must be 0..150 credits');
 if (!Number.isInteger(RESERVE) || RESERVE < 200) throw Error('Keep at least 200 credits in reserve');
 
-const STYLE = 'single standalone object, centred, low-poly hard-surface game asset, PBR, '
+// Geometry budget is an API setting. Asking the image/shape model for "low-poly"
+// repeatedly produced triangular creases on manufactured panels (assets S1/S2).
+const STYLE = 'single standalone object, centred, realistic manufactured game prop, PBR, '
   + 'desaturated olive drab, grey-brown and rusted steel, matte weathered surfaces, worn paint, '
-  + 'military field equipment, no text, no logos, no ground plane, no base';
+  + 'physically coherent construction, clean surface shading, restrained wear, '
+  + 'military field equipment, no text, no logos, no ground plane, no display plinth';
 const TEX = 'weathered olive drab and grey-brown military paint, dust, rust streaks, scratched metal, matte';
 
 // Ordered by what a player sees first, per ART-CONCEPT.md.
@@ -39,7 +42,7 @@ const JOBS = [
   ['razor-wire-coil', 'a coil of military razor wire concertina on short steel stakes'],
   ['ammo-crate-stack', 'a stack of three closed military ammunition crates with latches and stencil panels'],
   ['fuel-drum-cluster', 'four dented steel fuel drums standing together, rusted rims, one on its side'],
-  ['field-generator', 'one rectangular stationary diesel generator cabinet with CLOSED solid access doors and recessed ventilation grilles, broad flat skid rails underneath, two small lifting eyes, dark exhaust pipe. NO wheels, NO trailer, NO open engine cavity, NO tall frame'],
+  ['field-generator', 'one stationary industrial diesel generator: a long low rectangular steel enclosure, three straight closed access doors with inset handles, small parallel ventilation slats at one end, two flat steel skids touching the floor, one short dark exhaust pipe firmly attached to the top. Flat manufactured panels, subtle paint wear only, no wheels, no trailer, no external engine, no detached parts, no crumpled or folded metal'],
   ['antenna-mast-field', 'a portable military field antenna mast on a tripod base with guy wires and a small dish'],
   ['tool-cart', 'an industrial rolling tool cart with open shelves, scattered tools, dented steel'],
   ['burnt-truck', 'a burnt-out wrecked military cargo truck, no wheels, blackened scorched frame and cab'],

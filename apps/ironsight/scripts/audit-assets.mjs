@@ -7,7 +7,7 @@ const approvedDerived = [
   'assets/models/player.glb', 'assets/models/weapons-vm.glb',
   'assets/maps/arena1-dressing.glb', 'assets/maps/arena2-dressing.glb', 'assets/maps/relay-skyline.glb',
 ];
-const libraryAdditions = ['ammo-crate-stack', 'field-chest-panel'];
+const libraryAdditions = ['ammo-crate-stack', 'field-chest-panel', 'fuel-drum-cluster'];
 const approvedOriginal = [...libraryAdditions.map(name => `assets/props/${name}.glb`),
   'assets/maps/relay-architecture.glb', 'assets/maps/undertow-architecture.glb',
   'assets/maps/switchyard-architecture.glb', 'assets/props/switchyard-transformer.glb', 'assets/props/relay-uplink.glb',
