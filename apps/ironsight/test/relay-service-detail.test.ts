@@ -42,20 +42,21 @@ describe('Relay service cladding', () => {
 
 it('backs building hardware with exact solids and keeps every stair stripe on the true slope', () => {
   const g = relayStructureDetail(ARENA1), positions = g.getAttribute('position');
-  expect(g.index!.count / 3).toBe(48); expect(g.groups).toHaveLength(0);
-  const colliders = ARENA1.structures![0]!.parts.map(p => new T.Box3(
+  expect(g.index!.count / 3).toBe(104); expect(g.groups).toHaveLength(0);
+  const colliders = ARENA1.structures!.flatMap(s => s.parts).map(p => new T.Box3(
     new T.Vector3(p.box.min.x, p.box.min.y, p.box.min.z), new T.Vector3(p.box.max.x, p.box.max.y, p.box.max.z)));
-  for (let i = 0; i < 32; i += 4) {
+  for (let i = 0; i < positions.count; i += 4) {
     const bounds = new T.Box3();
     for (let j = 0; j < 4; j++) bounds.expandByPoint(new T.Vector3().fromBufferAttribute(positions, i + j));
-    expect(colliders.some(b => b.clone().expandByScalar(.02).containsBox(bounds))).toBe(true);
-  }
-  const ramp = ARENA1.structures![0]!.ramps[0]!;
-  for (let i = 32; i < positions.count; i++) {
-    const x = positions.getX(i), z = positions.getZ(i), y = positions.getY(i);
-    expect(x).toBeGreaterThan(ramp.minX); expect(x).toBeLessThan(ramp.maxX);
-    expect(z).toBeGreaterThan(ramp.minZ); expect(z).toBeLessThan(ramp.maxZ);
-    expect(y - rampSurfaceY(ramp, x, z)).toBeCloseTo(.008, 4);
+    const onRamp = ARENA1.structures!.flatMap(s => s.ramps).some(ramp => {
+      for (let j = i; j < i + 4; j++) {
+        const x = positions.getX(j), z = positions.getZ(j), y = positions.getY(j);
+        if (x <= ramp.minX || x >= ramp.maxX || z <= ramp.minZ || z >= ramp.maxZ
+          || Math.abs(y - rampSurfaceY(ramp, x, z) - .008) > .0001) return false;
+      }
+      return true;
+    });
+    expect(onRamp || colliders.some(b => b.clone().expandByScalar(.02).containsBox(bounds)), `face ${i / 4}`).toBe(true);
   }
   for (const v of g.getAttribute('uv').array) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThan(1); }
   g.dispose();

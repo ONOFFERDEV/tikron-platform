@@ -28,13 +28,19 @@ obstacles. Bots may shoot at exposed elevated humans, but do not seek the roof.
 Roof routing is deferred. The ground minimap omits overhead solids so that it
 shows the room's entrances. It is not a floor-switching map.
 
-Relay proof: replace the sealed x34..56 / z34..40 shelter with COMMS / 01.
-The 22x6m room has two 2m-wide, 2.35m-high opposed doors, four firing windows
-with 1.1m sills, two solid consoles, 2.72m clear ceiling, a 2m-wide internal
-ramp to the +3m roof, 1.1m parapets and a 4m south drop gap. The two doors
-are opposed; this proof does not establish all-entry co-visibility or paired
-power-position balance. Places B must resolve those in the whole Relay layout.
-One building also does not satisfy the final two-building/sunken-tier brief.
+Relay Places B 1/3: COMMS / WEST is x34..56,z34..44; CONTROL / EAST is its
+exact x-mirror at x94..116. Each 22x10m room has two 2m-wide, 2.35m-high
+yard-facing doors, seven firing windows with 1.1m sills, three solid consoles,
+2.72m clear ceiling, a 2m-wide internal ramp to the +3m roof, 1.1m parapets
+and a 4m south drop gap. Both inner door apertures fit inside a conservative
+78-degree horizontal span from behind the central console; oblique jambs still
+screen parts of the exterior approach. Windows can also be jumped/vaulted;
+this is not a claim of only two possible attack directions.
+The roof, openings and furniture are mirrored as actual collision geometry.
+The northern rusher path crosses both ground floors; paired patrol targets
+also bring anchors through the rooms under their ordinary perception rules.
+Bots deliberately remain on the ground. Human tactical balance and the
+sunken-route/whole-site stages remain open.
 Negative-height boxes can be authored, but the present movement floor is y=0;
 a negative route is not playable merely by adding negative boxes.
 
@@ -43,6 +49,7 @@ Validation:
 ```powershell
 pnpm exec vitest run test/structures.test.ts test/relay-service-detail.test.ts
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --prefix structures
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --places-east --prefix control
 ```
 
 The live probe approaches from normal deployment with W/aim, enters each door,

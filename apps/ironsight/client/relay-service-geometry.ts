@@ -9,6 +9,7 @@ export const tiles = {
   hatch: [0, 0, 128, 256], cabinet: [128, 0, 128, 256],
   vent: [256, 0, 256, 128], label: [256, 128, 128, 128], case: [384, 128, 128, 128],
   comms: [512, 512, 512, 64], roof: [512, 576, 256, 128], console: [512, 704, 256, 256],
+  control: [512, 960, 512, 64],
 } as const;
 
 /** Geometry is derived from existing solid faces, at most 12 mm outside them.
@@ -71,13 +72,14 @@ export function relayStructureDetail(map: MapDef): T.BufferGeometry {
     g.rotateY(yaw); g.translate(x, y, z); parts.push(g);
   };
   for (const structure of map.structures ?? []) {
-    if (structure.id !== 'cooling-comms') continue;
+    if (!['cooling-comms', 'cooling-control'].includes(structure.id)) continue;
+    const east = structure.id === 'cooling-control';
+    const xAt = (x: number) => east ? 150 - x : x;
     // Labels are mounted only on the door lintels / intact wall. The open
     // doorway and firing windows get no glass, hatch art or invisible barrier.
-    face('comms', 33.988, 2.53, 38, 1.9, .24, -Math.PI / 2);
-    face('comms', 56.012, 2.53, 38, 1.9, .24, Math.PI / 2);
-    face('roof', 44.1, 1.65, 34.412, 1.6, .8, 0);
-    face('roof', 49.7, 3.55, 34.412, 1.6, .8, 0);
+    for (const x of [41, 49]) face(east ? 'control' : 'comms', xAt(x), 2.53, 44.012, 1.9, .24, 0);
+    face('roof', xAt(44.1), 1.65, 34.412, 1.6, .8, 0);
+    face('roof', xAt(49.7), 3.55, 34.412, 1.6, .8, 0);
     for (const p of structure.parts.filter(p => p.kind === 'cover')) {
       const b = p.box;
       face('console', (b.min.x + b.max.x) / 2, b.max.y + .014, (b.min.z + b.max.z) / 2,
@@ -89,12 +91,13 @@ export function relayStructureDetail(map: MapDef): T.BufferGeometry {
     // smooth authoritative ramp, with no visual risers pretending to be cover.
     for (const r of structure.ramps) for (let i = 0; i < 16; i++) {
       const x = r.minX + (i + .5) / 16 * (r.maxX - r.minX);
-      const y = (x - r.minX) / (r.maxX - r.minX) * r.topY + .008;
+      const fraction = (x - r.minX) / (r.maxX - r.minX);
+      const y = (r.dir === 1 ? fraction : 1 - fraction) * r.topY + .008;
       const g = new T.PlaneGeometry(.04, r.maxZ - r.minZ - .08);
       const uv = g.getAttribute('uv');
       for (let k = 0; k < uv.count; k++) uv.setXY(k, 516 / ATLAS_W, 1 - 516 / ATLAS_H);
       g.rotateX(-Math.PI / 2);
-      g.rotateZ(Math.atan2(r.topY, r.maxX - r.minX));
+      g.rotateZ(r.dir * Math.atan2(r.topY, r.maxX - r.minX));
       g.translate(x, y, (r.minZ + r.maxZ) / 2); parts.push(g);
     }
   }

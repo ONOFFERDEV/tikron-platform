@@ -1460,3 +1460,43 @@ node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --p
 `docs/STRUCTURES.md` records authoring constraints and deferred ground-only bot
 routing. Session90's review gallery and AAA-PLAN log carry matched full-overhead,
 exterior and roof stills, live traversal, contact metrics and final frame gates.
+
+### Session 91: Places B 1/3 - paired Relay rooms
+
+COMMS / WEST grows to 22x10m; CONTROL / EAST replaces the opposite sealed
+shelter with an exact collision mirror. Two yard-facing doors per building,
+seven firing windows, three consoles and internal stairs to the +3m roofs
+share the original kit and service atlas. The new east label uses the atlas's
+unused bottom strip. No Meshy spend, new texture image, light or render pass.
+Two obsolete yard returns and the second sealed shelter's cladding/scars are
+removed with their replaced collision geometry. The two southern shelters
+retain their original damage, and all 96 exterior sandbags remain.
+
+Fresh `maps/relay-architecture.glb`: 3,638,360 bytes (+162,744), eight material
+primitives, 2,366 original parts / 28,368 pre-weathering triangles. Concrete
+weathering grows 2,148 to 32,884 triangles without displacement or new images;
+the oriented-surface/normal/UV audit passes. Ground AO is 805,863 bytes
+(+18,950), 2048x1365, from 195 permanent boxes and six ramps. Combined bake
+growth is 181,694 bytes, with zero new resident texture MiB. Existing lazy
+loads, provenance rules and allowlists apply; no purchased input was used.
+
+Reproduce from `apps/ironsight`:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session91-maps.json relay
+node tools/dump-architecture.mjs .inspect/session91-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps .inspect/session91-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session91-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session91-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session91-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --write-vista --prefix places-paired-vista
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --prefix comms
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots places-play --places-east --prefix control
+```
+
+The session gallery includes matched full-overhead, vista, exterior and east
+building pairs, plus both defensive interiors and the roof counter-position.
+Normal W/aim traversal exercises both buildings without gameplay-state edits.
+Natural production-bot room visits and contact/death samples are recorded in
+AAA-PLAN.md. Bot roofs and the negative floor remain deferred.

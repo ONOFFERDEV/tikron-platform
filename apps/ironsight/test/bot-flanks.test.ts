@@ -81,7 +81,7 @@ it('normal room fill assigns opposite lanes to paired rushers, renews on spawn, 
     const runtime=h.room as unknown as {botBrains:Map<string,BotBrain>;state:{players:Record<string,ArenaPlayer>};spawnInto:(p:ArenaPlayer,id:string)=>void};
     for(const [id,b] of runtime.botBrains) {
       if((mode==='tdm'||mode==='ffa')&&b.role==='rusher') {
-        expect(b.flankRoute).toHaveLength(6);expect(b.flank).toBeDefined();
+        expect(b.flankRoute!.length).toBeGreaterThanOrEqual(6);expect(b.flank).toBeDefined();
         b.flank=undefined;runtime.spawnInto(runtime.state.players[id]!,id);expect(b.flank).toBeDefined();
       } else expect(b.flankRoute).toBeUndefined();
     }

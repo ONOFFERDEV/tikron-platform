@@ -2,7 +2,7 @@ import type { Box, Bounds, Vec3 } from "../physics.js";
 import { compileTileMap } from "./tilemap.js";
 import type { MapDef } from "./types.js";
 import { withStructures } from './structures.js';
-import { RELAY_COMMS } from './relay-structures.js';
+import { RELAY_BUILDINGS } from './relay-structures.js';
 
 /** RELAY: mirrored deployment screens, three routes and a split central core.
  * Each tile is 2 m. The same geometry drives rendering, movement, shots and bots.
@@ -70,14 +70,26 @@ const doors: readonly Box[] = [
 export const ARENA1: MapDef = withStructures({
   ...compiled,
   presentation: "relay",
+  // Patrol destinations keep quiet-time traffic in the working site rather
+  // than repeatedly touring the deployment bays. Opposite room/power anchors
+  // are paired; normal perception can interrupt any patrol for a visible fight.
+  patrolWaypoints: [
+    {x:41,z:41},{x:109,z:41},{x:49,z:41},{x:101,z:41},
+    {x:61,z:27},{x:89,z:27},{x:61,z:75},{x:89,z:75},
+    {x:27,z:51},{x:123,z:51},{x:61,z:51},{x:89,z:51},
+  ],
   flankRoutes: [
-    [{x:27,z:51},{x:27,z:27},{x:61,z:27},{x:89,z:27},{x:123,z:27},{x:123,z:51}],
+    // Fixed map knowledge: breach both rooms, then return to service.
+    [{x:27,z:51},{x:41,z:46},{x:41,z:41},{x:49,z:41},{x:49,z:46},
+      {x:61,z:38},{x:89,z:38},{x:101,z:46},{x:101,z:41},{x:109,z:41},{x:109,z:46},{x:123,z:51}],
     [{x:27,z:51},{x:27,z:75},{x:61,z:75},{x:89,z:75},{x:123,z:75},{x:123,z:51}],
   ],
   signalCore: { doors, chamber: { min: { x: 70, y: 0, z: 48 }, max: { x: 80, y: 3, z: 52 } } },
   boxes: [...compiled.boxes.filter(b =>
     !(b.min.x === 70 && b.max.x === 80 && b.min.z === 44 && b.max.z === 56)
-    && !(b.min.x === 34 && b.max.x === 56 && b.min.z === 34 && b.max.z === 40)).map(b => ({ ...b, max: { ...b.max,
+    && !((b.min.x === 34 || b.min.x === 94) && b.max.x - b.min.x === 22 && b.min.z === 34 && b.max.z === 40)
+    // Former free-standing returns occupy the enlarged rooms/door aprons.
+    && !((b.min.x === 40 || b.min.x === 108) && b.min.z === 42 && b.max.z === 48)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.2 ? 3 : b.max.y === 2.2 ? 6
       : b.max.y === 2.5 ? (b.max.x - b.min.x > 2 && b.max.z - b.min.z > 2 ? 6 : 3) : b.max.y,
   } })),
@@ -95,7 +107,7 @@ export const ARENA1: MapDef = withStructures({
     minX: r.dir === 1 ? r.minX - 4 : r.minX,
     maxX: r.dir === -1 ? r.maxX + 4 : r.maxX,
   })),
-}, [RELAY_COMMS]);
+}, RELAY_BUILDINGS);
 export const ARENA1_BOUNDS: Bounds = ARENA1.bounds;
 export const ARENA1_BOXES: readonly Box[] = ARENA1.boxes;
 export const ARENA1_SPAWNS: { readonly red: readonly Vec3[]; readonly blue: readonly Vec3[] } = ARENA1.spawns;

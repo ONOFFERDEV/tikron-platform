@@ -64,22 +64,26 @@ describe("Relay encounter safety", () => {
       expect(walkSeconds(ARENA1, ARENA1.spawns.red[0]!, { x: bot.x, y: 0, z: bot.z })).toBeLessThan(Infinity);
     }
   });
-  it("keeps the mirrored yard around the single authored building proof", () => {
-    const building = new Set(ARENA1.structures!.flatMap(s => s.parts.map(p => p.box)));
-    // Places A deliberately opens one former solid footprint. Map-wide paired
-    // power positions are Places B; every untouched yard solid stays mirrored.
-    const yard = ARENA1.boxes.filter(b => !building.has(b));
-    const original = { min: { x: 34, y: 0, z: 34 }, max: { x: 56, y: 6, z: 40 } };
-    const mirrored = [...yard, original];
-    for (const a of mirrored) {
-      expect(mirrored.some(b => b.min.x === ARENA1.bounds.width - a.max.x && b.max.x === ARENA1.bounds.width - a.min.x
-        && b.min.z === a.min.z && b.max.z === a.max.z && b.max.y === a.max.y)).toBe(true);
+  it("pairs the rooms, stair voids, consoles and yard cover across the map", () => {
+    const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+    for (const a of ARENA1.boxes) {
+      expect(ARENA1.boxes.some(b => near(b.min.x, ARENA1.bounds.width - a.max.x) && near(b.max.x, ARENA1.bounds.width - a.min.x)
+        && near(b.min.z, a.min.z) && near(b.max.z, a.max.z) && near(b.min.y, a.min.y) && near(b.max.y, a.max.y)), JSON.stringify(a)).toBe(true);
     }
-    expect(ARENA1.structures![0]!.footprint).toEqual({ minX: 34, maxX: 56, minZ: 34, maxZ: 40 });
+    expect(ARENA1.structures!.map(s => s.footprint)).toEqual([
+      { minX: 34, maxX: 56, minZ: 34, maxZ: 44 }, { minX: 94, maxX: 116, minZ: 34, maxZ: 44 },
+    ]);
   });
   it("rifle test corridor stays open, so combat tests measure hits rather than walls", () => {
     for (const z of [25.8, 27, 28.2]) {
       expect(nearestBox({ x: 55, y: PLAYER.standEye, z }, { x: 1, y: 0, z: 0 }, ARENA1.boxes, 40)).toBe(Infinity);
+    }
+  });
+  it('keeps every new patrol anchor standable and reachable from both deployments', () => {
+    for (const target of ARENA1.patrolWaypoints!) {
+      expect(canStand(target.x, 0, target.z, PLAYER.radius, PLAYER.standHeight, ARENA1.boxes, ARENA1.bounds)).toBe(true);
+      for (const spawn of [ARENA1.spawns.red[0]!, ARENA1.spawns.blue[0]!])
+        expect(walkSeconds(ARENA1, spawn, { ...target, y: 0 })).toBeLessThan(Infinity);
     }
   });
 });

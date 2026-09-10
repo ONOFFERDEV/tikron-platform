@@ -249,7 +249,7 @@ try {
           capture: async label => { const shot=await send('Page.captureScreenshot',{format:'png'});
             await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64')); }});
       }
-      if (name === 'places-play') combat = await structuresProbe({ send, evaluate, delay,
+      if (name === 'places-play') combat = await structuresProbe({ send, evaluate, delay, east: args.includes('--places-east'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: report => writeFile(join(output, `${prefix}-structures.json`), JSON.stringify(report, null, 2)),

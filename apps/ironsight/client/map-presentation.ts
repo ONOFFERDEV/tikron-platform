@@ -19,8 +19,9 @@ export type SiteId = keyof typeof SITES;
 /** The same route names are used in deployment, world signs and the HUD. */
 export function mapCallout(map: MapDef, x: number, z: number): string {
   if (map.presentation === 'relay') {
-    if (map.structures?.some(s => x >= s.footprint.minX && x <= s.footprint.maxX
-      && z >= s.footprint.minZ && z <= s.footprint.maxZ)) return '01 / COMMS';
+    const room = map.structures?.find(s => x >= s.footprint.minX && x <= s.footprint.maxX
+      && z >= s.footprint.minZ && z <= s.footprint.maxZ);
+    if (room) return room.id === 'cooling-control' ? 'CONTROL / EAST' : 'COMMS / WEST';
     if (x < map.bounds.width * .12) return 'WEST SERVICE'; if (x > map.bounds.width * .88) return 'EAST SERVICE';
     return z < map.bounds.depth * .34 ? '01 / COOLING' : z > map.bounds.depth * .66 ? '03 / FREIGHT' : '02 / RELAY';
   }

@@ -56,34 +56,55 @@ describe('structure authoring', () => {
   });
 });
 
-describe('Relay communications building', () => {
+describe.each([false, true])('Relay paired building, east=%s', east => {
+  const point = (p: Vec3) => ({ ...p, x: east ? 150 - p.x : p.x });
+  const building = ARENA1.structures![east ? 1 : 0]!;
   it('uses the exact structural objects in both collision states and keeps ground door routes navigable', () => {
-    for (const p of ARENA1.structures![0]!.parts) {
+    for (const p of building.parts) {
       expect(hits.closed).toContain(p.box); expect(hits.open).toContain(p.box);
     }
-    for (const [start, target] of [[{ x: 32, y: 0, z: 38 }, { x: 58, y: 0, z: 38 }],
-      [{ x: 58, y: 0, z: 38 }, { x: 32, y: 0, z: 38 }]] as const) {
-      const samples = walk(start, [target]);
+    const route = [{ x: 41, y: 0, z: 46 }, { x: 41, y: 0, z: 41 },
+      { x: 49, y: 0, z: 41 }, { x: 49, y: 0, z: 46 }].map(point);
+    for (const points of [route, [...route].reverse()]) {
+      const samples = walk(points[0]!, points.slice(1));
       expect(samples.every(p => p.y === 0)).toBe(true);
       const nav = new GroundNavigator(ARENA1);
-      const destination = { x: target.x, z: target.z };
-      for (const p of samples) expect(nav.next(p, destination)).toEqual(destination);
+      for (let i = 1; i < points.length; i++) {
+        const target = points[i]!, destination = { x: target.x, z: target.z };
+        expect(nav.next(points[i - 1]!, destination)).toEqual(destination);
+      }
     }
   });
 
+  it('shows both primary door apertures inside 78 degrees from the console defence position', () => {
+    const eye = point({ x: 45, y: PLAYER.standEye, z: 37.4 });
+    expect(stand({ ...eye, y: 0 })).toBe(true);
+    const angles: number[] = [];
+    for (const x of [40.1, 41.9, 48.1, 49.9]) {
+      // Measure the inner aperture; thick jambs naturally occlude some of the
+      // outside pavement at oblique angles, even though the door is visible.
+      const door = point({ x, y: PLAYER.standEye, z: 43.61 });
+      const dx = door.x - eye.x, dz = door.z - eye.z, d = Math.hypot(dx, dz);
+      expect(nearestBox(eye, { x: dx / d, y: 0, z: dz / d }, hits.closedHits, d)).toBe(Infinity);
+      angles.push(Math.atan2(dx, dz));
+    }
+    expect((Math.max(...angles) - Math.min(...angles)) * 180 / Math.PI).toBeLessThan(78);
+  });
+
   it.each([.10, .32, .45])('walks upstairs/downstairs with %sm input steps and no slab penetration', stride => {
-    const samples = walk({ x: 32, y: 0, z: 38 }, [
+    const samples = walk(point({ x: 41, y: 0, z: 46 }), [
+      { x: 41, y: 0, z: 38 },
       { x: 42, y: 0, z: 38 }, { x: 42, y: 0, z: 35.5 },
       { x: 51, y: 3, z: 35.5 }, { x: 51, y: 3, z: 38.5 },
       { x: 51, y: 3, z: 35.5 }, { x: 42, y: 0, z: 35.5 },
-      { x: 42, y: 0, z: 38 }, { x: 58, y: 0, z: 38 },
-    ], stride);
+      { x: 42, y: 0, z: 38 }, { x: 49, y: 0, z: 38 }, { x: 49, y: 0, z: 46 },
+    ].map(point), stride);
     expect(Math.max(...samples.map(p => p.y))).toBeCloseTo(3);
     expect(samples.some(p => p.y > 1 && p.y < 2)).toBe(true);
   });
 
   it('blocks jumps at the ceiling and lands a descending player on the roof slab', () => {
-    const start = { x: 36, y: 0, z: 38 };
+    const start = point({ x: 36, y: 0, z: 38 });
     const jumped = moveAndSlide(start, PLAYER.radius, PLAYER.standHeight, { x: 0, y: 2, z: 0 }, 5,
       ARENA1.boxes, ARENA1.bounds, MOVE.stepUp, ARENA1.ramps);
     expect(jumped.pos.y + PLAYER.standHeight).toBeCloseTo(2.72);
@@ -93,31 +114,41 @@ describe('Relay communications building', () => {
     expect(landed.pos.y).toBe(3); expect(landed.grounded).toBe(true);
   });
 
-  it('admits eye rays through all four windows while sills, lintels, consoles and roof block fire', () => {
+  it('admits window rays while sills, lintels, consoles and roof block fire', () => {
     for (const boxes of [hits.openHits, hits.closedHits]) {
-      for (const [x, z, dir] of [[39, 33, 1], [52, 33, 1], [40, 41, -1], [47, 41, -1]] as const) {
-        expect(nearestBox({ x, y: 1.65, z }, { x: 0, y: 0, z: dir }, boxes, 1.5)).toBe(Infinity);
-        for (const y of [.65, 2.5]) expect(nearestBox({ x, y, z }, { x: 0, y: 0, z: dir }, boxes, 1.5)).toBeLessThan(1.5);
+      for (const [x, z, dir] of [[39, 33, 1], [52, 33, 1], [45, 45, -1]] as const) {
+        expect(nearestBox(point({ x, y: 1.65, z }), { x: 0, y: 0, z: dir }, boxes, 1.5)).toBe(Infinity);
+        for (const y of [.65, 2.5]) expect(nearestBox(point({ x, y, z }), { x: 0, y: 0, z: dir }, boxes, 1.5)).toBeLessThan(1.5);
       }
-      expect(nearestBox({ x: 39, y: .8, z: 37.5 }, { x: 0, y: 0, z: -1 }, boxes, 3)).toBeLessThan(3);
-      expect(nearestBox({ x: 36, y: 1.65, z: 38 }, { x: 0, y: 1, z: 0 }, boxes, 5)).toBeCloseTo(1.07);
-      expect(nearestBox({ x: 48.5, y: 2.3, z: 37.3 }, { x: 0, y: 0, z: -1 }, boxes, 2)).toBeLessThan(2);
+      for (const z of [38, 41.5]) for (const [x, dir] of [[33, 1], [57, -1]]) {
+        expect(nearestBox(point({ x: x!, y: 1.65, z }), { x: east ? -dir! : dir!, y: 0, z: 0 }, boxes, 1.5)).toBe(Infinity);
+      }
+      expect(nearestBox(point({ x: 39, y: .8, z: 37.5 }), { x: 0, y: 0, z: -1 }, boxes, 3)).toBeLessThan(3);
+      expect(nearestBox(point({ x: 36, y: 1.65, z: 38 }), { x: 0, y: 1, z: 0 }, boxes, 5)).toBeCloseTo(1.07);
+      expect(nearestBox(point({ x: 48.5, y: 2.3, z: 37.3 }), { x: 0, y: 0, z: -1 }, boxes, 2)).toBeLessThan(2);
     }
-    const stair = ARENA1.structures![0]!.ramps[0]!;
+    const stair = building.ramps[0]!;
     expect(rampOccluderBoxes(stair).map(b => b.max.y)).toEqual([1, 2, 3]);
   });
 });
 
 describe('structure shots in the authoritative room', () => {
+  it('answers either roof with a standing sightline while waist parapets protect a crouched position', () => {
+    for (const boxes of [hits.openHits, hits.closedHits]) for (const [x, dir] of [[54, 1], [96, -1]] as const) {
+      expect(nearestBox({ x, y: 4.65, z: 41.5 }, { x: dir, y: 0, z: 0 }, boxes, 42)).toBe(Infinity);
+      expect(nearestBox({ x, y: 4, z: 41.5 }, { x: dir, y: 0, z: 0 }, boxes, 42)).toBeLessThan(2);
+    }
+  });
   class BuildingRoom extends ArenaRoomImpl {
     protected override fillToPlayers = 0;
     protected override startInWarmup = false;
     protected override spawnProtectMs = 0;
   }
-  it.each([false, true])('accepts open-window shots and rejects intact-wall shots, hybrid=%s', async claim => {
+  it.each([[false, false], [true, false], [false, true], [true, true]])('accepts window shots and rejects wall shots, hybrid=%s east=%s', async (claim, east) => {
     vi.useFakeTimers(); vi.setSystemTime(1_000_000);
     try {
-      for (const [x, blocked] of [[50.5, false], [54.8, true]] as const) {
+      for (const [westX, blocked] of [[50.5, false], [54.8, true]] as const) {
+        const x = east ? 150 - westX : westX;
         const h = await createTestRoom(BuildingRoom, { id: 'arena-tdm', codec: ArenaSchema });
         const a = await h.connect(), b = await h.connect(); await h.advance(100);
         const s = (h.room as unknown as { state: ArenaState }).state;

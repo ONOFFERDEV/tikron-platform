@@ -60,9 +60,11 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   rect('#b8b498', 424, 149, 50, 30); text('R / 07', 427, 169, 12, '#273b41');
   for (let x = 423; x < 473; x += 4) rect('#bdc1ab', x, 207, 2, 18);
   bolts(390, 134, 116, 116);
-  // Places A occupies unused atlas space; no additional image or draw.
+  // Places B shares the existing atlas; no additional image or draw.
   rect('#d0c6a5', 512, 512, 512, 64); rect('#303a33', 520, 520, 496, 48);
-  text('COMMS / 01', 563, 557, 37, '#d5d1b9');
+  text('COMMS / WEST', 542, 557, 37, '#d5d1b9');
+  rect('#d0c6a5', 512, 960, 512, 64); rect('#303a33', 520, 968, 496, 48);
+  text('CONTROL / EAST', 528, 1005, 37, '#d5d1b9');
   rect('#3a4238', 512, 576, 256, 128);
   text('ROOF ACCESS', 526, 623, 28); text('UP / 03 M', 542, 677, 28, '#c6b681');
   rect('#38423b', 512, 704, 256, 256);
