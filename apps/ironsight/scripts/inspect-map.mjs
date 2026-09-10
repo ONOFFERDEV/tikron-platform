@@ -31,6 +31,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import { acquireInspectionLease } from './inspection-lease.mjs';
 
 const args = process.argv.slice(2);
 const option = (key, fallback) => args.includes(key) ? args[args.indexOf(key) + 1] : fallback;
@@ -41,6 +42,7 @@ const reports = []; const errors = [];
 const software = args.includes('--software');
 const prefix = option('--prefix', 'relay');
 if (!/^[\w-]+$/.test(prefix)) throw Error('Invalid filename prefix');
+const inspectionLease = await acquireInspectionLease(`map / ${prefix}`);
 const output = fileURLToPath(new URL('../.inspect/', import.meta.url));
 await mkdir(output, { recursive: true });
 const profile = await mkdtemp(join(tmpdir(), 'ironsight-inspect-'));
@@ -593,14 +595,14 @@ try {
     }
     console.log(file, JSON.stringify(report));
   }
-  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ browserVersion, reports, errors, forbiddenNetwork }, null, 2));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ browserVersion, inspectionLease: inspectionLease.info, reports, errors, forbiddenNetwork }, null, 2));
   if (errors.length) throw Error(`Browser errors: ${JSON.stringify(errors)}`);
   if (forbiddenNetwork.length) throw Error('Offline inspector opened gameplay network connections');
 } catch (error) {
   const diagnostics = await evaluate('({ url:location.href, self:window.ironsight?.state()?.players[window.ironsight?.myId], viewmodel:window.ironsight?.viewmodelInfo?.() })').catch(() => null);
   const capture = await send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
   if (capture) await writeFile(join(output, `${prefix}-failure.png`), Buffer.from(capture.data, 'base64'));
-  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reports, errors, forbiddenNetwork, failure: String(error), diagnostics }, null, 2));
+  await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ inspectionLease: inspectionLease.info, reports, errors, forbiddenNetwork, failure: String(error), diagnostics }, null, 2));
   throw error;
 } finally {
   if (ws?.readyState === WebSocket.OPEN) {
@@ -611,5 +613,6 @@ try {
   for (const request of pending.values()) clearTimeout(request.timer);
   // Edge needs a moment to release profile files on Windows.
   if (!resolve(profile).startsWith(resolve(tmpdir()) + sep)) throw Error("Unsafe profile cleanup path");
-  await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });
+  try { await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 }); }
+  finally { await inspectionLease.release(); }
 }

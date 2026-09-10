@@ -12,6 +12,7 @@ export const tiles = {
   comms: [512, 512, 512, 64], roof: [512, 576, 256, 128], console: [512, 704, 256, 256],
   control: [512, 960, 512, 64],
   trench: [768, 576, 256, 96], cable: [768, 672, 256, 192],
+  workshop: [768, 864, 256, 48], freight: [768, 912, 256, 48],
 } as const;
 
 /** Geometry is derived from existing solid faces, at most 12 mm outside them.
@@ -129,5 +130,22 @@ export function relayStructureDetail(map: MapDef): T.BufferGeometry {
   const geometry = parts.length ? mergeGeometries(parts)! : new T.BufferGeometry();
   parts.forEach(g => g.dispose());
   return geometry;
+}
+
+/** Exterior facade labels use the same atlas as collision-backed interior
+ * hardware, but have a separate bounds contract: wholly outside the yard. */
+export function relayBoundaryDetail(map: MapDef): T.BufferGeometry {
+  const parts: T.BufferGeometry[] = [];
+  for (const [tile, x, y, zs, yaw] of [
+    ['workshop', -.0005, 7, [16, 46, 62, 84], Math.PI / 2],
+    ['freight', map.bounds.width + .0005, 6.8, [28, 44, 60, 74], -Math.PI / 2],
+  ] as const) for (const z of zs) {
+    const g = new T.PlaneGeometry(6.4, 1.2), uv = g.getAttribute('uv');
+    const [u, v, w, h] = tiles[tile];
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (u + 1 + uv.getX(i) * (w - 2)) / ATLAS_W,
+      1 - (v + 1 + (1 - uv.getY(i)) * (h - 2)) / ATLAS_H);
+    g.rotateY(yaw); g.translate(x, y, z); parts.push(g);
+  }
+  const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); return geometry;
 }
 

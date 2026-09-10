@@ -3,6 +3,8 @@ import { buildSiteGround } from "./site-ground.js";
 import { buildRelayServiceDetail } from './relay-service-detail.js';
 import type { MapDef } from "../src/map/types.js";
 import { RELAY_FINISH } from './relay-palette.js';
+import { relaySiteBoundary } from './relay-site.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
  * Detail is inset into solids; skyline is outside the playable rectangle.
@@ -120,19 +122,10 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
       }
     }
   }
-  // Perimeter retaining wall starts OUTSIDE the clamped movement bounds.
-  for (const z of [-0.4, depth + 0.4]) {
-    add("concrete", width / 2, 1.45, z, width + 1.6, 2.9, 0.8);
-    add("dark", width / 2, 2.82, z, width + 1.6, 0.16, 0.8);
-    for (let x = 2; x < width; x += 4) add("metal", x, 1.5, z, 0.22, 3, 0.9);
-  }
-  for (const x of [-0.4, width + 0.4]) {
-    add("dark", x, 3.5, depth / 2, 0.8, 7, depth);
-    for (let z = 2; z < depth; z += 6) {
-      add("concrete", x, 3.5, z, 0.85, 7, 0.3);
-      add(x < width / 2 ? "amber" : "teal", x, 5.4, z + 2, 0.86, 1.3, 3.3);
-    }
-  }
+  // Built mass replaces the thin perimeter. Shared with the offline bake;
+  // all vertices remain exterior, so no new gameplay solid is implied.
+  for (const p of relaySiteBoundary(width, depth))
+    add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, p.yaw);
   // Painted lane edges, crossing bars and hazard chevrons: flush with the floor.
   for (const z of [25, 50, 75].map(z => z * depth / 100)) {
     for (const [x, w] of [[width * .18, 12], [width / 2, 16], [width * .82, 12]]) {
@@ -199,12 +192,12 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   const texture = new THREE.CanvasTexture(atlas); texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   const signMat = new THREE.MeshBasicMaterial({ map: texture });
+  const signParts: THREE.BufferGeometry[] = [];
   const sign = (index: number, x: number, y: number, z: number, yaw: number, w = 4.5) => {
     const geo = new THREE.PlaneGeometry(w, w / 8);
     const uv = geo.getAttribute("uv");
     for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 3 - index) / 4);
-    const mesh = new THREE.Mesh(geo, signMat); mesh.position.set(x, y, z); mesh.rotation.y = yaw;
-    scene.add(mesh);
+    geo.rotateY(yaw); geo.translate(x, y, z); signParts.push(geo);
   };
   sign(0, width / 2, 2.1, 0.015, 0, 6);
   sign(2, width / 2, 2.1, depth - .015, Math.PI, 6);
@@ -212,4 +205,8 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   for (const side of [-1, 1]) {
     sign(1, width / 2 + side * 5.030, 3.7, 50, side * Math.PI / 2, 3.5);
   }
+  // Same atlas/material and five unchanged faces: one static draw. Retain
+  // headroom when long frames temporarily overlap more pooled combat effects.
+  const signs = new THREE.Mesh(mergeGeometries(signParts)!, signMat);
+  signParts.forEach(g => g.dispose()); signs.name = 'relay-zone-signs'; scene.add(signs);
 }

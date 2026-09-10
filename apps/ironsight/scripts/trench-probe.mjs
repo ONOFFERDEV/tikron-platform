@@ -11,17 +11,21 @@ export async function trenchProbe({ send, evaluate, delay, capture, record, east
   const {next}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
   const key=(type,key='w',code='KeyW',windowsVirtualKeyCode=87)=>send('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode});
   const snapshot=()=>evaluate(`(()=>{const I=window.ironsight;return{me:I.state().players[I.myId],camera:I.camPos(),movement:I.movementInfo()}})()`);
-  const report={east,note:'Normal training input route. No player/bot/health/clock/event mutation. Traverse both end ramps, baffles and the bridge underpass; throw and fire below grade.',samples:[],stages:[]};
+  const report={east,note:'Normal training input route. No player/bot/health/clock/event mutation. Traverse both end ramps, baffles and the bridge underpass; throw and fire below grade.',controller:'Steer from the current predicted feet; bounded W pulses, then release while awaiting feedback. Authoritative state/camera still validate floor and exit.',samples:[],stages:[]};
   let started=Date.now();
   const travel=async goal=>{
     const deadline=Date.now()+50000;
     try {for(;;){
-      const sample=await snapshot(),p=sample.me;report.samples.push({atMs:Date.now()-started,...sample});
+      const sample=await snapshot(),p=sample.movement.pos;report.samples.push({atMs:Date.now()-started,...sample});
       if(Math.hypot(p.x-goal.x,p.z-goal.z)<.22)break;
-      if(!p.alive||Date.now()>deadline)throw Error(`Trench traversal stalled: ${JSON.stringify({p,goal})}`);
+      if(!sample.me.alive||Date.now()>deadline)throw Error(`Trench traversal stalled: ${JSON.stringify({p,goal})}`);
       const target=next(p,goal);
       await evaluate(`window.ironsight.look(${Math.atan2(target.x-p.x,target.z-p.z)},0)`);
-      await key('keyDown');await delay(30);
+      // Never hold W through an arbitrarily delayed CDP snapshot. The old
+      // continuous hold could overshoot a corner from stale replicated feet,
+      // enter a blocked nav cell, then drive atan2(0,0) into its wall forever.
+      const pulseMs=Math.min(60,Math.max(12,Math.hypot(target.x-p.x,target.z-p.z)*100));
+      await key('keyDown');await delay(pulseMs);await key('keyUp');await delay(10);
     }}finally{await key('keyUp');}
     await delay(150);
   };
@@ -51,5 +55,6 @@ export async function trenchProbe({ send, evaluate, delay, capture, record, east
     const exit=await stage('yard',point({x:102,y:-1.3,z:76}));if(exit.me.y!==0)throw Error('Trench exit failed');
     if(Date.now()-started<20000)await delay(20000-(Date.now()-started));
     report.elapsedMs=Date.now()-started;report.passed=true;await record(report);return report;
-  } finally {await key('keyUp');await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:960,y:540,button:'left',clickCount:1});}
+  } catch(error) {report.failure=String(error);await record(report);throw error;}
+  finally {await key('keyUp');await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:960,y:540,button:'left',clickCount:1});}
 }

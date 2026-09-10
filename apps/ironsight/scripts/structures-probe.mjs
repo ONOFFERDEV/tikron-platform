@@ -21,13 +21,16 @@ export async function structuresProbe({ send, evaluate, delay, capture, record, 
     const deadline = Date.now() + 45000;
     try {
       for (;;) {
-        const sample = await snapshot(), me = sample.me;
+        const sample = await snapshot(), me = sample.movement.pos;
         report.samples.push({ atMs: Date.now() - started, ...sample });
         if (Math.hypot(me.x - goal.x, me.z - goal.z) < .24) break;
-        if (!me.alive || Date.now() > deadline) throw Error(`Structure route stalled: ${JSON.stringify({ me, goal })}`);
+        if (!sample.me.alive || Date.now() > deadline) throw Error(`Structure route stalled: ${JSON.stringify({ me, goal })}`);
         const target = ground ? next(me, goal) : goal;
         await evaluate(`window.ironsight.look(${Math.atan2(target.x - me.x, target.z - me.z)},0)`);
-        await key('keyDown'); await delay(30);
+        // Use the visible predicted feet and release between bounded pulses;
+        // delayed replicated snapshots must not steer an indefinitely held W.
+        const pulseMs = Math.min(60, Math.max(12, Math.hypot(target.x - me.x, target.z - me.z) * 100));
+        await key('keyDown'); await delay(pulseMs); await key('keyUp'); await delay(10);
       }
     } finally { await key('keyUp'); }
     await delay(180);
@@ -64,6 +67,8 @@ export async function structuresProbe({ send, evaluate, delay, capture, record, 
     report.elapsedMs = Date.now() - started;
     await stage('complete', -Math.PI / 2); await record(report);
     return report;
+  } catch (error) {
+    report.failure = String(error); await record(report); throw error;
   } finally {
     await key('keyUp');
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });

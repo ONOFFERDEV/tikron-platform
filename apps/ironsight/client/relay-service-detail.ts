@@ -1,6 +1,6 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
-import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry, relayStructureDetail } from './relay-service-geometry.js';
+import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry, relayStructureDetail, relayBoundaryDetail } from './relay-service-geometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { paintRelayDamage, relayDamageGeometry } from './relay-fieldworks.js';
 
@@ -80,6 +80,8 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
     rect('#232820', 770, y, 252, 19); rect('#6c6d59', 770, y+3, 252, 5);
     for (const x of [784, 897, 1004]) { rect('#969177', x, y-5, 8, 29); rect('#393d30', x+2, y-3, 3, 5); }
   }
+  rect('#333a32', 768, 864, 256, 48); text('WORKSHOP / 01', 779, 897, 28, '#c8c0a3');
+  rect('#333a32', 768, 912, 256, 48); text('FREIGHT / 03', 790, 945, 28, '#c8c0a3');
   // Deterministic edge chips, fastener runoff and scuffs. Baked once at creation;
   // keep central labels readable and large color fields quiet at combat distance.
   for (const [x, y, w, h] of Object.values(tiles)) {
@@ -96,7 +98,7 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   }
   paintRelayDamage(c);
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
-  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map)].filter(g => g.hasAttribute('position'));
+  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map), relayBoundaryDetail(map)].filter(g => g.hasAttribute('position'));
   const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose());
   const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ map: texture, roughness: 0.94, alphaTest: .28 }));
   mesh.name = 'relay-service-detail'; mesh.receiveShadow = true; scene.add(mesh);

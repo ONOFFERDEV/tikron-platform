@@ -26,9 +26,10 @@ function cloudflareWorkersStub(): Plugin {
 export default defineConfig({
   plugins: [cloudflareWorkersStub()],
   test: {
-    // Bound concurrent CPU-heavy audio/nav suites on shared workstations.
+    // Three development streams share this workstation. Keep CPU-heavy
+    // audio/navigation suites from adding four workers per stream.
     // Keep every assertion and the default 5s per-test timeout unchanged.
-    maxWorkers: 4,
+    maxWorkers: 2,
     // Force these through Vite's transform pipeline so the stub above can intercept
     // their `cloudflare:workers` import, instead of Vitest externalizing them to
     // Node's native resolver (which would bypass the stub).

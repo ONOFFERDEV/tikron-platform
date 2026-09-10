@@ -21,8 +21,10 @@ parser.add_argument("--maps", required=True)
 parser.add_argument("--size", type=int, default=1024)
 parser.add_argument("--samples", type=int, default=96)
 parser.add_argument("--distance", type=float, default=3.5, help="AO ray distance in metres")
+parser.add_argument("--architecture", help="Optional original-kit dump; include only exterior geometry as AO context")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 maps = json.loads(Path(args.maps).read_text())
+architecture = json.loads(Path(args.architecture).read_text()) if args.architecture else {}
 
 
 def game(x, y, z):
@@ -106,6 +108,20 @@ for key, m in maps.items():
     for i, r in enumerate(m["ramps"]):
         ramp(f"{key}-ramp-{i}", r)
     width, depth = m["bounds"]["width"], m["bounds"]["depth"]
+    # Presentation outside the server rectangle cannot change cover, but its
+    # contact shadow belongs at the yard edge. Never import interior cladding
+    # here: authority boxes/ramps already supply that occlusion exactly once.
+    exterior_count = 0
+    for i, part in enumerate(architecture.get(key, {}).get("meshes", [])):
+        p = part["positions"]
+        verts = [p[j:j+3] for j in range(0, len(p), 3)]
+        if not (max(v[0] for v in verts) <= .00001 or min(v[0] for v in verts) >= width - .00001
+                or max(v[2] for v in verts) <= .00001 or min(v[2] for v in verts) >= depth - .00001):
+            continue
+        faces = [part["indices"][j:j+3] for j in range(0, len(part["indices"]), 3)]
+        mesh_object(f"{key}-exterior-{i}", verts, faces)
+        exterior_count += 1
+    print(f"[bake-ground-ao] {key}: exterior context parts={exterior_count}")
     floor = ground(f"{key}-ground", width, depth, m.get("terrain"))
 
     size = (args.size, round(args.size * depth / width))

@@ -24,6 +24,7 @@ import { build } from 'esbuild';
 import { installGpuDiagnostics } from './hitch-gpu-diagnostics.mjs';
 import { assessHitch } from './hitch-policy.mjs';
 import { firstUseWindows } from './hitch-first-use.mjs';
+import { acquireInspectionLease } from './inspection-lease.mjs';
 
 const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const base = positional[0] ?? 'http://localhost:8796';
@@ -56,6 +57,7 @@ const traced = new Promise(resolve => { traceComplete = resolve; });
 // the same durable state. No client writes to scores, deadlines or server state.
 const untilEnded = process.argv.includes('--until-ended');
 const mode = (process.argv.find(a => a.startsWith('--mode=')) ?? '--mode=tdm').slice(7);
+const inspectionLease = await acquireInspectionLease(`hitch / ${mode} / ${out}`);
 // Compile the app's immutable collision map/navigation into the Node driver only.
 // The old fixed 0.9-radian turn loop circles within expanded deployment pockets.
 // Route normal W-key movement to map objectives; never write player/server state.
@@ -310,7 +312,7 @@ try {
   const gate = assessHitch({ frames:data.frames.map(rel), frameHistogram:data.frameHistogram,
     frameCount:data.frameCount,maxFrameMs:data.maxFrameMs,maxCallbackMs:data.maxCallbackMs,measurementMs:data.measurementMs,
     longTasks:data.long,recompiles,deaths,errors,untilEnded,phase:finalState.phase });
-  const summary = { url: url.href, runMs, untilEnded, firstUse, preparation, captures, diagnostics: { profileCpu, trace, traceStartup, diagnosticTiming, gpuDiagnostics, stopOnSpike, captureFight }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
+  const summary = { url: url.href, inspectionLease: inspectionLease.info, runMs, untilEnded, firstUse, preparation, captures, diagnostics: { profileCpu, trace, traceStartup, diagnosticTiming, gpuDiagnostics, stopOnSpike, captureFight }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
     measurementMs:data.measurementMs,measuredFrames:data.frameCount,gate,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frameHistogram:data.frameHistogram, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
@@ -323,6 +325,14 @@ try {
   }
   if (assertFirstUse && firstUse.some(window => window.status !== 'PASS')) process.exitCode = 1;
 } finally {
-  try { ws?.close(); } catch {}
-  edge.kill(); await delay(500); await rm(profile, { recursive: true, force: true }).catch(() => {});
+  try {
+    // Close the browser through CDP before releasing the GPU lease. Killing
+    // only its Windows root process can leave children draining GPU work.
+    if (ws?.readyState === WebSocket.OPEN) await send('Browser.close').catch(() => {});
+    try { ws?.close(); } catch {}
+    if (edge.exitCode === null) edge.kill();
+    for (const request of pending.values()) clearTimeout(request.timer);
+    await delay(500);
+    await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 }).catch(() => {});
+  } finally { await inspectionLease.release(); }
 }

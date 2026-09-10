@@ -154,6 +154,46 @@ causal label. This residue does not justify changing the limits.
 damage. Screenshots perturb presentation, so the probe refuses to combine this
 option with either acceptance assertion. Use a separate run for visual evidence.
 
+## Shared GPU inspection lease (Session 93)
+
+`inspect-map.mjs` and `hitch-probe.mjs` acquire the same loopback lease on
+`127.0.0.1:18796` before launching Edge, across repositories and worktrees.
+The next inspector waits until browser cleanup completes. Reports include the
+owner PID, acquisition time and wait duration. A crashed owner releases the
+socket automatically; an unrelated listener or a ten-minute acquisition timeout
+fails visibly. No process is stopped to acquire the lease.
+
+Older worktrees and ad hoc GPU tools do not participate until they adopt this
+helper. All streams must adopt both script changes before claiming mutual
+exclusion between their inspectors. Continue avoiding other inspection
+browsers, bakes/builds/tests and unrelated GPU work during acceptance. The lease
+does not inspect, control or stop other applications.
+
+This changes test scheduling and browser cleanup, not game rendering or the
+150ms main-thread/first-use checks, 1500ms presentation ceiling, p99, stall-share,
+shader or death requirements. It is not a diagnosis of an untraced stall or a
+driver fix. Keep previous failures and every startup/measured spike.
+
+Session93's retained failure investigation is in
+`.inspect/session93-diagnosis.json`. The Session92 supervisor's **164ms Long
+Task** remains untraced. Separate startup traces cover a **2444.6ms** interval
+overlapping a **2436.083ms ANGLE pixel executable** and a second **2472.928ms**
+pixel executable after UI preparation. These are browser raster events; the
+game's WebGL program count remains stable. Wall time is not CPU execution time:
+the respective pixel tasks report **4.365ms** and **3.646ms** CPU.
+
+Two runtime experiments were rejected. Full-opacity copies beneath a separate
+veil still produced the late pixel task. Preparing additional minimap headings
+cost about338ms, but an original-runtime control also avoided the pixel task,
+so the experiment did not establish a fix. Both changes were reverted. The
+original preparation and all acceptance limits remain. Fresh-profile repeated
+passes qualify the tested runs; they do not erase these cold-start failures or
+establish universally stall-free presentation.
+
+`node tools/audit-inspection-lease.mjs` checks exclusion across two processes,
+handover, recovery after termination, timeout, repeated release and refusal of
+an unrelated listener, on ephemeral ports without launching a browser.
+
 ## Capturing a new failure
 
 ```sh
