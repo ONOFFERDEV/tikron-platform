@@ -502,7 +502,7 @@ export class SceneRig {
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
-    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardSupplies(this.scene).then(() => {
+    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardSupplies(this.scene, map.bounds.depth).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }));
     if (map.presentation) this.assetLoads.push(loadSiteEnvironment(this.scene, this.renderer, map.presentation)

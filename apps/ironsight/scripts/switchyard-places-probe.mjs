@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 /** Live Worker traversal: ordinary movement, sprint, look and fire only. */
-export async function switchyardPlacesProbe({ send, evaluate, delay, capture, record, east = false, rail = false }) {
+export async function switchyardPlacesProbe({ send, evaluate, delay, capture, record, east = false, rail = false, site = false }) {
   const bundle = await build({ stdin: { contents: `
     import { ARENA3 } from './src/map/arena3.js';
     import { GroundNavigator } from './src/map/navigation.js';
@@ -19,7 +19,7 @@ export async function switchyardPlacesProbe({ send, evaluate, delay, capture, re
   });
   const snapshot = () => evaluate(`(() => { const I=window.ironsight; return {
     me:I.state().players[I.myId],camera:I.camPos(),movement:I.movementInfo()}; })()`);
-  const report = { east, rail, softThresholdM: soft, stages: [], samples: [], landings: [],
+  const report = { east, rail, site, softThresholdM: soft, stages: [], samples: [], landings: [],
     note: `${rail ? 'Walk/sprint down and up both rail end ramps, past cabinet/pallet cover, under bridges, along thin retaining walls and across the central yard slab.' : 'Walk/sprint both doors, internal stair up/down, thin walls, roof slab and south drop.'} Matched acknowledged commands use the Training-only review adapter. No state, clock, health or position injection.` };
   const started = Date.now(), point = p => east ? { ...p, x: 150 - p.x } : p;
   const travel = async (goal, sprint = false, ground = false) => {
@@ -109,6 +109,17 @@ export async function switchyardPlacesProbe({ send, evaluate, delay, capture, re
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
       await travel({ x: 48.9, z: 63 }, sprint); await travel({ x: 44, z: 63 }, sprint);
       await travel({ x: 44, z: 66 }, sprint); await travel({ x: 40, z: 66 }, sprint);
+      if (site) {
+        await travel({x:57,z:97},sprint,true);
+        await stage(`${mode}-depot`,{x:45,y:7,z:109},0);
+        await travel({x:6,z:49},sprint,true);
+        await stage(`${mode}-service-court`,{x:-12,y:7,z:49},0);
+        // Parallel to the outer plinth: its visible mass stays beyond the
+        // server rectangle and cannot snag a player walking along the edge.
+        await travel({x:.65,z:49},sprint); await travel({x:.65,z:55},sprint);
+        await stage(`${mode}-boundary`,{x:-12,y:6,z:58},0);
+        await travel({x:6,z:55},sprint); await travel({x:40,z:66},sprint,true);
+      }
     }
     report.corrections = await evaluate(`window.ironsight.movementReview().filter(s => s.tick > ${firstTick})`);
     const matched = report.corrections.filter(s => !s.reset && s.matchedError !== null);

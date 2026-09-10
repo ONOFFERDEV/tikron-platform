@@ -3,7 +3,8 @@ import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { SWITCHYARD_FINISH } from './switchyard-palette.js';
 import { SWITCHYARD_CRATES } from '../src/map/switchyard-structures.js';
-import { createPropLibrary } from './prop-library.js';
+import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
+import { switchyardSiteBoundary, switchyardSiteSigns, switchyardSiteSupplies } from './switchyard-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /** Power-distribution yard. Complete collider envelopes remain visibly solid;
@@ -184,20 +185,8 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     for (const x of [c.minX - 1.5, c.maxX + 1.5]) for (const z of [69, 75])
       add(3, x, .007, z, 1.4, .008, .15, 'paint');
   }
-  // Retaining walls sit outside the server's clamped rectangle, including trim.
-  for (const z of [-0.46, depth + 0.46]) {
-    const height = z < 0 ? 1.4 : 2.8;
-    add(0, cx, height / 2, z, width + 1.8, height, 0.9, 'exterior');
-    add(1, cx, height - 0.06, z, width + 1.8, 0.12, 0.91, 'exterior');
-    for (let x = 2; x < width; x += 4) add(2, x, height / 2, z, 0.2, height, 0.915, 'exterior');
-  }
-  for (const x of [-0.46, width + 0.46]) {
-    add(1, x, 2.6, cz, 0.9, 5.2, depth, 'exterior');
-    for (let z = 2; z < depth; z += 4) {
-      add(2, x, 2.6, z, 0.915, 5.2, 0.18, 'exterior');
-      add(x < 0 ? 4 : 3, x, 3.4, z + 1.7, 0.915, 1.2, 2.3, 'exterior');
-    }
-  }
+  for (const p of switchyardSiteBoundary(width, depth))
+    add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, 'exterior', false, new T.Euler(0, p.yaw, 0));
   // North substation: three portal frames and visible ceramic insulator stacks.
   // The generated transformer sits between these bays; all geometry is beyond z=0.
   for (const z of [-5, -13]) {
@@ -227,17 +216,6 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       add(3, cx + dx, y - 2, -5, 0.8, 0.3, 0.8, 'exterior');
     }
   }
-  // Southern service hall and distant industrial masses balance the open substation.
-  // The east hall stands behind the gantry's swept cargo envelope (x <= 158.2),
-  // leaving a service apron between its front face at x=162 and the moving load.
-  for (const [x, z, w, h, d] of [[cx - 30, depth + 11, 24, 9, 15], [cx + 30, depth + 15, 20, 15, 18], [-10, cz - 12, 12, 14, 22], [width + 20, cz + 12, 16, 19, 26]] as const) {
-    add(0, x, (h - 2) / 2, z, w, h - 2, d, 'exterior');
-    add(1, x, h - 1, z, w + 0.1, 2, d + 0.1, 'exterior');
-    add(2, x, h + 0.5, z, w * 0.7, 1, d * 0.7, 'exterior');
-    for (let xx = x - w / 2 + 1; xx < x + w / 2; xx += 2.4)
-      add(2, xx, h * 0.45, z, 0.18, h - 2.2, d + 0.012, 'exterior');
-    add(4, x, h - 1, z, w + 0.12, 0.3, d + 0.12, 'exterior');
-  }
   // West capacitor bank: three ribbed ceramic towers, the middle one taller.
   // All extents remain x <= -4.8; silhouette identifies the half without colour.
   for (const [z, height] of [[cz - 17, 22], [cz, 29], [cz + 17, 22]] as const) {
@@ -261,14 +239,6 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   // Trolley, hoist cables and cargo are the moving CargoCrane. They are excluded
   // from this permanent AO/shadow bake so a transfer leaves no frozen duplicate.
-  // South service hall's three stepped ventilation monitors answer the north
-  // mast with a low, broad roof rhythm. Each sits above the exterior hall only.
-  for (const x of [cx - 38, cx - 30, cx - 22]) {
-    add(3, x, 11, depth + 11, 5.8, 4, 11, 'exterior');
-    add(1, x, 13.2, depth + 11, 6.2, .4, 11.4, 'exterior');
-    for (const y of [10, 11, 12])
-      add(5, x, y, depth + 5.49, 4.8, .25, .02, 'exterior');
-  }
   // In-ground cable raceways and crossings, not raised rail obstacles.
   // Flush induction plates: baked concentric bands and flight chevrons make the
   // route readable without a new material, light, pass or collision volume.
@@ -310,20 +280,32 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   // Kept separate from the architecture bake so a successful detail load can
   // remove these exact authority envelopes without leaving a baked duplicate.
+  const exteriorSupplies = switchyardSiteSupplies(depth).map(p => {
+    const [w,h,d] = PROP_LIBRARY['ammo-crate-stack'].sizeM;
+    return {min:{x:p.x-w/2,y:p.y,z:p.z-d/2},max:{x:p.x+w/2,y:p.y+h,z:p.z+d/2}};
+  });
+  // Only the interior supplies are authority shells. Exterior fallbacks have
+  // the same separate classification as the rest of the out-of-bounds depot.
+  for (const [name, supplyBoxes] of [
+    ['switchyard-shell-supplies', SWITCHYARD_CRATES],
+    ['switchyard-exterior-supplies', exteriorSupplies],
+  ] as const) {
   const supplyGeometry = new T.BoxGeometry(1, 1, 1);
   const supplyMaterial = new T.MeshStandardMaterial({ color: 0x4c5140, roughness: .92 });
-  const supplies = new T.InstancedMesh(supplyGeometry, supplyMaterial, SWITCHYARD_CRATES.length);
-  supplies.name = 'switchyard-shell-supplies'; supplies.userData.architectureExclude = true;
-  SWITCHYARD_CRATES.forEach((b, i) => supplies.setMatrixAt(i, new T.Matrix4().compose(
+  const supplies = new T.InstancedMesh(supplyGeometry, supplyMaterial, supplyBoxes.length);
+  supplies.name = name; supplies.userData.architectureExclude = true;
+  supplyBoxes.forEach((b, i) => supplies.setMatrixAt(i, new T.Matrix4().compose(
     new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2),
     new T.Quaternion(), new T.Vector3(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z))));
   supplies.castShadow = supplies.receiveShadow = true;
   supplies.computeBoundingSphere(); scene.add(supplies);
+  }
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
   const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE',
-    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04', 'RAIL / LOADING'];
+    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04', 'RAIL / LOADING',
+    'CAPACITOR / SERVICE', 'CRANE / ASSEMBLY', 'FREIGHT / DEPOT', 'DISPATCH / 03'];
   const row = canvas.height / labels.length;
   labels.forEach((label, i) => {
     ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * row, 1024, row);
@@ -349,6 +331,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     sign(2,direction>0?65.976:84.024,2.1,pad.from.z,direction>0?-Math.PI/2:Math.PI/2,3.8);
   }
   sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
+  for (const s of switchyardSiteSigns(width, depth)) sign(s.label, s.x, s.y, s.z, s.yaw, s.width);
   for (const s of map.structures ?? []) {
     if (s.id === 'rail-loading-cut') {
       for (const x of [45, 105]) {
@@ -372,13 +355,17 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
 }
 
 /** Per-map lazy library detail, resolved before texture/program preparation. */
-export async function loadSwitchyardSupplies(scene: T.Scene): Promise<void> {
+export async function loadSwitchyardSupplies(scene: T.Scene, depth: number): Promise<void> {
   const library = createPropLibrary();
   const finishes = new Map<T.MeshStandardMaterial, T.MeshStandardMaterial>();
   try {
-    const crates = await Promise.all(SWITCHYARD_CRATES.map(async b => {
+    const positions = [
+      ...SWITCHYARD_CRATES.map(b => ({x:(b.min.x+b.max.x)/2,y:b.min.y,z:(b.min.z+b.max.z)/2})),
+      ...switchyardSiteSupplies(depth),
+    ];
+    const crates = await Promise.all(positions.map(async p => {
       const root = await library.load('ammo-crate-stack');
-      root.position.set((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2);
+      root.position.set(p.x, p.y, p.z);
       root.traverse(node => {
         if (!(node instanceof T.Mesh)) return;
         node.castShadow = node.receiveShadow = true;
@@ -386,7 +373,7 @@ export async function loadSwitchyardSupplies(scene: T.Scene): Promise<void> {
           if (!(source instanceof T.MeshStandardMaterial)) return source;
           let material = finishes.get(source);
           if (!material) {
-            // Four small painted supplies need their colour/edge detail, but
+            // Small painted supplies need their colour/edge detail, but
             // their extra normal/ORM maps pushed the full fight to34textures.
             // One shared, map-owned finish keeps the32texture gate intact.
             material = source.clone(); material.name = 'switchyard-issued-crate';
@@ -401,9 +388,11 @@ export async function loadSwitchyardSupplies(scene: T.Scene): Promise<void> {
       return root;
     }));
     const group = new T.Group(); group.name = 'switchyard-issued-supplies'; group.add(...crates); scene.add(group);
-    const fallback = scene.getObjectByName('switchyard-shell-supplies');
+    for (const name of ['switchyard-shell-supplies', 'switchyard-exterior-supplies']) {
+    const fallback = scene.getObjectByName(name);
     if (fallback instanceof T.InstancedMesh) {
       scene.remove(fallback); fallback.geometry.dispose(); (fallback.material as T.Material).dispose(); fallback.dispose();
+    }
     }
   } catch (error) {
     for (const material of finishes.values()) material.dispose();
