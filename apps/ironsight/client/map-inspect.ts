@@ -107,6 +107,8 @@ export function startMapInspector(): void {
     'undertow-center': [75, 1.65, 95, 82, 2, 85],
     'undertow-deck': [45, 4.65, 42, 75, 3, 50],
     'undertow-vista': [120, 22, 95, 75, 4, 25],
+    'undertow-channel': [32, 1.65, 71, 60, -1.2, 71],
+    'undertow-channel-lower': [49, -1.35, 71, 80, -1.1, 71],
     'undertow-maintenance': [52, 1.65, 85, 75, 2.5, 88],
     'undertow-stress': [46, 1.65, 27, 65, 1.5, 27],
     'switchyard-overview': [128, 96, 135, 75, 0, 47],

@@ -8,7 +8,8 @@ The south parapet has a 4m opening for a return to the yard. Ground navigation
 can enter the rooms, but the first three natural DOM samples contain no room
 traffic: current B orders retain their southern approach. Routing combat bots
 through the rooms and roof pathfinding remain combat-stream requests. The lower canal route
-and built plant boundary are the next two stages of this arc.
+is now implemented in [Places C 2/3](UNDERTOW-CHANNEL.md); the built plant
+boundary is the remaining stage of this arc.
 
 `src/map/undertow-structures.ts` owns the shared collision definition. The tile
 layer's two sealed housings are removed by exact footprint before composition.

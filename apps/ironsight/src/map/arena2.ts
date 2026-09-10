@@ -3,6 +3,8 @@ import { compileTileMap } from './tilemap.js';
 import type { MapDef } from './types.js';
 import { withStructures } from './structures.js';
 import { UNDERTOW_BUILDINGS, UNDERTOW_CRATES } from './undertow-structures.js';
+import { UNDERTOW_CHANNEL, UNDERTOW_CHANNEL_CUT } from './undertow-channel.js';
+import { excavate } from './terrain.js';
 
 /** UNDERTOW: 150 x 100 m reclamation works, six deployments per side.
  * Clarifier rifle route (north), paired control-deck shortcuts (middle),
@@ -75,7 +77,7 @@ const doors: readonly Box[] = [
   { min: { x: 68, y: 0, z: 48 }, max: { x: 68.5, y: 3, z: 52 } },
   { min: { x: 81.5, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } },
 ];
-export const ARENA2: MapDef = withStructures({
+export const ARENA2: MapDef = withStructures(excavate({
   ...compiled,
   presentation: 'undertow',
   // B assaults use Pump service behind the southern housings, then the two
@@ -86,7 +88,10 @@ export const ARENA2: MapDef = withStructures({
     [{ x: 127, z: 85 }, { x: 101, z: 85 }, { x: 85, z: 87 }, { x: 81, z: 91 }],
   ] },
   signalCore: { doors, chamber: { min: { x: 68, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } } },
-  boxes: [...compiled.boxes.filter(b => !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)
+  boxes: [...compiled.boxes.filter(b =>
+    !(b.min.x < UNDERTOW_CHANNEL_CUT.maxX && b.max.x > UNDERTOW_CHANNEL_CUT.minX
+      && b.min.z < UNDERTOW_CHANNEL_CUT.maxZ && b.max.z > UNDERTOW_CHANNEL_CUT.minZ)
+    && !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)
     && !UNDERTOW_BUILDINGS.some(s => b.min.x === s.origin.x && b.max.x === s.origin.x + s.width
       && b.min.z === s.origin.z && b.max.z === s.origin.z + s.depth)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
@@ -103,7 +108,7 @@ export const ARENA2: MapDef = withStructures({
     minZ: r.dir === 1 ? r.minZ - 4 : r.minZ,
     maxZ: r.dir === -1 ? r.maxZ + 4 : r.maxZ,
   })),
-}, UNDERTOW_BUILDINGS);
+}, UNDERTOW_CHANNEL_CUT, -3), [...UNDERTOW_BUILDINGS, UNDERTOW_CHANNEL]);
 export const ARENA2_BOUNDS: Bounds = ARENA2.bounds;
 export const ARENA2_BOXES = ARENA2.boxes;
 export const ARENA2_SPAWNS = ARENA2.spawns;

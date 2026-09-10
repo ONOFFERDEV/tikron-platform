@@ -260,7 +260,7 @@ try {
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: report => writeFile(join(output, `${prefix}-trench.json`), JSON.stringify(report, null, 2)),
       });
-      if (name === 'undertow-places-play') combat = await undertowPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'),
+      if (name === 'undertow-places-play') combat = await undertowPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'), channel: args.includes('--channel'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: report => writeFile(join(output, `${prefix}-movement.json`), JSON.stringify(report, null, 2)),

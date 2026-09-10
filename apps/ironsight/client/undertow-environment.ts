@@ -24,6 +24,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   if (!bakeOnly) buildSiteGround(scene, map, true);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   for (const b of map.boxes) {
+    if (map.terrain?.boxes.includes(b)) continue; // floor mesh owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
     if (UNDERTOW_CRATES.includes(b)) continue; // separate detail/fallback pair, never baked twice
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
@@ -32,6 +33,30 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     if (structure) {
       // Exact thin wall/lintel/slab faces: old turbine cladding would close
       // the apertures and wrongly move elevated surfaces back to the yard.
+      if (b.min.y < 0) {
+        // Below-grade concrete and pump cabinets keep their real elevations.
+        add(structure.kind === 'cover' ? 1 : 0, x, b.min.y + h / 2, z, w, h, d);
+        if (structure.kind === 'wall') {
+          // Recess/read of the damp base and regular formwork joints, flush
+          // to the retaining face. No pipe or light occupies the walking lane.
+          const face = z < 71 ? b.max.z + .004 : b.min.z - .004;
+          add(4, x, -2.65, face, w, .6, .008);
+          for (let px = b.min.x + 2; px < b.max.x; px += 4) {
+            add(2, px, -1.5, face, .045, 2.98, .008);
+            add(6, px, -.45, face + (z < 71 ? .006 : -.006), .5, .055, .004);
+          }
+        } else if (structure.kind === 'slab') {
+          // Flush steel wearing surface and painted edge strips; open sides
+          // are real drops. No non-colliding rail suggests false protection.
+          add(2, x, b.max.y + .003, z, w - .04, .006, d);
+          for (const side of [-1,1]) add(5, x + side * (w/2-.12), b.max.y+.008, z, .12, .004, d);
+        } else if (structure.kind === 'cover') {
+          add(2, x, b.max.y + .004, z, w, .008, d);
+          for (let py = b.min.y + .3; py < b.max.y - .2; py += .2)
+            add(2, x, py, b.max.z + .006, w * .75, .035, .01);
+        }
+        continue;
+      }
       const console = structure.kind === 'cover';
       add(console ? 1 : 0, x, b.min.y + h / 2, z, w, h, d);
       if (console) {
@@ -121,8 +146,10 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   for (const s of map.structures ?? []) {
     for (const r of s.ramps) for (let step = 1; step < 18; step++) {
       const t = step / 18, x = r.dir === 1 ? r.minX + t * (r.maxX - r.minX) : r.maxX - t * (r.maxX - r.minX);
-      add(3, x, r.topY * t + .006, (r.minZ + r.maxZ) / 2, .028, .008, r.maxZ - r.minZ - .08);
+      const y = (r.baseY ?? 0) + (r.topY - (r.baseY ?? 0)) * t;
+      add(3, x, y + .006, (r.minZ + r.maxZ) / 2, .028, .008, r.maxZ - r.minZ - .08);
     }
+    if (s.id === 'pump-channel') continue;
     for (const offset of [7, 15]) {
       const x = s.footprint.minX + offset, z = s.footprint.maxZ + .004;
       add(2, x, 2.54, z, 2.15, .27, .008);
@@ -277,6 +304,11 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   sign(4, .016, 3.6, depth / 2, Math.PI / 2, 12);
   sign(5, width - .016, 3.6, depth / 2, -Math.PI / 2, 12);
   for (const s of map.structures ?? []) {
+    if (s.id === 'pump-channel') {
+      // Existing MAINTENANCE atlas, scaled into the retaining face.
+      for (const x of [50, 100]) sign(7, x, -1.15, 68.416, 0, 3.5);
+      continue;
+    }
     const x = (s.footprint.minX + s.footprint.maxX) / 2;
     sign(x < width / 2 ? 4 : 5, x, 3.6, s.footprint.minZ - .016, Math.PI, 5);
     // The central window's lintel is only .37m high: keep text inside it.

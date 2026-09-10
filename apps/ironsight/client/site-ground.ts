@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { terrainGeometry } from './terrain-geometry.js';
+import { terrainGeometry, exteriorApronGeometry } from './terrain-geometry.js';
 import type { MapDef } from '../src/map/types.js';
 import { buildRelayApronGeometry } from './relay-apron.js';
 import { finishRelaySurface, relayGroundTexture, updateRelayGroundTexture } from './relay-surfaces.js';
@@ -90,6 +90,16 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.restore();
   }
   if (switchyard) paintSwitchyardServiceWear(ctx, map);
+  if (undertow && map.terrain) {
+    const c = map.terrain.cut;
+    ctx.save(); ctx.scale(sx, sz);
+    // A stained, drained channel floor. Paint is in the existing packed atlas;
+    // no water surface, transparent overlay or invisible sight obstruction.
+    ctx.fillStyle = '#4d5346'; ctx.fillRect(c.minX, c.minZ, c.maxX-c.minX, c.maxZ-c.minZ);
+    ctx.fillStyle = '#353d36';
+    for (const z of [c.minZ+.55,c.maxZ-.7]) ctx.fillRect(c.minX+8,z,c.maxX-c.minX-16,.15);
+    ctx.restore();
+  }
   for (const box of map.boxes) {
     if (map.terrain?.boxes.includes(box)) continue;
     if (map.signalCore?.doors.includes(box)) continue; // No baked shadow from retractable cover.
@@ -145,9 +155,9 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   floor.userData.siteGround = true;
   floor.name = `${map.presentation ?? 'site'}-ground`;
   scene.add(floor);
-  const apron = new T.Mesh(relay ? buildRelayApronGeometry(map.bounds) : new T.PlaneGeometry(map.bounds.width + 120, map.bounds.depth + 120),
+  const apron = new T.Mesh(relay ? buildRelayApronGeometry(map.bounds) : map.terrain ? exteriorApronGeometry(map) : new T.PlaneGeometry(map.bounds.width + 120, map.bounds.depth + 120),
     new T.MeshStandardMaterial({ color: relay ? 0xffffff : undertow ? 0x60655c : switchyard ? 0x62665d : wet ? 0x52686c : 0x818b88, vertexColors: relay, roughness: 0.98 }));
-  if (!relay) { apron.rotation.x = -Math.PI / 2; apron.position.set(map.bounds.width / 2, -0.03, map.bounds.depth / 2); }
+  if (!relay && !map.terrain) { apron.rotation.x = -Math.PI / 2; apron.position.set(map.bounds.width / 2, -0.03, map.bounds.depth / 2); }
   apron.userData.siteGround = true;
   apron.name = `${map.presentation ?? 'site'}-apron`;
   apron.receiveShadow = true; scene.add(apron);
