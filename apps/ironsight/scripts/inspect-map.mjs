@@ -541,13 +541,16 @@ try {
             throw Error(`Switchyard ${kind} finish or panel coordinates missing: ${JSON.stringify(detail.switchyard)}`);
       }
     }
-    if (!gameplay && !name.startsWith('menu') && !name.startsWith('undertow-') && !name.startsWith('switchyard-') && report?.uplinks) {
+    // Generic role/contrast fixtures can select a map through the base URL.
+    // Validate the rendered map, rather than assuming every generic name is Relay.
+    const inspectedSite = report?.siteGround?.find(g => g.name.endsWith('-ground'))?.name;
+    if (!gameplay && !name.startsWith('menu') && inspectedSite === 'relay-ground' && report?.uplinks) {
       if (!assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)
         throw Error('Relay uplinks not loaded');
       if (report.uplinks.some(p => p.max[2] >= 0 || Math.abs(p.min[1]) > 0.001 || p.triangles > 5000))
         throw Error('Relay uplink exceeds exterior geometry budget');
     }
-    if ((name.startsWith('undertow-') || name.startsWith('switchyard-') || name === 'practice-two' || name === 'practice-three') && assetRequests.some(p => p.includes('relay-uplink')))
+    if ((inspectedSite === 'undertow-ground' || inspectedSite === 'switchyard-ground' || name.startsWith('undertow-') || name.startsWith('switchyard-') || name === 'practice-two' || name === 'practice-three') && assetRequests.some(p => p.includes('relay-uplink')))
       throw Error('Relay uplinks loaded on another map');
     if (name.startsWith('switchyard-')) {
       for (const required of ['/assets/maps/switchyard-architecture.glb', '/assets/maps/switchyard-ground-ao.png', '/assets/props/switchyard-transformer.glb'])

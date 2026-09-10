@@ -1,15 +1,17 @@
 ﻿import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
+import { UNDERTOW_FINISH } from './undertow-palette.js';
 
 /** Original reclamation kit. The complete box envelope remains visibly solid;
  * turbine faces/windows are flush cladding, never holes or new playable cover.
  * Pipes, basin and skyline equipment live outside the movement rectangle. */
 export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const { width, depth } = map.bounds;
-  const colors = [0x96b3aa, 0x5c7b82, 0x283e48, 0xd7d5bb, 0x648e79, 0xd6a35b, 0x9cdbd2];
-  const mats = colors.map((color, i) => i === 6 ? new T.MeshBasicMaterial({ color })
-    : new T.MeshStandardMaterial({ color, roughness: i === 2 ? 0.66 : 0.86, metalness: i === 2 ? 0.25 : 0.05 }));
+  const mats: T.Material[] = ['concrete', 'housing', 'steel', 'pale', 'olive', 'ochre']
+    .map(key => new T.MeshStandardMaterial(UNDERTOW_FINISH[key as keyof typeof UNDERTOW_FINISH]));
+  // Small existing lamp strips read as sodium-lit fittings. No actual light.
+  mats.push(new T.MeshBasicMaterial({ color: 0xd3c5a3 }));
   const batches = new Map<string, T.Matrix4[]>();
   const unit = new T.BoxGeometry(1, 1, 1), cylinder = new T.CylinderGeometry(0.5, 0.5, 1, 16);
   const add = (material: number, x: number, y: number, z: number, w: number, h: number, d: number, round = false, rx = 0, rz = 0, ry = 0) => {
@@ -198,8 +200,8 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   const labels = ['A / WEST CONTROL', 'B / PUMP HALL', 'C / EAST CONTROL', 'UNDERTOW / 02',
     'WEST DECK', 'EAST DECK', 'CLARIFIER ROUTE', 'MAINTENANCE'];
   labels.forEach((label, i) => {
-    ctx.fillStyle = '#203b43'; ctx.fillRect(0, i * 128, 1024, 128);
-    ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#8ad4bd' : '#e9b567';
+    ctx.fillStyle = '#303b39'; ctx.fillRect(0, i * 128, 1024, 128);
+    ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#a6b7a0' : '#d1b47d';
     ctx.fillRect(18, i * 128 + 22, 10, 84);
     ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial'; ctx.fillText(label, 52, i * 128 + 83);
   });

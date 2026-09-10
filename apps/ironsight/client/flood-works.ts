@@ -27,23 +27,23 @@ export class FloodWorks {
       g.setAttribute('color',new T.BufferAttribute(values,3));parts.push(g);
     };
     const batch = () => {const g=mergeGeometries(parts);for(const p of parts)p.dispose();parts.length=0;return g;};
-    const metal = new T.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:.15});
+    const metal = new T.MeshStandardMaterial({vertexColors:true,roughness:.89,metalness:.15});
     for(const x of [-14,14]) {
-      box(x,1,-7,13,2,6,0x263d46);
+      box(x,1,-7,13,2,6,0x3c4441);
       for(const side of [-1,1]) {
-        box(x+side*5.7,11.5,-7,1.4,23,3,0xb0c1b8);
-        box(x+side*5.7,11.5,-5.45,.36,21,.15,0x45656a);
+        box(x+side*5.7,11.5,-7,1.4,23,3,0x939688);
+        box(x+side*5.7,11.5,-5.45,.36,21,.15,0x657166);
       }
-      box(x,23,-7,13,1.5,4,0x334e58);
-      box(x,23.85,-6.9,8,.2,3.4,0xd6a35b);
-      box(x,13,-8,10,.65,2,0x263d46);
-      for(const side of [-1,1])box(x+side*3.3,24.5,-7,1.2,1.8,1.5,0x648e79);
+      box(x,23,-7,13,1.5,4,0x4e5953);
+      box(x,23.85,-6.9,8,.2,3.4,0x99815c);
+      box(x,13,-8,10,.65,2,0x3c4441);
+      for(const side of [-1,1])box(x+side*3.3,24.5,-7,1.2,1.8,1.5,0x656c59);
     }
     this.root.add(new T.Mesh(batch(),metal));
-    box(0,7,-7,9.8,10,1,0x45656a);
-    for(const y of [2.5,4.5,6.5,8.5,10.5])box(0,y,-6.35,9.9,.38,.4,0x91aaa8);
-    box(0,11.5,-6.25,9.9,.7,.5,0xd6a35b);
-    for(const x of [-3.9,3.9])box(x,7,-6.1,.25,8.5,.2,0x263d46);
+    box(0,7,-7,9.8,10,1,0x657166);
+    for(const y of [2.5,4.5,6.5,8.5,10.5])box(0,y,-6.35,9.9,.38,.4,0x92998a);
+    box(0,11.5,-6.25,9.9,.7,.5,0x99815c);
+    for(const x of [-3.9,3.9])box(x,7,-6.1,.25,8.5,.2,0x3c4441);
     this.gates=new T.InstancedMesh(batch(),metal,2);this.gates.frustumCulled=false;this.root.add(this.gates);
     for(const x of [-14,14])box(x,23,-4.96,7,.23,.03,0xffffff);
     this.pilots=new T.Mesh(batch(),new T.MeshBasicMaterial({color:0x80d5dc}));this.root.add(this.pilots);
@@ -51,7 +51,7 @@ export class FloodWorks {
     // silhouette or water inside the combat rectangle. Per-instance colour is
     // created now, before the shared preparation pass compiles the material.
     const sheet=new T.BoxGeometry(1,1,1),tint=new Float32Array(sheet.getAttribute('position').count*3);
-    const top=new T.Color(0x669ca6),bottom=new T.Color(0xa9cfcd),color=new T.Color();
+    const top=new T.Color(0x788f8b),bottom=new T.Color(0xb1c1b4),color=new T.Color();
     for(let i=0;i<sheet.getAttribute('position').count;i++) {
       color.copy(bottom).lerp(top,sheet.getAttribute('position').getY(i)+.5);
       tint.set([color.r,color.g,color.b],i*3);

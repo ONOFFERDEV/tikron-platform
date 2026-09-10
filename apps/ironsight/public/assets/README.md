@@ -1219,3 +1219,40 @@ The nine retained Blender review stills are reproduced by
 `blender --background --python .inspect/session83-assets-review.py`.
 Future adoption must pass the game rig/map inspectors and texture/draw/hitch
 budgets first. No raw Meshy or purchased-source binary was added to public.
+
+
+### Session 84 ? Undertow field finish
+
+`client/undertow-palette.ts` maps the original architecture's ten baked material
+slots and the procedural fallback to grey concrete, worn grey steel, faded olive
+and ochre paint. `undertow-surfaces.ts` reuses the resident metric normal/R8
+roughness pair for aggregate, ledge runoff, form-tie rust, paint wear and damp
+silt. Ground wetness still comes from the original RG8 mask and reflects the
+existing dusk environment. All rendering is opaque in the existing pass.
+
+`relay-weathering.ts` is shared as the static panel-height preparer: it expands
+shared corners while preserving the rendered positions/normals/AO UVs. Original
+parent accessors are respected if a bake has subdivision metadata. The existing
+FloodWorks metal body and moving gates share these detail textures and retain
+their existing draws; wear moves with each gate. No new light, texture image,
+collision volume, per-frame bake or purchased derivative is introduced. Buffer
+memory, first-load measurements and matching screenshots are in Session84's log.
+
+Reproduce with `pnpm build:client`. Update the original deployment screenshot:
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista --write-vista`.
+Asset loading remains per map. The source architecture GLB and AO images are
+unchanged. Generated equipment candidates stay outside public until fitted and
+accepted; the programme accounting and dispositions are in AAA-PLAN.md.
+
+Session84 generated two inspection-only candidates for60credits (account1440 ->
+1380; programme1150credits remaining). Both are rejected: `field-plate-carrier`
+has folded/warped shoulder edges and faceted pouches; `field-chest-panel` ignored
+the isolated panel request and generated another crumpled full vest. Sources,
+exact prompts, task IDs and balance receipts live under
+`.inspect/session84-meshy/<slug>/meta.json`. Raw models are6171356/6651012bytes;
+512px WebP shrinks are166320/230444bytes and2468/3550triangles. Neither enters
+public or the purchased rig. Reproduce requests with `tools/meshy-generate.mjs`
+using the metadata's prompt/texture_prompt and2500/3500polycount respectively,
+`--out .inspect/session84-meshy` (consumes credits, nondeterministic). Shrink with
+`tools/shrink-glb.py --input <dir>/model.glb --output <dir>/shrunk.glb --size 512 --webp`
+under Blender4.5. Review: `blender --background --python .inspect/session84-assets-review.py`.

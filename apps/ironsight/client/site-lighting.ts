@@ -9,6 +9,7 @@ import { waitForSiteGround } from './site-ground.js';
 import { siteAtmosphere } from './site-atmosphere.js';
 import { RELAY_FINISH, relayBakedFinish } from './relay-palette.js';
 import { applyRelayWeathering, type RelayWeatherSource } from './relay-weathering.js';
+import { UNDERTOW_FINISH, undertowBakedFinish } from './undertow-palette.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
@@ -17,7 +18,7 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
     new GLTFLoader().loadAsync(`/assets/maps/${name}-architecture.glb`), waitForSiteGround(scene),
   ]);
   const weatherSources = new Map<T.Mesh, RelayWeatherSource>();
-  if (name === 'relay') {
+  if (name === 'relay' || name === 'undertow') {
     const pending: Promise<void>[] = [];
     gltf.scene.traverse(node => {
       if (!(node instanceof T.Mesh)) return;
@@ -90,13 +91,23 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
           finishSwitchyardSurface(node.material, kind);
           return;
         }
-        const concrete = node.material.metalness < 0.1 && node.material.roughness >= 0.9;
-        // The baked Undertow kit batches by authored material, including ramp
-        // variants 6-9. Pale caps and coloured plant trim are coated, not concrete.
-        const wetConcrete = undertow && /^undertow-(0|5|[6-9])$/.test(node.material.name);
-        applyConcreteDetail(node, detail, undertow ? wetConcrete ? 0.085 : 0.035 : concrete ? 0.22 : 0.07);
-        if (undertow) finishUndertowSurface(node.material, wetConcrete ? 'concrete' : 'coated');
+        if (undertow) {
+          const finish = undertowBakedFinish(node.material.name);
+          if (finish) node.material.setValues(UNDERTOW_FINISH[finish]);
+          const concrete = finish === 'concrete' || finish === 'housing' || finish === 'ramp';
+          applyConcreteDetail(node, detail, concrete ? 0.085 : 0.025);
+          // Share Relay's authored-panel preparation, including parent accessors
+          // if this original bake is subsequently subdivided for vertex wear.
+          applyRelayWeathering(node, weatherSources.get(node));
+          finishUndertowSurface(node.material, concrete ? 'concrete' : 'coated');
+        }
       }
+    });
+    if (undertow) scene.getObjectByName('undertow-pressure-drop')?.traverse(node => {
+      if (!(node instanceof T.Mesh) || !(node.material instanceof T.MeshStandardMaterial)) return;
+      applyConcreteDetail(node, detail, 0.025);
+      applyRelayWeathering(node);
+      finishUndertowSurface(node.material, 'coated');
     });
     for (const floorName of [`${name}-ground`, `${name}-apron`]) {
       const floor = scene.getObjectByName(floorName);
