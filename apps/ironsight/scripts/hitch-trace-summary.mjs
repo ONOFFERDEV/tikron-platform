@@ -19,10 +19,14 @@ async function* entries() {
   }
 }
 let marker, endMarker, count=0, earliest=Infinity,latest=-Infinity;
-const threads = new Map(), processes = new Map();
+const threads = new Map(), processes = new Map(), threadRanges = new Map();
 for await(const e of entries()) {
   count++;
   if(e.ph!=='M'&&e.ts>0){earliest=Math.min(earliest,e.ts);latest=Math.max(latest,e.ts+(e.dur??0));}
+  if(e.ph==='X' && e.name==='ThreadControllerImpl::RunTask') {
+    const key=`${e.pid}:${e.tid}`, range=threadRanges.get(key)??{first:Infinity,last:-Infinity};
+    range.first=Math.min(range.first,e.ts);range.last=Math.max(range.last,e.ts+(e.dur??0));threadRanges.set(key,range);
+  }
   if(e.name==='ironsight-hitch-start')marker=e;
   if(e.name==='ironsight-hitch-end')endMarker=e;
   if(e.ph==='M') {
@@ -33,6 +37,9 @@ for await(const e of entries()) {
 if(!marker && endMarker && Number.isFinite(probe.summary.traceEndElapsedMs))
   marker={...endMarker,ts:endMarker.ts-probe.summary.traceEndElapsedMs*1000};
 if (!marker) throw Error('Missing trace clock anchor');
+// Long background tasks may begin before a rolling buffer's retained records.
+// Their old timestamps do not prove the game renderer's window survived.
+const rendererRange=threadRanges.get(`${marker.pid}:${marker.tid}`);
 const intervals=probe.frames.map(f=>({end:marker.ts+f.t*1000,start:marker.ts+(f.t-f.dt)*1000}));
 const events=[];
 for await(const e of entries())if(intervals.some(w=>e.ts<w.end+10000&&e.ts+(e.dur??0)>w.start-10000))events.push(e);
@@ -43,12 +50,13 @@ const windows = probe.frames.map(f => {
   const overlap = complete.filter(e => e.ts < end && e.ts + e.dur > start);
   const top = overlap.map(e => ({ thread: label(e), name: e.name,
     startMs: +((e.ts - marker.ts) / 1000).toFixed(3), durationMs: +(e.dur / 1000).toFixed(3),
+    cpuMs:e.tdur===undefined?undefined:+(e.tdur/1000).toFixed(3),
     overlapMs: +((Math.min(end, e.ts + e.dur) - Math.max(start, e.ts)) / 1000).toFixed(3), args: e.args }))
     .sort((a,b) => b.overlapMs - a.overlapMs).slice(0, 25);
   const rendererTasks = overlap.filter(e => e.pid === marker.pid && e.tid === marker.tid && e.name === 'ThreadControllerImpl::RunTask');
   const frameSignals = events.filter(e => e.ts >= start - 10000 && e.ts <= end + 10000 && /BeginFrame|DrawFrame|SwapBuffers|AnimationFrame|PipelineReporter/.test(e.name))
     .map(e => ({ thread:label(e),name:e.name,phase:e.ph,tMs:+((e.ts-marker.ts)/1000).toFixed(3),durationMs:(e.dur??0)/1000,args:e.args }));
-  return { ...f,traceCoversWindow:start>=earliest&&end<=latest,
+  return { ...f,traceCoversWindow:start>=earliest&&end<=latest&&!!rendererRange&&start>=rendererRange.first&&end<=rendererRange.last,
     rendererTaskMs: rendererTasks.reduce((n,e) => n + (Math.min(end,e.ts+e.dur)-Math.max(start,e.ts))/1000,0), top, frameSignals };
 });
 const result = { marker, events:count, retainedEvents:events.length, threads:[...threads], windows };

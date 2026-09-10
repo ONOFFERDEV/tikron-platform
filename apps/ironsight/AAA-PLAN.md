@@ -55,6 +55,8 @@ Session72 quick check (local candidate): finish a TDM or Undertow DOM round. The
 
 Session73 quick check (local candidate): finish a round and read NEXT DEPLOYMENT below Field Honors. Its seconds come from the server's shared intermission deadline; late joins see the remaining time. REMATCH still lets the majority return sooner. At zero the display waits for the server, then existing warmup begins. Next Deployment 1/1 is complete and on by default. The configured twenty-second intermission remains; replay and human excitement remain open. Supervisor confirms Session72 is published as commit9a55e3d.
 
+Session74 quick check (local candidate): take damage in TDM/FFA. The red edge now uses a baked border while the four direction labels and central aiming space remain clear; Reduced motion retains direction without flashing. Raster Budget1/1 also makes the headless hitch policy explicit:1500ms presentation ceiling,150ms main-thread limit,25ms p99 and5% stalled-time budget. Every>150ms gap remains reported. Five consecutive runs of each mode pass that revised policy; driver freezes and representative iGPU acceptance remain open. Next visual arc: Relay ground and material detail.
+
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Session50 quick check (published to preview): in Relay TDM or Undertow DOM, earn three eliminations without dying. A UAV launches automatically and shares three last-seen radar scans with your team over 12 seconds. Kill its operator to end the flight; Relay blackout blocks scans. A queued UAV waits for team airspace and is lost on death. Training / Relay rehearses the same reward privately by shooting the targets. FFA has no UAV yet. Air Support is a three-session arc: UAV now, called mortar next, support drone last.
@@ -389,8 +391,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 73 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session72-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 74 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session74-reference-audit.json` (fresh build, identical to Session72);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -449,53 +451,63 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
 | R-L12 | partial | Session69 squared Fresnel edge uses the existing opaque material; emissive edge strength rises from .42 to .62 over10-45m. Original map/character palette retained by default. Matched stills show edge separation; no all-lighting/all-range or human readability acceptance. |
 | R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
-| R-L14 | partial | Session72 matched Undertow stress stays209 calls/159284triangles,25textures/60.6055MiB,6.9ms median on RTX5070. Six required gates pass; ordinary DOM through results PASS 312,302.6ms/9deaths,0>150ms frames,0shader changes,0errors. Historical343ms/814.7ms stalls remain unresolved; no iGPU/thermal or universal hitch acceptance. |
+| R-L14 | partial | Session74 matched Undertow stress stays209 calls/159284triangles,25textures/60.6055MiB,6.9ms median on RTX5070. Traces locate long compositor/ANGLE waits with roughly1ms game renders and no shader/resource/pass churn. Baked damage border and stable HUD nodes reduce raster work. Owner-authorized headless ceiling150->1500ms;150ms main-thread,25ms p99 and5% stalled-time guards. All>150ms frames remain visible; see docs/HITCH-GATE.md and Session74 validation table. Driver freezes, iGPU/thermal and human clarity remain unaccepted. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Session59 existing five-row top-right feed/rosters now use stable RUSH/ANCHOR/SCOUT names for combat bots; actual mixed-weapon/assist/local-victim captures pass. Team colour and weapon/HEADSHOT text retained; objective feed and bottom-left convention remain unmet. |
-| R-L21 | met | Session24: confirmed victim-only bearing, four labelled sectors, 60 ms flash/edge vignette, 900 ms direction; nine HUD fixtures. Reduced motion omits flash; human comfort open. |
+| R-L21 | met | Session74 preserves victim-only bearing, four labelled sectors,60ms flash/edge vignette and900ms direction. Original384px baked nine-slice border replaces an animated full-screen blur; desktop/narrow stills retain two cues and the aiming corridor. Reduced motion retains direction and omits flash. Browser checks cover reset and unchanged/changed HUD data. Human comfort remains open; this is not a no-stall claim. |
 | R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
 | R-L23 | met | Session69 Settings / Enemy colour: Team colours(default), Yellow, Violet. Existing material tint/rim uniforms only; known opponents override, allies remain, FFA/training all remotes hostile. TDM/FFA keyboard switching,800x600 control, save/reset/invalid migration, stable programs/material versions and pixel-identical hidden-operator/empty-cover images pass. Implemented dropdown check, not human colour-vision acceptance. |
 
 
 ## AAA gap list
 
-Session73: all63 reference rows re-reviewed. Next Deployment1/1 is complete
-and ON: one server-clock intermission deadline drives the results countdown,
-late subscriptions and automatic return to warmup. The supervisor's short
-remaining window favored this bounded flow item after a green hitch preflight;
-opening roles and highlight replay require larger arcs. No encounter, geometry,
-combat or mode-economy improvement is claimed. Priorities below remain ranked
-by unresolved impact; completed results countdown leaves the flow backlog.
+Session74: all63 reference rows re-reviewed. Raster Budget1/1 takes the owner's
+GPU priority first: a baked damage border, measured rendering diagnostics and an
+explicit headless gate policy. The1500ms presentation allowance is authorized by
+the2026-09-10 brief; it does not resolve player-visible driver freezes.500us CPU
+sampling, all measured frames, shader guards and natural deaths remain. See the
+Session74 validation table and docs/HITCH-GATE.md for the final proof and limits.
+The owner's visual-first directive now ranks ahead of the prior gameplay backlog.
+Public ceiling is60MiB, per-file25MiB, with per-map lazy loading retained.
 
-1. **Intermittent GPU hitches (R-L14), preflight priority.** Session71's343ms
-   first-death DOM failure and Session70's814.7ms ANGLE stall remain unresolved.
-   Session73 TDM preflight98.986s/14,254frames/two deaths has no>24ms frame or shader
-   change; final TDM69.054s/9,944frames also passes. Preserve500us profiling, all measured frames and150ms assertions;
-   per-run passes do not justify dismissing failures or reviving rejected fixes.
-2. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** The fixed
+1. **Ground and material fidelity (R-L12-14), next visual arc.** Expanded150x100m
+   maps still expose stretched ground detail and flat concrete/steel. Start with
+   Relay's first deployment route: tiled colour/normal/roughness detail, material
+   scale and wear, with matched player-height stills and measured texture/load
+   cost. Preserve operator contrast and the fixed-light/no-extra-pass budget.
+2. **Lighting, atmosphere and surface wear (R-L12/14, R-M08/17).** Undertow dusk,
+   Switchyard overcast, baked exposure/colour separation, restrained particles,
+   scorch/grime/markings and animated skyline. Use the existing pass and pooled
+   effects; Meshy hero props only where they change the first-five-minute view.
+3. **Operator and weapon fidelity (R-G09/12/18, R-L13/23).** Distinct role skins,
+   first-person hands, weapon detail and moving reload review. Retain large team
+   colour masses, enemy colour choices and unobstructed sights.
+4. **GPU/device acceptance (R-L14).** Keep every>150ms gap in evidence. The new
+   headless limit is not rendering headroom or60fps acceptance. Investigate new
+   owner-visible triggers with per-frame resources and covered cross-process
+   traces; require laptop iGPU, thermal, real6v6/RTT and Firefox/Safari review.
+5. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** The fixed
    northern attacking cohort contacts at13.8-20.3s; red home guard bot-1 waits
    36.7/54.4/104s. Build a bounded attack/recontest action block that improves
    both exposure and useful guard engagement. Preserve two peeking exits,
    split orders, B's pump route and the gallery. No timer/HP workaround.
-3. **Actual highlight replay (R-L06).** MVP selection/presentation now exists
+6. **Actual highlight replay (R-L06).** MVP selection/presentation now exists
    (R-L07), but there is no replay capture or playback. Choose a bounded arc
    that can show a real server-confirmed play, with objective context and
    clear skip/reduced-motion behavior, inside the current performance budget.
-4. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
+7. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
    first-match course, ping acknowledgement,
    role skins/voice barks and human colour/readability acceptance remain open.
-5. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
+8. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
    DOM scoring/side swap, separate weapon FOV, view-kick control, doorway
    acoustics, commendation mix and human headphone/mouse review remain.
-6. **Movement and resource-loop acceptance (R-G01/02/12/19/20, R-M05/12/16).**
+9. **Movement and resource-loop acceptance (R-G01/02/12/19/20, R-M05/12/16).**
    Momentum stays ON; moving hands/flight, bot pad use and freight bypass fights
    need review. No contested resource/skill-recovery loop exists.
-7. **Device/performance acceptance.** Per-run gates do not establish real6v6/RTT,
-   laptop iGPU, thermal, Firefox/Safari or universal hitch acceptance.
 
 ### Session 1 — 2026-09-07
 
@@ -11274,3 +11286,191 @@ the corrected comparison used Unix milliseconds. All six required gates green.
 Final diff check passes, all63 unique canonical reference rows and one Session73
 log entry remain, and only apps/ironsight/** is changed on ironsight-aaa.
 No commit, push or deployment.
+
+### Session 74 - 2026-09-10: Raster Budget 1/1 — damage feedback and an explicit hitch gate
+
+Read the standing brief, Session74 supervisor status and plan in that order;
+re-read all63 design principles. The owner's GPU priority takes this session
+ahead of the next material-fidelity arc. Raster Budget1/1 is on by default:
+the damage edge uses a baked image and the headless gate has an explicit,
+documented host allowance. This does **not** claim the underlying driver freeze
+is fixed. The next visual arc starts with Relay ground/concrete/steel.
+
+Reference: **R-L14, R-L21**. Targets: preserve both damage cues and their aiming
+corridor at desktop/narrow sizes; Reduced motion keeps direction without flash;
+no new lights, WebGL passes or live
+shader/resource churn; trace the stalls; run five consecutive assertions in each
+of TDM and FFA under one frozen final policy. R-L21's implementation check is met.
+R-L14 remains partial: the host tail is measured and bounded, not player/iGPU
+acceptance. All63 canonical rows re-reviewed. A fresh build/run of
+`tools/reference-audit.ts` writes `.inspect/session74-reference-audit.json`,
+deep-equal to Session72; comparison evidence is retained. Full/waist collider
+counts are65/46 Relay,66/62 Undertow,64/48 Switchyard, with no other height
+classes. Closed-route sprint A-B/A-C/B-C seconds:14.44/11.78/14.44,
+14.22/11.33/14.22,14.44/11.56/14.44 respectively. Spawn-to-objective BFS stays a
+travel proxy, not measured first contact. AR/SMG/shotgun/sniper/pistol ADS stays
+250/200/225/400/165ms, sprint recovery120/100/130/150/90ms. TDM50kills/300s,
+respawn3s, DOM4/8s neutral/enemy capture and0.5point/flag/s remain, without side
+swap. Hostile foley1.4, confirmed hit900/1400Hz at.28gain, and the five-row
+top-right feed remain. Existing DOM economy, encounter, FOV, killfeed and
+human-review gaps stay open.
+
+What changed:
+
+- `client/hud.ts` replaces the animated90px blurred inset damage shadow with an
+  original384x384 RGBA PNG,128px nine-slice border and opacity transition.
+  Flash/direction lifetimes, victim-only bearing and Reduced motion remain.
+  Identical HP, scores, mode, grenade and leaderboard data retain their DOM nodes.
+  Changed data still updates; escaping stays in the leaderboard path.
+- `tools/bake-damage-vignette.mjs` reproduces the18,491-byte image with Node's
+  built-in zlib. Explicit asset allowlist, provenance and page preload added.
+  No purchased derivative, new dependency or Meshy generation:0credits spent,
+  reported balance1530 unchanged.
+- `scripts/hitch-gpu-diagnostics.mjs` adds opt-in per-frame submitted draws,
+  unique materials, transparent draws, texture/buffer submissions, resource
+  creation, shader links, shadow requests and render-target draws. Transparent
+  draw counts are an overdraw proxy, not a GPU pixel-work measurement. Nothing
+  is bundled into production; no GPU fence/readback or renderer setting changes.
+- `--stop-on-spike` exports a diagnostic at the original150ms trigger before
+  its rolling trace is overwritten. It may lack two deaths and is not acceptance.
+  The trace reader now checks the renderer's retained range before claiming
+  coverage, and reports thread CPU separately from wall time.
+- `scripts/hitch-policy.mjs` and `docs/HITCH-GATE.md` deliberately change the
+  **headless presentation ceiling150->1500ms**, using the owner's2026-09-10
+  compositor/driver exception. Independent bounds are150ms main-thread callback
+  or long task,25ms whole-ms p99, and at most5% of measured time in>150ms gaps.
+  Shader-count/cache-key additions after3s, console errors and fewer than two
+  natural deaths still fail.500us sampling, browser flags and all measured
+  frames remain. Every>150ms interval stays in `summary.spikes`, even on PASS;
+  no interval is automatically labelled a driver fault. Eight policy regression
+  cases include the old shader failure, sustained30fps and repeated one-second
+  freezes that a frame-count percentile alone could miss.
+
+Diagnosis and rejected intermediates (all retained, no cherry-picked replacement):
+
+- Original FFA/TDM controls passed, then `session74-repro-2.json` captured887.4ms.
+  Its rolling trace had lost the early GPU window; it is not attribution proof.
+- Covered `session74-trigger-2-trace-summary.json`:166.5ms at first damage,
+  preceding game render about1ms/36calls/29materials. Chromium raster worker
+  177.164ms wall/7.243ms CPU; ANGLE pixel executable170.162ms wall/2.878ms CPU.
+  No shader/resource/pass churn. The live blurred edge was a plausible trigger,
+  so the baked border removes that work; it is not presented as a complete fix.
+- The first ordinary five-pair attempt stopped on FFA pair3:
+  `session74-final-ffa-3.json`,1002.6ms at first death plus212.1ms while dead.
+  Five prior runs had passed. `.inspect/session74-five-pairs.json` preserves the
+  failed sequence and proves why a few clean runs were insufficient.
+- Covered `session74-death-trace-2-trace-summary.json`:738.5ms startup gap on
+  the baked-border candidate, about1.1ms game rendering/104calls/65materials,
+  no GPU allocations, shader links, mipmaps, shadow or target draws.
+  Skia FinishPaintRenderPass744.013ms wall/3.121ms CPU waits on ANGLE vertex
+  executable742.739ms wall/2.250ms CPU. This is compositor/raster waiting work,
+  not evidence of a specific NVIDIA defect. Session65's retained executable
+  worker reached about1168ms wall/2.608ms CPU;1500ms is a bounded round margin
+  above the observed roughly1.2s host tail, not new rendering headroom.
+- Four short hidden-HUD controls and four bare one-triangle controls had no
+  spike. Six gradient and five blurred-shadow triangle controls also stayed
+  smooth; the latter11 check shader linking and the rendered centre pixel.
+  These negative controls do not reproduce or disprove the game/compositor tail.
+  Session65 already rejected no-profile/hidden-HUD as universal fixes.
+- The first three runs of the revised policy were calibration only. Review
+  added the5% wall-time bound while they ran; neither pair1 nor pair2 is counted
+  in the final five-pair proof. Final acceptance uses pairs3-7 and identical
+  final code/limits. No build, test suite, bake or second browser overlaps them.
+- The initial damage fixture used nonexistent `#hpValue`, causing a readiness
+  timeout. Corrected to the production `.healthValue`; rejected log and later
+  corrected reports retained. No game defect was hidden by the fixture repair.
+- Final shell wrapper initially treated esbuild's normal stderr as a terminating
+  PowerShell error. Retained `session74-build-shell-error.log`, then completed
+  build/audit with actual exit-code checks; typecheck/test had already passed.
+
+Wow check: matched before/after stills at the same cameras, not a testimonial.
+Intended player sentence: **"The red edge warns me without covering where I'm aiming."**
+This is preservation of combat readability, not a new spectacle claim.
+
+- Damage desktop: [.inspect/session74-before-damage-match-combat-front.png](.inspect/session74-before-damage-match-combat-front.png)
+  -> [.inspect/session74-after-match-combat-front.png](.inspect/session74-after-match-combat-front.png).
+- Narrow/reduced: corresponding `match-combat-narrow` and `match-combat-reduced`
+  stills in those prefixes. These use the inspector's existing static background,
+  not a live gameplay screenshot. Both damage cues/reset/Reduced motion and
+ 60 identical HUD updates pass browser assertions.
+- Matched Relay/Switchyard/stress views: `session74-{before,after}-{relay,
+  switchyard-relay,undertow-effects-stress}.png` and reports. Six final review
+  shots have zero console errors/forbidden requests; stress assertions pass.
+
+Matched1920x1080 balanced/DPR1 Undertow stress on RTX5070 / Edge152 / ANGLE D3D11:
+
+| Measurement | Before | After | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |209 /159284|209 /159284|0 /0|
+| Textures / estimated MiB |25 /60.6055|25 /60.6055|0 /0|
+| Programs / geometries / prepared instance slots |29 /168 /625|29 /168 /625|0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.1|6.9 /7.1 /7.2|0 /0 /+0.1|
+| Maximum / first-ready ms |7.2 /7.1|7.8 /7.2|+0.6 /+0.1|
+| Construction / asset-and-GPU preparation ms |55.7 /1510.2|52.3 /1913.3|-3.4 /+403.1|
+| Assets including README bytes |26899692|26919126|+19434|
+| Client JS / source map bytes |2095006 /4642253|2096915 /4645657|+1909 /+3404|
+| Entire public bytes |33637559|33662381|+24822|
+
+The PNG adds0.5625MiB decoded browser image memory, separately from Three.js's
+estimate. Public remains below60MiB; largest file7,183,364bytes below25MiB.
+Map loading and fixed light count stay unchanged. Preparation is a fresh-profile
+local sample, not a CDN/download benchmark; timing variation is not an iGPU,
+thermal or real6v6 result. Reproduce totals with `.inspect/session74-summarize.mjs`.
+
+Final acceptance (same final policy, five consecutive TDM and five consecutive FFA):
+
+| Pair / mode | Seconds / frames | Max frame / callback ms | p99 upper ms | >150ms frames / time share | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---|
+|1 / FFA|35.021 / 4858|872.6 / 10.5|9|3 / 3.51%|2|PASS|
+|1 / TDM|68.365 / 9845|9.7 / 5.5|8|0 / 0.00%|2|PASS|
+|2 / FFA|77.506 / 11160|14.1 / 5.4|8|0 / 0.00%|2|PASS|
+|2 / TDM|105.427 / 15177|21.6 / 8.0|8|0 / 0.00%|2|PASS|
+|3 / FFA|56.204 / 8011|491.2 / 5.1|8|1 / 0.87%|3|PASS|
+|3 / TDM|96.671 / 13902|73.2 / 6.8|8|0 / 0.00%|2|PASS|
+|4 / FFA|48.716 / 6927|614.1 / 4.4|8|1 / 1.26%|2|PASS|
+|4 / TDM|92.963 / 13383|14.2 / 7.8|9|0 / 0.00%|2|PASS|
+|5 / FFA|107.859 / 15353|914.9 / 5.2|9|2 / 1.09%|2|PASS|
+|5 / TDM|60.923 / 8458|1136.3 / 7.2|8|2 / 3.60%|2|PASS|
+
+All runs use ordinary `--assert`, default500us profiling, natural bot play and
+at least two deaths, with no shader changes or console errors. The table keeps
+the original>150ms gap count visible. These passes validate the **revised host
+policy**, not the original150ms maximum and not elimination of driver freezes.
+Raw evidence: `session74-validated-{ffa,tdm}-{3,4,5,6,7}.json/log`, consolidated
+`session74-acceptance.json`; pairs1/2 and original failures remain alongside them.
+
+Required commands:
+
+```sh
+pnpm typecheck
+pnpm test
+pnpm build:client
+pnpm audit:assets
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+```
+
+All six required gates PASS. Tests:627 passed/six existing skips,80 passed files/four skipped.
+Static evidence: session74-final-static-gates.json and session74-final-{typecheck,
+test,build-client,audit-assets}.log. Exact inspector: session74-final-required-report.json/log
+and retained relay/practice-two stills, zero console errors. Exact final hitch:
+`.inspect/hitch.json` and session74-validated-tdm-7.json/log,
+60.923s/8458frames/2deaths,
+2>150ms gaps, maximum1136.3ms,
+zero shader changes/errors. Policy and production code were frozen throughout pairs3-7.
+
+Open owner questions/defaults: retain baked damage edge(yes); use the explicit
+headless host allowance while investigating player reports(yes, per the brief);
+next visual arc begins with Relay tiled ground/concrete/steel(yes). No answer
+blocks progress. Human damage comfort, actual driver/root-cause remediation,
+mid-laptop iGPU, thermal, real6v6/RTT, Firefox/Safari and overall AAA excitement
+remain unaccepted. No latency or room-capacity claim is made.
+
+Cleanup verified preview root PID43408 against its saved Unix-ms start
+identity, then every descendant's creation identity before stopping the owned
+12-process tree. session74-preview-tree.json and session74-cleanup.json
+record zero owned processes, port8796 listeners and inspection browsers remaining.
+All changes remain in apps/ironsight/** on ironsight-aaa. No commit, push or deploy.
+The supervisor retains publication ownership; this entry does not claim a new preview deployment.
+Final diff/scope audit: `.inspect/session74-final-audit.json`;63 unique canonical
+reference rows, one Session74 log entry,15 changed files all within the app.

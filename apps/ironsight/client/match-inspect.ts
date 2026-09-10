@@ -88,6 +88,27 @@ export function startMatchInspector(): void {
   } else if (shot.startsWith('match-combat')) {
     const indicator = document.querySelector<HTMLElement>('#damage-direction')!;
     const flash = document.querySelector<HTMLElement>('#damage-flash')!;
+    const vignette = document.querySelector<HTMLElement>('#vignette')!;
+    checks.bakedDamageBorder = getComputedStyle(vignette).boxShadow === 'none'
+      && getComputedStyle(vignette).borderImageSource.includes('damage-vignette.png');
+    // Unchanged replicated values must retain their DOM nodes between frames.
+    // Replacing them can cause browser raster work even with no visible change.
+    const roster = [{ name: 'Stable <name>', k: 2, d: 1, isMe: true }];
+    hud.setLeaderboard(roster); hud.setHp(75); hud.setScores(24, 19); hud.setNades(2); hud.setMode(1);
+    const stableSelectors = ['#lb tbody tr', '#hp .healthValue', '#scores .r', '#mode', '#wbar .nades'];
+    const stableNodes = stableSelectors.map(selector => document.querySelector(selector)?.firstChild);
+    for (let i = 0; i < 60; i++) {
+      hud.setLeaderboard(roster); hud.setHp(75); hud.setScores(24, 19); hud.setNades(2); hud.setMode(1);
+    }
+    checks.stableHudNodes = stableSelectors.every((selector, i) => {
+      const node = document.querySelector(selector)?.firstChild;
+      return !!node && node === stableNodes[i];
+    });
+    hud.setLeaderboard([{ ...roster[0]!, k: 3 }]); hud.setHp(25); hud.setScores(25, 20); hud.setNades(1);
+    checks.changedHudValues = document.querySelector('#lb tbody tr td:nth-child(3)')!.textContent === '3'
+      && document.querySelector('#hp .healthValue')!.textContent === '25'
+      && document.querySelector('#scores .r')!.textContent === '25';
+    hud.setHp(100); hud.setNades(0);
     const hitTime = performance.now();
     for (const [bearing, direction] of [[0, 'front'], [Math.PI / 2, 'right'], [Math.PI, 'back'], [-Math.PI / 2, 'left']] as const) {
       hud.showDamageDirection(bearing); hud.update(hitTime);
@@ -105,6 +126,7 @@ export function startMatchInspector(): void {
     checks.damageReduced = getComputedStyle(flash).display === 'none' && indicator.style.opacity === '1';
     hud.clearDamage(); hud.update(performance.now());
     checks.damageReset = indicator.style.opacity === '0' && flash.style.opacity === '0';
+    checks.damageBorderReset = vignette.style.opacity === '0';
     // Exercise production HUD lifetime, escaping and capacity before freezing the review sample.
     const feed = document.querySelector('#feed')!;
     const confirm = document.querySelector<HTMLElement>('#elimination')!;

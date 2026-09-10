@@ -5,10 +5,15 @@
 // CPU sampling remains on by default. --no-profile is a diagnostic control;
 // --trace adds cross-process tracing and --diagnostic-timing records callback /
 // heartbeat timings. These controls do not replace the ordinary acceptance run.
+// --gpu-diagnostics records submissions/materials/resources around slow frames.
+// --stop-on-spike exports before the rolling trace loses an early stall; this
+// short diagnostic may omit the two deaths and is NOT an acceptance run.
 //
-// --assert exits 1 when a shader program is compiled after warm-up (t > 3 s), when any frame
-// in the measurement exceeds 150 ms, or when fewer than two deaths happened (the probe must reach the
-// death/respawn path). Found the 2026-09-08 death hitch: hiding the viewmodel removed a
+// --assert uses the explicit policy in hitch-policy.mjs: >1500ms presentation,
+// >150ms main-thread work, p99 >25ms, >5% time in >150ms gaps, shader changes after 3s, errors or <2 deaths
+// fail. All >150ms presentation gaps remain in `spikes`, even on PASS. See
+// docs/HITCH-GATE.md for Session74's driver/compositor evidence and limitations.
+// Found the 2026-09-08 death hitch: hiding the viewmodel removed a
 // PointLight from the light count and recompiled every lit material (1,149 ms frame).
 import { spawn } from 'node:child_process';
 import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -16,6 +21,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { installGpuDiagnostics } from './hitch-gpu-diagnostics.mjs';
+import { assessHitch } from './hitch-policy.mjs';
 
 const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const base = positional[0] ?? 'http://localhost:8796';
@@ -30,6 +37,10 @@ const trace = process.argv.includes('--trace');
 // Preserve the original 500us CPU observer in acceptance and retain failures.
 const profileCpu = !process.argv.includes('--no-profile');
 const diagnosticTiming = process.argv.includes('--diagnostic-timing');
+const gpuDiagnostics = process.argv.includes('--gpu-diagnostics');
+// A diagnosis can export immediately after a spike so the rolling GPU trace
+// still contains it. Never used by acceptance: early export may omit deaths.
+const stopOnSpike = process.argv.includes('--stop-on-spike');
 const traceCategories = process.argv.find(a => a.startsWith('--trace-categories='))?.slice(19)
   ?? 'toplevel,cc,viz,devtools.timeline,blink.user_timing';
 let traceComplete;
@@ -89,6 +100,19 @@ try {
   if (profileCpu) await send('Profiler.enable');
   // three.js hands every renderer to this hook on construction; it is the only supported way to reach it from outside the bundle.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__THREE_DEVTOOLS__ = new EventTarget(); window.__THREE_DEVTOOLS__.addEventListener('observe', e => { if (e.detail && e.detail.isWebGLRenderer) window.__renderer = e.detail; });` });
+  // Time actual animation callbacks as well as presentation intervals. A late
+  // BeginFrame must not hide a long app callback behind the platform allowance.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    const originalRaf=window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame=callback=>originalRaf(timestamp=>{
+      const begin=performance.now();
+      try { return callback(timestamp); } finally {
+        const p=window.__perf;
+        if(p && begin>=p.t0) p.maxCallbackMs=Math.max(p.maxCallbackMs,performance.now()-begin);
+      }
+    });
+  ` });
+  if (gpuDiagnostics) await send('Page.addScriptToEvaluateOnNewDocument', { source: `(${installGpuDiagnostics.toString()})()` });
   if (diagnosticTiming) await send('Page.addScriptToEvaluateOnNewDocument', { source: `
     window.__hitchTiming={callbacks:[],timers:[],visibility:[]};
     const nativeRaf=window.requestAnimationFrame.bind(window);
@@ -120,7 +144,9 @@ try {
   if (trace) await send('Tracing.start', { traceConfig: { includedCategories: traceCategories.split(','),
     recordMode: 'recordContinuously', traceBufferSizeInKb: 32768 }, transferMode: 'ReturnAsStream' });
   await evaluate(`(() => {
-    const P = window.__perf = { frames: [], long: [], events: [], frameCount: 0, t0: performance.now() };
+    const P = window.__perf = { frames: [], long: [], events: [], frameCount: 0,
+      frameHistogram: new Array(2002).fill(0), maxFrameMs: 0, maxCallbackMs: 0, t0: performance.now() };
+    window.__hitchGpu?.start();
     performance.mark('ironsight-hitch-start');
     const I = window.ironsight; let last = performance.now();
     let wasAlive = true, hp = 100, seen = new Set(), lastProgs = -1, phase; const seenKeys = new Map();
@@ -128,9 +154,12 @@ try {
     const snap = () => { const s = I.state(); const me = s.players[I.myId]; let d = Infinity, n = 0;
       for (const [id, p] of Object.entries(s.players)) { if (id === I.myId || !p.alive || !me) continue; const dd = Math.hypot(p.x - me.x, p.z - me.z); if (dd < d) d = dd; n++; if (dd < 25 && !seen.has(id)) { seen.add(id); P.events.push({ t: performance.now(), kind: 'enemy-near-first', id, d: Math.round(dd) }); } }
       return { me, d, n }; };
-    new PerformanceObserver(l => { for (const e of l.getEntries()) P.long.push({ t: Math.round(e.startTime), dur: Math.round(e.duration) }); }).observe({ entryTypes: ['longtask'] });
+    new PerformanceObserver(l => { for (const e of l.getEntries()) if(e.startTime>=P.t0)
+      P.long.push({ t: Math.round(e.startTime), dur: e.duration }); }).observe({ entryTypes: ['longtask'] });
     const loop = () => { const now = performance.now(); const dt = now - last; last = now;
       P.frameCount++;
+      P.frameHistogram[Math.min(2001,Math.ceil(dt))]++;
+      P.maxFrameMs=Math.max(P.maxFrameMs,dt);
       const { me, d, n } = snap(); const ri = I.renderInfo();
       if (I.state().phase !== phase) { phase = I.state().phase; P.events.push({ t: now, kind: 'phase', phase, seats: Object.keys(I.state().players).length }); }
       if (lastProgs >= 0 && ri.programs !== lastProgs) P.events.push({ t: now, kind: 'programs', from: lastProgs, to: ri.programs });
@@ -141,6 +170,7 @@ try {
         if (me.alive && me.hp < hp) P.events.push({ t: now, kind: 'damage', hp: me.hp, near: Math.round(d) });
         wasAlive = me.alive; hp = me.hp; }
       if (dt > 24) P.frames.push({ t: Math.round(now), dt: Math.round(dt * 10) / 10, alive: me?.alive, near: Math.round(d), enemies: n, programs: ri.programs, textures: ri.textures, geometries: ri.geometries,
+        gpu: window.__hitchGpu?.frames.filter(f => f.end >= now-dt-30).map(f => ({...f,t:f.t-P.t0,end:f.end-P.t0})),
         timing:window.__hitchTiming?{callbacks:window.__hitchTiming.callbacks.filter(c=>c.end>=now-dt-30).map(c=>({...c,start:c.start-P.t0,end:c.end-P.t0,timestamp:c.timestamp-P.t0})),
           timers:window.__hitchTiming.timers.filter(c=>c.t>=now-dt-30).map(c=>({...c,t:c.t-P.t0})),visibility:document.visibilityState}:undefined });
       requestAnimationFrame(loop); };
@@ -150,7 +180,7 @@ try {
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
   let yaw = 0, doneAt = Infinity, routeIndex = 0;
   const navigationSamples = [];
-  while (Date.now() - start < runMs && Date.now() < doneAt) {
+  gameplay: while (Date.now() - start < runMs && Date.now() < doneAt) {
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) {
       await delay(5500);
       break;
@@ -160,6 +190,10 @@ try {
     if (route.bounds.width > 60) {
       await key('w', 'KeyW', 87, 'keyDown');
       for (let step = 0; step < 9; step++) {
+        if (stopOnSpike && await evaluate('window.__perf.frames.some(f => f.dt > 150)')) {
+          await key('w', 'KeyW', 87, 'keyUp');
+          break gameplay;
+        }
         const me = await evaluate(`window.ironsight.state().players[window.ironsight.myId]`);
         if (me?.alive) {
           let goal = route.caps[routeIndex % route.caps.length];
@@ -189,7 +223,7 @@ try {
   }
   // Snapshot before exporting diagnostics: trace streaming can take seconds and
   // must not append unrelated export-time frames to a completed gameplay run.
-  const data = JSON.parse(await evaluate('JSON.stringify({...window.__perf,measurementMs:performance.now()-window.__perf.t0})'));
+  const data = JSON.parse(await evaluate('JSON.stringify({...window.__perf,gpu:window.__hitchGpu?.report(),measurementMs:performance.now()-window.__perf.t0})'));
   const prof = profileCpu ? (await send('Profiler.stop')).profile : {startTime:0,nodes:[],samples:[],timeDeltas:[]};
   let traceEndElapsedMs;
   if (trace) {
@@ -221,14 +255,18 @@ try {
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.dt > 150).map(rel);
-  const summary = { url: url.href, runMs, untilEnded, diagnostics: { profileCpu, trace, diagnosticTiming }, profilerSetupMs, traceEndElapsedMs,
-    measurementMs:data.measurementMs,measuredFrames:data.frameCount,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
+  const gate = assessHitch({ frames:data.frames.map(rel), frameHistogram:data.frameHistogram,
+    frameCount:data.frameCount,maxFrameMs:data.maxFrameMs,maxCallbackMs:data.maxCallbackMs,measurementMs:data.measurementMs,
+    longTasks:data.long,recompiles,deaths,errors,untilEnded,phase:finalState.phase });
+  const summary = { url: url.href, runMs, untilEnded, diagnostics: { profileCpu, trace, diagnosticTiming, gpuDiagnostics, stopOnSpike }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
+    measurementMs:data.measurementMs,measuredFrames:data.frameCount,gate,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
-  await writeFile(out, JSON.stringify({ summary, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
+  await writeFile(out, JSON.stringify({ summary, frameHistogram:data.frameHistogram, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
   console.log(JSON.stringify({ ...summary, events: undefined, worst: worst.slice(0, 3) }, null, 1));
   if (assert) {
-    const failed = recompiles.length > 0 || spikes.length > 0 || deaths < 2 || errors.length > 0 || (untilEnded && finalState.phase !== 'ended');
-    console.log(JSON.stringify({ hitchGate: failed ? 'FAIL' : 'PASS', deaths, recompiles: recompiles.length, spikes: spikes.length, errors: errors.length }));
+    const failed = gate.status === 'FAIL';
+    console.log(JSON.stringify({ hitchGate: gate.status, failures:gate.failures, limits:gate.limits,
+      deaths, recompiles: recompiles.length, framesOver150ms:spikes.length, errors: errors.length }));
     process.exitCode = failed ? 1 : 0;
   }
 } finally {

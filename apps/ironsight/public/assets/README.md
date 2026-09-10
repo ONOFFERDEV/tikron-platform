@@ -954,3 +954,22 @@ purchased derivative or generated binary. It follows the authoritative
 flush with the apron, with no baked shadow or permanent architecture at its spot.
 The overhead Session65 crane retains its original mesh and motion. Reproduce with
 `pnpm build:client`; no Blender re-bake or extra public asset file is needed.
+
+### Session 74: baked damage border
+
+`ui/damage-vignette.png` is an original 384 x 384 RGBA PNG, 18,491 bytes
+(589,824 decoded bytes, 0.5625 MiB). `tools/bake-damage-vignette.mjs` computes
+a deterministic rectangular soft falloff and writes PNG with Node's built-in
+zlib; no external art, purchased source, dependency or image service. Reproduce:
+
+```powershell
+node tools/bake-damage-vignette.mjs
+```
+
+The HUD uses 128-pixel nine-slice borders so edge width survives viewport changes.
+Only opacity animates. This replaces a full-screen animated inset box shadow,
+a plausible trigger for the first-damage raster stall in the Session74 trace.
+It does not eliminate the separately observed compositor/ANGLE stalls.
+The image preloads with the page. It is shared UI; per-map loading is unchanged,
+and no WebGL texture, light or render pass is added. Browser decoded image bytes
+are reported separately from Three.js's texture-residency estimate.

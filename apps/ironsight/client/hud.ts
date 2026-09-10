@@ -81,7 +81,7 @@ const css = `
 #hitmarker.show { opacity: 1; }
 #hitmarker i { position: absolute; width: 12px; height: 2px; left: -6px; top: -1px; background: #fff; box-shadow: 0 0 2px #000; }
 #hitmarker.head i { background: #ffd24a; box-shadow: 0 0 4px #ffae00; }
-#vignette { position: absolute; inset: 0; box-shadow: inset 0 0 90px 20px rgba(235,48,65,0); transition: box-shadow 120ms; }
+#vignette { position:absolute; inset:0; box-sizing:border-box; border:128px solid transparent; border-image:url('/assets/ui/damage-vignette.png') 128 fill stretch; opacity:0; transition:opacity 120ms; }
 #damage-flash { position:absolute; inset:0; background:rgba(235,48,65,.055); opacity:0; }
 #damage-direction { position:absolute; left:50%; top:50%; width:clamp(180px,30vmin,320px); height:clamp(180px,30vmin,320px); transform:translate(-50%,-50%); opacity:0; }
 #damage-direction .damage-mark { position:absolute; left:50%; top:0; transform:translateX(-50%); color:#ffb69e; text-align:center; font-size:10px; font-weight:800; letter-spacing:2px; text-shadow:0 1px 3px #000,0 0 4px #000; }
@@ -217,6 +217,7 @@ export class Hud {
   private readonly warmup: HTMLElement;
   private readonly lb: HTMLElement;
   private readonly lbBody: HTMLElement;
+  private leaderboardMarkup = '';
   private readonly caps: HTMLElement;
   private readonly capFills: HTMLElement[];
   private readonly feed: HTMLElement;
@@ -233,6 +234,9 @@ export class Hud {
   private readonly overlay: HTMLElement;
   private readonly wslots: HTMLElement[];
   private readonly nadeCount: HTMLElement;
+  private lastNades = NaN;
+  private lastHp = NaN;
+  private lastMode = NaN;
   private readonly settings: SettingsStore;
 
   private reloadStart = -1;
@@ -431,6 +435,8 @@ export class Hud {
   }
 
   setHp(hp: number): void {
+    if (hp === this.lastHp) return;
+    this.lastHp = hp;
     this.hpValue.textContent = String(Math.max(0, Math.ceil(hp)));
     const pct = Math.max(0, Math.min(100, hp));
     this.hpFill.style.width = `${pct}%`;
@@ -453,8 +459,8 @@ export class Hud {
   }
 
   setScores(red: number, blue: number): void {
-    this.scoreR.textContent = String(red);
-    this.scoreB.textContent = String(blue);
+    if (this.scoreR.textContent !== String(red)) this.scoreR.textContent = String(red);
+    if (this.scoreB.textContent !== String(blue)) this.scoreB.textContent = String(blue);
   }
 
   /** Highlight the held weapon's slot (index into {@link WEAPONS}). */
@@ -465,6 +471,8 @@ export class Hud {
 
   /** Update the carried grenade count badge. */
   setNades(n: number): void {
+    if (n === this.lastNades) return;
+    this.lastNades = n;
     this.nadeCount.innerHTML = `${T.nadeIcon} ${n}`;
   }
 
@@ -505,6 +513,8 @@ export class Hud {
   /** Uppercased active-mode label; also toggles the leaderboard vs team scores
    *  for a teamless mode (FFA, practice — see modes.ts's isTeamless). */
   setMode(modeIndex: number): void {
+    if (modeIndex === this.lastMode) return;
+    this.lastMode = modeIndex;
     const id = MODE_ORDER[modeIndex];
     this.modeLabel.textContent = id?.toUpperCase() ?? "";
     const teamless = id !== undefined && isTeamless(id);
@@ -570,9 +580,12 @@ export class Hud {
 
   /** Compact top-center k/d table (mode===1 only, toggled by setMode). */
   setLeaderboard(rows: { name: string; k: number; d: number; isMe: boolean }[]): void {
-    this.lbBody.innerHTML = rows
+    const markup = rows
       .map((r, i) => `<tr class="${r.isMe ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`)
       .join("");
+    if (markup === this.leaderboardMarkup) return;
+    this.leaderboardMarkup = markup;
+    this.lbBody.innerHTML = markup;
   }
 
   showHitmarker(head: boolean): void {
@@ -582,7 +595,7 @@ export class Hud {
 
   flashDamage(): void {
     this.vignetteAt = performance.now();
-    this.vignette.style.boxShadow = "inset 0 0 90px 20px rgba(235,48,65,0.65)";
+    this.vignette.style.opacity = '1';
     this.damageFlash.style.opacity = '1';
   }
 
@@ -595,7 +608,7 @@ export class Hud {
   clearDamage(): void {
     this.damageBearing = null; this.damageAt = this.vignetteAt = -1e9;
     this.damageIndicator.style.opacity = this.damageFlash.style.opacity = '0';
-    this.vignette.style.boxShadow = 'none';
+    this.vignette.style.opacity = '0';
   }
 
   private readonly quality = new ConnectionQuality();
@@ -737,7 +750,7 @@ export class Hud {
       }
     }
     if (now - this.hitAt > 90) this.hitmarker.className = "center";
-    if (now - this.vignetteAt > 60) this.vignette.style.boxShadow = "inset 0 0 90px 20px rgba(235,48,65,0)";
+    if (now - this.vignetteAt > 60) this.vignette.style.opacity = '0';
     if (now - this.streakAt > 1800) this.streak.style.opacity = "0";
     for (let i = this.kills.length - 1; i >= 0; i--) {
       const k = this.kills[i]!;
