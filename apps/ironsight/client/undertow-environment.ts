@@ -3,7 +3,9 @@ import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
 import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
-import { createPropLibrary } from './prop-library.js';
+import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { undertowCanalSurface, undertowSiteBoundary, undertowSiteSigns, undertowSiteSupplies } from './undertow-site.js';
 
 /** Original reclamation kit. The complete box envelope remains visibly solid;
  * turbine faces/windows are flush cladding, never holes or new playable cover.
@@ -156,18 +158,10 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
       add(6, x, 2.58, z + .007, 1.7, .028, .004);
     }
   }
-  // Boundary walls and their inset maintenance panels.
-  for (const z of [-0.45, depth + 0.45]) {
-    add(0, width / 2, 1.3, z, width + 1.8, 2.6, 0.9); add(2, width / 2, 2.7, z, width + 1.8, 0.2, 0.91);
-    for (let x = 3; x < width; x += 4) add(1, x, 1.4, z, 0.20, 2.8, 0.92);
-  }
-  for (const x of [-0.45, width + 0.45]) {
-    add(2, x, 2.6, depth / 2, 0.9, 5.2, depth);
-    for (let z = 3; z < depth; z += 5) {
-      add(1, x, 2.6, z, 0.91, 5.2, 0.24);
-      add(4, x, 3.4, z + 1.5, 0.92, 1.4, 2.5);
-    }
-  }
+  // Built plant mass replaces the thin enclosure. Exact full extents are
+  // audited outside the shared movement rectangle, including yawed roofs.
+  for (const p of undertowSiteBoundary(width, depth))
+    add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, 0, p.yaw);
   // Source-layout context anchors; outside offsets stay outside expanded bounds.
   const context: typeof add = (m, x, y, z, w, h, d, round, rx, rz, ry) => {
     const px = x < 0 ? x : x > 60 ? width + x - 60 : x / 60 * width;
@@ -218,11 +212,6 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   }
   context(5, 30, 6.4, -5, width * .65, 0.5, 1.2);
   for (let x = 12; x < 50; x += 3) context(2, x, 5.95, -5, 0.12, 0.7, 1);
-  for (const [x, z, w, h, d] of [[-10, 11, 12, 13, 18], [71, 26, 15, 17, 24], [18, 53, 22, 10, 14], [49, 55, 17, 14, 18]]) {
-    context(1, x!, (h! - 2.4) / 2, z!, w!, h! - 2.4, d!);
-    context(2, x!, h! - 1.2, z!, w! + 0.1, 2.4, d! + 0.1);
-    context(4, x!, h! + 0.7, z!, w! * 0.7, 1.4, d! * 0.6);
-  }
   // West = upright pale filter vessels; east = low amber service gantry.
   // Shape carries orientation even without colour. Share the baked kit's six
   // existing materials and atlas, and keep all extents outside the play volume.
@@ -276,10 +265,11 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const material = new T.MeshBasicMaterial({ map: texture });
+  const signParts: T.BufferGeometry[] = [];
   const sign = (label: number, x: number, y: number, z: number, yaw: number, width = 5.2) => {
     const geo = new T.PlaneGeometry(width, width / 8), uv = geo.getAttribute('uv');
     for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 7 - label) / 8);
-    const mesh = new T.Mesh(geo, material); mesh.position.set(x, y, z); mesh.rotation.y = yaw; scene.add(mesh);
+    geo.rotateY(yaw).translate(x, y, z); signParts.push(geo);
   };
   // Signs sit on actual solid faces, never on old blockout coordinates.
   for (const [label, cap] of [[0, map.caps.a], [2, map.caps.c]] as const) {
@@ -299,10 +289,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   // One label per face: the former site label overlapped CLARIFIER ROUTE.
   sign(4, 46, 2.35, 44.016, 0, 4);
   sign(5, width - 46, 2.35, 44.016, 0, 4);
-  sign(6, width / 2, 2.1, 0.016, 0, 5);
-  sign(7, width / 2, 2.1, depth - .015, Math.PI, 6);
-  sign(4, .016, 3.6, depth / 2, Math.PI / 2, 12);
-  sign(5, width - .016, 3.6, depth / 2, -Math.PI / 2, 12);
+  for (const s of undertowSiteSigns(width, depth)) sign(s.label, s.x, s.y, s.z, s.yaw, s.width);
   for (const s of map.structures ?? []) {
     if (s.id === 'pump-channel') {
       // Existing MAINTENANCE atlas, scaled into the retaining face.
@@ -314,27 +301,58 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     // The central window's lintel is only .37m high: keep text inside it.
     sign(7, x, 2.53, s.footprint.maxZ + .016, 0, 2.7);
   }
+  // One static sign draw, same opaque atlas and exact transformed vertices.
+  const signs = new T.Mesh(mergeGeometries(signParts)!, material);
+  signs.name = 'undertow-site-signs'; scene.add(signs);
+  signParts.forEach(geometry => geometry.dispose());
+}
+
+/** Exterior water uses the already loaded dusk environment. Opaque, static
+ * geometry/normals: no SSR, planar reflection pass, texture or animation. Add
+ * after the architecture fallback list is captured so cladding cannot replace
+ * it with a rough concrete finish. */
+export function buildUndertowCanalWater(scene: T.Scene, map: MapDef): void {
+  const p = undertowCanalSurface(map.bounds.width, map.bounds.depth);
+  const geometry = new T.PlaneGeometry(p.w, p.d, 100, 8);
+  geometry.rotateX(-Math.PI / 2).translate(p.x, p.y, p.z);
+  const positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal');
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i), z = positions.getZ(i);
+    const nx = .025 * Math.sin(x * 1.6 + z * .5), nz = .045 * Math.cos(x * .3 + z * 2.4);
+    const length = Math.hypot(nx, 1, nz);
+    normals.setXYZ(i, nx / length, 1 / length, nz / length);
+  }
+  const material = new T.MeshStandardMaterial({ color: 0x394941, roughness: .24, metalness: .22 });
+  const water = new T.Mesh(geometry, material);
+  water.name = 'undertow-canal-water'; water.receiveShadow = true;
+  scene.add(water);
 }
 
 /** Lazy, map-owned issued supplies. Their exact box colliders are present even
  * while loading or on failure; the procedural fallback is replaced only after
  * the whole detailed hierarchy is ready, before scene preparation/warm-up. */
-export async function loadUndertowSupplies(scene: T.Scene): Promise<void> {
+export async function loadUndertowSupplies(scene: T.Scene, map: MapDef): Promise<void> {
   const library = createPropLibrary();
+  const size = PROP_LIBRARY['ammo-crate-stack'].sizeM;
+  const placements = [
+    ...UNDERTOW_CRATES.map(b => ({ x: (b.min.x + b.max.x) / 2, y: b.min.y, z: (b.min.z + b.max.z) / 2,
+      w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z })),
+    ...undertowSiteSupplies(map.bounds.depth).map(p => ({ ...p, w: size[0], h: size[1], d: size[2] })),
+  ];
   const geometry = new T.BoxGeometry(1, 1, 1);
   const material = new T.MeshStandardMaterial({ color: 0x4c5140, roughness: .92 });
   const fallback = new T.Group(); fallback.name = 'undertow-supply-fallback';
-  for (const b of UNDERTOW_CRATES) {
+  for (const p of placements) {
     const mesh = new T.Mesh(geometry, material);
-    mesh.position.set((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2);
-    mesh.scale.set(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z);
+    mesh.position.set(p.x, p.y + p.h / 2, p.z);
+    mesh.scale.set(p.w, p.h, p.d);
     mesh.castShadow = mesh.receiveShadow = true; fallback.add(mesh);
   }
   scene.add(fallback);
   try {
-    const props = await Promise.all(UNDERTOW_CRATES.map(async b => {
+    const props = await Promise.all(placements.map(async p => {
       const root = await library.load('ammo-crate-stack');
-      root.position.set((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2);
+      root.position.set(p.x, p.y, p.z);
       root.traverse(node => { if (node instanceof T.Mesh) node.castShadow = node.receiveShadow = true; });
       return root;
     }));

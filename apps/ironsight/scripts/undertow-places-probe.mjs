@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 /** Live Worker traversal: ordinary movement, sprint, look and fire only. */
-export async function undertowPlacesProbe({ send, evaluate, delay, capture, record, east = false, channel = false }) {
+export async function undertowPlacesProbe({ send, evaluate, delay, capture, record, east = false, channel = false, site = false }) {
   const bundle = await build({ stdin: { contents: `
     import { ARENA2 } from './src/map/arena2.js';
     import { GroundNavigator } from './src/map/navigation.js';
@@ -19,7 +19,7 @@ export async function undertowPlacesProbe({ send, evaluate, delay, capture, reco
   });
   const snapshot = () => evaluate(`(() => { const I=window.ironsight; return {
     me:I.state().players[I.myId],camera:I.camPos(),movement:I.movementInfo()}; })()`);
-  const report = { east, channel, softThresholdM: soft, stages: [], samples: [],
+  const report = { east, channel, site, softThresholdM: soft, stages: [], samples: [], landings: [],
     note: `${channel ? 'Walk then sprint down both channel stairs, past pump baffles, under three bridges and across the central yard slab.' : 'Walk then sprint through both doors, up/down the internal ramp, along thin walls, onto the roof slab and off the south drop.'} Matched errors compare the same acknowledged command; raw lag is separate. No state/time/health/position injection.` };
   const started = Date.now(), point = p => east ? { ...p, x: 150 - p.x } : p;
   const travel = async (goal, sprint = false, ground = false) => {
@@ -43,16 +43,29 @@ export async function undertowPlacesProbe({ send, evaluate, delay, capture, reco
   const stage = async (label, target, expectedY) => {
     target = point(target); const p = (await snapshot()).me;
     await evaluate(`window.ironsight.look(${Math.atan2(target.x - p.x, target.z - p.z)},${Math.atan2(target.y - (p.y + 1.65), Math.hypot(target.x - p.x, target.z - p.z))})`);
-    await delay(200); const settled = await snapshot();
+    await delay(200); let settled = await snapshot();
+    if (label.endsWith('-drop')) {
+      // A release/landing is asynchronous. Verify the actual replicated
+      // landing instead of assuming it arrived within the old fixed sleep.
+      // Keep the same .025m height and .15m matched-command assertions.
+      const waitingAt = Date.now(), deadline = waitingAt + 2500;
+      while (Math.abs(settled.me.y) > .025 || !settled.movement.grounded) {
+        report.samples.push({ atMs: Date.now() - started, landingWait: true, ...settled });
+        if (!settled.me.alive || Date.now() >= deadline) throw Error(`${label}: landing did not settle within 2500ms`);
+        await delay(50); settled = await snapshot();
+      }
+      report.landings.push({ label, waitMs: Date.now() - waitingAt, authoritativeY: settled.me.y });
+    }
     if (channel && label.endsWith('-stair')) expectedY = floor(settled.me);
     if (expectedY !== undefined && Math.abs(settled.me.y - expectedY) > .025)
       throw Error(`${label}: authoritative height ${settled.me.y}, expected ${expectedY}`);
     report.stages.push({ label, atMs: Date.now() - started, ...settled });
     await capture(label); await record(report);
   };
+  let firstTick = -1;
   try {
     await travel(channel ? {x:32,z:71} : { x: 37, z: 66 }, false, true);
-    const firstTick = await evaluate('window.ironsight.movementReview().at(-1)?.tick ?? -1');
+    firstTick = await evaluate('window.ironsight.movementReview().at(-1)?.tick ?? -1');
     for (const sprint of [false, true]) {
       const mode = sprint ? 'sprint' : 'walk';
       if (channel) {
@@ -97,6 +110,10 @@ export async function undertowPlacesProbe({ send, evaluate, delay, capture, reco
       await travel({ x: 50.9, z: 63 }, sprint); await travel({ x: 45, z: 63 }, sprint);
       await travel({ x: 45, z: 66 }, sprint); await travel({ x: 37, z: 66 }, sprint);
     }
+    if (site) {
+      await travel({ x: 93, z: 99 }, true, true);
+      await stage('site-canal-lookout', { x: 110, y: 1.1, z: 118 }, 0);
+    }
     report.corrections = await evaluate(`window.ironsight.movementReview().filter(s => s.tick > ${firstTick})`);
     const matched = report.corrections.filter(s => !s.reset && s.matchedError !== null);
     report.maxMatchedErrorM = Math.max(0, ...matched.map(s => s.matchedError));
@@ -105,7 +122,14 @@ export async function undertowPlacesProbe({ send, evaluate, delay, capture, reco
     if (matched.length < 100 || report.maxMatchedErrorM >= soft)
       throw Error(`Movement acceptance: ${matched.length} matched samples, max ${report.maxMatchedErrorM}m, limit ${soft}m`);
     report.passed = true; await record(report); return report;
-  } catch (error) { report.failure = String(error); await record(report); throw error; }
+  } catch (error) {
+    report.failure = String(error); report.elapsedMs = Date.now() - started;
+    report.corrections = await evaluate(`window.ironsight.movementReview().filter(s => s.tick > ${firstTick})`);
+    const matched = report.corrections.filter(s => !s.reset && s.matchedError !== null);
+    report.maxMatchedErrorM = Math.max(0, ...matched.map(s => s.matchedError));
+    report.maxRawLagM = Math.max(0, ...report.corrections.map(s => s.rawError));
+    await record(report); throw error;
+  }
   finally {
     await key('keyUp'); await key('keyUp', true);
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });

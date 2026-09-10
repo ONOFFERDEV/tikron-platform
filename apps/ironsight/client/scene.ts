@@ -55,7 +55,7 @@ import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigMod
 import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, weaponSource } from "./weapon-loader.js";
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
-import { buildUndertowEnvironment, loadUndertowSupplies } from "./undertow-environment.js";
+import { buildUndertowEnvironment, buildUndertowCanalWater, loadUndertowSupplies } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
@@ -496,7 +496,7 @@ export class SceneRig {
     }).catch(error => console.warn('Relay uplink unavailable; retaining original relay mast.', error)));
     if (map.presentation === 'relay') this.assetLoads.push(loadRelayFieldworks(this.scene, map)
       .catch(error => console.warn('Relay sandbags unavailable; retaining the solid perimeter wall.', error)));
-    if (map.presentation === 'undertow') this.assetLoads.push(loadUndertowSupplies(this.scene).then(() => {
+    if (map.presentation === 'undertow') this.assetLoads.push(loadUndertowSupplies(this.scene, map).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }));
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
@@ -590,6 +590,7 @@ export class SceneRig {
         mesh.castShadow = true; mesh.receiveShadow = true; this.scene.add(mesh);
       }
       const fallback = architectureMeshes(this.scene).filter(mesh => !existing.has(mesh));
+      if (map.presentation === 'undertow') buildUndertowCanalWater(this.scene, map);
       this.assetLoads.push(loadArchitecture(this.scene, map.presentation, fallback).then(() => {
         this.renderer.shadowMap.needsUpdate = true;
       }).catch(error => console.warn("Architecture AO unavailable; retaining original kit.", error)));
