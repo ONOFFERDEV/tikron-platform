@@ -8,14 +8,22 @@
 import { spawn } from 'node:child_process';
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
-const app = resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-const repo = resolve(app, '../..');
-const state = join(app, '.inspect/aaa-loop');
-await mkdir(state, { recursive: true });
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
+// Parallel streams: each runs in its own git worktree on its own branch with a disjoint file
+// scope, its own plan file, state dir and dev-server port, so several astra sessions run at
+// once without fighting over the tree. Stream "main" is the original single-loop behaviour.
+const STREAM = opt('--stream', 'main');
+const app = resolve(opt('--app', new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')));
+const repo = resolve(app, '../..');
+const BRANCH = opt('--branch', 'ironsight-aaa');
+const PLAN = opt('--plan', 'AAA-PLAN.md');
+const PORT = Number(opt('--port', 8796));
+const STREAM_BRIEF = `tools/aaa-stream-${STREAM}.md`;
+const state = join(app, '.inspect', STREAM === 'main' ? 'aaa-loop' : `aaa-loop-${STREAM}`);
+await mkdir(state, { recursive: true });
 const MAX = Number(opt('--max', 50));
 // --until <ISO datetime>: keep starting sessions while now < until (MAX becomes a safety cap of 500).
 const UNTIL = opt('--until') ? Date.parse(opt('--until')) : Infinity;
@@ -23,7 +31,7 @@ if (opt('--until') && Number.isNaN(UNTIL)) throw new Error('--until must be an I
 const CAP = UNTIL === Infinity ? MAX : 500;
 const DRY = args.includes('--dry-gates');
 const DEPLOY = !args.includes('--no-deploy');
-const PREVIEW = 'http://localhost:8796';
+const PREVIEW = `http://localhost:${PORT}`;
 const log = async (line) => { const s = `[${new Date().toISOString()}] ${line}`; console.log(s); await appendFile(join(state, 'run.log'), s + '\n'); };
 const jsonl = async (obj) => appendFile(join(state, 'log.jsonl'), JSON.stringify({ at: new Date().toISOString(), ...obj }) + '\n');
 
@@ -41,7 +49,7 @@ const killTree = (pid) => { try { spawn('taskkill', ['/PID', String(pid), '/T', 
 const sh = async (cmd, opts) => { const r = await run(cmd, opts); return r; };
 
 async function nextSession() {
-  const plan = await readFile(join(app, 'AAA-PLAN.md'), 'utf8');
+  const plan = await readFile(join(app, PLAN), 'utf8');
   const nums = [...plan.matchAll(/^### Session (\d+)/gm)].map(m => Number(m[1]));
   return (nums.length ? Math.max(...nums) : 0) + 1;
 }
@@ -67,11 +75,11 @@ async function gates(tag) {
   // match can come back stuck in warmup with no bot fill, which would make the probe fail
   // for reasons unrelated to the session's change (seen 2026-09-08).
   await rm(join(app, '.wrangler/state'), { recursive: true, force: true }).catch(async (e) => { await log('could not clear .wrangler/state: ' + e.message); });
-  const server = spawn('npx wrangler dev --config wrangler.next.jsonc --port 8796', { cwd: app, shell: true, windowsHide: true, stdio: 'ignore' });
+  const server = spawn(`npx wrangler dev --config wrangler.next.jsonc --port ${PORT}`, { cwd: app, shell: true, windowsHide: true, stdio: 'ignore' });
   try {
     let up = false;
     for (let i = 0; i < 60 && !up; i++) { try { up = (await fetch(PREVIEW)).status === 200; } catch {} if (!up) await new Promise(r => setTimeout(r, 2000)); }
-    if (!up) { results.push({ name: 'server', code: 1, tail: 'wrangler dev did not answer on 8796' }); return { ok: false, results }; }
+    if (!up) { results.push({ name: 'server', code: 1, tail: `wrangler dev did not answer on ${PORT}` }); return { ok: false, results }; }
     ok = await step('inspect', `node scripts/inspect-map.mjs --url ${PREVIEW} --shots relay,practice-two --prefix ${tag}`, { timeoutMs: 10 * 60 * 1000 }) && ok;
     if (ok) {
       try {
@@ -90,20 +98,20 @@ async function writeStatus({ session, last, balance, remaining, failures }) {
     `- This is **Session ${session}**. Run continues: ${remaining}.`,
     `- Meshy balance: **${balance} credits** (stop generating below 300; <= 60 per session).`,
     `- Preview worker: https://ironsight-next.plain-wave-5d5b.workers.dev (deployed after every green session).`,
-    '', '## Last session outcome', '', ...(last ? last : ['First session of this run. Start from the current AAA gap list in AAA-PLAN.md (create it if missing).']),
+    '', '## Last session outcome', '', ...(last ? last : ['First session of this run. Start from the current AAA gap list in the plan file (create it if missing).']),
     '', '## Supervisor / owner notes (relayed; act on them this session if they outrank your top gap item)', '',
     await readFile(join(state, 'notes.md'), 'utf8').catch(() => '(none)'),
     '', failures ? `## Consecutive gate failures: ${failures}\nIf 2 in a row, the supervisor resets the working tree to HEAD before the next session; fix the gate first this session.` : ''].join('\n');
   await writeFile(join(state, 'status.md'), md);
 }
 async function commitAndDeploy(session) {
-  const plan = await readFile(join(app, 'AAA-PLAN.md'), 'utf8');
+  const plan = await readFile(join(app, PLAN), 'utf8');
   const heading = plan.match(new RegExp(`^### Session ${session}[^\\n]*`, 'm'))?.[0] ?? `Session ${session}`;
   const title = heading.replace(/^### /, '').replace(/\s+/g, ' ').slice(0, 110);
   await sh('git add -A apps/ironsight', { cwd: repo, timeoutMs: 120000 });
   const status = await sh('git status --porcelain apps/ironsight', { cwd: repo, timeoutMs: 60000 });
   if (!status.full.trim()) { await log('nothing to commit'); return { committed: false }; }
-  const msg = `ironsight: astra ${title}\n\nAutomated aaa-loop session; gates re-run by the supervisor (typecheck, tests, build, asset audit, headless inspect, hitch probe).\n\nCo-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`;
+  const msg = `ironsight${STREAM === 'main' ? '' : `/${STREAM}`}: astra ${title}\n\nAutomated aaa-loop session; gates re-run by the supervisor (typecheck, tests, build, asset audit, headless inspect, hitch probe).\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`;
   await writeFile(join(state, 'commit-msg.txt'), msg);
   const c = await sh(`git -c core.safecrlf=false commit -q -F "${join(state, 'commit-msg.txt')}"`, { cwd: repo, timeoutMs: 120000 });
   if (c.code !== 0) { await log('commit failed: ' + c.out); return { committed: false, error: c.out }; }
@@ -112,7 +120,7 @@ async function commitAndDeploy(session) {
   if (DEPLOY) {
     const d = await sh('npx wrangler deploy --config wrangler.next.jsonc', { timeoutMs: 10 * 60 * 1000 });
     deployed = d.code === 0 ? (d.out.match(/Current Version ID: (\S+)/)?.[1] ?? 'ok') : 'FAILED ' + d.out.slice(-400);
-    const p = await sh('git push origin ironsight-aaa', { cwd: repo, timeoutMs: 5 * 60 * 1000 });
+    const p = await sh(`git push origin ${BRANCH}`, { cwd: repo, timeoutMs: 5 * 60 * 1000 });
     await log(`push: ${p.code === 0 ? 'ok' : 'FAILED ' + p.out.slice(-300)}`);
   }
   return { committed: true, hash, deployed, title };
@@ -143,7 +151,8 @@ for (let i = 0; i < CAP; i++) {
   await log(`=== session ${session} (${i + 1}${UNTIL === Infinity ? '/' + MAX : ', ' + remaining}) balance=${balance} ===`);
   let ask = { code: 0, out: 'dry' };
   if (!DRY) {
-    const prompt = `Continue the ironsight AAA rebuild as Session ${session}. First read apps/ironsight/tools/aaa-loop-brief.md (standing brief, all rules), then apps/ironsight/.inspect/aaa-loop/status.md (supervisor status for this session), then apps/ironsight/AAA-PLAN.md. Repo D:\\webgame-baas, branch ironsight-aaa, scope apps/ironsight/** only, no git commit/push/deploy. End green per the brief and log the session in AAA-PLAN.md.`;
+    const streamLine = STREAM === 'main' ? '' : ` You are the "${STREAM}" parallel stream: read apps/ironsight/${STREAM_BRIEF} FIRST - it defines your lane, the files you may touch and the files other streams own. Other astra sessions are editing this repo in other worktrees at the same time: stay strictly inside your lane, never touch a file another stream owns, and log to ${PLAN} instead of AAA-PLAN.md.`;
+    const prompt = `Continue the ironsight AAA rebuild as Session ${session}. First read apps/ironsight/tools/aaa-loop-brief.md (standing brief, all rules), then ${relative(repo, join(state, 'status.md')).replaceAll('\\', '/')} (supervisor status for this session), then apps/ironsight/${PLAN}.${streamLine} Working tree ${app.replaceAll('\\', '/')}, branch ${BRANCH}, scope apps/ironsight/** only, no git commit/push/deploy. End green per the brief and log the session in apps/ironsight/${PLAN}.`;
     ask = await run(`omc ask codex --prompt "${prompt}"`, { cwd: repo, timeoutMs: 110 * 60 * 1000, tail: 3000 });
     await log(`astra finished code=${ask.code}`);
     // A provider that fails before doing any work (usage limit, auth, network) must stop the
