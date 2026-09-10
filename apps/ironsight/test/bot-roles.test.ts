@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createTestRoom } from '@tikron/server/testing';
 import { BOT_ROLES, botLabel, botRole, type BotRole } from '../src/bot-roles.js';
-import { botThink, createBotBrain, type BotView } from '../src/bots.js';
+import { botThink, createBotBrain, resetBotPerception, type BotBrain, type BotView } from '../src/bots.js';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
 
@@ -80,7 +80,7 @@ it('normal twelve-seat fill equips two of each role per team and restores the ch
   for(const team of [0,1]) for(const role of ['rusher','anchor','sniper'] as const)
     expect(Object.entries(players).filter(([id,p])=>p.team===team&&botRole(id)===role)).toHaveLength(2);
   const runtime=h.room as unknown as {state:{players:Record<string,ArenaPlayer>};spawnInto:(p:ArenaPlayer,id:string)=>void;
-    tickBots:(ms:number)=>void;inputs:Map<string,{ads?:boolean}>};
+    tickBots:(ms:number)=>void;inputs:Map<string,{ads?:boolean}>;botBrains:Map<string,BotBrain>};
   for(const [id,p] of Object.entries(runtime.state.players)) {
     expect(p.weapon).toBe(BOT_ROLES[botRole(id)!].weapon);expect(p.hp).toBe(100);
     p.weapon=4;p.hp=1;runtime.spawnInto(p,id);
@@ -90,6 +90,9 @@ it('normal twelve-seat fill equips two of each role per team and restores the ch
   // receives ADS, then releases it on visual loss. Warmup still blocks damage.
   for(const p of Object.values(runtime.state.players))p.alive=false;
   const scout=runtime.state.players['bot-5']!,enemy=runtime.state.players['bot-2']!;
+  // This fixed-position handling fixture begins after the tactical approach.
+  // Natural high-ground orders/arrivals are covered by the navigation suites.
+  resetBotPerception(runtime.botBrains.get('bot-5')!);
   Object.assign(scout,{alive:true,x:8,y:0,z:2,yaw:Math.PI/2,pitch:0});
   Object.assign(enemy,{alive:true,x:28,y:0,z:2,yaw:Math.PI*1.5,pitch:0});
   runtime.tickBots(50);expect(runtime.inputs.get('bot-5')?.ads).toBe(true);

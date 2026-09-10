@@ -37,7 +37,7 @@ import {
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
 import { chooseSafeSpawn, spawnFacingYaw, SpawnSightHistory } from "../map/spawn.js";
-import { GroundNavigator } from "../map/navigation.js";
+import { botNavigators } from './bot-navigation.js';
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
@@ -53,7 +53,7 @@ import {
   type ModeCtx,
   type ShowcaseBotDef,
 } from "../modes.js";
-import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, BOT_ARCHETYPES, combatBotArchetype, type BotBrain, type BotView, type BotDifficulty } from "../bots.js";
+import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, startBotPosition, BOT_ARCHETYPES, combatBotArchetype, type BotBrain, type BotView, type BotDifficulty } from "../bots.js";
 import { BotCoverIndex } from './bot-cover.js';
 import { MovementInbox, MOVEMENT_SYNC, readMovementBatch, saveControllers, type MovementSnapshot } from './movement-sync.js';
 import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
@@ -296,8 +296,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly coreGate = new CoreGate(this.map.signalCore);
   private readonly corePush = new CorePush(this.map.signalCore);
   private readonly domOrders = new DomOrders(this.map);
-  private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
-  private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
+  private readonly closedNavigator = this.map.presentation ? botNavigators(this.map).closed : undefined;
+  private readonly openNavigator = this.map.presentation ? botNavigators(this.map).open : undefined;
   private readonly closedBotCover = new BotCoverIndex(this.map);
   private readonly openBotCover = this.map.signalCore ? new BotCoverIndex({ ...this.map, boxes: this.coreCollision.open }) : this.closedBotCover;
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
@@ -1613,6 +1613,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const patrolBrain = this.botBrains.get(id);
     if (patrolBrain) resetBotPerception(patrolBrain);
     if (patrolBrain) startBotFlank(patrolBrain, p);
+    if (patrolBrain?.archetype === 'marksman' && patrolBrain.decisionDepth >= 2 && this.gameMode.id !== 'dom')
+      startBotPosition(patrolBrain, this.navigator?.nearestHighGround(p));
     if (patrolBrain && this.map.patrolWaypoints?.length)
       patrolBrain.wpIndex = (Number(id.slice(4)) - 1) % patrolBrain.waypoints.length;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every

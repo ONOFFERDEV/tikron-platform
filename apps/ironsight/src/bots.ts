@@ -116,7 +116,7 @@ export interface BotDecision {
   fire: boolean;
   switchSlot?: number;
   reload?: boolean;
-  tactic?: 'reload' | 'retreat' | 'suppress';
+  tactic?: 'reload' | 'retreat' | 'suppress' | 'position' | 'hold';
 }
 
 /** The subset of a player's state the bot brain can see (itself or an enemy). */
@@ -211,6 +211,7 @@ export interface BotBrain {
   readonly difficulty: BotDifficulty;
   readonly decisionDepth: number;
   flank?: { points: readonly BotRoutePoint[]; index: number; untilMs: number };
+  positioning?: { point: Vec3; untilMs: number; holdUntilMs?: number };
   recentThreat?: Vec3 & { untilMs: number };
   recovery?: BotCover & { startedMs: number; untilMs: number; reason: 'reload' | 'retreat' };
   nextCoverMs: number;
@@ -286,6 +287,7 @@ export function resetBotPerception(brain: BotBrain): void {
   brain.nextCoverMs = 0;
   brain.nextRetreatMs = 0;
   brain.flank = undefined;
+  brain.positioning = undefined;
   brain.sound = undefined;
   brain.nextSoundMs = 0;
   brain.lockId = null;
@@ -302,6 +304,14 @@ export function startBotFlank(brain: BotBrain, self: {x:number;z:number}): void 
   if (brain.role !== 'rusher' || brain.decisionDepth < 2 || !route || !first || !last) return;
   const reverse = Math.hypot(last.x-self.x,last.z-self.z) < Math.hypot(first.x-self.x,first.z-self.z);
   brain.flank = { points: reverse ? [...route].reverse() : route, index: 0, untilMs: brain.clockMs + 35000 };
+}
+
+/** A reachable, map-derived firing position, selected from the bot's own spawn.
+ * Higher decision depth buys route planning, never a health/aim advantage.
+ * One bounded trip and a six-second hold per life; objectives take priority. */
+export function startBotPosition(brain: BotBrain, point: Vec3 | undefined): void {
+  if (brain.archetype !== 'marksman' || brain.decisionDepth < 2 || !point) return;
+  brain.positioning = { point: { ...point }, untilMs: brain.clockMs + 35000 };
 }
 
 function flankTarget(brain: BotBrain, self: BotPlayerView): BotRoutePoint | undefined {
@@ -458,7 +468,7 @@ function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMov
  * normal room weapon/handling gates. */
 function roleCombat(view: BotView, brain: BotBrain, enemy: BotEnemyView, yaw: number): BotMoveIntent {
   const distance = Math.hypot(enemy.x - view.self.x, enemy.z - view.self.z);
-  if (brain.role === 'rusher' && distance > BOT_ARCHETYPES.rusher.closeTo) {
+  if (brain.role === 'rusher' && (distance > BOT_ARCHETYPES.rusher.closeTo || Math.abs(enemy.y - view.self.y) > .65)) {
     const next = view.navigate?.(enemy) ?? enemy;
     const dir = dirTo(view.self, next);
     return worldToMove(yaw, dir.x, dir.z);
@@ -531,7 +541,26 @@ function showcaseThink(view: ShowcaseView, _self: BotPlayerView, _brain: BotBrai
 export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
   const decision = combatThink(view, brain, dtMs);
   if (!view.self.alive || view.showcase) return decision;
-  return recoveryThink(view, brain, decision);
+  return recoveryThink(view, brain, positionThink(view, brain, decision, dtMs));
+}
+
+function positionThink(view: BotView, brain: BotBrain, decision: BotDecision, dtMs: number): BotDecision {
+  const order = brain.positioning;
+  if (!order) return decision;
+  if (view.objective || brain.clockMs >= order.untilMs ||
+    order.holdUntilMs !== undefined && brain.clockMs >= order.holdUntilMs) {
+    brain.positioning = undefined; return decision;
+  }
+  // Fight a visible close attacker normally; no hidden-player distance checks.
+  const close = brain.lockId && view.enemies.find(p => p.id === brain.lockId);
+  if (close && Math.hypot(close.x-view.self.x,close.y-view.self.y,close.z-view.self.z) < CLOSE_THREAT_M) return decision;
+  if (botReached(view.self, order.point, .65)) {
+    order.holdUntilMs ??= brain.clockMs + 6000;
+    return { ...decision, move: { mx:0,mz:0,jump:false,crouch:false,sprint:false,ads:true }, tactic:'hold' };
+  }
+  const next = view.navigate?.(order.point) ?? order.point, dir = dirTo(view.self, next);
+  const look = brain.lockId ? decision.look : searchLook(view.self,brain,next,dtMs);
+  return { ...decision, look, move:worldToMove(look.yaw,dir.x,dir.z), tactic:'position' };
 }
 
 /** Recovery interrupts movement briefly, without replacing the strategic goal

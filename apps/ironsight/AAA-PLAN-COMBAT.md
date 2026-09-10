@@ -19,18 +19,53 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    fresh passes do not close this gap or identify a driver defect.
    Ground navigation's wall-contact bug also blocks two-death probe coverage;
    main's fix request and exact reproduction are below.
-3. **Bot squad tactics, arc 2/3:** multi-level routes through map-authored doors,
-   stairs and roofs; validate against the map stream's actual new structures.
-4. **Bot squad tactics, arc 3/3:** role names and tactical radio barks through the
+   Session 5 retains another stock FFA failure (2155.7 ms and one death);
+   Switchyard's north-wall driver contact is reproduced separately. The combat
+   navigator avoids it, but the main-owned probe still uses GroundNavigator.
+3. **Bot squad tactics, arc 3/3:** role names and tactical radio barks through the
    existing ping channel, with team cooldowns and human-callout priority.
-5. Shared weapon table audit (R-G02–08, R-G19–20).
-6. Layered, occluded firefight audio (R-G14–17), then surface impact feedback.
+4. Shared weapon table audit (R-G02–08, R-G19–20).
+5. Layered, occluded firefight audio (R-G14–17), then surface impact feedback.
+6. Retest bot routes as main lands new buildings; DOM keeps ground-objective
+   priority and has no forced high-ground diversion in this session.
 
 Session 1 delivered arc 1/3: four archetypes, reaction/decision difficulty and
-verified-cover reloads. Priorities above are re-ranked for the next session.
+verified-cover reloads. Session 5 delivers arc 2/3: collision-derived multi-level
+walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 
 ## Cross-stream requests
 
+- **Main / supervisor - Session 5 release blockers:** stock
+  `combat-s5-final-accept-ffa-1.json` fails at **2155.7 ms** and with **one death**
+  in **151.418 s**. The first gap has **2045/2059** idle CPU samples; a later
+  **1127.6 ms** gap has **1069/1077**. Callback max **9.5 ms**, p99 **8 ms**,
+  zero new shaders/errors. These two intervals are untraced; do not assign
+  their cause from CPU idleness. The separate short trace only covers loading
+  intervals (**273.7 / 165.5 ms**), not a reproduction of either gameplay gap.
+  Client bundle and asset byte counts are unchanged this session.
+  Continue the previously requested main/scene presentation investigation.
+  The second blocker is a new location of the existing driver navigation bug:
+  Switchyard `{x:25,y:0,z:5.6000000000000005}` toward `{x:25,y:0,z:13}`, blocked by
+  `{min:{x:20,y:0,z:6},max:{x:36,y:3,z:8}}`. `GroundNavigator.next` returns the
+  goal through cover; normal movement stays at **z=5.6**. At **5.59** it detours.
+  The failing browser stays there from **42.865 to 148.838 s** (42 samples),
+  after death **26.261 s** / respawn **29.759 s**. New combat navigation returns
+  **(19.5,0,5.5)** and its full-physics regression reaches the goal. Repro:
+  `combat-s5-navigation-diagnostic.mjs` / `.json`; fix main's `navigation.ts`
+  contact segment semantics as requested in Session 4, preserving hitscan and
+  the two-death gate. No map/driver/gate change or unchanged acceptance retry
+  was used to conceal this failure. Five passing pairs were **not achieved**.
+- **Main / supervisor - Session 5 bot navigation:** no new client hook is needed.
+  `src/rooms/bot-navigation.ts` replaces the room's ground-only navigator; it
+  derives supported floors and swept walking edges from existing boxes/ramps.
+  Both core-door variants are built at room creation and cached per immutable
+  map. Marksmen take reachable high ground at regular/hard difficulty, while
+  DOM orders keep priority. Take the combat-owned room/brain/test changes as
+  usual and rerun route tests against main's newer map geometry. No map layout,
+  collision, `navigation.ts`, physics or client source changed. The old request
+  for a main-provided vertical bot navigator is superseded for this checkout.
+  **The Session 4 `GroundNavigator` contact request still applies to main's
+  headless player driver**, which deliberately retains its original code.
 - **Main / supervisor - Session 4 integration addendum:** keep the exact two-line
   activation below. Also take this session's `predict.ts` and `arena-room.ts`
   fixes: movement command yaw now drives only movement/slide/traversal, preserving
@@ -121,12 +156,6 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
   mutually agreed owner file). Preserve
   the existing `botLabel` fallback for training dummies. Seats 9/10 become SUPPORT;
   seats 5/6/11/12 are MARKSMAN. The old UI otherwise calls them ANCHOR/SCOUT.
-- **Main / supervisor:** current `GroundNavigator` excludes positive ramps and
-  upper floors; Relay's below-grade terrain now has route continuity. Please
-  provide height-aware `next(from, target)` points and reachable
-  authored patrol/flank goals with `{x,y,z}` for doors/stairs/roofs. Combat's route
-  contract preserves optional y and refuses arrival on another floor. No combat
-  edits to `src/map/**`, collision, `client/main.ts`, or `client/scene.ts`.
 - **Main / assets / supervisor:** `client/operator-kit.ts` also uses the old
   three-role lookup. When routing role presentation, assign SUPPORT a radio/pack
   silhouette and retain the existing marksman weapon hold. This file is outside
@@ -153,7 +182,7 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-M15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-M16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-M17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-M18 | partial | Optional feet y retained by bot routes; wrong-floor arrival rejected; local door/ramp/roof sweeps tested. Map-authored multi-level strategic routing pending. |
+| R-M18 | met | Current combat geometry: Session 5 walks both Relay interiors/stairs/roofs, Undertow/Switchyard decks and Relay trench with the normal capsule. Natural Relay bots use ground, +3 m and -3 m. New main-worktree geometry still needs combined validation. |
 | R-M19 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-M20 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G01 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
@@ -186,10 +215,10 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-L08 | partial | Existing BotContacts keeps team cooldown and human priority; tactical barks and updated labels need main hooks. |
 | R-L09 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L10 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L11 | partial | Four live profiles; 150-600 ms reactions; identical seeded aim; depth 1/2/3 cover search and easy flank restriction. bot-tactics + bot-cover tests; multi-level strategic routes pending. |
+| R-L11 | partial | Four live profiles; 150-600 ms reactions; identical seeded aim; depth 1/2/3 cover search. Session 5 adds verified multi-level routes and regular/hard marksman positioning, with easy patrol retained. Radio/label arc remains pending. |
 | R-L12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L14 | partial | No WebGL resource additions. Session 4 code/asset/inspector checks pass; stock FFA fails at 2438.7 ms. Candidate pair 1 passes, TDM 2 fails death coverage due reproduced map-navigation contact. A short trace covers a separate 1870.8 ms compositor/ANGLE wait. Session 3 failures remain evidence; no iGPU claim. |
+| R-L14 | partial | No WebGL resource additions. Session 5 code/asset/fixed-camera checks and required TDM pass; repeated FFA fails at 2155.7 ms and one death, with the driver stuck at reproduced Switchyard wall contact. The gameplay gap is untraced; prior Session 3/4 covered compositor waits remain evidence. Five passing pairs not achieved; no iGPU claim. |
 | R-L15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
@@ -201,6 +230,183 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 5 - 2026-09-11: Bot squad tactics, arc 2/3 - fight on every floor
+
+Reference: **R-L11**, **R-M18**, **R-L14**, **R-G20**. The owner rollback
+handoff remains the first release prerequisite: Session 4's movement assertion
+passes, but `main.ts` still has no `Predictor.connect` activation in this
+checkout. No further combat hook is required, and main owns both activation
+and the retained compositor investigation. This session takes the next
+actionable combat gap: bot routes through existing doors, stairs, roofs and
+the trench, with the same movement solver and no collision/map edits.
+
+Targets: ordinary 50 ms walking reaches both Relay roofs and returns through
+their stairs; the same routing handles Undertow/Switchyard ramps and exact
+wall contact. Hard/regular marksmen may plan one bounded high-ground trip per
+life; easy retains patrol. Six-second holds, close-threat interruption and
+objective/reload priority prevent permanent roof camping. Health, damage,
+reaction delays, aim randomness and weapon handling remain unchanged.
+
+Starting state: clean `ironsight-aaa-combat`. Only combat-owned source/tests,
+this plan and new `.inspect/combat-s5-*` artifacts are edited. No Meshy, assets,
+new dependencies, commit, push or deployment. The Session 4 failed runs remain
+evidence despite the supervisor status's green summary. Baseline fixed cameras:
+`combat-s5-before-{relay,practice-two}.png` and `combat-s5-before-report.json`.
+Validation and measured results follow below.
+
+Delivered, on by default:
+
+- `rooms/bot-navigation.ts`: one-metre cells with separate supported feet
+  heights for interiors, roofs and the trench. Every directed walking edge
+  uses the normal capsule/step/ramp solver in <=20 cm increments. Runtime
+  steering checks at most five look-ahead nodes. Spatial buckets bound the
+  collision lists; at most 24 destination fields are retained per variant.
+  No invented jump, teleport, cover, floor or collision change. Exact wall
+  contact is swept as movement rather than passed to hitscan `nearestBox`.
+- Both immutable shutter variants are built at room creation, cached per map
+  and shared across rooms in the isolate. An event tick does not rebuild the
+  graph. These derived indexes rebuild naturally on a cold isolate. Reported
+  active graphs have 15,000-15,320 nodes / 55,388-56,438 edges. Cached field
+  storage in the final samples is 722,304-1,470,720 bytes; this counts typed
+  flow fields only, **not total JS heap**.
+- `bots.ts` and the room: regular/hard marksmen select reachable high ground
+  from their own spawn and static map, with a 35-second trip deadline and a
+  six-second hold. Close visible threats interrupt; recovery and DOM/core
+  orders retain priority. Easy keeps ordinary patrol. Rushers route toward a
+  visible opponent on another floor even at close horizontal distance. All
+  perception, aim noise, reaction, HP, damage and fire/reload rules stay normal.
+- Nine full-collision route regressions cover exact contact at 87.59 / 87.6 /
+  87.60000000000001, both Relay stairs/roofs and return trips, both other maps'
+  decks, room-vs-slab separation, stair voids, trench descent, sealed/narrow
+  doors, shutter variants and bounded fields. A tactical regression covers
+  arrival/hold expiry, difficulty and objective/close-threat interruption.
+  The room ADS fixture explicitly clears its spawn-time positioning order
+  before its fixed-pose handling check; its original ADS assertions remain.
+
+Initial complete code checks **PASS**: `pnpm typecheck`, `pnpm test` (**806 passed / 8 skipped**,
+**96 files passed / 6 skipped**), `pnpm build:client`, `pnpm audit:assets`.
+All 25 prediction-sync tests pass, with no predictor/physics/threshold change.
+Evidence: `combat-s5-final-checks.json` and `combat-s5-final-*.log`; checks hold
+the shared inspection lease and no bake/build/test runs alongside acceptance.
+
+Natural room telemetry (`BOT_NAV_REPORT=1`, `test/bot-navigation-round.tool.test.ts`)
+records three **180-second** ordinary bot rounds, with no placement, damage,
+loadout or tactical state injection. Final evidence:
+`combat-s5-natural-routes-verified.json` and `combat-s5-summary.json`.
+
+| Mode / map | Kills | Roof bot-seconds | Interior bot-seconds | Lower-tier bot-seconds | Kills from roof |
+|---|---:|---:|---:|---:|---:|
+| TDM / Relay | 65 | 88.50 | 383.05 | 174.20 | 0 |
+| DOM / Undertow | 51 | 0 | 0 | 0 | 0 |
+| FFA / Switchyard | 97 | 127.70 | 0 | 0 | 6 |
+
+All four marksman seats reached roofs in TDM and FFA. Bot-seconds sum time
+across bots; they are not round duration. DOM retains its current ground-level
+flags/approaches rather than being diverted to produce a roof statistic.
+Undertow deck ascent/descent passes the actual movement test, but natural DOM
+deck use is **not claimed**. This checkout has Relay interiors and the existing
+Undertow/Switchyard decks; it does not contain main's later worktree geometry.
+
+| Mode | Bot-decision p50 / p95 / max ms | Room setup ms |
+|---|---|---:|
+| TDM | 0.393 / 1.640 / 19.652 | 232.209 |
+| DOM | 0.352 / 0.584 / 4.887 | 205.214 |
+| FFA | 0.311 / 1.397 / 4.088 | 156.859 |
+
+These are real wall-clock timings around `tickBots` in the local Node room
+harness, with fake game timers. Setup includes the two graphs and normal room
+initialization. They are not deployed latency/capacity or an iGPU claim.
+
+Rejected/intermediate evidence is retained. `combat-s5-navigation-first.log`
+found an incorrect Undertow fixture destination beyond the deck; correcting
+the destination to the actual slab made both directions pass. The initial
+natural tool incorrectly used a fake `performance.now()` (zero CPU timings)
+and required DOM roof activity despite ground-objective priority. Its failed
+report remains `combat-s5-natural-routes.json` / `combat-s5-natural-first.log`;
+the final tool captures real wall time before fake timers and reports DOM's
+zero honestly. The first full suite failed the old fixed-pose ADS fixture
+because its fresh spawn now has a positioning order; the fixture correction
+above preserves its purpose and assertions. No production behavior was changed
+to manufacture those telemetry or fixture results.
+
+Fixed-camera before/after inspection **PASS**, zero console errors/forbidden
+requests: `combat-s5-{before,after}-report.json` and their Relay/practice-two
+PNGs. Relay remains **27 draws / 200,300 triangles / 16 textures / 25.681 MiB**;
+practice-two remains **49 draws / 101,470 triangles / 17 textures**. Relay
+median **6.9 / 6.9 ms**, p99 **7.2 / 7.1 ms**, scene preparation
+**1093.1 / 1046.3 ms** (before/after). This run variation is not a rendering
+improvement: the client build and the fixed-camera scene are unchanged.
+Asset bytes **30,121,938**, public bytes **37,222,385**, largest asset
+**7,183,364**: all **zero delta** from Session 4. Zero new asset bytes,
+textures, lights, passes, Meshy credits or generated-asset rejects.
+
+Wow check: `combat-s5-wow-report.json` and `combat-s5-wow-roof-live-{0,5,10,15,20}s.png`,
+**20.621 seconds** after a **13.024-second** ordinary-input approach. The first
+still visibly catches bot-6 climbing the Comms stair; samples track it from
+**0.56 m** to **3 m**, holding upstairs and returning to the doorway fight.
+The roof occludes that bot from this ground camera during the hold, so the
+5-second still alone is not roof-visibility evidence. The player takes damage,
+dies and respawns. **305 shot/kill/ping events** were observed across the
+approach plus capture, with zero errors. No player/bot state, camera position,
+health, clock or geometry injection; only normal W input and aim. This is
+visual/behavioral evidence, separate from hitch acceptance. Player sentence:
+**"They take the stairs and fight through the rooms."**
+
+Ordinary hitch attempts, all reports retained:
+
+| Attempt | TDM max / result | FFA max / result |
+|---|---|---|
+| `combat-s5-accept-*-1.json` | 14.4 ms / PASS | 1210.0 ms / PASS under existing policy |
+| `combat-s5-final-accept-*-1.json` | 17.4 ms / PASS | 2155.7 ms / FAIL, also only one death |
+
+The first pair had two deaths per run and zero shaders/errors. FFA retained
+one **1210 ms** gap, **2.510%** of measured time. The inspection-only wrapper
+then failed with `ERR_STREAM_WRITE_AFTER_END` while starting TDM 2 (empty log,
+no report/browser left running). It piped stdout/stderr to the same log with
+automatic end; it now keeps both pipes open until child `close`, then ends the
+log once. The fresh `final-accept` sequence followed that concrete tooling fix.
+Original reports and the incomplete first manifest were not overwritten.
+
+The fresh TDM pass has two deaths, p99 **8 ms**, callback max **12.8 ms**, zero
+>150 ms frames/shaders/errors, first-ready **3233.2 ms**. Fresh FFA ends after
+**151.418 s** with one death, p99 **8 ms**, callback **9.5 ms**, and gaps
+**2155.7 / 1127.6 ms** (**2.168%** stalled time); first-ready **3309.2 ms**.
+First damage/death windows pass (**7.9 / 8.6 ms**). The sequence stops at this
+failure. Main's north-wall navigation reproduction and presentation evidence
+are in the cross-stream request above. No repeated unchanged runs were used
+to manufacture a passing streak.
+
+The separate short `combat-s5-startup-diagnostic{,-trace,-trace-summary}.json`
+does not reproduce the gameplay gap. It covers two **loading** intervals,
+**273.7 / 165.5 ms**, before first-ready **3677 ms**. The former includes a
+**252.915 ms** `GetProgramiv` wait (**0.020 ms CPU**); the latter includes a
+**40.184 ms** wait (**0.030 ms CPU**). They do not explain the untraced
+2155.7 ms gameplay gap. This short diagnostic has no ordinary frame/death
+coverage and is explicitly **not acceptance**. Prior covered Session 3/4
+compositor waits remain evidence, without attributing every new gap to them.
+
+After adding the measured Switchyard contact regression, final typecheck and
+the full suite pass: **807 tests / 8 skipped**, **96 files / 6 skipped**
+(`combat-s5-post-{typecheck,test}.log` and their result JSON). The prior build,
+asset audit and both inspectors remain current: only the additional test and
+inspection/logging artifacts changed after those checks.
+
+**Session status: not fully green.** All owned implementation/functional,
+asset and fixed-camera checks pass, and the ordinary required TDM gate passes;
+the repeated TDM/FFA acceptance is **FAIL**. Do not describe the presentation
+issue or deployed rollback issue as fixed. `combat-s5-summary.json` and
+`combat-s5-final-acceptance.json` carry the failure; neither policy nor browser
+flags were changed. Main owns the remaining driver/renderer integration.
+No owner answer is needed to route these existing requests. Default next arc:
+tactical radio barks, preserving the main rollback/reliability prerequisites.
+
+Cleanup complete: the verified Session 5 Wrangler process tree was stopped;
+port **8798** has no listener and no Session 5 inspection processes remain.
+The combat supervisor was identified separately and preserved. Evidence:
+`combat-s5-server-cleanup.json` and `combat-s5-final-state.json`. Final branch
+is `ironsight-aaa-combat`; all eight changed files are combat-owned, with
+`git diff --check` clean. No commit, push or deployment was performed.
 
 ### Session 4 - 2026-09-11: Rollback repair - harden the combat handoff
 
