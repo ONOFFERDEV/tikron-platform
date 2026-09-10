@@ -4,12 +4,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { applyConcreteDetail, createConcreteDetail } from './concrete-detail.js';
 import { finishRelaySurface } from './relay-surfaces.js';
 import { finishUndertowSurface } from './undertow-surfaces.js';
-import { applySwitchyardPanels, finishSwitchyardSurface, switchyardSurfaceKind } from './switchyard-surfaces.js';
+import { applySwitchyardPanels, applySwitchyardWeathering, finishSwitchyardSurface, switchyardSurfaceKind } from './switchyard-surfaces.js';
 import { waitForSiteGround } from './site-ground.js';
 import { siteAtmosphere } from './site-atmosphere.js';
 import { RELAY_FINISH, relayBakedFinish } from './relay-palette.js';
 import { applyRelayWeathering, type RelayWeatherSource } from './relay-weathering.js';
 import { UNDERTOW_FINISH, undertowBakedFinish } from './undertow-palette.js';
+import { SWITCHYARD_FINISH, switchyardBakedFinish } from './switchyard-palette.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
@@ -84,10 +85,11 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
         }
         if (switchyard) {
           const kind = switchyardSurfaceKind(node.material.name);
+          const finish = switchyardBakedFinish(node.material.name);
+          if (finish) node.material.setValues(SWITCHYARD_FINISH[finish]);
           applyConcreteDetail(node, detail, kind === 'concrete' ? 0.085 : kind === 'coated' ? 0.022 : 0.025);
           if (kind !== 'concrete') applySwitchyardPanels(node);
-          if (kind === 'steel') node.material.roughness = 0.66;
-          if (kind === 'deck') { node.material.roughness = 0.72; node.material.metalness = 0.42; }
+          applySwitchyardWeathering(node);
           finishSwitchyardSurface(node.material, kind);
           return;
         }
@@ -109,6 +111,16 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
       applyRelayWeathering(node);
       finishUndertowSurface(node.material, 'coated');
     });
+    if (switchyard) for (const root of ['switchyard-cargo-shift', 'freight-counterweight']) {
+      scene.getObjectByName(root)?.traverse(node => {
+        if (!(node instanceof T.Mesh) || !(node.material instanceof T.MeshStandardMaterial) ||
+            node.userData.switchyardCargo !== true) return;
+        applyConcreteDetail(node, detail, 0.025);
+        applySwitchyardPanels(node);
+        applySwitchyardWeathering(node);
+        finishSwitchyardSurface(node.material, 'coated');
+      });
+    }
     for (const floorName of [`${name}-ground`, `${name}-apron`]) {
       const floor = scene.getObjectByName(floorName);
       if (floor instanceof T.Mesh) {

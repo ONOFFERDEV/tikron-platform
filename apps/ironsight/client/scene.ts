@@ -1755,7 +1755,7 @@ export class SceneRig {
   inspectConcreteDetail() {
     let meshes = 0, invalidUv = false;
     const textures = new Set<THREE.Texture>();
-    const switchyard: Record<string, { meshes: number; panelVertices: number; panelBytes: number; invalid: boolean }> = {};
+    const switchyard: Record<string, { meshes: number; panelVertices: number; panelBytes: number; weatherBytes: number; invalid: boolean }> = {};
     this.scene.traverse(node => {
       if (!(node instanceof THREE.Mesh) || !(node.material instanceof THREE.MeshStandardMaterial) ||
           node.material.normalMap?.name !== 'relay-concrete-normal') return;
@@ -1766,7 +1766,7 @@ export class SceneRig {
       if (!uv || uv.count !== node.geometry.getAttribute('position').count || ![...uv.array].every(Number.isFinite)) invalidUv = true;
       const kind = node.material.userData.switchyardSurface as string | undefined;
       if (kind) {
-        const entry = switchyard[kind] ??= { meshes: 0, panelVertices: 0, panelBytes: 0, invalid: false };
+        const entry = switchyard[kind] ??= { meshes: 0, panelVertices: 0, panelBytes: 0, weatherBytes: 0, invalid: false };
         entry.meshes++;
         const panel = node.geometry.getAttribute('switchyardPanel');
         if (panel) {
@@ -1774,6 +1774,11 @@ export class SceneRig {
           for (let i = 0; i < panel.count; i++) if (panel.getZ(i) >= 0.08 && panel.getW(i) >= 0.08) entry.panelVertices++;
           entry.invalid ||= panel.count !== node.geometry.getAttribute('position').count || ![...panel.array].every(Number.isFinite);
         } else if (['steel', 'coated', 'deck'].includes(kind)) entry.invalid = true;
+        if (['concrete', 'steel', 'coated', 'deck'].includes(kind)) {
+          const weather = node.geometry.getAttribute('switchyardWeather');
+          entry.invalid ||= !weather || weather.count !== node.geometry.getAttribute('position').count || ![...weather.array].every(Number.isFinite);
+          if (weather) entry.weatherBytes += weather.array.byteLength;
+        }
       }
     });
     return { meshes, textures: textures.size, invalidUv, switchyard,

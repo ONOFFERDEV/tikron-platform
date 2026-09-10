@@ -32,7 +32,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.fillRect(random() * 512, random() * 512, 1 + random() * 2, 1 + random() * 2);
   }
   const sx = 512 / map.bounds.width, sz = 512 / map.bounds.depth;
-  if (metric) {
+  if (metric && !switchyard) {
     // Broad pour-to-pour aging gives the existing atlas a second scale of wear.
     // Deterministic, restrained contrast keeps the lane paint readable.
     for (let z = 0; z < map.bounds.depth; z += 5) for (let x = 0; x < map.bounds.width; x += 6) {
@@ -133,7 +133,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
     new T.MeshStandardMaterial({ map: texture, roughness: undertow ? 0.94 : wet ? 0.76 : 0.96 }));
   if (metric) {
-    const tint = new T.Color(undertow ? '#74766a' : relay ? '#817e70' : '#89928a'), base = new T.Color(undertow ? '#606060' : '#898989').r;
+    const tint = new T.Color(undertow ? '#74766a' : relay ? '#817e70' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
     floor.material.color.copy(tint).multiplyScalar(1 / base);
     if (switchyard) finishSwitchyardSurface(floor.material, 'ground');
     else if (undertow) finishUndertowSurface(floor.material, 'ground');
@@ -144,7 +144,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   floor.name = `${map.presentation ?? 'site'}-ground`;
   scene.add(floor);
   const apron = new T.Mesh(relay ? buildRelayApronGeometry(map.bounds) : new T.PlaneGeometry(map.bounds.width + 120, map.bounds.depth + 120),
-    new T.MeshStandardMaterial({ color: relay ? 0xffffff : undertow ? 0x60655c : wet ? 0x52686c : 0x818b88, vertexColors: relay, roughness: 0.98 }));
+    new T.MeshStandardMaterial({ color: relay ? 0xffffff : undertow ? 0x60655c : switchyard ? 0x62665d : wet ? 0x52686c : 0x818b88, vertexColors: relay, roughness: 0.98 }));
   if (!relay) { apron.rotation.x = -Math.PI / 2; apron.position.set(map.bounds.width / 2, -0.03, map.bounds.depth / 2); }
   apron.userData.siteGround = true;
   apron.name = `${map.presentation ?? 'site'}-apron`;

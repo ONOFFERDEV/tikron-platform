@@ -5,7 +5,8 @@ import { SIGNAL, type SignalFrame } from '../src/signal-event.js';
 /** Cargo Shift: the east gantry lifts a twelve-metre cargo module, carries
  * it to the other service berth, and sets it down. This hoist stays outside play;
  * the paired CargoCounterweight owns the replicated playable cover presentation.
- * Four draw objects, no textures, lights, shadows, or per-frame geometry work. */
+ * Four draw objects, resident yard detail shared at load, no lights, shadows,
+ * or per-frame geometry work. */
 export class CargoCrane {
   readonly root = new T.Group();
   private readonly cargo: T.Mesh;
@@ -20,7 +21,7 @@ export class CargoCrane {
   constructor(scene: T.Scene, width: number, depth: number) {
     this.root.name = 'switchyard-cargo-shift';
     this.root.position.set(width + 6, 0, depth / 2);
-    const material = new T.MeshStandardMaterial({vertexColors:true, roughness:.78, metalness:.22});
+    const material = new T.MeshStandardMaterial({vertexColors:true, roughness:.90, metalness:.10});
     const parts: T.BufferGeometry[] = [];
     const box = (color:number, x:number,y:number,z:number,w:number,h:number,d:number,ry=0) => {
       const indexed=new T.BoxGeometry(w,h,d), g=indexed.toNonIndexed(); indexed.dispose();
@@ -30,45 +31,45 @@ export class CargoCrane {
       g.setAttribute('color',new T.BufferAttribute(colors,3));parts.push(g);
     };
     const batch = () => {const g=mergeGeometries(parts);for(const p of parts)p.dispose();parts.length=0;return g;};
-    // Sealed orange corrugated cargo, dark frame and four pale corner castings.
+    // Sealed faded-ochre corrugated cargo, dark frame and four pale corner castings.
     // The same 4x3x12m body is the planned cover envelope for stage 2.
-    box(0xb97835,0,1.5,0,4,3,12);
-    for(const y of [.12,2.88])box(0x273e46,0,y,0,4.12,.24,12.12);
+    box(0x968061,0,1.5,0,4,3,12);
+    for(const y of [.12,2.88])box(0x41453f,0,y,0,4.12,.24,12.12);
     for(const x of [-1.88,1.88])for(const z of [-5.88,5.88]) {
-      box(0xcdd0b6,x,1.5,z,.24,2.76,.24);
-      box(0x273e46,x,3.08,z,.38,.16,.38);
+      box(0xada991,x,1.5,z,.24,2.76,.24);
+      box(0x41453f,x,3.08,z,.38,.16,.38);
     }
     for(const side of [-1,1]) {
-      for(let z=-5.3;z<=5.3;z+=.55)box(0xd79c4c,side*2.025,1.5,z,.07,2.45,.13);
+      for(let z=-5.3;z<=5.3;z+=.55)box(0xb09b74,side*2.025,1.5,z,.07,2.45,.13);
       // Large serial panel breaks the ribs; bold stripes remain readable at range.
-      box(0x273e46,side*2.08,1.7,-1.5,.04,1.1,3.1);
-      for(const z of [-2.3,-1.5,-.7])box(0xd7dfcc,side*2.105,1.7,z,.02,.63,.22);
-      box(0xd7dfcc,side*2.105,1.35,-1.5,.02,.1,2.1);
+      box(0x41453f,side*2.08,1.7,-1.5,.04,1.1,3.1);
+      for(const z of [-2.3,-1.5,-.7])box(0xc4bda5,side*2.105,1.7,z,.02,.63,.22);
+      box(0xc4bda5,side*2.105,1.35,-1.5,.02,.1,2.1);
       for(const z of [-5.25,5.25])for(let y=.6;y<2.5;y+=.55)
-        box(0x263a42,side*2.085,y,z,.04,.22,.55);
+        box(0x3c423c,side*2.085,y,z,.04,.22,.55);
     }
     // Paired end doors, hinges and locking bars. Geometry adds relief without
     // a new texture atlas or gaps that falsely suggest a playable interior.
     for(const end of [-1,1])for(const x of [-.95,.95]) {
-      box(0x986638,x,1.5,end*6.025,1.78,2.44,.05);
-      box(0xd7dfcc,x,1.5,end*6.08,.09,2.22,.06);
-      box(0x273e46,x,1.25,end*6.13,.42,.12,.08);
-      for(const y of [.6,2.4])box(0x273e46,x+Math.sign(x)*.63,y,end*6.08,.28,.18,.08);
+      box(0x7c684e,x,1.5,end*6.025,1.78,2.44,.05);
+      box(0xc4bda5,x,1.5,end*6.08,.09,2.22,.06);
+      box(0x41453f,x,1.25,end*6.13,.42,.12,.08);
+      for(const y of [.6,2.4])box(0x41453f,x+Math.sign(x)*.63,y,end*6.08,.28,.18,.08);
     }
     // Lifting spreader stays attached to the load; no unsupported floating crate.
-    for(const x of [-1.65,1.65])box(0x334b52,x,3.32,0,.3,.35,11.5);
-    for(const z of [-5.5,5.5])box(0xc6a45e,0,3.32,z,3.6,.35,.3);
-    this.cargo=new T.Mesh(batch(),material);this.cargo.name='cargo-module';this.root.add(this.cargo);
+    for(const x of [-1.65,1.65])box(0x4e544b,x,3.32,0,.3,.35,11.5);
+    for(const z of [-5.5,5.5])box(0xa28e64,0,3.32,z,3.6,.35,.3);
+    this.cargo=new T.Mesh(batch(),material);this.cargo.name='cargo-module';this.cargo.userData.switchyardCargo=true;this.root.add(this.cargo);
 
-    box(0x273e46,0,18.5,0,4.3,.6,4);
+    box(0x41453f,0,18.5,0,4.3,.6,4);
     for(const x of [-1.5,1.5]) {
-      box(0xb8c4bb,x,19.0,0,.85,.6,3.5);
-      for(const z of [-1.25,1.25])box(0x344d55,x,19.35,z,.8,.7,.6);
+      box(0xaaa991,x,19.0,0,.85,.6,3.5);
+      for(const z of [-1.25,1.25])box(0x4c524b,x,19.35,z,.8,.7,.6);
     }
-    box(0xc89c50,0,18.95,0,1.8,.65,2.7);
-    this.trolley=new T.Mesh(batch(),material);this.trolley.name='cargo-trolley';this.root.add(this.trolley);
+    box(0xa38f66,0,18.95,0,1.8,.65,2.7);
+    this.trolley=new T.Mesh(batch(),material);this.trolley.name='cargo-trolley';this.trolley.userData.switchyardCargo=true;this.root.add(this.trolley);
 
-    this.cables=new T.InstancedMesh(new T.BoxGeometry(1,1,1),new T.MeshStandardMaterial({color:0x253d46,roughness:.72,metalness:.3}),4);
+    this.cables=new T.InstancedMesh(new T.BoxGeometry(1,1,1),new T.MeshStandardMaterial({color:0x363d36,roughness:.72,metalness:.3}),4);
     this.cables.frustumCulled=false;this.cables.name='cargo-hoist-cables';this.root.add(this.cables);
     box(0xffffff,0,18.28,2.03,2.4,.15,.04);
     this.pilot=new T.Mesh(batch(),new T.MeshBasicMaterial({color:0x80d5dc}));this.root.add(this.pilot);
@@ -103,6 +104,6 @@ export class CargoCrane {
 
   inspect() {
     return {kind:'cargo-shift',phase:this.phase,berth:this.berth,lift:this.lift,
-      bottom:4+this.lift,textures:0,playableRoute:false};
+      bottom:4+this.lift,textures:this.cargo.material instanceof T.MeshStandardMaterial && this.cargo.material.normalMap ? 2 : 0,playableRoute:false};
   }
 }

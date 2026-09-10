@@ -1,6 +1,7 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
+import { SWITCHYARD_FINISH } from './switchyard-palette.js';
 
 /** Power-distribution yard. Complete collider envelopes remain visibly solid;
  * millimetre face cladding cannot create a route, opening or extra cover.
@@ -8,10 +9,8 @@ import { buildSiteGround } from './site-ground.js';
 export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const { width, depth } = map.bounds;
   const cx = width / 2, cz = depth / 2;
-  const colors = [0xb8bcb0, 0x33474c, 0x617a78, 0xdbaa57, 0x458d91, 0xdad6be];
-  const materials = colors.map((color, i) => new T.MeshStandardMaterial({
-    color, roughness: i === 1 || i === 2 ? 0.74 : 0.91, metalness: i === 1 || i === 2 ? 0.28 : 0.06,
-  }));
+  const materials = [SWITCHYARD_FINISH.concrete, SWITCHYARD_FINISH.steel, SWITCHYARD_FINISH.housing,
+    SWITCHYARD_FINISH.ochre, SWITCHYARD_FINISH.olive, SWITCHYARD_FINISH.pale].map(finish => new T.MeshStandardMaterial(finish));
   const batches = new Map<string, T.Matrix4[]>();
   const box = new T.BoxGeometry(1, 1, 1);
   const cylinder = new T.CylinderGeometry(0.5, 0.5, 1, 12);
@@ -203,9 +202,9 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   const ctx = canvas.getContext('2d')!;
   const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE'];
   labels.forEach((label, i) => {
-    ctx.fillStyle = '#283f44'; ctx.fillRect(0, i * 128, 1024, 128);
-    ctx.fillStyle = i === 1 ? '#79c3c2' : '#e6b76b'; ctx.fillRect(16, i * 128 + 18, 12, 92);
-    ctx.fillStyle = '#e7e8db'; ctx.font = '600 58px Arial'; ctx.fillText(label, 46, i * 128 + 84);
+    ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * 128, 1024, 128);
+    ctx.fillStyle = i === 1 ? '#a8b7a5' : '#c5b185'; ctx.fillRect(16, i * 128 + 18, 12, 92);
+    ctx.fillStyle = '#e1e0cf'; ctx.font = '600 58px Arial'; ctx.fillText(label, 46, i * 128 + 84);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const mat = new T.MeshBasicMaterial({ map: texture });

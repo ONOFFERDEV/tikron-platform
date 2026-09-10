@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { applyRelayWeathering } from './relay-weathering.js';
 
 export type SwitchyardSurface = 'ground' | 'concrete' | 'apron' | 'coated' | 'steel' | 'deck';
 
@@ -48,13 +49,37 @@ export function applySwitchyardPanels(mesh: T.Mesh): void {
   geometry.setAttribute('switchyardPanel', new T.BufferAttribute(panel, 4));
 }
 
+/** Keep the authored ledge and height in the same fixed space as metric UVs.
+ * Packing them at load makes rain wear travel with the hoist/counterweight.
+ * Split corners retain the exact rendered triangle stream and baked AO. */
+export function applySwitchyardWeathering(mesh: T.Mesh): void {
+  applyRelayWeathering(mesh);
+  const geometry = mesh.geometry, position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal'), elevation = geometry.getAttribute('relayElevation');
+  const weather = new Float32Array(position.count * 4);
+  const p = new T.Vector3(), n = new T.Vector3(), basis = new T.Matrix3().getNormalMatrix(mesh.matrixWorld);
+  for (let i = 0; i < position.count; i++) {
+    p.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+    n.fromBufferAttribute(normal, i).applyNormalMatrix(basis);
+    weather.set([p.y, elevation.getX(i), elevation.getY(i), 1 - Math.abs(n.y)], i * 4);
+  }
+  geometry.setAttribute('switchyardWeather', new T.BufferAttribute(weather, 4));
+  geometry.deleteAttribute('relayElevation');
+}
+
 /** Original metric finish in the existing opaque PBR pass. Mipmapped fine grain,
  * derivative-filtered joints, worn panel edges and shallow anti-slip tread.
  * Fixed shaders/textures are prepared before play; no lights or extra passes. */
 export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: SwitchyardSurface): void {
   const panelled = kind === 'steel' || kind === 'coated' || kind === 'deck';
+  const weathered = panelled || kind === 'concrete';
   material.userData.switchyardSurface = kind;
   material.onBeforeCompile = shader => {
+    if (weathered) {
+      shader.vertexShader = `attribute vec4 switchyardWeather; varying vec4 vSwitchyardWeather;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSwitchyardWeather = switchyardWeather;');
+      shader.fragmentShader = `varying vec4 vSwitchyardWeather;\n${shader.fragmentShader}`;
+    }
     if (panelled) {
       shader.vertexShader = `attribute vec4 switchyardPanel;\nvarying vec4 vSwitchyardPanel;\nvarying float vSwitchyardUp;\n${shader.vertexShader}`
         .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -71,6 +96,7 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
     shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = roughness;
       float switchyardWear = 0.0;
+      float switchyardWet = 0.0;
       vec2 switchyardTreadNormal = vec2(0.0);
       #ifdef USE_ROUGHNESSMAP
       float grain = texture2D(roughnessMap, vRoughnessMapUv).r;
@@ -79,8 +105,30 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       vec2 footprint = max(fwidth(metres), vec2(0.001));
       roughnessFactor *= ${panelled ? 'mix(0.94, 1.02, aggregate)' : 'grain'};
       diffuseColor.rgb *= mix(${panelled ? '0.98, 1.02' : '0.95, 1.05'}, aggregate);
-      ${kind === 'ground' || kind === 'concrete' ? `
-      vec2 spacing = vec2(${kind === 'ground' ? '6.0, 5.0' : '2.4, 1.2'});
+      float broad = clamp((texture2D(roughnessMap, vNormalMapUv * 0.017 + vec2(0.31, 0.73)).r - 0.64) / 0.36, 0.0, 1.0);
+      diffuseColor.rgb *= mix(1.02, ${weathered ? '0.93' : '0.95'}, smoothstep(0.40, 0.65, broad));
+      ${weathered ? `
+      float vertical = smoothstep(0.5, 0.95, vSwitchyardWeather.w);
+      float drop = max(0.0, vSwitchyardWeather.z - vSwitchyardWeather.x);
+      float extent = vSwitchyardWeather.z - vSwitchyardWeather.y;
+      float runoff = clamp((texture2D(roughnessMap, vNormalMapUv * vec2(0.21, 0.003)).r - 0.64) / 0.36, 0.0, 1.0);
+      float rust = smoothstep(0.50, 0.68, runoff) * vertical * step(0.5, extent);
+      rust *= 1.0 - smoothstep(0.07, max(0.2, min(extent, 0.22 + broad * 1.25)), drop);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.55, 0.35, 0.20), rust * 0.62);
+      float silt = (1.0 - smoothstep(0.08, 0.6 + broad * 0.3, vSwitchyardWeather.x)) * vertical;
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.47, 0.46, 0.38), silt * 0.62);
+      roughnessFactor = mix(roughnessFactor, 0.97, rust * 0.5);
+      ` : ''}
+      ${kind === 'ground' ? `
+      // Irregular shallow wet patches on asphalt. The existing R8 detail tile
+      // supplies both scales; reflect only the resident sky, never hidden actors.
+      float wetField = clamp((texture2D(roughnessMap, vNormalMapUv * 0.004 + vec2(0.67, 0.19)).r - 0.64) / 0.36, 0.0, 1.0);
+      switchyardWet = smoothstep(0.58, 0.67, wetField + (broad - 0.5) * 0.16);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.52, 0.54, 0.50), switchyardWet);
+      roughnessFactor = mix(roughnessFactor, 0.23, switchyardWet);
+      ` : ''}
+      ${kind === 'concrete' ? `
+      vec2 spacing = vec2(2.4, 1.2);
       vec2 local = mod(metres, spacing), cell = floor(metres / spacing);
       vec2 seam = 1.0 - smoothstep(vec2(0.012), vec2(0.012) + footprint, min(local, spacing - local));
       seam *= min(vec2(1.0), vec2(0.024) / footprint);
@@ -88,6 +136,9 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       float pour = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
       diffuseColor.rgb *= mix(0.98, 1.02, pour) * mix(1.0, 0.70, joint);
       roughnessFactor = mix(roughnessFactor, 0.98, joint);
+      float tie = 1.0 - smoothstep(0.024, 0.024 + max(footprint.x, footprint.y), length(local - spacing * 0.5));
+      tie *= min(1.0, 0.048 / max(footprint.x, footprint.y)) * vertical;
+      diffuseColor.rgb *= 1.0 - 0.30 * tie;
       ` : ''}
       ${panelled ? `
       vec2 edgeDistance = min(vSwitchyardPanel.xy, vSwitchyardPanel.zw - vSwitchyardPanel.xy);
@@ -101,6 +152,12 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       diffuseColor.rgb *= 1.0 - 0.08 * grime;
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.27, 0.31, 0.30), switchyardWear * ${kind === 'coated' ? '0.32' : '0.44'});
       roughnessFactor = mix(roughnessFactor, 0.48, switchyardWear);
+      // Corrosion gathers behind exposed edges, with a few fine broken chips.
+      float corrosion = grime * smoothstep(0.43, 0.65, broad) * (1.0 - switchyardWear);
+      float chip = smoothstep(0.59, 0.73, aggregate) * smoothstep(0.48, 0.65, broad);
+      chip *= 1.0 - smoothstep(0.02, 0.07, max(footprint.x, footprint.y));
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.55, 0.34, 0.19), corrosion * 0.65);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.09, 0.08, 0.055), chip * ${kind === 'coated' ? '0.4' : '0.18'});
       ` : ''}
       ${kind === 'steel' ? `
       // Fine rolled finish loses contrast before it becomes a grazing moire.
@@ -129,9 +186,9 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       #include <metalnessmap_fragment>
       metalnessFactor = mix(metalnessFactor, 0.62, switchyardWear);
     `);
-    if (kind === 'deck') shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
-      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy = mapN.xy * normalScale + switchyardTreadNormal;'));
+    if (kind === 'deck' || kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
+      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy = mapN.xy * normalScale * mix(1.0, 0.12, switchyardWet) + switchyardTreadNormal;'));
   };
-  material.customProgramCacheKey = () => `switchyard-surface-v1-${kind}`;
+  material.customProgramCacheKey = () => `switchyard-surface-v2-${kind}`;
   material.needsUpdate = true;
 }

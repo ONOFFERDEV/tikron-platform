@@ -1256,3 +1256,30 @@ using the metadata's prompt/texture_prompt and2500/3500polycount respectively,
 `--out .inspect/session84-meshy` (consumes credits, nondeterministic). Shrink with
 `tools/shrink-glb.py --input <dir>/model.glb --output <dir>/shrunk.glb --size 512 --webp`
 under Blender4.5. Review: `blender --background --python .inspect/session84-assets-review.py`.
+
+### Session 85 - Switchyard field finish
+
+`client/switchyard-palette.ts` assigns grey/olive/ochre industrial finishes to
+the existing original architecture slots and procedural fallback. The original
+AO GLB stays unchanged. `switchyard-surfaces.ts` reuses the resident 256px normal
+and R8 roughness pair for ledge rust, broken paint, edge corrosion and damp
+asphalt. Ground intensity/AO remains R8; broad wet patches sample the same detail
+tile at two scales and reflect only the resident overcast sky. There is no new
+reflection pass, image download, texture allocation, light or transparent layer.
+Original flush asphalt repairs/tyre wear are painted into the existing ground
+atlas by `switchyard-service-wear.ts` during loading.
+
+The moving cargo, trolley and counterweight share these detail textures in their
+existing draws. Prepared height/ledge/normal attributes travel with each mesh;
+geometry buffers do not change during the event. The existing signs and lock
+markers retain their text and gameplay meaning. All original triangle positions,
+normals, colours and AO UVs are preserved; splitting corners changes decoded
+buffer storage, reported separately from texture residency in Session85's log.
+No purchased-source derivative, generated model or dependency is added.
+
+Reproduce with `pnpm build:client`; refresh the original deployment screenshot:
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-vista --write-vista`.
+Fixed-camera pairs, moving-cover views, geometry audit and performance evidence
+are under `.inspect/session85-*`. Meshy spending is zero this session: this
+material pass does not need generated geometry. The soldier/weapon programme
+retains1150 authorized credits; account1380 is the supervisor's last receipt.

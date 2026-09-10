@@ -24,36 +24,38 @@ export class CargoCounterweight {
       g.setAttribute('color',new T.BufferAttribute(a,3));parts.push(g);
     };
     const batch=(parent:T.Object3D)=>{
-      parent.add(new T.Mesh(mergeGeometries(parts),new T.MeshStandardMaterial({vertexColors:true,roughness:.8,metalness:.25})));
+      const mesh=new T.Mesh(mergeGeometries(parts),new T.MeshStandardMaterial({vertexColors:true,roughness:.9,metalness:.10}));
+      mesh.userData.switchyardCargo=parent===this.weight;
+      parent.add(mesh);
       for(const g of parts)g.dispose();parts=[];
     };
-    // The full dark envelope has no misleading gaps. Inset orange panels and
+    // The full dark envelope has no misleading gaps. Inset faded-ochre panels and
     // pale castings echo the overhead cargo without inventing another asset.
-    box(0x283e46,0,h/2,0,w-.16,h-.04,d-.16);
-    for(const y of [.075,h-.075])box(0x283e46,0,y,0,w,.15,d);
+    box(0x41453f,0,h/2,0,w-.16,h-.04,d-.16);
+    for(const y of [.075,h-.075])box(0x41453f,0,y,0,w,.15,d);
     for(const side of [-1,1]) {
-      box(0xbc7d3c,side*(w/2-.07),h/2,0,.04,h-.3,d-.3);
+      box(0x968061,side*(w/2-.07),h/2,0,.04,h-.3,d-.3);
       for(let z=-d/2+.32;z<d/2-.2;z+=.4)
-        box(0xe0a954,side*(w/2-.025),h/2,z,.05,h-.65,.09);
-      for(const z of [-d/2+.12,d/2-.12])box(0xc6ceba,side*(w/2-.09),h/2,z,.18,h-.34,.18);
-      box(0x203740,side*(w/2+.006),1.7,0,.012,1.2,3.5);
-      box(0xb87a39,0,h/2,side*(d/2-.07),w-.3,h-.3,.04);
-      for(let x=-w/2+.3;x<w/2-.2;x+=.4)box(0xe0a954,x,h/2,side*(d/2-.025),.09,h-.65,.05);
+        box(0xb09b74,side*(w/2-.025),h/2,z,.05,h-.65,.09);
+      for(const z of [-d/2+.12,d/2-.12])box(0xbab59d,side*(w/2-.09),h/2,z,.18,h-.34,.18);
+      box(0x353b36,side*(w/2+.006),1.7,0,.012,1.2,3.5);
+      box(0x887653,0,h/2,side*(d/2-.07),w-.3,h-.3,.04);
+      for(let x=-w/2+.3;x<w/2-.2;x+=.4)box(0xb09b74,x,h/2,side*(d/2-.025),.09,h-.65,.05);
     }
     // A flat metal top becomes the crossing floor in the down lock.
-    for(let z=-d/2+.18;z<d/2;z+=.38)box(0x788d88,0,h+.004,z,w-.16,.004,.035);
+    for(let z=-d/2+.18;z<d/2;z+=.38)box(0x7b806f,0,h+.004,z,w-.16,.004,.035);
     batch(this.weight);
     // Paint only: four corners and transverse teeth mark the protected footprint.
     for(const side of [-1,1]) {
-      box(0xdeae61,side*(w/2+.22),.012,0,.12,.012,d+.6);
-      box(0xdeae61,0,.012,side*(d/2+.22),w+.6,.012,.12);
-      for(let z=-d/2;z<=d/2;z+=.5)box(0xdeae61,side*(w/2+.48),.013,z,.32,.012,.14);
+      box(0xc2af82,side*(w/2+.22),.012,0,.12,.012,d+.6);
+      box(0xc2af82,0,.012,side*(d/2+.22),w+.6,.012,.12);
+      for(let z=-d/2;z<=d/2;z+=.5)box(0xc2af82,side*(w/2+.48),.013,z,.32,.012,.14);
     }
     batch(this.root);
     const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-    const ctx=canvas.getContext('2d')!;ctx.fillStyle='#203740';ctx.fillRect(0,0,512,128);
-    ctx.textAlign='center';ctx.fillStyle='#ffe0a2';ctx.font='bold 39px Arial';ctx.fillText('FREIGHT / 04',256,47);
-    ctx.fillStyle='#c4e0d8';ctx.font='bold 19px Arial';ctx.fillText('COVER RETRACTS ON CARGO SHIFT',256,82);
+    const ctx=canvas.getContext('2d')!;ctx.fillStyle='#353b36';ctx.fillRect(0,0,512,128);
+    ctx.textAlign='center';ctx.fillStyle='#e1d4b3';ctx.font='bold 39px Arial';ctx.fillText('FREIGHT / 04',256,47);
+    ctx.fillStyle='#d0d6c6';ctx.font='bold 19px Arial';ctx.fillText('COVER RETRACTS ON CARGO SHIFT',256,82);
     ctx.font='16px Arial';ctx.fillText('KEEP THE MARKED CROSSING CLEAR',256,111);
     const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;
     const mat=new T.MeshBasicMaterial({map:texture});
