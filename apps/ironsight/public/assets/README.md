@@ -1151,3 +1151,23 @@ above; these are flattened game screenshots, not concept art. The menu uses
 images without loading the map's 3D assets. Numeric first-load/stress comparisons
 and paired-camera evidence are in the Session79 AAA plan log; hardware and human
 visual/readability acceptance remain open.
+
+## Session81: original operator field kits
+
+`client/operator-kit.ts` authors bevelled carriers, shoulder plates, magazine
+pouches, straps and thigh guards in the cached operator's bind pose. RUSH uses
+a light asymmetric kit, ANCHOR a broad paired-shoulder carrier, and SCOUT a
+compact raised collar and back module. `src/bot-roles.ts` supplies stable role
+identities; humans use the balanced ANCHOR carrier. Equipment grants no stats.
+
+Reproduce with `pnpm build:client`, then
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots roles-after`.
+The original procedural geometry is merged into the existing skinned draw once
+per role during arena preparation. The complete quantized inverse-bind transform
+places each part; the source model's vertices, clips, head and foot normalization
+are preserved. All three buffers are prepared before input. No new image, asset
+download, light or render pass. Team-coloured plates, graphite underlayers and a
+pale chest identification strip share one shader with the existing enemy rim and
+colour choices. The private source GLB and its textures remain unchanged/ignored;
+no purchased-source derivative is exported or versioned. Measured geometry,
+resident textures and before/after evidence are in the Session81 AAA plan log.

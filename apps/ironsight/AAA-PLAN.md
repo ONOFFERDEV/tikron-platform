@@ -67,7 +67,9 @@ Session78 quick check (published per Session79 supervisor, commit1356a28): Train
 
 Session79 quick check (published per Session80 supervisor, commit057e989): choose Free for all / Switchyard. Its deployment image now matches the cool overcast sky in the yard; look up at the amber gantry during CARGO SHIFT, then follow North bus or South service. Broad silver clouds, softer direct light and cool reflections give the depot its own weather while signs and operators remain distinct in the inspected views. Undertow's deployment image now shows its dusk plant. Afterlight 2/2 completes the arc, ON by default; human visual/device approval remains open.
 
-Session80 quick check (local candidate): open a fresh TDM or Free for all room. Arena preparation now also prepares combat UI before mouse control is enabled. The first hit, elimination and results keep the same appearance. First Fight1/1 is ON by default. Five complete-observation bot pairs pass the150ms first-damage/death check; early loading/presentation costs and representative device acceptance remain documented below.
+Session80 quick check (published per Session81 supervisor, commit592b974): open a fresh TDM or Free for all room. Arena preparation now also prepares combat UI before mouse control is enabled. The first hit, elimination and results keep the same appearance. First Fight1/1 is ON by default. Five complete-observation bot pairs pass the150ms first-damage/death check; early loading/presentation costs and representative device acceptance remain documented below.
+
+Session81 quick check (local candidate): follow your squad out of Relay deployment. RUSH wears a light single-shoulder carrier, ANCHOR broader paired plates and pouches, and SCOUT a raised asymmetric collar and compact back module. Graphite underlayers and pale chest bars separate the kit from the team colour. Enemy colour settings also tint the armour. Field Kit1/1 is complete and ON by default; equipment grants no extra health or damage. First-person fidelity and human role/readability acceptance remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -403,8 +405,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 80 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session80-reference-audit.json` (fresh build, identical to Session79);
+Session 24 first canonical audit (reference restored), updated in Session 81 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session81-reference-audit.json` (fresh build, identical to Session80);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -438,7 +440,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G06 | met | Session31 bounded center-biased deep-spray cone after 8/7/8/8/5 shots; ADS .65/.70/.80/.50/.65 and grounded crouch .75 multiply. Shared function on server/claims, distribution and authority tests; slow weapons settle between shots. |
 | R-G07 | met | Session55 received grenade/mortar impacts add bounded0-1 trauma; roll=trauma squared times smooth7/11Hz waves, <=2degrees, fully decayed within2s. Distance/current cover gated, ADS reduces65%; Reduced motion/death/pause/disconnect clear. Camera quaternion restored after draw, eye/center ray unchanged even during draw. Five regression cases, paired stills, real20s grenade/settings drill and earned mortar captures. Human comfort remains open. |
 | R-G08 | partial | Session31 authoritative aim offset separated from cosmetic weapon kick. Reduced motion preserves the exact aim model; dedicated reduce-view-kick setting remains absent. |
-| R-G09 | partial | Session69 adds a bounded material rim to the existing operator and capsule fallback, with no outline geometry or extra pass. Matched six-metre role stills retain weapons/poses and surface detail. Enemy-only yellow/violet choices and live switching tested. Distinct role skins, all-range silhouette and human hold/readability acceptance remain open. |
+| R-G09 | partial | Session81 Field Kit1/1 ON: stable RUSH/ANCHOR/SCOUT carriers, shoulders, pouches and thigh guards with distinct breadth/asymmetry. Three original bind-pose geometries share the existing skinned draw and atlas. Paired six-metre role stills, 18 actual-asset pose audits and a20.813s natural TDM sequence. Held animations/head/foot normalization preserved; human all-range silhouette and moving-grip acceptance remain open. |
 | R-G10 | met | Session53 five original atlas silhouettes and34/42/50/60/64ms lifetimes (2-4frames at60Hz); local/remote share one source and eight pooled slots. Real22.072s five-weapon input capture:17server shots/7hits,all flashes expire. ADS reduces local size/opacity. Human readability/comfort remains open. |
 | R-G11 | met | Shot events drive travelling tracers; sniper 1200 m/s, others 500-800; hits remain instant server hitscan. |
 | R-G12 | partial | Session47 launch uses existing lowered traversal weapon pose; before/flight/landing/reduced captures retain the center aiming corridor. No new hand/remote flight clip; moving pose acceptance remains human work. |
@@ -461,8 +463,8 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
-| R-L12 | partial | Session79 completes Afterlight2/2 ON: Switchyard stratus, cool diffuse fill/reflections and weaker high key; Undertow dusk and Relay daylight retained. Five paired player-height views, 11-operator stress and matching map-selection vistas. Human all-lighting/readability and broader fidelity remain open. |
-| R-L13 | partial | Session79 brighter final diffuse fill lifts the first candidate's dark freight walls. Original large actor team-colour masses, rim and enemy choices remain; sampled actors and white route signs read against quieter blue-grey steel. Human colour/value and all-range review remain open. |
+| R-L12 | partial | Session81 dark underlayers and bevelled team-colour plates retain the existing material rim. Paired role/highlight stills plus eleven-operator stress in daylight, dusk and overcast pass. Human all-lighting readability and overall fidelity remain open. |
+| R-L13 | partial | Session81 concentrates team colour on chest/back/shoulders and thigh plates, with graphite flexible sections and one pale chest bar. Roles differ by broad/asymmetric equipment instead of more colours. Both enemy options and Reduced motion inspected; human all-range value/colour review remains open. |
 | R-L14 | partial | Session80 First Fight1/1 ON: 18 real DOM/CSS views rasterize during loading, with inert copies removed before input. GPU trace covers134 raster tasks and21 pixel/21 vertex executable tasks during433.9ms preparation. Five consecutive fresh-profile TDM/FFA pairs include pre-profiler live-join events and pass150ms first-damage/death checks. All three stress draw/texture budgets unchanged. Early frame intervals, including the292.4ms FFA outlier, remain reported and investigated in the session log; no universal driver/iGPU/thermal acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
@@ -472,25 +474,25 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L20 | partial | Session59 existing five-row top-right feed/rosters now use stable RUSH/ANCHOR/SCOUT names for combat bots; actual mixed-weapon/assist/local-victim captures pass. Team colour and weapon/HEADSHOT text retained; objective feed and bottom-left convention remain unmet. |
 | R-L21 | met | Session80 retains Session74 baked border,60ms flash and900ms labelled direction; matched combat still is byte-identical. Four directions and both hitmarker styles prepare before play, without changing live HP/feed/focus/settings. Desktop/narrow/Reduced motion cleanup and real-settings-entry checks pass. First natural damage/death intervals are below150ms across five fresh-profile pairs; human comfort remains open. |
 | R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
-| R-L23 | met | Session69 Settings / Enemy colour: Team colours(default), Yellow, Violet. Existing material tint/rim uniforms only; known opponents override, allies remain, FFA/training all remotes hostile. TDM/FFA keyboard switching,800x600 control, save/reset/invalid migration, stable programs/material versions and pixel-identical hidden-operator/empty-cover images pass. Implemented dropdown check, not human colour-vision acceptance. |
+| R-L23 | met | Session81 live TDM/FFA keyboard switches Team/Yellow/Violet retain allied colours, opaque depth testing and shader/material versions on all kit pieces. Covered-yellow and empty-cover images are byte-identical. Existing save/reset/invalid migration and800x600 settings checks pass; human colour-vision acceptance remains open. |
 
 
 ## AAA gap list
 
-Session80: all63 rows re-reviewed; fresh static measurements match Session79.
-The supervisor's14:25 compositor-warmup instruction took priority this session.
-First Fight1/1 now prepares all18 match UI views and the actual minimap before
-input, with five complete-observation TDM/FFA pairs. Early presentation outliers
-remain recorded; this does not establish a universal driver fix or iGPU acceptance.
-After this dedicated performance arc, the visual-first ranking below stands:
-operator/weapon fidelity is next, followed by local wear and hero dressing.
-Public ceiling60MiB, per-file25MiB, per-map lazy loading, fixed lights and
-the existing headless policy remain. Switchyard still has only5461 estimated
-texture bytes free; the loading copies add no persistent WebGL residency.
+Session81: all63 canonical rows re-reviewed; fresh static measurements equal
+Session80. Field Kit1/1 completes the bounded operator silhouette/material pass,
+ON by default, with no added textures, draw calls, lights or render passes.
+The broader character/weapon gap remains partial. Session80's compositor proof
+and documented cold-cache residue stand; this session changes no gate policy.
+Public ceiling60MiB, per-file25MiB and per-map lazy loading remain. Switchyard
+still has only5461 estimated texture bytes free, so texture growth must first
+release residency. The visual-first ranking is:
 
-1. **Operator and weapon fidelity (R-G09/12/18, R-L13/23).** Next visual arc: distinct role silhouettes/skins and a convincing first-person grip.
-   Include weapon detail and moving reload review. Retain large team
-   colour masses, enemy colour choices and unobstructed sights.
+1. **First-person weapon and hand fidelity (R-G12/18, R-G09).** Next: stronger
+   weapon surface detail, convincing grip and moving reload review. Keep the
+   centre aiming corridor clear. Field Kit supplies remote role silhouettes;
+   human all-range/colour/held-pose review remains open. Free texture residency
+   before adding maps; use the existing draw budget.
 2. **Localized surface wear and hero dressing (R-L12-14, R-M13/17).** Surface
    Detail's three-map foundation is complete; the full material gap stays open.
    Reduce repeated cabinet silhouettes with visible maintenance details, authored
@@ -12524,3 +12526,170 @@ session80-preview-tree.json and session80-cleanup.json confirm zero owned
 processes, port8796listeners and inspection browsers remaining. Required gates,
 supplementary DOM, scope/diff and the63-row audit are green; machine-readable
 verification is session80-final-audit.json. The supervisor owns publication.
+
+
+### Session 81 - 2026-09-10: Field Kit arc 1/1 - an armoured squad with readable roles
+
+Read the standing brief, Session81 supervisor status and AAA plan in order,
+then all63 design principles and canonical scorecard rows. Entry ironsight-aaa
+was clean. Supervisor confirms Session80 commit592b974 and preview deployment
+97e06253-61b6-439b-9ccf-b5a903fb4253. Its accepted compositor preparation proof
+allows the next ranked visual item. Field Kit1/1 is complete and ON by default.
+All changes stay in apps/ironsight/**; no commit, push or deploy.
+
+Reference: **R-G09, R-L12, R-L13, R-L23**, with R-L14's performance constraint.
+Checkable targets: three stable role silhouettes, a large team-colour torso/
+shoulder mass with quieter flexible sections, the same occlusion/highlight
+rules, no extra draw or texture, and prepared geometry before the first fight.
+Those checks pass. This is a bounded operator-art pass; first-person hands,
+weapon fidelity and human all-range role recognition remain partial.
+
+Delivered original bevelled carriers, shoulders, pouches/straps, back modules
+and thigh guards: light asymmetric RUSH, broad paired-shoulder ANCHOR and
+raised-collar SCOUT. Existing server botRole IDs choose the appearance once;
+weapon swaps, deaths and AOI re-entry cannot change it. Humans use ANCHOR's
+balanced carrier. Graphite underlayers, coloured plates and one pale chest
+identification bar share the existing atlas and rim shader. Equipment is cosmetic.
+
+The three role buffers are generated once and cached by source geometry. They
+merge into the existing skinned draw, use the full quantized inverse-bind
+transform and are submitted during loading. Source GLB, source vertices,
+animations, head shape and foot/crown normalization are preserved. There is
+no added light, texture, render pass, collision cover, stat or wire change.
+Source remains ignored; no purchased derivative is exported. No dependency,
+Meshy spend or new image/download; reported1530 credits unchanged.
+
+Matched1920x1080 player-height evidence at the same six-metre camera:
+[roles before](.inspect/session81-before-roles-after.png) ->
+[roles after](.inspect/session81-accepted-roles-after.png);
+[yellow before](.inspect/session81-before-contrast-yellow.png) ->
+[yellow after](.inspect/session81-accepted-contrast-yellow.png), and the analogous
+violet pair. Reduced motion retains the kit. Covered-yellow and empty-cover
+PNGs have identical SHA256 hashes: the larger visual gear stays behind cover.
+All nine accepted views have zero console errors/forbidden requests.
+
+**Wow check:** 20.813s of natural TDM navigation after real keyboard
+highlight changes, 238 replicated-state samples and 425 actual events. Five
+stills cover0/5/10/15/20s: session81-live-roles-live-*.png. The existing inspector
+uses ordinary movement/look; bots fight naturally. No health/position/role or
+room-state injection. Evidence: session81-live-report.json/log and
+[review gallery](.inspect/session81-review.html). Intended player sentence:
+**"That squad looks equipped for different jobs."** This is an intended response,
+not a testimonial or proof of excitement. Screenshots are separate from timing
+acceptance. TDM and FFA settings checks preserve allies, update enemy uniforms,
+and leave shader counts/material versions unchanged;800x600 control also fits.
+
+Four new regression cases cover stable role mapping, quantized bind transforms,
+source isolation/normalization, bone following/cache reuse and opaque shader
+colour changes. The actual private GLB separately passes18 role/pose combinations
+(idle,walk,sprint,crouch,crouch-walk,death); original deformed vertices remain
+within1e-5m of the source and the feet/crown normalization is identical.
+Evidence: session81-kit-audit.{ts,mjs,json,log}; rebuild its Node bundle with
+esbuild and run it. No derivative is written by that audit. Twenty-seven
+pre-compaction close-up rig views cover AR/SMG/sniper, idle/crouch/sprint and
+front/back/three-quarter with no errors; representative crouch/sprint/back
+stills were reviewed. Final bind audit and accepted map captures were rerun
+after replacing the general extrusion helper with the compact plate builder.
+
+Rejected intermediates: session81-candidate-roles-after.png retains floating
+equipment from incorrectly inverting mesh.world alone; full skin inversion
+fixed it. Candidate captures overlapped a diagnostic rebuild and are not
+performance acceptance. session81-fit-* and session81-close-* retain fit/detail
+iterations. session81-final-* is the correct but larger general-extrusion
+candidate: client2225492bytes. The accepted fixed convex builder removes79917
+client bytes, with the same60triangles/part. Final acceptance uses only the
+frozen accepted bundle; no build/bake/test/second browser overlaps hitch probes.
+
+On RTX5070 / Edge152 / ANGLE D3D11, balanced/DPR1 at1920x1080:
+
+| Fixture | Calls before -> after | Triangles before -> after | Textures / MiB after | Max ms before -> after |
+|---|---:|---:|---:|---:|
+|muzzle|237 -> 237|142952 -> 150212|30 / 63.7448|7.2 -> 7.3|
+|undertow|209 -> 209|159284 -> 166544|26 / 63.3008|7.2 -> 7.3|
+|switchyard|208 -> 208|166956 -> 174216|29 / 63.9948|7.2 -> 13.9|
+
+All retain6.9ms median and7.1ms p95; after p99 is7.1/7.2/7.2ms. Each15s
+fixture contains twelve weapon streams/eleven remotes,145volleys and96blasts,
+then effects drain. Relay here uses the matched mixed-weapon fixture, unlike
+Session80's all-rifle238-call fixture. Program counts33/29/30 are unchanged.
+The extra two prepared geometries are the other two cached roles. RUSH/SCOUT
+add540triangles each, ANCHOR660; the three complete decoded attribute/index
+buffers total1876152bytes (1.7892MiB), shared across actors. This is geometry
+storage, separate from the texture estimate; driver/buffer/compositor overhead
+and laptop iGPU/thermal acceptance are not covered by these desktop timings.
+
+First fresh-profile local scene construction+preparation is
+1.1874 -> 1.2456s.
+Per-map stress preparation is615.9->616.3,668.9->1479.0 and737.2->1114.9ms.
+All costs precede ready and remain reported; these single-run observations
+include first-use rendering work and do not isolate a cause or prove a speedup.
+They are local loading, not CDN/network first-load measurements.
+
+| Bytes | Before | After | Delta |
+|---|---:|---:|---:|
+|assets|27484756|27486035|1279|
+|public|34338885|34367569|28684|
+|client|2136387|2145575|9188|
+|map|4717059|4735276|18217|
+
+Asset growth is README documentation only. Public32.7755MiB is below60MiB;
+largest7183364bytes is below25MiB. Added client9188bytes and source map18217bytes;
+zero new binary assets. Texture residency remains63.7448/63.3008/63.9948MiB;
+no headroom was consumed. Per-map lazy loading,16fixed lights, cached shadows
+and one environment preparation are checked by the existing inspector.
+Comparisons reproduce with node .inspect/session81-summarize.mjs.
+
+Required verification: pnpm typecheck PASS; pnpm test PASS (641passed,
+six existing skips;85passed files/four skipped); pnpm build:client PASS;
+pnpm audit:assets PASS. Logs: session81-final-{typecheck,test,build-client,
+audit-assets}.log. Exact node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS, zero console errors; report and both stills retained as session81-required-*.
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+PASS and copied to session81-hitch-tdm.json. Supplementary FFA/DOM use --assert
+and --assert-first-use. Every probe uses500us CPU profiling and two natural deaths.
+
+| Mode | Seconds / frames | Max frame / callback ms | p99 upper ms | >150ms gaps / share | First damage / death ms | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---:|---|
+|TDM|108.479 / 15614|31.2 / 18.4|8|0 / 0.000%|7.9 / 8.2|2|PASS|
+|FFA|48.014 / 6915|10.4 / 5.7|8|0 / 0.000%|8.8 / 8.8|2|PASS|
+|DOM|96.611 / 13905|26.2 / 8.7|8|0 / 0.000%|8.8 / 8.8|2|PASS|
+
+No shader recompiles or console errors. The unchanged Session74 policy is
+1500ms presentation/150ms main-thread/25ms p99/5% stalled time. Every>150ms
+ordinary or early interval remains in the raw reports. Session80's five-pair
+compositor proof stands; this session does not claim universal stall removal.
+
+| Run | Loading intervals >150ms | After-ready/pre-profiler intervals >150ms |
+|---|---:|---:|
+|TDM|291.3|590.2|
+|FFA|282.4|none|
+|DOM|151.4, 270.5|606.9|
+
+These early intervals are not assigned a cause without a covering trace. The
+earlier accepted Session80 cold-cache evidence remains applicable to its own
+covered intervals only. Frozen client SHA256: 8d8e8909511d11171e9dc4181c441951f775cb551d4d8f5036cd9057e25f48e7.
+
+Fresh tools/reference-audit.ts output deep-equals Session80, with all63 rows
+re-reviewed and the gap list re-ranked. Full/waist cover65/46,66/62,64/48;
+A-B/A-C/B-C sprint rotations14.44/11.78/14.44,14.22/11.33/14.22,
+14.44/11.56/14.44s. Spawn travel is not contact timing. ADS250/200/225/400/165ms,
+sprint recovery120/100/130/150/90ms; TDM50/300s, respawn3s, DOM4/8s and
+0.5point/flag/s; hostile foley1.4, hit900/1400Hz at.28gain, five-row top-right
+feed and both damage cues unchanged. Evidence: session81-reference-{audit,comparison}.json.
+
+Open owner questions/defaults: retain these three restrained kit silhouettes(yes);
+prioritize first-person weapon/grip fidelity next(yes); add textured fabric next
+only after freeing residency(yes). No answer blocks progress. Human visual/
+role recognition, colour/readability/comfort, iGPU/thermal, real6v6/RTT and
+Firefox/Safari remain unaccepted. No latency/capacity or overall AAA claim.
+Cleanup and final scope verification are recorded below after process shutdown.
+
+
+**Session81 cleanup verified.** Saved root PID20860 and its creation time matched;
+all 12 owned preview processes were recorded and descendant identity checked
+before shutdown (5 explicit stops; the rest exited with their parents).
+session81-preview-tree.json and session81-cleanup.json confirm zero owned
+processes, port8796 listeners or inspection browsers remain. Required gates,
+supplementary FFA/DOM, the63-row reference audit and scope/diff checks are green.
+The frozen-bundle verification is session81-final-audit.json. All work remains
+local under apps/ironsight/**; the supervisor owns commit and publication.

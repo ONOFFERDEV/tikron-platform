@@ -155,8 +155,10 @@ export function startMapInspector(): void {
     if (muzzleLineup) Object.assign(actor, { x: 14, z: 8 + i * 1.5 });
   }
   if (roleLineup) for (const [i, role] of (['rusher','anchor','sniper'] as const).entries()) {
-    Object.assign(actors.get(`inspect-${i}`)!, { x: 14, z: 9 + i * 2, team: 1,
+    const actor = actors.get(`inspect-${i}`)!;
+    Object.assign(actor, { x: 14, z: 9 + i * 2, team: 1,
       weapon: shotName === 'roles-before' ? 0 : BOT_ROLES[role].weapon });
+    actors.delete(`inspect-${i}`); actors.set(`bot-${i*2+1}`,actor);
   }
   if (contrastReview) {
     scene.camera.position.set(8, 1.65, 11); scene.camera.lookAt(14, 1.5, 11);
@@ -297,7 +299,8 @@ export function startMapInspector(): void {
       intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
-      actorAppearance: contrastReview ? scene.inspectActorAppearance() : undefined,
+      actorAppearance: contrastReview || roleLineup ? scene.inspectActorAppearance() : undefined,
+      operatorKits: actorCount ? scene.inspectOperatorKits() : undefined,
       uplinks: scene.inspectRelayUplinks(),
       signal: scene.inspectSignal(),
       support: scene.inspectSupport(),

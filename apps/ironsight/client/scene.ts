@@ -1,5 +1,6 @@
 import { SentryDrone } from './sentry-drone.js';
 import { ActorAppearance, actorColor, type EnemyHighlight } from './actor-appearance.js';
+import { fitOperatorKit, operatorKit } from './operator-kit.js';
 import { IntroCamera } from './deployment-intro-view.js';
 import type { IntroPose } from './deployment-intro.js';
 import { BlastTrauma } from './blast-trauma.js';
@@ -1039,9 +1040,25 @@ export class SceneRig {
 
   inspectActorAppearance() {
     return [...this.players].map(([id, rig]) => ({ id, team: rig.team,
+      kit: operatorKit(id),
       colors: rig.appearance.materials.map(m => m.color.getHex()),
       versions: rig.appearance.materials.map(m => m.version),
       depthTest: rig.appearance.materials.every(m => m.depthTest && m.depthWrite && !m.transparent) }));
+  }
+
+  inspectOperatorKits() {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const actors = [...this.players].map(([id,rig]) => {
+      const parts: unknown[] = [];
+      rig.modelRoot?.traverse(node => {
+        if (!(node instanceof THREE.SkinnedMesh) || !node.geometry.getAttribute('fieldKit')) return;
+        geometries.add(node.geometry);
+        parts.push({...node.geometry.userData, vertices:node.geometry.getAttribute('position').count});
+      });
+      return {id,kit:operatorKit(id),parts};
+    });
+    return {actors,uniqueGeometries:geometries.size, geometryBytes:[...geometries].reduce((sum,g) => sum +
+      Object.values(g.attributes).reduce((n,a) => n+a.array.byteLength,0) + (g.index?.array.byteLength??0),0)};
   }
 
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
@@ -1327,6 +1344,7 @@ export class SceneRig {
     const group = new THREE.Group();
     const model = clonePlayerRig(gltf);
     const object = model.object;
+    fitOperatorKit(object, operatorKit(id));
     // Hybrid hit registration (raycastHitClaim): tags the WHOLE skinned-mesh
     // hierarchy as belonging to `id` — a raycast hit lands on some nested mesh
     // under `object`, and userData doesn't inherit, so the claim lookup walks
@@ -1649,7 +1667,7 @@ export class SceneRig {
     await Promise.all(this.assetLoads);
     const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     await nextFrame(); // let the loading message paint before GPU work
-    const rig = this.modelGltf ? this.makeModelRig('__prepare', 0, this.modelGltf) : undefined;
+    const rigs = this.modelGltf ? ['bot-1','bot-3','bot-5'].map(id => this.makeModelRig(id, 0, this.modelGltf!)) : [];
     const bundle = GAME.weaponVis.bundle;
     const weapons = bundle && this.weaponIsModel ? await loadWeaponModel(bundle.url) : undefined;
     const weaponFixture = weapons?.scene.clone();
@@ -1696,7 +1714,7 @@ export class SceneRig {
         object.visible = visible; object.frustumCulled = culled;
         if (object instanceof THREE.InstancedMesh && count !== undefined) object.count = count;
       }
-      if (rig) this.disposeRig(rig);
+      for (const rig of rigs) this.disposeRig(rig);
       weaponFixture?.removeFromParent();
       const now = performance.now();
       this.stepFx(now + 10000); this.updateTracers(now + 10000);

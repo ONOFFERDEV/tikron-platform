@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { kitShader } from './operator-kit.js';
 
 export const ENEMY_HIGHLIGHTS = ['team', 'yellow', 'violet'] as const;
 export type EnemyHighlight = typeof ENEMY_HIGHLIGHTS[number];
@@ -26,6 +27,7 @@ export class ActorAppearance {
     const clones = new Map<THREE.Material, THREE.MeshStandardMaterial>();
     root.traverse(node => {
       if (!(node instanceof THREE.Mesh)) return;
+      const fieldKit = !!node.geometry.getAttribute('fieldKit');
       const tint = (source: THREE.Material) => {
         let material = clones.get(source);
         if (material) return material;
@@ -38,6 +40,7 @@ export class ActorAppearance {
         material.transparent = false;
         const rim = { value: material.color };
         material.onBeforeCompile = shader => {
+          if (fieldKit) kitShader(shader);
           shader.uniforms.actorRimColor = rim;
           shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
             '#include <common>\nuniform vec3 actorRimColor;');
@@ -48,7 +51,7 @@ export class ActorAppearance {
             totalEmissiveRadiance += actorRimColor * actorEdge * actorEdge * (0.42 + 0.20 * actorRange);
           `);
         };
-        material.customProgramCacheKey = () => 'ironsight-actor-rim-v1';
+        material.customProgramCacheKey = () => fieldKit ? 'ironsight-field-kit-rim-v1' : 'ironsight-actor-rim-v1';
         clones.set(source, material);
         this.materials.push(material);
         return material;
