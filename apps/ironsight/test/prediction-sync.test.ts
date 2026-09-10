@@ -32,7 +32,7 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
   let now=0, seen=0;
   const outgoing:{at:number;type:string;payload:unknown}[]=[], incoming:{at:number;payload:unknown}[]=[];
   const handlers=new Map<string,(v:unknown)=>void>();
-  const eyeJumps:number[]=[];
+  const eyeJumps:number[]=[], renderMotion:{x:number;y:number;z:number}[]=[];
   const transport={send(type:string,payload:unknown){
     if(type==='movementStart'&&dropStart){dropStart=false;return;}
     outgoing.push({at:now+delayTicks,type,payload:structuredClone(payload)});},
@@ -42,7 +42,7 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
     }} as unknown as Pick<Room,'send'|'onMessage'>;
   const network={online:true};
   p.connect(transport,()=>network.online);
-  const tick=async(input=walk,yaw=0)=>{
+  const tick=async(input=walk,yaw=0,renderSlices:readonly number[]=[TICK_MS])=>{
     now++;
     while(outgoing[0]&&outgoing[0].at<=now){const m=outgoing.shift()!;await c.send(m.type,m.payload);}
     await h.advance(TICK_MS);
@@ -57,14 +57,56 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
     // Keep the legacy state callbacks in place, as main does after integration.
     const state=c.lastState() as ArenaState;
     const self=state.players[c.id]!;p.reconcile(self);p.setAlive(self.alive);
-    p.frame(TICK_MS,input,yaw);
+    for(const dt of renderSlices){
+      const before=p.eye();
+      p.frame(dt,input,yaw);
+      const after=p.eye();
+      renderMotion.push({x:after.x-before.x,y:after.y-before.y,z:after.z-before.z});
+    }
   };
   for(let i=0;i<delayTicks*2+4;i++)await tick({...walk,mz:0});
   samples.length=0;
-  return {h,c,me,p,tick,samples,outgoing,incoming,eyeJumps,network};
+  return {h,c,me,p,tick,samples,outgoing,incoming,eyeJumps,renderMotion,network};
 }
 
 describe('acknowledged local movement',()=>{
+  it('keeps the rendered camera moving forward across delayed echoes at uneven render cadence',async()=>{
+    const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},2);
+    l.renderMotion.length=0;
+    for(let i=0;i<70;i++){
+      // All slices total one server tick; include 144Hz-like frames and a late
+      // render frame. Inspect eye(), not just the fixed-step physics position.
+      const slices=i%3===0?[7,7,7,7,7,7,8]:i%3===1?[16,17,17]:[4,4,42];
+      await l.tick(walk,Math.PI/2,slices);
+    }
+    expect(l.samples.some(s=>s.rawError>.5)).toBe(true);
+    expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
+    expect(Math.min(...l.renderMotion.map(p=>p.x))).toBeGreaterThanOrEqual(-1e-10);
+    expect(l.renderMotion.filter(p=>p.x>0).length).toBeGreaterThan(250);
+    expect(Math.max(...l.eyeJumps)).toBeLessThan(1e-10);
+  });
+
+  it('distinguishes delayed legacy echoes from a real movement error on identical yard geometry',async()=>{
+    const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},2);
+    const legacy=new Predictor(ARENA1);
+    legacy.reconcile(l.me);
+    const echoes:{x:number;y:number;z:number}[]=[], corrections:number[]=[];
+    for(let i=0;i<60;i++){
+      await l.tick(walk,Math.PI/2);
+      legacy.frame(TICK_MS,walk,Math.PI/2);
+      echoes.push({x:l.me.x,y:l.me.y,z:l.me.z});
+      if(echoes.length<=2)continue;
+      const before={...legacy.pos};
+      legacy.reconcile(echoes.shift()!);
+      corrections.push(legacy.pos.x-before.x);
+    }
+    // The old position-only comparison invents backwards corrections without
+    // any physics mismatch, input loss, wall, stair, jump or change of speed.
+    expect(corrections.filter(x=>x<-.01).length).toBeGreaterThan(3);
+    expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
+    expect(Math.max(...l.samples.filter(s=>!s.reset).map(s=>s.correction))).toBeLessThan(1e-8);
+  });
+
   it('does not enqueue retries into an offline reconnecting transport',async()=>{
     const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},1);
     l.network.online=false;l.outgoing.length=0;
