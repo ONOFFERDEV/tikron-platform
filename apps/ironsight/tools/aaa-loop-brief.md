@@ -32,6 +32,28 @@ five minutes**, not on scorecard rows. Rules for this phase:
   Per-file stays <= 25 MiB and per-map lazy loading is mandatory — spend the headroom on
   what is visible in the first five minutes, and log bytes + first-load time per session.
 
+## Owner decision 2026-09-10 (evening) — the concept is set: Battlefield, not Overwatch
+
+`apps/ironsight/ART-CONCEPT.md` is now the authority on look and tone: **grounded modern
+warfare**, desaturated and war-worn, weight over agility. Read it before any visual work;
+it lists the from/to axes, the per-map treatment, the non-negotiables (readability, no
+information-revealing settings, 60 fps, budgets) and the Meshy programme. The current
+clean stylised sci-fi look is what we are moving away from — that means real work on
+palette, surface detail, damage, haze, lighting, soldiers and weapons, not accent tweaks.
+
+**Meshy budget raised to 1,300 credits total** by the owner for this overhaul, at most
+**150 credits per session**. Order: soldier kit and weapons first, then combat set
+dressing, then war-worn hero props, then skyline scale. Shrink every asset, inspect it
+before adopting, reject weak silhouettes and re-prompt. Log credits spent, bytes added,
+rejects and first-load time every session. Keep the hitch gate green: new textures and
+props are the most likely cause of a new stall.
+
+Sequence the overhaul as arcs, each green and playable: (1) palette and surface pass per
+map so the world reads desaturated and layered; (2) soldiers and weapons re-kitted;
+(3) damage, debris and emplacements; (4) haze, dust, smoke columns and lighting per map;
+(5) decals and impact feedback; (6) skyline scale and background motion. Ship before/after
+stills at a fixed camera every session and name the one sentence a player would say.
+
 ## Owner directive 2026-09-10 — visuals are the standing priority, and fix the GPU stall
 
 1. **Visual fidelity is now the default subject of every session** until told otherwise.
