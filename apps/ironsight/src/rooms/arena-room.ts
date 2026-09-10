@@ -53,8 +53,9 @@ import {
   type ModeCtx,
   type ShowcaseBotDef,
 } from "../modes.js";
-import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, type BotBrain, type BotView } from "../bots.js";
-import { BOT_ROLES, botRole } from '../bot-roles.js';
+import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, BOT_ARCHETYPES, combatBotArchetype, type BotBrain, type BotView, type BotDifficulty } from "../bots.js";
+import { BotCoverIndex } from './bot-cover.js';
+import { MovementInbox, MOVEMENT_SYNC, readMovementBatch, saveControllers, type MovementSnapshot } from './movement-sync.js';
 import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
 import { GAME } from "../game-config.js";
 
@@ -195,10 +196,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected fillToPlayers: number = MATCH.fillToPlayers;
   /** Boot straight into "live" (skips warmup) — for scripted tests that stage combat directly. */
   protected startInWarmup = true;
+  /** Shared stats at every tier; only reaction time and decision depth differ. */
+  protected botDifficulty: BotDifficulty = 'hard';
 
   // --- server-only per-player sim state (never synced) ---
   private readonly handling = new Map<string, WeaponHandling>();
   private readonly inputs = new Map<string, PlayerInput>();
+  private readonly movementInboxes = new Map<string, MovementInbox>();
+  private readonly movementEpochs = new Map<string, number>();
   private readonly vy = new Map<string, number>();
   private readonly grounded = new Map<string, boolean>();
   private readonly traversals = new Map<string, WaistTraversal>();
@@ -293,6 +298,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly domOrders = new DomOrders(this.map);
   private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
   private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
+  private readonly closedBotCover = new BotCoverIndex(this.map);
+  private readonly openBotCover = this.map.signalCore ? new BotCoverIndex({ ...this.map, boxes: this.coreCollision.open }) : this.closedBotCover;
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
   private get boxes(): readonly Box[] { return this.coreCollision.boxes(this.coreGate.open); }
   /** `boxes` plus each ramp's old step-box approximation (see
@@ -368,6 +375,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.onMessage("ping", (client, payload) => this.handlePing(client, payload));
     this.onMessage('mortar', (client, payload) => this.handleMortar(client, payload));
     this.onMessage("move", (client, payload, _seq, input) => this.handleMove(client, payload, input));
+    this.onMessage('movementStart', (client, payload) => {
+      if (!isObj(payload) || payload.version !== MOVEMENT_SYNC.version || !this.state.players[client.id]) return;
+      if (!this.movementInboxes.has(client.id)) this.resetMovementInbox(client.id);
+      this.sendMovement(client.id);
+    });
+    this.onMessage('movementSteps', (client, payload) => {
+      const inbox = this.movementInboxes.get(client.id), batch = readMovementBatch(payload);
+      if (!inbox || !batch || inbox.epoch !== batch.epoch || !this.state.players[client.id]?.alive) return;
+      inbox.receive(batch.commands);
+    });
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
     this.onMessage("reload", (client) => this.handleReload(client));
@@ -407,6 +424,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   /** Clear held intent immediately while preserving the preset's 30-second seat. */
   override async onLeave(client: Client): Promise<void> {
     this.inputs.set(client.id, { ...NO_INPUT });
+    this.movementInboxes.delete(client.id);
     await super.onLeave(client);
   }
 
@@ -466,6 +484,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     delete this.state.players[id];
     for (const m of [
       this.inputs,
+      this.movementInboxes,
+      this.movementEpochs,
       this.vy,
       this.grounded,
       this.slides,
@@ -556,7 +576,27 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     // Movement integration for the living.
     for (const [id, p] of Object.entries(this.state.players)) {
-      if (p.alive) this.integrate(id, p, dt);
+      if (p.alive) {
+        const inbox = this.movementInboxes.get(id);
+        if (inbox) {
+          const commands = inbox.advance();
+          if (commands.length) {
+            for (const command of commands) {
+              this.inputs.set(id, { ...command });
+              p.yaw = ((command.yaw % TAU) + TAU) % TAU;
+              this.integrate(id, p, dt);
+            }
+            continue;
+          }
+          // Missing commands cannot repeat horizontal movement or jump edges.
+          // Gravity, collision and committed traversal STILL run every tick:
+          // a disconnected/flooding client cannot freeze itself in the air.
+          if (!(this.grounded.get(id) ?? true) || this.traversals.get(id)?.active || this.slides.get(id)?.active)
+            inbox.spendIdleTick();
+          this.inputs.set(id, { ...NO_INPUT, crouch:p.crouch });
+        }
+        this.integrate(id, p, dt);
+      }
     }
 
     // Sample authoritative post-movement sightlines before choosing respawns.
@@ -618,9 +658,28 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       if (p.alive && !p.prot) vsnap.set(id, { x: p.y, y: p.y + this.hitHeight(p) });
     }
     this.vertLag.record(this.currentTick, now, vsnap);
+    for (const id of this.movementInboxes.keys()) this.sendMovement(id);
   }
 
   // --- movement ---------------------------------------------------------------
+
+  private resetMovementInbox(id: string): void {
+    const epoch = (this.movementEpochs.get(id) ?? 0) + 1;
+    this.movementEpochs.set(id, epoch);
+    this.movementInboxes.set(id, new MovementInbox(epoch));
+    this.inputs.set(id, { ...NO_INPUT });
+  }
+
+  private sendMovement(id: string): void {
+    const p = this.state.players[id], inbox = this.movementInboxes.get(id);
+    if (!p || !inbox) return;
+    const snapshot: MovementSnapshot = {
+      version:1, epoch:inbox.epoch, ack:inbox.ack, tick:this.currentTick, alive:p.alive, coreOpen:this.state.coreOpen,
+      pos:{x:p.x,y:p.y,z:p.z}, vy:this.vy.get(id) ?? 0, grounded:this.grounded.get(id) ?? true,
+      crouch:p.crouch, ...saveControllers(this.slides.get(id),this.traversals.get(id)),
+    };
+    this.ownerClient(id)?.send('movement', snapshot);
+  }
 
   private integrate(id: string, p: ArenaPlayer, dt: number): void {
     const inp = this.inputs.get(id) ?? NO_INPUT;
@@ -726,6 +785,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private handleMove(client: Client, payload: unknown, input?: InputMeta): void {
+    if (this.movementInboxes.has(client.id)) return; // opt-in command stream owns this seat's movement
     if (!this.state.players[client.id]?.alive) return;
     const prev = this.inputs.get(client.id);
     const mx = clamp(readNum(payload, "mx") ?? 0, -1, 1);
@@ -1519,6 +1579,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private spawnInto(p: ArenaPlayer, id: string): void {
+    if (this.movementInboxes.has(id)) this.resetMovementInbox(id);
     this.slides.delete(id);
     this.traversals.delete(id);
     // Every map uses authoritative threat scoring. FFA considers everyone hostile
@@ -1671,13 +1732,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const team = this.gameMode.teams ? this.assignTeam() : 0;
     const p = this.initPlayer(id, team);
     const n = Number(id.slice(4));
-    const role = botRole(id)!;
-    this.primaryWeapon.set(id, BOT_ROLES[role].weapon);
+    const archetype = combatBotArchetype(id)!;
+    this.primaryWeapon.set(id, BOT_ARCHETYPES[archetype].weapon);
     // Paired roles in each six-seat block take opposite authored lanes. FFA
     // orients from the actual spawn; DOM keeps its capture assignment policy.
     const routes = this.gameMode.id === 'dom' ? undefined : this.map.flankRoutes;
-    const flankRoute = role === 'rusher' && routes?.length ? routes[Math.floor((n - 1) / 6) % routes.length] : undefined;
-    this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints(), role, flankRoute }));
+    const flankRoute = archetype === 'rusher' && routes?.length ? routes[Math.floor((n - 1) / 6) % routes.length] : undefined;
+    this.botBrains.set(id, createBotBrain({ seed: (this.state.seed + n) || 1, waypoints: this.botWaypoints(),
+      patrolRoute: this.map.patrolWaypoints, archetype, difficulty: this.botDifficulty, flankRoute }));
     this.spawnInto(p, id);
     this.markStateChanged();
   }
@@ -1766,6 +1828,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self.yaw = ((decision.look.yaw % TAU) + TAU) % TAU;
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
       if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
+      if (decision.reload) this.handleReload({ id } as Client);
       if (decision.fire) this.botFire(id);
       // Only an already-visible firing solution may be designated; no radar or
       // hidden target lookup. Same ground/range/cooldown checks as human callers.
@@ -1796,11 +1859,15 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         team: self.team,
         yaw: self.yaw,
         pitch: self.pitch,
+        hp: self.hp,
       },
       enemies,
       engagementRange: this.map.bounds.width > 60 ? Math.min(40, WEAPONS[self.weapon]?.range ?? 40) : undefined,
       teamless: ffa,
       boxes: this.hitBoxes,
+      ammo: { mag: this.magArr(id)[self.weapon] ?? 0, reserve: this.reserveArr(id)[self.weapon] ?? 0,
+        capacity: this.weaponOf(self).mag, reloading: this.reloadUntil.has(id) },
+      findCover: (threat, depth, crouch) => (this.coreGate.open ? this.openBotCover : this.closedBotCover).find(self, threat, depth, crouch),
       navigate: this.navigator ? target => this.navigator!.next(self, target) : undefined,
       objective,
       objectiveApproach: !routeTarget && this.gameMode.id === 'dom' ? this.domOrders.approach(id) : undefined,

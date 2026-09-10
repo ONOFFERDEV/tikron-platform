@@ -31,6 +31,45 @@ import type { BotRole } from './bot-roles.js';
 
 const TAU = Math.PI * 2;
 
+/** Difficulty changes observation time and decision depth, never weapon stats
+ * or aim error. Hard is the existing live-room default. */
+export const BOT_DIFFICULTIES = {
+  easy: { reactionMs: 600, depth: 1 },
+  regular: { reactionMs: 300, depth: 2 },
+  hard: { reactionMs: 150, depth: 3 },
+} as const;
+export type BotDifficulty = keyof typeof BOT_DIFFICULTIES;
+export const BOT_ARCHETYPES = {
+  rusher: { label: 'RUSH', weapon: 1, reactionExtraMs: 0, range: 28, closeTo: 9,
+    reloadFraction: .15, preferCrouch: false },
+  anchor: { label: 'ANCHOR', weapon: 0, reactionExtraMs: 30, range: 36, closeTo: 22,
+    reloadFraction: .25, preferCrouch: true },
+  marksman: { label: 'MARKSMAN', weapon: 3, reactionExtraMs: 50, range: 40, closeTo: 14,
+    reloadFraction: .2, preferCrouch: false },
+  support: { label: 'SUPPORT', weapon: 0, reactionExtraMs: 25, range: 34, closeTo: 24,
+    reloadFraction: .35, preferCrouch: true },
+} as const;
+export type BotArchetype = keyof typeof BOT_ARCHETYPES;
+const SQUAD: readonly BotArchetype[] = ['rusher', 'anchor', 'marksman', 'rusher', 'support', 'marksman'];
+export function combatBotArchetype(id: string): BotArchetype | undefined {
+  if (!/^bot-[1-9]\d*$/.test(id)) return;
+  const n = Number(id.slice(4));
+  return Number.isSafeInteger(n) ? SQUAD[Math.floor((n - 1) / 2) % SQUAD.length] : undefined;
+}
+export function combatBotLabel(id: string): string | undefined {
+  const role = combatBotArchetype(id);
+  return role ? `${BOT_ARCHETYPES[role].label} ${id.slice(4)}` : undefined;
+}
+
+/** y is feet height, when supplied. Never consider the floor below a roof an
+ * arrival. A navigator owns the route; the brain only sends movement intents. */
+export interface BotRoutePoint { x: number; z: number; y?: number }
+export interface BotCover { point: Vec3; crouch: boolean }
+export function botReached(self: Vec3, target: BotRoutePoint, radius = 1): boolean {
+  return Math.hypot(target.x - self.x, target.z - self.z) < radius &&
+    (target.y === undefined || Math.abs(target.y - self.y) < .45);
+}
+
 /** Fair perception, shared by all combat bots. Sound is an expiring location,
  * never a target id or permission to fire. No hidden-player pursuit. */
 export const BOT_PERCEPTION = {
@@ -76,6 +115,8 @@ export interface BotDecision {
   look: BotLookIntent;
   fire: boolean;
   switchSlot?: number;
+  reload?: boolean;
+  tactic?: 'reload' | 'retreat' | 'suppress';
 }
 
 /** The subset of a player's state the bot brain can see (itself or an enemy). */
@@ -108,11 +149,14 @@ export interface BotView {
   /** Expanded arenas: keep patrolling until an effective fight is in range. */
   engagementRange?: number;
   /** Optional game-owned route steering, independent of aim/hit validation. */
-  navigate?: (target: { x: number; z: number }) => { x: number; z: number };
+  navigate?: (target: BotRoutePoint) => BotRoutePoint;
+  findCover?: (threat: Vec3, depth: number, preferCrouch: boolean) => BotCover | undefined;
+  ammo?: { mag: number; capacity: number; reserve: number; reloading: boolean };
   self: BotPlayerView & {
     /** Current facing, used to bound acquisition and tracking speed. */
     yaw: number;
     pitch: number;
+    hp?: number;
   };
   enemies: readonly BotEnemyView[];
   /** True in teamless modes (FFA), where the room assigns everyone team=0 — target
@@ -124,9 +168,9 @@ export interface BotView {
   /** Room-assigned reachable capture/defence anchor or event-route target.
    * Allied assignments commit briefly so distant fights don't attract every bot.
    * This never supplies enemy positions or changes perception/fire rules. */
-  objective?: { x: number; z: number };
+  objective?: BotRoutePoint;
   /** Intermediate covered approach, separate from the actual hold/duel anchor. */
-  objectiveApproach?: { x: number; z: number };
+  objectiveApproach?: BotRoutePoint;
   /** Static map approach to watch AFTER arrival, never a hidden enemy location.
    * Event-route volunteers omit this so they keep looking along their route. */
   objectiveWatch?: { x: number; z: number };
@@ -137,7 +181,10 @@ export interface BotView {
 }
 
 export interface BotBrainOptions {
-  flankRoute?: readonly { x: number; z: number }[];
+  flankRoute?: readonly BotRoutePoint[];
+  patrolRoute?: readonly BotRoutePoint[];
+  archetype?: BotArchetype;
+  difficulty?: BotDifficulty;
   role?: BotRole;
   /** PRNG seed for the aim-noise stream (fixed → reproducible runs). */
   seed: number;
@@ -158,8 +205,16 @@ export interface BotBrainOptions {
 
 /** Per-bot mutable state, held by the caller and threaded through every {@link botThink} call. */
 export interface BotBrain {
-  readonly flankRoute?: readonly { x: number; z: number }[];
-  flank?: { points: readonly { x: number; z: number }[]; index: number; untilMs: number };
+  readonly flankRoute?: readonly BotRoutePoint[];
+  readonly patrolRoute?: readonly BotRoutePoint[];
+  readonly archetype?: BotArchetype;
+  readonly difficulty: BotDifficulty;
+  readonly decisionDepth: number;
+  flank?: { points: readonly BotRoutePoint[]; index: number; untilMs: number };
+  recentThreat?: Vec3 & { untilMs: number };
+  recovery?: BotCover & { startedMs: number; untilMs: number; reason: 'reload' | 'retreat' };
+  nextCoverMs: number;
+  nextRetreatMs: number;
   readonly role?: BotRole;
   sound?: { x: number; z: number; untilMs: number };
   nextSoundMs: number;
@@ -183,12 +238,24 @@ export interface BotBrain {
 
 export function createBotBrain(opts: BotBrainOptions): BotBrain {
   if (opts.waypoints.length === 0) throw new Error("bot brain needs at least one waypoint");
+  const archetype = opts.archetype ?? (opts.role === 'sniper' ? 'marksman' : opts.role);
+  const difficulty = opts.difficulty ?? 'hard';
+  const tuning = BOT_DIFFICULTIES[difficulty];
   return {
     flankRoute: opts.flankRoute,
-    role: opts.role,
+    patrolRoute: opts.patrolRoute,
+    archetype,
+    difficulty,
+    decisionDepth: tuning.depth,
+    // Legacy role remains for existing objective/perception consumers.
+    role: opts.role ?? (archetype === 'marksman' ? 'sniper' : archetype === 'support' ? 'anchor' : archetype),
+    nextCoverMs: 0,
+    nextRetreatMs: 0,
     nextSoundMs: 0,
     aimNoiseRad: opts.aimNoiseRad ?? GAME.bots.aimNoiseRad,
-    reactionMs: opts.reactionMs ?? GAME.bots.reactionMs,
+    reactionMs: opts.reactionMs ?? (archetype || opts.difficulty
+      ? Math.min(600, tuning.reactionMs + (archetype ? BOT_ARCHETYPES[archetype].reactionExtraMs : 0))
+      : GAME.bots.reactionMs),
     aimHeight: opts.aimHeight ?? GAME.bots.aimHeight,
     waypoints: opts.waypoints,
     strafeZ: opts.strafeZ ?? GAME.bots.strafeZ,
@@ -214,6 +281,10 @@ export function alertBot(brain: BotBrain, point: { x: number; z: number }, damag
 }
 
 export function resetBotPerception(brain: BotBrain): void {
+  brain.recentThreat = undefined;
+  brain.recovery = undefined;
+  brain.nextCoverMs = 0;
+  brain.nextRetreatMs = 0;
   brain.flank = undefined;
   brain.sound = undefined;
   brain.nextSoundMs = 0;
@@ -228,17 +299,17 @@ export function resetBotPerception(brain: BotBrain): void {
  * A 35s deadline bounds stale commitments; DOM/core assignments cancel them. */
 export function startBotFlank(brain: BotBrain, self: {x:number;z:number}): void {
   const route = brain.flankRoute, first = route?.[0], last = route?.at(-1);
-  if (brain.role !== 'rusher' || !route || !first || !last) return;
+  if (brain.role !== 'rusher' || brain.decisionDepth < 2 || !route || !first || !last) return;
   const reverse = Math.hypot(last.x-self.x,last.z-self.z) < Math.hypot(first.x-self.x,first.z-self.z);
   brain.flank = { points: reverse ? [...route].reverse() : route, index: 0, untilMs: brain.clockMs + 35000 };
 }
 
-function flankTarget(brain: BotBrain, self: BotPlayerView): {x:number;z:number} | undefined {
+function flankTarget(brain: BotBrain, self: BotPlayerView): BotRoutePoint | undefined {
   const route = brain.flank;
   if (!route) return;
   if (brain.clockMs >= route.untilMs) { brain.flank = undefined; return; }
   let point = route.points[route.index];
-  while (point && Math.hypot(point.x-self.x,point.z-self.z) < 1) point = route.points[++route.index];
+  while (point && botReached(self, point)) point = route.points[++route.index];
   if (!point) brain.flank = undefined;
   return point;
 }
@@ -383,16 +454,28 @@ function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMov
  * ordinary navigation; it never pursues the hidden enemy's live coordinates.
  * SCOUT settles for 2.5s, then moves for 1.5s so it isn't a permanent turret.
  * RUSH closes through the collision navigator, fighting at nine metres.
- * All three use the same reaction, aim noise and room weapon/handling gates. */
+ * Profiles vary reaction and movement, retaining identical aim noise and the
+ * normal room weapon/handling gates. */
 function roleCombat(view: BotView, brain: BotBrain, enemy: BotEnemyView, yaw: number): BotMoveIntent {
   const distance = Math.hypot(enemy.x - view.self.x, enemy.z - view.self.z);
-  if (brain.role === 'rusher' && distance > 9) {
+  if (brain.role === 'rusher' && distance > BOT_ARCHETYPES.rusher.closeTo) {
     const next = view.navigate?.(enemy) ?? enemy;
     const dir = dirTo(view.self, next);
     return worldToMove(yaw, dir.x, dir.z);
   }
-  if (brain.role === 'sniper' && distance >= 14 && brain.lockMs % 4000 < 2500) {
+  if (brain.role === 'sniper' && distance >= BOT_ARCHETYPES.marksman.closeTo && brain.lockMs % 4000 < 2500) {
     return { mx: 0, mz: 0, jump: false, crouch: false, sprint: false, ads: true };
+  }
+  if ((brain.archetype === 'anchor' || brain.archetype === 'support') && distance >= CLOSE_THREAT_M) {
+    const spec = BOT_ARCHETYPES[brain.archetype];
+    if (distance > spec.closeTo + 4) {
+      const next = view.navigate?.(enemy) ?? enemy, dir = dirTo(view.self, next);
+      return worldToMove(yaw, dir.x, dir.z);
+    }
+    // Deliberate firing positions, punctuated by a relocation. Suppression is
+    // normal aimed fire at a visible opponent, never a damage/accuracy buff.
+    if (brain.lockMs % 2800 < (brain.archetype === 'support' ? 1900 : 1400))
+      return { mx: 0, mz: 0, jump: false, crouch: false, sprint: false, ads: true };
   }
   const move = combatStrafe(brain, view.self, yaw);
   // Anchors retain the rifle's mobile suppression; scouts lower the scope to
@@ -446,6 +529,60 @@ function showcaseThink(view: ShowcaseView, _self: BotPlayerView, _brain: BotBrai
  * imports the room and never reaches for a wall clock.
  */
 export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
+  const decision = combatThink(view, brain, dtMs);
+  if (!view.self.alive || view.showcase) return decision;
+  return recoveryThink(view, brain, decision);
+}
+
+/** Recovery interrupts movement briefly, without replacing the strategic goal
+ * or ever firing from a remembered target. Full magazines end reload recovery;
+ * a deadline and cooldown prevent low-health bots hiding for the whole match. */
+function recoveryThink(view: BotView, brain: BotBrain, decision: BotDecision): BotDecision {
+  const { ammo, self } = view;
+  const spec = brain.archetype ? BOT_ARCHETYPES[brain.archetype] : undefined;
+  if (!ammo || !spec) return decision;
+  const low = ammo.mag <= Math.floor(ammo.capacity * spec.reloadFraction) && ammo.reserve > 0;
+  if (brain.recovery && (brain.clockMs >= brain.recovery.untilMs ||
+    brain.recovery.reason === 'reload' && !ammo.reloading && !low)) brain.recovery = undefined;
+  const hurt = (self.hp ?? PLAYER.maxHp) <= 35 && brain.decisionDepth >= 2 && brain.clockMs >= brain.nextRetreatMs;
+  const threat = brain.recentThreat ?? (brain.sound ? { ...brain.sound, y: self.y + PLAYER.standEye } : undefined);
+  if (!brain.recovery && threat && (low || hurt || ammo.reloading) && brain.clockMs >= brain.nextCoverMs) {
+    brain.nextCoverMs = brain.clockMs + 1200;
+    const cover = view.findCover?.(threat, brain.decisionDepth, spec.preferCrouch);
+    if (cover) {
+      const reason = low || ammo.reloading ? 'reload' : 'retreat';
+      brain.recovery = { ...cover, startedMs: brain.clockMs,
+        untilMs: brain.clockMs + (reason === 'reload' ? 5500 : 1800), reason };
+      brain.nextRetreatMs = brain.clockMs + 8000;
+    }
+  }
+  const recovery = brain.recovery;
+  if (recovery) {
+    const arrived = botReached(self, recovery.point, .35);
+    // The index already swept this short route with the normal movement
+    // capsule. Feeding it back through the ground-only flow field would erase
+    // a valid doorway or slope; follow the verified local segment directly.
+    const dir = arrived ? { x: 0, z: 0 } : dirTo(self, recovery.point);
+    const move = worldToMove(decision.look.yaw, dir.x, dir.z);
+    move.crouch = arrived && recovery.crouch;
+    const reload = !ammo.reloading && ammo.reserve > 0 && ammo.mag < ammo.capacity &&
+      (arrived || ammo.mag === 0 || brain.clockMs - recovery.startedMs >= 1600);
+    return { ...decision, move, fire: false, reload, tactic: recovery.reason };
+  }
+  if (ammo.reloading) return { ...decision, fire: false, tactic: 'reload' };
+  // No safe cover is better than walking into a wall forever. Empty magazines
+  // reload immediately; a tactical top-up waits for loss of visual contact.
+  if (low && (ammo.mag === 0 || !brain.lockId))
+    return { ...decision, fire: false, reload: true, tactic: 'reload' };
+  if (brain.archetype === 'support' && decision.fire) {
+    // 900 ms aimed burst / 350 ms pause. Aim randomness and authoritative
+    // cadence still come from exactly the normal brain and weapon paths.
+    return { ...decision, fire: (brain.lockMs - brain.reactionMs) % 1250 < 900, tactic: 'suppress' };
+  }
+  return decision;
+}
+
+function combatThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
   brain.clockMs += dtMs;
   if (brain.sound && brain.clockMs >= brain.sound.untilMs) brain.sound = undefined;
   const { self, enemies } = view;
@@ -463,9 +600,14 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
     };
   }
 
-  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes, view.engagementRange, brain.lockId);
+  const range = brain.archetype ? Math.min(view.engagementRange ?? Infinity, BOT_ARCHETYPES[brain.archetype].range) : view.engagementRange;
+  const enemy = nearestVisibleEnemy(self, enemies, brain.aimHeight, view.teamless, view.boxes, range, brain.lockId);
   // Once a real visual target is acquired, don't later turn back to old gunfire.
-  if (enemy) brain.sound = undefined;
+  if (enemy) {
+    brain.sound = undefined;
+    brain.recentThreat = { x: enemy.x, y: enemy.y + eyeHeight(enemy), z: enemy.z,
+      untilMs: brain.clockMs + BOT_PERCEPTION.soundMemoryMs };
+  } else if (brain.recentThreat && brain.clockMs >= brain.recentThreat.untilMs) brain.recentThreat = undefined;
 
   // Assigned DOM captures/guards and temporary event routes share movement.
   // Other combat bots retain their role/patrol logic below.
@@ -480,8 +622,13 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
   if (!enemy) {
     brain.lockId = null;
     brain.lockMs = 0;
-    const wp = flank ? { x: flank.x, y: flank.z } : advanceWaypoint(brain, self);
-    const next = view.navigate?.({ x: wp.x, z: wp.y }) ?? { x: wp.x, z: wp.y };
+    let target = flank;
+    if (!target && brain.patrolRoute?.length) {
+      target = brain.patrolRoute[brain.wpIndex % brain.patrolRoute.length]!;
+      if (botReached(self, target)) target = brain.patrolRoute[++brain.wpIndex % brain.patrolRoute.length]!;
+    }
+    if (!target) { const wp = advanceWaypoint(brain, self); target = { x: wp.x, z: wp.y }; }
+    const next = view.navigate?.(target) ?? target;
     const look = searchLook(self, brain, next, dtMs);
     const dir = dirTo(self, next);
     return {
@@ -526,7 +673,7 @@ export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecis
  *    a cap sitting at a different z.
  */
 function domThink(
-  objective: { x: number; z: number },
+  objective: BotRoutePoint,
   self: BotView["self"],
   enemy: BotEnemyView | null,
   brain: BotBrain,
@@ -534,7 +681,8 @@ function domThink(
   navigate?: BotView["navigate"],
   view?: BotView,
 ): BotDecision {
-  const distToObjective = Math.hypot(objective.x - self.x, objective.z - self.z);
+  const distToObjective = objective.y !== undefined && Math.abs(objective.y - self.y) >= .45
+    ? Infinity : Math.hypot(objective.x - self.x, objective.z - self.z);
   const travelTarget = view?.objectiveApproach ?? objective;
   let look: BotLookIntent;
   let fire = false;

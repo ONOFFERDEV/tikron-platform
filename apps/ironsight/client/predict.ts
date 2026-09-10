@@ -19,8 +19,20 @@ import type { SlideInput as MoveIntent } from '../src/slide.js';
 import { WaistTraversal } from '../src/traversal.js';
 import { SprintSlide } from '../src/slide.js';
 import { CoreCollision } from '../src/core-gate.js';
+import type { Room } from '@tikron/client';
+import { isMovementSnapshot, MOVEMENT_SYNC, restoreControllers, saveControllers,
+  type MovementCommand, type MovementSnapshot, type MovementState } from '../src/rooms/movement-sync.js';
 
 const TICK_S = TICK_MS / 1000;
+
+export interface PredictionCorrection {
+  epoch: number; tick: number; ack: number; pending: number; reset: boolean;
+  /** Delayed position vs current prediction: useful telemetry, NOT a correction error. */
+  rawError: number;
+  /** Authoritative position vs prediction of that exact acknowledged command. */
+  matchedError: number | null;
+  correction: number;
+}
 
 export class Predictor {
   pos: Vec3 = { x: 0, y: 0, z: 0 };
@@ -40,6 +52,14 @@ export class Predictor {
   private accMs = 0;
   private seeded = false;
   private respawnSnap = false;
+  private connection: Pick<Room, 'send' | 'onMessage'> | undefined;
+  private epoch = -1;
+  private sequence = 0;
+  private acknowledged = 0;
+  private snapshotTick = -1;
+  private pending: { command: MovementCommand; state: MovementState }[] = [];
+  /** Optional inspection observer; no per-frame log or global in production. */
+  onCorrection: ((sample: PredictionCorrection) => void) | undefined;
   // `pos` only advances in fixed TICK_MS (20 Hz) steps — matching the server's
   // own integration exactly is the whole point (see this file's header), but
   // rendering `pos` directly means the camera visibly holds still for several
@@ -64,6 +84,75 @@ export class Predictor {
   private readonly launchPads: MapDef['launchPads'];
   setCoreOpen(open: boolean): void { this.boxes = this.collision.boxes(open); }
 
+  /** Main's integration hook. The room owns elapsed simulation time and physics;
+   * this sends at most one command per locally predicted TICK_MS. Repeated
+   * commands repair dropped/rate-limited frames without duplicating movement.
+   * Remove Net.setMoveIntent at the call site; retain Net.setLook and frame(). */
+  connect(room: Pick<Room, 'send' | 'onMessage'>): () => void {
+    if (this.connection) throw Error('Predictor already connected');
+    this.connection = room;
+    const start = () => {
+      this.epoch = -1; this.pending = []; this.accMs = 0; this.pendingJump = false;
+      room.send('movementStart', { version:MOVEMENT_SYNC.version });
+    };
+    const offMovement = room.onMessage('movement', payload => {
+      if (isMovementSnapshot(payload)) this.receiveMovement(payload);
+    });
+    const offWelcome = room.onMessage(message => { if (message.t === 's:welcome') start(); });
+    start();
+    return () => { offMovement(); offWelcome(); this.connection = undefined; this.pending = []; };
+  }
+
+  private save(): MovementState {
+    return { pos:{...this.pos}, vy:this.vy, grounded:this.grounded, crouch:this.crouch,
+      ...saveControllers(this.slide,this.traversal) };
+  }
+  private restore(state: MovementState): void {
+    this.pos = {...state.pos}; this.vy=state.vy; this.grounded=state.grounded; this.crouch=state.crouch;
+    const controllers=restoreControllers(state);
+    this.slide=controllers.slide; this.traversal=controllers.traversal; this.traversalStep=false;
+  }
+
+  private receiveMovement(snapshot: MovementSnapshot): void {
+    if (snapshot.epoch < this.epoch || snapshot.epoch === this.epoch &&
+      (snapshot.tick < this.snapshotTick || snapshot.ack < this.acknowledged || snapshot.ack > this.sequence)) return;
+    const reset = snapshot.epoch !== this.epoch || snapshot.alive !== this.alive;
+    const before = {...this.pos}, beforePrev = {...this.prevPos}, beforeEye = this.eye();
+    const matched = this.pending.find(p=>p.command.seq===snapshot.ack);
+    const distance = (a: Vec3,b: Vec3) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+    const matchedError = reset || !matched ? null : distance(matched.state.pos,snapshot.pos);
+    const jump = this.pendingJump;
+    this.setCoreOpen(snapshot.coreOpen);
+    this.restore(snapshot);
+    this.alive=snapshot.alive; this.seeded=true; this.respawnSnap=false;
+    this.epoch=snapshot.epoch; this.snapshotTick=snapshot.tick; this.acknowledged=snapshot.ack;
+    if (reset) {
+      this.pending=[]; this.sequence=snapshot.ack; this.pendingJump=false; this.accMs=0;
+      this.prevPos={...this.pos}; this.offset={x:0,y:0,z:0}; this.primed=true;
+    } else {
+      this.pending=this.pending.filter(p=>p.command.seq>snapshot.ack);
+      this.prevPos={...this.pos};
+      // Reapply only unacknowledged commands to the complete authoritative
+      // kinematic state (including slide/traversal progress and cooldowns).
+      for (const p of this.pending) {
+        this.prevPos=this.pos; this.pendingJump=p.command.jump;
+        this.step(p.command,p.command.yaw); p.state=this.save();
+      }
+      if (this.pending.length === 0) this.prevPos = {
+        x:beforePrev.x+this.pos.x-before.x, y:beforePrev.y+this.pos.y-before.y, z:beforePrev.z+this.pos.z-before.z,
+      };
+      this.pendingJump=jump;
+      const correction=distance(before,this.pos);
+      this.offset={x:0,y:0,z:0};
+      if (correction < RECONCILE_SNAP_M) {
+        const afterEye=this.eye();
+        this.offset={x:beforeEye.x-afterEye.x,y:beforeEye.y-afterEye.y,z:beforeEye.z-afterEye.z};
+      }
+    }
+    this.onCorrection?.({epoch:snapshot.epoch,tick:snapshot.tick,ack:snapshot.ack,
+      pending:this.pending.length,reset,rawError:distance(before,snapshot.pos),matchedError,correction:distance(before,this.pos)});
+  }
+
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
    *  rate, buffering the jump edge across frames, then decay the render offset. */
   frame(dtMs: number, intent: MoveIntent, yaw: number): void {
@@ -75,13 +164,25 @@ export class Predictor {
       this.prevPos = { ...this.pos };
       this.primed = true;
     }
-    if (intent.jump) this.pendingJump = true;
-    if (this.alive) {
+    if (intent.jump && this.alive) this.pendingJump = true;
+    if (this.alive && (!this.connection || this.epoch >= 0)) {
       this.accMs += Math.min(dtMs, MOVE.maxDtMs);
       while (this.accMs >= TICK_MS) {
+        if (this.connection && this.pending.length >= MOVEMENT_SYNC.maxPending) {
+          this.accMs = TICK_MS; // bounded prediction during a disconnected/stalled link
+          break;
+        }
         this.accMs -= TICK_MS;
         this.prevPos = this.pos;
-        this.step(intent, yaw);
+        const command: MovementCommand = { ...intent,ads:intent.ads===true,jump:this.pendingJump,
+          seq:this.sequence+1,yaw:Math.atan2(Math.sin(yaw),Math.cos(yaw)) };
+        this.step(command, command.yaw);
+        if (this.connection) {
+          this.sequence=command.seq;
+          this.pending.push({command,state:this.save()});
+          this.connection.send('movementSteps',{epoch:this.epoch,
+            commands:this.pending.slice(0,MOVEMENT_SYNC.maxBatch).map(p=>p.command)});
+        }
       }
     }
     const k = RECONCILE_TAU_MS > 0 && dtMs > 0 ? Math.exp(-dtMs / RECONCILE_TAU_MS) : 0;
@@ -151,6 +252,7 @@ export class Predictor {
 
   /** Fold in the authoritative echo of the local player. */
   reconcile(server: Vec3): void {
+    if (this.connection) return; // owner movement snapshots carry the acknowledgement
     if (!this.seeded || this.respawnSnap) {
       this.snapTo(server);
       this.seeded = true;
@@ -194,6 +296,7 @@ export class Predictor {
   /** Liveness gate: a dead→alive transition arms the next reconcile to snap (a
    *  respawn may land within the soft threshold of the corpse). */
   setAlive(a: boolean): void {
+    if (this.connection) return; // liveness and kinematics come from the same owner snapshot
     if (a && !this.alive) this.respawnSnap = true;
     if (!a) { this.traversal = new WaistTraversal(); this.traversalStep = false; this.slide = new SprintSlide(); this.pendingJump = false; }
     this.alive = a;
