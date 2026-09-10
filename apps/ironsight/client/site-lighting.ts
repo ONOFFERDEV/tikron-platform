@@ -3,6 +3,7 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { applyConcreteDetail, createConcreteDetail } from './concrete-detail.js';
 import { finishRelaySurface } from './relay-surfaces.js';
+import { finishUndertowSurface } from './undertow-surfaces.js';
 import { waitForSiteGround } from './site-ground.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
@@ -51,20 +52,28 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
   sourceTextures.forEach(t => { t.dispose(); (t.image as ImageBitmap).close?.(); });
   if (name === 'relay' || name === 'undertow' || name === 'switchyard') {
-    const relay = name === 'relay';
-    const detail = createConcreteDetail(relay);
+    const relay = name === 'relay', undertow = name === 'undertow', fine = relay || undertow;
+    const detail = createConcreteDetail(fine);
     gltf.scene.traverse(node => {
       if (node instanceof T.Mesh && node.material instanceof T.MeshStandardMaterial &&
-          (relay || node.material.metalness < 0.1 && node.material.roughness >= 0.8)) {
+          (fine || node.material.metalness < 0.1 && node.material.roughness >= 0.8)) {
         const concrete = node.material.metalness < 0.1 && node.material.roughness >= 0.9;
-        applyConcreteDetail(node, detail, relay ? concrete ? 0.22 : 0.07 : node.material.roughness < 0.9 ? 0.12 : 0.2);
+        // The baked Undertow kit batches by authored material, including ramp
+        // variants 6-9. Pale caps and coloured plant trim are coated, not concrete.
+        const wetConcrete = undertow && /^undertow-(0|5|[6-9])$/.test(node.material.name);
+        applyConcreteDetail(node, detail, undertow ? wetConcrete ? 0.085 : 0.035 : relay ? concrete ? 0.22 : 0.07 : node.material.roughness < 0.9 ? 0.12 : 0.2);
         if (relay) finishRelaySurface(node.material, concrete ? 'concrete' : 'coated');
+        if (undertow) finishUndertowSurface(node.material, wetConcrete ? 'concrete' : 'coated');
       }
     });
     for (const floorName of [`${name}-ground`, `${name}-apron`]) {
       const floor = scene.getObjectByName(floorName);
       if (floor instanceof T.Mesh) {
-        applyConcreteDetail(floor, detail, relay ? 0.15 : 0.12);
+        applyConcreteDetail(floor, detail, relay ? 0.15 : undertow ? 0.10 : 0.12);
+        if (undertow && floor.material instanceof T.MeshStandardMaterial) {
+          finishUndertowSurface(floor.material, floorName.endsWith('-ground') ? 'ground' : 'apron');
+          continue;
+        }
         if (relay && floor.material instanceof T.MeshStandardMaterial) {
           finishRelaySurface(floor.material, floorName.endsWith('-ground') ? 'ground' : 'apron');
           continue;

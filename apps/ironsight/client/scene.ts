@@ -1753,7 +1753,7 @@ export class SceneRig {
       const image = texture?.image as { width: number; height: number } | undefined;
       return { name: node.name, visible: node.visible, min: bounds.min.toArray(), max: bounds.max.toArray(),
         atlas: texture && image ? { width: image.width, height: image.height,
-          format: texture.format === THREE.RedFormat ? 'R8' : 'RGBA8', version: texture.version } : null,
+          format: texture.format === THREE.RedFormat ? 'R8' : texture.format === THREE.RGFormat ? 'RG8' : 'RGBA8', version: texture.version } : null,
         triangles: (node.geometry.index?.count ?? node.geometry.getAttribute('position').count) / 3 };
     });
   }
@@ -1827,7 +1827,7 @@ export class SceneRig {
         flashSources.add(texture.source);
       }
       const img = texture.image as { width?: number; height?: number } | undefined;
-      const channels = texture.format === THREE.RedFormat || texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : 4;
+      const channels = texture.format === THREE.RedFormat || texture.format === THREE.DepthFormat || texture.format === THREE.DepthStencilFormat ? 1 : texture.format === THREE.RGFormat ? 2 : 4;
       const component = [THREE.FloatType, THREE.UnsignedIntType, THREE.UnsignedInt248Type, THREE.IntType].includes(texture.type as typeof THREE.FloatType)
         ? 4 : texture.type === THREE.HalfFloatType || texture.type === THREE.UnsignedShortType ? 2 : 1;
       bytes += (img?.width ?? 0) * (img?.height ?? 0) * channels * component * (texture.generateMipmaps ? 4 / 3 : 1);

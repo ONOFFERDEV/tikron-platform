@@ -997,3 +997,37 @@ AO completion is now awaited before the scene's shader/texture preparation.
 Finer normal + roughness uses 0.4167 MiB with mips; ground uses 0.8893 MiB.
 Their combined 1.3060 MiB is 0.1940 MiB below the previous 1.5000 MiB allocation.
 No Meshy credits, new dependency, asset allowlist or per-map request is needed.
+
+### Session 76: Undertow wet concrete (original runtime assets)
+
+`client/undertow-surfaces.ts`, `client/undertow-wetness.ts`, `client/site-ground.ts`
+and the existing `client/concrete-detail.ts` generate the finish during map
+preparation. Original deterministic geometry/noise and Canvas2D masks; no copied,
+purchased or generated-service images, no new public binary and no Meshy spend.
+Reproduce with `pnpm build:client`, then:
+
+```sh
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-home,undertow-maintenance,undertow-effects-stress --prefix undertow-surface-review --assert-budgets
+```
+
+The 1024 x 683 linear RG8 ground packs base red intensity and wetness separately.
+Colour is decoded from sRGB; wetness remains linear, with both rows explicitly
+reversed to align north-first canvas and the unchanged 2048 x 1365 baked AO.
+AO updates intensity in place and leaves the wetness channel intact. The same
+256-square normal/R8 roughness pair as Relay supplies 320 texels/metre, but with
+weaker concrete normals and quieter coated paint. The map shares two detail
+textures across twelve meshes; Relay and Switchyard keep their own map data.
+
+Six-by-five-metre slab joints, cast panels and form ties use derivative filtering
+in the existing opaque pass. Original seed76021 masks gather water beneath
+stationary plant faces and along basin/maintenance service. Retracting gallery
+doors are excluded. Wet patches darken the base, reduce roughness to0.27 and
+smooth the aggregate normal; their sheen comes from the existing daylight PMREM,
+not scene reflections. Concrete has a restrained damp lower band and runoff;
+painted trim preserves its large colour mass. No animation, additional pass,
+light, new cover or per-frame bake/upload is introduced.
+
+Ground plus fine detail is2.1953MiB with mips, up0.6953MiB from1.5000MiB.
+The matched full Undertow stress estimate is61.3008MiB, within64MiB, with
+209draws/159284triangles/25textures/29programs unchanged. These are resource
+measurements on the local RTX5070, not representative laptop-iGPU acceptance.

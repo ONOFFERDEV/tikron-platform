@@ -482,6 +482,9 @@ try {
       if (floor.name === 'relay-ground' && (floor.atlas?.format !== 'R8' || floor.atlas.width !== 1024 ||
           floor.atlas.height !== Math.round(1024 * depth / width)))
         throw Error(`Relay ground atlas lost its compact metric layout: ${JSON.stringify(floor.atlas)}`);
+      if (floor.name === 'undertow-ground' && (floor.atlas?.format !== 'RG8' || floor.atlas.width !== 1024 ||
+          floor.atlas.height !== Math.round(1024 * depth / width)))
+        throw Error(`Undertow ground lost its packed intensity/wetness layout: ${JSON.stringify(floor.atlas)}`);
       if (ground.length !== 2 || ground.some(g => !g.visible || g.max[1] >= 0) || !apron ||
           apron.min[0] !== extent[0] || apron.min[2] !== extent[1] || apron.max[0] !== extent[2] || apron.max[2] !== extent[3] ||
           apron.triangles > 4500)
@@ -491,10 +494,10 @@ try {
       const detail = report.concreteDetail;
       if (detail.invalidUv || detail.meshes < 3 || detail.textures !== 2)
         throw Error(`Concrete detail missing, invalid or loaded on another map: ${JSON.stringify(detail)}`);
-      if (report.siteGround?.some(g => g.name === 'relay-ground') &&
+      if (report.siteGround?.some(g => g.name === 'relay-ground' || g.name === 'undertow-ground') &&
           (detail.detailMaps.some(t => t.width !== 256 || t.height !== 256) ||
            !detail.detailMaps.some(t => t.name.endsWith('-roughness') && t.format === 'R8')))
-        throw Error(`Relay detail scale or roughness packing regressed: ${JSON.stringify(detail)}`);
+        throw Error(`Fine detail scale or roughness packing regressed: ${JSON.stringify(detail)}`);
     }
     if (!gameplay && !name.startsWith('menu') && !name.startsWith('undertow-') && !name.startsWith('switchyard-') && report?.uplinks) {
       if (!assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)

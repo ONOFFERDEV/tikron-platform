@@ -3,7 +3,7 @@ import * as T from 'three';
 const TILE_METRES = 0.8;
 
 /** Original periodic aggregate, generated once during loading. The legacy pair
- * is 0.167 MiB; Relay's finer RGBA8 normal + R8 roughness pair is 0.417 MiB. */
+ * is 0.167 MiB; the fine RGBA8 normal + R8 roughness pair is 0.417 MiB. */
 export function createConcreteDetail(fine = false): { normal: T.DataTexture; roughness: T.DataTexture } {
   const SIZE = fine ? 256 : 128;
   let seed = 14071;
@@ -27,7 +27,7 @@ export function createConcreteDetail(fine = false): { normal: T.DataTexture; rou
       height[i] = height[i]! + T.MathUtils.lerp(a, b, v) * weight;
     }
   }
-  // Relay's finer aggregate uses R8 roughness; the material reads .r explicitly.
+  // Fine aggregate uses R8 roughness; each detailed material reads .r explicitly.
   const normal = new Uint8Array(SIZE * SIZE * 4), roughness = new Uint8Array(SIZE * SIZE * (fine ? 1 : 4));
   const at = (x: number, y: number) => height[((y + SIZE) % SIZE) * SIZE + (x + SIZE) % SIZE]!;
   const n = new T.Vector3();
