@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { WeaponVisConfig } from '../config/schema.js';
+import { finishLegacyWeapon } from './equipment-finish.js';
 
 /** One selection rule for first person, remote holds and loading-screen warmup. */
 export function weaponSource(config: WeaponVisConfig, index: number): { url: string; nodeName?: string } | undefined {
@@ -57,11 +58,14 @@ export function cloneWeaponMesh(gltf: GLTF): THREE.Object3D {
   return gltf.scene.clone();
 }
 
-/** Clones a single named node out of a multi-weapon bundle GLB. Returns
+/** Clones a single named node and selects its shared runtime surface finish.
+ * Source geometry/textures are shared; source materials remain untouched. Returns
  *  `undefined` if the bundle doesn't have that node (e.g. a config/bundle
  *  mismatch) — caller stays on the procedural mesh, same as a load failure. */
 export function cloneWeaponBundleNode(gltf: GLTF, nodeName: string): THREE.Object3D | undefined {
-  return gltf.scene.getObjectByName(nodeName)?.clone();
+  const object = gltf.scene.getObjectByName(nodeName)?.clone();
+  if (object) finishLegacyWeapon(object, nodeName);
+  return object;
 }
 
 /** Centre of the foremost vertex slice, rather than the receiver's bounding box.

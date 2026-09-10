@@ -1352,3 +1352,19 @@ and latch groups move independently on the existing server-deadline reload.
 Templates and buffers are cached and prepared before play. Shared weapons
 load with the viewmodel; map assets retain per-map lazy loading. The old
 purchased weapon bundle remains private for the other four slots.
+
+### Session88 - shared issued-equipment finishes (original runtime code)
+
+`client/equipment-finish.ts` supplies original static object-space grain,
+longitudinal metal scuffs, mottled dye and filtered fabric weave. Secondary
+weapon clones remap their existing shared palette atlas to parkerised steel,
+olive polymer and faded tape; generated PBR replacements retain their own
+materials. First-person sleeves/gloves use the same texture-free detail family
+over original vertex colours in `client/hand-geometry.ts`, with lower fabric
+reinforcement and webbing profiles. Detail fades below pixel size.
+
+This creates no exported asset, texture, render pass or light. Source GLBs,
+images and source materials stay unchanged; both held views share cached
+finish materials, and split reload parts retain object-space detail. Purchased
+derivatives remain ignored. Meshy cost: zero new credits. Reproduce with
+`pnpm build:client`, then `node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-smg-hip,weapon-shotgun-reload-out,weapon-sniper-hip,weapon-pistol-hip`.

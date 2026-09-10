@@ -27,7 +27,7 @@ export function sleeveGeometry(): T.BufferGeometry {
       const fold = r > 3 && r < 11 ? Math.sin(angle + r * .7) * .008 : 0;
       positions.push(Math.sin(angle) * radius, y + fold, Math.cos(angle) * radius * .82);
       const panel = s >= 4 && s <= 8;
-      const shade = new T.Color(panel ? 0x303e3e : 0x50605b);
+      const shade = new T.Color(panel ? 0x575847 : 0x70725a);
       shade.multiplyScalar(r === 5 || r === 9 ? .78 : 1);
       colors.push(shade.r, shade.g, shade.b);
       if (r < rings.length - 1 && s < sides) {
@@ -60,16 +60,16 @@ export function sleeveGeometry(): T.BufferGeometry {
       }
     }
   };
-  patch([-.32, -.29, -.20, -.05, .08, .14, .18], [-1.12, -1.02, -.64, 0, .64, 1.02, 1.12], .006, 0x344344, true);
+  patch([-.32, -.29, -.20, -.05, .08, .14, .18], [-1.12, -1.02, -.64, 0, .64, 1.02, 1.12], .0025, 0x65634e, true);
   const around = Array.from({ length: 17 }, (_, i) => i / 16 * Math.PI * 2);
   for (const y of [-.24, .22]) {
-    patch([y - .034, y - .026, y + .026, y + .034], around, .009, 0x222e30, true);
-    patch([y - .004, y + .004], around, .0095, 0x62716b);
+    patch([y - .034, y - .026, y + .026, y + .034], around, .0035, 0x424638, true);
+    patch([y - .004, y + .004], around, .004, 0x777864);
   }
   // Two quiet recognition bars and short seam stitches, all opaque vertex colour.
-  for (const y of [.10, .135]) patch([y, y + .014], [-.42, 0, .42], .007, 0xb2b6a0);
+  for (const y of [.10, .135]) patch([y, y + .014], [-.42, 0, .42], .003, 0x96977c);
   for (const angle of [-.96, .96]) for (const y of [-.16, -.10, -.04, .02])
-    patch([y, y + .018], [angle - .014, angle + .014], .007, 0x8c9788);
+    patch([y, y + .018], [angle - .014, angle + .014], .003, 0x9a9478);
   const geometry = new T.BufferGeometry();
   geometry.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
@@ -83,26 +83,26 @@ export function gloveGeometry(side: number): T.BufferGeometry {
     const g = new RoundedBoxGeometry(w, h, d, 1, Math.min(w, h, d) * .22);
     parts.push(tint(g.translate(x, y, z), color));
   };
-  pad(side * .025, -.004, 0, .045, .055, .065, 0x293335);
+  pad(side * .025, -.004, 0, .045, .055, .065, 0x46473a);
   for (let i = 0; i < 4; i++) {
     const y = -.030 + i * .014;
-    pad(-.002, y, -.021, .060, .012, .026, 0x20292c);
+    pad(-.002, y, -.021, .060, .012, .026, 0x30372f);
     // Separate padded knuckles sit on the outer back, away from the grip.
-    pad(side * .049, y + .004, -.008, .009, .010, .026, 0x4b5958);
+    pad(side * .049, y + .004, -.008, .009, .010, .026, 0x686851);
   }
-  pad(side * -.012, .023, .015, .025, .022, .045, 0x293335);
-  pad(side * .050, -.004, .022, .008, .039, .023, 0x425352);
+  pad(side * -.012, .023, .015, .025, .022, .045, 0x46473a);
+  pad(side * .050, -.004, .022, .008, .039, .023, 0x64644e);
   // Raised back-of-hand ribs leave the authored palm and trigger contact intact.
   for (const y of [-.016, -.004, .008])
     parts.push(tint(new T.BoxGeometry(.004, .004, .022).toNonIndexed()
-      .translate(side * .055, y, .022), 0x819087));
+      .translate(side * .055, y, .022), 0x929078));
   const merged = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); return merged;
 }
 
 export function cuffGeometry(): T.BufferGeometry {
   const parts = [
-    tint(new T.CylinderGeometry(.036, .037, .046, 12), 0x222d30),
-    tint(new T.CylinderGeometry(.037, .037, .006, 12).translate(0, .011, 0), 0xb48c50),
+    tint(new T.CylinderGeometry(.036, .037, .046, 12), 0x3e4436),
+    tint(new T.CylinderGeometry(.037, .037, .006, 12).translate(0, .011, 0), 0x8d8a6b),
   ];
   const merged = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); return merged;
 }

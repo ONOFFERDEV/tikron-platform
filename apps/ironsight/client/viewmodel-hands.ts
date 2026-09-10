@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { cuffGeometry, gloveGeometry, sleeveGeometry } from './hand-geometry.js';
 import { reloadPose } from './reload-presentation.js';
+import { equipmentFinish } from './equipment-finish.js';
 
 // Camera-local wrist frames for the five fitted weapon meshes. The pistol's
 // support palm wraps the firing grip; long guns support the underside fore-end.
@@ -14,10 +15,10 @@ const WRISTS = [
 const WEAPON_SCALES = [0.65, 0.75, 0.5, 0.38, 0.85] as const;
 const RELOAD_CONTACTS = [[-0.014, -0.07, -0.435], [0.01, -0.02, -0.28],
   [-0.014, -0.045, -0.377], [-0.014, -0.105, -0.26]] as const;
-const gloveMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
-const armorMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
-const cuffMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
-/** Original low-poly closed gloves and forearm armor. Six draw calls total;
+const gloveMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), 'glove');
+const sleeveMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), 'fabric');
+const cuffMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), 'fabric');
+/** Original closed gloves and reinforced fabric sleeves. Six draw calls total;
  * individual fingers are merged at construction, no per-frame allocations. */
 export class ViewmodelHands {
   readonly group = new T.Group();
@@ -29,7 +30,7 @@ export class ViewmodelHands {
       const palm = new T.Group();
       const glove = new T.Mesh(gloveGeometry(side), gloveMaterial);
       palm.add(glove);
-      const sleeve = new T.Mesh(sleeveGeometry(), armorMaterial);
+      const sleeve = new T.Mesh(sleeveGeometry(), sleeveMaterial);
       const cuff = new T.Mesh(cuffGeometry(), cuffMaterial);
       this.group.add(palm, sleeve, cuff); this.hands.push({ palm, sleeve, cuff, side });
     }
