@@ -8,9 +8,10 @@ import { PLAYER } from "../src/config.js";
 import { canStand } from "../src/physics.js";
 
 describe("Relay ground navigation", () => {
-  it("walks around the deployment screen to every objective without clipping", () => {
-    const nav = new GroundNavigator(ARENA1);
-    for (const spawn of [...ARENA1.spawns.red, ...ARENA1.spawns.blue]) for (const goal of Object.values(ARENA1.caps)) {
+  let navigator: GroundNavigator | undefined;
+  it.each([...ARENA1.spawns.red, ...ARENA1.spawns.blue])("walks from $x,$z around deployment to every objective without clipping", spawn => {
+    const nav = navigator ??= new GroundNavigator(ARENA1);
+    for (const goal of Object.values(ARENA1.caps)) {
       let p = { x: spawn.x, z: spawn.z }, steps = 0;
       while (Math.hypot(goal.x - p.x, goal.z - p.z) > 0.4 && steps++ < 1500) {
         const target = nav.next(p, goal);

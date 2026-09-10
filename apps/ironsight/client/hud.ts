@@ -85,6 +85,9 @@ const css = `
 #vignette { position:absolute; inset:0; box-sizing:border-box; border:128px solid transparent; border-image:url('/assets/ui/damage-vignette.png') 128 fill stretch; opacity:0; transition:opacity 120ms; }
 #damage-flash { position:absolute; inset:0; background:rgba(235,48,65,.055); opacity:0; }
 #damage-direction { position:absolute; left:50%; top:50%; width:clamp(180px,30vmin,320px); height:clamp(180px,30vmin,320px); transform:translate(-50%,-50%); opacity:0; }
+/* Keep these fixed damage surfaces eligible for compositing between hits.
+   Promoting only the death overlay leaves the same layer churn on damage. */
+#vignette, #damage-flash, #damage-direction { will-change:opacity; }
 #damage-direction .damage-mark { position:absolute; left:50%; top:0; transform:translateX(-50%); color:#ffb69e; text-align:center; font-size:10px; font-weight:800; letter-spacing:2px; text-shadow:0 1px 3px #000,0 0 4px #000; }
 #damage-direction .damage-mark::before { content:''; display:block; margin:0 auto 5px; width:44px; height:7px; background:#ffb69e; border:1px solid #57242a; clip-path:polygon(0 0,100% 0,80% 100%,20% 100%); }
 #damage-direction[data-direction="back"] { top:max(76%,calc(50% + 184px)); height:0; }
@@ -98,7 +101,7 @@ const css = `
 @media(prefers-reduced-motion:reduce){#damage-flash{display:none}#vignette{transition:none}}
 /* pointer-events:none so a click passes through to the canvas (which requests
    pointer lock) — the prompt is informational, not a button. */
-#overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(6,8,12,0.5); text-align: center; pointer-events: none; }
+#overlay { position: absolute; inset: 0; display: flex; opacity: 0; will-change: opacity; align-items: center; justify-content: center; flex-direction: column; background: rgba(6,8,12,0.5); text-align: center; pointer-events: none; }
 #overlay h1 { font-size: 34px; margin: 0 0 8px; letter-spacing: 2px; }
 #overlay p { margin: 4px; opacity: 0.85; }
 #overlay .hint { margin-top: 18px; font-size: 13px; opacity: 0.6; }
@@ -251,6 +254,7 @@ export class Hud {
   private voteNeed = 0;
   private voteSent = false;
   private overlayMarkup = "";
+  private overlayVisible = false;
   private briefText = "";
   private deployment?: DeploymentBanner;
   setDeploymentSite(site: string): void { this.deployment ??= new DeploymentBanner(this.root, site); }
@@ -278,8 +282,13 @@ export class Hud {
     if (this.brief.innerHTML !== markup) this.brief.innerHTML = markup;
   }
   private present(kind: string, markup: string): void {
-    const enteringEnd = kind === 'end' && (this.overlay.dataset.kind !== 'end' || this.overlay.style.display === 'none');
-    this.overlay.style.display = "flex";
+    const enteringEnd = kind === 'end' && (this.overlay.dataset.kind !== 'end' || !this.overlayVisible);
+    if (!this.overlayVisible) {
+      this.overlayVisible = true;
+      this.overlay.style.opacity = '1';
+      this.overlay.inert = false;
+      this.overlay.removeAttribute('aria-hidden');
+    }
     this.overlay.dataset.kind = kind;
     // Keep focused buttons alive between frames and vote broadcasts.
     if (this.overlayMarkup === markup) return;
@@ -421,7 +430,8 @@ export class Hud {
     this.damageIndicator.setAttribute('aria-hidden', 'true');
     this.damageIndicator.innerHTML = '<span class="damage-mark"></span>';
     this.root.appendChild(this.damageIndicator);
-    this.overlay = el("div", "overlay"); this.root.appendChild(this.overlay);
+    this.overlay = el("div", "overlay"); this.overlay.inert = true;
+    this.overlay.setAttribute('aria-hidden', 'true'); this.root.appendChild(this.overlay);
 
     this.root.appendChild(this.brief);
     this.muteBadge.style.cssText = 'position:absolute;left:28px;top:230px;color:#edaa52;background:#10242bcc;padding:6px 10px;font:11px Arial';
@@ -701,7 +711,7 @@ export class Hud {
     if (show) {
       this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>${this.trainingHelp ? this.trainingHelp + "<br>" : ""}Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
     } else {
-      this.overlay.style.display = "none";
+      this.hideOverlay();
     }
   }
 
@@ -756,7 +766,11 @@ export class Hud {
   }
 
   hideOverlay(): void {
-    this.overlay.style.display = "none";
+    if (!this.overlayVisible) return;
+    this.overlayVisible = false;
+    this.overlay.style.opacity = '0';
+    this.overlay.inert = true;
+    this.overlay.setAttribute('aria-hidden', 'true');
   }
 
   /** Per-frame animation: reload bar, hitmarker + vignette fade, killfeed decay. */

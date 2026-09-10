@@ -120,9 +120,10 @@ describe('Undertow encounter safety', () => {
       expect(direction === 1 ? p.z > 50 : p.z < 30).toBe(true);
     }
   });
-  it('production bot navigator reaches every cap from every deployment without clipping', () => {
-    const nav = new GroundNavigator(map);
-    for (const spawn of [...map.spawns.red, ...map.spawns.blue]) for (const goal of Object.values(map.caps)) {
+  let navigator: GroundNavigator | undefined;
+  it.each([...map.spawns.red, ...map.spawns.blue])('production bot navigator reaches every cap from $x,$z without clipping', spawn => {
+    const nav = navigator ??= new GroundNavigator(map);
+    for (const goal of Object.values(map.caps)) {
       let p = { x: spawn.x, z: spawn.z }, steps = 0;
       while (Math.hypot(goal.x - p.x, goal.z - p.z) > 0.4 && steps++ < 3000) {
         const target = nav.next(p, goal), d = Math.hypot(target.x - p.x, target.z - p.z);
