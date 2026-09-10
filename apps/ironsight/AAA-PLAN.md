@@ -65,7 +65,9 @@ Session77 quick check (published per Session78 supervisor, commit9f44f06): Train
 
 Session78 quick check (published per Session79 supervisor, commit1356a28): Training / Undertow, look northwest across the twin flood towers, then follow Clarifier route or Pump service. A low warm sun and blue dusk clouds replace the shared daylight sky; long shadows and the same sky reflected in wet patches give the plant depth. Signs, operator team colours and the gallery remain readable. Afterlight1/2 is ON for Undertow; Session79 completes the arc with Switchyard overcast. Human visual/device approval remains open.
 
-Session79 quick check (local candidate): choose Free for all / Switchyard. Its deployment image now matches the cool overcast sky in the yard; look up at the amber gantry during CARGO SHIFT, then follow North bus or South service. Broad silver clouds, softer direct light and cool reflections give the depot its own weather while signs and operators remain distinct in the inspected views. Undertow's deployment image now shows its dusk plant. Afterlight 2/2 completes the arc, ON by default; human visual/device approval remains open.
+Session79 quick check (published per Session80 supervisor, commit057e989): choose Free for all / Switchyard. Its deployment image now matches the cool overcast sky in the yard; look up at the amber gantry during CARGO SHIFT, then follow North bus or South service. Broad silver clouds, softer direct light and cool reflections give the depot its own weather while signs and operators remain distinct in the inspected views. Undertow's deployment image now shows its dusk plant. Afterlight 2/2 completes the arc, ON by default; human visual/device approval remains open.
+
+Session80 quick check (local candidate): open a fresh TDM or Free for all room. Arena preparation now also prepares combat UI before mouse control is enabled. The first hit, elimination and results keep the same appearance. First Fight1/1 is ON by default. Five complete-observation bot pairs pass the150ms first-damage/death check; early loading/presentation costs and representative device acceptance remain documented below.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -401,8 +403,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 79 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session79-reference-audit.json` (fresh build, identical to Session78);
+Session 24 first canonical audit (reference restored), updated in Session 80 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session80-reference-audit.json` (fresh build, identical to Session79);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -461,27 +463,30 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
 | R-L12 | partial | Session79 completes Afterlight2/2 ON: Switchyard stratus, cool diffuse fill/reflections and weaker high key; Undertow dusk and Relay daylight retained. Five paired player-height views, 11-operator stress and matching map-selection vistas. Human all-lighting/readability and broader fidelity remain open. |
 | R-L13 | partial | Session79 brighter final diffuse fill lifts the first candidate's dark freight walls. Original large actor team-colour masses, rim and enemy choices remain; sampled actors and white route signs read against quieter blue-grey steel. Human colour/value and all-range review remain open. |
-| R-L14 | partial | Session79 Switchyard stress retains208calls/166956triangles/30programs; textures28->29 and61.9948->63.9948MiB (only5461 estimated bytes of headroom). Same16lights, cached1024shadow and sky draw; no new pass or live resources. Relay238calls/63.7448MiB and Undertow209calls/63.3008MiB retained. Session74 policy stays1500ms presentation/150ms main-thread/25ms p99/5% stalled time; driver, iGPU/thermal and human clarity remain unaccepted. |
+| R-L14 | partial | Session80 First Fight1/1 ON: 18 real DOM/CSS views rasterize during loading, with inert copies removed before input. GPU trace covers134 raster tasks and21 pixel/21 vertex executable tasks during433.9ms preparation. Five consecutive fresh-profile TDM/FFA pairs include pre-profiler live-join events and pass150ms first-damage/death checks. All three stress draw/texture budgets unchanged. Early frame intervals, including the292.4ms FFA outlier, remain reported and investigated in the session log; no universal driver/iGPU/thermal acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
 | R-L20 | partial | Session59 existing five-row top-right feed/rosters now use stable RUSH/ANCHOR/SCOUT names for combat bots; actual mixed-weapon/assist/local-victim captures pass. Team colour and weapon/HEADSHOT text retained; objective feed and bottom-left convention remain unmet. |
-| R-L21 | met | Session74 preserves victim-only bearing, four labelled sectors,60ms flash/edge vignette and900ms direction. Original384px baked nine-slice border replaces an animated full-screen blur; desktop/narrow stills retain two cues and the aiming corridor. Reduced motion retains direction and omits flash. Browser checks cover reset and unchanged/changed HUD data. Human comfort remains open; this is not a no-stall claim. |
+| R-L21 | met | Session80 retains Session74 baked border,60ms flash and900ms labelled direction; matched combat still is byte-identical. Four directions and both hitmarker styles prepare before play, without changing live HP/feed/focus/settings. Desktop/narrow/Reduced motion cleanup and real-settings-entry checks pass. First natural damage/death intervals are below150ms across five fresh-profile pairs; human comfort remains open. |
 | R-L22 | partial | Session50 minimap plots ONLY server-issued,1m-rounded UAV snapshots for2.2s; no live enemy tracking/IDs from this channel. Opponents get public flight times without contacts, including syncView; practice is private, FFA disabled. Blackout clears scans and suppresses sampling without extending the flight. Authority and actual earned-input captures pass. |
 | R-L23 | met | Session69 Settings / Enemy colour: Team colours(default), Yellow, Violet. Existing material tint/rim uniforms only; known opponents override, allies remain, FFA/training all remotes hostile. TDM/FFA keyboard switching,800x600 control, save/reset/invalid migration, stable programs/material versions and pixel-identical hidden-operator/empty-cover images pass. Implemented dropdown check, not human colour-vision acceptance. |
 
 
 ## AAA gap list
 
-Session79: all63 reference rows re-reviewed; fresh static measurements match
-Session78. Afterlight2/2 is complete and ON: Switchyard overcast, Undertow dusk,
-Relay daylight, and both weather-map selection vistas now match gameplay.
-The owner's visual-first directive moves operator/weapon fidelity to first.
-Session74's1500ms headless allowance and five-pair proof remain explicit policy,
-not remediation of player-visible driver freezes; docs/HITCH-GATE.md retains limits.
-Public ceiling is60MiB, per-file25MiB, with per-map lazy loading retained.
+Session80: all63 rows re-reviewed; fresh static measurements match Session79.
+The supervisor's14:25 compositor-warmup instruction took priority this session.
+First Fight1/1 now prepares all18 match UI views and the actual minimap before
+input, with five complete-observation TDM/FFA pairs. Early presentation outliers
+remain recorded; this does not establish a universal driver fix or iGPU acceptance.
+After this dedicated performance arc, the visual-first ranking below stands:
+operator/weapon fidelity is next, followed by local wear and hero dressing.
+Public ceiling60MiB, per-file25MiB, per-map lazy loading, fixed lights and
+the existing headless policy remain. Switchyard still has only5461 estimated
+texture bytes free; the loading copies add no persistent WebGL residency.
 
 1. **Operator and weapon fidelity (R-G09/12/18, R-L13/23).** Next visual arc: distinct role silhouettes/skins and a convincing first-person grip.
    Include weapon detail and moving reload review. Retain large team
@@ -12294,3 +12299,228 @@ port8796listeners or inspection browsers remaining. All six required gates and
 supplementary FFA/DOM are green. Final scope/diff/reference audit:
 session79-final-audit.json. Work stays within apps/ironsight/** on ironsight-aaa;
 no commit/push/deploy. Publication remains the supervisor's responsibility.
+
+
+### Session 80 - 2026-09-10: First Fight arc 1/1 - prepare the compositor before combat
+
+Read the standing brief, Session80 status and AAA plan in order, then all63
+design principles/canonical scorecard rows. Entry branch ironsight-aaa was clean.
+Supervisor confirms Session79 commit057e989 and preview deployment
+344591b0-2cf1-48c4-bf9f-2defe0213189. Its14:25 instruction to warm the compositor
+outranks the next operator-art item. This dedicated performance arc is complete
+and ON by default. No commit, push or deployment; all work is apps/ironsight/**.
+
+Reference: **R-L14, R-L21, R-L20, R-L05**. Checkable targets: actually rasterize
+match UI during loading, preserve its appearance/accessibility/state, and keep
+first natural damage/death below150ms on five consecutive fresh-profile TDM/FFA
+pairs. Retain <=240stress calls, <=64MiB estimated textures,16fixed lights,
+cached shadows, the same WebGL pass and all existing gate limits. These checks
+pass. Broader device/driver and human presentation acceptance remain open.
+
+Delivered:
+
+- Eighteen preparation views use the real HUD/menu styles: four damage
+  directions, body/head markers, feed/confirmation/streak, death, team/solo
+  results and honors, three support silhouettes, deployment, map event, ping,
+  pause and settings. The real2D minimap is drawn before play as well.
+- Full-size copies sit above loading at1%opacity. Zero-opacity/offscreen or
+  occluded copies can be culled, so those approaches were rejected. The trace
+  proves these copies submit raster work. Three animation frames per view,
+  with actual animations sampled halfway and paused. Existing border-image
+  decode and fonts complete first. No blur/backdrop-filter remained in match CSS.
+- Copies are inert/aria-hidden, have no global menu listeners, cannot produce
+  sounds or gameplay, and are removed before enabling the canvas. A fresh
+  authoritative self snapshot seeds prediction after preparation. The room's
+  warmup deadline is unchanged. No permanent layer, light, asset or GPU pass.
+- The probe now retains pre-play frame intervals and observes live-join hits
+  before pointer-lock/profiler setup. First-use windows include250ms before
+  through1000ms after each first observed event, including crossing intervals;
+  fatal hits count, missing/incomplete windows fail. All gameplay spikes stay
+  reported. The optional150ms check supplements the unchanged Session74 policy.
+  A startup trace mode, trace summarizer and screenshot-only sequence support
+  repeatable diagnosis. Four unit cases cover boundary stalls, missing capture,
+  first-event retention and negative-time live joins.
+
+Browser fixtures at1920x1080,390x844 and1280x600, including Reduced motion,
+verify submitted copies, cleanup, stable live HUD/settings/focus, no ghost feed
+or style leak, and that real Settings still opens/closes with restored focus.
+Evidence: session80-final-report.json and session80-final-match-preparation*.png.
+Natural production preparation includes all18 views; the smaller offline fixture
+does not instantiate the3D intro/minimap. No room/network requests in fixtures.
+
+Wow check: a **25.991second natural FFA bot sequence**,
+11stills, driven by normal movement/look/fire inputs. Evidence:
+[first exchange](.inspect/session80-wow-fight-00.png), [last still](.inspect/session80-wow-fight-10.png),
+session80-wow.json/log and session80-wow.html. Screenshot capture is deliberately
+separate from acceptance because it perturbs presentation; combining its flag
+with assertions is rejected. Intended player sentence: **"The first firefight
+stays smooth when I get hit."** This is an intended experience, not a testimonial
+or overall AAA/device acceptance.
+
+Matched before/after preservation evidence, identical1920x1080 fixtures:
+[combat before](.inspect/session80-before-match-combat-front.png) ->
+[after](.inspect/session80-final-match-combat-front.png), and
+[results before](.inspect/session80-before-match-dom.png) ->
+[after](.inspect/session80-final-match-dom.png). Both PNG pairs have identical
+SHA256 hashes. Art/lighting/gameplay changed by zero; the change is preparation.
+
+Matched twelve-rifle/eleven-remote-operator stress on RTX5070 / Edge152 / ANGLE
+D3D11, balanced/DPR1 at1920x1080. Every row retains its before draw/triangle/
+texture/program/geometry counts and6.9/7.1/7.1ms median/p95/p99:
+
+| Map | Calls / triangles | Textures / estimated MiB | Before -> after max ms |
+|---|---:|---:|---:|
+|Relay|238 / 150102|30 / 63.7448|7.7 -> 7.2|
+|undertow|209 / 159284|26 / 63.3008|7.2 -> 7.2|
+|switchyard|208 / 166956|29 / 63.9948|7.2 -> 7.2|
+
+Each fixture has145volleys and96blasts over15s, then drains. This is neither an
+iGPU test nor a speedup claim from single-run timing differences. These estimates
+exclude transient browser compositor surfaces, buffers and driver overhead.
+
+| Bytes | Before | After | Delta |
+|---|---:|---:|---:|
+|assets|27484756|27484756|0|
+|public|34308684|34338885|30201|
+|client|2126134|2136387|10253|
+|map|4697111|4717059|19948|
+
+Public32.7481MiB remains below60MiB; largest
+file7183364bytes remains below25MiB. No new asset/download, dependency,
+purchased derivative, collision/server/wire change or Meshy spend; balance1530
+credits unchanged. Source map growth is included in public bytes. The map loader
+remains lazy. Fresh-profile local page-ready observation is2552.1-3677.4ms;
+UI preparation takes398.2-445.9ms before play. This is local loading and
+preparation, including connection/assets, not CDN performance. Source data and
+comparisons: session80-{before,final}-report.json and session80-summary.json;
+node .inspect/session80-summarize.mjs reproduces them.
+
+GPU evidence: session80-preparation-trace{,-trace,-summary}.json. The covered
+433.9ms warmup has134 GPU raster tasks, with21 pixel and21 vertex executable
+tasks overlapping it; every one of18 view windows contains raster work. Largest
+overlapping executable:19.755ms wall/18.544ms CPU. Before that warmup, a283.3ms
+loading interval overlaps ANGLE GetPixelExecutableTask:254.010ms wall/247.476ms
+CPU. This records cold first-use compilation during loading, not a driver-fault
+claim or a discarded gameplay frame. Additional post-preparation diagnosis is
+recorded in the Session80 startup investigation addendum below.
+
+Required verification: pnpm typecheck PASS; pnpm test PASS (637passed/six existing
+skips,84passed files/four skipped); pnpm build:client PASS; pnpm audit:assets PASS.
+Logs: session80-final-{typecheck,test,build-client,audit-assets}.log. Exact
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS, zero console errors: session80-required-report.json/log and retained stills.
+Nine final stress/UI views also pass, with no console/forbidden-network errors.
+Exact node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert
+PASS; retained as session80-final-tdm-1.json/log. Supplementary DOM with the
+first-use assertion also passes (14.3ms max).
+
+All14 sequential TDM/FFA acceptance runs pass. Pairs3/4/5/6/7
+are the **five consecutive pairs with complete early observation**, the final
+proof below. Each uses a fresh browser profile,500us CPU profiling, normal
+inputs and two natural bot deaths. The client bundle stayed SHA256-frozen;
+no other browser, bake, build, test suite or trace analysis overlapped the probes.
+
+| Run | Seconds / frames | Max frame / callback ms | First damage / death max ms | First-ready max ms | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---|
+|TDM 3|106.073 / 15271|18.4 / 14.2|7.6 / 8.3|45.3|2|PASS|
+|FFA 3|31.066 / 4470|14.1 / 5.0|8.0 / 8.2|66.9|2|PASS|
+|TDM 4|77.230 / 11112|28.4 / 8.4|9.0 / 9.5|46.5|2|PASS|
+|FFA 4|65.590 / 9445|14.4 / 5.8|7.8 / 8.7|292.4|2|PASS|
+|TDM 5|93.012 / 13389|17.8 / 14.4|7.8 / 8.6|46.0|2|PASS|
+|FFA 5|77.878 / 11210|14.3 / 7.9|7.9 / 8.0|68.9|2|PASS|
+|TDM 6|114.197 / 16442|21.9 / 10.8|8.2 / 8.1|63.5|2|PASS|
+|FFA 6|45.737 / 6571|27.8 / 6.3|8.0 / 9.1|68.7|2|PASS|
+|TDM 7|97.353 / 13993|28.2 / 22.6|8.4 / 8.8|65.4|2|PASS|
+|FFA 7|47.614 / 6849|31.6 / 27.6|8.3 / 9.7|138.4|2|PASS|
+
+All ten first-use windows per event pass150ms; first damage peaks at
+9.0ms and death at9.7ms. Every whole-round
+p99 upper bound is8ms and no interval in the ordinary gameplay measurement
+exceeds150ms in this proof. Earlier observation includes first entry before
+profiler setup and must not be described as universally smooth gameplay.
+The first-ready column and20pre-measurement intervals
+above150ms remain in the evidence; they are not silently filtered. In particular,
+FFA4's292.4ms early interval is outside the later ordinary measurement and is
+retained for startup investigation. Fresh browser profiles do not flush the
+shared driver cache. First-use bounds here do not prove universal stall removal.
+
+Rejected/intermediate evidence: two baseline TDM runs already pass their first
+damage/death windows; no before/after first-hit speedup is claimed. The second
+was initially labelled FFA despite omitting the mode flag; its unmodified
+mode0 report/log is now session80-before-tdm-2. It retains an untraced283.4ms
+gameplay gap, not assigned to a cause. Pairs1/2 of the final sequence lacked
+pre-profiler damage observation, so the sequence was extended through pair7;
+none of these reports was overwritten or counted toward the stronger five-pair
+proof. No gate threshold, warmup allowance, bot route or death requirement changed.
+
+Initial reference comparison rejected the prior file's UTF8 BOM; removing only
+that byte-order mark allowed the full parsed-value comparison to pass.
+
+Fresh tools/reference-audit.ts output deep-equals Session79:
+session80-reference-{audit,comparison}.json. All63 canonical rows reviewed and
+the gap list updated. Full/waist cover65/46,66/62,64/48; A-B/A-C/B-C sprint
+rotations14.44/11.78/14.44,14.22/11.33/14.22,14.44/11.56/14.44s. Spawn travel
+is not contact timing. ADS250/200/225/400/165ms, sprint recovery120/100/130/150/90ms;
+TDM50/300s, respawn3s, DOM4/8s and0.5point/flag/s; hostile foley1.4,
+hit900/1400Hz at.28gain, five-row top-right feed and both damage cues unchanged.
+
+Open owner questions/defaults: retain the measured loading warmup(yes); return
+to operator/weapon fidelity next(yes, release texture residency before growth).
+No answer blocks progress. Human excitement/readability/comfort, laptop iGPU,
+thermal, real6v6/RTT and Firefox/Safari remain unaccepted. No capacity/latency
+claim. Final process cleanup/scope verification is recorded in the addendum.
+
+
+**Session80 startup investigation and cleanup.** The full early observation
+contains20 intervals above150ms:12 during loading and8 after ready, including
+first entry before profiler setup. Every interval is retained below in ms;
+this is not a universally smooth startup claim.
+
+| Run | Loading gaps >150ms | After-ready, pre-profiler gaps >150ms |
+|---|---:|---:|
+|TDM 3|289.1|206.7|
+|FFA 3|271.9|216.8|
+|TDM 4|286.8|none|
+|FFA 4|290.9|292.4, 477.1|
+|TDM 5|284.3|none|
+|FFA 5|279.5|599.2|
+|TDM 6|290.1|none|
+|FFA 6|280.6|394.0|
+|TDM 7|304.3, 153.2|466.8|
+|FFA 7|300.5, 156.2|156.6|
+
+The three extra fresh-profile startup diagnoses retain all intervals and run
+separately from acceptance. In session80-startup-3, a **462.2ms** early interval
+at5567.9ms after navigation (148.9ms before the ordinary measurement origin)
+is covered by the rolling trace. BrowserRasterWorker takes465.782ms wall/
+7.390ms CPU; an ANGLE GetPixelExecutableTask takes461.675ms wall/3.782ms CPU.
+The renderer thread executes7.117ms of tasks across that interval. Nearby game
+draw calls take1.1-1.6ms,101-121draws/57-77materials, with zero new textures,
+buffers, programs or shader links, zero target draws and no shadow request.
+Existing skin texture updates and256byte buffer updates continue normally.
+This is a **remaining cold-GPU-cache presentation cost after UI warming** in
+the browser raster executable path, under the supervisor's explicit accepted
+residue provision. It does not prove a named driver defect, make this cost good
+gameplay, or assign that cause to every untraced interval (including292.4ms).
+
+Evidence: session80-startup-{1,2,3}.json/log, their raw trace/summary files,
+session80-startup-search.json, and the full
+session80-startup-3-trace-summary.json. The earlier loading-only trace is
+session80-preparation-trace{,-trace,-summary}.json. Reproduce covered full
+windows with node scripts/hitch-trace-summary.mjs .inspect/session80-startup-3.json --startup;
+node scripts/compositor-trace-summary.mjs .inspect/session80-startup-3 gives
+per-view raster/executable counts and retained early WebGL diagnostics.
+The short diagnoses intentionally have no two-death assertion; they are not
+substituted for acceptance. No browser flags or hitch thresholds were changed.
+
+The full wow sequence lasts25.991s, including the required20s and a respawn;
+frame08 at20.779s shows the natural first death. All11stills are retained in
+the scrubber. Screenshots were reviewed at full size. Their timing is not used
+as performance acceptance.
+
+Cleanup verified the saved preview root PID/creation time, then descendant
+parentage/creation times before stopping the owned12-process tree.
+session80-preview-tree.json and session80-cleanup.json confirm zero owned
+processes, port8796listeners and inspection browsers remaining. Required gates,
+supplementary DOM, scope/diff and the63-row audit are green; machine-readable
+verification is session80-final-audit.json. The supervisor owns publication.

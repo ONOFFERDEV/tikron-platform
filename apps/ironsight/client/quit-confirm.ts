@@ -28,6 +28,7 @@
  */
 import { openSettings, closeSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
+import type { CompositorFrame } from './compositor-preparation.js';
 
 const css = `
 #quitConfirm { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center;
@@ -64,7 +65,13 @@ function quitToMenu(): void {
   location.replace(url.toString());
 }
 
-function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
+export function pauseCompositorFrame(settings: SettingsStore): CompositorFrame {
+  const node = document.createElement('div'); node.inert = true;
+  showQuitConfirm(settings, () => {}, node);
+  return { name: 'pause', node };
+}
+
+function showQuitConfirm(settings: SettingsStore, relock: () => void, preparation?: HTMLElement): void {
   if (root) return; // already open
 
   const style = document.createElement("style");
@@ -118,6 +125,7 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void): void {
   rowEl.append(continueBtn, settingsBtn, quitBtn);
   panel.appendChild(rowEl);
   dlg.append(style, panel);
+  if (preparation) { preparation.append(dlg); return; }
   document.body.appendChild(dlg);
   window.addEventListener("keydown", onKeydown);
   root = dlg;

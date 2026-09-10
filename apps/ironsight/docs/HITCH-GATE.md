@@ -71,6 +71,89 @@ Representative iGPU, real browsers, sustained combat and thermal testing remain
 required. Keep investigating owner-visible stalls; do not treat this ceiling as
 headroom for more expensive rendering.
 
+## Preparing the compositor (Session 80)
+
+The loading phase now paints inert copies of the real combat HUD, four damage
+directions, body/head hitmarkers, animated feed, elimination/streak messages,
+death, team/solo results and honors, support silhouettes, deployment, map-event
+and ping panels, pause and settings. The actual minimap canvas is also drawn
+before play. No blur/backdrop-filter remains in the audited match CSS.
+
+Copies sit at the viewport's real size, above the loading UI at **1% opacity**.
+`opacity:0`, an offscreen location, or opaque occlusion can skip rasterization;
+those are not useful warmup substitutes. Real animations are paused halfway
+through, and each view gets three animation frames. Copies are inert and hidden
+from accessibility, and are removed before the canvas accepts input. Live HUD
+state, focus, settings, sounds and room state are not replayed or mutated.
+There is no persistent compositor layer, extra WebGL pass or new game texture.
+
+`--assert-first-use` adds a separate **150ms** check around the first natural
+damage and death, from 250ms before the observed event through 1000ms after it.
+The interval crossing either boundary is included. Missing/incomplete windows
+fail this check. Fatal damage counts too. The ordinary whole-round policy above
+is unchanged; every startup interval and every gameplay spike is retained.
+The observer starts before navigation and retains hits during pointer-lock and
+profiler setup; a live-join hit can therefore have a negative time relative to
+the ordinary gameplay measurement origin. No initial two-second blind spot.
+
+```sh
+node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/first-fight.json --assert --assert-first-use --mode=ffa
+```
+
+Each invocation creates a fresh browser profile. This does **not** flush the
+shared driver cache or prove performance on a laptop iGPU. The report includes
+loading/first-ready intervals, per-view UI preparation measures and scene
+preparation time. Run five sequential TDM/FFA pairs without other inspection
+browsers, bakes, builds or tests competing with the probes.
+
+To confirm that preparation really submits GPU raster work, start the trace
+before navigation. This short diagnosis intentionally lacks the two deaths and
+is separate from acceptance:
+
+```sh
+node scripts/hitch-probe.mjs http://localhost:8796 1000 .inspect/compositor-prepare.json --mode=ffa --trace-startup --trace-categories=toplevel,gpu,gpu.angle,cc,viz,blink.user_timing,disabled-by-default-gpu.service
+node scripts/compositor-trace-summary.mjs .inspect/compositor-prepare
+```
+
+Session80's retained startup trace covers all 18 views: **134 GPU raster tasks**,
+with **21 pixel and 21 vertex executable tasks** overlapping preparation.
+Preparation took **433.9ms** under tracing. An earlier **283.3ms loading interval**
+overlaps an ANGLE pixel executable taking **254.010ms wall / 247.476ms CPU**,
+before UI preparation began. This is recorded cold first-use compilation during
+loading, not a silently discarded gameplay frame or proof of a driver defect.
+See `.inspect/session80-preparation-trace{,-trace,-summary}.json` and the Session80
+log for the final repeated acceptance results.
+
+A separate covered post-preparation repro remains in
+`.inspect/session80-startup-3{,-trace,-trace-summary}.json`: **462.2ms** before
+the ordinary profiler interval, overlapping a **461.675ms wall / 3.782ms CPU**
+ANGLE pixel executable. Chromium's **BrowserRasterWorker** consumes465.782ms
+wall/7.390ms CPU. Game render calls around it take1.1-1.6ms, with101-121 draws,
+57-77 materials, no resource creation/shader links, no shadow request or extra
+target pass. Existing skin/buffer updates continue. This is a remaining
+**cold-GPU-cache presentation cost after warming**, not proof that every first
+use is now free or that a particular driver is defective. The original untraced
+292.4ms first-ready outlier is retained without assigning it this cause.
+
+Use the full trace summarizer's startup option to include these early intervals:
+
+```sh
+node scripts/hitch-trace-summary.mjs .inspect/compositor-prepare.json --startup
+```
+
+Five consecutive TDM/FFA pairs (Session80 pairs3-7) pass both the ordinary gate
+and the150ms first-damage/death checks, with pre-profiler events observed too.
+No interval exceeds150ms in their ordinary gameplay measurement. The earlier
+observation retains20 gaps above150ms, including8 after ready (156.6-599.2ms).
+These include first entry before profiler setup; they must not be described as
+universally smooth gameplay. Only the covered462.2ms diagnosis above is assigned
+to the browser raster executable path. The other untraced intervals retain no
+causal label. This residue does not justify changing the limits.
+
+`--capture-first-fight` writes a 20-second still sequence starting at natural
+damage. Screenshots perturb presentation, so the probe refuses to combine this
+option with either acceptance assertion. Use a separate run for visual evidence.
+
 ## Capturing a new failure
 
 ```sh

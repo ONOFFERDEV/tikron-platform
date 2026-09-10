@@ -37,11 +37,14 @@ import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { startMatchInspector } from "./match-inspect.js";
+import { startCompositorInspector } from './compositor-inspect.js';
 import { Hud } from "./hud.js";
+import { prepareCompositor, peripheralCompositorFrames } from './compositor-preparation.js';
+import { settingsCompositorFrame } from './settings-ui.js';
 import { playDeploymentCue, playHonorsCue } from './audio.js';
 import { TrainingCoach } from './training-coach.js';
 import { resolveMode } from "./mode-select.js";
-import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
+import { wireQuitConfirm, closeGameplayMenus, pauseCompositorFrame } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
 import { inspectThreatAudio, initAudio, setAudioMap, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
@@ -69,6 +72,10 @@ const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (clien
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
+  if (new URLSearchParams(location.search).get('inspect') === 'match'
+    && new URLSearchParams(location.search).get('shot')?.startsWith('match-preparation')) {
+    await startCompositorInspector(); return;
+  }
   if (new URLSearchParams(location.search).get("inspect") === "match") { startMatchInspector(); return; }
   if (new URLSearchParams(location.search).get("inspect") === "map") { startMapInspector(); return; }
   if (new URLSearchParams(location.search).get("inspect") === "weapon") { startWeaponInspector(); return; }
@@ -122,6 +129,7 @@ async function main(): Promise<void> {
   let lastCoreOpen: boolean | undefined;
   const remoteFoley = new Map<string, { phase: string; y: number }>();
   const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
+  scene.canvas.inert = true;
   hud.showLockPrompt(true, 'Preparing arena / Loading weapons and effects...');
   await scene.prepare();
   me0 = net.state?.players[net.myId] ?? me0;
@@ -172,6 +180,14 @@ async function main(): Promise<void> {
   input.pitch = me0?.pitch ?? 0;
   const intro = new DeploymentIntro();
   const introView = new DeploymentIntroView(map, intro, scene.canvas);
+  // Prime the actual 2D minimap canvas too; cloning a canvas copies no pixels.
+  if (net.state) tacticalMap.update(net.state, net.myId, me0.yaw, performance.now(), net.serverNow(), false);
+  await prepareCompositor([...hud.compositorFrames(), ...supportHud.compositorFrames(),
+    ...peripheralCompositorFrames(), pauseCompositorFrame(settings), settingsCompositorFrame(settings)]);
+  scene.canvas.inert = false;
+  performance.mark('ironsight-play-ready');
+  me0 = net.state?.players[net.myId] ?? me0;
+  input.yaw = me0.yaw; input.pitch = me0.pitch;
   const introPose: IntroPose = { eye: {x:0,y:0,z:0}, target: {x:0,y:0,z:0}, fov:68 };
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };

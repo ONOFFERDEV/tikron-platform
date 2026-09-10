@@ -6,6 +6,11 @@ import { createInterface } from 'node:readline';
 const path = process.argv[2];
 if (!path?.endsWith('.json')) throw Error('Pass a hitch-probe JSON path');
 const probe = JSON.parse(await readFile(path, 'utf8'));
+const startupOrigin = probe.summary.preparation?.marks?.find(m=>m.name==='ironsight-hitch-start')?.startTime;
+const frames = process.argv.includes('--startup') && Number.isFinite(startupOrigin)
+  ? [...probe.summary.preparation.startupFrames.filter(([,dt])=>dt>150)
+    .map(([t,dt])=>({t:t-startupOrigin,dt,startup:true})),...probe.frames]
+  : probe.frames;
 const tracePath=path.replace(/\.json$/, '') + '-trace.json';
 // CDP writes one event per line. Stream twice: traces can exceed V8's maximum
 // string length; only retain events that overlap the measured slow frames.
@@ -40,12 +45,12 @@ if (!marker) throw Error('Missing trace clock anchor');
 // Long background tasks may begin before a rolling buffer's retained records.
 // Their old timestamps do not prove the game renderer's window survived.
 const rendererRange=threadRanges.get(`${marker.pid}:${marker.tid}`);
-const intervals=probe.frames.map(f=>({end:marker.ts+f.t*1000,start:marker.ts+(f.t-f.dt)*1000}));
+const intervals=frames.map(f=>({end:marker.ts+f.t*1000,start:marker.ts+(f.t-f.dt)*1000}));
 const events=[];
 for await(const e of entries())if(intervals.some(w=>e.ts<w.end+10000&&e.ts+(e.dur??0)>w.start-10000))events.push(e);
 const label = e => `${processes.get(e.pid) ?? e.pid}/${threads.get(`${e.pid}:${e.tid}`) ?? e.tid}`;
 const complete = events.filter(e => e.ph === 'X' && e.dur > 0);
-const windows = probe.frames.map(f => {
+const windows = frames.map(f => {
   const end = marker.ts + f.t * 1000, start = end - f.dt * 1000;
   const overlap = complete.filter(e => e.ts < end && e.ts + e.dur > start);
   const top = overlap.map(e => ({ thread: label(e), name: e.name,

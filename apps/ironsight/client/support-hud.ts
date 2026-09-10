@@ -6,6 +6,7 @@ import { emptySupport, readSupport } from './support-view.js';
 import { emptyMortar, MORTAR } from '../src/mortar.js';
 import { readMortar } from './mortar-view.js';
 import { formatBinding, type SettingsStore } from './settings.js';
+import type { CompositorFrame } from './compositor-preparation.js';
 
 export class SupportHud {
   private readonly root = document.createElement('aside');
@@ -52,6 +53,19 @@ export class SupportHud {
         friendly?'12 seconds of covering fire. Stay near it and keep sight.':'Move off its laser. Cover or eliminate the operator.',now,own?'earned':friendly?'friendly':'enemy');
     } else return;
     this.banner.dataset.kind='drone';
+  }
+  compositorFrames(): CompositorFrame[] {
+    return ['uav', 'mortar', 'drone'].map(kind => {
+      const node = document.createElement('div');
+      const meter = this.root.cloneNode(true) as HTMLElement; meter.hidden = false;
+      meter.querySelector('strong')!.textContent = 'SUPPORT READY';
+      meter.querySelector('span')!.textContent = 'Covering fire available';
+      const banner = this.banner.cloneNode(true) as HTMLElement; banner.hidden = false;
+      banner.dataset.kind = kind;
+      banner.innerHTML = 'AIR SUPPORT<strong>SUPPORT ONLINE</strong><span>Covering fire available</span>';
+      node.append(meter, banner);
+      return { name: `support-${kind}`, node };
+    });
   }
   rally(payload: unknown, now: number): void {
     if (!payload || typeof payload!=='object' || !('bonus' in payload) || ![1,5].includes(payload.bonus as number) || !document.pointerLockElement) return;

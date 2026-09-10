@@ -29,6 +29,7 @@ export interface ResultRoster {
 
 import { matchBrief } from "./match-presentation.js";
 import type { ArenaState } from "../src/schema.js";
+import type { CompositorFrame } from './compositor-preparation.js';
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
@@ -301,11 +302,11 @@ export class Hud {
   /** `settings` drives the click-to-play overlay's controls hint, which is
    *  filled in from the player's live keybindings on every `showLockPrompt`
    *  call rather than baked in once. */
-  constructor(settings: SettingsStore, container: HTMLElement = document.body) {
+  constructor(settings: SettingsStore, container: HTMLElement = document.body, installStyles = true) {
     this.settings = settings;
     const style = el("style");
     style.textContent = css + honorsCss;
-    document.head.appendChild(style);
+    if (installStyles) document.head.appendChild(style);
 
     this.root = el("div", "hud");
 
@@ -432,6 +433,39 @@ export class Hud {
     });
     container.appendChild(this.root);
     this.setSpread(0);
+  }
+
+  /** Detached presentation copies use the same methods/markup as real events.
+   * Never touches live HP, timers, feed, focus, settings, sounds or room state. */
+  compositorFrames(): CompositorFrame[] {
+    const container = document.createElement('div'); container.inert = true;
+    const sample = new Hud(this.settings, container, false);
+    const frames: CompositorFrame[] = [];
+    const save = (name: string) => frames.push({ name, node: sample.root.cloneNode(true) as HTMLElement });
+    sample.setHp(40); sample.setAmmo(12, 60, 1500); sample.setCaps(150, 50, 100);
+    sample.setMode(1);
+    sample.setLeaderboard([{ name: 'OPERATOR', k: 2, d: 1, isMe: true }]);
+    sample.addKill('OPERATOR', 'SCOUT', 'head', 0, 'ANCHOR', { weapon: 1, localKill: true });
+    sample.addKill('SCOUT', 'OPERATOR', 'body', 1, undefined, { weapon: 4, localVictim: true });
+    sample.showStreak('OPERATOR', 3);
+    for (const [index, direction] of ['front', 'right', 'back', 'left'].entries()) {
+      sample.showDamageDirection(index * Math.PI / 2);
+      sample.update(performance.now());
+      sample.showHitmarker(index % 2 === 0);
+      save(`combat-${direction}`);
+    }
+    sample.clearDamage(); sample.hideCaps();
+    sample.showDeath(3, 'SCOUT'); save('death');
+    const roster: ResultRoster = {
+      won: true, dom: true, serverNow: 1000, intermissionEndMs: 21000,
+      rows: Array.from({ length: 12 }, (_, i) => ({ name: `OPERATOR ${i + 1}`, k: 12 - i, d: i, team: i % 2, isMe: i === 0 })),
+      mvp: { id: 'preparation', name: 'OPERATOR', isMe: true, team: 0, kills: 12, assists: 4, captureSeconds: 20, score: 48 },
+    };
+    sample.showMatchEnd('red', 50, 42, 12, 4, false, roster); save('results-team');
+    sample.hideOverlay();
+    sample.showMatchEnd('OPERATOR', 12, 0, 12, 4, true, { ...roster, dom: false }); save('results-solo');
+    sample.showConnection(true); save('connection');
+    return frames;
   }
 
   setHp(hp: number): void {

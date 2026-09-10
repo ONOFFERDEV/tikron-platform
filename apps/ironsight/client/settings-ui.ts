@@ -35,6 +35,7 @@ import {
 } from "./settings.js";
 
 import { isMuted, setMuted, setMasterVolume } from './audio.js';
+import type { CompositorFrame } from './compositor-preparation.js';
 
 let closeCurrent: (() => void) | null = null;
 export function closeSettings(): void { closeCurrent?.(); }
@@ -81,7 +82,13 @@ function formatSens(value: number): string {
  * can restore whatever it hid to make room for this (the quit-confirm modal
  * or the mode-select menu). A second call while already open is a no-op.
  */
-export function openSettings(settings: SettingsStore, onClose: () => void): void {
+export function settingsCompositorFrame(settings: SettingsStore): CompositorFrame {
+  const node = document.createElement('div'); node.inert = true;
+  openSettings(settings, () => {}, node);
+  return { name: 'settings', node };
+}
+
+export function openSettings(settings: SettingsStore, onClose: () => void, preparation?: HTMLElement): void {
   if (root) return; // already open
 
   const previousFocus = document.activeElement;
@@ -286,7 +293,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
     // the one just captured.
     for (const a of BIND_ACTIONS) refreshKeyButton(a);
   };
-  window.addEventListener("keydown", onKeydown);
+  if (!preparation) window.addEventListener("keydown", onKeydown);
 
   // -- Bottom row: reset-all / close --------------------------------------
   const bottomRow = document.createElement("div");
@@ -326,6 +333,7 @@ export function openSettings(settings: SettingsStore, onClose: () => void): void
   }
 
   dlg.append(style, panel);
+  if (preparation) { preparation.append(dlg); return; }
   document.body.appendChild(dlg);
   root = dlg;
   closeCurrent = close;

@@ -23,15 +23,20 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { installGpuDiagnostics } from './hitch-gpu-diagnostics.mjs';
 import { assessHitch } from './hitch-policy.mjs';
+import { firstUseWindows } from './hitch-first-use.mjs';
 
 const positional = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const base = positional[0] ?? 'http://localhost:8796';
 const runMs = Number(positional[1] ?? 90000);
 const out = positional[2] ?? '.inspect/hitch-probe.json';
 const assert = process.argv.includes('--assert');
+const assertFirstUse = process.argv.includes('--assert-first-use');
+const captureFight = process.argv.includes('--capture-first-fight');
+if (captureFight && (assert || assertFirstUse)) throw Error('Screenshot sequences are visual evidence, not hitch acceptance. Run acceptance separately.');
 // Optional cross-process diagnosis; the ordinary acceptance run stays untraced.
 // V8's "idle" cannot distinguish a compositor/GPU stall from missing BeginFrames.
-const trace = process.argv.includes('--trace');
+const traceStartup = process.argv.includes('--trace-startup');
+const trace = process.argv.includes('--trace') || traceStartup;
 // Session65 rejected the sampling-only hypothesis: unprofiled FFA also stalled.
 // Cross-process traces found long GPU/ANGLE tasks while JS stayed responsive.
 // Preserve the original 500us CPU observer in acceptance and retain failures.
@@ -103,6 +108,23 @@ try {
   // Time actual animation callbacks as well as presentation intervals. A late
   // BeginFrame must not hide a long app callback behind the platform allowance.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__startupFrames=[];window.__startupEvents=[];window.__startupDiagnostics=[];
+    let previousStartup=performance.now(),startupHp=100,startupAlive=true;
+    const startup=()=>{const now=performance.now();
+      if(window.ironsight && window.__firstReadyAt===undefined)window.__firstReadyAt=now;
+      const self=window.ironsight?.state()?.players[window.ironsight.myId];
+      if(self){
+        if(self.hp<startupHp)window.__startupEvents.push({t:now,kind:'damage',hp:self.hp});
+        if(startupAlive&&!self.alive)window.__startupEvents.push({t:now,kind:'death'});
+        startupHp=self.hp;startupAlive=self.alive;
+      }
+      const dt=now-previousStartup;
+      if(dt>24&&window.__hitchGpu)window.__startupDiagnostics.push({t:now,dt,
+        gpu:window.__hitchGpu.frames.filter(f=>f.end>=now-dt-30),
+        resources:window.__hitchGpu.resources.filter(r=>r.t>=now-dt-30)});
+      window.__startupFrames.push([now,dt]);previousStartup=now;
+      if(!window.__perf)requestAnimationFrame(startup);
+    };requestAnimationFrame(startup);
     const originalRaf=window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame=callback=>originalRaf(timestamp=>{
       const begin=performance.now();
@@ -127,6 +149,8 @@ try {
     document.addEventListener('visibilitychange',()=>window.__hitchTiming.visibility.push({t:performance.now(),state:document.visibilityState}));
   ` });
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  if (traceStartup) await send('Tracing.start', { traceConfig: { includedCategories: traceCategories.split(','),
+    recordMode: 'recordContinuously', traceBufferSizeInKb: 32768 }, transferMode: 'ReturnAsStream' });
   const url = new URL(base); url.searchParams.set('mode', mode);
   await send('Page.navigate', { url: url.href });
   await waitFor('!!window.ironsight?.state()?.players[window.ironsight.myId]');
@@ -141,10 +165,10 @@ try {
     await send('Profiler.start');
   }
   const profilerSetupMs = profileCpu ? await evaluate('performance.now()') - nowBefore : 0;
-  if (trace) await send('Tracing.start', { traceConfig: { includedCategories: traceCategories.split(','),
+  if (trace && !traceStartup) await send('Tracing.start', { traceConfig: { includedCategories: traceCategories.split(','),
     recordMode: 'recordContinuously', traceBufferSizeInKb: 32768 }, transferMode: 'ReturnAsStream' });
   await evaluate(`(() => {
-    const P = window.__perf = { frames: [], long: [], events: [], frameCount: 0,
+    const P = window.__perf = { frames: [], samples: [], long: [], events: [], frameCount: 0,
       frameHistogram: new Array(2002).fill(0), maxFrameMs: 0, maxCallbackMs: 0, t0: performance.now() };
     window.__hitchGpu?.start();
     performance.mark('ironsight-hitch-start');
@@ -158,6 +182,7 @@ try {
       P.long.push({ t: Math.round(e.startTime), dur: e.duration }); }).observe({ entryTypes: ['longtask'] });
     const loop = () => { const now = performance.now(); const dt = now - last; last = now;
       P.frameCount++;
+      P.samples.push([now,dt]);
       P.frameHistogram[Math.min(2001,Math.ceil(dt))]++;
       P.maxFrameMs=Math.max(P.maxFrameMs,dt);
       const { me, d, n } = snap(); const ri = I.renderInfo();
@@ -167,7 +192,7 @@ try {
       lastProgs = ri.programs;
       if (me) { if (wasAlive && !me.alive) P.events.push({ t: now, kind: 'death', near: Math.round(d) });
         if (!wasAlive && me.alive) P.events.push({ t: now, kind: 'respawn' });
-        if (me.alive && me.hp < hp) P.events.push({ t: now, kind: 'damage', hp: me.hp, near: Math.round(d) });
+        if (me.hp < hp) P.events.push({ t: now, kind: 'damage', hp: me.hp, near: Math.round(d) });
         wasAlive = me.alive; hp = me.hp; }
       if (dt > 24) P.frames.push({ t: Math.round(now), dt: Math.round(dt * 10) / 10, alive: me?.alive, near: Math.round(d), enemies: n, programs: ri.programs, textures: ri.textures, geometries: ri.geometries,
         gpu: window.__hitchGpu?.frames.filter(f => f.end >= now-dt-30).map(f => ({...f,t:f.t-P.t0,end:f.end-P.t0})),
@@ -180,7 +205,20 @@ try {
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
   let yaw = 0, doneAt = Infinity, routeIndex = 0;
   const navigationSamples = [];
+  const captures = []; let captureStart, nextCapture = 0;
   gameplay: while (Date.now() - start < runMs && Date.now() < doneAt) {
+    if (captureFight) {
+      if (captureStart === undefined && await evaluate(`window.__perf.events.some(e=>e.kind==='damage')`)) captureStart = Date.now();
+      if (captureStart !== undefined && Date.now() - captureStart >= nextCapture && nextCapture <= 20000) {
+        const elapsedMs = Date.now() - captureStart;
+        const shot = await send('Page.captureScreenshot', { format: 'png' });
+        const path = out.replace(/\.json$/, '') + `-fight-${String(captures.length).padStart(2, '0')}.png`;
+        await writeFile(path, Buffer.from(shot.data, 'base64'));
+        captures.push({ elapsedMs, path, state: await evaluate(`({hp:window.ironsight.state().players[window.ironsight.myId]?.hp,
+          alive:window.ironsight.state().players[window.ironsight.myId]?.alive, overlay:document.querySelector('#overlay')?.dataset.kind})`) });
+        nextCapture += 2000;
+      }
+    }
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) {
       await delay(5500);
       break;
@@ -214,7 +252,8 @@ try {
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) continue;
     await clickCenter();
     await delay(600);
-    if (!untilEnded && doneAt === Infinity && (await evaluate(`window.__perf.events.filter(e => e.kind === 'death').length`)) >= 2) doneAt = Date.now() + 6000;
+    if (!untilEnded && doneAt === Infinity && (!captureFight || nextCapture > 20000)
+      && (await evaluate(`window.__perf.events.filter(e => e.kind === 'death').length`)) >= 2) doneAt = Date.now() + 6000;
   }
   const finalState = await evaluate(`(() => { const s = window.ironsight.state(); return { phase: s.phase, redScore: s.redScore, blueScore: s.blueScore, matchEndMs: s.matchEndMs, players: Object.keys(s.players) }; })()`);
   if (untilEnded) {
@@ -224,6 +263,12 @@ try {
   // Snapshot before exporting diagnostics: trace streaming can take seconds and
   // must not append unrelated export-time frames to a completed gameplay run.
   const data = JSON.parse(await evaluate('JSON.stringify({...window.__perf,gpu:window.__hitchGpu?.report(),measurementMs:performance.now()-window.__perf.t0})'));
+  const preparation = await evaluate(`({ startupFrames:window.__startupFrames,
+    startupEvents:window.__startupEvents,
+    startupDiagnostics:window.__startupDiagnostics,
+    firstReadyAt:window.__firstReadyAt, scene:window.ironsight.preparationInfo(),
+    measures:performance.getEntriesByType('measure').filter(e=>e.name.startsWith('ironsight-')).map(e=>e.toJSON()),
+    marks:performance.getEntriesByType('mark').filter(e=>e.name.startsWith('ironsight-')).map(e=>e.toJSON()) })`);
   const prof = profileCpu ? (await send('Profiler.stop')).profile : {startTime:0,nodes:[],samples:[],timeDeltas:[]};
   let traceEndElapsedMs;
   if (trace) {
@@ -255,10 +300,17 @@ try {
   // Count cache-key additions too: replacing one program can leave the count unchanged.
   const recompiles = data.events.filter(e => (e.kind === 'programs' || e.kind === 'program-new') && e.t - data.t0 > 3000).map(rel);
   const spikes = data.frames.filter(f => f.dt > 150).map(rel);
+  // Observe before pointer lock/profiler setup too: joining a live room must not
+  // hide a first hit inside the probe's existing two-second startup delay.
+  const firstUse = firstUseWindows([...preparation.startupFrames,...data.samples].map(([t,dt])=>[t-data.t0,dt]),
+    [...preparation.startupEvents,...data.events].map(rel).sort((a,b)=>a.t-b.t));
+  const readyFrames = preparation.startupFrames.filter(([t,dt]) => t >= preparation.firstReadyAt && t-dt <= preparation.firstReadyAt+1000);
+  preparation.firstReady = { at:preparation.firstReadyAt, frames:readyFrames.length,
+    maxMs:Math.max(0,...readyFrames.map(([,dt])=>dt)), spikes:readyFrames.filter(([,dt])=>dt>150) };
   const gate = assessHitch({ frames:data.frames.map(rel), frameHistogram:data.frameHistogram,
     frameCount:data.frameCount,maxFrameMs:data.maxFrameMs,maxCallbackMs:data.maxCallbackMs,measurementMs:data.measurementMs,
     longTasks:data.long,recompiles,deaths,errors,untilEnded,phase:finalState.phase });
-  const summary = { url: url.href, runMs, untilEnded, diagnostics: { profileCpu, trace, diagnosticTiming, gpuDiagnostics, stopOnSpike }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
+  const summary = { url: url.href, runMs, untilEnded, firstUse, preparation, captures, diagnostics: { profileCpu, trace, traceStartup, diagnosticTiming, gpuDiagnostics, stopOnSpike, captureFight }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
     measurementMs:data.measurementMs,measuredFrames:data.frameCount,gate,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frameHistogram:data.frameHistogram, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
@@ -269,6 +321,7 @@ try {
       deaths, recompiles: recompiles.length, framesOver150ms:spikes.length, errors: errors.length }));
     process.exitCode = failed ? 1 : 0;
   }
+  if (assertFirstUse && firstUse.some(window => window.status !== 'PASS')) process.exitCode = 1;
 } finally {
   try { ws?.close(); } catch {}
   edge.kill(); await delay(500); await rm(profile, { recursive: true, force: true }).catch(() => {});
