@@ -29,10 +29,10 @@ export class SignalCore {
     };
     for (const b of core.doors) {
       const x=(b.min.x+b.max.x)/2;
-      box(0x263d44,x,1.5,50,.5,3,4);
+      box(0x343c33,x,1.5,50,.5,3,4);
       for(const side of [-1,1]) {
         const face=x+side*.251;
-        for(let y=.22;y<3;y+=.32) box(0x52666b,face,y,50,.008,.20,3.85);
+        for(let y=.22;y<3;y+=.32) box(0x606858,face,y,50,.008,.20,3.85);
         for(const z of [48.15,51.85]) box(0xc29851,face,1.5,z,.01,2.9,.18);
         // Two halves of a chevron identify a movable shutter at combat distance.
         for(const sign of [-1,1]) box(0xe0c482,face+side*.008,1.4,50+sign*.5,.008,.14,1.3,sign*.65);
@@ -41,16 +41,16 @@ export class SignalCore {
     batch(this.shutters);
     // Permanent guide housings stay in the side walls/lintel, never in the route.
     for(const x of [lo+.01,hi-.01]) {
-      for(const z of [47.84,52.16]) box(0x283e46,x,1.5,z,.05,3,.3);
-      box(0x203740,x,3.42,50,.04,.78,4);
+      for(const z of [47.84,52.16]) box(0x383e32,x,1.5,z,.05,3,.3);
+      box(0x30392e,x,3.42,50,.04,.78,4);
       for(const z of [48.3,49.15,50,50.85,51.7]) box(0x9caa9d,x,3.85,z,.06,.13,.22);
     }
     // Floor strips are paint; ceiling ribs remain inside the 3m lintel.
     for(const z of [48.15,51.85]) {
       box(0xac9663,mid,.01,z,length+3,.012,.1);
-      box(0x29474b,mid,3.018,z,length-.1,.03,.22);
+      box(0x3f4a3a,mid,3.018,z,length-.1,.03,.22);
     }
-    for(let x=lo+1;x<hi;x+=2) box(0x344e53,x,3.01,50,.15,.02,3.8);
+    for(let x=lo+1;x<hi;x+=2) box(0x4a5542,x,3.01,50,.15,.02,3.8);
     batch(this.root);
     const glowParts:T.BufferGeometry[]=[];
     const glow=(x:number,y:number,z:number,w:number,h:number,d:number)=>{

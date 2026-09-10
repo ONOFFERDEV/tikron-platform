@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { fadeRelayDressing } from './relay-palette.js';
 
 /** Two exterior uplinks share one generated geometry/PBR set. Ground the source
  * from its measured bounds; no generated surface can become playable cover. */
@@ -30,5 +31,11 @@ export function placeRelayUplinks(model: T.Object3D, centerX = 31): T.Group[] {
 
 export async function loadRelayUplinks(scene: T.Scene, centerX = 31): Promise<void> {
   const { scene: model } = await new GLTFLoader().loadAsync('/assets/props/relay-uplink.glb');
+  const materials = new Set<T.MeshStandardMaterial>();
+  model.traverse(node => {
+    if (node instanceof T.Mesh) for (const mat of Array.isArray(node.material) ? node.material : [node.material])
+      if (mat instanceof T.MeshStandardMaterial) materials.add(mat);
+  });
+  materials.forEach(fadeRelayDressing);
   scene.add(...placeRelayUplinks(model, centerX));
 }

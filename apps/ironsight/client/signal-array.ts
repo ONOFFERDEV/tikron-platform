@@ -32,15 +32,15 @@ export class SignalArray {
       const mesh = new THREE.Mesh(mergeGeometries(parts),material);
       parent.add(mesh); for (const p of parts) p.dispose(); parts.length=0;
     };
-    box(0x263d46,0,1,0,10,2,9);
-    box(0xb0b7ad,0,12.5,0,3.4,23,3.4);
+    box(0x343a33,0,1,0,10,2,9);
+    box(0x939386,0,12.5,0,3.4,23,3.4);
     for (const x of [-2.8,2.8]) {
-      box(0x40565b,x,14,0,.6,23,1);
-      box(0xd4a55a,x,25,0,1.1,4,2);
+      box(0x555d50,x,14,0,.6,23,1);
+      box(0x9d8c62,x,25,0,1.1,4,2);
     }
-    for (let y=3;y<24;y+=3) box(0x334b54,0,y,1.75,3.6,.22,.28);
-    box(0x233944,0,25.5,0,6.8,1.4,3);
-    box(0x40565b,0,28,0,2,5,2);
+    for (let y=3;y<24;y+=3) box(0x464e40,0,y,1.75,3.6,.22,.28);
+    box(0x30382f,0,25.5,0,6.8,1.4,3);
+    box(0x555d50,0,28,0,2,5,2);
     batch(this.root);
     this.rotor.position.y=30;
     // Concave receiver with deliberately visible radial seams and back bracing.
@@ -57,15 +57,15 @@ export class SignalArray {
     // Thin surfaces are two-sided at material creation, so phase changes never
     // select a new shader variant. The outside-boundary dish is never playable cover.
     material.side=THREE.DoubleSide;
-    part(dish,0xc5d0c9);
-    part(new THREE.TorusGeometry(7.55,.22,6,64),0x304952,0,0,1.6);
-    part(new THREE.TorusGeometry(5.1,.09,4,48),0x6a8283,0,0,.76);
+    part(dish,0xb1b2a3);
+    part(new THREE.TorusGeometry(7.55,.22,6,64),0x414a3f,0,0,1.6);
+    part(new THREE.TorusGeometry(5.1,.09,4,48),0x717869,0,0,.76);
     for(let i=0;i<8;i++) {
       const angle=i*Math.PI/4;
-      box(i%2 ? 0x617677 : 0xc69a52,0,0,-.24,.22,14.8,.35,angle);
+      box(i%2 ? 0x69725f : 0x9a895f,0,0,-.24,.22,14.8,.35,angle);
     }
-    for(const x of [-1,1])box(0x354b54,x*2.8,0,2.4,.16,10,.16,x*.6);
-    part(new THREE.CylinderGeometry(.7,1,2.8,12).rotateX(Math.PI/2),0x233c46,0,0,3.3);
+    for(const x of [-1,1])box(0x434e40,x*2.8,0,2.4,.16,10,.16,x*.6);
+    part(new THREE.CylinderGeometry(.7,1,2.8,12).rotateX(Math.PI/2),0x333d31,0,0,3.3);
     batch(this.rotor); this.root.add(this.rotor);
     this.pilot = new THREE.Mesh(new THREE.TorusGeometry(7.3,.085,4,64),this.pilotMaterial);
     this.pilot.position.z=1.64; this.rotor.add(this.pilot);

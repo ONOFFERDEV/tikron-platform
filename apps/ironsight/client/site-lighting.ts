@@ -7,6 +7,8 @@ import { finishUndertowSurface } from './undertow-surfaces.js';
 import { applySwitchyardPanels, finishSwitchyardSurface, switchyardSurfaceKind } from './switchyard-surfaces.js';
 import { waitForSiteGround } from './site-ground.js';
 import { siteAtmosphere } from './site-atmosphere.js';
+import { RELAY_FINISH, relayBakedFinish } from './relay-palette.js';
+import { applyRelayWeathering, type RelayWeatherSource } from './relay-weathering.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
@@ -14,6 +16,19 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   const [gltf] = await Promise.all([
     new GLTFLoader().loadAsync(`/assets/maps/${name}-architecture.glb`), waitForSiteGround(scene),
   ]);
+  const weatherSources = new Map<T.Mesh, RelayWeatherSource>();
+  if (name === 'relay') {
+    const pending: Promise<void>[] = [];
+    gltf.scene.traverse(node => {
+      if (!(node instanceof T.Mesh)) return;
+      const source = node.geometry.userData.weathering;
+      if (!source) return;
+      pending.push(Promise.all([source.attributes.POSITION, source.indices, source.triangleParents]
+        .map((index: number) => gltf.parser.getDependency('accessor', index)))
+        .then(([position, index, parents]) => { weatherSources.set(node, { position, index, parents }); }));
+    });
+    await Promise.all(pending);
+  }
   let ao: T.DataTexture | undefined;
   const sourceTextures = new Set<T.Texture>();
   gltf.scene.traverse(node => {
@@ -58,6 +73,14 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
     const detail = createConcreteDetail(true);
     gltf.scene.traverse(node => {
       if (node instanceof T.Mesh && node.material instanceof T.MeshStandardMaterial) {
+        if (relay) {
+          const finish = relayBakedFinish(node.material.name);
+          if (finish) node.material.setValues(RELAY_FINISH[finish]);
+          applyConcreteDetail(node, detail, finish === 'concrete' ? 0.085 : 0.035);
+          applyRelayWeathering(node, weatherSources.get(node));
+          finishRelaySurface(node.material, finish === 'concrete' ? 'concrete' : 'coated');
+          return;
+        }
         if (switchyard) {
           const kind = switchyardSurfaceKind(node.material.name);
           applyConcreteDetail(node, detail, kind === 'concrete' ? 0.085 : kind === 'coated' ? 0.022 : 0.025);
@@ -72,7 +95,6 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
         // variants 6-9. Pale caps and coloured plant trim are coated, not concrete.
         const wetConcrete = undertow && /^undertow-(0|5|[6-9])$/.test(node.material.name);
         applyConcreteDetail(node, detail, undertow ? wetConcrete ? 0.085 : 0.035 : concrete ? 0.22 : 0.07);
-        if (relay) finishRelaySurface(node.material, concrete ? 'concrete' : 'coated');
         if (undertow) finishUndertowSurface(node.material, wetConcrete ? 'concrete' : 'coated');
       }
     });

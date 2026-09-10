@@ -17,9 +17,9 @@ export function buildRelayApronGeometry(bounds = { width: 60, depth: 40 }): T.Bu
       colors.push(color.r, color.g, color.b); uv.push(x! / 6, -z! / 5);
     }
   };
-  const soil = new T.Color('#77817a'), concrete = new T.Color('#89928a');
-  const asphalt = new T.Color('#5d6b67'), joint = new T.Color('#748078');
-  const pad = new T.Color('#9a9f90'), paint = new T.Color('#b3aa7d');
+  const soil = new T.Color('#716d60'), concrete = new T.Color('#817e70');
+  const asphalt = new T.Color('#595a50'), joint = new T.Color('#6d6b5f');
+  const pad = new T.Color('#928d7b'), paint = new T.Color('#a69a72');
   // Four broad skirt faces reach beyond the 145 m fog end from every playable
   // viewpoint, so the site no longer has a visible rectangular edge in the sky.
   quad(-210, -200, 270, -25, soil); quad(-210, 65, 270, 240, soil);

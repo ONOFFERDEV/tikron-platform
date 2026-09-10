@@ -133,7 +133,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
     new T.MeshStandardMaterial({ map: texture, roughness: undertow ? 0.94 : wet ? 0.76 : 0.96 }));
   if (metric) {
-    const tint = new T.Color(undertow ? '#607a7b' : '#89928a'), base = new T.Color(undertow ? '#606060' : '#898989').r;
+    const tint = new T.Color(undertow ? '#607a7b' : relay ? '#817e70' : '#89928a'), base = new T.Color(undertow ? '#606060' : '#898989').r;
     floor.material.color.copy(tint).multiplyScalar(1 / base);
     if (switchyard) finishSwitchyardSurface(floor.material, 'ground');
     else if (undertow) finishUndertowSurface(floor.material, 'ground');

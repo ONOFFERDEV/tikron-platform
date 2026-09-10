@@ -73,6 +73,8 @@ Session81 quick check (published per Session82 supervisor, commit c1c374b): foll
 
 Session82 quick check (local candidate): Training / Relay, aim and reload each weapon with 1-5 and R. Your sleeves now have shaped graphite reinforcement, fitted webbing, stitched edges and pale identification bars; the gloves carry small raised ribs. Field Sleeves1/1 is complete and ON by default. The equipment follows the existing grips and reloads. Weapon surfaces and human moving-grip acceptance remain open.
 
+Session83 quick check (local candidate): Training / Relay, look down Cooling, then approach CORE / TRANSIT. Grey concrete has runoff below panel tops and rust at form ties; olive/khaki paint, dusty paving and quieter machinery replace the bright teal/amber yard. The Relay deployment image matches. Field Conditions1/3 is ON for Relay; Undertow and Switchyard follow. Generated soldier kit is under inspection, not yet equipped.
+
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
 Session50 quick check (published to preview): in Relay TDM or Undertow DOM, earn three eliminations without dying. A UAV launches automatically and shares three last-seen radar scans with your team over 12 seconds. Kill its operator to end the flight; Relay blackout blocks scans. A queued UAV waits for team airspace and is lost on death. Training / Relay rehearses the same reward privately by shooting the targets. FFA has no UAV yet. Air Support is a three-session arc: UAV now, called mortar next, support drone last.
@@ -400,15 +402,15 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 1. Visual tone: industrial daylight or neon night? **Default: industrial daylight.**
 2. Primary match: 6v6 respawn or elimination? **Default: 6v6 TDM; DOM secondary.**
-3. Character tone: military realism or stylized sci-fi? **Default: stylized sci-fi,
-   coherent with purchased Synty art and a browser performance budget.**
+3. Character tone: military realism or stylized sci-fi? **Current owner decision: grounded modern warfare; ART-CONCEPT.md supersedes
+   the earlier stylized sci-fi default. Keep the existing rig and animation clips.**
 
 ## Session log
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 82 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session82-reference-audit.json` (fresh build, identical to Session81);
+Session 24 first canonical audit (reference restored), updated in Session 83 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session83-reference-audit.json` (fresh build, compared with Session82);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -426,11 +428,11 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M10 | partial | Session71 signed full-cover baffles protect staging outside A/C courts, with a standing bypass/peek at either end. Existing court entrances, pump approaches and gallery retained.20.414s normal DOM sequence reaches A with teammates. Human defensive quality and all-objective entry audit remain open. |
 | R-M11 | partial | Session66 freight body stays in its authoritative envelope with <=2cm surface trim, flush down-lock floor and permanent north/south bypasses. Permanent kit exclusion/overlap and live crossing tested. All reachable viewpoints still need player review. |
 | R-M12 | partial | Session71 Breakwater1/1 normal20.414s DOM capture shows the signed northern baffle, allied movement around it and arrival at A. Paired fixed-camera stills show the former firing slit blocked. No injected gameplay state; human action-block/excitement acceptance open. |
-| R-M13 | partial | Session71 A/WEST CONTROL and C/EAST CONTROL signs use the existing atlas on the protected faces of the northern baffles. Live stage2 still shows the destination before the turn, then stage3 reaches A. Existing lane/half silhouettes and pump signs retained; human wayfinding open. |
+| R-M13 | partial | Session83 Relay signs keep their pale lettering and lane labels while building paint becomes faded olive/khaki. Cooling/Freight and CORE/TRANSIT retain their established shapes and routes; matching deployment vista updated. Human wayfinding remains open. |
 | R-M14 | partial | Session66 Switchyard removes full freight cover to open a direct10m crossing;1.56->1.11s ground sprint route, then safe restoration. Discrete historical barriers shared by analytic/hybrid hits; no cosmetic-only opening. All-round windows/destruction remain absent. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
-| R-M17 | partial | Session79 paired North bus, central deck and freight-crossing views retain the tall amber switching spine, gantry and lit route signs under overcast. Relay signal dish/spine and Undertow flood towers remain. Human all-lane wayfinding remains open. |
+| R-M17 | partial | Session83 keeps Relay mast/dish and signal spine geometry visible at fixed Cooling/Freight/core cameras under quieter daylight and desaturated paint. Existing event/status accents remain readable. Human all-lane orientation remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
 | R-M20 | partial | Session72 seeds170684/5/6 reproduce Session71 scores165:195/193:159/146:189, all300s, and identical kills/lives/gallery/objective samples/heatmaps. MVP impact50/59/64 includes18/25/32 shared capture seconds; each is also its winning team's kill leader. Separate fixtures prove objective/assist-led selection. No human fairness or many-round win-rate claim. |
@@ -465,9 +467,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
-| R-L12 | partial | Session81 dark underlayers and bevelled team-colour plates retain the existing material rim. Paired role/highlight stills plus eleven-operator stress in daylight, dusk and overcast pass. Human all-lighting readability and overall fidelity remain open. |
-| R-L13 | partial | Session81 concentrates team colour on chest/back/shoulders and thigh plates, with graphite flexible sections and one pale chest bar. Roles differ by broad/asymmetric equipment instead of more colours. Both enemy options and Reduced motion inspected; human all-range value/colour review remains open. |
-| R-L14 | partial | Session80 First Fight1/1 ON: 18 real DOM/CSS views rasterize during loading, with inert copies removed before input. GPU trace covers134 raster tasks and21 pixel/21 vertex executable tasks during433.9ms preparation. Five consecutive fresh-profile TDM/FFA pairs include pre-profiler live-join events and pass150ms first-damage/death checks. All three stress draw/texture budgets unchanged. Early frame intervals, including the292.4ms FFA outlier, remain reported and investigated in the session log; no universal driver/iGPU/thermal acceptance. |
+| R-L12 | partial | Session83 Field Conditions1/3 ON for Relay: neutral grey/olive materials, panel-anchored runoff, fine aggregate, quieter dressing and daylight. Matched map/role/highlight stills retain soldier value priority. Full three-map overhaul and human readability remain partial. |
+| R-L13 | partial | Session83 desaturates Relay environment while retaining the large operator team-colour masses and existing rim. Team, Yellow and Violet comparisons plus covered/empty fixtures preserve occlusion. Soldier fabric/helmet-band art and human all-range review remain open. |
+| R-L14 | partial | Session83 required TDM and supplementary FFA gates pass; first-damage/death9.3/9.3 and8.2/8.2ms. FFA retains a922.7ms early interval,1.242% stalled time. Follow-up trace reproduces presentation delay with short JS/no new WebGL resources; cause unassigned. No gate-policy change. Session80 First Fight1/1 ON: 18 real DOM/CSS views rasterize during loading, with inert copies removed before input. GPU trace covers134 raster tasks and21 pixel/21 vertex executable tasks during433.9ms preparation. Five consecutive fresh-profile TDM/FFA pairs include pre-profiler live-join events and pass150ms first-damage/death checks. All three stress draw/texture budgets unchanged. Early frame intervals, including the292.4ms FFA outlier, remain reported and investigated in the session log; no universal driver/iGPU/thermal acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
@@ -481,49 +483,46 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session82: all63 canonical rows re-reviewed; fresh static measurements equal
-Session81. Field Sleeves1/1 completes the bounded first-person forearm/glove pass,
-ON by default, with no added textures, draw calls, lights or render passes.
-The broader weapon/grip gap remains partial. Session80's compositor proof
-and documented cold-cache residue stand; this session changes no gate policy.
-Public ceiling60MiB, per-file25MiB and per-map lazy loading remain. Switchyard
-still has only5461 estimated texture bytes free, so texture growth must first
-release residency. The visual-first ranking is:
+Session83 re-ranks the 63 rows under the owner's new ART-CONCEPT.md authority:
+grounded modern warfare. Field Conditions 1/3 applies that direction to Relay;
+Undertow and Switchyard complete the palette/surface arc in Sessions84/85.
+Relay is ON by default. This is the first stage of the overhaul, not final
+Battlefield-level fidelity. Session80's compositor proof stands; keep first-use
+checks and every >150ms interval visible. Public ceiling60MiB, per-file25MiB,
+per-map lazy loading and the separate64MiB estimated texture budget remain.
 
-1. **First-person weapon and hand fidelity (R-G12/18, R-G09).** Next: stronger
-   weapon surface detail and moving grip/reload review. Field Sleeves now gives
-   forearms visible reinforcement and webbing; keep the centre aiming corridor
-   clear. Field Kit supplies remote role silhouettes;
-   human all-range/colour/held-pose review remains open. Free texture residency
-   before adding maps; use the existing draw budget.
-2. **Localized surface wear and hero dressing (R-L12-14, R-M13/17).** Surface
-   Detail's three-map foundation is complete; the full material gap stays open.
-   Reduce repeated cabinet silhouettes with visible maintenance details, authored
-   scorch/grime/markings and selective Meshy hero props. Preserve the64MiB/fixed-
-   light/no-extra-pass budget; Switchyard has only5461 estimated texture bytes free,
-   so release residency before adding textures. Measure visible additions.
-3. **GPU/device acceptance (R-L14).** Keep every>150ms gap in evidence. The new
-   headless limit is not rendering headroom or60fps acceptance. Investigate new
-   owner-visible triggers with per-frame resources and covered cross-process
-   traces; require laptop iGPU, thermal, real6v6/RTT and Firefox/Safari review.
-4. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** The fixed
-   northern attacking cohort contacts at13.8-20.3s; red home guard bot-1 waits
-   36.7/54.4/104s. Build a bounded attack/recontest action block that improves
-   both exposure and useful guard engagement. Preserve two peeking exits,
-   split orders, B's pump route and the gallery. No timer/HP workaround.
-5. **Actual highlight replay (R-L06).** MVP selection/presentation now exists
-   (R-L07), but there is no replay capture or playback. Choose a bounded arc
-   that can show a real server-confirmed play, with objective context and
-   clear skip/reduced-motion behavior, inside the current performance budget.
-6. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
-   first-match course, ping acknowledgement,
-   role skins/voice barks and human colour/readability acceptance remain open.
-7. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
-   DOM scoring/side swap, separate weapon FOV, view-kick control, doorway
-   acoustics, commendation mix and human headphone/mouse review remain.
-8. **Movement and resource-loop acceptance (R-G01/02/12/19/20, R-M05/12/16).**
-   Momentum stays ON; moving hands/flight, bot pad use and freight bypass fights
-   need review. No contested resource/skill-recovery loop exists.
+1. **Field Conditions 2/3 and 3/3 (R-L12-14, R-M13/17).** Apply grounded material
+   values and purposeful weathering to Undertow, then Switchyard. Keep dusk and
+   overcast distinct, signs readable and combat silhouettes prioritized. Relay's
+   grey/olive finish and panel runoff replace its clean saturated paint. The
+   full environment-art rows remain partial; damage, atmosphere and scale follow.
+2. **Issued soldiers and weapons (R-G09/12/18, R-L12/13).** Retexture the existing
+   rig and attach kit to its bones; preserve the55 authored clips. Session83
+   generated three kit candidates for90credits: two rejected helmets and a
+   radio-pack candidate held for bone-fit/readability review. Sources and shrunk
+   GLBs are in .inspect/session83-meshy; none is in gameplay. Free texture
+   residency before adoption (Switchyard has only5461 estimated bytes free).
+   Generate a stronger helmet/carrier and issued weapon silhouettes; recalibrate
+   grip/muzzle transforms for any weapon swap. Do not replace the rigged body.
+3. **War damage, emplacements and air (R-L12-14, R-M11/13/17).** Scars, debris,
+   sandbagged comms, burnt machinery, dust/smoke and skyline scale. Spend the
+   remaining1210credits of the owner's1300credit programme on visible geometry,
+   at most150/session. Collision must still own every solid and sight blocker.
+4. **GPU/device acceptance (R-L14).** First Fight's compositor warmup and explicit
+   Session74 gate policy stand. New stalls require traces, not quiet threshold
+   changes. Laptop iGPU/thermal, real6v6/RTT and Firefox/Safari remain unaccepted.
+5. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** Improve useful
+   guard engagement and exposure; northern contact13.8-20.3s and home-guard
+   waits36.7/54.4/104s remain outside the intended loop. Preserve covered exits,
+   split orders, B's pump route and the gallery; no timer/HP workaround.
+6. **Actual highlight replay (R-L06).** MVP selection exists; recording and
+   playback do not. A bounded server-confirmed highlight with skip/reduced motion
+   remains a separate arc after the visual priorities.
+7. **Flow, accessibility and communication (R-L08-10/19-23).** Combined first-match
+   course, ping acknowledgement and human colour/readability review remain open.
+8. **Mode, weapon/audio and movement acceptance (R-L02, R-G01/02/05/08/13/16/18,
+   R-M05/12/16).** DOM economy/side swap, weapon FOV, view-kick control, doorway
+   acoustics, moving grips/flight, and a contested resource loop remain open.
 
 ### Session 1 — 2026-09-07
 
@@ -12839,3 +12838,213 @@ and session82-cleanup.json confirm zero owned processes, port8796listeners and
 inspection browsers remaining. Frozen-bundle/scope/report verification is
 session82-final-audit.json. All work stays local under apps/ironsight/**;
 publication remains with the supervisor.
+
+
+### Session 83 - 2026-09-10: Field Conditions arc 1/3 - Relay enters the grounded warfare overhaul
+
+Read the standing brief, Session83 status and AAA plan in order, then ART-CONCEPT.md,
+all63 design principles and the canonical scorecard. Entry branch ironsight-aaa
+was clean at3bad0ba. The owner's17:20 concept decision outranks the older weapon-only
+ranking: start the three-map palette/surface arc with Relay, generate soldier kit
+alongside it, and preserve the existing rig. Relay is playable and ON by default;
+Undertow/84 and Switchyard/85 are the remaining two stages. The broader warfare
+art overhaul is not complete. Scope apps/ironsight/** only; no commit/push/deploy.
+
+Reference: **R-L12, R-L13, R-L14, R-M13, R-M17**, with R-G09 readability retained.
+Targets: visibly desaturated environment at the same player-height cameras;
+weathering tied to real panels; readable lane/core signs and operator colour/rim;
+unchanged collision, lights, passes, draw count and texture residency. Those bounded
+checks pass. The scorecard's visual/readability rows remain partial pending the other
+maps, soldier/weapon overhaul and human review. All63 rows were re-reviewed; fresh
+reference-audit output deep-equals Session82. Evidence: session83-reference-audit.json
+and session83-reference-comparison.json. Cover full/waist65/46,66/62,64/48; A-B/A-C/B-C
+sprint rotations14.44/11.78/14.44,14.22/11.33/14.22,14.44/11.56/14.44s. Spawn travel
+is not contact timing. ADS250/200/225/400/165ms, sprint recovery120/100/130/150/90ms;
+TDM50/300s,respawn3s,DOM4/8s and0.5point/flag/s; hostile foley1.4, hit900/1400Hz at.28,
+five-row top-right feed and both damage cues remain unchanged.
+
+Delivered grey concrete, olive coated equipment, khaki safety paint, dusty brown-grey
+paving/aprons and desaturated skyline/uplinks. The dish chassis/core shutter colours
+follow the same treatment; event/status indicators and lane lettering retain their
+contrast. The existing daylight key is less orange (fff0d6,2.7 intensity), hemisphere
+sky is neutralized, and sky/fog are muted without changing fog distances. No new light
+or pass: all16 light objects remain constant, shadows stay cached and PMREM prepares
+once. The original deployment vista was recaptured so the menu matches gameplay.
+Undertow and Switchyard retain their dusk/overcast rendering.
+
+Metric surface detail now includes broad aging, grime at ground contact, runoff below
+real panel tops, rust beneath form ties and fine broken paint. It reuses the resident
+R8 roughness tile at multiple scales; no new texture, image download or animation-time
+resource allocation. RELAY_FINISH explicitly maps the existing original AO bake's
+material slots as well as the procedural fallback. AO/UVs and the original GLB remain
+unchanged; no purchased derivative is written or versioned. No dependency or gameplay/
+server change. Per-map asset loading remains lazy.
+
+Rejected surface intermediates: session83-candidate-* has excessive cloud-like floor
+dirt and full-height stripes. session83-fit-* and session83-final-* contain triangular
+runoff artifacts: the existing concrete had been subdivided by weather-architecture.py.
+Using each small triangle as a panel invented new drip origins. The accepted code reads
+the bake's retained original-parent accessors and uses those ledges instead. Accepted
+evidence is ONLY session83-accepted-views-*, session83-accepted-stress-* and the frozen
+bundle below. First candidate captures overlapped a Blender shrink and are not timing
+acceptance. Final screenshots, stress and hitch runs are sequential, with no build,
+Blender job, test process or second browser overlapping hitch acceptance.
+
+Two new regression cases cover tessellation parents and fresh unsubdivided bakes.
+The actual original GLB audit compares every rendered position, normal, AO UV and
+vertex colour before/after expansion, and checks every30620 concrete triangle's
+parent height. All56344 architecture triangles are identical to the original stream.
+Decoded geometry storage2822832 ->7863600bytes (+5040768,4.807MiB), of which1352256bytes
+are the new elevation attribute; shared corners are expanded to keep panel attributes
+independent. This is a real buffer-memory cost, separate from the unchanged texture
+estimate. Offline attribute preparation29.01ms is a Node observation, not GPU timing.
+Evidence: session83-geometry-audit.{ts,mjs,json,log}; bundle its TS with esbuild to rerun.
+Further buffer compaction is a useful follow-up if device measurements warrant it.
+
+**Wow check:** [matched before/after gallery](.inspect/session83-review.html), with
+nine paired1920x1080 views of Cooling, core, Freight, vista, spawn, roles, Yellow,
+Violet and the open passage. Thirteen accepted fixtures also include Reduced motion,
+covered/empty control and the updated menu. Covered-yellow and empty-cover PNGs are
+byte-identical: the enemy setting still reveals nothing through solid cover.
+All have zero console errors and forbidden requests. Additional normal TDM navigation
+runs20.802s,209 replicated-state samples and241 actual incoming events; five stills
+at0/5/10/15/20s are session83-live-roles-live-*.png. Ordinary keyboard/mouse navigation,
+no state/health/position injection; bots use AR/SMG/sniper naturally. Evidence:
+session83-live-report.json/log. Intended player sentence: **"This yard looks weather-beaten
+now, and I can still pick out the soldiers."** Intended response, not player testimony
+or an overall AAA claim. Visual captures are separate from timing acceptance.
+
+On RTX5070 / Edge152 / ANGLE D3D11,1920x1080,balanced/DPR1:
+
+| Stress fixture | Calls before -> after | Triangles unchanged | Texture MiB unchanged | Max frame ms before -> after |
+|---|---:|---:|---:|---:|
+|Relay mixed weapons|237 ->237|150988|63.7448|7.3 ->13.9|
+|Undertow|209 ->209|167320|63.3008|7.5 ->7.4|
+|Switchyard|208 ->208|174992|63.9948|20.8 ->14.0|
+
+All medians6.9ms and p95 7.1ms. Before p99 7.2/7.1/7.1ms; after7.1/7.2/7.2ms.
+Programs33/29/30,textures30/26/29,geometries167/170/160 are unchanged. Each fixture
+runs15s with eleven remote operators, twelve weapon streams,145volleys/96blasts,
+then drains effects. First fresh-profile Relay stress construction+preparation
+1.3015 ->1.9628s; Undertow2.2336 ->1.1486s,Switchyard2.1010 ->1.2685s. Preparation
+alone1148.5 ->1802.6,2134.4 ->1046.3,1992.2 ->1166.8ms. The slower Relay load remains
+reported; these single-run local loading observations include first-use rendering
+and do not isolate its cause or measure CDN/network latency. No speedup claim for
+the unchanged maps. Human iGPU/thermal acceptance remains open; texture estimates
+exclude driver, compositor and geometry-buffer overhead.
+
+| Bytes | Before | After | Delta |
+|---|---:|---:|---:|
+|assets|27486783|27518892|32109|
+|public|34374202|34426190|51988|
+|client|2147437|2154679|7242|
+|source map|4739299|4751936|12637|
+
+Asset growth is the replacement vista and provenance documentation. Public32.8314MiB
+is below60MiB; largest7183364bytes is below25MiB. No new resident texture; Switchyard
+still has only5461 estimated bytes before64MiB. Reproduce comparisons with
+node .inspect/session83-summarize.mjs. Frozen client SHA256:
+1026367fafdf59aada3563f6e4b78096ea8d5c64086f927343bf10d1e8788a85.
+
+Meshy programme: **90credits spent**, account1530 ->1440; **1210credits remain** in
+the owner's1300credit programme. Latest150/session owner cap applies over the stale
+60/session note. Sequential preview+PBR refine30credits each, all originals shrunk
+with tools/shrink-glb.py --size512 --webp before inspection:
+
+| Candidate | Raw bytes | Shrunk bytes | Triangles | Disposition |
+|---|---:|---:|---:|---|
+|field-helmet|7334812|174688|1935|REJECT: angular fittings and oversized loose strap loop|
+|field-radio-pack|7767328|188000|1895|STAGED: coherent pack/antenna silhouette; bone fit/material refinement still required|
+|field-helmet-shell|4944116|133752|2041|REJECT after re-prompt: warped hard-hat shape, holes and shiny surface|
+
+All have one mesh and <=512px textures. Exact prompts/task IDs/balance receipts/raw
+and shrunk models are .inspect/session83-meshy/<slug>/meta.json and adjacent files.
+Nine front/back/side Blender review images and review.json inspect the shrunk assets;
+reproduce using .inspect/session83-assets-review.py. Two rejects, zero adopted/new
+public game models, zero generated-model gameplay load time this session. The radio
+is not yet approved for the rig: map/rig fitting, silhouette/readability, animation,
+residency and hitch checks precede any future adoption. No unrigged body substitution.
+The failed helmet prompts stay documented so the next session can use a stronger
+reference or modelling approach instead of repeating them. Sources remain within
+apps/ironsight/.inspect; no files written to the default external Meshy output path.
+
+Required static gates PASS: pnpm typecheck; pnpm test (643passed,6existing skips;
+86passed files,4skipped); pnpm build:client; pnpm audit:assets. Logs are
+session83-final-{typecheck,test,build-client,audit-assets}.log. Exact required
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two
+PASS with zero console errors; copied report and stills are session83-required-*.
+All three stress budget gates also pass. Hitch results and process cleanup follow.
+
+Open owner questions/defaults: retain this quieter Relay direction(yes); complete
+Undertow then Switchyard palette/surface stages(yes); fit the radio to the existing
+rig before adoption(yes), reject both helmets(yes). No answer blocks progress.
+Human visual/readability/comfort, all-range soldier recognition, laptop iGPU/thermal,
+real6v6/RTT and Firefox/Safari remain unaccepted. No latency/capacity or final AAA claim.
+
+
+**Session83 hitch verification.** Exact required
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`
+PASS; retained as session83-hitch-tdm.json/log. Supplementary FFA uses --assert and
+--assert-first-use. Fresh browser profiles, sequential runs,500us CPU sampling,
+two natural bot deaths and the subsequent respawn observed in each. No rebuild,
+Blender process or second browser overlaps these acceptance measurements.
+
+| Mode | Seconds / frames | Max frame / callback ms | p99 upper ms | >150ms intervals / share | First damage / death ms | Deaths | Gate |
+|---|---:|---:|---:|---:|---:|---:|---|
+|TDM|59.249 / 8528|14.5 / 7.6|8|0 / 0.000%|9.3 / 9.3|2|PASS|
+|FFA|74.317 / 10569|922.7 / 9.3|8|1 / 1.242%|8.2 / 8.2|2|PASS|
+
+Zero shader recompiles or console errors in either run. The **unchanged Session74
+policy** is1500ms presentation,150ms main-thread,25ms p99 and5% stalled time;
+first-use limits stay150ms. This passes that policy, not a universal150ms ceiling.
+The FFA922.7ms interval remains in the acceptance report at t923ms (first measured
+frame), with30programs/29textures/160geometries;896of910 CPU samples are idle.
+Loading gaps: TDM290.8ms; FFA262.8ms. FFA's startup observer also records1472.2ms
+ending at page6324.7ms after ready. This overlaps the probe's first-frame observation;
+it must not be counted as an independent second gameplay stall. TDM has no such
+after-ready gap. First-ready maxima58.2/69.1ms; page ready at2.8117/3.1372s.
+All raw intervals remain in session83-hitch-{tdm,ffa}.json and hitch-summary.json.
+
+A separate12s FFA **diagnostic, not an acceptance run**, used --trace-startup,
+--gpu-diagnostics and --diagnostic-timing. It reproduced a1121.1ms first-probe
+interval, max callback8.7ms, with heartbeats continuing near20ms. The resumed frame
+submitted63draws (25transparent),45materials,119920triangles,30programs and no shadow
+refresh. It created no texture/framebuffer/buffer/program/shader, did no texImage2D
+or shader compile/link, and uploaded256buffer bytes plus four existing texSubImage2D
+updates. First damage/death still pass at63/8ms, including damage before the profiler.
+The short run's computed gate says FAIL for <2deaths and8.11% stalled time; it was
+intentionally not invoked with --assert, does not replace the full two-death gate,
+and its result is retained rather than hidden.
+
+That diagnostic's startup gaps are303.1/154.2ms before ready and1694.9ms ending at
+5832.3ms after ready; the latter overlaps its first-probe interval. The136878172-byte
+cross-process trace records a0.893ms GetPixelExecutableTask and0.817ms nested D3DCompile
+during UI preparation, not a long compile explaining the pause. No covered task in
+the selected categories explains a one-second gap (longest observed complete task
+109.716ms is a browser background file write). These data narrow the residue to
+delayed presentation/rAF delivery while JS is responsive, **not proof of a particular
+GPU/compositor/driver cause**. Do not call this occurrence a cold-cache compile on
+the strength of Session74's different trace. First Fight's accepted Session80
+five-pair first-damage/death proof stands; a universal stall-removal claim does not.
+No policy threshold or warmup exclusion was changed in this session.
+
+Reproduction: session83-ffa-diagnostic.log contains the diagnostic output;
+`node scripts/hitch-probe.mjs http://localhost:8796 12000 .inspect/session83-ffa-diagnostic.json --mode=ffa --trace-startup --gpu-diagnostics --diagnostic-timing --trace-categories=toplevel,gpu,gpu.angle,cc,viz,blink.user_timing,disabled-by-default-gpu.service`.
+Trace and GPU/heartbeat intervals are adjacent. Run
+`python .inspect/session83-trace-review.py` for the compact trace review (X tasks
+and reconstructed B/E scopes); acceptance summaries use
+`node .inspect/session83-hitch-summary.mjs`. Residual presentation/device acceptance
+remains explicitly open. Cleanup and final scope audit follow.
+
+
+**Session83 cleanup verified.** Root72768 matched its recorded creation epoch
+1789032269755 before stopping the eleven-process preview tree. Every surviving
+PID was identity-checked. The first cleanup attempt stopped before mutation because
+PowerShell had decoded the saved date to DateTime; comparing the raw recorded epoch
+resolved that check. A child then exited with its parent between lookup and stop;
+the final sweep confirmed all eleven captured processes already gone. No owned
+preview processes, port8796 listeners or inspection browsers remain. Evidence:
+session83-preview-tree.json and session83-cleanup.json. No owned Meshy/Blender process
+remains. A separate Blender job running an unrelated script was left alone. Final frozen-bundle, required-gate, reference-count and scope verification
+is session83-final-audit.json. All work remains local in apps/ironsight/**;
+publication belongs to the supervisor.

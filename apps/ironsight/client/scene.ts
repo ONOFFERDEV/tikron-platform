@@ -58,6 +58,7 @@ import { buildUndertowEnvironment } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
+import { fadeRelayDressing } from './relay-palette.js';
 import arena1Manifest from "./dressing/arena1.manifest.json";
 import arena2Manifest from "./dressing/arena2.manifest.json";
 
@@ -437,6 +438,7 @@ export class SceneRig {
     }
     const relay = !!map.presentation;
     const atmosphere = siteAtmosphere(map.presentation);
+    const fieldRelay = map.presentation === 'relay';
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.coreCollision = new CoreCollision(map);
@@ -464,7 +466,7 @@ export class SceneRig {
     // Each authored weather profile shares its key with the baked sky/reflections.
     const sky = new THREE.Mesh(new THREE.SphereGeometry(Math.max(200, map.bounds.width * 3), 24, 12), atmosphere ? createSiteSkyMaterial(atmosphere) : new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
-      uniforms: { horizon: { value: new THREE.Color(relay ? 0xc7d4cc : PALETTE.fog.color) }, zenith: { value: new THREE.Color(relay ? 0x547f94 : VIS.skyZenith) } },
+      uniforms: { horizon: { value: new THREE.Color(fieldRelay ? 0xbdbcb0 : relay ? 0xc7d4cc : PALETTE.fog.color) }, zenith: { value: new THREE.Color(fieldRelay ? 0x788681 : relay ? 0x547f94 : VIS.skyZenith) } },
       vertexShader: "varying vec3 vDirection; void main(){ vDirection=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }",
       fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
     }));
@@ -474,13 +476,13 @@ export class SceneRig {
     sky.raycast = () => {};
     this.scene.add(sky);
     this.scene.fog = atmosphere ? new THREE.Fog(atmosphere.fogColor, atmosphere.fogNear, atmosphere.fogFar)
-      : relay ? new THREE.Fog(0xc7d4cc, Math.max(48, map.bounds.width * .6), Math.max(145, map.bounds.width * 2.4))
+      : relay ? new THREE.Fog(fieldRelay ? 0xbdbcb0 : 0xc7d4cc, Math.max(48, map.bounds.width * .6), Math.max(145, map.bounds.width * 2.4))
       : new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, Math.max(GAME.camera.far, map.bounds.width * 5));
 
-    this.scene.add(new THREE.HemisphereLight(atmosphere?.hemisphereSky ?? (relay ? 0xc7e4ef : PALETTE.lights.hemiSky), atmosphere?.hemisphereGround ?? (relay ? 0x535648 : PALETTE.lights.hemiGround), atmosphere?.hemisphereIntensity ?? (relay ? 1.8 : VIS.lighting.hemisphere)));
-    const key = new THREE.DirectionalLight(atmosphere?.keyColor ?? (relay ? 0xffe1ad : PALETTE.lights.key), atmosphere?.keyIntensity ?? (relay ? 3.2 : VIS.lighting.key));
+    this.scene.add(new THREE.HemisphereLight(atmosphere?.hemisphereSky ?? (fieldRelay ? 0xbfc5bf : relay ? 0xc7e4ef : PALETTE.lights.hemiSky), atmosphere?.hemisphereGround ?? (relay ? 0x535648 : PALETTE.lights.hemiGround), atmosphere?.hemisphereIntensity ?? (relay ? 1.8 : VIS.lighting.hemisphere)));
+    const key = new THREE.DirectionalLight(atmosphere?.keyColor ?? (fieldRelay ? 0xfff0d6 : relay ? 0xffe1ad : PALETTE.lights.key), atmosphere?.keyIntensity ?? (fieldRelay ? 2.7 : relay ? 3.2 : VIS.lighting.key));
     key.position.set(map.bounds.width / 2 - 22, map.bounds.width > 60 ? 80 : 40, map.bounds.depth / 2 - 14);
     if (atmosphere) key.position.copy(siteSunDirection(atmosphere)).multiplyScalar(110).add(new THREE.Vector3(map.bounds.width / 2, 0, map.bounds.depth / 2));
     if (relay) {
@@ -562,6 +564,7 @@ export class SceneRig {
             if (material instanceof THREE.MeshStandardMaterial) {
               material.roughness = Math.max(0.72, material.roughness);
               material.metalness = Math.min(0.18, material.metalness);
+              if (map.presentation === 'relay') fadeRelayDressing(material);
             }
           }
         });

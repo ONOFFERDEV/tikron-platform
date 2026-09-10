@@ -1183,3 +1183,39 @@ Reproduce with `pnpm build:client`, then
 `node scripts/inspect-map.mjs --url http://localhost:8796 --shots weapon-ar,weapon-ar-ads,weapon-ar-reload-out`.
 Matched before/after stills, all-weapon pose review and performance measurements
 are recorded in the Session82 AAA plan log. No binary asset is added.
+
+
+### Session 83 ? Relay field finish and kit generation
+
+Relay's original material finish is defined in `client/relay-palette.ts` and
+`client/relay-surfaces.ts`. The authored slot mapping applies to the procedural
+fallback and existing AO GLB. Geometry, AO images and UVs are unchanged; no bake
+or purchased derivative is exported. `relay-weathering.ts` adds static face-height
+attributes and preserves the rendered triangle stream. It uses the original
+parent accessor metadata retained by `tools/weather-architecture.py` for the
+subdivided concrete, preventing triangle-shaped runoff. Existing R8 roughness is
+sampled at fine and broad scales; no new surface image or resident texture.
+Build with `pnpm build:client`. Regenerate the original menu capture with
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --write-vista`.
+
+Meshy programme begun under ART-CONCEPT.md's owner-authorized 1300credit budget,
+150/session maximum: Session83 spent90credits, account1530 ->1440. Three original
+kit candidates, sequential preview/PBR refine calls30credits each, are retained in
+`.inspect/session83-meshy/{field-helmet,field-radio-pack,field-helmet-shell}` with
+exact prompts, task IDs, timestamps and accounting in each `meta.json`. Raw
+models remain inspection-only. Both helmet attempts are rejected for weak/warped
+silhouettes; the radio pack is staged for later bone-fit/readability inspection.
+None is deployed, allowlisted as a game asset, or attached to the purchased rig.
+No generated body replaces the skeleton or its55 clips. Programme credit
+remaining1210; account balance1440 (different quantities).
+
+Reproduce each request with `node tools/meshy-generate.mjs --name <slug> --prompt
+"<meta.json prompt>" --texture "<meta.json texture_prompt>" --polycount 2000
+--out .inspect/session83-meshy` (consumes credits; output is nondeterministic).
+All three were shrunk with Blender4.5:
+`blender --background --python tools/shrink-glb.py -- --input <dir>/model.glb
+--output <dir>/shrunk.glb --size 512 --webp`.
+The nine retained Blender review stills are reproduced by
+`blender --background --python .inspect/session83-assets-review.py`.
+Future adoption must pass the game rig/map inspectors and texture/draw/hitch
+budgets first. No raw Meshy or purchased-source binary was added to public.

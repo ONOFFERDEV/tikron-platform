@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { buildSiteGround } from "./site-ground.js";
 import { buildRelayServiceDetail } from './relay-service-detail.js';
 import type { MapDef } from "../src/map/types.js";
+import { RELAY_FINISH } from './relay-palette.js';
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
  * Detail is inset into solids; skyline is outside the playable rectangle.
@@ -13,14 +14,14 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   const contextZ = (z: number) => z < 0 ? z : z > 40 ? depth + z - 40 : z * depth / 40;
   const mastX = width / 2;
   const mats = {
-    concrete: new THREE.MeshStandardMaterial({ color: 0xb4b7ae, roughness: 0.92 }),
-    pale: new THREE.MeshStandardMaterial({ color: 0xd9d7c6, roughness: 0.8 }),
-    dark: new THREE.MeshStandardMaterial({ color: 0x293c43, roughness: 0.72, metalness: 0.22 }),
-    metal: new THREE.MeshStandardMaterial({ color: 0x536468, roughness: 0.66, metalness: 0.35 }),
-    amber: new THREE.MeshStandardMaterial({ color: 0xd69542, roughness: 0.72 }),
-    teal: new THREE.MeshStandardMaterial({ color: 0x4a989f, roughness: 0.7 }),
-    light: new THREE.MeshBasicMaterial({ color: 0xb6eff0 }),
-    paint: new THREE.MeshStandardMaterial({ color: 0xc5b98c, roughness: 1 }),
+    concrete: new THREE.MeshStandardMaterial(RELAY_FINISH.concrete),
+    pale: new THREE.MeshStandardMaterial(RELAY_FINISH.pale),
+    dark: new THREE.MeshStandardMaterial(RELAY_FINISH.dark),
+    metal: new THREE.MeshStandardMaterial(RELAY_FINISH.metal),
+    amber: new THREE.MeshStandardMaterial(RELAY_FINISH.amber),
+    teal: new THREE.MeshStandardMaterial(RELAY_FINISH.teal),
+    light: new THREE.MeshBasicMaterial({ color: 0xc9c8ac }),
+    paint: new THREE.MeshStandardMaterial(RELAY_FINISH.paint),
   };
   type Mat = keyof typeof mats;
   const batches = new Map<Mat, THREE.Matrix4[]>();
