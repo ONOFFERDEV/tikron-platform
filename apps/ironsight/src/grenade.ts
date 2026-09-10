@@ -121,8 +121,8 @@ export function stepGrenade(
   if(normal){reflect(g.vel,normal.x,normal.y,normal.z,restitution);bounced=true;}
 
   // Floor / ceiling.
-  if (g.pos.y - r <= 0) {
-    g.pos.y = r;
+  if (g.pos.y - r <= (bounds.floor ?? 0)) {
+    g.pos.y = (bounds.floor ?? 0) + r;
     reflect(g.vel, 0, 1, 0, restitution);
     bounced = true;
   } else if (g.pos.y + r >= bounds.ceiling) {

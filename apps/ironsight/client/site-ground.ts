@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { terrainGeometry } from './terrain-geometry.js';
 import type { MapDef } from '../src/map/types.js';
 import { buildRelayApronGeometry } from './relay-apron.js';
 import { finishRelaySurface, relayGroundTexture, updateRelayGroundTexture } from './relay-surfaces.js';
@@ -90,6 +91,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   }
   if (switchyard) paintSwitchyardServiceWear(ctx, map);
   for (const box of map.boxes) {
+    if (map.terrain?.boxes.includes(box)) continue;
     if (map.signalCore?.doors.includes(box)) continue; // No baked shadow from retractable cover.
     const x = box.min.x * sx, z = box.min.z * sz, w = (box.max.x - box.min.x) * sx, d = (box.max.z - box.min.z) * sz;
     // Nested translucent fills are baked into an opaque texture once at load.
@@ -130,7 +132,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   }
   // CanvasTexture's default flipY puts its top row at plane V=1; after the
   // -90 degree floor rotation that is z=0 (north), matching the map footprints.
-  const floor = new T.Mesh(new T.PlaneGeometry(map.bounds.width, map.bounds.depth),
+  const floor = new T.Mesh(terrainGeometry(map),
     new T.MeshStandardMaterial({ map: texture, roughness: undertow ? 0.94 : wet ? 0.76 : 0.96 }));
   if (metric) {
     const tint = new T.Color(undertow ? '#74766a' : relay ? '#817e70' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
@@ -139,7 +141,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     else if (undertow) finishUndertowSurface(floor.material, 'ground');
     else finishRelaySurface(floor.material, 'ground');
   }
-  floor.rotation.x = -Math.PI / 2; floor.position.set(map.bounds.width / 2, -0.012, map.bounds.depth / 2); floor.receiveShadow = true;
+  floor.receiveShadow = true;
   floor.userData.siteGround = true;
   floor.name = `${map.presentation ?? 'site'}-ground`;
   scene.add(floor);

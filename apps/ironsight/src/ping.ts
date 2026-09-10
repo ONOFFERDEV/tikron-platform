@@ -2,6 +2,7 @@ import { nearestBox, type Box, type Vec3 } from './physics.js';
 import { resolveHitscan, type HitTarget } from './hitscan.js';
 import { HIT } from './config.js';
 import type { MapDef } from './map/types.js';
+import { groundRay } from './map/terrain.js';
 
 export const PING = { cooldownMs: 2000, lifetimeMs: 5000, range: 80 } as const;
 export const BOT_CONTACT = { observeMs: 600, teamCooldownMs: 8000, callerCooldownMs: 16000,
@@ -12,7 +13,7 @@ export interface TeamPing { from: string; kind: 'enemy' | 'go' | 'backup'; x: nu
 export function resolvePing(origin: Vec3, dir: Vec3, team: number, targets: readonly HitTarget[],
   boxes: readonly Box[], bounds: MapDef['bounds']): Pick<TeamPing, 'kind' | 'x' | 'z'> {
   let range: number = PING.range;
-  if (dir.y < 0) range = Math.min(range, -origin.y / dir.y);
+  range = Math.min(range, groundRay(origin, dir, boxes, bounds, range));
   for (const [position, direction, limit] of [[origin.x, dir.x, bounds.width], [origin.z, dir.z, bounds.depth]] as const) {
     if (direction > 0) range = Math.min(range, (limit - position) / direction);
     if (direction < 0) range = Math.min(range, -position / direction);

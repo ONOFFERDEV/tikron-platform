@@ -22,7 +22,7 @@ export function launchRoute(pos: Vec3, yaw: number, pads: readonly LaunchPad[], 
       end.x>=b.min.x+PLAYER.radius && end.x<=b.max.x-PLAYER.radius &&
       end.z>=b.min.z+PLAYER.radius && end.z<=b.max.z-PLAYER.radius)) continue;
     const route:Route={start:{...pos},end:{...end},top:0,kind:'launch'};
-    const obstacles=[...boxes,...ramps.map(r=>({min:{x:r.minX,y:0,z:r.minZ},max:{x:r.maxX,y:r.topY,z:r.maxZ}}))];
+    const obstacles=[...boxes,...ramps.map(r=>({min:{x:r.minX,y:r.baseY ?? 0,z:r.minZ},max:{x:r.maxX,y:r.topY,z:r.maxZ}}))];
     let previous=pos, clear=true;
     // 24 segments match the fixed 50ms simulation. Each segment is swept, not
     // just point-tested; tiny ceilings and corner obstructions cannot be skipped.
@@ -30,7 +30,7 @@ export function launchRoute(pos: Vec3, yaw: number, pads: readonly LaunchPad[], 
     for(let i=0;i<=steps;i++) {
       const next=launchPoint(route,i/steps);
       if(next.x<PLAYER.radius || next.x>bounds.width-PLAYER.radius || next.z<PLAYER.radius ||
-        next.z>bounds.depth-PLAYER.radius || next.y<0 ||
+        next.z>bounds.depth-PLAYER.radius || next.y<(bounds.floor ?? 0) ||
         !canStand(next.x,next.y,next.z,PLAYER.radius,PLAYER.standHeight,boxes,bounds) ||
         obstacles.some(b=>sweptBlocked(previous,next,b))) {clear=false;break;}
       previous=next;
@@ -83,13 +83,13 @@ export function traversalRoute(pos: Vec3, yaw: number, boxes: readonly Box[], bo
   // Continuous slab intersections catch even millimetre-thick obstructions.
   // Ramp bounding volumes are conservative here; ordinary movement still uses
   // the exact slope. An assisted move never cuts through the back of a ramp.
-  const obstacles = [...boxes, ...ramps.map(r => ({ min:{x:r.minX,y:0,z:r.minZ},
+  const obstacles = [...boxes, ...ramps.map(r => ({ min:{x:r.minX,y:r.baseY ?? 0,z:r.minZ},
     max:{x:r.maxX,y:r.topY,z:r.maxZ} }))];
   const points = [pos, { ...pos, y: route.top }, { ...route.end, y: route.top }, route.end];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!, c = points[i]!;
     if (c.x < PLAYER.radius || c.x > bounds.width - PLAYER.radius ||
-      c.z < PLAYER.radius || c.z > bounds.depth - PLAYER.radius || c.y < 0) return null;
+      c.z < PLAYER.radius || c.z > bounds.depth - PLAYER.radius || c.y < (bounds.floor ?? 0)) return null;
     if (!canStand(c.x,c.y,c.z,PLAYER.radius,PLAYER.standHeight,boxes,bounds)) return null;
     if (obstacles.some(box => sweptBlocked(a,c,box))) return null;
   }

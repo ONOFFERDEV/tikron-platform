@@ -18,11 +18,11 @@ export function buildWedgeGeometry(r: RampDef): THREE.BufferGeometry {
   const perpMax = isX ? r.maxZ : r.maxX;
   const at = (rise: number, y: number, perp: number): number[] => (isX ? [rise, y, perp] : [perp, y, rise]);
 
-  const A0 = at(low, 0, perpMin);
-  const B0 = at(high, 0, perpMin);
+  const A0 = at(low, r.baseY ?? 0, perpMin);
+  const B0 = at(high, r.baseY ?? 0, perpMin);
   const C0 = at(high, r.topY, perpMin);
-  const A1 = at(low, 0, perpMax);
-  const B1 = at(high, 0, perpMax);
+  const A1 = at(low, r.baseY ?? 0, perpMax);
+  const B1 = at(high, r.baseY ?? 0, perpMax);
   const C1 = at(high, r.topY, perpMax);
 
   const quad = (p1: number[], p2: number[], p3: number[], p4: number[]): number[] => [

@@ -39,6 +39,7 @@ export class TacticalMap {
     ctx.fillStyle = '#b8ccc9'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
     ctx.fillText('N', 5, 13);
     for (const box of map.boxes) {
+      if (map.terrain?.boxes.includes(box)) continue;
       // Ground floor plan: a roof or lintel must not paint over its doorway.
       if (box.min.y >= 1.8) continue;
       ctx.fillStyle = box.max.y > 2 ? "#7d9798" : "#405e66";

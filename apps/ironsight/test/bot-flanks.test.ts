@@ -4,7 +4,7 @@ import { botThink, createBotBrain, resetBotPerception, startBotFlank, type BotBr
 import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA3 } from '../src/map/arena3.js';
 import { GroundNavigator } from '../src/map/navigation.js';
-import { canStand } from '../src/physics.js';
+import { moveAndSlide, canStand } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
@@ -56,17 +56,17 @@ it('orients from the actual spawn and clears old-life state; objectives cancel a
 
 it.each([ARENA1,ARENA3])('walks both directions of every $presentation flank from every spawn without clipping', map => {
   const nav=new GroundNavigator(map);
-  const solids=[...map.boxes,...(map.ramps??[]).map(r=>({min:{x:r.minX,y:0,z:r.minZ},max:{x:r.maxX,y:r.topY,z:r.maxZ}}))];
   for(const points of map.flankRoutes!)for(const spawn of [...map.spawns.red,...map.spawns.blue]) {
     const brain=createBotBrain({seed:1,role:'rusher',waypoints:[{x:0,y:0}],flankRoute:points});
-    startBotFlank(brain,spawn);let p={x:spawn.x,z:spawn.z};
+    startBotFlank(brain,spawn);let p={...spawn};
     for(const goal of brain.flank!.points) {
       let steps=0;
       while(Math.hypot(goal.x-p.x,goal.z-p.z)>.35&&steps++<1500) {
         const next=nav.next(p,goal),d=Math.hypot(next.x-p.x,next.z-p.z);
         if(d<.001)break;
-        const step=Math.min(.12,d);p={x:p.x+(next.x-p.x)/d*step,z:p.z+(next.z-p.z)/d*step};
-        expect(canStand(p.x,0,p.z,PLAYER.radius,PLAYER.standHeight,solids,map.bounds)).toBe(true);
+        const step=Math.min(.12,d);
+        p=moveAndSlide(p,PLAYER.radius,PLAYER.standHeight,{x:(next.x-p.x)/d*step,y:-.02,z:(next.z-p.z)/d*step},-.5,map.boxes,map.bounds,.45,map.ramps).pos;
+        expect(canStand(p.x,p.y,p.z,PLAYER.radius-1e-6,PLAYER.standHeight,map.boxes,map.bounds)).toBe(true);
       }
       expect(Math.hypot(goal.x-p.x,goal.z-p.z),`${spawn.x},${spawn.z} -> ${goal.x},${goal.z}, stopped ${p.x},${p.z}`).toBeLessThan(.4);
     }

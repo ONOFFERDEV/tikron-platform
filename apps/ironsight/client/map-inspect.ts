@@ -297,7 +297,7 @@ export function startMapInspector(): void {
     flags.__mapInspect = {
       mapBounds: map.bounds,
       structures: (map.structures ?? []).map(s => ({ id: s.id, footprint: s.footprint,
-        parts: s.parts.length, ramps: s.ramps, bots: 'ground floor only' })),
+        parts: s.parts.length, ramps: s.ramps, bots: s.id === 'freight-trench' ? 'yard and sunken route; no upper bridge routing' : 'ground floor only; no roof routing' })),
       intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,

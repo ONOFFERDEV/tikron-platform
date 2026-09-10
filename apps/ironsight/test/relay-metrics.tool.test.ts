@@ -1,4 +1,4 @@
-import type { DroneSupport, DroneFlight } from '../src/drone.js';
+﻿import type { DroneSupport, DroneFlight } from '../src/drone.js';
 import { describe, it, expect, vi } from 'vitest';
 // @ts-expect-error Node-only opt-in tool; production tsconfig targets Workers.
 import { writeFileSync } from 'node:fs';
@@ -121,9 +121,10 @@ describe.skipIf(process.env.RELAY_METRICS !== '1')('expanded Relay natural bot r
         redScore: state.redScore, blueScore: state.blueScore, roles, routeSamples, structureSamples, lives, kills, cells: Object.fromEntries(cells) };
       writeFileSync(`.inspect/${prefix}-bot-round.json`, JSON.stringify(report, null, 2));
       expect(kills.length).toBeGreaterThan(0);
-      const solids = ARENA1.boxes.map(b => `<rect x="${b.min.x}" y="${b.min.z}" width="${b.max.x-b.min.x}" height="${b.max.z-b.min.z}" fill="#536b70"/>`).join('');
+      const solids = ARENA1.boxes.filter(b => !ARENA1.terrain?.boxes.includes(b)).map(b => `<rect x="${b.min.x}" y="${b.min.z}" width="${b.max.x-b.min.x}" height="${b.max.z-b.min.z}" fill="#536b70"/>`).join('');
       const heat = [...cells].map(([key, n]) => { const [x, z] = key.split(',').map(Number); return `<rect x="${x! * 5}" y="${z! * 5}" width="5" height="5" fill="#ff984d" opacity="${Math.min(.95, .2 + n * .08)}"><title>${n} deaths</title></rect>`; }).join('');
       writeFileSync(`.inspect/${prefix}-bot-heatmap.svg`, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -12 154 116"><rect x="-2" y="-12" width="154" height="116" fill="#132b33"/><text x="1" y="-5" fill="white" font-size="4">RELAY / 6v6 bots / ${state.redScore}:${state.blueScore} / ${((endedAt-liveAt)/1000).toFixed(1)}s</text>${solids}${heat}</svg>`);
     } finally { vi.restoreAllMocks(); vi.clearAllTimers(); vi.useRealTimers(); }
   });
 });
+

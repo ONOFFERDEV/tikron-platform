@@ -28,7 +28,7 @@ export interface StructureDef {
   readonly walls: readonly StructureWall[];
   readonly slabs: readonly StructureSlab[];
   readonly cover?: readonly Box[];
-  /** Existing ground-to-tier slopes; zero is the GLOBAL ground datum. */
+  /** Slopes use local heights, translated by the structure's origin. */
   readonly stairs?: readonly RampDef[];
 }
 export interface StructurePart {
@@ -109,12 +109,11 @@ export function compileStructure(def: StructureDef): CompiledStructure {
   }
   for (const b of def.cover ?? []) add('cover', b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z);
   const ramps = (def.stairs ?? []).map(r => {
-    // RampDef currently starts at world y=0. Reject an elevated origin rather
-    // than silently emitting a stair that the existing physics cannot follow.
-    requireAuthoring(o.y === 0 && rectangle(r) && r.minX >= 0 && r.maxX <= width
-      && r.minZ >= 0 && r.maxZ <= depth && interval(0, r.topY)
-      && (r.axis === 'x' || r.axis === 'z') && (r.dir === 1 || r.dir === -1), `${def.id}: invalid ground stair`);
-    return { ...r, minX: o.x + r.minX, maxX: o.x + r.maxX, minZ: o.z + r.minZ, maxZ: o.z + r.maxZ };
+    requireAuthoring(rectangle(r) && r.minX >= 0 && r.maxX <= width
+      && r.minZ >= 0 && r.maxZ <= depth && interval(r.baseY ?? 0, r.topY)
+      && (r.axis === 'x' || r.axis === 'z') && (r.dir === 1 || r.dir === -1), `${def.id}: invalid stair`);
+    return { ...r, baseY: o.y + (r.baseY ?? 0), topY: o.y + r.topY,
+      minX: o.x + r.minX, maxX: o.x + r.maxX, minZ: o.z + r.minZ, maxZ: o.z + r.maxZ };
   });
   return { id: def.id, footprint: { minX: o.x, maxX: o.x + width, minZ: o.z, maxZ: o.z + depth }, parts, ramps };
 }
@@ -127,8 +126,8 @@ export function withStructures(map: MapDef, definitions: readonly StructureDef[]
   for (const s of added) {
     requireAuthoring(s.footprint.minX >= 0 && s.footprint.maxX <= map.bounds.width
       && s.footprint.minZ >= 0 && s.footprint.maxZ <= map.bounds.depth
-      && s.parts.every(p => p.box.max.y <= map.bounds.ceiling)
-      && s.ramps.every(r => r.topY <= map.bounds.ceiling), `${s.id}: outside map bounds`);
+      && s.parts.every(p => p.box.min.y >= (map.bounds.floor ?? 0) && p.box.max.y <= map.bounds.ceiling)
+      && s.ramps.every(r => (r.baseY ?? 0) >= (map.bounds.floor ?? 0) && r.topY <= map.bounds.ceiling), `${s.id}: outside map bounds`);
   }
   return { ...map, structures, boxes: [...map.boxes, ...added.flatMap(s => s.parts.map(p => p.box))],
     ramps: [...(map.ramps ?? []), ...added.flatMap(s => s.ramps)] };

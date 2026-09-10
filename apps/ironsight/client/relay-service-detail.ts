@@ -73,6 +73,13 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
     for (let k = 0; k < 4; k++) { rect('#acaf97', 674 + k * 19, y + 4, 11, 11); rect('#222d27', 674 + k * 19, y + 20, 11, 9); }
   }
   text('FIELD RELAY // 07', 533, 945, 17);
+  rect('#b6ab85', 768, 576, 256, 96); rect('#343b32', 775, 583, 242, 82);
+  text('CABLE TRENCH', 784, 615, 27, '#d0c5a0'); text('-03 M / SERVICE', 790, 651, 24, '#bcb798');
+  rect('#505548', 768, 672, 256, 192);
+  for (const y of [714, 758, 802]) {
+    rect('#232820', 770, y, 252, 19); rect('#6c6d59', 770, y+3, 252, 5);
+    for (const x of [784, 897, 1004]) { rect('#969177', x, y-5, 8, 29); rect('#393d30', x+2, y-3, 3, 5); }
+  }
   // Deterministic edge chips, fastener runoff and scuffs. Baked once at creation;
   // keep central labels readable and large color fields quiet at combat distance.
   for (const [x, y, w, h] of Object.values(tiles)) {

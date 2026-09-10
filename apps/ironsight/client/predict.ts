@@ -15,7 +15,7 @@ import {
   RECONCILE_FRAC,
   RECONCILE_TAU_MS,
 } from "./config.js";
-import type { MoveIntent } from "./net.js";
+import type { SlideInput as MoveIntent } from '../src/slide.js';
 import { WaistTraversal } from '../src/traversal.js';
 import { SprintSlide } from '../src/slide.js';
 import { CoreCollision } from '../src/core-gate.js';

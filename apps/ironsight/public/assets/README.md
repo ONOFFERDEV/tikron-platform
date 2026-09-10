@@ -1500,3 +1500,43 @@ building pairs, plus both defensive interiors and the roof counter-position.
 Normal W/aim traversal exercises both buildings without gameplay-state edits.
 Natural production-bot room visits and contact/death samples are recorded in
 AAA-PLAN.md. Bot roofs and the negative floor remain deferred.
+
+### Session 92: Places B 2/3 - Relay cable trench
+
+An original 74x6m excavation replaces the southern freight strip with a -3m
+service floor, two 8m ramps, retaining walls, staggered machinery and a yard
+bridge. Shared earth solids support four yard faces and one lower face; both
+renderer and ground AO use that disjoint layout and the existing global UVs.
+Cable trays, cabinet fronts and CABLE TRENCH / -03 M signs reuse spare space in
+the original service atlas. Ground paint stops at the cut or sits on the exact
+bridge slab. No purchased source, Meshy job, new texture, light or render pass.
+
+Fresh `maps/relay-architecture.glb`: 3,785,696 bytes (+147,336), eight material
+primitives, 2,331 original parts / 27,940 pre-weathering triangles. Concrete
+weathering grows 2,184 to 38,784 triangles without displacement or new images;
+oriented-surface/normal/UV audit passes. Ground AO is 1,011,472 bytes (+205,609),
+2048x1365, from 199 permanent boxes and eight ramps. Combined bake growth is
+352,945 bytes. Resident texture count and dimensions remain unchanged.
+The deployment vista is refreshed from the production renderer.
+
+Reproduce from `apps/ironsight`:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session92-maps.json relay
+node tools/dump-architecture.mjs .inspect/session92-architecture.json relay
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps .inspect/session92-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input .inspect/session92-architecture.json
+python tools/weather-architecture.py --input public/assets/maps/relay-architecture.glb --output public/assets/maps/relay-architecture.glb --report .inspect/session92-weather.json --edge-length 2
+python scripts/audit-architecture.py --input .inspect/session92-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots vista --write-vista --prefix session92-vista-refresh
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots trench-play --prefix trench-west
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots trench-play --trench-east --prefix trench-east
+```
+
+Live drills use ordinary movement, aim, fire and grenade inputs without editing
+gameplay state. The session gallery retains matched overhead/vista pairs,
+trench-level captures, three natural bot-round heatmaps and both entrance drills.
+The bots follow the yard/trench heightfield; upper bridge and roof routing are
+not claimed. Layout authoring and wire-version requirements are in
+`../../docs/STRUCTURES.md`.

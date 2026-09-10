@@ -46,11 +46,11 @@ describe('structure authoring', () => {
     expect(nearestBox({ x: 8, y: 3, z: 5 }, { x: 0, y: 1, z: 0 }, boxes, 3)).toBe(1);
   });
 
-  it('rejects malformed geometry, out-of-bounds apertures and unsupported elevated stair starts', () => {
+  it('rejects malformed geometry and out-of-bounds apertures, translates stair starts', () => {
     expect(() => compileStructure({ ...RELAY_COMMS, width: NaN })).toThrow('footprint');
     expect(() => compileStructure({ ...RELAY_COMMS, walls: [{ ...RELAY_COMMS.walls[0]!, thickness: -1 }] })).toThrow('wall');
     expect(() => compileStructure({ ...RELAY_COMMS, slabs: [{ ...RELAY_COMMS.slabs[0]!, openings: [{ minX: -1, maxX: 4, minZ: 1, maxZ: 2 }] }] })).toThrow('opening');
-    expect(() => compileStructure({ ...RELAY_COMMS, origin: { x: 0, y: 3, z: 0 } })).toThrow('ground stair');
+    expect(compileStructure({ ...RELAY_COMMS, origin: { x: 0, y: 3, z: 0 } }).ramps[0]).toMatchObject({ baseY: 3, topY: 6 });
     expect(() => withStructures({ ...ARENA1, structures: [] }, [{ ...RELAY_COMMS, origin: { x: 149, y: 0, z: 0 } }])).toThrow('bounds');
     expect(() => withStructures(ARENA1, [RELAY_COMMS])).toThrow('duplicate');
   });

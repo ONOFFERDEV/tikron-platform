@@ -402,8 +402,8 @@ describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", 
     const structureParts = new Set(ARENA1.structures!.flatMap(s => s.parts.map(p => p.box)));
     const structureRamps = new Set(ARENA1.structures!.flatMap(s => s.ramps));
     expect(ARENA1.ramps!.filter(r => !structureRamps.has(r))).toHaveLength(4);
-    expect(structureRamps.size).toBe(2);
-    for (const b of ARENA1.boxes.filter(b => !structureParts.has(b))) {
+    expect(structureRamps.size).toBe(4);
+    for (const b of ARENA1.boxes.filter(b => !structureParts.has(b) && !ARENA1.terrain?.boxes.includes(b))) {
       // The authored moving shutters use half-metre thickness. Static kit and
       // tile footprints retain the integer grid; gate geometry is tested apart.
       if (ARENA1.signalCore?.doors.includes(b)) {

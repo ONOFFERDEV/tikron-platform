@@ -42,7 +42,7 @@ describe('Relay service cladding', () => {
 
 it('backs building hardware with exact solids and keeps every stair stripe on the true slope', () => {
   const g = relayStructureDetail(ARENA1), positions = g.getAttribute('position');
-  expect(g.index!.count / 3).toBe(104); expect(g.groups).toHaveLength(0);
+  expect(g.index!.count / 3).toBe(248); expect(g.groups).toHaveLength(0);
   const colliders = ARENA1.structures!.flatMap(s => s.parts).map(p => new T.Box3(
     new T.Vector3(p.box.min.x, p.box.min.y, p.box.min.z), new T.Vector3(p.box.max.x, p.box.max.y, p.box.max.z)));
   for (let i = 0; i < positions.count; i += 4) {

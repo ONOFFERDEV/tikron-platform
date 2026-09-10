@@ -1,5 +1,6 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
 import type { CompiledStructure } from './structures.js';
+import type { Terrain } from './terrain.js';
 
 /**
  * The shape every map module (arena1, arena2, …) exports as one value, so the
@@ -14,10 +15,12 @@ import type { CompiledStructure } from './structures.js';
  * corners and edges — half-overlapping boxes causing landing/falling/step-up
  * ticks to alternate, inconsistent side-entry, and occasional pass-through in
  * narrow gaps). The footprint is the full tile rectangle; height rises
- * linearly along `axis` in direction `dir` from 0 at the low end to `topY` at
+ * linearly along `axis` in direction `dir` from `baseY` (default 0) to `topY` at
  * the high end.
  */
 export interface RampDef {
+  /** Absolute height at the low end. Legacy ramps start at zero. */
+  readonly baseY?: number;
   readonly minX: number;
   readonly maxX: number;
   readonly minZ: number;
@@ -25,11 +28,12 @@ export interface RampDef {
   readonly axis: "x" | "z";
   /** +1 = rises toward increasing axis coordinate, -1 = toward decreasing. */
   readonly dir: 1 | -1;
-  /** Height at the high end (always 1.2 for the current tile set). */
+  /** Absolute height at the high end; must be greater than baseY. */
   readonly topY: number;
 }
 
 export interface MapDef {
+  readonly terrain?: Terrain;
   /** Authored buildings; each part references the SAME box in boxes below. */
   readonly structures?: readonly CompiledStructure[];
   /** Event shutters are part of the CLOSED map; only replicated coreOpen may

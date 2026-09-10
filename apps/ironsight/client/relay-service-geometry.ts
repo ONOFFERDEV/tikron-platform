@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from '../src/map/types.js';
+import { rampSurfaceY } from '../src/physics.js';
 
 // Service hardware occupies the original upper-left 512x256 region. Fieldworks
 // shares this atlas/draw: scars below it, generated canvas sacks at upper right.
@@ -10,6 +11,7 @@ export const tiles = {
   vent: [256, 0, 256, 128], label: [256, 128, 128, 128], case: [384, 128, 128, 128],
   comms: [512, 512, 512, 64], roof: [512, 576, 256, 128], console: [512, 704, 256, 256],
   control: [512, 960, 512, 64],
+  trench: [768, 576, 256, 96], cable: [768, 672, 256, 192],
 } as const;
 
 /** Geometry is derived from existing solid faces, at most 12 mm outside them.
@@ -72,6 +74,29 @@ export function relayStructureDetail(map: MapDef): T.BufferGeometry {
     g.rotateY(yaw); g.translate(x, y, z); parts.push(g);
   };
   for (const structure of map.structures ?? []) {
+    if (structure.id === 'freight-trench') {
+      for (const x of [43, 53, 65, 85, 97, 107]) {
+        for (const [z, yaw] of [[73.412, 0], [78.588, Math.PI]] as const) {
+          face('trench', x, -.65, z, 2.8, 1.05, yaw);
+          face('cable', x, -2.15, z, 5.5, 1.0, yaw);
+        }
+      }
+      for (const p of structure.parts.filter(p => p.kind === 'cover')) {
+        const b = p.box;
+        face('cabinet', b.min.x - .012, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2,
+          b.max.z - b.min.z - .12, b.max.y - b.min.y - .12, -Math.PI / 2);
+        face('cabinet', b.max.x + .012, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2,
+          b.max.z - b.min.z - .12, b.max.y - b.min.y - .12, Math.PI / 2);
+      }
+      for (const r of structure.ramps) for (let i = 0; i < 20; i++) {
+        const x = r.minX + (i + .5) / 20 * (r.maxX - r.minX), z = (r.minZ + r.maxZ) / 2;
+        const g = new T.PlaneGeometry(.06, r.maxZ - r.minZ - .12), uv = g.getAttribute('uv');
+        for (let k = 0; k < uv.count; k++) uv.setXY(k, 516 / ATLAS_W, 1 - 516 / ATLAS_H);
+        g.rotateX(-Math.PI / 2); g.rotateZ(r.dir * Math.atan2(r.topY - (r.baseY ?? 0), r.maxX - r.minX));
+        g.translate(x, rampSurfaceY(r, x, z) + .008, z); parts.push(g);
+      }
+      continue;
+    }
     if (!['cooling-comms', 'cooling-control'].includes(structure.id)) continue;
     const east = structure.id === 'cooling-control';
     const xAt = (x: number) => east ? 150 - x : x;

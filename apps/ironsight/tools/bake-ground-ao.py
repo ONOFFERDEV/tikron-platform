@@ -62,14 +62,21 @@ def ramp(name, r):
     def v(a, b, y):
         return (a, y, b) if axis == "x" else (b, y, a)
 
-    verts = [v(low, lo_b, 0), v(low, hi_b, 0), v(high, lo_b, 0), v(high, hi_b, 0), v(high, lo_b, top), v(high, hi_b, top)]
+    verts = [v(low, lo_b, r.get("baseY", 0)), v(low, hi_b, r.get("baseY", 0)), v(high, lo_b, r.get("baseY", 0)), v(high, hi_b, r.get("baseY", 0)), v(high, lo_b, top), v(high, hi_b, top)]
     faces = [(0, 1, 3, 2), (0, 2, 4), (1, 5, 3), (2, 3, 5, 4), (0, 4, 5, 1)]
     return mesh_object(name, verts, faces)
 
 
-def ground(name, width, depth):
-    verts = [(0, 0, 0), (width, 0, 0), (width, 0, depth), (0, 0, depth)]
-    obj = mesh_object(name, verts, [(0, 3, 2, 1)])
+def ground(name, width, depth, terrain=None):
+    surfaces = terrain["faces"] if terrain else [dict(minX=0, maxX=width, minZ=0, maxZ=depth, y=0)]
+    verts, faces = [], []
+    for f in surfaces:
+        x0, x1, z0, z1, y = f["minX"], f["maxX"], f["minZ"], f["maxZ"], f["y"]
+        n = len(verts)
+        # Lift a millimetre off the supporting earth, preventing self-occlusion.
+        verts.extend([(x0, y+.001, z0), (x1, y+.001, z0), (x1, y+.001, z1), (x0, y+.001, z1)])
+        faces.append((n, n+3, n+2, n+1))
+    obj = mesh_object(name, verts, faces)
     uv = obj.data.uv_layers.new(name="ao")
     for loop in obj.data.loops:
         x, _, z = verts[loop.vertex_index]
@@ -99,7 +106,7 @@ for key, m in maps.items():
     for i, r in enumerate(m["ramps"]):
         ramp(f"{key}-ramp-{i}", r)
     width, depth = m["bounds"]["width"], m["bounds"]["depth"]
-    floor = ground(f"{key}-ground", width, depth)
+    floor = ground(f"{key}-ground", width, depth, m.get("terrain"))
 
     size = (args.size, round(args.size * depth / width))
     image = bpy.data.images.new(f"{key}-ao", *size, alpha=False, float_buffer=False)

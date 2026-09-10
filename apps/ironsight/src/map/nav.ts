@@ -1,6 +1,7 @@
 import type { Box, Vec3 } from "../physics.js";
 import type { MapDef, RampDef } from "./types.js";
 import { MOVE, PLAYER } from "../config.js";
+import { routeFloor } from './terrain.js';
 
 /**
  * Pure, deterministic map walk-time utility — used by the map-timing gate
@@ -37,11 +38,12 @@ function insideRampXZ(x: number, z: number, r: RampDef): boolean {
 
 /** Is the 1 m cell centred at world (x, z) walkable at ground level? */
 function walkableCell(x: number, z: number, map: MapDef): boolean {
+  const floor = routeFloor(map, x, z);
   for (const r of map.ramps ?? []) {
     if (insideRampXZ(x, z, r)) return true; // sloped surface: always the way up/across
   }
   for (const b of map.boxes) {
-    if (b.min.y < PLAYER.standHeight && b.max.y > MOVE.stepUp && insideBoxXZ(x, z, b)) return false;
+    if (b.min.y < floor + PLAYER.standHeight && b.max.y > floor + MOVE.stepUp && insideBoxXZ(x, z, b)) return false;
   }
   return true;
 }
@@ -82,6 +84,7 @@ function bfsCellDistance(map: MapDef, from: Vec3): number[][] {
       const nj = j + dj;
       if (ni < 0 || ni >= cols || nj < 0 || nj >= rows) continue;
       if (!walkable[nj]![ni]) continue;
+      if (map.terrain && Math.abs(routeFloor(map, i + .5, j + .5) - routeFloor(map, ni + .5, nj + .5)) > .45) continue;
       if (d + 1 >= dist[nj]![ni]!) continue;
       dist[nj]![ni] = d + 1;
       queue.push([ni, nj]);

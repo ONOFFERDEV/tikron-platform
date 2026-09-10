@@ -23,7 +23,7 @@ export interface ArenaPlayer {
   /** Horizontal position (ground plane). */
   x: number;
   z: number;
-  /** Feet height above the ground plane (0 = on the floor). */
+  /** Absolute feet height: yard 0, excavated routes down to WORLD_LIMITS.floor. */
   y: number;
   /** Facing yaw (rad, 0 → +z). */
   yaw: number;
@@ -82,7 +82,8 @@ export interface ArenaState {
 const PlayerSchema: Codec<ArenaPlayer> = schema({
   x: quant(0, ARENA.width, 0.02),
   z: quant(0, ARENA.depth, 0.02),
-  y: quant(0, ARENA.ceiling, 0.02),
+  // Session92 changes the quantized offset: rebuild both sides together.
+  y: quant(ARENA.floor, ARENA.ceiling, 0.02),
   yaw: quant(0, Math.PI * 2, 0.001),
   pitch: quant(-Math.PI / 2, Math.PI / 2, 0.001),
   hp: "u8",

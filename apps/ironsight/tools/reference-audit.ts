@@ -24,7 +24,7 @@ const maps = [ARENA1, ARENA2, ARENA3].map(map => {
     } : undefined,
     colliders: map.boxes.map((b, index) => {
       const height = +(b.max.y - b.min.y).toFixed(3);
-      return { index, height, class: height < 0.5 ? 'decoration' : height >= 1 && height <= 1.25 ? 'waist' :
+      return { index, height, class: map.terrain?.boxes.includes(b) ? 'terrain' : height < 0.5 ? 'decoration' : height >= 1 && height <= 1.25 ? 'waist' :
         height >= 1.75 ? 'full' : height >= 1.5 && height <= 1.6 ? 'head-height' : 'other', min: b.min, max: b.max };
     }),
     rotations: caps.flatMap(([a, from], i) => caps.slice(i + 1).map(([b, to]) => ({
@@ -36,7 +36,7 @@ const maps = [ARENA1, ARENA2, ARENA3].map(map => {
         sprintSeconds: walkSeconds(map, from, point(cap, to), MOVE.sprint) })))),
   };
 });
-console.log(JSON.stringify({ note: '1m four-neighbour ground BFS; cap waypoint overrides used where platforms block ground cells. Spawn-to-objective is a travel proxy, NOT measured first contact. Null means unreachable.',
+console.log(JSON.stringify({ note: '1m four-neighbour yard/trench heightfield BFS; upper bridge decks and roofs are not navigation layers. Cap waypoint overrides used where platforms block ground cells. Terrain solids are not cover-height classes. Spawn-to-objective is a travel proxy, NOT measured first contact. Null means unreachable.',
   maps, weapons: WEAPONS.map(w => ({ name: w.name, adsMs: w.adsMs, sprintToFireMs: w.sprintToFireMs,
     visualAdsCompleteMs: w.adsMs, recoil: w.recoil,
     accuracy: { still: w.spreadStill, move: w.spreadMove, air: w.spreadAir },

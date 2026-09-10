@@ -260,7 +260,8 @@ export function rampOccluderBoxes(r: RampDef): Box[] {
   for (let s = 0; s < 3; s++) {
     // Expanded decks and structure stairs rise to 3m. The original fixed
     // 0.4/0.8/1.2 values let shots pass through their upper half.
-    const h = STEP_HEIGHTS[s]! * (r.topY / STEP_HEIGHTS[2]);
+    const base = r.baseY ?? 0;
+    const h = base + STEP_HEIGHTS[s]! * ((r.topY - base) / STEP_HEIGHTS[2]);
     // dir=+1: height rises toward maxCoord, so step s's segment is at index s.
     // dir=-1: height rises toward minCoord, so step s's segment is mirrored (2-s).
     const k = r.dir === 1 ? s : 2 - s;
@@ -268,8 +269,8 @@ export function rampOccluderBoxes(r: RampDef): Box[] {
     const segMax = along(k + 1);
     boxes.push(
       isX
-        ? { min: { x: segMin, y: 0, z: r.minZ }, max: { x: segMax, y: h, z: r.maxZ } }
-        : { min: { x: r.minX, y: 0, z: segMin }, max: { x: r.maxX, y: h, z: segMax } },
+        ? { min: { x: segMin, y: base, z: r.minZ }, max: { x: segMax, y: h, z: r.maxZ } }
+        : { min: { x: r.minX, y: base, z: segMin }, max: { x: r.maxX, y: h, z: segMax } },
     );
   }
   return boxes;

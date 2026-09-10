@@ -31,7 +31,7 @@ export const ARENA = {
 } as const;
 
 /** Shared wire envelope; each MapDef owns its smaller playable boundary. */
-export const WORLD_LIMITS = { width: 200, depth: 160, ceiling: ARENA.ceiling } as const;
+export const WORLD_LIMITS = { width: 200, depth: 160, floor: -3, ceiling: ARENA.ceiling } as const;
 
 /** Player capsule + head sphere (metres) — movement collision, camera/muzzle
  *  eye height, and physics. NOT what the server raycasts against — see

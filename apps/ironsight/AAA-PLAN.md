@@ -199,6 +199,8 @@ Session90 quick check (local candidate): Training / Relay, find COMMS /01 in the
 
 Session91 quick check (local candidate): Training / Relay, enter COMMS / WEST or CONTROL / EAST through either yard-facing door. From the central console, both entrances fit in view. Use the windows, climb the internal stair, then contest the opposite +3m roof or drop into the yard. TDM rushers and patrols now visit these rooms. Places B1/3 is ON by default; the sunken route and surrounding-site stages are next.
 
+Session92 quick check (local candidate): Training / Relay, follow the south freight lane to CABLE TRENCH at either end. Walk down the ramp, use the staggered cabinets, pass beneath the yard bridge, fire or throw a grenade, then climb out the other side. The shared floor is -3m; COMMS/CONTROL roofs remain +3m. TDM bots use the trench naturally. Places B2/3 is ON; B3/3 finishes the surrounding Relay site.
+
 
 ## Vision and pillars
 
@@ -430,33 +432,33 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 90 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session90-reference-audit.json` (fresh layout measurements);
+Session 24 first canonical audit (reference restored), updated in Session 92 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session92-reference-audit.json` (fresh layout measurements);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
 | Id | Status | Evidence |
 |---|---|---|
-| R-M01 | partial | Session91 pairs two enterable Relay rooms and +3m roof positions with mirrored collision. Northern rushers cross both rooms; ground patrol anchors include both interiors. Cooling rifle lane, core passage and southern freight flank remain. Whole-site three-tier layout and human route balance await Places B2/3. |
+| R-M01 | partial | Session92 adds a real -3m cable trench beneath the southern freight lane, alongside the paired rooms/+3m roofs. Both end ramps and the bridge underpass are playable; southern rushers use it. Whole-site composition and human lane balance remain Places B3/3. |
 | R-M02 | partial | Session91 two yard-facing 2m doors per room: both inner apertures fit inside78degrees from the central-console defence position; rays and fixed operator views pass. Seven waist-sill windows per room remain additional possible vault/attack directions. Human defensive balance and other objectives remain open. |
-| R-M03 | met | Session91 Relay197 colliders:87full/76waist by relative height plus34 raised lintel/slab pieces classified as decoration by the raw height audit. Ground cover is1.1m or>=1.75m; roof parapets are1.1m above y3. No head-height cover. Other maps66/62 and64/48 retain their counts. |
-| R-M04 | met | Session91 fresh BFS: Relay A-B/A-C/B-C14.44/11.78/14.44s, Undertow14.22/11.33/14.22, Switchyard14.44/11.56/14.44 at sprint. All remain10-15s; travel proxies, not contact timings. |
+| R-M03 | met | Session92 Relay201 colliders:91full/70waist/35thin lintel-slab pieces plus5 explicit terrain solids, separated from cover classes. Trench machinery is1.1/1.8m above its floor; no head-height cover. Other maps66/62 and64/48 full/waist unchanged. Raw structural heights are not an all-route cover-spacing acceptance. |
+| R-M04 | met | Session92 fresh yard/trench BFS: Relay A-B/A-C/B-C14.44/11.78/14.44s, Undertow14.22/11.33/14.22, Switchyard14.44/11.56/14.44 at sprint. All10-15s; travel proxies, excluding upper bridge/roof navigation, not contact timings. |
 | R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session91 Relay seeds166588/9/90: initial first-damage medians16.35/15.75/15.70s; respawn16.70/18.05/16.50s with censoring. Same-session matched baseline17.35/14.00; fast respawn contacts5->1. Opening contact gets earlier, respawn contact later. The20-30s target remains unmet. |
-| R-M08 | partial | Session91 COMMS/WEST and CONTROL/EAST labels distinguish paired functional rooms while exact x-mirrored collision answers their power positions. Matched full-overhead/exterior/east-roof stills. Offset footprints and substantial boundary mass remain for the later site pass. |
+| R-M07 | not yet | Session92 natural Relay seeds166588/9/90: initial damage medians16.35/15.75/15.70s; respawn16.40/15.45/16.50s with censoring. Matched baseline16.35/16.70s: opening unchanged, respawn slightly earlier and fast contacts1->2. The20-30s target remains unmet. |
+| R-M08 | partial | Session92 adds the signed CABLE TRENCH/-03 M functional route and retaining-wall silhouette below the freight yard. Full-overhead/vista pairs preserve the camera. Whole-site offset footprints, substantial boundaries and human wayfinding remain open. |
 | R-M09 | partial | Session71 traces five fast contacts to the SECOND northern crossing after hidden spawns, with inner-lane threats. Mirrored baffles atx18-20/x130-132,z24-32 block the retained ray fixtures while both ends remain walkable. Three matched rounds remove sampled<5s respawn contacts; all-exposed fallback, human camping and side fairness remain open. Spawn scoring/protection unchanged. |
 | R-M10 | partial | Session71 signed full-cover baffles protect staging outside A/C courts, with a standing bypass/peek at either end. Existing court entrances, pump approaches and gallery retained.20.414s normal DOM sequence reaches A with teammates. Human defensive quality and all-objective entry audit remain open. |
-| R-M11 | partial | Session91 ordinary-input drills traverse both rooms, both primary doors, internal stairs, +3m roofs and south drops; three movement-step sizes and roof/parapet shot tests pass. Four fixed before/after pairs. Whole-map traversal review and sunken routes remain open. |
+| R-M11 | partial | Session92 live ordinary-input drills descend both trench ramps, weave through machinery, cross beneath the bridge and return to yard; the existing roof drill also passes. Three movement increments retain exact ground support and jump/ceiling collision. Whole-site human traversal acceptance remains open. |
 | R-M12 | partial | Session71 Breakwater1/1 normal20.414s DOM capture shows the signed northern baffle, allied movement around it and arrival at A. Paired fixed-camera stills show the former firing slit blocked. No injected gameplay state; human action-block/excitement acceptance open. |
-| R-M13 | partial | Session91 COMMS/WEST and CONTROL/EAST have larger22x10m interiors, consoles, fourteen total firing windows and two roof-access routes. Matching signs and HUD callouts share the existing atlas. Other-map functional buildings and human wayfinding remain open. |
-| R-M14 | partial | Session91 seven permanent windows per paired Relay room remain open all round. Both buildings pass actual analytic/hybrid window-hit versus wall-rejection tests; solid roofs and crouch-protecting parapets pass shared rays. Destruction and human defensive balance remain incomplete. |
+| R-M13 | partial | Session92 service route has recessed cable trays, machinery cabinets, anti-slip ramp nosings and CABLE TRENCH/-03 M signs plus HUD callout, using the existing atlas. Paired COMMS/CONTROL interiors retained. Broader working-site composition and other-map buildings remain open. |
+| R-M14 | partial | Session92 explicit solid earth, retaining walls and bridge block shared shots while the lower corridor stays open. Actual analytic/hybrid corridor-hit versus correctly aimed through-earth rejection tests pass; paired window tests retained. Destruction/human defence balance remain open. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Session89 reinforces the exterior dish approach with two three-course sandbag lines and removes existing coping depth flicker. The central spine, dish and lane signs remain; no new sight blocker in play. Human all-lane landmark acceptance remains open. |
-| R-M18 | partial | Session91 two enterable ground floors and paired +3m roofs carry real human routes; bot traffic is deliberately ground-only. No negative tier: physics clamps y>=0 and ramps start at0. Resolve floor, ramp, codec, projectiles and navigation in Places B2/3 before claiming a trench. |
+| R-M18 | partial | Session92 establishes three major levels at-3/0/+3m: excavated trench, yard/interiors and roofs. Shared lower-floor clamp, translated ramp bases, y codec and solid earth agree. Both lower entrances and human upper bridge tested; bots follow only the yard/trench heightfield. Pool-wide tier layout and human balance remain open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session91 three natural Relay rounds45:50/46:50/50:42 in226.5/225.9/204.9s; room occupancy64.5/67.0/65.6player-seconds and indoor shooter kills2/3/3, victim deaths2/5/2. Matched baseline zero visits. Heatmaps and censored lives retained; three rounds do not establish human or side fairness. |
+| R-M20 | partial | Session92 three natural Relay rounds50:47/46:50/50:42 in248.1/251.9/226.0s. Trench occupancy235.2/265.6/172.9player-seconds,3-4 visitors,5-9 kills fired from the -3m floor. Existing rooms remain visited. Heatmaps/censored contacts retained; three seeds are not human/side fairness evidence. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -476,7 +478,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Sway exists, ADS retains 12% (88% reduction); shared camera FOV, no separate weapon FOV. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session91 both mirrored buildings use the same Box/RampDef objects for movement, current/historical shots and presentation. Both actual room analytic/hybrid aperture-vs-wall tests pass; ordinary stair/roof traversal and opposite-roof sightline tests pass. Weapon tables, timers and hit authority remain. |
+| R-G20 | met | Session92 terrain/structure solids are shared by movement, current/historical shots, grenades and presentation. Client prediction and actual room replication match descent to-3m; analytic/hybrid corridor-versus-earth shots pass. Ramp hit occlusion retains its conservative three-step approximation; movement uses exact slopes. |
 | R-L01 | met | Session52 Air Support3/3 ON:3-kill UAV,5-kill mortar,7-kill sentry.12s stationary sentry,60s shared airspace,900ms frozen-point warning,22m range,34damage/1.8s; dodge/cover/owner-death counterplay. One trailing-team gun/grenade operator shutdown earns +1TDM behind5 or +5DOM behind20. Death/seat/round reset and no recursive support earning tested. Human balance open. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -487,8 +489,8 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Session91 Relay northern rusher route crosses both ground floors and ordinary patrols include paired interior/power anchors instead of spawn-bay circuits. Natural rooms record actual interior visits and combat. Fixed map knowledge only; perception/reaction/health/damage unchanged. Roof bot navigation and human tactics remain open. |
-| R-L12 | partial | Session91 Places B1/3 ON: two larger concrete interiors, fourteen windows, paired defended roofs and actual bot traffic. Four matched camera pairs, two ordinary-input room/roof drills and a20s normal TDM sequence. Sunken routes, boundary mass, other-map buildings and human art acceptance remain open. |
+| R-L11 | partial | Session92 cached bot flow fields follow the yard and negative ramps, reject retaining-edge shortcuts and route through the lower bridge clearance. Three natural rounds show trench and paired-room traffic/combat. No bot perception/damage advantage; roof/upper-bridge routing and human tactics remain open. |
+| R-L12 | partial | Session92 Places B2/3 ON: real sunken service route, two ramps, staggered machinery, bridge underpass, cable details and rebaked ground/architecture. Matched overhead/vista, both ordinary-input trench drills and normal20s TDM sequence. Relay site/boundary stage, other-map buildings and human art acceptance remain open. |
 | R-L13 | partial | Session86 retains large faded torso/shoulder team masses and helmet identification while neutral equipment carries less of the team rim. Same opaque depth test and uniform-only colour selection. Yellow/Violet and covered/empty controls checked on the production renderer. Human all-range recognition remains open. |
 | R-L14 | partial | Session91 Relay235peak draws,32textures,51.0781MiB unchanged; four stress fixtures pass. Fresh TDM/FFA hitch gates pass the unchanged Session74 policy; first damage/death max13.2ms. All startup and measured>150ms gaps remain in session91-hitch-summary.json. No universal150ms/iGPU/thermal acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
@@ -506,36 +508,32 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session91 re-ranks all63 rows under ART-CONCEPT.md. Places B1/3 is ON:
-two larger Relay interiors, paired roof positions and actual indoor bot traffic.
-Places A, Field Conditions3/3, Issued Kit3/3 and Session80's first-fight proof
-stand. Public ceiling60MiB, per-file25MiB, lazy maps and64MiB resident textures
-remain. Relay uses235peak draws/32textures; reuse and pack images.
+Session92 re-ranks all63 rows under ART-CONCEPT.md. Places B2/3 is ON:
+paired functional Relay rooms and roofs now have a true -3m cable trench,
+shared earth collision, both end ramps and natural combat below the yard.
+Public ceiling60MiB, per-file25MiB, lazy maps,64MiB/32 resident textures,
+240 stress draws and the accepted Session74/80 hitch policy remain.
 
-1. **Places B2/3: Relay's playable sunken route (R-M01/07/11/18/20, R-L12/14).**
-   Two enterable rooms and mirrored +3m roofs now work and see natural combat.
-   Next provide the missing -2..-3m service route with an actual shared floor
-   contract: physics ground clamp, zero-origin ramps, codec lower bound,
-   projectiles/shot surfaces and bot navigation must agree. Negative boxes alone
-   cannot do it. Keep the three main lanes and10-15s rotations; re-bake and
-   capture the same full overhead. B3/3 completes Relay's surrounding site,
-   cover/entry review and traversal; keep the arc within three sessions and
-   playable by default. Then Places C Undertow, D Switchyard, E pool-wide
-   substantial boundaries and offset footprints. No false rotated render cover.
+1. **Places B3/3: finish Relay as a working site (R-M01/08/11/13/18/20, R-L12/14).**
+   Complete the arc with substantial boundary/site mass, credible service
+   connections and deliberate offset composition around the playable rooms,
+   roofs and trench. Review cover, entries and whole-map traversal; retain
+   exact collision, three major levels and10-15s rotations. Re-bake and capture
+   the same full overhead. Then Places C Undertow, D Switchyard, E pool-wide
+   boundaries/offset footprints. Keep each arc green and playable by default.
 2. **Battle evidence, air and remaining weapon silhouettes (R-L12-14, R-G09/12).**
    Integrate damage, emplacements and parked vehicles with the new routes.
    Four secondary weapons retain older silhouettes. Programme1000credits
    remain; supervisor balance1230, cap150/session. Inspect, reject and pack.
-3. **GPU/device acceptance (R-L14).** Preserve the accepted Session74 policy
-   and compositor preparation. Session91 first damage/death max13.2ms;
-   every larger loading/presentation interval is retained in the session log.
-   Timing alone does not establish driver cause. Laptop iGPU/thermal, real6v6/
-   RTT and Firefox/Safari acceptance remain open. No threshold/exclusion change.
+3. **GPU/device acceptance (R-L14).** Preserve Session74 thresholds and
+   Session80 compositor preparation. Keep every larger startup/presentation
+   gap in the evidence. Laptop iGPU/thermal, real6v6/RTT and Firefox/Safari
+   acceptance remain open; timing alone does not establish driver cause.
 4. **Contact pacing and court counterplay (R-M07/09/20, R-L02/11).**
-   Session91 initial15.70-16.35s, respawn16.50-18.05s remain below20-30s.
-   The matched respawn median improves14.00->16.70s and fast contacts5->1;
-   initial contact gets earlier17.35->16.35s. Preserve the mixed result and
-   covered spawns; three seeds are not many-round side/human fairness evidence.
+   Session92 opening15.70-16.35s and respawn15.45-16.50s remain below20-30s.
+   Matched opening unchanged; respawn16.70->16.40s and fast contacts1->2.
+   Preserve this mixed result and covered spawns. More seeds and human
+   matches are needed before side fairness or tactical acceptance claims.
 5. **Actual highlight replay (R-L06).** MVP selection exists; capture/playback
    remains a separate arc.
 6. **Flow, accessibility and communication (R-L08-10/19-23).** Combined first

@@ -39,6 +39,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
 
   for (const b of map.boxes) {
+    if (map.terrain?.boxes.includes(b)) continue; // earth tops use the ground atlas
     // Moving shutters have their own prebuilt render kit; never bake a closed
     // door or its shadow across the passage into the permanent architecture.
     if (map.signalCore?.doors.includes(b)) continue;
@@ -135,7 +136,17 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   // Painted lane edges, crossing bars and hazard chevrons: flush with the floor.
   for (const z of [25, 50, 75].map(z => z * depth / 100)) {
     for (const [x, w] of [[width * .18, 12], [width / 2, 16], [width * .82, 12]]) {
-      add("paint", x!, 0.007, z, w!, 0.012, 0.065);
+      let paintWidth = w!;
+      const cut = map.terrain?.cut;
+      if (cut && z >= cut.minZ && z <= cut.maxZ && x! + w! / 2 > cut.minX && x! - w! / 2 < cut.maxX) {
+        // The old stripe crossed empty air after excavation. Only the actual
+        // yard bridge supports ground paint here; trim it to that exact slab.
+        const slab = map.structures?.flatMap(s => s.parts).find(p => p.kind === 'slab' && p.box.max.y === 0
+          && x! > p.box.min.x && x! < p.box.max.x && z > p.box.min.z && z < p.box.max.z)?.box;
+        if (!slab) continue;
+        paintWidth = Math.min(w!, 2 * Math.min(x! - slab.min.x, slab.max.x - x!) - .1);
+      }
+      add("paint", x!, 0.007, z, paintWidth, 0.012, 0.065);
       for (let i = -2; i <= 2; i++) add("paint", x! + i * 0.45, 0.008, z + 0.55, 0.18, 0.014, 0.8);
     }
   }

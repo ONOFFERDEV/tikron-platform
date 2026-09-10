@@ -42,6 +42,7 @@ export interface MetaConfig {
 /** Arena extents (src/config.ts's `ARENA`). MUST stay in lock-step with every
  *  map's `bounds` and the wire codec's quant ranges — see {@link assertMapsFitArena}. */
 export interface ArenaConfig {
+  floor?: number;
   width: number;
   depth: number;
   ceiling: number;

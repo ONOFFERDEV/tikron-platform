@@ -3,8 +3,25 @@ import * as T from 'three';
 import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { relayDamageGeometry, relayDamagePatches, relaySandbagGeometry } from '../client/relay-fieldworks.js';
+import { buildRelayEnvironment } from '../client/relay-environment.js';
 
 describe('Relay fieldworks authority and packing', () => {
+  it('keeps yard paint over solid ground after excavating the freight lane', () => {
+    const scene=new T.Scene();buildRelayEnvironment(scene,ARENA1,true);scene.updateMatrixWorld(true);
+    const paint=scene.getObjectByName('relay-paint') as T.InstancedMesh;
+    expect(paint).toBeDefined();const matrix=new T.Matrix4(),p=new T.Vector3();
+    const vertices=paint.geometry.getAttribute('position');
+    for(let i=0;i<paint.count;i++) {
+      paint.getMatrixAt(i,matrix);matrix.premultiply(paint.matrixWorld);
+      for(let j=0;j<vertices.count;j++) {
+        p.fromBufferAttribute(vertices,j).applyMatrix4(matrix);
+        expect(ARENA1.boxes.some(b=>b.max.y===0&&p.x>=b.min.x-1e-5&&p.x<=b.max.x+1e-5
+          &&p.z>=b.min.z-1e-5&&p.z<=b.max.z+1e-5),JSON.stringify(p)).toBe(true);
+      }
+    }
+    scene.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});
+  });
+
   it('backs every vertical scar with one intact collider and keeps residue flat on open ground', () => {
     const patches = relayDamagePatches(ARENA1), geometry = relayDamageGeometry(ARENA1);
     const positions = geometry.getAttribute('position');
@@ -15,7 +32,7 @@ describe('Relay fieldworks authority and packing', () => {
       if (patch.ground) {
         expect(bounds.min.y).toBeCloseTo(.019, 6);
         expect(bounds.max.y).toBeCloseTo(.019, 6);
-        expect(ARENA1.boxes.some(b => bounds.min.x < b.max.x && bounds.max.x > b.min.x &&
+        expect(ARENA1.boxes.some(b => b.max.y > bounds.min.y && bounds.min.x < b.max.x && bounds.max.x > b.min.x &&
           bounds.min.z < b.max.z && bounds.max.z > b.min.z)).toBe(false);
       } else {
         expect(ARENA1.boxes.some(b => new T.Box3(new T.Vector3(b.min.x, b.min.y, b.min.z),

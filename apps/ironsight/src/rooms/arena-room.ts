@@ -159,7 +159,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // v14 enlarges Relay Comms and replaces the opposite shelter with Control.
   // Reset older snapshots so saved players cannot restore inside new walls or
   // above the replaced roof. Default null migration starts a fresh match.
-  protected override stateVersion = 14;
+  protected override stateVersion = 15;
   protected readonly codec = ArenaSchema;
   protected override tickMs = TICK_MS;
   // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
@@ -1401,8 +1401,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         weapon: weaponSlot ?? null,
         head: part === "head",
         vx: Math.round(victim.x * 10) / 10,
+        vy: Math.round(victim.y * 10) / 10,
         vz: Math.round(victim.z * 10) / 10,
         kx: killerP ? Math.round(killerP.x * 10) / 10 : null,
+        ky: killerP ? Math.round(killerP.y * 10) / 10 : null,
         kz: killerP ? Math.round(killerP.z * 10) / 10 : null,
         vBot: this.botBrains.has(victimId),
         kBot: this.botBrains.has(killerId),

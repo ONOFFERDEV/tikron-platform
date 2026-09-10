@@ -43,6 +43,7 @@ const CASING_FADE_MS = 1000;
 const CASING_GRAVITY = -9.8;
 
 interface CasingSlot {
+  floor: number;
   mesh: THREE.Mesh;
   mat: THREE.MeshStandardMaterial;
   vel: THREE.Vector3;
@@ -89,7 +90,7 @@ export class Vfx {
   private readonly seenFeet = new Set<string>(); // ids stepFoot() saw this frame; reused, cleared in update()
   private lastTick = performance.now();
 
-  constructor(private readonly scene: THREE.Scene) {
+  constructor(private readonly scene: THREE.Scene, private readonly floorAt: (p: Vec3) => number = () => 0) {
     for (let i = 0; i < MUZZLE_POOL; i++) this.muzzles.push(this.buildMuzzle());
     for (let i = 0; i < CASING_POOL; i++) this.casings.push(this.buildCasing());
     for (let i = 0; i < PARTICLE_POOL; i++) this.particles.push(this.buildParticle());
@@ -127,7 +128,7 @@ export class Vfx {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.07, 6), mat);
     mesh.visible = false;
     this.scene.add(mesh);
-    return { mesh, mat, vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9 };
+    return { mesh, mat, vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9, floor: 0 };
   }
 
   private buildParticle(): ParticleSlot {
@@ -166,6 +167,7 @@ export class Vfx {
   /** Eject a pooled casing from a hitscan shot's origin with a right+up impulse. */
   spawnCasing(origin: Vec3, dir: Vec3): void {
     const slot = this.casings[this.casingCursor]!;
+    slot.floor = this.floorAt(origin) + .02;
     this.casingCursor = (this.casingCursor + 1) % this.casings.length;
     const d = normalize(dir);
     let right = new THREE.Vector3().crossVectors(d, UP);
@@ -292,8 +294,8 @@ export class Vfx {
         c.vel.y += CASING_GRAVITY * dt;
         c.mesh.position.addScaledVector(c.vel, dt);
         c.mesh.rotation.x += dt * 10;
-        if (c.mesh.position.y <= 0.02 || now - c.born >= CASING_MAX_FLIGHT_MS) {
-          c.mesh.position.y = 0.02;
+        if (c.mesh.position.y <= c.floor || now - c.born >= CASING_MAX_FLIGHT_MS) {
+          c.mesh.position.y = c.floor;
           c.grounded = true;
           c.groundedAt = now;
         }

@@ -24,6 +24,8 @@ export function assertMapsFitArena(cfg: GameConfig): string[] {
   const { width, depth, ceiling } = cfg.arena;
   for (const [id, map] of Object.entries(cfg.maps)) {
     const b = map.bounds;
+    if (!Number.isFinite(b.floor ?? 0) || (b.floor ?? 0) < (cfg.arena.floor ?? 0))
+      errs.push(`map "${id}".floor must fit arena wire envelope`);
     if (![b.width, b.depth, b.ceiling].every(v => Number.isFinite(v) && v > 0) || b.width > width || b.depth > depth || b.ceiling > ceiling) {
       errs.push(
         `map "${id}".bounds (${b.width}x${b.depth}x${b.ceiling}) must fit arena envelope ` +

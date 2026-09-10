@@ -33,9 +33,11 @@ export interface Box {
 }
 
 export interface Bounds {
+  /** Lowest walkable datum; omitted preserves legacy y=0 ground. */
+  floor?: number;
   width: number; // x ∈ [0, width]
   depth: number; // z ∈ [0, depth]
-  ceiling: number; // y ∈ [0, ceiling]
+  ceiling: number; // y ∈ [floor ?? 0, ceiling]
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -137,7 +139,7 @@ export function moveAndSlide(
   //     move above got meaningfully blocked. Retries the horizontal pass with feet
   //     raised by `stepUp`; adopted only if it makes strictly more progress AND the
   //     raised spot has headroom (canStand) — otherwise the blocked result above stands. ---
-  if (stepUp > 0 && vyIn <= 0 && restingAt(pos.x, pos.y, pos.z, radius, boxes, ramps)) {
+  if (stepUp > 0 && vyIn <= 0 && restingAt(pos.x, pos.y, pos.z, radius, boxes, ramps, bounds.floor ?? 0)) {
     const intendedDist = Math.hypot(delta.x, delta.z);
     const actualDist = Math.hypot(x - pos.x, z - pos.z);
     if (intendedDist > 1e-6 && actualDist < intendedDist - 1e-3) {
@@ -183,8 +185,9 @@ export function moveAndSlide(
 
   // --- vertical ---
   y = y + delta.y;
-  if (y <= 0) {
-    y = 0;
+  const floor = bounds.floor ?? 0;
+  if (y <= floor) {
+    y = floor;
     if (vy < 0) vy = 0;
     grounded = true;
   }
@@ -265,15 +268,18 @@ export function moveAndSlide(
   // step may cross the footprint (including floating-point epsilon), so the
   // in-footprint glue above cannot catch it. Do not create a one-frame airborne
   // dip for a grounded walker; jumping and high-side exits remain ballistic.
-  if (!grounded && vyIn <= 0 && y > 0 && y <= stepUp) {
+  if (!grounded && vyIn <= 0) {
     for (const r of ramps) {
+      const base = r.baseY ?? 0;
+      if (y <= base || y > base + stepUp) continue;
       const coord = r.axis === 'x' ? x : z;
       const low = r.dir === 1 ? (r.axis === 'x' ? r.minX : r.minZ) : (r.axis === 'x' ? r.maxX : r.maxZ);
       const crossedLow = r.dir === 1 ? coord < low : coord > low;
       const wasOnLowSlope = insideRampFootprint(pos.x, pos.z, r)
-        && rampSurfaceY(r, pos.x, pos.z) <= stepUp
+        && rampSurfaceY(r, pos.x, pos.z) <= base + stepUp
         && Math.abs(pos.y - rampSurfaceY(r, pos.x, pos.z)) <= 0.02;
-      if (crossedLow && wasOnLowSlope) { y = 0; vy = 0; grounded = true; break; }
+      const supported = base === floor || boxes.some(b => Math.abs(b.max.y - base) < .001 && overlapsXZ(x, z, radius, b));
+      if (crossedLow && wasOnLowSlope && supported) { y = base; vy = 0; grounded = true; break; }
     }
   }
   return { pos: { x, y, z }, vy, grounded };
@@ -285,7 +291,7 @@ function insideRampFootprint(x: number, z: number, r: RampDef): boolean {
 }
 
 /**
- * A ramp's sloped surface height at `(x, z)` — linear from 0 at the low end to
+ * A ramp's sloped surface height at `(x, z)` — linear from baseY at the low end to
  * `r.topY` at the high end along `r.axis`, climbing toward `r.dir`. Callers are
  * expected to only ask this for a point inside `r`'s footprint (see
  * {@link insideRampFootprint}).
@@ -298,7 +304,7 @@ export function rampSurfaceY(r: RampDef, x: number, z: number): number {
   const range = max - min;
   const t = range > 1e-9 ? clamp((coord - min) / range, 0, 1) : 0;
   const progress = r.dir === 1 ? t : 1 - t;
-  return progress * r.topY;
+  return (r.baseY ?? 0) + progress * (r.topY - (r.baseY ?? 0));
 }
 
 /**
@@ -374,7 +380,7 @@ export function canStand(
   boxes: readonly Box[],
   bounds: Bounds,
 ): boolean {
-  if (y + height > bounds.ceiling) return false;
+  if (y < (bounds.floor ?? 0) - 1e-6 || y + height > bounds.ceiling) return false;
   for (const b of boxes) {
     if (overlapsXZ(x, z, radius, b) && overlapsY(y, height, b) && b.max.y > y + 1e-3) {
       return false;
@@ -397,8 +403,9 @@ function restingAt(
   radius: number,
   boxes: readonly Box[],
   ramps: readonly RampDef[] = [],
+  floor = 0,
 ): boolean {
-  if (y <= 1e-3) return true;
+  if (Math.abs(y - floor) <= 1e-3) return true;
   if (boxes.some((b) => overlapsXZ(x, z, radius, b) && Math.abs(y - b.max.y) <= 1e-3)) return true;
   // Standing glued to a ramp's sloped surface counts as resting too — without
   // this, a player climbing a ramp could never step-up over the small lip where
@@ -450,7 +457,7 @@ function tryStepUp(
 
   if (!canStand(rx, raisedY, rz, radius, height, boxes, bounds)) return null;
 
-  let landY = 0;
+  let landY = bounds.floor ?? 0;
   for (const b of boxes) {
     if (!overlapsXZ(rx, rz, radius, b)) continue;
     if (b.max.y <= raisedY + 1e-6 && b.max.y > landY) landY = b.max.y;

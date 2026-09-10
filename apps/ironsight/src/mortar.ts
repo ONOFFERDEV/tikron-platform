@@ -1,6 +1,7 @@
 import type { ArenaPlayer, ArenaState } from './schema.js';
 import { nearestBox, type Box, type Bounds, type Vec3 } from './physics.js';
 import { dirFromAngles } from './weapons.js';
+import { groundRay } from './map/terrain.js';
 
 export const MORTAR = { kills: 5, range: 60, minimumRange: 8, warningMs: 3000,
   intervalMs: 650, rounds: 3, radius: 6, damage: 125, cooldownMs: 45000, tailMs: 1600 } as const;
@@ -14,11 +15,13 @@ export function mortarTarget(p: ArenaPlayer, yaw: number, pitch: number, boxes: 
   if (!Number.isFinite(yaw) || !Number.isFinite(pitch) || Math.abs(pitch) > Math.PI / 2) return null;
   const dir = dirFromAngles(yaw, pitch), origin = { x: p.x, y: p.y + (p.crouch ? 1 : 1.65), z: p.z };
   if (dir.y >= -.001) return null;
-  const distance = -origin.y / dir.y;
+  const distance = groundRay(origin, dir, boxes, bounds, MORTAR.range);
   if (distance < MORTAR.minimumRange || distance > MORTAR.range || nearestBox(origin, dir, boxes, distance) < distance - .01) return null;
   const x = origin.x + dir.x * distance, z = origin.z + dir.z * distance;
+  const y = origin.y + dir.y * distance;
+  if (Math.abs(y) > .001 && Math.abs(y - (bounds.floor ?? 0)) > .001) return null;
   if (x < 1 || z < 1 || x > bounds.width - 1 || z > bounds.depth - 1) return null;
-  const point = { x, y: .12, z };
+  const point = { x, y: (Math.abs(y) <= .001 ? 0 : (bounds.floor ?? 0)) + .12, z };
   return nearestBox(point, { x: 0, y: 1, z: 0 }, boxes, 100) < 100 ? null : point;
 }
 

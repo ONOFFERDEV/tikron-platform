@@ -41,7 +41,7 @@ describe("Relay encounter safety", () => {
       expect((height >= 1 && height <= 1.25) || height >= 1.75).toBe(true);
     }
     expect(new Set(ARENA1.boxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([2.72, 3, 6]));
-    expect(ARENA1.ramps!.every(r => r.topY === 3)).toBe(true);
+    expect(ARENA1.ramps!.every(r => r.topY - (r.baseY ?? 0) === 3)).toBe(true);
   });
   it("no team spawn has a direct eye-height shot into any opposing spawn", () => {
     for (const a of ARENA1.spawns.red) for (const b of ARENA1.spawns.blue) {
@@ -66,11 +66,11 @@ describe("Relay encounter safety", () => {
   });
   it("pairs the rooms, stair voids, consoles and yard cover across the map", () => {
     const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-    for (const a of ARENA1.boxes) {
+    for (const a of ARENA1.boxes.filter(b => !ARENA1.structures!.find(s => s.id === 'freight-trench')!.parts.some(p => p.box === b))) {
       expect(ARENA1.boxes.some(b => near(b.min.x, ARENA1.bounds.width - a.max.x) && near(b.max.x, ARENA1.bounds.width - a.min.x)
         && near(b.min.z, a.min.z) && near(b.max.z, a.max.z) && near(b.min.y, a.min.y) && near(b.max.y, a.max.y)), JSON.stringify(a)).toBe(true);
     }
-    expect(ARENA1.structures!.map(s => s.footprint)).toEqual([
+    expect(ARENA1.structures!.filter(s => s.id !== 'freight-trench').map(s => s.footprint)).toEqual([
       { minX: 34, maxX: 56, minZ: 34, maxZ: 44 }, { minX: 94, maxX: 116, minZ: 34, maxZ: 44 },
     ]);
   });

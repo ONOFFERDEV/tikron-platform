@@ -430,7 +430,7 @@ export class SceneRig {
     return this.cargoCrane ? {...this.cargoCrane.inspect(),playableRoute:!!this.cargoCounterweight,core:this.cargoCounterweight?.inspect()} : null;
   }
 
-  constructor(map: MapDef, container: HTMLElement = document.body,
+  constructor(private readonly map: MapDef, container: HTMLElement = document.body,
     options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
     // Keep the light count stable: adding/removing a light recompiles every
     // lit material. Newest four blasts share a fixed budget, like muzzle flashes.
@@ -498,7 +498,10 @@ export class SceneRig {
     this.scene.add(key);
     this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, atmosphere?.ambientIntensity ?? (relay ? 0.12 : VIS.lighting.ambient)));
 
-    this.vfx = new Vfx(this.scene);
+    this.vfx = new Vfx(this.scene, p => {
+      const t = nearestBox(p, { x: 0, y: -1, z: 0 }, this.hitBoxes, p.y - (map.bounds.floor ?? 0) + .1);
+      return Number.isFinite(t) ? p.y - t : (map.bounds.floor ?? 0);
+    });
     this.combatFx = new CombatFx(this.scene);
     this.scopeGlints = new ScopeGlints(this.scene);
     this.buildArena(map);
@@ -1098,8 +1101,8 @@ export class SceneRig {
         // A downward ray finds the same platform/ramp surfaces used by shots.
         // Ground is the fallback; the decal fades while jumping above it.
         const distance = nearestBox({ x: pose.x, y: pose.y + 0.05, z: pose.z },
-          { x: 0, y: -1, z: 0 }, this.hitBoxes, pose.y + 0.1);
-        const floor = Number.isFinite(distance) ? pose.y + 0.05 - distance : 0;
+          { x: 0, y: -1, z: 0 }, this.hitBoxes, pose.y - (this.map.bounds.floor ?? 0) + 0.1);
+        const floor = Number.isFinite(distance) ? pose.y + 0.05 - distance : (this.map.bounds.floor ?? 0);
         rig.contact.position.y = floor - pose.y + 0.018;
         rig.contact.material.opacity = Math.max(0, 0.48 - (pose.y - floor) * 0.2);
         rig.contact.visible = pose.alive;
