@@ -28,6 +28,8 @@ export interface ModeCtx {
   broadcast(type: string, payload: unknown): void;
   /** Players within `r` metres of `(x, z)` on the ground plane. */
   playersAt(x: number, z: number, r: number): { id: string; team: number; alive: boolean }[];
+  /** Actual uncontested gauge movement, for non-scoring round honors. */
+  captureProgress?(ids: readonly string[], gauge: number): void;
 }
 
 export interface GameMode {
@@ -103,6 +105,8 @@ export const DOM_MODE: GameMode = {
       let gauge = ctx.state[key];
       if (hasRed && !hasBlue) gauge = Math.min(200, gauge + step);
       else if (hasBlue && !hasRed) gauge = Math.max(0, gauge - step);
+      const progress = Math.abs(gauge - ctx.state[key]);
+      if (progress > 0) ctx.captureProgress?.(occupants.map(p => p.id), progress);
       ctx.state[key] = gauge;
     }
 

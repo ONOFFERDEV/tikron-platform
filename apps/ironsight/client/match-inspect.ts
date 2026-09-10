@@ -10,6 +10,12 @@ export function startMatchInspector(): void {
   const state: ArenaState = { players: {}, seed: 1, redScore: 50, blueScore: 42,
     phase: 'ended', matchEndMs: 0, signalAt: 0, coreOpen: false, warmupEndMs: 0, mode: 0, capA: 100, capB: 100, capC: 100 };
   const solo = shot.includes('ffa');
+  const dom = shot.includes('dom');
+  const mvp = shot.includes('defeat')
+    ? { id: 'rook', name: 'Rook', isMe: false, team: 1, kills: 14, assists: 5, captureSeconds: 0, score: 33 }
+    : dom
+    ? { id: 'sable', name: 'Sable', isMe: false, team: 0, kills: 12, assists: 7, captureSeconds: 16, score: 47 }
+    : { id: 'self', name: 'KESTREL', isMe: true, team: 0, kills: 16, assists: 5, captureSeconds: 0, score: 37 };
   const rows = ['KESTREL', 'Sable', 'Morrow', 'Echo', 'Vega', 'Peregrine',
     'Rook', 'Sentinel', 'Warden', 'Lark', 'Copper', 'Northstar'].map((name, i) => ({
     name, k: [16, 12, 9, 6, 5, 2, 14, 10, 7, 5, 4, 2][i]!,
@@ -20,7 +26,8 @@ export function startMatchInspector(): void {
     hud.setMatchContext(state, 0, 'self');
     if (shot === 'match-reconnect') hud.showConnection(false);
     else hud.showMatchEnd(shot.includes('draw') ? 'draw' : solo ? 'KESTREL' : shot.includes('defeat') ? 'blue' : 'red',
-      50, 42, 16, 9, solo, { rows, won: !shot.includes('defeat') });
+      50, 42, 16, 9, solo, { rows, won: !shot.includes('defeat'), dom,
+        mvp: shot.includes('draw') || shot.includes('legacy') ? undefined : mvp });
   }
   const checks: Record<string, boolean> = {};
   if (shot.startsWith('match-deployment')) {
@@ -145,6 +152,16 @@ export function startMatchInspector(): void {
       hud.showMatchEnd('red', 50, 42, 1, 0, false, sample);
       const overlay = document.querySelector<HTMLElement>('#overlay')!;
       checks.escapedRoster = !overlay.querySelector('img') && overlay.textContent!.includes('<img');
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, dom: true,
+        mvp: { ...mvp, name: '<img src=x onerror=alert(1)>', id: '\"><img src=x>' } });
+      checks.escapedMvp = !overlay.querySelector('img') && overlay.querySelector('.honorsBody h2')!.textContent!.includes('<img');
+      checks.mvpRule = overlay.querySelector('.honorsRule')!.textContent!.includes('shared capture second');
+      const card = overlay.querySelector('.roundHonors');
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, dom: true,
+        mvp: { ...mvp, name: '<img src=x onerror=alert(1)>', id: '\"><img src=x>' } });
+      checks.stableMvp = card === overlay.querySelector('.roundHonors');
+      hud.showMatchEnd('red', 50, 42, 1, 0, false, sample);
+      checks.oldServer = !overlay.querySelector('.roundHonors');
       checks.sorted = overlay.querySelector('tbody tr td:nth-child(2)')?.textContent === 'Tie fewer deaths';
       checks.localRow = overlay.querySelectorAll('tr.me').length === 1;
       checks.zeroDeaths = overlay.querySelector('.personalStats div:last-child strong')?.textContent === '—';
@@ -162,6 +179,8 @@ export function startMatchInspector(): void {
       hud.resetVoteStatus();
       if (Object.values(checks).some(ok => !ok)) throw Error(`Results checks failed: ${JSON.stringify(checks)}`);
     }
+    settings.setReducedMotion(shot.includes('reduced'));
+    hud.update(performance.now());
     render();
     if (shot !== 'match-reconnect') {
       const overlay = document.querySelector<HTMLElement>('#overlay')!;
@@ -169,6 +188,13 @@ export function startMatchInspector(): void {
       const rect = panel.getBoundingClientRect();
       checks.horizontalFit = rect.left >= 0 && rect.right <= innerWidth && panel.scrollWidth <= panel.clientWidth;
       checks.rosterComplete = overlay.querySelectorAll('tbody tr').length === rows.length;
+      const honors = overlay.querySelector<HTMLElement>('.roundHonors');
+      checks.mvpPresent = !!honors === !(shot.includes('draw') || shot.includes('legacy'));
+      if (honors) {
+        checks.mvpFits = honors.scrollWidth <= honors.clientWidth && honors.getBoundingClientRect().right <= innerWidth;
+        checks.mvpScore = honors.querySelector('.honorsScore strong')!.textContent === String(mvp.score);
+        checks.mvpMotion = !shot.includes('reduced') || getComputedStyle(honors).animationName === 'none';
+      }
       overlay.scrollTop = overlay.scrollHeight;
       const actions = overlay.querySelector('.resultActions')!.getBoundingClientRect();
       checks.actionsReachable = actions.top >= 0 && actions.bottom <= innerHeight;

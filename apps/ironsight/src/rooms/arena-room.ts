@@ -1,4 +1,5 @@
 import { DomOrders } from '../dom-orders.js';
+import { RoundHonors, type RoundResult } from '../round-honors.js';
 import { DRONE, DroneSupport } from '../drone.js';
 import { AirSupport } from '../air-support.js';
 import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
@@ -26,6 +27,7 @@ import {
   HYBRID,
   LAG,
   MATCH,
+  MODES,
   MOVE,
   PLAYER,
   TEAM,
@@ -227,8 +229,10 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly spawnSightHistory = new SpawnSightHistory();
   /** Sim tick the post-match intermission ends and the arena resets (phase "ended"). */
   private endedUntil: number | undefined;
+  /** Frozen round evidence, also returned to late subscribers by syncView. */
+  private roundResult: RoundResult | null = null;
+  private readonly roundHonors = new RoundHonors();
   /** One vote per player id; only meaningful while phase is "ended". */
-  private roundResult: { winner: string; red: number; blue: number } | null = null;
   private readonly restartVotes = new Set<string>();
   /** Recent non-lethal damage per victim, for assist attribution: victim → [{attacker, dmg, at}]. */
   private readonly hits = new Map<string, { attacker: string; dmg: number; at: number; ambush?: boolean }[]>();
@@ -450,6 +454,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   protected override onSeatExpired(client: Client): void {
+    this.roundHonors.forget(client.id);
     this.airSupport.forget(client.id);
     this.mortarSupport.forget(client.id);
     this.droneSupport.forget(client.id);
@@ -1358,6 +1363,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       victim.d += 1;
       if (killerId !== victimId) {
         assist = this.assistFor(victimId, killerId, now);
+        this.roundHonors.assist(this.state, assist, killerId, victimId);
         const killer = this.state.players[killerId];
         if (killer) {
           killer.k += 1;
@@ -1693,6 +1699,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private removeBot(id: string): void {
+    this.roundHonors.forget(id);
     this.mortarSupport.forget(id);
     this.droneSupport.forget(id);
     this.sendDroneViews();
@@ -1831,7 +1838,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.state.warmupEndMs = 0;
     this.endedUntil = this.currentTick + Math.ceil(this.intermissionMs / TICK_MS);
     this.restartVotes.clear();
-    this.roundResult = { winner: w, red: redScore, blue: blueScore };
+    const mvp = this.roundHonors.select(this.state, w);
+    this.roundResult = { winner: w, red: redScore, blue: blueScore, ...(mvp ? { mvp } : {}) };
     this.broadcast("matchEnd", this.roundResult);
   }
 
@@ -1868,6 +1876,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       state: this.state,
       now: Date.now(),
       broadcast: (type, payload) => this.broadcast(type, payload),
+      captureProgress: (ids, gauge) => this.roundHonors.capture(ids, gauge / MODES.dom.capturePerSec * 1000),
       playersAt: (x, z, r) => {
         const out: { id: string; team: number; alive: boolean }[] = [];
         for (const [id, p] of Object.entries(this.state.players)) {
@@ -1879,6 +1888,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   private resetMatch(now: number): void {
+    this.roundHonors.clear();
     this.domOrders.clear();
     this.botContacts.clear();
     this.airSupport.clear();

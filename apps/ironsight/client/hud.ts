@@ -9,6 +9,7 @@ import { GAME } from "../src/game-config.js";
 import { damageDirection } from './damage-direction.js';
 import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
+import { honorsCss, honorsMarkup, type PresentedMvp } from './round-honors.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -19,6 +20,8 @@ const WEAPONS = GAME.weapons;
 export interface ResultRoster {
   rows: { name: string; k: number; d: number; team: number; isMe: boolean }[];
   won: boolean;
+  mvp?: PresentedMvp;
+  dom?: boolean;
 }
 
 import { matchBrief } from "./match-presentation.js";
@@ -275,6 +278,7 @@ export class Hud {
     const focused = document.activeElement?.getAttribute('data-action');
     const scrollTop = this.overlay.scrollTop;
     this.overlayMarkup = markup;
+    this.overlay.dataset.honorsEnter = String(enteringEnd);
     this.overlay.innerHTML = markup;
     const focusTarget = focused ? this.overlay.querySelector<HTMLButtonElement>(`[data-action="${focused}"]:not(:disabled)`)
       ?? this.overlay.querySelector<HTMLButtonElement>('[data-action="leave"]')
@@ -293,7 +297,7 @@ export class Hud {
   constructor(settings: SettingsStore, container: HTMLElement = document.body) {
     this.settings = settings;
     const style = el("style");
-    style.textContent = css;
+    style.textContent = css + honorsCss;
     document.head.appendChild(style);
 
     this.root = el("div", "hud");
@@ -689,6 +693,7 @@ export class Hud {
       return `<section class="roster" style="--team:${team === null ? '#b8cccc' : team === 0 ? UI_RED : UI_BLUE}"><h2>${label} / ${rows.length}</h2><table aria-label="${label} final standings"><thead><tr><th scope="col">#</th><th scope="col">OPERATOR</th><th scope="col"><abbr title="Eliminations">K</abbr></th><th scope="col"><abbr title="Deaths">D</abbr></th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${r.isMe ? 'me' : ''}"><td>${i + 1}</td><td>${r.isMe ? '<span class="youTag">YOU</span>' : ''}${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`).join('')}</tbody></table></section>`;
     }).join('') : '';
     this.present('end', `<div class="debrief" style="--result-accent:${accent}" role="region" aria-label="Round results"><div class="eyebrow">RELAY / ROUND DEBRIEF</div><div class="resultHeader"><div><h1>${outcome}</h1><div class="resultWinner">${title}</div></div>${scoreLine}</div>`
+      + honorsMarkup(roster?.mvp, roster?.dom === true)
       + `<div class="personalStats" aria-label="Your performance"><div><strong>${myKills}</strong><span>ELIMINATIONS</span></div><div><strong>${myDeaths}</strong><span>DEATHS</span></div><div><strong>${myDeaths === 0 ? '—' : (myKills / myDeaths).toFixed(2)}</strong><span>K / D RATIO</span></div></div>`
       + (tables ? `<div class="rosters${teamless ? ' solo' : ''}">${tables}</div>` : '')
       + `<div class="resultFooter"><div><p>${voteLine}</p><p class="hint">The next round starts automatically after intermission. Standings show operators still in the room.</p></div><div class="resultActions">`

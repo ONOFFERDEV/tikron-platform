@@ -49,7 +49,9 @@ Session69 quick check (published per Session70 supervisor, commit 1101d88): oper
 
 Session70 quick check (published per Session71 supervisor, commit ab1fb9e): Undertow DOM, follow a B-bound teammate through Pump service. The two new B/PUMP HALL signs mark solid pump returns; round them and enter the existing court doors. Bots use this covered approach while A/C attackers retain the rifle lane. Pump Breach 1/1 is complete and on by default. Opening B fights move closer to the flag, but overall contact timing and fast respawn safety remain unaccepted; the three matched seeds have more fast respawn contacts than before.
 
-Session71 quick check (local candidate): Undertow DOM, take the northern deployment exit toward A or C. The new signed machinery baffle screens the inner lane. Round either end to peek, then push into the court with your teammates. Breakwater 1/1 is complete and on by default. In three matched bot seeds, contacts within five seconds of respawn fall from 2/1/2 to 0/0/0; overall pacing and human fairness remain unaccepted.
+Session71 quick check (published per Session72 supervisor, commit b43589e): Undertow DOM, take the northern deployment exit toward A or C. The new signed machinery baffle screens the inner lane. Round either end to peek, then push into the court with your teammates. Breakwater 1/1 is complete and on by default. In three matched bot seeds, contacts within five seconds of respawn fall from 2/1/2 to 0/0/0; overall pacing and human fairness remain unaccepted.
+
+Session72 quick check (local candidate): finish a TDM or Undertow DOM round. The amber FIELD HONORS card names the winning side's MVP and shows the actual contribution: two points per elimination, one per assist, plus one per shared second of useful flag progress in DOM. Idle ownership earns no capture credit. Listen for the short commendation sting; mute and Reduced motion retain the full award. Draws have no MVP. Field Honors 1/1 is complete and on by default. Replay and human scoring/fairness acceptance remain open.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -385,8 +387,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 71 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session71-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 72 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session72-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -398,7 +400,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M04 | met | Session71 static ground BFS retains A-B/B-C/A-C at Undertow14.22/14.22/11.33s, Relay14.44/14.44/11.78s, Switchyard14.44/14.44/11.56s. All remain in10-15s at sprint; walk values remain higher. No speed or target change. |
 | R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session71 matched Undertow seeds170684/5/6: initial medians17.1/18.0/18.1s unchanged; respawn16.7/18.4/17.2 ->17.7/18.1/18.7s. All below20-30s. Fast respawns2/1/2 ->0/0/0. Opening B contact within12m11/12 ->12/12. The local exit improvement is not overall pacing or fairness acceptance. |
+| R-M07 | not yet | Session72 read-only opening audit separates northern rifle-lane attackers (13.8-20.3s in the fixed cohort) from red home guard bot-1 (36.7/54.4/104s). Three matched rounds reproduce Session71 lives/contact samples exactly; initial17.1/18.0/18.1s and respawn17.7/18.1/18.7s remain below20-30s. No pacing acceptance or timer/HP change. |
 | R-M08 | partial | Session66 FREIGHT / 04 counterweight echoes the orange cargo under the east amber gantry; readable ground-level cover/open/held stills. West capacitor silhouettes retained. Human wayfinding remains open. |
 | R-M09 | partial | Session71 traces five fast contacts to the SECOND northern crossing after hidden spawns, with inner-lane threats. Mirrored baffles atx18-20/x130-132,z24-32 block the retained ray fixtures while both ends remain walkable. Three matched rounds remove sampled<5s respawn contacts; all-exposed fallback, human camping and side fairness remain open. Spawn scoring/protection unchanged. |
 | R-M10 | partial | Session71 signed full-cover baffles protect staging outside A/C courts, with a standing bypass/peek at either end. Existing court entrances, pump approaches and gallery retained.20.414s normal DOM sequence reaches A with teammates. Human defensive quality and all-objective entry audit remain open. |
@@ -411,7 +413,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session71 three natural twelve-bot DOM rounds/heatmaps:165:195/193:159/146:189,102/97/102kills,300s each. Fast respawns2/1/2 ->0/0/0; observed/censored respawns92/8,87/8,90/11. B opening contacts within12m4/4/4; exposed B strip samples1/1/6, so not every metric improves. Four-plus same-goal assignments with>=2unfinished flags remain0. No human fairness/win-rate claim. |
+| R-M20 | partial | Session72 seeds170684/5/6 reproduce Session71 scores165:195/193:159/146:189, all300s, and identical kills/lives/gallery/objective samples/heatmaps. MVP impact50/59/64 includes18/25/32 shared capture seconds; each is also its winning team's kill leader. Separate fixtures prove objective/assist-led selection. No human fairness or many-round win-rate claim. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -437,17 +439,17 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
 | R-L04 | met | 3000 ms live respawn and dynamic scoring retained. Session38 restores authoritative arrival aim once, wraps yaw into codec range, and passes real death/revival with no probe aim correction. Human camping acceptance remains open. |
 | R-L05 | partial | Session57 completes Deployment2/2: skippable aerial glide <=4.5s inside existing warmup, with a 3.5s deadline reserve checked each frame before the final countdown. Click/key consumes the skip; Reduced motion uses a still. Training/live/late/waiting joins bypass; pause/death/disconnect/deadline changes cancel permanently. Session56 countdown/audio retained. Results remain skippable20s without replicated intermission deadline/5-8s freeze; human flow acceptance open. |
-| R-L06 | not yet | No replay capture or highlight sequence. |
-| R-L07 | not yet | No objective/assist-aware MVP selection. |
+| R-L06 | not yet | Session72 Field Honors adds an objective/assist-aware MVP card and a short sting; no replay recording, killer POV or highlight playback. The5s intro/12s replay reference remains unmet. |
+| R-L07 | met | Session72 server MVP: winning seated team only;2/elimination+1/verified assist+1/whole shared useful capture second in DOM. Deterministic objective/assist/death/id ties; no award for draws/practice/zero contribution. Frozen matchEnd+syncView result, expiry/reset cleanup, actual gun-assist and capture-room tests. Natural327.292s DOM capture shows ANCHOR4,14kills/2assists/23s=53. Implemented selection/presentation check, not human scoring acceptance. |
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
 | R-L12 | partial | Session69 squared Fresnel edge uses the existing opaque material; emissive edge strength rises from .42 to .62 over10-45m. Original map/character palette retained by default. Matched stills show edge separation; no all-lighting/all-range or human readability acceptance. |
 | R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
-| R-L14 | partial | Session71 matched Undertow stress208->209peak calls,157818->159284triangles,25textures/60.6055MiB unchanged,6.9ms median on RTX5070. Six required gates pass, but supplementary ordinary DOM FAIL343ms at first death with323/334V8 samples idle, no JS long task/shader change. One subsequent diagnostic trace does not reproduce it and does not override the failure. Prior ANGLE/mid-combat stalls remain unresolved; no laptop iGPU/thermal acceptance. |
+| R-L14 | partial | Session72 matched Undertow stress stays209 calls/159284triangles,25textures/60.6055MiB,6.9ms median on RTX5070. Six required gates pass; ordinary DOM through results PASS 312,302.6ms/9deaths,0>150ms frames,0shader changes,0errors. Historical343ms/814.7ms stalls remain unresolved; no iGPU/thermal or universal hitch acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session71 Breakwater1/1 ON: the same two physical baffles shield the northern crossing, offer two peeking exits and announce A/C. Matching bakes and20.414s natural DOM capture. Five sampled fast respawns disappear; human excitement/overall pacing remain open. Prior map events retained. |
+| R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -459,42 +461,39 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session71: all63 reference rows reviewed. The unchanged traced FFA preflight
-and six required gates pass, but supplementary ordinary DOM fails343ms at
-first death. One diagnostic trace does not reproduce it; no renderer/probe
-workaround is shipped. Breakwater1/1 completes the bounded northern exit
-action block with collision-backed baffles and destination signs. It removes
-the five sampled fast respawn contacts while preserving rotations and B's
-pump route. Contact medians still miss20-30s; no human fairness acceptance.
+Session72: all63 reference rows reviewed. Field Honors1/1 is complete and ON:
+the winning side receives an objective/assist-aware MVP card, explicit impact
+breakdown and a short commendation sting. Three matched rounds preserve all
+gameplay telemetry. Opening-route audit finds fast attacking rifle-lane contacts
+and a very quiet red home guard; one blanket cover change cannot solve both.
+The traced DOM preflight passes without reproducing the historical GPU stalls.
+Final gate outcomes are recorded in the Session72 entry below.
 
-1. **Intermittent GPU hitches (R-L14), preflight priority.** Session71 ordinary
-   DOM fails343ms at36.674s/first death;323/334V8 samples idle, no long task,
-   shader change or error. The diagnostic101.378s DOM trace does not reproduce
-   it. FFA preflight and required TDM pass but do not negate this failure,
-   Session70's814.7ms ANGLE stall or Session68's mid-combat FFA/DOM failures.
-   Preserve500us CPU profiling, all measured frames and150ms gate. Investigate
-   new reproducible evidence; do not revive rejected workarounds or rerun for luck.
-2. **First-contact pacing and court counterplay (R-M07/09/20, R-L02/11).**
-   Session71 fast respawns2/1/2 ->0/0/0, but initial medians remain17.1/18.0/
-   18.1s and respawn17.7/18.1/18.7s, below20-30s. Inspect the opening A/C
-   contact routes and held-court recontest next; preserve two peeking exits,
-   split orders, B's pump approach and the gallery. Scores165:195/193:159/
-   146:189 are not side win rates. No timer/HP tuning to hide exposure.
-3. **First-play spectacle and objective-aware highlights (R-L06/07/09/17).**
-   The first minute now has movement, deployment and map events; no replay or
-   objective-aware MVP moment exists. Choose one bounded arc after the next
-   pacing check; avoid indefinite micro-polish without a visible player payoff.
+1. **Intermittent GPU hitches (R-L14), preflight priority.** Session71's343ms
+   first-death DOM failure and Session70's814.7ms ANGLE stall remain unresolved.
+   Session72 preflight94.746s/13,643frames/two deaths has no>24ms frame or shader
+   change. Preserve500us profiling, all measured frames and150ms assertions;
+   per-run passes do not justify dismissing failures or reviving rejected fixes.
+2. **Opening roles and court counterplay (R-M07/09/20, R-L02/11).** The fixed
+   northern attacking cohort contacts at13.8-20.3s; red home guard bot-1 waits
+   36.7/54.4/104s. Build a bounded attack/recontest action block that improves
+   both exposure and useful guard engagement. Preserve two peeking exits,
+   split orders, B's pump route and the gallery. No timer/HP workaround.
+3. **Actual highlight replay (R-L06).** MVP selection/presentation now exists
+   (R-L07), but there is no replay capture or playback. Choose a bounded arc
+   that can show a real server-confirmed play, with objective context and
+   clear skip/reduced-motion behavior, inside the current performance budget.
 4. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
    first-match course, ping acknowledgement, replicated results countdown,
    role skins/voice barks and human colour/readability acceptance remain open.
 5. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
    DOM scoring/side swap, separate weapon FOV, view-kick control, doorway
-   acoustics and human headphone/mouse review remain.
+   acoustics, commendation mix and human headphone/mouse review remain.
 6. **Movement and resource-loop acceptance (R-G01/02/12/19/20, R-M05/12/16).**
    Momentum stays ON; moving hands/flight, bot pad use and freight bypass fights
    need review. No contested resource/skill-recovery loop exists.
-7. **Device/performance acceptance.** Per-run gates do not resolve prior GPU
-   failures or establish real6v6/RTT, laptop iGPU, thermal or Firefox/Safari.
+7. **Device/performance acceptance.** Per-run gates do not establish real6v6/RTT,
+   laptop iGPU, thermal, Firefox/Safari or universal hitch acceptance.
 
 ### Session 1 — 2026-09-07
 
@@ -10973,3 +10972,195 @@ Supplementary changed-mode check and final cleanup:
   Six required gates are green for their exact runs. Additional ordinary DOM
   remains FAILED; neither its later diagnostic pass nor the static stress
   comparison establishes all-mode or universal hitch acceptance.
+
+
+### Session 72 - 2026-09-10: Field Honors arc 1/1 - make teamwork count
+
+Read the standing brief, Session 72 status, plan and all 63 reference principles.
+Entry branch ironsight-aaa was clean. Supervisor confirms Session71 commit
+b43589e and preview deployment9ca634cc-7102-4bca-876e-60b85a215dd9. This session
+is a local candidate only; no commit, push or deployment.
+
+Reference: R-L06/07/14/16/17, R-M07/20. Targets: server-selected winning-side
+MVP using2/kill+1/assist, plus useful objective contribution; show why the
+operator won, preserve mute/Reduced motion and rematch controls, add no render
+pass/light/texture. The implemented MVP checks pass. R-L06 replay remains
+NOT MET; no replay arc is claimed. All63 scorecard rows re-reviewed and the gap
+list re-ranked after the opening-contact audit.
+
+Preflight and gap choice:
+
+- Unchanged traced DOM preflight PASS:94,745.7 ms/13,643 frames/two natural deaths,
+  no>24 ms frame, long task, recompile or error. Existing --trace and
+  --diagnostic-timing only. session72-hitch-preflight-dom.json/.log/-trace.json.
+  It does not reproduce or resolve Session71's343ms or older ANGLE failures.
+- Read-only session72-opening-audit.mjs/json retains all36 initial lives and
+  original orders. Northern attackers bot6-9 contact at13.8-20.3s, all near
+  z19.5; red home guard bot1 waits36.7/54.4/104s. This mixed failure argues
+  against another uniform cover/timer patch. Preserve it for a role/route arc.
+- Selected the next bounded spectacle gap after that pacing check. Existing
+  geometry, bot tactics/stats, spawns, movement, weapons, map events, timers,
+  mode scoring and wire schema remain unchanged. No claim of improved pacing.
+
+Delivered, Field Honors1/1 complete and on by default:
+
+- RoundHonors tracks only server-attributed assists and actual uncontested
+  capture-gauge movement. Divide progress equally among the living capturers;
+  clipping at ownership credits only the movement that occurred. Idle ownership,
+  contested flags and crowding cannot multiply credit. Whole accumulated shared
+  capture seconds count1 each; kills count2 and assists1. These are presentation
+  points, never match score, streak credit, health or ammunition.
+- Select among seated members of the winning team; FFA uses the actual winner
+  id. Draws, practice, zero-contribution and missing-winner cases omit the card.
+  Tie order: capture credit, assists, fewer deaths, then stable id. Bots and
+  humans follow the same rules. Departed seats are ineligible, matching the
+  existing seated-roster contract. Death preserves round contribution; seat
+  expiry/bot removal clears it and reset/cold new-round clears the tracker.
+- Add optional mvp to the existing matchEnd event. The plain frozen result is
+  retained for syncView, including after its operator leaves. No per-tick
+  contribution payload, codec/state-version change or client scoring input.
+  Old clients ignore the addition; new clients omit honors against old servers.
+- Amber FIELD HONORS card: original inline vector commendation seal, operator,
+  local YOU marker, elimination/assist/capture breakdown and explicit impact
+  formula. Short480ms entrance; vote updates retain focus/scroll and do not
+  replay it. Reduced motion retains all information without the entrance.
+- One resolved four-note triangle sting,196/293.66/392/493.88Hz, through the
+  existing mute/volume bus; last source stops within840ms and disconnects.
+  One cue per observed ended round, no replay on syncView or queued unmute.
+  This is synthesized audio, not a new media file; headphone comfort is open.
+- Seven new tests: objective-led winner, useful-progress conservation/clipping/
+  contest/dead occupants, invalid assist filtering, deterministic/frozen result,
+  FFA eligibility, room capture/resync/forged input/reset, and a real gun-assist
+  TDM winner. Existing assertions and production rules retained.
+
+Three matched natural twelve-bot DOM rounds:
+
+| Seed | Red:blue | MVP | K / assists / capture seconds | Impact |
+|---|---|---|---|---:|
+|170684|165:195|bot-8 (blue)|15 /2 /18|50|
+|170685|193:159|bot-9 (red)|15 /4 /25|59|
+|170686|146:189|bot-4 (blue)|15 /2 /32|64|
+
+All300s. Exact JSON comparisons against Session71 pass for scores, duration,
+every life/contact sample, kills, gallery, objective movement samples and heatmap
+cells. Each natural MVP is also that side's kill leader; these three outcomes
+alone do NOT demonstrate objective-led selection. The zero-kill capture-room
+test and actual gun-assist test cover that behavior. No human scoring/balance
+acceptance. Evidence: session72-honors-{170684,170685,170686}-bot-{round,debug}.json,
+-bot-heatmap.svg, logs and session72-rounds-comparison.json. Reproduce using the
+existing UNDERTOW_METRICS/METRICS_SEED/METRICS_PREFIX opt-in test, then
+.inspect/session72-compare-rounds.mjs. The tool adds read-only final MVP evidence.
+
+Wow check, visual review and rejected intermediates:
+
+- Paired session72-before-match-victory.png / session72-after-match-victory.png
+  retain the same offline roster/camera. Full-size before and new DOM desktop/
+  narrow stills reviewed. The DOM fixture awards Sable12kills+7 assists+16s=47,
+  ahead of the displayed sixteen-kill operator. Fixture, not a live achievement.
+- Ten final results fixtures pass: victory/defeat, DOM desktop/1280x600/390x844/
+  Reduced motion, FFA, draw, old-server absence and rematch vote. Names/id escape,
+  stable markup, whole-roster retention, horizontal fit and reachable controls
+  pass. session72-after-report.json has zero errors/forbidden requests.
+- Natural workerd DOM capture:327,292 ms total,1178 samples, seven natural deaths,
+  normal W/look only. Final173:152; server MVP bot4/ANCHOR4 has14kills,2 assists,
+ 23shared capture seconds and53impact. Card id, winning team, kills and formula
+  match the received matchEnd payload. Full-size5s still reviewed.
+- session72-dom-natural-honors-{0s,5s,10s,15s,20s}.png and -honors.json retain
+  a20,209 ms end-screen sequence. All five samples remain ended: automatic
+  warmup was NOT captured in this sequence. Room reset tests pass separately.
+  No position, health, timer, result, support or bot injection. Reproduce with
+  node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom
+  --assert-honors --prefix session72-review. The full round is showcase evidence,
+  not frame-time acceptance; static tests/metric tools ran during part of it.
+- Rejected first driver: a unique arena-dom-honors id resolved to TDM, since DOM
+  matches arena-dom exactly. Stopped it, confirmed no inspection processes left,
+  removed the routing override and added a mode2 assertion. Retained
+  session72-natural.log and session72-rejected-capture.json. No production
+  resolver or room-rule change. Corrected ordinary DOM run is separate evidence.
+- Initial full suite failed one NEW gun-assist fixture: it fired before the
+  scripted positions entered lag history. Retained session72-test-initial-failed.log;
+  added the same150ms fixture history setup used by existing hitscan tests.
+  Targeted test and final suite pass; no combat gate was relaxed.
+- Intended player sentence: "Those captures helped me earn MVP."
+  Design intent, not a human testimonial or completed AAA acceptance.
+
+Matched1920x1080 balanced/DPR1 Undertow stress, RTX5070/ANGLE D3D11:
+eleven remote actors plus local viewmodel,145twelve-rifle volleys and96blasts
+over15s, then3s drain. Neither matched stress sample overlapped a build/test,
+another inspection browser or an acceptance hitch probe.
+
+| Measurement | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |209 /159284|209 /159284|0 /0|
+| Textures / estimated MiB |25 /60.6055|25 /60.6055|0 /0|
+| Programs / geometries / prepared instance slots |29 /168 /625|29 /168 /625|0 /0 /0|
+| Median / p95 / p99 ms |6.9 /7.1 /7.2|6.9 /7.1 /7.1|0 /0 /-0.1|
+| Maximum / first-ready ms |7.7 /7.1|7.3 /7.1|-0.4 /0|
+| Construction / preparation ms |76.9 /975.4|76.9 /1046.9|0 /+71.5|
+| Assets including README bytes |26899692|26899692|0|
+| Client JS / source map bytes |2085440 /4627656|2092721 /4638576|+7281 /+10920|
+| Entire public bytes |33613396|33631597|+18201|
+
+Public 32.0736 MiB remains below40MiB; largest7,183,364 bytes below25MiB. No new
+asset/license/allowlist, dependency, texture, GL material, light, pass or bake.
+Fixed four blast lights and per-map lazy loads retained. Meshy 0credits;
+reported 1530balance unchanged: the commendation is code-native vector UI.
+Timing deltas are sample variability, not a speedup or laptop iGPU/thermal/
+cold-driver/real6v6/RTT acceptance. session72-{before,after}-report.json and
+session72-summarize.mjs/session72-summary.json retain reproduction/data.
+
+Static/reference and inspection gates:
+
+- pnpm typecheck PASS; pnpm test PASS(616 passed/six existing skips;
+ 78 passed files/four skipped); pnpm build:client PASS; pnpm audit:assets PASS.
+  session72-{typecheck,test,build-client,audit-assets}.log and static-gates.json.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796
+  --shots relay,practice-two PASS, zero console errors/forbidden requests.
+  session72-required-report.json/.log and required-{relay,practice-two}.png.
+- Refreshed tools/reference-audit.ts output: session72-reference-audit.json/mjs.
+  All maps150x100m/1250m2per-seat and existing10-15s rotations retained;
+  ADS 250/200/225/400/165 ms, sprint recovery120/100/130/150/90 ms, respawn 3s,
+  hostile foley 1.4, hit/kill pips and two damage cues unchanged. DOM4/8s capture,
+  1point/2s/flag, no side swap,78hipFOV and top-right feed remain mismatches.
+  Capture MVP credit describes actual rules; it does not change the economy.
+
+Final hitch validation and cleanup:
+
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+  .inspect/hitch.json --assert PASS: 94,221.4 ms / 13,567 frames / 2 natural deaths.
+  0 frames >24 ms, 0 frames >150 ms, 0 long tasks, 0 shader changes, 0 console errors.
+  Original hitch.json plus session72-hitch-final.json/.log and hitch-gate.json.
+- Additional ordinary DOM through results PASS: 312,302.6 ms / 44,968 frames / 9 natural deaths.
+  1 frames >24 ms, 0 frames >150 ms, 0 long tasks, 0 shader changes, 0 console errors. Final phase ended,
+  score 148:173. Existing command:
+  node scripts/hitch-probe.mjs http://localhost:8796 360000
+  .inspect/session72-hitch-dom-ended.json --assert --mode=dom --until-ended.
+  This extends the measured round through the end screen; it does not alter
+  profiling, preparation, the150 ms assertion or any frame exclusions.
+  Retained JSON/log, ended.png and session72-supplementary-gates.json.
+  The sole slow frame is 24.4 ms at 306,445 ms. Reviewed the ended still at
+  full size: ANCHOR 9 earns 57 impact from 14 kills, 3 assists and 26 shared
+  capture seconds, ahead of RUSH 1's 15 kills. This ordinary round demonstrates
+  a winning MVP who is not the kill leader; it is not human scoring acceptance.
+- No build/test, bake or second inspection browser overlapped either matched
+  stress sample or any acceptance hitch measurement. The owned preview was
+  restarted once after static work, before the final measurements, to close
+  the earlier capture/room processes. No renderer or profiler workaround.
+- Historical first-death/mid-combat GPU failures remain unresolved. These
+  per-run results do not establish universal, iGPU or real6v6 acceptance.
+- Verified preview root and descendant PID/start identities, then stopped
+  the final 8-process tree. session72-preview-final-tree.json and
+  session72-cleanup-final.json record 0 owned processes, 0 port8796 listeners
+  and 0 inspection browsers remaining. Initial-tree cleanup is separately
+  retained in session72-cleanup-first.json. No commit, push or deployment.
+- session72-final-audit.json checks all 63 unique canonical reference rows,
+  one Session 72 log entry, clean diff and only apps/ironsight/** changes on
+  ironsight-aaa. Six required gates green; supplementary DOM green.
+
+
+Open owner questions/defaults: keep useful objective progress in MVP(yes),
+keep honors separate from score/streak/resource rewards(yes), preserve immediate
+rematch controls(yes). No answer blocks development. Human ranking fairness,
+first-play excitement, headphone comfort, controller/colour/RTT and iGPU remain
+open. Next route arc should address fast attackers and quiet guards separately;
+actual highlight replay remains a distinct unimplemented feature.

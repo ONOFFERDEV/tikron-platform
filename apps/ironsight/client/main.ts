@@ -32,13 +32,13 @@ import { startMapInspector } from "./map-inspect.js";
 import { startWeaponInspector } from "./weapon-inspect.js";
 import { PING } from "../src/ping.js";
 import { TacticalMap } from "./tactical-map.js";
-import { Net, type ShotEvent } from "./net.js";
+import { Net, type ShotEvent, type MatchEndEvent } from "./net.js";
 import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
 import { startMatchInspector } from "./match-inspect.js";
 import { Hud } from "./hud.js";
-import { playDeploymentCue } from './audio.js';
+import { playDeploymentCue, playHonorsCue } from './audio.js';
 import { TrainingCoach } from './training-coach.js';
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm, closeGameplayMenus } from "./quit-confirm.js";
@@ -251,7 +251,9 @@ async function main(): Promise<void> {
   let killerName: string | undefined;
   let killerId: string | undefined;
   let deathCam: { eye: { x: number; y: number; z: number }; yaw: number; pitch: number } | null = null;
-  let matchEnd: { winner: string; red: number; blue: number } | null = null;
+  let matchEnd: MatchEndEvent | null = null;
+  let mvpName = '';
+  let honorsPlayed = false;
   let voteSent = false; // at most one restart-vote send per match end; re-armed below
 
   let curWeapon = 0;
@@ -352,7 +354,8 @@ async function main(): Promise<void> {
     }
   });
   net.onMatchEnd((e) => {
-    matchEnd = { winner: e.winner, red: e.red, blue: e.blue };
+    if (!matchEnd) mvpName = e.mvp ? name(e.mvp.id) : '';
+    matchEnd = e;
   });
   net.onVote((e) => hud.setVoteStatus(e.count, e.need));
   net.onNadeSpawn((e) => scene.spawnNade(e));
@@ -391,7 +394,7 @@ async function main(): Promise<void> {
       scene.setReload(0, 1); net.requestSync();
     }
     previousPhase = state.phase;
-    if (state.phase !== "ended") matchEnd = null;
+    if (state.phase !== "ended") { matchEnd = null; honorsPlayed = false; }
     // Re-arm the restart vote once the match is no longer "ended" (routes through
     // "warmup" first on a successful vote — see arena-room's enterWarmup).
     if (state.phase !== "ended") {
@@ -687,10 +690,13 @@ async function main(): Promise<void> {
     if (!net.online) {
       hud.showConnection(net.connectionExpired);
     } else if (phase === "ended" && matchEnd) {
+      if (matchEnd.mvp && !honorsPlayed) { honorsPlayed = true; playHonorsCue(); }
       // "draw" is a literal wire value (the no-score timeout), not a player id — name()
       // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
       const winnerLabel = teamless && matchEnd.winner !== "draw" ? name(matchEnd.winner) : matchEnd.winner;
       hud.showMatchEnd(winnerLabel, matchEnd.red, matchEnd.blue, me?.k ?? 0, me?.d ?? 0, teamless, {
+        mvp: matchEnd.mvp ? { ...matchEnd.mvp, name: mvpName, isMe: matchEnd.mvp.id === net.myId } : undefined,
+        dom: modeId === 'dom',
         won: teamless ? matchEnd.winner === net.myId : matchEnd.winner === (me?.team === 0 ? 'red' : 'blue'),
         rows: Object.entries(state?.players ?? {}).map(([id, p]) => ({
           name: name(id), k: p.k, d: p.d, team: p.team, isMe: id === net.myId,

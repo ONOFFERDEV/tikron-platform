@@ -1,4 +1,5 @@
 import { droneProbe } from './drone-probe.mjs';
+import { roundHonorsProbe } from './round-honors-probe.mjs';
 import { contrastProbe } from './contrast-probe.mjs';
 import { ambushProbe } from './ambush-probe.mjs';
 import { rolesProbe } from './roles-probe.mjs';
@@ -265,6 +266,10 @@ try {
       if (name === 'dom' && args.includes('--assert-approaches')) combat = await objectiveApproachProbe({send,evaluate,waitFor,delay,
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
         record: report => writeFile(join(output,`${prefix}-approach-diagnostic.json`),JSON.stringify(report,null,2)),
+      });
+      if (name === 'dom' && args.includes('--assert-honors')) combat = await roundHonorsProbe({send,evaluate,waitFor,delay,
+        capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},
+        record: report => writeFile(join(output,`${prefix}-honors.json`),JSON.stringify(report,null,2)),
       });
       if (name === 'cargo') combat = await cargoProbe({send,evaluate,waitFor,delay,
         capture: async label => {const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,`${prefix}-${label}.png`),Buffer.from(shot.data,'base64'));},

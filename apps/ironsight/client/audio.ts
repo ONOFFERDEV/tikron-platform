@@ -14,6 +14,23 @@ import type { DeploymentCue } from './deployment-presentation.js';
 const MUTED_KEY = "iron_muted";
 const A = GAME.audio;
 
+/** One short, resolved commendation sting through the existing mute/volume bus. */
+export function playHonorsCue(): void {
+  const c = ready(); if (!c || !master) return;
+  const now = c.currentTime;
+  for (const [index, frequency] of [196, 293.66, 392, 493.88].entries()) {
+    const at = now + index * .09;
+    const osc = c.createOscillator(), gain = c.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, at);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(.045, at + .015);
+    gain.gain.exponentialRampToValueAtTime(.001, at + .55);
+    osc.connect(gain).connect(master); osc.start(at); osc.stop(at + .57);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+}
+
 /** Three short countdown pips and a resolved start chord. Called on observed
  * phase/second edges only; no timer queue can leak a GO after cancellation. */
 export function playDeploymentCue(cue: DeploymentCue): void {

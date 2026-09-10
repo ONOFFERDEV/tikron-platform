@@ -9,6 +9,7 @@ import { ARENA2 } from '../src/map/arena2.js';
 import { nearestBox } from '../src/physics.js';
 import { PLAYER } from '../src/config.js';
 import { spawnExposed } from '../src/map/spawn.js';
+import type { RoundResult } from '../src/round-honors.js';
 
 // UNDERTOW_METRICS=1 pnpm exec vitest run test/undertow-metrics.tool.test.ts
 // Optional METRICS_SEED and METRICS_PREFIX retain independent natural rounds.
@@ -95,6 +96,7 @@ describe.skipIf(process.env.UNDERTOW_METRICS !== '1')('expanded Undertow natural
       const cells = new Map<string, number>();
       for (const k of kills) { const key = `${Math.floor(k.vx / 5)},${Math.floor(k.vz / 5)}`; cells.set(key, (cells.get(key) ?? 0) + 1); }
       const report = { note: 'One seeded natural production-bot 6v6 DOM round in the test harness. LOS is a 100m eye-segment opportunity, without FOV; damage is sampled each 100ms. Unobserved contact remains absent, never zero. Not human fairness or deployed capacity.',
+        roundResult: (h.room as unknown as {roundResult: RoundResult | null}).roundResult,
         objectiveSamples, gallery:{visitors:[...galleryVisitors],samples:gallerySamples,transitions:galleryTransitions},
         bounds: ARENA2.bounds, seed, liveAtMs: liveAt, durationMs: endedAt - liveAt,
         redScore: state.redScore, blueScore: state.blueScore, lives, kills, cells: Object.fromEntries(cells) };

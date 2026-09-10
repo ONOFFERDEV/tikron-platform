@@ -90,6 +90,7 @@ export interface NadeBoomEvent {
   r: number;
 }
 export interface MatchEndEvent {
+  mvp?: import('../src/round-honors.js').RoundMvp;
   /** TDM/DOM: "red" | "blue" | "draw". FFA: the winning player's session id (or
    *  "draw" on the rare scoreless-timeout fallback — see arena-room's endMatch). */
   winner: string;
