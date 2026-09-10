@@ -90,6 +90,16 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.restore();
   }
   if (switchyard) paintSwitchyardServiceWear(ctx, map);
+  if (switchyard && map.terrain) {
+    const c = map.terrain.cut;
+    ctx.save(); ctx.scale(sx, sz);
+    ctx.fillStyle = '#53584f'; ctx.fillRect(c.minX, c.minZ, c.maxX - c.minX, c.maxZ - c.minZ);
+    // Ballast/oil band and service drains live in the existing opaque atlas.
+    ctx.fillStyle = '#42463c'; ctx.fillRect(c.minX + 8, 70.5, c.maxX - c.minX - 16, 3);
+    ctx.fillStyle = '#303b34';
+    for (const z of [c.minZ + .5, c.maxZ - .7]) ctx.fillRect(c.minX + 8, z, c.maxX - c.minX - 16, .2);
+    ctx.restore();
+  }
   if (undertow && map.terrain) {
     const c = map.terrain.cut;
     ctx.save(); ctx.scale(sx, sz);

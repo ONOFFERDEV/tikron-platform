@@ -126,6 +126,9 @@ export function startMapInspector(): void {
     'switchyard-room-east': [110, 1.65, 62.8, 102, 1.4, 59.7],
     'switchyard-room-doors': [42, 1.65, 61, 42, 1.65, 66],
     'switchyard-room-roofs': [47, 4.65, 61.5, 103, 4.65, 61.5],
+    'switchyard-rail-entry': [26, 1.65, 72, 56, -1.2, 72],
+    'switchyard-rail-lower': [45, -1.35, 73.5, 75, -1.2, 72],
+    'switchyard-rail-bridge': [75, 1.65, 66, 58, -1, 72],
     'switchyard-cargo-before': [143,1.65,53,156,11,40],
     'switchyard-cargo-cover': [120.5,1.65,50,127,1.4,49],
     'switchyard-cargo-crossing': [120.5,1.65,50,127,1.4,49],
@@ -308,7 +311,9 @@ export function startMapInspector(): void {
     flags.__mapInspect = {
       mapBounds: map.bounds,
       structures: (map.structures ?? []).map(s => ({ id: s.id, footprint: s.footprint,
-        parts: s.parts.length, ramps: s.ramps, bots: s.id === 'freight-trench' ? 'yard and sunken route; no upper bridge routing' : 'ground floor only; no roof routing' })),
+        parts: s.parts.length, ramps: s.ramps, bots: ['freight-trench', 'pump-channel', 'rail-loading-cut'].includes(s.id)
+          ? 'yard and sunken route reachable; no upper bridge routing; deliberate visits require telemetry'
+          : 'ground floor only; no roof routing' })),
       intro: introFixture ? {pose:introFixture,checks:introChecks,note:'Offline production renderer/HUD at fixed flight progress; 11 fixture actors, no room.'} : undefined,
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,

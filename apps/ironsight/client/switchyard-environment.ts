@@ -26,6 +26,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   for (const b of map.boxes) {
+    if (map.terrain?.boxes.includes(b)) continue; // exposed terrain owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
     if (SWITCHYARD_CRATES.includes(b)) continue; // removable supply fallback below
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
@@ -33,6 +34,42 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     const low = h < 1.5, wall = w > 6;
     const part = structureParts.get(b);
     if (part) {
+      if (base < 0) {
+        add(part.kind === 'cover' ? 2 : 0, x, base + h / 2, z, w, h, d, 'shell');
+        if (part.kind === 'wall') {
+          const face = z < 72 ? b.max.z + .004 : b.min.z - .004;
+          const inward = z < 72 ? 1 : -1;
+          // Grease-darkened retaining base, cast panel seams and dock edge.
+          add(1, x, -2.73, face, w, .5, .008);
+          add(1, x, -.09, z, w, .18, d + .008);
+          for (let px = b.min.x + 2; px < b.max.x; px += 4) {
+            add(1, px, -1.5, face, .045, 2.95, .008);
+            add(3, px, -.35, face + inward * .006, .42, .12, .004);
+            for (const py of [-.85, -2.1])
+              add(1, px + .45, py, face + inward * .006, .08, .08, .004);
+          }
+        } else if (part.kind === 'slab') {
+          add(1, x, .003, z, w - .02, .006, d);
+          // Open sides are real drops, indicated by faded loading stripes.
+          for (const side of [-1, 1]) {
+            add(3, x + side * (w / 2 - .13), .008, z, .16, .004, d);
+            for (let pz = b.min.z + .2; pz < b.max.z - .125; pz += .6)
+              add(1, x + side * (w / 2 - .13), .011, pz, .16, .002, .25);
+          }
+          for (let px = b.min.x + .5; px < b.max.x; px += .5)
+            add(5, px, .008, z, .025, .004, d - .12);
+        } else {
+          // Broad armoured cabinet / low banded pallet silhouettes, with no
+          // free-standing detail outside the exact collision envelope.
+          add(1, x, b.max.y + .004, z, w, .008, d);
+          for (const side of [-1, 1]) {
+            add(1, x + side * w * .3, base + h / 2, b.max.z + .004, .09, h - .1, .008);
+            add(5, x + side * w * .3, b.max.y + .009, z, .08, .002, d - .04);
+          }
+          add(3, x, base + h * .65, b.max.z + .009, w * .4, .16, .002);
+        }
+        continue;
+      }
       // Exact slab/lintel/sill envelopes. Cabinet panels used on the old sealed
       // blocks must never extend down across a doorway or below a roof slab.
       add(part.kind === 'cover' ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
@@ -115,8 +152,37 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     for (let step = 1; step < 18; step++) {
       const t = step / 18;
       const x = r.dir === 1 ? r.minX + t * (r.maxX - r.minX) : r.maxX - t * (r.maxX - r.minX);
-      add(5, x, r.topY * t + .006, (r.minZ + r.maxZ) / 2, .035, .008, r.maxZ - r.minZ - .08, 'paint');
+      const base = r.baseY ?? 0;
+      add(5, x, base + (r.topY - base) * t + .006, (r.minZ + r.maxZ) / 2, .035, .008, r.maxZ - r.minZ - .08, 'paint');
     }
+  }
+  if (map.terrain) {
+    // Exact earth side/bottom shells. Their top faces belong to siteGround,
+    // whose UV-mapped horizontal faces must stay exposed, including the cut.
+    const earthGeometry = box.clone(), indices = [], normals = earthGeometry.getAttribute('normal');
+    for (let i = 0; i < earthGeometry.index!.count; i += 3) {
+      const a = earthGeometry.index!.getX(i);
+      if (normals.getY(a) > .5) continue;
+      indices.push(a, earthGeometry.index!.getX(i + 1), earthGeometry.index!.getX(i + 2));
+    }
+    earthGeometry.setIndex(indices); earthGeometry.clearGroups();
+    const earth = new T.InstancedMesh(earthGeometry, materials[0]!, map.terrain.boxes.length);
+    earth.name = 'switchyard-shell-earth';
+    map.terrain.boxes.forEach((b, i) => earth.setMatrixAt(i, new T.Matrix4().compose(
+      new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2),
+      new T.Quaternion(), new T.Vector3(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z))));
+    earth.castShadow = earth.receiveShadow = true; earth.computeBoundingSphere(); scene.add(earth);
+    // Retired, inset rail and sleeper marks. All faces stay within 2cm of the
+    // real floor, so there is no decorative step or uncollidable cover.
+    const c = map.terrain.cut, floor = map.bounds.floor ?? -3;
+    for (let px = c.minX + 9; px < c.maxX - 8; px += .75)
+      add(2, px, floor + .002, 72, .2, .004, 2.6, 'paint');
+    for (const z of [71.28, 72.72]) {
+      add(1, 75, floor + .009, z, c.maxX - c.minX - 18, .012, .10, 'paint');
+      add(5, 75, floor + .016, z, c.maxX - c.minX - 18, .002, .045, 'paint');
+    }
+    for (const x of [c.minX - 1.5, c.maxX + 1.5]) for (const z of [69, 75])
+      add(3, x, .007, z, 1.4, .008, .15, 'paint');
   }
   // Retaining walls sit outside the server's clamped rectangle, including trim.
   for (const z of [-0.46, depth + 0.46]) {
@@ -257,18 +323,19 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
   const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE',
-    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04'];
+    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04', 'RAIL / LOADING'];
+  const row = canvas.height / labels.length;
   labels.forEach((label, i) => {
-    ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * 128, 1024, 128);
-    ctx.fillStyle = i === 1 ? '#a8b7a5' : '#c5b185'; ctx.fillRect(16, i * 128 + 18, 12, 92);
-    ctx.fillStyle = '#e1e0cf'; ctx.font = '600 58px Arial'; ctx.fillText(label, 46, i * 128 + 84);
+    ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * row, 1024, row);
+    ctx.fillStyle = i === 1 ? '#a8b7a5' : '#c5b185'; ctx.fillRect(16, i * row + 12, 12, row - 24);
+    ctx.fillStyle = '#e1e0cf'; ctx.font = '600 58px Arial'; ctx.fillText(label, 46, i * row + row * .69);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const mat = new T.MeshBasicMaterial({ map: texture });
   const signParts: T.BufferGeometry[] = [];
   const sign = (label: number, x: number, y: number, z: number, yaw = 0, width = 5.5) => {
     const geo = new T.PlaneGeometry(width, width / 8), uv = geo.getAttribute('uv');
-    for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 7 - label) / 8);
+    for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + labels.length - 1 - label) / labels.length);
     geo.rotateY(yaw).translate(x, y, z); signParts.push(geo);
   };
   sign(0, cx, 0.75, 0.006, 0, 9);
@@ -283,6 +350,13 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
   for (const s of map.structures ?? []) {
+    if (s.id === 'rail-loading-cut') {
+      for (const x of [45, 105]) {
+        sign(8, x, -1.05, 68.416, 0, 4.5);
+        sign(8, x, -1.05, 75.584, Math.PI, 4.5);
+      }
+      continue;
+    }
     const mid = (s.footprint.minX + s.footprint.maxX) / 2, west = mid < cx;
     // Names on the solid parapets; tiny lintels receive only short door labels.
     sign(west ? 4 : 5, mid, 3.56, s.footprint.minZ - .016, Math.PI, 6.8);

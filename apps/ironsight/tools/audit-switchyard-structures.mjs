@@ -14,12 +14,12 @@ const built = await build({ stdin: { contents: `
 const { map, crates, props, canStand, moveAndSlide, nearestBox, CoreCollision, GroundNavigator, MOVE, PLAYER } =
   await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString('base64')}`);
 const collision = new CoreCollision(map), nav = new GroundNavigator(map), checks = [];
-assert.equal(map.structures.length, 2);
+assert.equal(map.structures.filter(s => ['west-maintenance', 'east-dispatch'].includes(s.id)).length, 2);
 for (const crate of crates) {
   const size = ['x','y','z'].map(a => crate.max[a] - crate.min[a]);
   size.forEach((n,i) => assert.ok(Math.abs(n - props['ammo-crate-stack'].sizeM[i]) < 1e-9));
 }
-checks.push('all four crate colliders match the frozen detailed envelope');
+checks.push('every crate collider matches the frozen detailed envelope');
 let steps = 0;
 for (const east of [false,true]) {
   const point = p => east ? { ...p, x: 150 - p.x } : p;

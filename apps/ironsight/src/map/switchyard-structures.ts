@@ -53,7 +53,10 @@ export const SWITCHYARD_BUILDINGS = [SWITCHYARD_MAINTENANCE, SWITCHYARD_DISPATCH
 
 /** Frozen library ammo crates, base-centred at real size on the work benches.
  * Box authority remains present when the optional detail cannot load. */
-export const SWITCHYARD_CRATES: readonly Box[] = [36.5, 48, 102, 113.5].map(x => ({
-  min: { x: x - .531171 / 2, y: 1.1, z: 59.7 - .598316 / 2 },
-  max: { x: x + .531171 / 2, y: 2.25, z: 59.7 + .598316 / 2 },
+export const SWITCHYARD_CRATES: readonly Box[] = [
+  ...[36.5, 48, 102, 113.5].map(x => ({ x, y: 1.1, z: 59.7 })),
+  ...[62, 64, 86, 88].map(x => ({ x, y: -1.9, z: 74.6 })),
+].map(({ x, y, z }) => ({
+  min: { x: x - .531171 / 2, y, z: z - .598316 / 2 },
+  max: { x: x + .531171 / 2, y: y + 1.15, z: z + .598316 / 2 },
 }));

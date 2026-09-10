@@ -262,7 +262,7 @@ try {
           await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: report => writeFile(join(output, `${prefix}-trench.json`), JSON.stringify(report, null, 2)),
       });
-      if (name === 'switchyard-places-play') combat = await switchyardPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'),
+      if (name === 'switchyard-places-play') combat = await switchyardPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'), rail: args.includes('--rail'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: async report => { await writeFile(join(output, `${prefix}-movement.json`), JSON.stringify(report, null, 2)); console.log(report.stages.at(-1)?.label ?? 'movement'); },
       });

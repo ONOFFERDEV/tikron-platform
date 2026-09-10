@@ -2,6 +2,8 @@ import { compileTileMap } from './tilemap.js';
 import type { MapDef } from './types.js';
 import { withStructures } from './structures.js';
 import { SWITCHYARD_BUILDINGS, SWITCHYARD_CRATES } from './switchyard-structures.js';
+import { excavate } from './terrain.js';
+import { SWITCHYARD_RAIL, SWITCHYARD_RAIL_CUT } from './switchyard-rail-cut.js';
 
 /** SWITCHYARD: 150 x 100 m, twelve screened deployment bays.
  * Two inner south arrivals relocate to north switchgear courts, away from B's
@@ -69,7 +71,12 @@ const compiled = compileTileMap(SWITCHYARD_ROWS);
 // The gantry's freight counterweight is full cover at rest. During transfer it
 // locks flush with the apron: one replicated gate bit owns cover and crossing.
 const freightCounterweight = { min: { x: 124, y: 0, z: 46 }, max: { x: 128, y: 3, z: 52 } };
-export const ARENA3: MapDef = withStructures({
+// Relocate four low transport cases into the loading bed. Clear staging at
+// both end ramps and at the southern return keeps A/B/C rotations <=15s.
+const railStaging = (b: MapDef['boxes'][number]) => b.max.y === 1.1 && (
+  (b.min.z === 68 && (b.min.x === 28 || b.min.x === 118))
+  || (b.min.z === 84 && (b.min.x === 52 || b.min.x === 94)));
+export const ARENA3: MapDef = withStructures(excavate({
   ...compiled, presentation: 'switchyard',
   signalCore: { doors: [freightCounterweight], chamber: freightCounterweight },
   flankRoutes: [
@@ -91,7 +98,11 @@ export const ARENA3: MapDef = withStructures({
     { x: 123, z: 51 }, { x: 123, z: 87 }, { x: 75, z: 93 },
     { x: 27, z: 87 }, { x: 27, z: 51 },
   ],
-  boxes: [...compiled.boxes.filter(b => !SWITCHYARD_BUILDINGS.some(s =>
+  boxes: [...compiled.boxes.filter(b =>
+    !railStaging(b)
+    && !(b.min.x < SWITCHYARD_RAIL_CUT.maxX && b.max.x > SWITCHYARD_RAIL_CUT.minX
+      && b.min.z < SWITCHYARD_RAIL_CUT.maxZ && b.max.z > SWITCHYARD_RAIL_CUT.minZ)
+    && !SWITCHYARD_BUILDINGS.some(s =>
     b.min.x === s.origin.x && b.max.x === s.origin.x + s.width
     && b.min.z === s.origin.z && b.max.z === s.origin.z + s.depth)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
@@ -107,7 +118,7 @@ export const ARENA3: MapDef = withStructures({
     minZ: r.axis === 'z' && r.dir === 1 ? r.minZ - 4 : r.minZ,
     maxZ: r.axis === 'z' && r.dir === -1 ? r.maxZ + 4 : r.maxZ,
   })),
-}, SWITCHYARD_BUILDINGS);
+}, SWITCHYARD_RAIL_CUT, -3), [...SWITCHYARD_BUILDINGS, SWITCHYARD_RAIL]);
 export const ARENA3_BOUNDS = ARENA3.bounds;
 export const ARENA3_BOXES = ARENA3.boxes;
 export const ARENA3_SPAWNS = ARENA3.spawns;
