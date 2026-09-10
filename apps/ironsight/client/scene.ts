@@ -8,7 +8,7 @@ import type { DroneFlight } from '../src/drone.js';
 import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
-import { createDuskSkyMaterial, duskSunDirection, UNDERTOW_DUSK } from './site-atmosphere.js';
+import { createSiteSkyMaterial, siteSunDirection, siteAtmosphere } from './site-atmosphere.js';
 import { buildWedgeGeometry } from "./site-wedge.js";
 /**
  * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
@@ -435,7 +435,7 @@ export class SceneRig {
       this.scene.add(light); this.blastLights.push({ light, born: -Infinity });
     }
     const relay = !!map.presentation;
-    const dusk = map.presentation === 'undertow' ? UNDERTOW_DUSK : null;
+    const atmosphere = siteAtmosphere(map.presentation);
     this.boxes = map.boxes;
     this.ramps = map.ramps ?? [];
     this.coreCollision = new CoreCollision(map);
@@ -451,7 +451,7 @@ export class SceneRig {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = VIS.exposure;
     if (relay) {
-      this.renderer.toneMappingExposure = dusk?.exposure ?? 1.05;
+      this.renderer.toneMappingExposure = atmosphere?.exposure ?? 1.05;
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFShadowMap;
       // Architecture is static. No per-frame shadow pass on the balanced preset.
@@ -460,28 +460,28 @@ export class SceneRig {
     }
 
     this.scene.background = new THREE.Color(PALETTE.sceneBg);
-    // World-oriented sky: fog and horizon share a colour, zenith stays midnight blue.
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(Math.max(200, map.bounds.width * 3), 24, 12), dusk ? createDuskSkyMaterial() : new THREE.ShaderMaterial({
+    // Each authored weather profile shares its key with the baked sky/reflections.
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(Math.max(200, map.bounds.width * 3), 24, 12), atmosphere ? createSiteSkyMaterial(atmosphere) : new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
       uniforms: { horizon: { value: new THREE.Color(relay ? 0xc7d4cc : PALETTE.fog.color) }, zenith: { value: new THREE.Color(relay ? 0x547f94 : VIS.skyZenith) } },
       vertexShader: "varying vec3 vDirection; void main(){ vDirection=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }",
       fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
     }));
     sky.name = 'site-sky';
-    if (dusk) sky.frustumCulled = false;
+    if (atmosphere) sky.frustumCulled = false;
     sky.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2);
     sky.raycast = () => {};
     this.scene.add(sky);
-    this.scene.fog = dusk ? new THREE.Fog(dusk.fogColor, dusk.fogNear, dusk.fogFar)
+    this.scene.fog = atmosphere ? new THREE.Fog(atmosphere.fogColor, atmosphere.fogNear, atmosphere.fogFar)
       : relay ? new THREE.Fog(0xc7d4cc, Math.max(48, map.bounds.width * .6), Math.max(145, map.bounds.width * 2.4))
       : new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
 
     this.camera = new THREE.PerspectiveCamera(HIP_FOV, 1, GAME.camera.near, Math.max(GAME.camera.far, map.bounds.width * 5));
 
-    this.scene.add(new THREE.HemisphereLight(dusk?.hemisphereSky ?? (relay ? 0xc7e4ef : PALETTE.lights.hemiSky), dusk?.hemisphereGround ?? (relay ? 0x535648 : PALETTE.lights.hemiGround), dusk?.hemisphereIntensity ?? (relay ? 1.8 : VIS.lighting.hemisphere)));
-    const key = new THREE.DirectionalLight(dusk?.keyColor ?? (relay ? 0xffe1ad : PALETTE.lights.key), dusk?.keyIntensity ?? (relay ? 3.2 : VIS.lighting.key));
+    this.scene.add(new THREE.HemisphereLight(atmosphere?.hemisphereSky ?? (relay ? 0xc7e4ef : PALETTE.lights.hemiSky), atmosphere?.hemisphereGround ?? (relay ? 0x535648 : PALETTE.lights.hemiGround), atmosphere?.hemisphereIntensity ?? (relay ? 1.8 : VIS.lighting.hemisphere)));
+    const key = new THREE.DirectionalLight(atmosphere?.keyColor ?? (relay ? 0xffe1ad : PALETTE.lights.key), atmosphere?.keyIntensity ?? (relay ? 3.2 : VIS.lighting.key));
     key.position.set(map.bounds.width / 2 - 22, map.bounds.width > 60 ? 80 : 40, map.bounds.depth / 2 - 14);
-    if (dusk) key.position.copy(duskSunDirection).multiplyScalar(110).add(new THREE.Vector3(map.bounds.width / 2, 0, map.bounds.depth / 2));
+    if (atmosphere) key.position.copy(siteSunDirection(atmosphere)).multiplyScalar(110).add(new THREE.Vector3(map.bounds.width / 2, 0, map.bounds.depth / 2));
     if (relay) {
       key.target.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2); this.scene.add(key.target);
       key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
@@ -491,7 +491,7 @@ export class SceneRig {
       key.shadow.normalBias = 0.12; key.shadow.bias = -0.0003;
     }
     this.scene.add(key);
-    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, dusk?.ambientIntensity ?? (relay ? 0.12 : VIS.lighting.ambient)));
+    this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, atmosphere?.ambientIntensity ?? (relay ? 0.12 : VIS.lighting.ambient)));
 
     this.vfx = new Vfx(this.scene);
     this.combatFx = new CombatFx(this.scene);

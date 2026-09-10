@@ -13,3 +13,5 @@ assets-src/**
 !public/assets/ui/damage-vignette.png
 !public/assets/undertow-dusk.hdr
 !public/assets/undertow-dusk-sky.png
+!public/assets/switchyard-overcast.hdr
+!public/assets/switchyard-overcast-sky.png

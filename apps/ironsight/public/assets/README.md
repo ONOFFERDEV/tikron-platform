@@ -32,6 +32,7 @@ Original architecture / lighting pipeline (session 9):
 | `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
 | `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
 | `undertow-dusk.hdr` / `undertow-dusk-sky.png` | Original seeded dusk cloud/radiance field, Blender; 512x256 linear HDR 104,307 bytes and 1024x512 sRGB sky 122,555 bytes. Undertow only; see Session78 below | yes |
+| `switchyard-overcast.hdr` / `switchyard-overcast-sky.png` | Original seeded stratus/radiance field, Blender; 512x256 linear HDR 144,190 bytes and 1024x512 sRGB sky 135,785 bytes. Switchyard only; see Session79 below | yes |
 
 Run from `apps/ironsight`, with the existing Node/esbuild and Python installations:
 
@@ -1109,3 +1110,44 @@ maps allocate no new texture. Inspector validates map-only requests, all 16
 prepared lights, matching sun/key direction, cached shadows and sky residency.
 Load/PMREM call timings describe local preparation, not isolated GPU timing or
 CDN first-load performance. Human visual/device acceptance remains open.
+
+### Session79: Afterlight 2/2 — Switchyard overcast
+
+`switchyard-overcast.hdr` (144,190 bytes) and
+`switchyard-overcast-sky.png` (135,785 bytes) are original mathematical stratus
+clouds and radiance. No external images, purchased content or Meshy input.
+Blender's seeded Perlin field produces broad blue-grey cloud bodies and a
+diffuse silver opening, aligned with the existing directional key. Reproduce:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-switchyard-sky.py
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots switchyard-north,switchyard-cargo-transfer,switchyard-effects-stress --prefix overcast-review --assert-budgets
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-vista,switchyard-vista --prefix afterlight-vistas --write-vista
+```
+
+`client/switchyard-overcast.json` supplies the bake and runtime key direction,
+cool fill, exposure and distant fog. The high, weak key and stronger hemisphere
+fill reduce sunlight contrast without hiding or adding lights. Fog begins at
+100 m, beyond the tested 40 m rifle corridors. The scene retains its 16 prepared
+lights and cached 1024 shadow atlas. All gameplay, collision and actor palettes
+are retained. The sky has no solar disc, animation, extra pass or live bake.
+
+HDR stays linear at 512x256 and becomes one 128px/1.5 MiB PMREM before ready.
+The 1024x512 sRGB PNG is 2 MiB RGBA8 without mipmaps, in the existing sky draw;
+the same texture projection excludes camera translation. Explicit sRGB encoding
+and saved-pixel validation use the same Standard/Non-Color approach as Session78.
+The maximum saved encoded error is 0.001961, below 2/255. This is sky reflection
+lighting, not real-time scene reflections or volumetric clouds.
+
+Only Switchyard loads these two files, replacing its 41,273-byte daylight HDR:
+279,975 bytes total, net +238,702 map-load bytes. Its stress texture estimate
+rises 61.9948 -> 63.9948 MiB, leaving only 5,461 estimated bytes under 64 MiB;
+future texture work must first free residency. The estimate omits driver and
+vertex-buffer overhead. Relay daylight and Undertow dusk retain their own loads.
+Afterlight 2/2 completes by default across the three maps. Both weather-map
+selection vistas are refreshed from the production renderer using the command
+above; these are flattened game screenshots, not concept art. The menu uses
+images without loading the map's 3D assets. Numeric first-load/stress comparisons
+and paired-camera evidence are in the Session79 AAA plan log; hardware and human
+visual/readability acceptance remain open.
