@@ -28,8 +28,34 @@ five minutes**, not on scorecard rows. Rules for this phase:
   would say about it. If you cannot name the sentence, the session did not deliver.
 - Use Meshy freely for hero props and signature set pieces (**up to 120 credits/session**),
   Blender for bakes/animation, and the procedural kit for bulk. Spend on what is seen.
-- Asset budget stays 40 MiB; if a signature feature needs more, log the exact bytes and go
-  to 60 MiB with per-map lazy loading, never beyond.
+- **Asset budget is 60 MiB (owner decision 2026-09-10; the audit script now enforces 60).**
+  Per-file stays <= 25 MiB and per-map lazy loading is mandatory — spend the headroom on
+  what is visible in the first five minutes, and log bytes + first-load time per session.
+
+## Owner directive 2026-09-10 — visuals are the standing priority, and fix the GPU stall
+
+1. **Visual fidelity is now the default subject of every session** until told otherwise.
+   Work through this list as arcs, re-ranking by what a first-time player sees first:
+   textures and materials (tiling detail maps, normal/roughness for concrete, steel, paint;
+   the ground atlas is still low-res per metre on the expanded maps), lighting and post
+   (bloom, colour-grade LUT, god rays, exposure per map, time-of-day per map: Undertow dusk,
+   Switchyard overcast), particles and atmosphere (wind dust, heat shimmer, distant flicker,
+   volumetric-ish haze), decals and wear (scorch, bullet holes, grime, painted markings),
+   character and weapon fidelity (operator skins with distinct silhouettes, better hands,
+   weapon detail passes), skyline and background (animated elements, parallax, distant
+   traffic/steam), and per-map hero set pieces via Meshy (up to 120 credits/session).
+   Every visual session ships before/after stills at the same camera in the log.
+2. **Fix the recurring hitch-gate failure (4 red gates in sessions 52-64).** Session 65's
+   cross-process tracing found long GPU/ANGLE tasks while JS stayed responsive, so this is
+   a rendering-cost or driver-stall problem, not a JS one. Own it as a dedicated arc before
+   or alongside the next visual arc: find what the GPU is doing during those frames
+   (draw-call and material count per frame, shadow-map re-bakes, texture uploads and PMREM
+   generation timing, per-frame allocations of GPU resources, overdraw from transparent
+   VFX, the new map events' geometry churn), fix the cause, and prove it with the hitch
+   probe passing five consecutive times (`--assert`, both TDM and FFA). If the true cause
+   is outside our control (driver/compositor), say so with the trace evidence and change
+   the gate threshold deliberately in one commit rather than leaving it flaky. A red hitch
+   gate is not acceptable as the normal state: it hides real regressions.
 
 Backlog of "개쩔게" candidates, ranked by first-five-minutes impact (pick the top one you
 can finish as an arc; do not do them all shallowly):

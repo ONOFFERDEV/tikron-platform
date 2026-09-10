@@ -25,6 +25,8 @@ for (const file of files) {
 for (const path of [...approvedDerived, ...approvedOriginal]) if (!files.some(f => f.path === path)) throw Error(`Restore private derived asset: ${path}`);
 const assetBytes = files.filter(f => f.path.startsWith('assets/')).reduce((n, f) => n + f.bytes, 0);
 const publicBytes = files.reduce((n, f) => n + f.bytes, 0);
-if (publicBytes > 40 * 1024 * 1024) throw Error('Deployed public asset set exceeds 40 MiB budget');
+// Raised 40 -> 60 MiB by owner decision 2026-09-10 for the visual-fidelity phase.
+// Per-map lazy loading is what keeps first load reasonable; the cap is the ceiling, not a target.
+if (publicBytes > 60 * 1024 * 1024) throw Error('Deployed public asset set exceeds 60 MiB budget');
 console.log(JSON.stringify({ assetBytes, publicBytes, maxFileBytes: Math.max(...files.map(f => f.bytes)),
   derivedFiles: files.filter(f => approvedDerived.includes(f.path)), originalFiles: files.filter(f => approvedOriginal.includes(f.path)), note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));
