@@ -49,7 +49,8 @@ const killTree = (pid) => { try { spawn('taskkill', ['/PID', String(pid), '/T', 
 const sh = async (cmd, opts) => { const r = await run(cmd, opts); return r; };
 
 async function nextSession() {
-  const plan = await readFile(join(app, PLAN), 'utf8');
+  // A new stream has no plan file yet; session numbering starts from the shared history.
+  const plan = await readFile(join(app, PLAN), 'utf8').catch(() => '');
   const nums = [...plan.matchAll(/^### Session (\d+)/gm)].map(m => Number(m[1]));
   return (nums.length ? Math.max(...nums) : 0) + 1;
 }
@@ -105,7 +106,7 @@ async function writeStatus({ session, last, balance, remaining, failures }) {
   await writeFile(join(state, 'status.md'), md);
 }
 async function commitAndDeploy(session) {
-  const plan = await readFile(join(app, PLAN), 'utf8');
+  const plan = await readFile(join(app, PLAN), 'utf8').catch(() => '');
   const heading = plan.match(new RegExp(`^### Session ${session}[^\\n]*`, 'm'))?.[0] ?? `Session ${session}`;
   const title = heading.replace(/^### /, '').replace(/\s+/g, ' ').slice(0, 110);
   await sh('git add -A apps/ironsight', { cwd: repo, timeoutMs: 120000 });
