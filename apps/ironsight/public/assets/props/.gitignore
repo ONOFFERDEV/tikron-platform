@@ -1,0 +1,9 @@
+# Only reviewed, original/generated GLBs belong in this directory.
+*.glb
+!field-radio-pack.glb
+!relay-field-sandbags.glb
+!relay-uplink.glb
+!switchyard-transformer.glb
+!field-chest-panel.glb
+!ammo-crate-stack.glb
+!fuel-drum-cluster.glb

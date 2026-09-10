@@ -1,0 +1,62 @@
+{
+  "name": "fuel-drum-cluster",
+  "prompt": "four dented steel fuel drums standing together, rusted rims, one on its side. single standalone object, centred, low-poly hard-surface game asset, PBR, desaturated olive drab, grey-brown and rusted steel, matte weathered surfaces, worn paint, military field equipment, no text, no logos, no ground plane, no base",
+  "texture_prompt": "weathered olive drab and grey-brown military paint, dust, rust streaks, scratched metal, matte",
+  "previewId": "01a08bf4-dafe-7079-84f2-23ddc9c951ac",
+  "refineId": "01a08bf6-0cb7-7165-a1fe-f3ae7ed3b4ea",
+  "ai_model": "latest",
+  "target_polycount": 3000,
+  "pbr": true,
+  "glbBytes": 7171576,
+  "creditsUsed": null,
+  "balanceDeltaDuringTask": 60,
+  "balanceAfter": 1110,
+  "creditAccounting": {
+    "balanceBefore": 1170,
+    "reserve": 300,
+    "plannedCredits": 60,
+    "jobs": [
+      "fuel-drum-cluster",
+      "field-generator"
+    ],
+    "deferred": [],
+    "status": "complete",
+    "balanceAfter": 1110,
+    "creditsUsed": 60,
+    "finishedAt": "2026-09-10T15:38:33.404Z",
+    "note": "One 60-credit batch for this asset and the rejected field-generator. Do not sum overlapping task balance intervals."
+  },
+  "generatedAt": "2026-09-10T15:38:32.934Z",
+  "license": "Meshy-generated original asset for this project; see Meshy terms for the account plan.",
+  "estimatedTaskCredits": 30,
+  "adoption": {
+    "session": "assets-2",
+    "date": "2026-09-11",
+    "verdict": "Adopted as battered static supply drums: two upright plus one horizontal (three returned, four requested). Normal-map removal alone did not fix faceting; reviewed seam welding and rebuilt smooth normals improve cylinder shading. Generator and unrepaired drum variants rejected. No gameplay behavior is supplied.",
+    "bytes": 195664,
+    "sha256": "f934d3e9158e6fb9757fbdc550cf1978a7576dae805c8e4df87aa9eac4aab58d",
+    "sourceSha256": "945c8768f3c5b5b36725ecf7678f58ac6ebec4ff8896b51feaa10b0d2b93474f",
+    "sourcePath": ".inspect/assets-session2-meshy/fuel-drum-cluster/model.glb",
+    "triangles": 3119,
+    "meshes": 1,
+    "sizeM": [
+      1.49080228805542,
+      0.8999999761581421,
+      1.5074259638786316
+    ],
+    "origin": "base-centre",
+    "upAxis": "+Y",
+    "textureMaxSize": 512,
+    "textures": 2,
+    "textureFormat": "WebP",
+    "normalMapOmitted": true,
+    "normalRepair": {
+      "weldDistanceSourceUnits": 0.000001,
+      "smoothAngleDegrees": 50,
+      "recalculateFaceWinding": false
+    },
+    "reproducibleCommand": "blender --background --python tools/shrink-glb.py -- --input .inspect/assets-session2-meshy/fuel-drum-cluster/model.glb --output public/assets/props/fuel-drum-cluster.glb --size 512 --webp --height-m .9 --omit-normal-map --smooth-angle-deg 50",
+    "review": ".inspect/assets-session2-final-review-fuel-drum-cluster-{front,side,back}.png",
+    "collision": "None supplied. Keep outside play or inside matching authoritative cover. Preserve the 0.9m height; do not scale up to simulate waist cover."
+  }
+}
