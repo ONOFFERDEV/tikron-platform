@@ -47,7 +47,9 @@ Session68 quick check (published per Session69 supervisor, commit ba440b3): Unde
 
 Session69 quick check (published per Session70 supervisor, commit 1101d88): operators now have a restrained lit edge against machinery. Open Settings / Enemy colour and choose Yellow or Violet to recolour opponents; Team colours restores the original teams. Allies, objectives and the feed keep their team colours. FFA/training treats every remote operator as an opponent. The setting saves immediately; cover still hides the entire operator. Clear Contact 1/1 is complete and on by default (rim on, team colours default). Human colour-vision/readability acceptance and intermittent GPU stalls remain open.
 
-Session70 quick check (local candidate): Undertow DOM, follow a B-bound teammate through Pump service. The two new B/PUMP HALL signs mark solid pump returns; round them and enter the existing court doors. Bots use this covered approach while A/C attackers retain the rifle lane. Pump Breach 1/1 is complete and on by default. Opening B fights move closer to the flag, but overall contact timing and fast respawn safety remain unaccepted; the three matched seeds have more fast respawn contacts than before.
+Session70 quick check (published per Session71 supervisor, commit ab1fb9e): Undertow DOM, follow a B-bound teammate through Pump service. The two new B/PUMP HALL signs mark solid pump returns; round them and enter the existing court doors. Bots use this covered approach while A/C attackers retain the rifle lane. Pump Breach 1/1 is complete and on by default. Opening B fights move closer to the flag, but overall contact timing and fast respawn safety remain unaccepted; the three matched seeds have more fast respawn contacts than before.
+
+Session71 quick check (local candidate): Undertow DOM, take the northern deployment exit toward A or C. The new signed machinery baffle screens the inner lane. Round either end to peek, then push into the court with your teammates. Breakwater 1/1 is complete and on by default. In three matched bot seeds, contacts within five seconds of respawn fall from 2/1/2 to 0/0/0; overall pacing and human fairness remain unaccepted.
 
 **Live fps.tikron.dev stays unchanged. This is not live acceptance.**
 
@@ -383,8 +385,8 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 70 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session70-reference-audit.json`;
+Session 24 first canonical audit (reference restored), updated in Session 71 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session71-reference-audit.json`;
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
@@ -392,24 +394,24 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 |---|---|---|
 | R-M01 | partial | Session60 adds authored Cooling/Freight and North bus/South service rusher routes. Two route assignments per normal team; actual spawn picks direction. All-spawn collision walks and natural route-stage samples pass. Three named lanes retained; human route quality open. |
 | R-M02 | partial | Session70 retains B's two north doors, with standing/crouched eye rays clear at x69/81 and all-spawn approach walks in both gallery states. Two pump returns block the long z85 line before the doors. All-objective/human co-visibility audit remains incomplete. |
-| R-M03 | met | Session70 extends two 3m full-cover pump returns and shortens adjacent waist boxes. Undertow126 closed/124 open colliders; Relay111/Switchyard112 retained. No head-height cover; both crouched/standing z85 firing rays blocked. Bakes match authoritative geometry. |
-| R-M04 | met | Session70 static ground BFS keeps A-B/B-C/A-C at Undertow14.22/14.22/11.33s, Relay14.44/14.44/11.78s, Switchyard14.44/14.44/11.56s. Covered bot approaches are deliberate routes, not a changed player speed or shortest-rotation claim. |
+| R-M03 | met | Session71 adds two 2x3x8m full-cover northern baffles. Undertow128 closed/126 open colliders; Relay111/Switchyard112 retained. Five recorded crossing/threat pairs and their mirrors block standing/crouched rays in both gallery states. No head-height cover; bakes match collision. |
+| R-M04 | met | Session71 static ground BFS retains A-B/B-C/A-C at Undertow14.22/14.22/11.33s, Relay14.44/14.44/11.78s, Switchyard14.44/14.44/11.56s. All remain in10-15s at sprint; walk values remain higher. No speed or target change. |
 | R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session70 matched Undertow seeds170684/5/6: initial medians16.1/15.6/16.2 ->17.1/18.0/18.1s; respawn17.4/16.7/18.7 ->16.7/18.4/17.2s. All below20-30s. Fast respawns1/0/0 ->2/1/2, a regression. Opening B cohort first damage within12m rises1/12 ->11/12; this local improvement is not pacing/fairness acceptance. |
+| R-M07 | not yet | Session71 matched Undertow seeds170684/5/6: initial medians17.1/18.0/18.1s unchanged; respawn16.7/18.4/17.2 ->17.7/18.1/18.7s. All below20-30s. Fast respawns2/1/2 ->0/0/0. Opening B contact within12m11/12 ->12/12. The local exit improvement is not overall pacing or fairness acceptance. |
 | R-M08 | partial | Session66 FREIGHT / 04 counterweight echoes the orange cargo under the east amber gantry; readable ground-level cover/open/held stills. West capacitor silhouettes retained. Human wayfinding remains open. |
-| R-M09 | partial | Session64 first-seed telemetry locates all9 fast contacts after hidden respawns crossed the north exit. Four collision-backed exit screens remove the sampled firing line without changing spawn scoring/protection. Three matched seeds have0 fast respawn contacts; human camping, all-exposed fallback and side fairness remain open. Session38 arrival aim retained. |
-| R-M10 | partial | Session70 two solid pump returns shield B's approaches; paired before/after stills, door rays and all-spawn collision walks pass. Opening B fights concentrate in/near the court. Home exit screens retained, but sampled fast respawn contacts worsen; defensive quality and universal entry audit remain open. |
+| R-M09 | partial | Session71 traces five fast contacts to the SECOND northern crossing after hidden spawns, with inner-lane threats. Mirrored baffles atx18-20/x130-132,z24-32 block the retained ray fixtures while both ends remain walkable. Three matched rounds remove sampled<5s respawn contacts; all-exposed fallback, human camping and side fairness remain open. Spawn scoring/protection unchanged. |
+| R-M10 | partial | Session71 signed full-cover baffles protect staging outside A/C courts, with a standing bypass/peek at either end. Existing court entrances, pump approaches and gallery retained.20.414s normal DOM sequence reaches A with teammates. Human defensive quality and all-objective entry audit remain open. |
 | R-M11 | partial | Session66 freight body stays in its authoritative envelope with <=2cm surface trim, flush down-lock floor and permanent north/south bypasses. Permanent kit exclusion/overlap and live crossing tested. All reachable viewpoints still need player review. |
-| R-M12 | partial | Session70 normal20.440s bot DOM capture shows Pump Hall sign, covered bend, teammate at B and natural death. No injected gameplay state. Matched B opening contacts move from the exposed cross lane into the court; human action-block/excitement acceptance open. |
-| R-M13 | partial | Session70 two flush B/PUMP HALL signs on the new pump returns reuse the existing atlas, announcing the destination before the covered bend. Named Clarifier/Control/Pump routes and map introductions retained. Human wayfinding remains open. |
+| R-M12 | partial | Session71 Breakwater1/1 normal20.414s DOM capture shows the signed northern baffle, allied movement around it and arrival at A. Paired fixed-camera stills show the former firing slit blocked. No injected gameplay state; human action-block/excitement acceptance open. |
+| R-M13 | partial | Session71 A/WEST CONTROL and C/EAST CONTROL signs use the existing atlas on the protected faces of the northern baffles. Live stage2 still shows the destination before the turn, then stage3 reaches A. Existing lane/half silhouettes and pump signs retained; human wayfinding open. |
 | R-M14 | partial | Session66 Switchyard removes full freight cover to open a direct10m crossing;1.56->1.11s ground sprint route, then safe restoration. Discrete historical barriers shared by analytic/hybrid hits; no cosmetic-only opening. All-round windows/destruction remain absent. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Session48 replaces the static north dish with an original15m receiver on a30m pivot; center/overview and ground-level captures reviewed. Central solid14m spine unchanged. Human all-lane wayfinding remains open. |
 | R-M18 | partial | Session47 preserves ground/3m deck/6m roofs and four true ramps.14m switching-spine top is unreachable from6.611m launch peak, not a fourth usable floor. No sunken tier; human vantage acceptance open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session70 three natural twelve-bot DOM rounds/heatmaps:177:162/166:184/184:158,97/101/100kills,300s each. Opening B contact within12m0/0/1 ->4/3/4. B-assignment samples in exposed z72-76 strip194/216/229 ->1/1/1. Fast respawns worsen1/0/0 ->2/1/2. Four-plus same-goal assignments with>=2unfinished flags remain0; no fairness/win-rate claim. |
+| R-M20 | partial | Session71 three natural twelve-bot DOM rounds/heatmaps:165:195/193:159/146:189,102/97/102kills,300s each. Fast respawns2/1/2 ->0/0/0; observed/censored respawns92/8,87/8,90/11. B opening contacts within12m4/4/4; exposed B strip samples1/1/6, so not every metric improves. Four-plus same-goal assignments with>=2unfinished flags remain0. No human fairness/win-rate claim. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -443,9 +445,9 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L11 | partial | Session70 B orders use authored Pump service approaches chosen from own position; every-tick corner progress survives12s order renewal, expires45s, and clears on reassignment/death/gallery/reset. Near reinforcements bypass entry detours. Actual flag stays the hold/duel anchor. Hearing/sight/reaction/weapon rules unchanged; all-spawn routes and room overrides tested. Human tactics remain open. |
 | R-L12 | partial | Session69 squared Fresnel edge uses the existing opaque material; emissive edge strength rises from .42 to .62 over10-45m. Original map/character palette retained by default. Matched stills show edge separation; no all-lighting/all-range or human readability acceptance. |
 | R-L13 | partial | Session69 retains the original team-colour mass and authored dark operator details; yellow/violet uniformly recolour only opponents. Ally and HUD/objective palette unchanged. Default/team/yellow/violet lineup stills reviewed; human colour/value separation remains open. |
-| R-L14 | partial | Session70 Undertow matched stress207->208peak calls,156592->157818triangles,25textures/60.6055MiB unchanged,6.9ms median on RTX5070. Full-detail geometry/opaque signs share existing shaders. Unchanged traced FFA preflight FAIL814.7ms with811.84ms ANGLE worker overlap; timers responsive. Prior mid-combat FFA/DOM failures remain unresolved. Required final gates are recorded in Session70 log; no iGPU/thermal acceptance. |
+| R-L14 | partial | Session71 matched Undertow stress208->209peak calls,157818->159284triangles,25textures/60.6055MiB unchanged,6.9ms median on RTX5070. Six required gates pass, but supplementary ordinary DOM FAIL343ms at first death with323/334V8 samples idle, no JS long task/shader change. One subsequent diagnostic trace does not reproduce it and does not override the failure. Prior ANGLE/mid-combat stalls remain unresolved; no laptop iGPU/thermal acceptance. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
-| R-L16 | partial | Session70 Pump Breach1/1 ON: the same physical returns create cover, route a B assault and carry its destination signs. Two bakes, unchanged texture/light/pass counts,20.440s natural bot capture. Human excitement unaccepted; all previous map events retained. |
+| R-L16 | partial | Session71 Breakwater1/1 ON: the same two physical baffles shield the northern crossing, offer two peeking exits and announce A/C. Matching bakes and20.414s natural DOM capture. Five sampled fast respawns disappear; human excitement/overall pacing remain open. Prior map events retained. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
 | R-L18 | partial | Session27 reserves four of twenty remote voices for unobstructed enemy foley; box-blocked sounds attenuate. Specific R-G14 1.4 gain takes precedence over generic 1.2-1.3; path reachability not modeled. |
 | R-L19 | partial | Session36 RTT-based delay labels, two-second change hold/recovery margin, immediate known-disconnect state, quiet numeric RTT/FPS. Six responsive HUD fixtures and real training capture pass. RTT alone does not measure loss/jitter; actual RTT/escaper feel and outage-detection timing remain open. |
@@ -457,45 +459,42 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session70: all63 references reviewed. GPU preflight reproduced an814.7ms
-ANGLE stall with responsive JS; deeper short tracing did not reproduce it.
-No renderer/probe workaround is justified or shipped. Pump Breach1/1 completes
-the bounded B attack-route action block with actual cover and signage. The
-route-only intermediate retained a long firing line and was superseded.
-Opening B encounters improve spatially, but overall contact medians still miss
-20-30s and the fast-respawn count regresses. Neither issue is accepted.
+Session71: all63 reference rows reviewed. The unchanged traced FFA preflight
+and six required gates pass, but supplementary ordinary DOM fails343ms at
+first death. One diagnostic trace does not reproduce it; no renderer/probe
+workaround is shipped. Breakwater1/1 completes the bounded northern exit
+action block with collision-backed baffles and destination signs. It removes
+the five sampled fast respawn contacts while preserving rotations and B's
+pump route. Contact medians still miss20-30s; no human fairness acceptance.
 
-1. **GPU hitches across FFA/DOM (R-L14), preflight priority.** Session70 unchanged
-   traced FFA FAIL814.7ms at1.131s:811.84ms ANGLE worker task, no JS long tasks,
-   shader changes or errors;20ms heartbeat continues. Full trace retained.
-   Deeper12.958s diagnostic has no spike but no deaths and is not acceptance.
-   Session68 mid-combat904.4ms FFA/314.8ms DOM failures remain evidence; do not
-   call this startup-only. Preserve CPU profiling, all frames and150ms gate.
-   Earlier fence/HUD/software-canvas workarounds failed; no favorable-run loop.
-2. **Respawn exits and encounter pacing (R-M07/09/20, R-L02/11).** Session70
-   B-only route/cover work shifts opening B damage within12m from1/12 to11/12,
-   but fast respawns worsen1/0/0 ->2/1/2 across matched seeds. All five new
-   contacts occur near the northern deployment exit atz27.5 after hidden
-   spawns, with enemies holding A/C or the inner lane. Inspect those exact
-   exit-to-court firing lines next; do not tune timers/HP to hide the regression.
-   Initial medians17.1/18.0/18.1s, respawn16.7/18.4/17.2s still miss20-30s.
-   Preserve split orders, local duels, pump cover and the gallery override.
-   Scores177:162/166:184/184:158 do not establish human fairness.
-3. **First-play, flow and accessibility (R-L08-10/19-23).** Combined first-match
-   course, ping acknowledgement and replicated results countdown. Enemy-colour
-   choices now ship in Session69; human colour-vision/role readability,
-   role skins/voice barks and accessibility acceptance remain open.
-4. **Mode pacing and weapon/audio comfort (R-L02, R-G05/08/13/16/18).** DOM
-   economy/side swap, separate weapon FOV, view-kick control, doorway acoustics
-   and human headphone/mouse review remain.
-5. **Movement acceptance (R-G02/12/19/20, R-M05/12).** Momentum stays ON;
-   actual mouse/RTT, moving hands/flight, deliberate bot pad use and fights
-   around freight cover/bypasses still need review.
-6. **Objective-aware highlights and item control (R-L06-07, R-M16).** No replay,
-   objective-aware MVP or contested resource loop. Choose one bounded arc.
-7. **Device/performance acceptance.** Required and changed-mode per-run gates
-   do not resolve cold GPU/driver stalls or establish real6v6/RTT, laptop iGPU,
-   thermal or Firefox/Safari acceptance.
+1. **Intermittent GPU hitches (R-L14), preflight priority.** Session71 ordinary
+   DOM fails343ms at36.674s/first death;323/334V8 samples idle, no long task,
+   shader change or error. The diagnostic101.378s DOM trace does not reproduce
+   it. FFA preflight and required TDM pass but do not negate this failure,
+   Session70's814.7ms ANGLE stall or Session68's mid-combat FFA/DOM failures.
+   Preserve500us CPU profiling, all measured frames and150ms gate. Investigate
+   new reproducible evidence; do not revive rejected workarounds or rerun for luck.
+2. **First-contact pacing and court counterplay (R-M07/09/20, R-L02/11).**
+   Session71 fast respawns2/1/2 ->0/0/0, but initial medians remain17.1/18.0/
+   18.1s and respawn17.7/18.1/18.7s, below20-30s. Inspect the opening A/C
+   contact routes and held-court recontest next; preserve two peeking exits,
+   split orders, B's pump approach and the gallery. Scores165:195/193:159/
+   146:189 are not side win rates. No timer/HP tuning to hide exposure.
+3. **First-play spectacle and objective-aware highlights (R-L06/07/09/17).**
+   The first minute now has movement, deployment and map events; no replay or
+   objective-aware MVP moment exists. Choose one bounded arc after the next
+   pacing check; avoid indefinite micro-polish without a visible player payoff.
+4. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
+   first-match course, ping acknowledgement, replicated results countdown,
+   role skins/voice barks and human colour/readability acceptance remain open.
+5. **Mode economy and weapon/audio comfort (R-L02, R-G05/08/13/16/18).**
+   DOM scoring/side swap, separate weapon FOV, view-kick control, doorway
+   acoustics and human headphone/mouse review remain.
+6. **Movement and resource-loop acceptance (R-G01/02/12/19/20, R-M05/12/16).**
+   Momentum stays ON; moving hands/flight, bot pad use and freight bypass fights
+   need review. No contested resource/skill-recovery loop exists.
+7. **Device/performance acceptance.** Per-run gates do not resolve prior GPU
+   failures or establish real6v6/RTT, laptop iGPU, thermal or Firefox/Safari.
 
 ### Session 1 — 2026-09-07
 
@@ -10791,3 +10790,186 @@ appear once, one Session70 entry, clean diff check and only apps/ironsight/**
 changes on ironsight-aaa. No commit, push or deployment. Six required gates
 and changed-mode DOM green; the preflight FFA GPU failure and fast-respawn
 regression remain explicitly open.
+
+### Session 71 - 2026-09-10: Breakwater arc 1/1 - regroup before the court
+
+Read the standing brief, Session 71 supervisor status, plan and all 63 design
+reference principles. Entry branch ironsight-aaa was clean. Supervisor confirms
+Session 70 commit ab1fb9e and preview deployment b38297af-9ec2-4b05-988a-74842a118371.
+This session is a local candidate only; no commit, push or deployment.
+
+Reference: R-M03/04/07/09/10/12/13/20, R-L04/11/14/16.
+Targets: block the five recorded fast northern-exit firing lines with visible
+full cover, retain two standing bypasses/peeks, keep shortest rotations at
+10-15 seconds and preserve split objectives, pump approaches and ordinary
+combat rules. The bounded cover/navigation checks pass. The overall 20-30 second
+contact target remains NOT MET. Re-reviewed all 63 scorecard rows and re-ranked
+the gap list; human pacing, camping fairness and excitement remain unaccepted.
+
+GPU preflight and measurement discipline:
+
+- The unchanged traced FFA preflight passes: 36,796.3 ms, 5,297 frames and two
+  natural deaths. One 24.7 ms frame at 662 ms; no >150 ms frame, JS long task,
+  shader change or console error. Retained session71-hitch-preflight-ffa.json,
+  .log and -trace.json. Existing --trace/--diagnostic-timing options only.
+- This does not resolve Session 70's 814.7 ms ANGLE stall or the earlier
+  mid-combat FFA/DOM failures. No renderer workaround, changed preparation wait,
+  frame exclusion, profiler change or favorable-run retry loop was introduced.
+- No bake, build, test or second inspection browser overlapped either matched
+  stress sample or an acceptance hitch measurement. Original 500 us sampling,
+  startup frames, 150 ms assertion and two-death requirement are unchanged.
+
+Delivered, Breakwater 1/1 complete and on by default:
+
+- Read all five Session 70 fast lives and their nearest one-second movement
+  samples. Spawns were hidden; first damage occurred in the second northern
+  crossing at z=27.5, with threats moving through the inner lane. The older
+  exit screens blocked the home-court ray but left this lateral strip exposed.
+  Nearby telemetry threats are candidate lines, not claimed exact shooters.
+- Two mirrored 2 x 3 x 8 m machinery baffles at x18-20 and x130-132, z24-32,
+  screen that strip. Each has a clear standing bypass and firing peek at both
+  ends. Their collision tiles feed server movement/hits, client prediction,
+  navigation, spawn checks and the original procedural render kit.
+- Protected faces carry A / WEST CONTROL and C / EAST CONTROL signs using the
+  existing signage atlas and opaque material. The new cover supports regrouping,
+  route choice and destination recognition in the same space. It creates no
+  floor tier, invisible wall or cosmetic opening.
+- Rebuilt ground AO at 2048 x 1365 (13.65 px/m) and architecture AO at 1024
+  square. Audit verifies 88,924 oriented triangles, zero degenerates, finite UVs,
+  ten material primitives, one embedded AO image and maximum normal component
+  error 0.000301. Exact original winding retained. Provenance and reproduction
+  commands are in public/assets/README.md; existing asset allowlists suffice.
+- Two new regressions check all five measured line fixtures and their mirrors,
+  standing/crouched eyes, both gallery states, capsule clearance and bypass/peek
+  rays. Existing all-spawn navigation, B-approach, deck, rifle-lane and rotation
+  tests pass. No bot stat, spawn score/protection, weapon, timer, map event,
+  schema/state-version or protocol change; no existing assertion weakened.
+
+Three matched natural twelve-bot DOM rounds, unchanged 300 second rules:
+
+| Seed | Before -> final red:blue | Kills before -> final | Initial p50 s before -> final | Respawn p50 s before -> final | Contacts <5s before -> final |
+|---|---|---|---|---|---|
+|170684|177:162 -> 165:195|97 -> 102|17.1 -> 17.1|16.7 -> 17.7|2 -> 0|
+|170685|166:184 -> 193:159|101 -> 97|18.0 -> 18.0|18.4 -> 18.1|1 -> 0|
+|170686|184:158 -> 146:189|100 -> 102|18.1 -> 18.1|17.2 -> 18.7|2 -> 0|
+
+All six rounds run 300 seconds. Initial observed/censored counts are 12/0 in
+every round; respawns before 91/6,92/8,90/7 and final 92/8,87/8,90/11. Quantiles
+use the existing lower empirical p50; absent contacts remain censored. Gallery
+visitors 2/3/4 -> 2/4/3. Four-plus same-flag assignments with at least two
+unfinished flags remain zero. No many-round side win rate or human 6v6 claim.
+
+The fixed opening B cohort retains contact near its objective: first damage
+within 12 m rises 4/3/4 -> 4/4/4. B-assignment samples behind the pumps rise
+245/277/291 -> 284/279/318; exposed cross-lane samples are 1/1/1 -> 1/1/6.
+The last seed is worse on that secondary measure. Initial medians do not improve,
+and one respawn median decreases. Zero sampled fast respawns is a bounded gain,
+not an overall pacing or safety guarantee. No discarded seed or retuned combat.
+
+Evidence: .inspect/session71-baffles-{170684,170685,170686}-bot-{round,debug}.json
+and -bot-heatmap.svg; session71-baffles-comparison.json and -routes.json. Baseline
+is Session 70's retained same-seed reports. Reproduce with UNDERTOW_METRICS=1,
+METRICS_SEED and METRICS_PREFIX, then pnpm exec vitest run
+test/undertow-metrics.tool.test.ts. Existing scripts/dom-orders-summary.mjs and
+objective-approach-summary.mjs compare session70-pumps to session71-baffles.
+
+Wow check and rejected alternatives:
+
+- Paired session71-exit-{before,after}-undertow-home.png use the same camera
+  (5,1.65,27.5 looking toward 26.5,1.65,26.35) and fixed offline operator.
+  Reviewed both at full size: the former visible operator/firing slit is now
+  hidden by solid signed machinery. These are offline fixtures, not live state
+  injection or proof of every angle. Matching reports have zero console errors.
+- session71-wow-report.json retains a 20,414 ms normal DOM capture with 217
+  samples and all four route stages reached; A arrival at 11,132 ms. Reviewed
+  breakout-stage-2 and breakout-10s at full size: the destination sign and allied
+  movement around the baffle, then teammates in A's court. Also retained
+  breakout-{0s,5s,10s,15s,20s}, all stage stills and the log. Zero natural deaths
+  in this short showcase; it is separate from the two-death acceptance probe.
+- Reproduce with node scripts/inspect-map.mjs --url http://localhost:8796
+  --shots dom --assert-breakout --prefix session71-review. The unchanged driver
+  uses normal W/look input. No health, position, bot, clock, shot or support-event
+  injection. Offline still command is in the asset provenance entry.
+- Intended player sentence: "I can regroup behind this machinery, then choose
+  which side to push." Design intent, not a human testimonial or AAA acceptance.
+- No geometry intermediate was rejected: the first bounded baffle candidate
+  passed the retained rays, navigation and matched rounds. Timer/health changes
+  were rejected as an approach because exposure was spatial. No generated hero
+  prop was needed for these exact collision envelopes. Prior GPU failures stay
+  in the log; this session supplies no claimed GPU fix.
+
+Matched 1920 x 1080 balanced/DPR 1 Undertow stress, Edge 152.0.4191.66,
+RTX 5070/ANGLE D3D11: eleven remote actors and the local viewmodel, 145
+twelve-rifle volleys, 96 blasts over 15 seconds and a three-second drain.
+
+| Measurement | Before | Final | Delta |
+|---|---:|---:|---:|
+| Peak calls / triangles |208 / 157818|209 / 159284|+1 / +1466|
+| Textures / estimated MiB |25 / 60.6055|25 / 60.6055|0 / 0|
+| Programs / geometries / prepared instance slots |29 / 166 / 625|29 / 168 / 625|0 / +2 / 0|
+| Median / p95 / p99 ms |6.9 / 7.1 / 7.1|6.9 / 7.1 / 7.1|0 / 0 / 0|
+| Maximum / first-ready ms |7.3 / 7.1|7.3 / 7.1|0 / 0|
+| Construction / preparation ms |76.0 / 968.1|77.8 / 947.0|+1.8 / -21.1|
+| Assets including README bytes |26785221|26899692|+114471|
+| Client JS / source map bytes |2085348 / 4627147|2085440 / 4627656|+92 / +509|
+| Entire public bytes |33498324|33613396|+115072|
+
+Public 32.0562 MiB remains below 40 MiB; largest file 7,183,364 bytes remains
+below 25 MiB. Binary asset delta 112,760 bytes; the remaining asset bytes are
+provenance text. Same per-map lazy loading, fixed four blast lights, no new
+dependency, light, pass or per-frame bake. Meshy spend zero; reported balance
+1,530 unchanged. Timing differences are sample variability, not a GPU speedup
+or laptop iGPU/thermal/cold-driver/real-6v6/RTT acceptance. Data/reproduction:
+.inspect/session71-{before,after}-report.json and session71-summarize.mjs /
+session71-summary.json.
+
+Required final gates:
+
+- pnpm typecheck PASS; pnpm test PASS (609 passed, six existing skips;
+  76 passed files/four skipped); pnpm build:client PASS; pnpm audit:assets PASS.
+  Full session71-{typecheck,test,build-client,audit-assets}.log and
+  session71-static-gates.json retain the command results.
+- Exact node scripts/inspect-map.mjs --url http://localhost:8796
+  --shots relay,practice-two PASS; zero console errors/forbidden requests.
+  session71-required-report.json, required-{relay,practice-two}.png and
+  required.log retain the run.
+- Exact node scripts/hitch-probe.mjs http://localhost:8796 150000
+  .inspect/hitch.json --assert PASS: 105,414.2 ms, 15,179 frames and two natural
+  deaths. No >24 ms frame, long task, shader recompile or console error.
+  Original hitch.json plus session71-hitch-final.json/.log retain the run.
+- Refreshed session71-reference-audit.json/mjs via unchanged reference-audit.ts:
+  all maps 150 x 100 m / 1,250 m2 per seat; rotations unchanged within 10-15s.
+  ADS 250/200/225/400/165 ms, sprint recovery 120/100/130/150/90 ms, respawn 3s,
+  hostile foley 1.4, hit/kill pips and two damage cues retained. DOM 4/8s capture,
+  one point/2s/flag, no side swap, 78 hip FOV and top-right feed remain reference
+  mismatches. No timing or performance target silently relaxed.
+
+Open owner questions/defaults: keep the signed northern baffles (yes); keep both
+peeking exits and ordinary combat stats (yes); inspect opening A/C contacts next
+(yes). No answer blocks continued work. Human court counterplay, first-play
+excitement, colour/aim/audio/RTT and iGPU remain open. The bounded fast-respawn
+gain does not erase overall contact timing or historical GPU failures.
+
+Supplementary changed-mode check and final cleanup:
+
+- Ordinary DOM FAIL: 91,859.2 ms / 13,180 frames / two natural deaths. One
+  343 ms frame at 36,674 ms coincides with the first death; 323 of 334 V8
+  samples in that gap are idle. No JS long task, shader change or console error.
+  Retained .inspect/session71-hitch-dom.json/.log. This is consistent with the
+  prior idle-heavy failures, but this untraced run does not prove a GPU cause.
+- One diagnostic DOM follow-up with existing --trace/--diagnostic-timing
+  options: 101,378.1 ms / 14,600 frames / two deaths, no >24 ms frame, long task,
+  shader change or console error. It does NOT reproduce the trigger and does
+  not replace the ordinary failed run. session71-dom-diagnostic.json/.log,
+  -trace.json and -trace-summary.json retained. No further retry or renderer
+  change; the evidence does not justify reviving rejected HUD/fence workarounds.
+- Verified the preview root PID/start time and each descendant identity, then
+  stopped the owned twelve-process tree (five explicit stops, seven already
+  exited). session71-preview-tree.json and session71-cleanup.json record zero
+  owned processes, port8796 listeners or inspection browsers remaining.
+- Final scope/reference audit is session71-final-audit.json: all63 canonical
+  rows appear once, one Session71 log entry, clean diff check, only
+  apps/ironsight/** changes on ironsight-aaa. No commit, push or deployment.
+  Six required gates are green for their exact runs. Additional ordinary DOM
+  remains FAILED; neither its later diagnostic pass nor the static stress
+  comparison establishes all-mode or universal hitch acceptance.

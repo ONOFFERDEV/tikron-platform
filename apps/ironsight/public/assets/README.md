@@ -864,6 +864,32 @@ pnpm build:client
 node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom --assert-breakout --prefix session64-review
 ```
 
+### Session 71: Undertow Breakwater
+
+Two original 2 x 3 x 8 m machinery baffles at x18-20 and x130-132, z24-32,
+screen the northern deployment crossing from the inner lane. Both ends remain
+walkable. Collision tiles own their full volumes; the procedural kit follows.
+Two flush A/WEST CONTROL and C/EAST CONTROL signs reuse the existing atlas and
+opaque material. No purchased inputs, Meshy generation, new light or render pass.
+
+`maps/undertow-architecture.glb`: 6,919,320 bytes (+111,036), 88,924 oriented
+triangles (+1,464), ten material primitives and one 1024-square AO image.
+`maps/undertow-ground-ao.png`: 855,354 bytes (+1,724), 2048 x 1365, 13.65 px/m.
+The existing original-asset allowlists and per-map lazy loading apply.
+
+Reproduce from apps/ironsight:
+
+```powershell
+node tools/dump-maps.mjs .inspect/session71-maps.json undertow
+node tools/dump-architecture.mjs .inspect/session71-architecture.json undertow
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-ground-ao.py -- --maps .inspect/session71-maps.json --size 2048 --samples 96
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --factory-startup --python tools/bake-architecture.py -- --input .inspect/session71-architecture.json --size 1024 --samples 64
+python scripts/audit-architecture.py --input .inspect/session71-architecture.json
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-home --review-camera 5,1.65,27.5,26.5,1.65,26.35 --review-enemy 26.5,0,26.35 --prefix session71-review
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots dom --assert-breakout --prefix session71-live
+```
+
 ### Session 70: Undertow Pump Breach
 
 Two original 3 m pump returns extend the southern housings at x62-64 and

@@ -220,6 +220,10 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   // existing atlas and opaque material; both signs sit on real solid faces.
   sign(1, 61.984, 2.35, 86, -Math.PI / 2, 3.5);
   sign(1, 88.016, 2.35, 86, Math.PI / 2, 3.5);
+  // Northern breakwater baffles: destination on the protected arrival face.
+  // Same atlas, opaque shader and real full-cover envelope as the pump signs.
+  sign(0, 17.984, 2.35, 28, -Math.PI / 2, 6);
+  sign(2, 132.016, 2.35, 28, Math.PI / 2, 6);
   sign(3, width / 2, 22.8, -14.46, 0, 6);
   // One label per face: the former site label overlapped CLARIFIER ROUTE.
   sign(4, 46, 2.35, 44.016, 0, 4);

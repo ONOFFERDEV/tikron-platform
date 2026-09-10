@@ -7,6 +7,8 @@ import type { MapDef } from './types.js';
  * tight pump-service flank (south). Two-ended home courts and screened B.
  * Staggered full-height screens at the four deployment exits let arrivals
  * break the home-court firing line before choosing their next lane.
+ * Paired northern baffles shield the second exit crossing from the inner
+ * lane. Players can round either end to peek or push the home court.
  * B's southern pump housings end in full-height returns: the approach bends
  * around solid machinery before entering the two existing court doors.
  * Tiles own all cover/spawns/caps; the original kit only clads these volumes.
@@ -24,10 +26,10 @@ export const UNDERTOW_ROWS: readonly string[] = [
   "...........................................................................",
   ".....#....#####......#.....#.....#.......#.....#.....#......#####....#.....",
   ".....#...............#.....#.....#.......#.....#.....#...............#.....",
-  ".....#....xx..#...x.....................................x...#..xx....#.....",
-  "..............#.............................................#..............",
-  "..#####.............................................................#####..",
-  ".......#................xx..xx....xx...xx....xx..xx................#.......",
+  ".....#...#xx..#...x.....................................x...#..xx#...#.....",
+  ".........#....#.............................................#....#.........",
+  "..#####..#.......................................................#..#####..",
+  ".......#.#..............xx..xx....xx...xx....xx..xx..............#.#.......",
   ".......#........................x.........x........................#.......",
   ".......#..xx....#.....v.............................v.....#....xx..#.......",
   ".......#........#...======.......................======...#........#.......",

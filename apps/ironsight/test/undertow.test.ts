@@ -8,6 +8,38 @@ import { spawnExposed } from '../src/map/spawn.js';
 import { CoreCollision } from '../src/core-gate.js';
 
 describe('Undertow encounter safety', () => {
+  it('screens the second northern crossing from the recorded inner-lane threats', () => {
+    const collision = new CoreCollision(map);
+    // Session70's five <5s respawn contacts, normalized to the west half.
+    // Threats are the nearby 1s telemetry samples, not asserted exact shooters.
+    const rays = [
+      [6.19935,27.50062,26.50895,25.14666],
+      [4.99741,27.48733,26.50231,26.34781],
+      [17.29935,27.5,30.5,29.25365],
+      [16.39935,27.5,30.5,31.05365],
+      [7.09995,27.50005,26.64188,23.35388],
+    ] as const;
+    for (const east of [false,true]) for (const open of [false,true]) {
+      const mirror = (x:number) => east ? 150-x : x;
+      for (const [x,z,tx,tz] of rays) for (const eye of [PLAYER.standEye,PLAYER.crouchEye]) {
+        const origin = {x:mirror(x),y:eye,z}, target = {x:mirror(tx),y:eye,z:tz};
+        const d = Math.hypot(target.x-origin.x,target.z-origin.z);
+        expect(canStand(origin.x,0,z,PLAYER.radius,PLAYER.standHeight,collision.boxes(open),map.bounds)).toBe(true);
+        expect(nearestBox(origin,{x:(target.x-origin.x)/d,y:0,z:(tz-z)/d},collision.hits(open),d)).toBeLessThan(d);
+        expect(spawnExposed({x:origin.x,y:0,z},{...target,y:0,id:'inner-threat',team:1,alive:true},collision.hits(open))).toBe(false);
+      }
+    }
+  });
+  it('leaves a clear standing bypass and firing peek at both ends of each baffle', () => {
+    for (const east of [false,true]) for (const z of [23,33]) {
+      for (let x=17;x<=21;x+=.1) {
+        const px=east?150-x:x;
+        expect(canStand(px,0,z,PLAYER.radius,PLAYER.standHeight,map.boxes,map.bounds)).toBe(true);
+      }
+      const x=east?129:21,dx=east?-1:1;
+      expect(nearestBox({x,y:PLAYER.standEye,z},{x:dx,y:0,z:0},map.boxes,5)).toBe(Infinity);
+    }
+  });
   it('screens all four deployment exits from the opposing home-court firing line', () => {
     const collision = new CoreCollision(map);
     // Mirrored versions of the actual Session64 early-damage position and
