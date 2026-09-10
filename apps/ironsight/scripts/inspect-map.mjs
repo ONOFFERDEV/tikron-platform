@@ -471,6 +471,32 @@ try {
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
     const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    if (report?.lighting) {
+      const lighting = report.lighting;
+      const dusk = report.siteGround?.some(g => g.name === 'undertow-ground');
+      const lightTypes = lighting.lights.map(l => l.type);
+      if (lightTypes.length !== 16) throw Error('Total prepared light count changed');
+      for (const type of ['DirectionalLight', 'HemisphereLight', 'AmbientLight'])
+        if (lightTypes.filter(t => t === type).length !== 1) throw Error(`Fixed site light budget changed: ${type}`);
+      if (lighting.shadowAutoUpdate || lighting.environment?.pmremGenerations !== 1)
+        throw Error(`Site lighting was not prepared/cached: ${JSON.stringify(lighting)}`);
+      const requested = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.endsWith(".hdr") || p.endsWith("dusk-sky.png"))');
+      const expected = dusk ? ['/assets/undertow-dusk.hdr', '/assets/undertow-dusk-sky.png'] : ['/assets/industrial-daylight.hdr'];
+      if (requested.length !== expected.length || expected.some(path => !requested.includes(path)))
+        throw Error(`Environment was not lazy per map: ${JSON.stringify(requested)}`);
+      if (dusk) {
+        if (lighting.sky?.width !== 1024 || lighting.sky.height !== 512 || lighting.sky.bytes !== 2097152 ||
+            lighting.fog.near < 90 || lighting.environment.path !== expected[0])
+          throw Error(`Dusk sky residency or unobstructed combat range changed: ${JSON.stringify(lighting)}`);
+        const profile = JSON.parse(await readFile(fileURLToPath(new URL('../client/undertow-dusk.json', import.meta.url)), 'utf8'));
+        const key = lighting.lights.find(l => l.type === 'DirectionalLight');
+        const direction = key.position.map((value, i) => value - [report.mapBounds.width / 2, 0, report.mapBounds.depth / 2][i]);
+        const length = Math.hypot(...direction), sunLength = Math.hypot(...profile.sunDirection);
+        if (direction.some((value, i) => Math.abs(value / length - profile.sunDirection[i] / sunLength) > 1e-6) ||
+            lighting.exposure !== profile.exposure || key.color !== profile.keyColor.slice(1))
+          throw Error('Sky bake, exposure and directional key disagree');
+      } else if (lighting.sky || lighting.exposure !== 1.05) throw Error('Dusk presentation leaked into daylight map');
+    }
     if (report?.siteGround) {
       const ground = report.siteGround, apron = ground.find(g => g.name.endsWith('-apron'));
       const { width, depth } = report.mapBounds;

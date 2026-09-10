@@ -6,6 +6,7 @@ import { finishRelaySurface } from './relay-surfaces.js';
 import { finishUndertowSurface } from './undertow-surfaces.js';
 import { applySwitchyardPanels, finishSwitchyardSurface, switchyardSurfaceKind } from './switchyard-surfaces.js';
 import { waitForSiteGround } from './site-ground.js';
+import { UNDERTOW_DUSK } from './site-atmosphere.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
@@ -96,12 +97,39 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
   }
 }
 
-export async function loadSiteEnvironment(scene: T.Scene, renderer: T.WebGLRenderer): Promise<void> {
-  const source = await new RGBELoader().loadAsync('/assets/industrial-daylight.hdr');
+export async function loadSiteEnvironment(scene: T.Scene, renderer: T.WebGLRenderer, site: string): Promise<void> {
+  const dusk = site === 'undertow' ? UNDERTOW_DUSK : null;
+  const path = dusk?.environment ?? '/assets/industrial-daylight.hdr';
+  const started = performance.now();
+  const [radianceResult, skyResult] = await Promise.allSettled([
+    new RGBELoader().loadAsync(path),
+    dusk ? new T.TextureLoader().loadAsync(dusk.sky) : Promise.resolve(null),
+  ]);
+  if (radianceResult.status === 'rejected' || skyResult.status === 'rejected') {
+    if (radianceResult.status === 'fulfilled') radianceResult.value.dispose();
+    if (skyResult.status === 'fulfilled') skyResult.value?.dispose();
+    throw radianceResult.status === 'rejected' ? radianceResult.reason :
+      (skyResult as PromiseRejectedResult).reason;
+  }
+  const source = radianceResult.value, skyTexture = skyResult.value;
+  const loaded = performance.now();
   const pmrem = new T.PMREMGenerator(renderer);
   const target = pmrem.fromEquirectangular(source);
   scene.environment = target.texture;
-  scene.environmentIntensity = 0.85;
-  scene.traverse(node => { if (node instanceof T.HemisphereLight) node.intensity = 0.65; });
-  source.dispose(); pmrem.dispose();
+  scene.environmentIntensity = dusk?.environmentIntensity ?? 0.85;
+  scene.traverse(node => { if (node instanceof T.HemisphereLight) node.intensity = dusk?.hemisphereIntensity ?? 0.65; });
+  const sky = scene.getObjectByName('site-sky');
+  if (skyTexture && sky instanceof T.Mesh && sky.material instanceof T.ShaderMaterial) {
+    skyTexture.name = 'undertow-dusk-sky';
+    skyTexture.colorSpace = T.SRGBColorSpace;
+    skyTexture.wrapS = T.RepeatWrapping;
+    skyTexture.generateMipmaps = false;
+    skyTexture.minFilter = T.LinearFilter;
+    sky.material.uniforms.skyRadiance!.value = skyTexture;
+    sky.material.uniforms.skyReady!.value = 1;
+  } else skyTexture?.dispose();
+  source.dispose();
+  pmrem.dispose();
+  scene.userData.siteEnvironment = { path, loadMs: loaded - started,
+    preparationMs: performance.now() - loaded, pmremGenerations: 1 };
 }

@@ -11,3 +11,5 @@ assets-src/**
 !public/assets/props/switchyard-transformer.glb
 !public/assets/props/relay-uplink.glb
 !public/assets/ui/damage-vignette.png
+!public/assets/undertow-dusk.hdr
+!public/assets/undertow-dusk-sky.png

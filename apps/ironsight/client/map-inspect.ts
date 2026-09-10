@@ -308,6 +308,7 @@ export function startMapInspector(): void {
       concreteDetail: scene.inspectConcreteDetail(),
       siteGround: scene.inspectSiteGround(),
       preparation: scene.getPreparationInfo(),
+      lighting: scene.inspectLighting(),
       ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight],
       actorCount: reaction ? 1 : actorCount, localViewmodel: effects || blastReview, effects: effects ? { volleys, explosions, durationMs: 15000, drainMs: now - started - 15000, drained,
         rifles: 12, targetShotsPerRiflePerSecond: 10, observedShotsPerRiflePerSecond: volleys / 15, grenadesPerBurst: 12, burstIntervalMs: 2000 } : null,

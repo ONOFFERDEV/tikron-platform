@@ -31,6 +31,7 @@ Original architecture / lighting pipeline (session 9):
 | `maps/relay-architecture.glb` | Exact Relay surfaces and MapDef ramps, 1024px embedded AO atlas; Session 22 vertex weathering, 2,346,620 bytes | yes, explicit original-only exception |
 | `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
 | `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
+| `undertow-dusk.hdr` / `undertow-dusk-sky.png` | Original seeded dusk cloud/radiance field, Blender; 512x256 linear HDR 104,307 bytes and 1024x512 sRGB sky 122,555 bytes. Undertow only; see Session78 below | yes |
 
 Run from `apps/ironsight`, with the existing Node/esbuild and Python installations:
 
@@ -1070,3 +1071,41 @@ The original palette, signs, launch markings and cargo collision stay intact.
 Ground plus detail uses 1.3060 MiB with mips, down 0.1940 MiB from 1.5000 MiB.
 Per-map lazy loading is retained. This completes Surface Detail 3/3 by default;
 human visual/readability and representative laptop-iGPU acceptance remain open.
+
+### Session78: Afterlight 1/2 — Undertow dusk
+
+`undertow-dusk.hdr` (104,307 bytes) and `undertow-dusk-sky.png` (122,555 bytes)
+are original mathematical radiance/cloud fields, with no external imagery,
+purchased source or Meshy generation. Both derive from the same seeded field
+and `client/undertow-dusk.json`. Reproduce from this app:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 4.5/blender.exe' --background --python tools/bake-undertow-sky.py
+pnpm build:client
+node scripts/inspect-map.mjs --url http://localhost:8796 --shots undertow-home,undertow-flood-active,undertow-effects-stress --prefix dusk-review --assert-budgets
+```
+
+The HDR is linear 512x256 and becomes the existing 128px PMREM during arena
+preparation. Its source and generator are disposed after that one generation.
+The PNG is 1024x512, explicitly sRGB-encoded once; the shader sampler decodes
+it once. The bake reopens the saved PNG and validates every pixel's encoded
+value and orientation to within 2/255. Non-Color/Standard bypasses Blender's
+display transforms; do not apply AgX or another gamma conversion.
+
+The visible sky is 2 MiB RGBA8, linear-filtered without mipmaps, sampled by the
+existing sky sphere's one draw. The sun disc is analytic within that shader;
+its broad baked halo drives reflections, and its direction matches the existing
+directional light. Camera translation is excluded from sky projection. The sky
+has no animation, per-frame CPU bake, extra pass, new light or bloom overlay.
+Warm low sun, blue hemisphere fill, exposure and distant fog are map-specific;
+fog still begins at 90m, beyond the 40m rifle lanes. Shaded surfaces and operators
+retain fill and existing actor rim/team-colour settings. Shadows use the same
+cached 1024 atlas. This changes no collider, actor material, gameplay or wire data.
+
+Only Undertow requests these two files, replacing its 41,273-byte daylight HDR
+request (net +185,589 bytes on that map). Relay and Switchyard retain daylight.
+Stress texture residency rises 61.3008 -> 63.3008 MiB, within 64 MiB; the other
+maps allocate no new texture. Inspector validates map-only requests, all 16
+prepared lights, matching sun/key direction, cached shadows and sky residency.
+Load/PMREM call timings describe local preparation, not isolated GPU timing or
+CDN first-load performance. Human visual/device acceptance remains open.
