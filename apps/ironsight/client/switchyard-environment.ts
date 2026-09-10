@@ -2,6 +2,9 @@ import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { SWITCHYARD_FINISH } from './switchyard-palette.js';
+import { SWITCHYARD_CRATES } from '../src/map/switchyard-structures.js';
+import { createPropLibrary } from './prop-library.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /** Power-distribution yard. Complete collider envelopes remain visibly solid;
  * millimetre face cladding cannot create a route, opening or extra cover.
@@ -21,11 +24,44 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     batches.set(key, list);
   };
   if (!bakeOnly) buildSiteGround(scene, map);
+  const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   for (const b of map.boxes) {
     if (map.signalCore?.doors.includes(b)) continue;
+    if (SWITCHYARD_CRATES.includes(b)) continue; // removable supply fallback below
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2, base = b.min.y;
     const low = h < 1.5, wall = w > 6;
+    const part = structureParts.get(b);
+    if (part) {
+      // Exact slab/lintel/sill envelopes. Cabinet panels used on the old sealed
+      // blocks must never extend down across a doorway or below a roof slab.
+      add(part.kind === 'cover' ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
+      if (part.kind === 'cover') {
+        add(1, x, b.max.y + .004, z, w, .008, d);
+        add(2, x, b.max.y + .009, z, w * .8, .002, d * .66);
+        for (const side of [-1, 1]) {
+          add(5, x + side * w * .32, b.max.y + .011, z, .14, .002, d * .46);
+          add(3, x + side * w * .32, base + .82, b.max.z + .006, .18, .1, .008);
+        }
+      } else if (part.kind === 'wall') {
+        const accent = x < cx ? 4 : 3;
+        for (const side of [-1, 1]) {
+          const alongX = w > d;
+          const faceX = alongX ? x : x + side * (w / 2 + .004);
+          const faceZ = alongX ? z + side * (d / 2 + .004) : z;
+          // Dado is bounded to the piece; windows, doors and roof escape stay open.
+          if (base === 0 && h >= 1.1) {
+            add(accent, faceX, .44, faceZ, alongX ? w : .008, .64, alongX ? .008 : d);
+            add(5, faceX, .8, faceZ, alongX ? w : .008, .04, alongX ? .008 : d);
+          }
+          if (base === 3) add(1, faceX, 3.88, faceZ, alongX ? w : .008, .09, alongX ? .008 : d);
+        }
+      } else if (part.kind === 'slab') {
+        // Thin opaque wearing surface, inset from all stairwell edges.
+        add(1, x, b.max.y + .003, z, Math.max(.01, w - .04), .006, Math.max(.01, d - .04));
+      }
+      continue;
+    }
     // Exact authority volume, including its top. No decorative gaps through cover.
     add(low ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
     add(1, x, base + 0.12, z, w + 0.006, 0.24, d + 0.006);
@@ -71,6 +107,15 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
         add(3, arrowX + direction * repeat, base + 1.65 + vertical * .28,
           b.min.z - .018, .86, .16, .003, 'cladding', false,
           new T.Euler(0, 0, -direction * vertical * Math.PI / 4));
+    }
+  }
+  // Eighteen painted tread noses follow each real ramp. They imply a stair
+  // without adding physics steps, a lip at the landing, or a fourth floor.
+  for (const s of map.structures ?? []) for (const r of s.ramps) {
+    for (let step = 1; step < 18; step++) {
+      const t = step / 18;
+      const x = r.dir === 1 ? r.minX + t * (r.maxX - r.minX) : r.maxX - t * (r.maxX - r.minX);
+      add(5, x, r.topY * t + .006, (r.minZ + r.maxZ) / 2, .035, .008, r.maxZ - r.minZ - .08, 'paint');
     }
   }
   // Retaining walls sit outside the server's clamped rectangle, including trim.
@@ -197,10 +242,22 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     mesh.castShadow = zone !== 'paint'; mesh.receiveShadow = true;
     mesh.computeBoundingSphere(); scene.add(mesh);
   }
+  // Kept separate from the architecture bake so a successful detail load can
+  // remove these exact authority envelopes without leaving a baked duplicate.
+  const supplyGeometry = new T.BoxGeometry(1, 1, 1);
+  const supplyMaterial = new T.MeshStandardMaterial({ color: 0x4c5140, roughness: .92 });
+  const supplies = new T.InstancedMesh(supplyGeometry, supplyMaterial, SWITCHYARD_CRATES.length);
+  supplies.name = 'switchyard-shell-supplies'; supplies.userData.architectureExclude = true;
+  SWITCHYARD_CRATES.forEach((b, i) => supplies.setMatrixAt(i, new T.Matrix4().compose(
+    new T.Vector3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2),
+    new T.Quaternion(), new T.Vector3(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z))));
+  supplies.castShadow = supplies.receiveShadow = true;
+  supplies.computeBoundingSphere(); scene.add(supplies);
   if (bakeOnly) return;
-  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
+  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE'];
+  const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE',
+    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = i === 1 ? '#a8b7a5' : '#c5b185'; ctx.fillRect(16, i * 128 + 18, 12, 92);
@@ -208,10 +265,11 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const mat = new T.MeshBasicMaterial({ map: texture });
+  const signParts: T.BufferGeometry[] = [];
   const sign = (label: number, x: number, y: number, z: number, yaw = 0, width = 5.5) => {
     const geo = new T.PlaneGeometry(width, width / 8), uv = geo.getAttribute('uv');
-    for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 3 - label) / 4);
-    const mesh = new T.Mesh(geo, mat); mesh.position.set(x, y, z); mesh.rotation.y = yaw; scene.add(mesh);
+    for (let i = 0; i < uv.count; i++) uv.setY(i, (uv.getY(i) + 7 - label) / 8);
+    geo.rotateY(yaw).translate(x, y, z); signParts.push(geo);
   };
   sign(0, cx, 0.75, 0.006, 0, 9);
   sign(1, 25, 2.4, 8.024, 0, 7);
@@ -224,4 +282,57 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     sign(2,direction>0?65.976:84.024,2.1,pad.from.z,direction>0?-Math.PI/2:Math.PI/2,3.8);
   }
   sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
+  for (const s of map.structures ?? []) {
+    const mid = (s.footprint.minX + s.footprint.maxX) / 2, west = mid < cx;
+    // Names on the solid parapets; tiny lintels receive only short door labels.
+    sign(west ? 4 : 5, mid, 3.56, s.footprint.minZ - .016, Math.PI, 6.8);
+    for (const dx of [-5, 5]) sign(west ? 4 : 5, mid + dx, 3.56, s.footprint.maxZ + .016, 0, 5.5);
+    sign(7, mid, 2.53, s.footprint.maxZ + .016, 0, 2.4);
+    // Interior north-facing parapet above the stair entrance (opposing arrow
+    // is expressed by placement; text remains upright on both halves).
+    sign(6, mid, 3.54, s.footprint.minZ + .416, 0, 4);
+  }
+  const signs = new T.Mesh(mergeGeometries(signParts)!, mat);
+  signs.name = 'switchyard-signs'; scene.add(signs);
+  signParts.forEach(g => g.dispose());
+}
+
+/** Per-map lazy library detail, resolved before texture/program preparation. */
+export async function loadSwitchyardSupplies(scene: T.Scene): Promise<void> {
+  const library = createPropLibrary();
+  const finishes = new Map<T.MeshStandardMaterial, T.MeshStandardMaterial>();
+  try {
+    const crates = await Promise.all(SWITCHYARD_CRATES.map(async b => {
+      const root = await library.load('ammo-crate-stack');
+      root.position.set((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2);
+      root.traverse(node => {
+        if (!(node instanceof T.Mesh)) return;
+        node.castShadow = node.receiveShadow = true;
+        const finish = (source: T.Material): T.Material => {
+          if (!(source instanceof T.MeshStandardMaterial)) return source;
+          let material = finishes.get(source);
+          if (!material) {
+            // Four small painted supplies need their colour/edge detail, but
+            // their extra normal/ORM maps pushed the full fight to34textures.
+            // One shared, map-owned finish keeps the32texture gate intact.
+            material = source.clone(); material.name = 'switchyard-issued-crate';
+            material.normalMap = material.aoMap = material.roughnessMap = material.metalnessMap = null;
+            material.roughness = .86; material.metalness = .08;
+            finishes.set(source, material);
+          }
+          return material;
+        };
+        node.material = Array.isArray(node.material) ? node.material.map(finish) : finish(node.material);
+      });
+      return root;
+    }));
+    const group = new T.Group(); group.name = 'switchyard-issued-supplies'; group.add(...crates); scene.add(group);
+    const fallback = scene.getObjectByName('switchyard-shell-supplies');
+    if (fallback instanceof T.InstancedMesh) {
+      scene.remove(fallback); fallback.geometry.dispose(); (fallback.material as T.Material).dispose(); fallback.dispose();
+    }
+  } catch (error) {
+    for (const material of finishes.values()) material.dispose();
+    library.dispose(); console.warn('Switchyard supply detail unavailable; retaining authoritative crate envelopes.', error);
+  }
 }

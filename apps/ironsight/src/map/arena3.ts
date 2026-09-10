@@ -1,5 +1,7 @@
 import { compileTileMap } from './tilemap.js';
 import type { MapDef } from './types.js';
+import { withStructures } from './structures.js';
+import { SWITCHYARD_BUILDINGS, SWITCHYARD_CRATES } from './switchyard-structures.js';
 
 /** SWITCHYARD: 150 x 100 m, twelve screened deployment bays.
  * Two inner south arrivals relocate to north switchgear courts, away from B's
@@ -8,7 +10,8 @@ import type { MapDef } from './types.js';
  * Switch deck: exposed four-ramp 3 m shortcut between both movement axes.
  * South service: offset switchgear screens into B's paired-door court.
  * DOM distances govern the anchors; the public playlist remains FFA.
- * Tiles own collision, spawns and caps. Dressing never adds playable cover.
+ * Tiles own yard cover, spawns and caps. Authored maintenance/dispatch rooms
+ * replace the two sealed south housings; dressing never adds playable cover.
  */
 export const SWITCHYARD_ROWS: readonly string[] = [
   "...................#.................#.................#...................",
@@ -66,7 +69,7 @@ const compiled = compileTileMap(SWITCHYARD_ROWS);
 // The gantry's freight counterweight is full cover at rest. During transfer it
 // locks flush with the apron: one replicated gate bit owns cover and crossing.
 const freightCounterweight = { min: { x: 124, y: 0, z: 46 }, max: { x: 128, y: 3, z: 52 } };
-export const ARENA3: MapDef = {
+export const ARENA3: MapDef = withStructures({
   ...compiled, presentation: 'switchyard',
   signalCore: { doors: [freightCounterweight], chamber: freightCounterweight },
   flankRoutes: [
@@ -88,12 +91,15 @@ export const ARENA3: MapDef = {
     { x: 123, z: 51 }, { x: 123, z: 87 }, { x: 75, z: 93 },
     { x: 27, z: 87 }, { x: 27, z: 51 },
   ],
-  boxes: [...compiled.boxes.map(b => ({ ...b, max: { ...b.max,
+  boxes: [...compiled.boxes.filter(b => !SWITCHYARD_BUILDINGS.some(s =>
+    b.min.x === s.origin.x && b.max.x === s.origin.x + s.width
+    && b.min.z === s.origin.z && b.max.z === s.origin.z + s.depth)).map(b => ({ ...b, max: { ...b.max,
     y: b.max.y === 1.1 ? 1.1 : b.max.y === 2.2 ? 6 : 3,
   } })),
     // Deck switching spine: solid/inaccessible above the 3m route, no fourth floor.
     { min: { x: 79, y: 3, z: 51 }, max: { x: 81, y: 14, z: 53 } },
     freightCounterweight,
+    ...SWITCHYARD_CRATES,
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minX: r.axis === 'x' && r.dir === 1 ? r.minX - 4 : r.minX,
@@ -101,7 +107,7 @@ export const ARENA3: MapDef = {
     minZ: r.axis === 'z' && r.dir === 1 ? r.minZ - 4 : r.minZ,
     maxZ: r.axis === 'z' && r.dir === -1 ? r.maxZ + 4 : r.maxZ,
   })),
-};
+}, SWITCHYARD_BUILDINGS);
 export const ARENA3_BOUNDS = ARENA3.bounds;
 export const ARENA3_BOXES = ARENA3.boxes;
 export const ARENA3_SPAWNS = ARENA3.spawns;

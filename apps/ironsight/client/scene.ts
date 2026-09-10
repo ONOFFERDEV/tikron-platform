@@ -56,7 +56,7 @@ import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, 
 import { loadMapDressing } from "./dressing-loader.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
 import { buildUndertowEnvironment, buildUndertowCanalWater, loadUndertowSupplies } from "./undertow-environment.js";
-import { buildSwitchyardEnvironment } from "./switchyard-environment.js";
+import { buildSwitchyardEnvironment, loadSwitchyardSupplies } from "./switchyard-environment.js";
 import { loadSwitchyardTransformers } from "./switchyard-props.js";
 import { loadRelayUplinks } from "./relay-props.js";
 import { loadRelayFieldworks } from "./relay-fieldworks.js";
@@ -502,6 +502,9 @@ export class SceneRig {
     if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardTransformers(this.scene, map.bounds.width).then(() => {
       this.renderer.shadowMap.needsUpdate = true;
     }).catch(error => console.warn('Switchyard transformer unavailable; retaining substation architecture.', error)));
+    if (map.presentation === 'switchyard') this.assetLoads.push(loadSwitchyardSupplies(this.scene).then(() => {
+      this.renderer.shadowMap.needsUpdate = true;
+    }));
     if (map.presentation) this.assetLoads.push(loadSiteEnvironment(this.scene, this.renderer, map.presentation)
       .catch(error => console.warn("Site environment unavailable; retaining hemisphere fill.", error)));
 

@@ -2,6 +2,14 @@
 
 ## OWNER PLAYTEST GUIDE
 
+**Session 96 local check - Places D 1/3:** Training / Switchyard, find
+MAINTENANCE / WEST or DISPATCH / EAST beside South service. Enter either
+south door, use the work consoles and firing windows, climb the internal
+stair and contest the opposing roof. The south parapet gap drops back to
+the yard. [Fixed-camera and live gallery](.inspect/session96-review.html).
+This session is local; no commit, push or deployment. The lower rail/loading
+route and depot boundary are the next two stages. Normal-play snapback stays open.
+
 **Session 95 local check - Places C 3/3:** Training / Undertow, look toward the
 filter house behind west deployment and the maintenance hall under the east
 gantry. Follow Pump service around B's back wall to either canal lookout;
@@ -459,33 +467,33 @@ Session 3: no new blocking questions; the three defaults below remain active.
 
 ## Reference scorecard
 
-Session 24 first canonical audit (reference restored), updated in Session 95 (all 63 principles re-reviewed). Met means the stated implemented
-check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session95-site-reference.json` (fresh unchanged-layout measurements);
+Session 24 first canonical audit (reference restored), updated in Session 96 (all 63 principles re-reviewed). Met means the stated implemented
+check, not owner/iGPU/6v6 acceptance. Static measurements: `.inspect/session96-reference.json` (fresh measurements after the Switchyard room change);
 reproduce with `tools/reference-audit.ts`. Original document targets remain authoritative;
 short-map timing mismatches are recorded, not silently redefined as passes.
 
 | Id | Status | Evidence |
 |---|---|---|
-| R-M01 | partial | Session 95 completes Places C 3/3: filter/maintenance halls, clarifier quay and outfall canal enclose Undertow. The existing three lanes, paired rooms/roofs and lower channel retain the identical collider hash. Bot use, internal grid-breaking and human balance remain open. |
-| R-M02 | partial | Session94 gives each Undertow room two 2m south doors and five permanent firing windows; shared rays clear the doors/windows and stop at sills/walls/roof. Windows remain additional attack directions; full-room co-visible entrance/FOV and human defence acceptance are not claimed. Existing objective entrance tests pass. |
-| R-M03 | met | Session 95 retains 206 Undertow boxes: 88 full, 86 waist, 5 terrain, 14 lintel pieces and 13 thin slabs. No head-height cover. Exterior architecture adds no playable collider; previous spacing and cover-class checks pass. |
-| R-M04 | met | Session 95 fresh sprint BFS A-B/A-C/B-C: Relay14.44/11.78/14.44s, Undertow14.22/11.33/14.22s, Switchyard14.44/11.56/14.44s. All10-15s. The unchanged yard/lower graph excludes upper bridge/roof routing and is not contact time. |
+| R-M01 | partial | Session96 Places D1/3 adds paired Switchyard service rooms/roofs while retaining three lanes, Cargo Shift and the 40m rifle lane. Lower rail/loading route and built depot boundary are next; human balance remains open. |
+| R-M02 | partial | Session96: two 2m south-door centres per Switchyard room are visible within a 78-degree cone from a valid standing position behind its console. Shared eye rays and a fixed defender view pass. Five windows add attack/vault directions; whole-room human defensive balance remains open. |
+| R-M03 | met | Session96 Switchyard has186 boxes:84 full,78 waist,14 lintels and10 thin slab pieces; no head-height cover. Exact permanent shells and cladding within2cm pass existing tests. Four crate envelopes match the frozen library size. |
+| R-M04 | met | Session96 fresh sprint BFS A-B/A-C/B-C: Relay14.44/11.78/14.44s, Undertow14.22/11.33/14.22s, Switchyard14.44/11.56/14.44s. All10-15s. Yard/lower graph excludes upper roof/bridge routes; this is not contact timing. |
 | R-M05 | met | Session66 Cargo Shift2/2 ON: eight-second warning,15s freight cover retraction and direct crossing, occupied down-lock hold, restoration after exit. Shared server collision/prediction/historical shots. Relay core and Undertow gallery hooks retained. Implemented route-changing hook check; human tactical quality unaccepted. |
 | R-M06 | n.a. | No world power pickups implemented. |
-| R-M07 | not yet | Session 95 natural DOM seed170684 exactly reproduces the full Session94 control: initial damage median17.3s, respawn18.4s,7 censored lives and1 contact below5s. Prior independent seeds remain17.3/18.0/17.2s initial.20-30s target unmet; repeated control is not another independent sample. |
-| R-M08 | partial | Session 95 distinguishes west filter/loading frontage, east maintenance/gantry frontage, north clarifier quay and south canal with offset pump buildings. Fixed overview/vista pairs and ground views retain the unequal silhouettes. Internal grid-breaking and human orientation remain open. |
+| R-M07 | not yet | Session96 three full300s Switchyard FFA rounds: opening damage medians9.0/5.7/6.0s; respawn7.9/7.3/7.7s. One matched baseline was9.0/8.3s.20-30s target unmet; fast respawns and fairness remain combat/playtest work. |
+| R-M08 | partial | Session96 Maintenance west/Dispatch east signs and opposing roofs sit beside existing capacitor/gantry half landmarks. Fixed overview/vista and standing views retained. Internal grid-breaking and human orientation remain open. |
 | R-M09 | partial | Session71 traces five fast contacts to the SECOND northern crossing after hidden spawns, with inner-lane threats. Mirrored baffles atx18-20/x130-132,z24-32 block the retained ray fixtures while both ends remain walkable. Three matched rounds remove sampled<5s respawn contacts; all-exposed fallback, human camping and side fairness remain open. Spawn scoring/protection unchanged. |
 | R-M10 | partial | Session71 signed full-cover baffles protect staging outside A/C courts, with a standing bypass/peek at either end. Existing court entrances, pump approaches and gallery retained.20.414s normal DOM sequence reaches A with teammates. Human defensive quality and all-objective entry audit remain open. |
-| R-M11 | partial | Session 95 audits832 exterior boxes, six sign faces, six real-size supplies, water vertices and two valid standing lookouts. Existing room/channel deterministic audits and live walk/sprint circuits pass. All new geometry stays outside play; whole-site and human acceptance remain open. |
+| R-M11 | partial | Session96 deterministic672-step audit and both live14-stage walk/sprint circuits cover both doors, stairs up/down, thin walls, roof slabs and drops. New solids fit inside the old sealed housings. Whole-site/human traversal acceptance remains open. |
 | R-M12 | partial | Session71 Breakwater1/1 normal20.414s DOM capture shows the signed northern baffle, allied movement around it and arrival at A. Paired fixed-camera stills show the former firing slit blocked. No injected gameplay state; human action-block/excitement acceptance open. |
-| R-M13 | partial | Session 95 Places C 3/3 ON: a plant boundary and visible outfall canal complete the existing room/roof/channel stages. Matching overview/vista pairs, standing views and a live canal-lookout arrival are retained. Human orientation/art acceptance remains open. |
-| R-M14 | partial | Session94 window and doorway eye rays clear the shared collision in both mirrored rooms; lowered sill, solid wall and roof rays stop. Exact slabs/wall openings replace the sealed blocks in current/historical core collision. Destruction and human defensive balance remain open. |
+| R-M13 | partial | Session96 Places D1/3 ON: South service now has enterable maintenance/dispatch rooms with windows, console cover, supplies and roofs. Fixed pairs/live gallery retained; lower depot route, built boundary and human art/orientation remain open. |
+| R-M14 | partial | Session96 shared window/door eye rays clear; wall/sill/roof rays stop; opposing Switchyard roof eye ray clears. Slabs and openings replace sealed solids for movement and current/historical shots. Destruction and human defensive balance remain open. |
 | R-M15 | partial | Undertow DOM-first, Relay TDM-first; majority-mode rule not universally met. |
 | R-M16 | not yet | No timed central item-control loop. |
 | R-M17 | partial | Session89 reinforces the exterior dish approach with two three-course sandbag lines and removes existing coping depth flicker. The central spine, dish and lane signs remain; no new sight blocker in play. Human all-lane landmark acceptance remains open. |
-| R-M18 | partial | Session 95 retains Undertow and Relay physical -3/0/+3m routes. Live room/roof and lower-channel circuits pass; geometry is unchanged. Bot choices still bypass the new Undertow rooms/channel; upper bot routing and Switchyard lower tier remain open. |
+| R-M18 | partial | Session96 adds paired Switchyard ground rooms/+3m roofs with internal stairs and drops. Both live circuits pass. Relay/Undertow retain -3/0/+3m routes; Switchyard lower tier and deliberate upper bot use remain open. |
 | R-M19 | met | All maps 150x100 m / 12 seats = 1,250 m2 per seat and tested 40 m rifle corridors. Switchyard FFA; this density check does not establish pacing or fairness. |
-| R-M20 | partial | Session 95 fresh natural300s DOM control seed170684 reproduces all Session94 events/objective samples:177:138,88kills, same heatmap and no channel use. This is collision/control evidence, not a new independent fairness sample. Human play and deliberate bot route orders remain open. |
+| R-M20 | partial | Session96 one matched before/after FFA seed plus two fresh after seeds retain full300s rounds and heatmaps. Zero room-footprint samples among the sampled rushers; telemetry records rusher X/Z only. Not all-bot occupancy, upper-floor evidence or human fairness acceptance. |
 | R-G01 | not yet | No contested HP/ammo reward loop. |
 | R-G02 | partial | Momentum arc implemented by default: earned slide,650ms waist vault/mantle,1.2s intentional deck launch. Full route clearance and hands-busy combat gating/recovery tested. Five weapons/grenades retained; melee/human balance open. |
 | R-G03 | met | Session54 steady scope glint from replicated held-sniper aim/life/reload, including hip fire: full inside4 degrees, smooth fade to14, range1-120m. Both eye and animated lens rays must clear current cover/ramps/core shutters; depth-tested, no delayed cover fade. Reload/death/swap/AOI leave remove it; Reduced motion retains it. Sniper tracer and400ms ADS retained. Offline12/38/98m captures and cover/cone/pool tests; human counterplay/RTT acceptance open. |
@@ -505,7 +513,7 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-G17 | partial | Session20 cached crack/body/tails and limiter; distance filtering, no separately authored far recordings. |
 | R-G18 | partial | Session93 separate weapon projection in the existing single pass:74degree hip;56/59/60/40/59 ADS, while world78/55(or sniper30) stays unchanged. Projection audit passes1350 cases. ADS sway still retains12% (88% reduction, outside reference50-80%); human handling remains open. |
 | R-G19 | met | Session26 shared ADS 250/200/225/400/165 ms and sprint recovery 120/100/130/150/90 ms, real-room boundary tests, five-weapon mouse probe and sprint/fire control check. Hip fire remains allowed; human/RTT acceptance open. |
-| R-G20 | met | Session 95 retains exact shared map collision; live Training room/lookout and channel circuits stay below0.15m, maximum matched-command error1.42e-14m, no resets. The review adapter remains Training-only; normal-play rollback/held ADS remain combat work. |
+| R-G20 | met | Session96 two Switchyard live Training circuits compare matching acknowledged commands: max 1.42e-14m, below0.15m, zero resets. The diagnostic adapter remains Training-only; normal-play rollback/held ADS remain combat-owned. |
 | R-L01 | met | Session52 Air Support3/3 ON:3-kill UAV,5-kill mortar,7-kill sentry.12s stationary sentry,60s shared airspace,900ms frozen-point warning,22m range,34damage/1.8s; dodge/cover/owner-death counterplay. One trailing-team gun/grenade operator shutdown earns +1TDM behind5 or +5DOM behind20. Death/seat/round reset and no recursive support earning tested. Human balance open. |
 | R-L02 | partial | TDM 50 kills/300 s. Session39 DOM natural rounds 253.9/300/300 s, scores 87-201/153-177/174-165. Actual 4/8 s capture, 1 point/2 s/flag and no side swap remain below reference requirements; training rehearses the actual neutral duration without changing economy. |
 | R-L03 | met | AR 25 body damage: four hits at close range, 300 ms from first shot at 100 ms cadence. |
@@ -516,10 +524,10 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 | R-L08 | partial | Session61 nearby living allies receive bot visual-contact snapshots after600ms continuous sight: one/team/8s, one/caller/16s,50m recipient radius,1m rounding,3s expiry, no target IDs. Existing team-ping diamond plus caller/role/lane/relative direction/distance/age and240ms radio ident. Manual marks yield5s and own the card. Real input captures at1920/1366/800 widths, mute and Reduced motion pass. FFA/training excluded; human acknowledgement/wheel retained; muted-mic human review open. |
 | R-L09 | partial | Session41 requires an active own server-echoed ping after each map's existing lessons; key rebinding/unbound guidance, pause rejection and nine map/size layouts pass with ordinary inputs. Relay confirmed-hit and Undertow actual 4 m/4 s unscored objective rehearsal retained. A combined first-match course and human learning review remain open. |
 | R-L10 | partial | All three expanded maps fill twelve seats (Switchyard FFA). Undertow training now rehearses an objective without targets or scoring; Switchyard remains empty traversal practice. No first-match progression. |
-| R-L11 | partial | Session 95 changes no bot rule. Natural DOM control is identical to Session94 and still bypasses the rooms/channel. Deterministic lower navigation passes; deliberate room/channel orders and roof counterplay remain combat requests. |
-| R-L12 | partial | Session 95 Places C 3/3 ON: grounded plant mass, loading ledges, closed bays and a canal seen through two exterior parapet lookouts. Re-baked original architecture/AO, fixed before/after pairs and live ordinary-input views. Human art/readability acceptance remains open. |
+| R-L11 | partial | Session96 leaves bot rules/orders unchanged. Ground navigator reaches both room doors but natural rusher samples bypass both footprints. Deliberate room orders and roof counterplay remain combat requests. |
+| R-L12 | partial | Session96 Places D1/3 ON: concrete service rooms, shaded interiors, permanent windows, workbenches and holdable roofs replace two closed cabinets. Original AO/architecture re-baked; paired fixed and live views retained. Human art/readability acceptance remains open. |
 | R-L13 | partial | Session86 retains large faded torso/shoulder team masses and helmet identification while neutral equipment carries less of the team rim. Same opaque depth test and uniform-only colour selection. Yellow/Violet and covered/empty controls checked on the production renderer. Human all-range recognition remains open. |
-| R-L14 | partial | Session 95 stress peaks 203/229 draws, max 300569 triangles, 32 textures / 51.0781 MiB. Final required TDM and extra DOM gates pass; an earlier TDM failure and every spike remain logged. Accepted limits unchanged; broad FFA and laptop qualification remain open. |
+| R-L14 | partial | Session96 stress peaks 229draws/300569triangles, 32textures/51.08MiB. Required TDM passes on confirmation after a retained2244.3ms startup failure; extra FFA fails the presentation limit on a recurring first-frame GPU/ANGLE wait. All failures and a diagnostic trace are retained. No five-pair/driver fix or laptop qualification. |
 | R-L15 | not yet | No skill-based HP/ammo reward. |
 | R-L16 | partial | Session72 Field Honors1/1 ON: existing kill/assist/capture authority feeds one end-round commendation and explicit contribution breakdown.20.209s natural results still sequence, narrow/reduced/older-server fixtures. No extra reward economy, new geometry or replay. Human excitement remains open. |
 | R-L17 | partial | Session58 AMBUSH: first gun damage to a full-health enemy from>=120degrees behind and>=2m, same attacker gun finish<=2500ms. Server-only classification; no warmup/support/assist/expired award or bonus score. Existing notice expires1800ms, only local killer sees medal, Reduced motion retains it. Real20.009s training input and five responsive HUD fixtures; broader medals remain open. |
@@ -535,44 +543,67 @@ short-map timing mismatches are recorded, not silently redefined as passes.
 
 ## AAA gap list
 
-Session 95 re-ranks all 63 reference rows under ART-CONCEPT.md. Close Hold 1/1
-remains ON. Places B and C are complete as implemented arcs: Undertow now
-has the paired rooms/roofs, real lower channel and built plant/canal boundary.
-Geometry and natural bot control are unchanged this session. Public60MiB /
-per-file25MiB, lazy maps,240draws/500ktriangles/64MiB/32textures, constant
-lights and the accepted Session74/80 hitch policy remain.
+Session 96 re-ranks all 63 reference rows under ART-CONCEPT.md. Close Hold1/1
+and Places B/C remain ON. Places D1/3 now has paired enterable Switchyard
+rooms/roofs. The arc finishes with a lower route and built depot boundaries.
+Keep60MiB public/25MiB per file, lazy maps,240draws/500ktriangles/64MiB/
+32textures, constant lights and the accepted Session74/80 hitch policy.
 
-1. **Places D: Switchyard as a working depot (R-M01/08/11/13/18/20, R-L12/14).**
-   Next: paired enterable maintenance/dispatch buildings and +3m roofs, then
-   a lower rail/loading route, then built depot boundaries within three green
-   stages. Retain Cargo Shift, the40m rifle lane, mirrored power positions and
-   10-15s rotations. Use the existing structure/terrain compiler and frozen
-   prop library. Every layout change needs the walk/sprint, stair, wall and
-   slab movement check. Places E then breaks the internal grid across the pool.
-2. **Put the new rooms into the bot fight (R-M20, R-L11-14).** Session 95's
-   matched DOM control still bypasses Undertow rooms/channel. Combat owns
-   route orders and upper counterplay. Add deliberate visits with Y-aware
-   telemetry. Main now places ten existing crate stacks on Undertow (four
-   collider-backed inside, six exterior loading supplies), lazy and at the
-   library's published size. Spend0 Meshy credits; list missing props.
-3. **GPU/device acceptance (R-L14, combat follow-up).** Session 95's required
-   TDM and extra DOM gates pass the unchanged policy; all intervals remain in
-   the log/reports. Prior FFA failures remain unresolved evidence, not erased
-   by these passes. No new five-pair proof, driver fix or laptop qualification.
+1. **Places D2/3: Switchyard lower rail/loading route (R-M01/08/11/13/18/20).**
+   Next: real -3m route with two usable access ramps and retained yard crossings.
+   D3/3 then replaces the depot boundary; complete both stages green. Retain
+   Cargo Shift, the40m rifle lane, mirrored power positions and10-15s rotations.
+   Use the shared structure/terrain compiler and frozen prop library. Every
+   layout change includes walk/sprint/stair/wall/slab movement agreement.
+   Places E then breaks the internal grid across the pool.
+2. **Bring the new rooms into the bot fight (R-M20, R-L11-14).** Switchyard
+   rusher samples still bypass the rooms. Undertow room/channel orders and
+   upper counterplay remain combat work. Request deliberate routes and
+   Y-aware all-bot telemetry. Use existing props; spend0 Meshy credits.
+3. **GPU/device acceptance (R-L14).** Session96 required TDM passes on confirmation but also had a retained2244.3ms startup failure. Extra FFA fails twice; a traced diagnostic
+   reproduces the recurring first-frame GPU/ANGLE wait. All intervals remain.
+   Earlier failures remain evidence. No five-pair proof, driver fix or iGPU claim.
 4. **Contact pacing and court counterplay (R-M07/09/20, R-L02/11).** Fresh
-   Undertow control remains17.3s opening /18.4s respawn, below20-30s, with one
-   observed respawn below5s. Exterior scenery changes no combat decision or
-   collision. Route/timing work requires combat coordination and more seeds.
+   Switchyard FFA opening medians9.0/5.7/6.0s and respawn7.9/7.3/7.7s miss
+   20-30s. Existing room geometry does not establish bot-use or fairness gains.
+   Address with combat routing and larger samples/human playtests.
 5. **Actual highlight replay (R-L06).** Selection exists; recording/playback
-   remains its own arc in the combat/presentation stream.
+   remains a separate combat/presentation arc.
 6. **Flow, accessibility and communication (R-L08-10/19-23).** Combined
    first-match course, ping acknowledgement and human colour/readability.
 7. **Mode, weapon/audio and movement acceptance (R-L02, R-G01/02/05/08/13/16/18,
-   R-M05/12/16).** DOM economy/side swap, ADS sway ratio, view-kick control,
-   doorway acoustics, moving grips and contested resources remain open.
-   Separate weapon FOV and the closer fitted hold remain implemented.
+   R-M05/12/16).** DOM economy/side swap, ADS sway, view-kick control, doorway
+   acoustics, moving grips and contested resources remain open. The closer
+   fitted hold and separate weapon projection remain implemented.
 
 ## Cross-stream requests
+- **Combat / Session 96 startup stalls:** the required TDM confirmation passes
+  (14.1 ms maximum, two deaths), following a retained 2244.3 ms first-frame
+  failure. Its short traced diagnostic did not reproduce the stall and is not
+  acceptance. FFA fails at 2454.1 ms and again at 2567.0 ms; both runs observe
+  two deaths and pass their first-use windows. A separate FFA trace reproduces
+  2302.2 ms with an overlapping 2846.681 ms ANGLE worker (3.729 ms CPU),
+  responsive timers and a 6.7 ms resumed callback. This matches the Session 93
+  wait signature; the initiating operation remains unidentified. No runtime,
+  gate or lease change. Extra FFA remains unqualified. Please use the retained
+  session96-hitch-tdm-{final-failed,confirmation}.json,
+  session96-hitch-ffa{,-failed}.json, session96-{tdm,ffa}-diagnostic{,-trace}.json
+  and session96-trace-analysis.json in the GPU investigation.
+- **Combat / Session96 Switchyard rooms:** Maintenance x34-50 and Dispatch
+  x100-116, both z58-64; south doors centred at40/44 and106/110, z64. Ground
+  navigation enters both doors; internal stairs reach+3m roofs. All new solids
+  fit the old sealed6m housings, so no old valid position is enclosed and no
+  state-shape migration is required. Ship Worker/client geometry together.
+  Please add deliberate room orders and roof counterplay, with Y-aware
+  all-bot occupancy samples. Current three natural FFA rounds have zero room
+  samples among rushers; opening/respawn pacing still misses20-30s.
+  Normal-play rollback and held-ADS continuity remain yours; Session96's
+  matching-command checks use the existing Training-only adapter.
+- **Assets / Session96 provenance:** original Switchyard architecture/AO/vista
+  are refreshed; link [docs/SWITCHYARD-ROOMS.md](docs/SWITCHYARD-ROOMS.md) from
+  the asset README when the stream resumes. Four crate stacks use the frozen
+  library at real size with authority/fallback boxes. No new asset or credit.
+
 - **Combat / Session 95 continuation:** required TDM passes the accepted policy
   but retains a 649.8 ms presentation gap at probe62.116 s, maximum callback
   22.1 ms, no shader recompile or console error. First damage/death pass at
@@ -15603,3 +15634,216 @@ No blocking question. One local preview was started for this continuation;
 all owned inspection browsers and that preview are stopped before handback.
 Other streams remain untouched. Scope, hashes, gallery links and cleanup:
 `session95-site-final-audit.json`. No commit, push or deploy.
+
+### Session 96 - 2026-09-11: Places D 1/3 - Switchyard maintenance rooms and opposing roofs
+
+**Outcome.** Two sealed South service housings are now enterable Maintenance/
+Dispatch rooms, ON by default. Each has two south doors, five firing windows,
+three work consoles, an internal stair, a+3m roof and a south roof escape.
+Four real-size issued crate stacks reuse the frozen library. This completes
+stage1; the lower rail/loading route and built depot boundary finish Places D
+in the next two green stages. No commit, push, deployment, dependency, Meshy
+job or combat/test/asset-library edit. Read brief, Session96 status and plan
+in order, then art concept and all63 references; re-ranked gaps above.
+
+Reference: **R-M01/02/03/04/07/08/11/13/14/18/20, R-G20, R-L11/12/14**.
+Targets: two usable interiors with paired roof counterplay; both primary door centres
+visible within78degrees from a valid defender position; shared wall/window/
+slab collision;10-15s rotations; matched movement error<0.15m; existing
+resource budgets and required TDM hitch gate. Those checks pass; extra FFA
+fails the recurring startup presentation limit. The20-30s contact
+target, deliberate bot room/roof use, lower tier and human art/balance remain open.
+
+**Geometry and rendering.** Rooms occupy x34-50 and x100-116,z58-64, replacing
+their old sealed16x6x6m volumes. All new solids fit inside those old volumes;
+no previously valid position is enclosed, so no snapshot shape/version change
+is needed. Shared boxes/ramps drive movement, shots, historical collision,
+navigation and bakes. The permanent shell renders exactly; cladding stays
+within2cm. Cargo Shift, induction pads, spawns, objectives and rifle lane stay.
+Switchyard has186boxes/6ramps:84full,78waist,14lintels,10thin slab pieces;
+no head-height cover. The west/east roofs have a clear eye-to-eye ray.
+
+The original architecture and2048x1365 ground AO are re-baked; the deployment
+vista is refreshed. Thin-wall finishing preserves openings. Tread paint follows
+the real ramp; the sign atlas is now1024square and signs merge to one draw.
+Crates are0.531171x1.15x0.598316m, base y1.1 on work benches. Their separate
+instanced fallback is excluded from the architecture bake and replaced only
+when its lazy library load completes, before preparation. No new light,
+pass, animation or per-frame construction. Reproduce/provenance:
+[docs/SWITCHYARD-ROOMS.md](docs/SWITCHYARD-ROOMS.md).
+
+**Wow check.** [Before/after and live gallery](.inspect/session96-review.html)
+retains fixed overview/vista/service pairs, standing frontage, both interiors,
+the two-door defender view, opposing roofs and ordinary-input movement stills.
+The standing before/after option is satisfied. Player sentence:
+**I can fight through the service room, take the roof, and drop back into the yard.**
+This is the intended reaction, not player testimony. Opened the principal
+stills for review. Full measured evidence: [session96-summary.json](.inspect/session96-summary.json).
+
+**Movement.** tools/audit-switchyard-structures.mjs passes672 deterministic
+walk/sprint steps across both doors, stairs in both directions, thin walls,
+slabs and drops. Standing door/window rays clear; sill/wall/roof rays stop.
+Ground navigation reaches both entrances. Two live Worker circuits each
+complete14stages using ordinary movement/sprint/look/fire, with no resets:
+
+| Circuit | Seconds incl. approach | Matched / acknowledgements | Max matched error m | Max raw lag m |
+|---|---:|---:|---:|---:|
+| west | 62.811 | 872/877 | 7.11e-15 | 2.70 |
+| east | 78.928 | 884/889 | 1.42e-14 | 2.48 |
+
+Reports: session96-live-{west,east}-movement.json. Matching compares the same
+acknowledged command; raw lag compares different simulation instants. Unmatched
+samples are not assigned zero error. This remains the inherited Training-only
+review adapter and does not close the owner's normal-play rollback/held-ADS issue.
+These circuits preceded the crate finish reduction below; shared map and scene
+wiring hashes are unchanged. Final stills/stress/hitches use the matte finish.
+Earlier movement captures retain the full-PBR crate appearance.
+
+**Telemetry.** Fresh sprint A-B/A-C/B-C remains Relay14.44/11.78/14.44s,
+Undertow14.22/11.33/14.22s and Switchyard14.44/11.56/14.44s. Yard/lower BFS
+excludes roofs/bridges. One matched before/after FFA seed and two extra after
+seeds each use the complete300s production-room12-bot round/fake-time harness:
+
+| Sample / seed | Kills | Opening damage median s | Respawn median s | Respawn censored / <5s |
+|---|---:|---:|---:|---:|
+| before 224001 | 174 | 9 (1 censored) | 8.3 | 7 / 44 |
+| after 224001 | 157 | 9 (1 censored) | 7.9 | 9 / 37 |
+| after 224002 | 174 | 5.7 (0 censored) | 7.3 | 7 / 48 |
+| after 224003 | 168 | 6 (0 censored) | 7.7 | 9 / 48 |
+
+The20-30s reference remains unmet. Every heatmap, life and sampled route is
+retained at session96-{before,after}-<seed>-bot-*. These are not human fairness
+or deployed capacity tests. All four rounds have zero new-room footprint
+samples among rushers. This telemetry samples only rusher X/Z every second;
+it neither establishes all-bot occupancy nor distinguishes floor levels.
+Deliberate room orders/roof counterplay remain combat requests.
+
+**Rejected intermediates.** An early central-console/stair gap failed the
+standing-point audit. Moving the console south and bringing the two doors
+closer creates a usable defender position with clear rays to both entrances.
+No physics tolerance or test was weakened. The initial frontage review camera
+sat on an existing cabinet cap and clipped its face. Retained as
+session96-rejected-front.png/session96-first-render-report.json; the final
+frontage camera uses a standing eye on open ground. An additional feet
+clearance audit caught the second camera above a waist case; moving it one
+metre south to(54,0,67) passes. The failed audit and image remain at
+session96-camera-feet-failed.log and session96-rejected-front-feet.png.
+Only an offline inspector camera changed; gameplay geometry/wiring stayed fixed. Main overview/vista pairs
+remain at their original cameras. No generated asset was rejected.
+
+The first full-PBR crate candidate failed the stress resource gate at34textures
+(53.3281MiB), despite its7.30ms maximum frame.
+Retained report/log: session96-stress-rejected. The final map-owned crate
+finish retains colour/geometry and uses roughness0.86/metalness0.08 instead
+of its optional normal/ORM maps. This removes two resident textures; the
+source GLB/library and32-texture threshold stay unchanged. Final stress passes.
+
+**Resources.** Meshy0credits/jobs; no new generated asset. Asset changes:
+
+| File | Before bytes | After bytes | Delta |
+|---|---:|---:|---:|
+| switchyard-architecture.glb | 7,183,364 | 7,145,776 | -37,588 |
+| switchyard-ground-ao.png | 830,466 | 1,143,572 | +313,106 |
+| switchyard-vista.webp | 154,040 | 155,720 | +1,680 |
+
+Public total 38,226,655 ->
+38,532,072bytes (36.7470MiB,
++305,417). Asset bytes 31,294,757
+(+277,198).60MiB total/25MiB individual/lazy-map
+audit passes. Runtime/asset hashes are in session96-frozen.json.
+
+RTX5070 / Edge152 / ANGLE D3D11,1920x1080,DPR1. Fixed overview:
+34->28draws,104705->115357triangles;
+15->16textures,21.2643->25.2643MiB.
+Median 6.90->6.90ms;
+maximum 7.20->7.10ms. Construction+preparation
+1.1923->1.2207s. Local individual
+loads share workstation/cache history; they are not CDN first-load or laptop
+qualification. The initial cold browser profile is not a cold GPU cache.
+Final15s stress fixtures:
+
+| Fixture | Peak draws | Triangles | Textures / MiB | Median / p99 / max ms |
+|---|---:|---:|---:|---:|
+| switchyard-effects-stress | 202 | 218235 | 32 / 50.66 | 6.90 / 7.10 / 7.40 |
+| muzzle-effects-stress | 229 | 300569 | 32 / 51.08 | 6.90 / 7.10 / 13.90 |
+
+Both retain16lights, one PMREM generation, cached shadows and drained effects.
+240draw/500ktriangle/32texture/64MiB limits pass. No owned build, test, bake
+or second browser overlaps final live/stress/hitch runs. The shared GPU lease
+queued inspection behind combat and excludes participating tools, not every
+workstation process.
+
+**Gates.** pnpm typecheck PASS; pnpm test PASS(786passed,7existing skips;
+95passed files/5skipped); pnpm build:client PASS; Worker dry-run PASS without
+deployment; pnpm audit:assets PASS. Original architecture winding/normals
+audit PASS. Logs use session96-{typecheck-final,test,build,build-final,assets,
+architecture-audit}.log. Required inspection command
+`node scripts/inspect-map.mjs --url http://localhost:8796 --shots relay,practice-two`
+PASS, zero console errors, copied to session96-required-report.json.
+
+Required hitch command
+`node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/hitch.json --assert`
+PASS, copied to session96-hitch-tdm.json. Additional Switchyard FFA uses
+--assert --mode=ffa --assert-first-use and FAILS the presentation limit, matching the earlier Session93 startup
+wait. Its untraced confirmation is retained as the final FFA report. Both
+ordinary TDM/FFA runs observe two natural deaths. Accepted Session74/80 limits remain1500ms presentation/150ms main
+thread/25ms p99/5% stalled time, with150ms first-use windows.
+
+| Run | Seconds / frames | Max frame / callback ms | p99 upper ms | First use | Stalled share |
+|---|---:|---:|---:|---|---:|
+| tdm | 107.622 / 15494 | 14.10 / 7.70 | 8 | damage 8.00ms (PASS), death 8.60ms (PASS) | 0.000% |
+| ffa | 71.106 / 9789 | 2567.00 / 8.70 | 9 | damage 8.50ms (PASS), death 8.10ms (PASS) | 4.343% |
+
+Every interval>150ms is retained in the original reports and summary.
+Startup uses page-relative times; measured spikes use probe-relative times:
+
+- tdm: ready at page3159.30ms. Startup>150ms: 183.70ms ending page1148.50ms; 286.70ms ending page1442.60ms; 156.40ms ending page2725.70ms. Measured spikes: `[]`.
+- ffa: ready at page3190.90ms. Startup>150ms: 276.40ms ending page1481.10ms; 3136.10ms ending page8062.90ms. Measured spikes: `[{"t":2567,"dt":2567,"alive":true,"near":25,"enemies":11,"programs":35,"textures":30,"geometries":142},{"t":22600,"dt":521.1,"alive":true,"near":40,"enemies":9,"programs":35,"textures":32,"geometries":142}]`.
+
+A required TDM rerun on the final bundle failed before confirmation:
+2244.3ms at the first measured frame, maximum callback23ms,115.1815s and
+two natural deaths; first damage/death14.3/8.7ms pass. Retained as
+session96-hitch-tdm-final-failed.json and session96-hitch-tdm-final.log.
+The earlier green TDM report remains session96-hitch-tdm-first-green.json.
+A separate traced TDM diagnostic did not reproduce the measured stall:
+62.170s,0deaths,14.8ms maximum frame/4.8ms callback, no measured spikes,
+damage8.6ms and no death window. Startup intervals181.1/278.1/157.3ms remain
+in its report. This is not acceptance and cannot establish the cause of the
+untraced2244.3ms failure. Retained: session96-tdm-diagnostic.json,
+-trace.json and -trace-summary.json. The unchanged ordinary confirmation
+is session96-hitch-tdm-confirmation.json/.log. TDM uses unchanged Relay;
+the Switchyard room assets are not loaded in that mode.
+No runtime change occurred between that failure and confirmation; the pass
+qualifies the measured run and does not establish a startup-stall fix.
+
+The required gates listed in the brief pass on confirmation. **Extra FFA remains red**;
+there is no FFA qualification or five-pair/driver-fix claim. Initial FFA failed
+at2454.1ms near the first measured frame, maximum callback9.7ms, with first
+damage/death7.6/8.6ms passing. Untraced confirmation fails at2567.0ms. All
+original reports retain every spike. Neither the layout nor the matte finish
+is established as the cause; this signature was documented before Session96.
+
+The separate startup trace reproduces2302.2ms and stops immediately at that
+spike (0deaths,2374.6ms measurement; **diagnostic, not acceptance**). An ANGLE
+worker spans2846.681ms wall/3.729ms CPU, from -553.635ms relative to the probe
+start; the GPU scheduler spans2850.527ms wall/3.138ms CPU. JS timers continue
+and the resumed callback takes6.7ms. The resumed submission records21calls,
+17materials, no texture/shader creation or requested shadow bake; this does
+not identify the earlier initiating operation. The trace supports a GPU/ANGLE
+wait path, not a specific executable or a driver-defect diagnosis. Evidence:
+session96-ffa-diagnostic{,-trace}.json and session96-trace-analysis.json.
+The first diagnostic launch failed before opening a browser on an incomplete
+GPU-lease JSON handoff; session96-ffa-diagnostic-lease-failed.log is retained.
+The second launch used the same controls. A final-capture launch hit the same
+pre-browser handoff failure (session96-capture-lease-failed.log); its retry
+completed without changing controls. No gate, lease protocol, warm-up,
+runtime timing or browser flag was changed. This remains combat-stream work.
+
+This is not a universal150ms guarantee. Earlier failures, iGPU/thermal/browser parity, human readability/
+defence/fairness, actual6v6/RTT and normal-play rollback remain open.
+
+Open owner questions/defaults: retain these paired rooms/roofs(yes); build the
+lower rail/loading route next(yes); leave bot orders/held ADS to combat(yes).
+No blocking question. The single owned preview and every owned inspection
+browser are stopped before handback. Final scope/hash/cleanup evidence:
+session96-final-audit.json. No commit, push or deploy.
