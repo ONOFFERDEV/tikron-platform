@@ -5,14 +5,20 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
 
 ## AAA gap list
 
-1. **Owner rollback bug, repair arc 2/2:** whole-round movement proof now passes
-   on all three maps. Finish the main-stream activation of
+1. **Owner rollback bug, integration hardening:** Session 4 fixes command-heading
+   rollback of newer aim and isolates owner-snapshot collision from older room
+   echoes, then fixes duplicate idle gravity during server catch-up. Final
+   all-map rounds: 14,317 matched samples, 15,380 non-reset replay comparisons,
+   zero soft/snap crossings at 100 ms added each way. Finish main activation of
    `Predictor.connect(net.room, () => net.online)` using the exact request below.
    Keep R-L19 partial until that production integration is validated.
 2. **Presentation reliability (main owns the next renderer investigation):**
-   short Session 3 traces now cover 2.05-2.90 s raster/compositor executable
-   waits after preparation. Preserve the failed runs and existing gate limits;
-   fresh passes do not close this gap.
+   Session 4 stock FFA fails at 2438.7 ms; a separate covered 1870.8 ms wait
+   overlaps compositor/ANGLE work with only 2.7 ms executable CPU. Session 3
+   retains 2.05-2.90 s covered waits. Preserve failures and existing limits;
+   fresh passes do not close this gap or identify a driver defect.
+   Ground navigation's wall-contact bug also blocks two-death probe coverage;
+   main's fix request and exact reproduction are below.
 3. **Bot squad tactics, arc 2/3:** multi-level routes through map-authored doors,
    stairs and roofs; validate against the map stream's actual new structures.
 4. **Bot squad tactics, arc 3/3:** role names and tactical radio barks through the
@@ -25,6 +31,20 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 
 ## Cross-stream requests
 
+- **Main / supervisor - Session 4 integration addendum:** keep the exact two-line
+  activation below. Also take this session's `predict.ts` and `arena-room.ts`
+  fixes: movement command yaw now drives only movement/slide/traversal, preserving
+  the newer look/fire yaw; connected prediction takes collision from the same
+  owner snapshot as kinematics. Also take `rooms/movement-sync.ts`: after applying
+  a command the room waits at most one 50 ms timestep for further input before
+  adding idle gravity, preventing duplicate gravity in a server catch-up burst.
+  The deadline is set by execution, so duplicates cannot sustain a hover.
+  Keep main's existing `setCoreOpen` callback for
+  legacy prediction and scene/audio presentation. No additional main hook is
+  required. All three failures were reproduced by real-room regressions before the
+  fixes; the stale-door ordering is a controlled transport scenario, not evidence
+  that it caused the owner's original live-play report. Activation still belongs
+  to main and remains pending in this checkout.
 - **Main / supervisor - Session 3 rollback integration:** the movement repair is
   implemented and now passes the whole-round all-map movement assertion. Apply
   these exact changes to `client/main.ts`, then validate the combined main build
@@ -43,7 +63,42 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
   (33 ms look interval; fastest weapon is the 65 ms SMG).
   Production activation is still pending; do not describe the deployed bug as
   fixed until the hook is integrated and validated on main.
-- **Main / supervisor - startup presentation stall:** ordinary candidate FFA
+- **Main / supervisor - Session 4 startup presentation stall:** stock FFA
+  `combat-s4-production-ffa.json` fails at **2438.7 ms / 5.222% stalled time**;
+  the final all-map candidate FFA diagnostic retains **2401.5 ms**. The separate
+  `combat-s4-stock-startup-diagnostic{,-trace,-trace-summary}.json` covers a
+  **1870.8 ms** interval overlapping `FinishPaintRenderPass` (**1873.272 ms wall /
+  2.949 ms CPU**) and `GetVertexExecutableTask::run` (**1872.144 / 2.717 ms**).
+  Pre-gap game submissions take **1.3-1.7 ms**, **120-121 calls / 90-91 materials**,
+  with no new textures, buffers, programs, shader compilation/link, shadow
+  request or target pass. Each recorded frame has eight existing-texture
+  `texSubImage2D` calls and one 256-byte existing-buffer update. The after-gap
+  game frame takes **1.8 ms**, **20 calls / 16 materials**, no resource creation,
+  and one 256-byte existing-buffer update. Investigate the post-preparation
+  compositor/ANGLE path in main/scene. This locates this reproduced wait;
+  it does not prove a particular driver fault or explain every untraced gap.
+  No combat renderer change is justified by these measurements, and all limits
+  and browser flags remain unchanged. Session 3 evidence also remains below.
+- **Main / supervisor - Session 4 navigation contact / acceptance coverage:**
+  fix the capsule-contact case in `src/map/navigation.ts`'s `clear()`; it calls
+  hitscan `nearestBox`, whose `rayAabb` deliberately ignores an origin inside
+  or on the expanded box. Repro: Relay, from `{x:75,y:0,z:87.6}` toward
+  `{x:75,y:0,z:95}`. `next()` returns the goal through cover
+  `{min:{x:70,y:0,z:88},max:{x:80,y:3,z:90}}`, but `moveAndSlide` correctly
+  stops at **87.6**. At **87.59**, `next()` instead returns **(76.5,87.5)**,
+  the valid detour. The observed floating value **87.60000000000001** has the
+  same failure. Keep hitscan semantics intact; give navigation a segment test
+  that handles capsule contact, including movement away/along a wall. Add a
+  regression using these three starts and require progress around the wall.
+  Read-only reproducible artifact: `node .inspect/combat-s4-navigation-diagnostic.mjs`
+  and `combat-s4-navigation-diagnostic.json`. Ordinary candidate
+  `combat-s4-accept-tdm-2.json` stalls there from **83.182 s** through the
+  **150.262 s** timeout and fails with only **one death** (at **53.223 s**;
+  respawn **56.638 s**), despite a **16 ms** max frame and no errors. The
+  standard hitch route also uses `GroundNavigator`, so this affects both
+  production and candidate coverage. No navigation/physics/probe source was
+  changed in combat; do not weaken the two-natural-deaths assertion.
+- **Main / supervisor - Session 3 startup presentation stall:** ordinary candidate FFA
   runs 4/6/8 fail with first measured intervals of **1792.5 / 1580.1 / 1880.6 ms**;
   runs 6 and 9 also have later **1318.6 / 2057.6 ms** intervals. Short startup diagnostics now
   capture the native work: `combat-s3-short-startup-1{,-trace,-trace-summary}.json`
@@ -66,8 +121,9 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
   mutually agreed owner file). Preserve
   the existing `botLabel` fallback for training dummies. Seats 9/10 become SUPPORT;
   seats 5/6/11/12 are MARKSMAN. The old UI otherwise calls them ANCHOR/SCOUT.
-- **Main / supervisor:** current `GroundNavigator` explicitly excludes ramps and
-  routes at y=0. Please provide height-aware `next(from, target)` points and reachable
+- **Main / supervisor:** current `GroundNavigator` excludes positive ramps and
+  upper floors; Relay's below-grade terrain now has route continuity. Please
+  provide height-aware `next(from, target)` points and reachable
   authored patrol/flank goals with `{x,y,z}` for doors/stairs/roofs. Combat's route
   contract preserves optional y and refuses arrival on another floor. No combat
   edits to `src/map/**`, collision, `client/main.ts`, or `client/scene.ts`.
@@ -119,7 +175,7 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-G17 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-G18 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G19 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G20 | partial | Bots use normal handleFire/handleReload/handling; shared weapon-table audit remains next arc. |
+| R-G20 | partial | Bots use normal handleFire/handleReload/handling. Session 4 preserves newer look/fire aim while replaying older movement headings (real-room regression). Shared weapon-table audit remains next arc. |
 | R-L01 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L02 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L03 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
@@ -133,18 +189,283 @@ verified-cover reloads. Priorities above are re-ranked for the next session.
 | R-L11 | partial | Four live profiles; 150-600 ms reactions; identical seeded aim; depth 1/2/3 cover search and easy flank restriction. bot-tactics + bot-cover tests; multi-level strategic routes pending. |
 | R-L12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L14 | partial | No WebGL resource additions. Session 3 required code/asset/inspector checks and stock TDM/FFA pass; candidate repeatability remains FAIL (FFA 4/6/8/9). Two short traces cover 2.05-2.90 s native raster/compositor waits. No iGPU claim. |
+| R-L14 | partial | No WebGL resource additions. Session 4 code/asset/inspector checks pass; stock FFA fails at 2438.7 ms. Candidate pair 1 passes, TDM 2 fails death coverage due reproduced map-navigation contact. A short trace covers a separate 1870.8 ms compositor/ANGLE wait. Session 3 failures remain evidence; no iGPU claim. |
 | R-L15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L18 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-L19 | partial | Session 3: 15,595 matched samples across complete Relay/Undertow/Switchyard bot rounds; zero soft/snap crossings; 20 regression tests. Exact main activation request above remains pending. |
+| R-L19 | partial | Session 4: 14,317 matched samples and 15,380 non-reset replay comparisons across complete Relay/Undertow/Switchyard bot rounds, all errors/crossings zero; 25 prediction tests. Initial Relay replay failure retained; fixed server catch-up. Exact main activation remains pending. |
 | R-L20 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L21 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-L22 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 4 - 2026-09-11: Rollback repair - harden the combat handoff
+
+Reference: **R-L19**, **R-G20**, **R-M18**, **R-L14**. The owner rollback issue
+remains the priority. Target: preserve latest aim while executing acknowledged
+movement, keep kinematics and collision on the same owner-snapshot timeline,
+and revalidate natural all-map bot rounds below the unchanged **0.15 m** soft
+and **2.5 m** snap thresholds. No geometry, speed, damage or threshold changes.
+
+Starting state: clean `ironsight-aaa-combat`; `main.ts` still uses the legacy
+movement path. The status says Session 3 passed, but the retained Session 3
+candidate repeatability results contain failures; those remain open evidence.
+The pending main hook is applied only to an inspection bundle. Combat did not
+edit any main/map/assets-owned file or spend Meshy credits.
+
+Delivered:
+
+- `src/rooms/arena-room.ts`: command heading is an explicit integration argument
+  for walking, sprint sliding and traversal. It cannot overwrite a newer look
+  or atomic fire aim. The regression previously moved correctly but changed the
+  server yaw from **90 degrees to 0 degrees** after the newer look arrived.
+  It now preserves both look and fire yaw while following the older movement
+  heading. Bots and legacy inputs use the existing current-yaw default.
+- `client/predict.ts`: connected collision comes from the accepted owner
+  movement snapshot, along with its position and controller state. A subsequent
+  older room echo cannot change prediction's door state. Legacy callers retain
+  their existing `setCoreOpen` behavior. Controlled delayed-echo tests at both
+  Relay and Undertow doors previously produced **0.6 m** matched errors; both
+  now remain below **1e-8 m**. This does not attribute the original live bug to
+  that ordering or claim it occurred naturally in a browser round.
+- Three new real-room regression cases, **23 prediction tests** total.
+  `.inspect/combat-s4-regression-before.log` retains the failures;
+  `combat-s4-regression-after.log` retains the pass. The first door fixture
+  placed its stale callback before snapshot delivery and passed; corrected
+  ordering delivers it between snapshot reception and rendering. Advancing the
+  fake wall clock caused backlog warnings, so the final test sets the event
+  schedule instead and advances only normal 50 ms ticks.
+
+Initial required checks: typecheck, **795 passed / 7 skipped** tests
+(95 files passed / 5 skipped), client build and asset audit PASS. Evidence:
+`combat-s4-{typecheck,test,build,assets}.log`. Browser, movement, resource and
+wow evidence are recorded below when complete.
+
+Initial browser diagnosis: the first Relay natural bot round ends after
+**237.414 s**, with **6 deaths**, **4,010 matched samples at exactly zero error**,
+and a **17.9 ms** maximum presentation interval. Its stricter movement acceptance
+still fails: ticks **1114-1116** repeat ack **913** while falling from the roof,
+with replay corrections **0.45 / 0.5 / 0.25 m**. They arrive together at page
+time **59.764 s**, with no nearby >24 ms frame or recorded long task. The last
+wow screenshot was at approximately 50.9 s; no direct readback overlap is
+claimed. `combat-s4-live-tdm.json` retains the surrounding snapshots. Eight
+natural core-state echoes agree with their owner snapshot; the synthetic stale
+core regression is NOT presented as an observed natural race.
+
+The SDK's fixed-step timer can drain several catch-up ticks before another
+network callback arrives. After draining the available movement commands, the
+room was adding idle gravity on the remaining catch-up ticks and then replaying
+late commands on that already advanced body. A deterministic server-timer
+backdate reproduces this without a client stall or altered geometry:
+`combat-s4-catchup-before.log` fails with **0.15000000000000002 m** correction
+despite zero matched error. The inspection-only Vitest candidate allows at most
+one **50 ms** authoritative timestep after an APPLIED command before idle
+gravity takes over. Command duplicates cannot refresh this deadline. It passes
+all **25 prediction tests**, including silent-client landing, duplicate-jump
+spam, flooded queues and the original rate/latency bounds. See
+`combat-s4-catchup.config.ts` and `combat-s4-catchup-candidate.log`.
+
+Those short test runs at **05:10:51-05:10:55 and 05:11:17-05:11:19 KST** ran
+during the initial, already diagnostic DOM round; do not use that round as
+uncontended hitch acceptance. The live server remains unchanged until the
+initial all-map sequence exports, so those observations retain a single runtime.
+
+Initial all-map result (`combat-s4-motion-acceptance.json`): **FAIL**, specifically
+Relay's four replay-correction crossings in two timer bursts. Undertow has
+**5,356** matched samples and Switchyard **4,413**, with zero matched or replay
+corrections. Their complete rounds last **311.457 / 311.881 s**, with **8 / 19**
+deaths. Switchyard retains a **1386.6 ms** presentation interval (0.445% stalled
+time), inside the existing 1500 ms ceiling; it is not described as smooth.
+All three rounds have zero console errors. These initial diagnostic reports
+stay at `combat-s4-full-{tdm,dom,ffa}{,-movement}.json`.
+
+Promoted the tested catch-up fix after all initial browsers closed:
+`MovementInbox.applied(now)` records only executed commands;
+`waitingForInput(now, TICK_MS)` bounds the idle-physics wait by server time.
+The inbox's existing epoch lifetime, command cap, two-step credit limit and
+payload validation remain authoritative. No wire/state shape or snapshot
+version change is needed. A backwards server clock does not extend the wait.
+Silent and duplicate-spamming clients still land; server catch-up no longer
+adds an extra gravity step immediately after processing movement. Final
+uncontended checks and independent `combat-s4-verified-*` rounds follow.
+
+Final code/resource checks: `pnpm typecheck`, `pnpm test`, `pnpm build:client`,
+`pnpm audit:assets` **PASS**. **797 passed / 7 skipped**, 95 test files passed /
+5 skipped; **25 prediction tests**. `combat-s4-final-checks.json` records the
+exit codes and shared inspection lease used to keep checks/bundling out of
+the other stream's GPU window. Logs: `combat-s4-final-{typecheck,test,build-client,
+audit-assets}.log`. Final production public bytes **37,222,385**, asset bytes
+**30,121,938**, largest asset **7,183,364**. Public total is **+1,130 bytes** vs
+Session 3's recorded total, including generated bundle/source-map changes.
+**Zero asset bytes, textures, lights, passes or Meshy credits added**; zero
+asset-generation rejects. The exact main-hook candidate bundle is **2,224,344
+bytes**, SHA-256 `de23660a117fee6f166fc47fb93d35aeee4352ebf20a2c91d3b8305f69f7181c`.
+
+Wow check on the final runtime: `combat-s4-final-wow.json` and
+`combat-s4-final-wow-{0,5,10,15,20}s.png`, **20.478 seconds**, triggered by natural
+nonfatal damage in Relay. The player runs through the interior, climbs and
+drops from the roof at **35 HP**, dies and respawns; every captured correction
+is zero. Player sentence: **"I can climb and drop under fire without being
+pulled backward."** This describes the hooked candidate, not deployed main.
+The earlier `combat-s4-wow-*` sequence is retained as initial-run evidence.
+Screenshot readbacks are diagnostic visual evidence, separate from acceptance.
+
+Fresh Relay round (`combat-s4-verified-tdm{,-movement}.json`): **256.371 s**,
+**4 deaths**, **4,487 matched samples**, p50/p95/max **0/0/0 m**, zero replay
+correction or soft/snap crossings. First-ready **4329.9 ms**. It retains a
+**1207.9 ms** presentation interval (0.471% stalled time), no shader changes or
+console errors; this satisfies the existing policy but is not a smoothness
+claim. All-map terrain acceptance and ordinary hitch acceptance follow.
+
+**Final all-map movement assertion: PASS.** `combat-s4-verified-motion-acceptance.json`
+and `combat-s4-verified-summary.json` retain the assertion and full breakdown;
+raw data is `combat-s4-verified-{tdm,dom,ffa}{,-movement}.json`. With **100 ms
+added each way**, the three complete natural rounds contain **14,317 matched
+samples** and **15,380 non-reset replay comparisons**. Every terrain row has
+p50/p95/max **0/0/0 m** and **zero soft/snap crossings**:
+
+| Map / terrain | Matched samples | p50 / p95 / max m | Soft / snap |
+|---|---:|---:|---:|
+| Relay yard | 2078 | 0 / 0 / 0 | 0 / 0 |
+| Relay interior | 930 | 0 / 0 / 0 | 0 / 0 |
+| Relay stairs/ramps | 362 | 0 / 0 / 0 | 0 / 0 |
+| Relay roof/slab | 945 | 0 / 0 / 0 | 0 / 0 |
+| Relay airborne/drop | 172 | 0 / 0 / 0 | 0 / 0 |
+| Undertow yard | 3762 | 0 / 0 / 0 | 0 / 0 |
+| Undertow stairs/ramps | 809 | 0 / 0 / 0 | 0 / 0 |
+| Undertow roof/slab | 699 | 0 / 0 / 0 | 0 / 0 |
+| Switchyard yard | 3558 | 0 / 0 / 0 | 0 / 0 |
+| Switchyard stairs/ramps | 431 | 0 / 0 / 0 | 0 / 0 |
+| Switchyard roof/slab | 571 | 0 / 0 / 0 | 0 / 0 |
+
+The zeroes compare the **same acknowledged command** and the resulting replay
+correction, not the current rendered player against an older room echo. Raw
+room-echo distance still includes the deliberately added transport delay:
+
+| Map | Raw echo samples | p50 / p95 / max m | Above soft / snap |
+|---|---:|---:|---:|
+| Relay | 2117 | 1.497 / 2.094 / 2.862 | 2018 / 3 |
+| Undertow | 2459 | 1.505 / 2.025 / 2.409 | 2370 / 0 |
+| Switchyard | 2252 | 1.493 / 2.096 / 2.682 | 2144 / 2 |
+
+Connected prediction does not correct against these unacknowledged echoes.
+This is why raw latency distance must not be reported as physics divergence,
+or the exact-command zeroes presented as zero network delay.
+
+Undertow's final round lasts **311.363 s / 6 deaths**, first-ready **4281.6 ms**;
+Switchyard **311.460 s / 17 deaths**, first-ready **4079.1 ms**. Every final
+10-second `tk:stats` window has zero input drops and room errors; this is not a
+continuous whole-round drop trace. Respawn/epoch placement is counted separately.
+This checkout has the new Relay structure layer and existing ramps/decks on
+Undertow/Switchyard. These rounds do not claim new main-worktree interiors or
+full-round trench/gallery coverage. The dedicated current-geometry tests retain
+door, stair, slab and trench coverage. These are local correctness observations,
+not deployed RTT/capacity figures or laptop-iGPU validation.
+
+Performance residue, separate from movement: final Switchyard's diagnostic
+round **fails presentation** with **2401.5 ms** at the first measured interval
+and **766.3 ms** later. Main-thread callback max **13.2 ms**, p99 **8 ms**,
+zero shaders added/console errors; **2293/2317** and **731/744** profile samples
+are idle around the respective gaps. No cause is assigned from CPU idleness.
+`combat-s4-startup-diagnostic{,-trace,-trace-summary}.json` is the short follow-up
+with startup trace and GPU instrumentation. It does **not** reproduce a gameplay
+stall (max **8 ms**, first-ready window **97.4 ms**). Its covered **275.2 ms**
+loading interval contains a **250.947 ms wall / 246.137 ms CPU** pixel executable
+and **250.522 / 245.713 ms** D3D compilation. A second **175.5 ms** loading
+interval is retained. This is observed loading compilation, not an explanation
+for the untraced 2.402-second gameplay gap. The short diagnosis has fewer than
+two deaths and is not acceptance. No browser flag or gate limit was changed.
+
+Final fixed-camera production/candidate inspection: both **PASS**, with zero
+console errors or forbidden requests. Reports are
+`combat-s4-final-{production,candidate}-report.json`; before/after stills are
+`combat-s4-final-{production,candidate}-{relay,practice-two}.png`. Relay's
+camera matches and looks unchanged, as expected for a movement repair:
+**27 draws / 200,300 triangles / 16 textures / 25.681 MiB**, identical on both
+paths. Median **6.9 / 6.9 ms**, p99 **7.2 / 7.1 ms**, scene preparation
+**995.9 / 982.6 ms** (production/candidate). Practice-two retains **49 draws /
+101,470 triangles / 17 textures** on both. No geometry, lighting or visual
+quality claim is made from the timing variation. Initial
+`combat-s4-{production,candidate}-*` reports/stills remain retained too.
+
+Ordinary stock gates retain mixed results: TDM **PASS**, **66.219 s / 2 deaths**,
+max **14.5 ms**, p99 upper **8 ms**, callback **9.6 ms**, first-ready **3319.9 ms**.
+FFA **FAIL**, **46.702 s / 2 deaths**, max **2438.7 ms**, p99 upper **8 ms**,
+callback **8.4 ms**, **5.222%** stalled time. Both have zero shader additions
+and console errors. Evidence: `combat-s4-production-{tdm,ffa}.json` and logs.
+The failed FFA interval has **2330/2341 idle CPU samples**; that alone does not
+locate its cause. The failure is retained under its original filename.
+
+The follow-up stock startup trace **does reproduce a covered native wait**:
+`combat-s4-stock-startup-diagnostic{,-trace,-trace-summary}.json`, **1870.8 ms**
+startup interval overlapping a **1242.7 ms** first ordinary measurement interval.
+`traceCoversWindow:true`; Chromium's compositor paint takes **1873.272 ms wall /
+2.949 ms CPU**, overlapping an ANGLE vertex executable **1872.144 / 2.717 ms**.
+The pre-gap game submissions take **1.3-1.7 ms**, **120-121 calls / 90-91
+materials**, with eight existing-texture updates and a 256-byte existing-buffer
+update per recorded frame. After the gap: **1.8 ms / 20 calls / 16 materials**,
+one 256-byte buffer update. No new GPU resources, shader compilation/link,
+shadow request or render-target pass is recorded around it. Loading compilation
+intervals of **282.3 / 167.9 ms** are retained separately. This locates the
+reproduced wait in the compositor/ANGLE path, not a named driver defect or all
+untraced stalls. Its short duration/death coverage cannot satisfy acceptance;
+do not count this diagnostic as a passing round. Exact main follow-up is above.
+
+Ordinary candidate acceptance stopped at the first failure. The exact main-hook
+bundle uses the unchanged original probe, normal input driver, **150000 ms** and
+`--assert`; there are no movement observers, artificial latency, captures or
+tracing in these runs. All browsers hold the shared inspection lease through
+cleanup; main's inspections can run between these sequential probes, never
+alongside them. `combat-s4-acceptance.json` is **FAIL**, not five passing pairs:
+
+| Candidate run | Gate | Measured seconds / deaths | Max frame / callback ms | p99 upper ms | Stalled time |
+|---|---|---:|---:|---:|---:|
+| TDM 1 | PASS | 132.734 / 2 | 554.2 / 13.1 | 9 | 0.679% |
+| FFA 1 | PASS | 60.909 / 2 | 14.1 / 7.1 | 8 | 0% |
+| TDM 2 | FAIL: fewer than two deaths | 150.262 / 1 | 16.0 / 7.2 | 8 | 0% |
+
+First-ready **3363.8 / 3293.8 / 3111.8 ms** respectively. All have zero shader
+additions and errors. Raw evidence: `combat-s4-accept-{tdm-1,ffa-1,tdm-2}.json`
+and matching logs. FFA 2 and pairs 3-5 were not run after that failure.
+
+The second TDM's navigation trace stays against Relay's south wall at
+**z=87.6** from **83.182 s** through timeout. The direct read-only reproduction
+in `combat-s4-navigation-diagnostic{.mjs,.json}` shows the map navigator choosing
+the goal through a radius-expanded wall at contact, while movement collision
+correctly stops. One centimetre before contact it chooses a valid detour.
+The root is the navigator reusing a hitscan intersection that skips origins on
+or inside the expanded box; this is not prediction drift. Main owns
+`src/map/navigation.ts` and the standard probe. Exact coordinates and requested
+regression are in Cross-stream requests. No combat-only bot aggression/damage
+change, altered probe route or weaker death requirement is justified to hide
+that failure. No unchanged retries were used to manufacture five passes.
+
+Final session disposition: **NOT FULLY GREEN**. Typecheck, **797 tests**, build,
+asset audit, both production/candidate fixed-camera inspectors and full-round
+all-map movement assertions pass. Stock FFA presentation and candidate
+five-pair repeatability remain red for the two documented reasons. Movement
+activation, navigation contact handling and renderer investigation belong to
+main; this stream supplies the combat fix and concrete requests without
+editing those files. Do not mark R-L19 met or the deployed rollback bug fixed
+until main integrates the two-line hook and validates the combined build.
+
+Open owner questions: none require a pause. Defaults remain unchanged
+thresholds, natural deaths, current authored collision, original browser flags,
+and no Meshy spending. Prioritize main integration and the two measured
+acceptance blockers before the deferred weapon/audio arc. No commit, push or
+deployment was made.
+
+Cleanup/scope: all Session 4 probes completed and closed their browsers before
+releasing the shared lease. Stopped only this session's verified Wrangler tree
+(root PID **82472**, including its workerd children); confirmed **zero Session 4
+processes** and **zero listeners on 8798**. Other streams and the supervisor
+remain running. Final `git diff --check` passes; branch is
+`ironsight-aaa-combat`. Tracked changes are exactly this plan, `client/predict.ts`,
+`src/rooms/arena-room.ts`, `src/rooms/movement-sync.ts` and
+`test/prediction-sync.test.ts`; ignored evidence stays under `.inspect/`.
 
 ### Session 3 - 2026-09-11: Rollback repair, arc 2/2 - prove the movement timeline
 

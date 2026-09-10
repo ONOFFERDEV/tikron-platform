@@ -42,7 +42,7 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
     }} as unknown as Pick<Room,'send'|'onMessage'>;
   const network={online:true};
   p.connect(transport,()=>network.online);
-  const tick=async(input=walk,yaw=0,renderSlices:readonly number[]=[TICK_MS])=>{
+  const tick=async(input=walk,yaw=0,renderSlices:readonly number[]=[TICK_MS],beforeRender?:()=>void)=>{
     now++;
     while(outgoing[0]&&outgoing[0].at<=now){const m=outgoing.shift()!;await c.send(m.type,m.payload);}
     await h.advance(TICK_MS);
@@ -57,6 +57,7 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
     // Keep the legacy state callbacks in place, as main does after integration.
     const state=c.lastState() as ArenaState;
     const self=state.players[c.id]!;p.reconcile(self);p.setAlive(self.alive);
+    beforeRender?.();
     for(const dt of renderSlices){
       const before=p.eye();
       p.frame(dt,input,yaw);
@@ -70,6 +71,47 @@ async function link(map:MapDef, id:string, start:{x:number;y:number;z:number}, d
 }
 
 describe('acknowledged local movement',()=>{
+  it('moves on the command heading while preserving newer look and fire aim',async()=>{
+    const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},0);
+    const snapshot=l.c.frames().filter(f=>f.type==='movement').at(-1)!.payload as MovementSnapshot;
+    const before={...l.me};
+    // The command was created before the mouse turn. Net sends look only when
+    // it changes, so replaying this older heading must not replace that aim.
+    await l.c.send('movementSteps',{epoch:snapshot.epoch,commands:[{...command(snapshot.ack+1),yaw:0}]});
+    await l.c.send('look',{yaw:Math.PI/2,pitch:.1});
+    await l.h.advance(TICK_MS);
+    expect(l.me.x).toBeCloseTo(before.x,8);
+    expect(l.me.z-before.z).toBeCloseTo(.3,8);
+    expect(l.me.yaw).toBeCloseTo(Math.PI/2,8);
+    expect(l.me.pitch).toBeCloseTo(.1,8);
+    await l.c.send('movementSteps',{epoch:snapshot.epoch,commands:[{...command(snapshot.ack+2),yaw:0}]});
+    await l.c.send('fire',{yaw:Math.PI,pitch:0});
+    await l.h.advance(TICK_MS);
+    expect(l.c.frames().some(f=>f.type==='shot')).toBe(true);
+    expect(l.me.yaw).toBeCloseTo(Math.PI,8);
+    expect(l.me.z-before.z).toBeCloseTo(.6,8);
+  });
+
+  it.each([
+    ['Relay',ARENA1,'arena-tdm',69],
+    ['Undertow',ARENA2,'arena-dom',67],
+  ] as const)('%s retains the owner snapshot collision when an older room echo arrives',async(_name,map,id,x)=>{
+    const l=await link(map,id,{x,y:0,z:50},0);
+    const state=(l.h.room as unknown as {state:ArenaState}).state;
+    state.signalAt=Date.now()-8000;
+    await l.tick({...walk,mz:0});
+    expect(state.coreOpen).toBe(true);
+    l.samples.length=0;
+    for(let i=0;i<12;i++){
+      // Position/controller reconciliation belongs to the owner snapshot; the
+      // binary room echo can describe an older tick, including its door state.
+      await l.tick(walk,Math.PI/2,[TICK_MS],()=>l.p.setCoreOpen(false));
+    }
+    expect(l.me.x).toBeGreaterThan(x+3);
+    expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
+    expect(Math.max(...l.samples.filter(s=>!s.reset).map(s=>s.correction))).toBeLessThan(1e-8);
+  });
+
   it('keeps the rendered camera moving forward across delayed echoes at uneven render cadence',async()=>{
     const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},2);
     l.renderMotion.length=0;
@@ -161,6 +203,41 @@ describe('acknowledged local movement',()=>{
     }
     expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
     expect(Math.max(...l.samples.filter(s=>!s.reset).map(s=>s.correction))).toBeLessThan(1e-8);
+  });
+
+  it('does not add idle gravity behind acknowledged commands in a server catch-up burst',async()=>{
+    const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},2);
+    for(let i=0;i<60;i++){
+      if(i===10){
+        expect(l.me.y).toBeGreaterThan(0);
+        // Reproduce a delayed server timer, with the client transport unchanged.
+        // This is the SDK's own simulation-test fixture: one callback must
+        // drain several fixed ticks before another network event can arrive.
+        const timer=l.h.room as unknown as {lastTickAt:number};
+        timer.lastTickAt-=TICK_MS*4;
+      }
+      await l.tick({...walk,jump:i===6},Math.PI/2);
+    }
+    expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
+    expect(Math.max(...l.samples.filter(s=>!s.reset).map(s=>s.correction))).toBeLessThan(1e-8);
+  });
+
+  it('cannot refresh an airborne input wait by retransmitting an already applied jump',async()=>{
+    const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},0);
+    await l.tick({...walk,jump:true},Math.PI/2);
+    await l.tick({...walk,mz:0},Math.PI/2);
+    expect(l.me.y).toBeGreaterThan(0);
+    const snapshot=l.c.frames().filter(f=>f.type==='movement').at(-1)!.payload as MovementSnapshot;
+    const beforeX=l.me.x;
+    for(let i=0;i<30;i++){
+      await l.c.send('movementSteps',{epoch:snapshot.epoch,
+        commands:[{...command(snapshot.ack),jump:true}]});
+      await l.h.advance(TICK_MS);
+    }
+    expect(l.me.y).toBe(0);
+    expect(l.me.x).toBe(beforeX);
+    const after=l.c.frames().filter(f=>f.type==='movement').at(-1)!.payload as MovementSnapshot;
+    expect(after.ack).toBe(snapshot.ack);
   });
 
   it.each([

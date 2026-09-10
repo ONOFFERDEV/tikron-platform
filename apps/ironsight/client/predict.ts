@@ -85,7 +85,12 @@ export class Predictor {
     this.launchPads = map.launchPads;
   }
   private readonly launchPads: MapDef['launchPads'];
-  setCoreOpen(open: boolean): void { this.boxes = this.collision.boxes(open); }
+  setCoreOpen(open: boolean): void {
+    // Connected kinematics and collision belong to the same owner snapshot.
+    // A delayed room-state echo must not replace that snapshot's door state
+    // between reconciliation and the next predicted step.
+    if (!this.connection) this.boxes = this.collision.boxes(open);
+  }
 
   /** Main's integration hook. The room owns elapsed simulation time and physics;
    * this sends at most one command per locally predicted TICK_MS. Repeated
@@ -131,7 +136,7 @@ export class Predictor {
     const distance = (a: Vec3,b: Vec3) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
     const matchedError = reset || !matched ? null : distance(matched.state.pos,snapshot.pos);
     const jump = this.pendingJump;
-    this.setCoreOpen(snapshot.coreOpen);
+    this.boxes = this.collision.boxes(snapshot.coreOpen);
     this.restore(snapshot);
     this.alive=snapshot.alive; this.seeded=true; this.respawnSnap=false;
     this.epoch=snapshot.epoch; this.snapshotTick=snapshot.tick; this.acknowledged=snapshot.ack;

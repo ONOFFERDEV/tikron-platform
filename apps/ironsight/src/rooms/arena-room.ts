@@ -583,14 +583,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           if (commands.length) {
             for (const command of commands) {
               this.inputs.set(id, { ...command });
-              p.yaw = ((command.yaw % TAU) + TAU) % TAU;
-              this.integrate(id, p, dt);
+              // This heading belongs to the historical movement command. Look
+              // and fire may already carry a newer aim; never roll that back.
+              this.integrate(id, p, dt, command.yaw);
+              inbox.applied(now);
             }
             continue;
           }
+          if (inbox.waitingForInput(now, TICK_MS)) continue;
           // Missing commands cannot repeat horizontal movement or jump edges.
-          // Gravity, collision and committed traversal STILL run every tick:
-          // a disconnected/flooding client cannot freeze itself in the air.
+          // After the bounded input wait, gravity, collision and committed
+          // traversal run even without commands: silence cannot sustain a hover.
           if (!(this.grounded.get(id) ?? true) || this.traversals.get(id)?.active || this.slides.get(id)?.active)
             inbox.spendIdleTick();
           this.inputs.set(id, { ...NO_INPUT, crouch:p.crouch });
@@ -681,14 +684,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.ownerClient(id)?.send('movement', snapshot);
   }
 
-  private integrate(id: string, p: ArenaPlayer, dt: number): void {
+  private integrate(id: string, p: ArenaPlayer, dt: number, movementYaw = p.yaw): void {
     const inp = this.inputs.get(id) ?? NO_INPUT;
     let slide = this.slides.get(id);
     if (!slide) { slide = new SprintSlide(); this.slides.set(id, slide); }
     let traversal = this.traversals.get(id);
     if (!traversal) { traversal = new WaistTraversal(); this.traversals.set(id, traversal); }
     const wasTraversing = traversal.active;
-    const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, p.yaw,
+    const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, movementYaw,
       this.boxes, this.map.bounds, this.map.ramps ?? [], this.map.launchPads);
     if (traversed) {
       if (!wasTraversing) this.sendNear('traversal', { id, kind: traversal.kind, x:p.x,y:p.y,z:p.z },p.x,p.z,{ always:[id] });
@@ -703,7 +706,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       return;
     }
     const wasSliding = slide.active;
-    const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, p.yaw);
+    const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, movementYaw);
 
     // Crouch (updated before speed/height so this tick uses it). Standing up is
     // rejected if the taller capsule would clip cover/ceiling.
@@ -725,8 +728,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.updateHandling(id, Date.now());
 
     // Wish direction in world xz: forward = (sin yaw, cos yaw), right = (cos yaw, −sin yaw).
-    const sy = Math.sin(p.yaw);
-    const cy = Math.cos(p.yaw);
+    const sy = Math.sin(movementYaw);
+    const cy = Math.cos(movementYaw);
     let wx = sy * inp.mz + cy * inp.mx;
     let wz = cy * inp.mz - sy * inp.mx;
     const wl = Math.hypot(wx, wz);
