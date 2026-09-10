@@ -66,6 +66,55 @@ geometry, logo, or map layout. Weapon and vehicle props stay generic-military by
    time and the hitch probe every session.
 5. **Colourblind support stays**: enemy highlight colour remains user-selectable.
 
+## Level design: places, not arenas (owner decision 2026-09-10, "the maps need remaking")
+
+The overhead view is the tell: today every map is **a fenced flat rectangle of closed
+single-storey boxes on a grid**. Nothing can be entered, nothing is above or below you, the
+boundary is a chain-link fence with empty ground beyond it, and the layout is mirrored on a
+tile grid. That reads as an arena, which is the opposite of the Battlefield lane, and it is
+why the maps feel thin no matter how good the surfaces get.
+
+What a map must become, in priority order:
+
+1. **Buildings you fight inside.** At least two enterable structures per map with a real
+   interior: doorways, windows that are firing positions, internal cover, a stairwell or
+   ladder to a second floor, and a roof you can hold. Interiors are where the Battlefield
+   read comes from (dark inside against blown-out sky, R-L12/14 value contrast).
+2. **Three floor planes actually used** (R-M18): ground, a walkway/roof tier around +3 m,
+   and a sunken tier (service trench, drainage channel, loading dock) around -2 to -3 m.
+   Not decorative — routes must run through all three.
+3. **A built boundary, not a fence.** Replace the perimeter fence with mass: warehouse
+   walls, embankments, stacked containers, a rail cut, a canal edge, collapsed structures.
+   The player should feel enclosed by the place, not by a barrier. Keep the same playable
+   rectangle for the server; only the presentation of the edge changes.
+4. **Break the grid.** Rotate and offset structures off the tile axis, vary building
+   footprints and heights, let one side of the map be a different kind of space from the
+   other (yard vs hall vs channel) while keeping the three lanes and mirrored power
+   positions that the reference requires (R-M01, R-M08 asymmetric landmarks).
+5. **Evidence of use and of war**: emplacements at the objectives, blocked doorways,
+   craters and rubble that change routes, vehicles parked where they would be parked.
+
+**Technical path (verified, no engine change needed).** Collision is a list of `Box`
+(`min`/`max` Vec3) plus ramps, and `min.y` is arbitrary — so a floor slab at y = 3.0-3.3 and
+a wall with a door gap are already expressible today; the physics, hit validation and bot
+navigation all consume the same box list. The only limit is the **authoring format**:
+`tilemap.ts` is a 2D grid with one height class per tile, every box starting at y = 0.
+So the first arc is an authoring upgrade, not a rewrite:
+
+- Add a **structure layer** compiled into the existing box list: a building definition with
+  footprint, wall segments (thin boxes) with door/window openings, floor slabs at given
+  heights, stairs (existing ramp defs or stepped boxes), and roof access. Keep the tile grid
+  for open-yard cover so existing maps keep working.
+- Extend `GroundNavigator`/bot nav to route through doorways and up stairs, or restrict bots
+  to the ground plane on purpose and say so in the log.
+- Re-bake ground AO and architecture AO per map after every layout change, and re-measure
+  R-M04 rotation and R-M07 spawn-to-contact seconds; interiors will change both.
+- Keep the collision map the sole authority; if it looks like cover it must be cover.
+
+Sequence: (A) structure authoring layer + one enterable building on Relay as proof;
+(B) Relay redesigned as a place; (C) Undertow; (D) Switchyard; (E) boundary mass and
+grid-breaking pass across all three. Each session green, each with an overhead before/after.
+
 ## Meshy asset programme (owner budget: 1,300 credits)
 
 A preview + PBR refine is ~30 credits, so the budget is roughly 40 assets. Spend it on
