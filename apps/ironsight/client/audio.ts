@@ -6,7 +6,7 @@
  * decoded buffers.
  */
 import type { MapDef } from "../src/map/types.js";
-import { coverMix, footSurface, spatialMix, type SoundPoint } from "./spatial-audio.js";
+import { acousticOccluders, coverMix, footSurface, spatialMix, type SoundPoint } from "./spatial-audio.js";
 import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
 import type { DeploymentCue } from './deployment-presentation.js';
@@ -76,7 +76,10 @@ let listenerYaw = 0;
 let remoteVoices = 0;
 let acousticMap: MapDef | undefined;
 let auditMixes: { gain: number; cutoff: number; pan: number; threatGain: number; blocked: boolean }[] | null = null;
-export function setAudioMap(map: MapDef): void { acousticMap = map; }
+export function setAudioMap(map: MapDef): void {
+  acousticOccluders(map); // prepare once, outside the first audible event
+  acousticMap = map;
+}
 export function setAudioListener(pos: SoundPoint, yaw: number): void {
   Object.assign(listener, pos); listenerYaw = yaw;
 }
@@ -86,7 +89,7 @@ function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1) {
   if (!source) return { input: master as AudioNode, release: () => {} };
   const mix = spatialMix(source, listener, listenerYaw);
   if (mix.gain < 0.015) return null;
-  const cover = coverMix(source, listener, acousticMap?.boxes ?? []);
+  const cover = coverMix(source, listener, acousticMap ? acousticOccluders(acousticMap) : []);
   // Reserve four of the existing twenty voices for clear enemy foley.
   if (remoteVoices >= (threatGain > 1 && !cover.blocked ? 20 : 16)) return null;
   remoteVoices++;
@@ -397,6 +400,7 @@ export async function inspectThreatAudio() {
   const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
   const source = { x: 0, y: 1, z: 10 };
   const mixes: NonNullable<typeof auditMixes> = [];
+  const geometryMixes: NonNullable<typeof auditMixes> = [];
   try {
     await wait(600);
     acousticMap = { ...savedMap!, boxes: [] };
@@ -418,7 +422,30 @@ export async function inspectThreatAudio() {
     const threatPeak = remoteVoices;
     playHit(); playKill(); // confirmed cues remain outside the remote budget
     await wait(600);
-    return { context: c.state, sampleRate: c.sampleRate, mixes, ordinaryPeak, threatPeak, drained: remoteVoices,
+    auditMixes = geometryMixes;
+    setAudioMap({ ...savedMap!, boxes: [], ramps: [
+      { minX: 4, maxX: 8, minZ: 4, maxZ: 6, axis: 'x', dir: 1, topY: 3 },
+    ] });
+    setAudioListener({ x: 7, y: 1, z: 0 }, 0);
+    playReloadCue('bolt', { x: 7, y: 1, z: 10 }, 1.4);
+    setAudioListener({ x: 7, y: 4, z: 0 }, 0);
+    playReloadCue('bolt', { x: 7, y: 4, z: 10 }, 1.4);
+    setAudioMap({ ...savedMap!, ramps: [], boxes: [
+      { min: { x: -2, y: 0, z: 4 }, max: { x: 2, y: 3, z: 5 } },
+    ] });
+    setAudioListener({ x: 0, y: 1, z: 4 }, 0);
+    playReloadCue('bolt', source, 1.4);
+    setAudioMap({ ...savedMap!, ramps: [], boxes: [
+      { min: { x: -2, y: 0, z: .01 }, max: { x: 2, y: 3, z: .03 } },
+    ] });
+    setAudioListener({ x: 0, y: 1, z: 0 }, 0);
+    playReloadCue('bolt', { x: 0, y: 1, z: 40 }, 1.4);
+    auditMixes = null;
+    await wait(600);
+    if (geometryMixes.length !== 4 || !geometryMixes[0]?.blocked || geometryMixes[1]?.blocked
+      || !geometryMixes[2]?.blocked || !geometryMixes[3]?.blocked)
+      throw Error('Ramp/contact acoustic graph failed');
+    return { context: c.state, sampleRate: c.sampleRate, mixes, geometryMixes, ordinaryPeak, threatPeak, drained: remoteVoices,
       note: 'Actual node parameters before master compressor; not headphone loudness or HRTF acceptance.' };
   } finally {
     auditMixes = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);

@@ -36,6 +36,11 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    Final Session 8 qualification fails pair 2 FFA at **2302.2 ms**, plus a
    **325.3 ms** first-death interval. Five pairs are not achieved. A focused
    death trace does not reproduce either failure; keep both causes open.
+   Session 9's initial pair 2 FFA also fails at **1618.9 ms** and first damage
+   **1146 ms**. Its traced follow-up does not reproduce either gameplay gap;
+   no new cause is assigned. Final qualification is recorded in Session 9.
+   Final Session 9 FFA fails at **1845.1 ms** during the first death window.
+   The longer death trace does not reproduce that failure; no third retry.
 3. **Bot squad radio integration:** Session 6 implements six authoritative
    callouts and a role caption readable with audio muted. The legacy client receives
    compatible markers by default; main must activate the exact caption/audio
@@ -56,7 +61,11 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    after a periodic snapshot. The storage promise resolves immediately; this
    correlation is not a root cause. Keep receipt-based validation and investigate
    local Worker scheduling/storage without changing persistence guarantees.
-5. Layered, occluded firefight audio (R-G14–17), then surface impact feedback.
+5. **Grounded firefight audio, arc 1/2 delivered:** Session 9 fixes concrete
+   surfaces/support and shared stair occlusion; real audio graph and a recorded
+   interior/roof route pass. Next: distance identity and hit/kill audibility in
+   a dense mix (R-G15/R-G17), then surface impact feedback. This does not close
+   the higher-priority main movement/presentation or local-delivery requests.
 6. Retest bot routes as main lands new buildings; DOM keeps ground-objective
    priority and has no forced high-ground diversion in this session.
 
@@ -65,6 +74,45 @@ verified-cover reloads. Session 5 delivers arc 2/3: collision-derived multi-leve
 walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 
 ## Cross-stream requests
+
+- **Main / supervisor - Session 9 presentation recurrence:** initial pair 2
+  FFA fails at **1618.9 ms**, plus **512.3 ms**, **4.950%** stalled time,
+  **5.8 ms** callback max, p99 **8 ms**, two natural deaths, zero errors or
+  shader changes. The first-damage observer separately fails at **1146 ms**
+  across the measurement boundary; it overlaps the 512.3 ms interval and must
+  not be added as a third independent stall. Evidence:
+  `combat-s9-accept-ffa-2.json` / `combat-s9-acceptance.json`.
+  The traced follow-up runs **35.763 s / two deaths**, max **18.9 ms**,
+  callback **14.1 ms**, and does not reproduce either gameplay failure.
+  Its older **269.7 / 164.4 ms** loading intervals have no retained renderer
+  coverage. `combat-s9-ffa-diagnostic{,-trace,-trace-summary}.json` and
+  `combat-s9-diagnostic-summary.json` therefore assign no new cause. Continue
+  main's presentation investigation; no speculative HUD edit or gate/driver
+  change follows. A bounded final qualification is recorded separately below.
+  **Final qualification also fails:** pair 1 FFA has a **1845.1 ms** interval
+  ending at **24.912 s**, while dead, after first death at **22.854 s**.
+  It fails both presentation and first-death bounds. Callback max **4.6 ms**,
+  p99 **8 ms**, **2.491%** stalled time, two natural deaths, no errors or
+  shader changes. `combat-s9-final-accept-ffa-1.json` retains the interval;
+  the separate longer death diagnostic below is not acceptance or a retry.
+  `combat-s9-death-window{,-trace,-trace-summary}.json` records **22.039 s**,
+  one death, and a complete first-damage/death window at **8.4 ms**. It does
+  not reproduce the failed death interval. Its **1354.3 ms** startup gap and
+  overlapping **1920.2 ms** post-ready observation lack retained renderer
+  coverage; no cause is assigned. `combat-s9-death-summary.json` records these
+  limits. The same ownership boundaries and existing presentation request apply.
+
+- **Main / supervisor - Session 9 acoustic integration:** no new main hook is
+  needed. Existing `setAudioMap(map)` / open-door map updates now prepare the
+  same ramp occluders used by authoritative shots. Terrain boxes and structural
+  walls/slabs use concrete foley; structure stairs use concrete, while legacy
+  deck/cover fallbacks retain metal. This matches the current authored kit,
+  not a universal material inference for future wood or grating. Preserve
+  identity references from `terrain.boxes` and `structures.parts[].box` when
+  composing maps, as the existing map contract requires. Combined newer main
+  geometry still needs validation. Owner rollback activation and Session 8's
+  presentation/runtime-scheduling requests remain open; this audio
+  work does not resolve them or alter prediction/weapon timing.
 
 - **Main / SDK owner - Session 8 delayed local input:** the standard handling
   check first fails AR at **461.8 ms** (bound **450 ms**). A read-only send/reply
@@ -370,10 +418,10 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-G11 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-G12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-G14 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G15 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G16 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G17 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
+| R-G14 | met | Session 9 actual Web Audio graph preserves 1.4x enemy footstep/reload gain, 16/20 voice priority and complete drainage. Terrain/slab/stair material and capsule support regressions pass; live concrete stair/roof capture retained. |
+| R-G15 | partial | Existing hit and distinct kill cues bypass the remote voice cap; browser fixture plays them at saturation. Dense-mix audibility still needs an isolated listening/measurement comparison. |
+| R-G16 | met | Session 9 uses authoritative box/ramp occluders, retains open doors and above-ramp paths, fixes endpoint/thin-wall leaks, and verifies actual 0.32 gain/1100 Hz occluded nodes. No diffraction/HRTF claim. |
+| R-G17 | partial | Existing cached per-weapon crack, mechanical identity, body and tail remain. Session 9 makes geometry occlusion consistent across levels; dedicated distance variants and dense-mix comparison remain next. |
 | R-G18 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G19 | partial | Table ADS 250/200/225/400/165 ms and sprint 120/100/130/150/90 ms match targets. Session 8 fixes early queue-drained shots stealing the legal shot behind them: all five weapons pass exact receipt-time ADS/sprint boundaries, plus swap/reload boundaries. Full suite 855 passed. Live AR first-shot bound fails; relay/Worker observations locate delayed ADS input before SDK receipt. Keep end-to-end timing partial until that cause is resolved. |
 | R-G20 | partial | Client and room read GAME.weapons and the same recoil/spread/handling helpers. Session 7 uses trusted receipt time for cadence/recoil, rejects forged subtick credit and corrects denied prediction. Compressed delivery and existing predicted muzzle/audio policy remain; no claim of fully server-confirmed local juice. |
@@ -390,11 +438,11 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L11 | partial | Four profiles, 150-600 ms reactions, identical seeded aim, depth 1/2/3 cover search and verified multi-level routing. Session 6 natural rounds show six radio kinds across team modes; no FFA radio. Rich caption/audio activation and legacy role/kit names still require main. |
 | R-L12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L14 | partial | Session 8 adds no client bytes or WebGL resources. 855 tests, typecheck/build/audit and fixed-camera/live inspections pass. Initial FFA fails at 1995.2/2051.4 ms; final qualification fails pair 2 FFA at 2302.2 ms and first-death 325.3 ms. Zero errors/recompiles. Five pairs not achieved. A separate native wait is covered; the focused death trace does not reproduce the failure. All evidence retained; no iGPU or presentation-fix claim. |
+| R-L14 | partial | Session 9 code/build/assets, fixed cameras and real audio graph pass (863 application cases plus 31 archived cadence cases), with no new WebGL resources. Initial FFA fails at 1618.9 ms / first damage 1146 ms; final FFA fails at 1845.1 ms in the first death window. Five pairs not achieved. Both diagnostic death windows pass without reproducing these failures; older spikes lack coverage. All evidence retained; no iGPU or presentation-fix claim. |
 | R-L15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L18 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
+| R-L18 | partial | Session 9 confirms 1.4x enemy foley and four reserved clear-threat voices. Occlusion follows solid geometry; no additional path-distance/reachability weighting is claimed. |
 | R-L19 | partial | Session 4: 14,317 matched samples and 15,380 non-reset replay comparisons across complete Relay/Undertow/Switchyard bot rounds, all errors/crossings zero; 25 prediction tests. Initial Relay replay failure retained; fixed server catch-up. Exact main activation remains pending. |
 | R-L20 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L21 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
@@ -402,6 +450,179 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 9 - 2026-09-11: Grounded firefight audio, arc 1/2 - hear every floor
+
+Reference: **R-G14**, **R-G16**, **R-G17**, **R-L18**, **R-L14**, **R-L19**.
+Targets: concrete yard/interior/stairs/roof foley follows actual support;
+airborne players over the trench do not emit grounded steps; solid stairs,
+slabs and thin walls muffle sound by the existing **0.32 gain / 1100 Hz** cut.
+Keep **1.4x enemy foley**, **16 ordinary / 20 prioritized remote voices**,
+open-door audibility and all gameplay/authority thresholds unchanged.
+
+Started clean at **67cf53e**, branch `ironsight-aaa-combat`, port **8798**.
+The top movement fix still awaits main's two-line activation in this checkout;
+Session 4's measured all-map result remains the relevant movement evidence.
+No new all-map movement round is claimed here. All **25 prediction-sync
+regressions** pass. The Session 8 presentation and local input-delivery failures
+remain open despite the supervisor's green summary. With the remaining fixes
+outside combat ownership, this takes the next actionable combat audio gap.
+
+Delivered, active through existing hooks:
+
+- `spatial-audio.ts` separates support from material. Ground uses the actual
+  map floor; supported box edges use the same **0.4 m** capsule footprint as
+  movement. Terrain and authored structural surfaces select the concrete
+  sample; existing equipment/deck fallbacks retain metal. No collider, physics,
+  movement threshold or map layout changes.
+- Each immutable map variant caches its ramp occluders once, using the same
+  `rampOccluderBoxes` as server hits. `setAudioMap` prepares this outside the
+  first audible event. No event-time mesh or geometry construction, new audio
+  source/voice, WebGL resource or per-frame bake.
+- Sound segments now test passage through solid volume, including either
+  endpoint touching or slightly inside a wall. Surface grazing/outward paths
+  remain clear. A **0.00001 m** geometric tolerance replaces the old normalized
+  endpoint exclusion that skipped nearby thin walls on long rays. This is
+  audio-only; hitscan keeps its existing intersection semantics.
+- Eight new regression cases cover current Relay terrain/structures, capsule
+  edges, actual trench void versus bridge, both ramp axes/directions and
+  negative bases, shutter variants, open doorways, floor slabs, wall contact
+  and thin cover. The existing browser audio fixture now exercises the actual
+  ramp/contact node graph as well as gain priority and voice drainage.
+
+Regression evidence: `combat-s9-corrected-baseline.log` runs the preserved
+original spatial module through an inspection-only loader and fails **5 / 12**
+tests. The patched suite passes. Earlier failed logs are retained: the first
+trench fixture chose the real bridge at **x=75**; the corrected void is
+**(63,0,76)**, with the bridge checked separately. The old simplified fixture
+removed terrain boxes but inherited **floor=-3**; it now explicitly restores
+its intended legacy **floor=0**. These fixture corrections do not change maps.
+
+Required code/resource checks **PASS**: `pnpm typecheck`, `pnpm test`,
+`pnpm build:client`, `pnpm audit:assets`, recorded in
+`combat-s9-final-checks.json` and its four command logs. The normal command
+reports **894 passed / 9 skipped**, **100 files passed / 7 skipped**; that
+includes the inherited `.inspect/combat-s8-weapon-cadence.test.ts` archive's
+31 repeated cases. The application test directory has **863 distinct passing
+cases**, eight more than Session 8. The archive is left intact. No dependency,
+server, source-map authority or test-gate configuration change.
+
+Fixed-camera before/after and live audio inspection **PASS**, with zero
+console errors or forbidden network requests: `combat-s9-{before,after}-report.json`
+and corresponding Relay/practice-two/audio PNGs. Relay remains **27 draws /
+200,300 triangles / 16 textures / 25.681 MiB**, median **6.9 / 6.9 ms**,
+p99 **7.1 / 7.1 ms**. Scene preparation **1007.7 / 1014.4 ms**; construction
+**229.9 / 195.0 ms**. These are host/run observations, not a causal speedup
+or laptop iGPU proof. Fixed cameras have no intended visual change.
+
+At **48 kHz**, the actual browser graph records clear ally/enemy gains
+**0.28636 / 0.40091** (ratio **1.4**). The ramp blocks at **0.12829 gain /
+1100 Hz**; above it remains **0.40091 / 6218.18 Hz** at equal distance.
+Contact and thin-wall cases also record **1100 Hz**. Voice counts peak at
+**16 / 20**, then drain to **0**. This measures node parameters before the
+master compressor, not headphone loudness or HRTF/diffraction quality.
+
+**Wow check:** `combat-s9-wow-report.json`, five
+`combat-s9-wow-sound-live-{0,5,10,15,20}s.png` stills and the **330,668-byte**
+`combat-s9-wow-firefight.webm` preserve **20.588 s** of an ordinary live bot
+TDM after **8.661 s** of keyboard approach. The player enters Comms, climbs
+to **3 m**, and returns through the stairwell; **175 shot / 7 kill events**
+occur in the room. **161 audio sources**, including **34 concrete footsteps /
+0 metal footsteps**, are observed during the recording. All 325 player
+samples are alive and classified concrete; no claim of taking damage or a
+local kill. The post-limiter audio tap and screenshot readbacks are separate
+from performance acceptance. Player sentence: **"I can hear boots on concrete
+and the firefight muffling behind the stairs."** No state, HP, pose, clock or
+collision injection. Zero browser errors; stills visually inspected.
+`combat-s9-audio-review.json` / `combat-s9-recording-levels.log` measure the
+recording at **-46.9 dB mean / -17.7 dB peak** after the limiter: non-silent,
+unclipped digital output. Subjective headphone acceptance is not claimed.
+Decoding held the shared lease between probes; it did not run during a gate.
+
+Assets remain **30,121,938 bytes**, largest **7,183,364 bytes**. Public total
+is **37,280,893 bytes**, **+9,421** including generated JS/source-map text.
+**0 new asset bytes, textures, lights, passes, Meshy credits or asset rejects.**
+The ignored audio recording is evidence, not a shipped asset. Client SHA-256:
+`a124ba593f2e0a236440593b03077a6a94dcd5be0f516407a92085c650fa7467`.
+
+The unchanged ordinary `--assert --assert-first-use` five-pair sequence is
+recorded under `combat-s9-accept-*`, with the shared lease and fresh profiles.
+Final acceptance disposition, first-load timing and cleanup follow below.
+No new owner decision is needed. Default next audio work: distance identity
+and measured hit/kill audibility in a dense mix, preserving existing caps.
+Main's movement, radio and presentation requests remain higher release
+priorities; this arc does not mark them resolved.
+
+Initial acceptance stopped at **pair 2 FFA**, with all earlier runs passing:
+TDM 1 **15.7 ms**, FFA 1 **14.2 ms**, TDM 2 **20.5 ms**. The failed run has
+**1618.9 / 512.3 ms** measured intervals, **2131.2 ms / 4.950%** stalled time,
+**5.8 ms** callback max, p99 **8 ms**, two natural deaths and no errors/shader
+changes. The first-damage check also fails at **1146 ms**, including the
+pre-profiler interval; that observation overlaps the 512.3 ms gap. First death
+passes at **9.2 ms**. Evidence and limits are preserved in
+`combat-s9-accept-table.json`; no failed run is reclassified.
+
+The separate traced follow-up does not reproduce a gameplay stall: **35.763 s**,
+two deaths, max **18.9 ms**, callback **14.1 ms**, p99 **8 ms**, first damage
+and death **8 ms**, zero errors/recompiles. Its **269.7 / 164.4 ms** loading
+intervals have `traceCoversWindow:false`. This does not explain the acceptance
+failure or justify an audio/HUD/renderer change. Trace analysis held the shared
+lease; the inspector closed before the final ordinary sequence began.
+
+One final, bounded five-pair qualification starts under
+`combat-s9-final-accept-*`, stopping on its first failure. No capture, audio tap,
+trace, test/build, altered browser flags or relaxed limits are present in those
+measurement windows. This measures the current build, not a claimed fix of
+the retained intermittent presentation problem. There will be no further
+unchanged acceptance retries after this sequence.
+
+**Final qualification: FAIL; Session 9 is NOT FULLY GREEN.**
+`combat-s9-final-acceptance.json` and `combat-s9-final-accept-table.json`:
+
+| Pair / mode | Result | Seconds / deaths | Max frame / callback ms | p99 ms | First damage / death ms | First ready ms |
+|---|---|---:|---:|---:|---:|---:|
+| 1 / TDM | PASS | 110.204 / 2 | 14.0 / 8.7 | 8 | 7.8 / 8.1 | 3501.1 |
+| 1 / FFA | FAIL | 74.081 / 2 | 1845.1 / 4.6 | 8 | 14.8 / 1845.1 | 3478.7 |
+
+FFA's interval ends at **24.912 s**, while dead; first death was **22.854 s**.
+The interval starts about **213 ms after death** and crosses the end of the
+first-use window, so both independent bounds correctly fail. Stalled time is
+**1845.1 ms / 2.491%**. Both runs have zero errors/recompiles. Final FFA waits
+**12.921 s** for the shared lease; TDM acquires immediately. Five passing pairs
+were not achieved, and no third acceptance sequence is attempted. The code,
+asset and fixed-camera passes are not substituted for this failed requirement.
+
+A focused death diagnostic retains a **completed frame at least 3.5 s after
+the first natural death**. The inherited 1.3 s timer could export before a
+1.845 s interval completed; its waiting-only Node PID **49784** was verified
+to have no browser child, then stopped before measurement. Its log remains
+`combat-s9-death-initial-wait.log`. The revised copy stays under `.inspect/`,
+rejects acceptance flags, and preserves ordinary controls and the GPU lease.
+It changes observation duration only, not the game or any gate bound.
+
+The revised death diagnostic (`combat-s9-death-window{,-trace,-trace-summary}.json`)
+finishes **22.039 s** into measurement, **3.516 s** after its one natural death.
+Both first-use windows pass at **8.4 ms**. It does **not** reproduce the final
+acceptance death stall. It retains a separate **1354.3 ms** initial measured
+interval (**6.145%** of its short run) and an overlapping **1920.2 ms**
+post-ready interval; do not add them as independent gaps. Older loading
+intervals are **284 / 163.5 ms**. All those intervals lack retained renderer
+coverage, so none receives a causal label. Callback max **4.8 ms**, p99 **8 ms**,
+zero errors/recompiles. Its policy summary intentionally fails on stall share
+and one death; it is diagnosis, never acceptance. No runtime change is justified
+by these traces, and the failed final qualification remains the disposition.
+
+Cleanup completed: only the verified Session 9 server tree rooted at PID
+**39160** was stopped; **zero remaining tree processes / zero listeners on
+8798** (`combat-s9-server-cleanup.json`). All launched inspection browsers
+closed through their normal cleanup before their leases were released.
+`combat-s9-scope.json` confirms exactly five changed files, all combat-owned,
+clean `git diff --check`, branch `ironsight-aaa-combat`, HEAD **67cf53e**.
+`combat-s9-summary.json` retains both failed acceptance sequences, code/resource
+passes, the natural audio capture and diagnostic limits. No commit, push,
+deployment, other-stream edit or Meshy spending. No owner answer is required;
+main must continue the presentation investigation and activate the already
+documented movement repair before those higher-priority gaps can close.
 
 ### Session 8 - 2026-09-11: Weapon authority, arc 2/2 - ready means ready
 
