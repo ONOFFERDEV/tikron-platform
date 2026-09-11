@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createTestRoom } from '@tikron/server/testing';
 import { BOT_ARCHETYPES, BOT_DIFFICULTIES, botReached, botThink, combatBotArchetype, combatBotLabel,
-  createBotBrain, resetBotPerception, startBotFlank, type BotArchetype, type BotBrain, type BotDifficulty,
+  createBotBrain, resetBotPerception, startBotFlank, startBotPosition, type BotArchetype, type BotBrain, type BotDifficulty,
   type BotView } from '../src/bots.js';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
@@ -54,6 +54,30 @@ it('higher decision depth commits to a flank, while easy retains the direct patr
     startBotFlank(b, { x: 10, z: 10 });
     expect(!!b.flank).toBe(difficulty === 'hard');
   }
+});
+
+it('marksmen walk to reachable high ground, hold briefly and yield to objectives or close threats', () => {
+  const {brain,view}=fixture('marksman');
+  const point={x:30,y:3,z:10};
+  startBotPosition(brain,point);
+  view.navigate=vi.fn(()=>({x:22,y:0,z:10}));
+  let d=botThink(view,brain,50);
+  expect(d.tactic).toBe('position');expect(d.fire).toBe(false); // normal reaction
+  expect(view.navigate).toHaveBeenCalledWith(point);
+  expect(d.move.mx).toBeGreaterThan(.9); // still aiming toward the visible enemy
+  Object.assign(view.self,point);
+  d=botThink(view,brain,50);
+  expect(d).toMatchObject({tactic:'hold',move:{mx:0,mz:0,ads:true}});
+  brain.clockMs+=6000;
+  botThink(view,brain,50);expect(brain.positioning).toBeUndefined();
+  startBotPosition(brain,point);view.objective={x:50,y:0,z:10};
+  botThink(view,brain,50);expect(brain.positioning).toBeUndefined();
+  view.objective=undefined;Object.assign(view.self,{x:20,y:0,z:10});
+  startBotPosition(brain,point);view.enemies=[{...view.enemies[0]!,z:13}];
+  expect(botThink(view,brain,50).tactic).not.toBe('position');
+  resetBotPerception(brain);expect(brain.positioning).toBeUndefined();
+  const easy=fixture('marksman','easy').brain;
+  startBotPosition(easy,point);expect(easy.positioning).toBeUndefined();
 });
 
 it('holds aimed support bursts with audible gaps, drops fire immediately on sight loss', () => {

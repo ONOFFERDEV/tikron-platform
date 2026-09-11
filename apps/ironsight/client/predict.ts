@@ -1,10 +1,10 @@
 /**
  * Local-player movement prediction. Runs the SAME fixed-step integration the server
  * runs — importing the server's `moveAndSlide`, `canStand`, arena geometry, and
- * tunables so there is ONE physics contract, never a client copy that can drift —
- * then reconciles against the authoritative echo with a soft threshold (below it,
- * trust the local prediction for zero input lag; above it, ease toward the server;
- * a teleport-sized gap snaps). See `../src/rooms/arena-room.ts` `integrate()`.
+ * tunables so there is ONE physics contract, never a client copy that can drift.
+ * Connected prediction compares the acknowledged command and replays pending
+ * intents; an older position-only caller retains the legacy threshold fallback.
+ * See `../src/rooms/arena-room.ts` `integrate()`.
  */
 import { moveAndSlide, canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
 import type { MapDef, RampDef } from "../src/map/types.js";
@@ -24,6 +24,7 @@ import { isMovementSnapshot, MOVEMENT_SYNC, restoreControllers, saveControllers,
   type MovementCommand, type MovementSnapshot, type MovementState } from '../src/rooms/movement-sync.js';
 
 const TICK_S = TICK_MS / 1000;
+const START_RETRY_MS = 500;
 
 export interface PredictionCorrection {
   epoch: number; tick: number; ack: number; pending: number; reset: boolean;
@@ -57,6 +58,8 @@ export class Predictor {
   private sequence = 0;
   private acknowledged = 0;
   private snapshotTick = -1;
+  private startRetryMs = 0;
+  private predictionPaused = false;
   private pending: { command: MovementCommand; state: MovementState }[] = [];
   /** Optional inspection observer; no per-frame log or global in production. */
   onCorrection: ((sample: PredictionCorrection) => void) | undefined;
@@ -82,18 +85,29 @@ export class Predictor {
     this.launchPads = map.launchPads;
   }
   private readonly launchPads: MapDef['launchPads'];
-  setCoreOpen(open: boolean): void { this.boxes = this.collision.boxes(open); }
+  setCoreOpen(open: boolean): void {
+    // Connected kinematics and collision belong to the same owner snapshot.
+    // A delayed room-state echo must not replace that snapshot's door state
+    // between reconciliation and the next predicted step.
+    if (!this.connection) this.boxes = this.collision.boxes(open);
+  }
 
   /** Main's integration hook. The room owns elapsed simulation time and physics;
    * this sends at most one command per locally predicted TICK_MS. Repeated
    * commands repair dropped/rate-limited frames without duplicating movement.
    * Remove Net.setMoveIntent at the call site; retain Net.setLook and frame(). */
-  connect(room: Pick<Room, 'send' | 'onMessage'>): () => void {
+  connect(room: Pick<Room, 'send' | 'onMessage'>, online: () => boolean): () => void {
     if (this.connection) throw Error('Predictor already connected');
-    this.connection = room;
+    // Match Net's online gate. PartySocket queues writes while disconnected;
+    // retrying into that queue would turn a bounded window into an unbounded
+    // transport backlog. Welcome starts a fresh epoch when the link returns.
+    const send: Room['send'] = (type, payload) => { if (online()) room.send(type, payload); };
+    this.connection = { send, onMessage:room.onMessage.bind(room) };
     const start = () => {
       this.epoch = -1; this.pending = []; this.accMs = 0; this.pendingJump = false;
-      room.send('movementStart', { version:MOVEMENT_SYNC.version });
+      this.startRetryMs = 0;
+      this.predictionPaused = false;
+      send('movementStart', { version:MOVEMENT_SYNC.version });
     };
     const offMovement = room.onMessage('movement', payload => {
       if (isMovementSnapshot(payload)) this.receiveMovement(payload);
@@ -122,12 +136,13 @@ export class Predictor {
     const distance = (a: Vec3,b: Vec3) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
     const matchedError = reset || !matched ? null : distance(matched.state.pos,snapshot.pos);
     const jump = this.pendingJump;
-    this.setCoreOpen(snapshot.coreOpen);
+    this.boxes = this.collision.boxes(snapshot.coreOpen);
     this.restore(snapshot);
     this.alive=snapshot.alive; this.seeded=true; this.respawnSnap=false;
     this.epoch=snapshot.epoch; this.snapshotTick=snapshot.tick; this.acknowledged=snapshot.ack;
     if (reset) {
       this.pending=[]; this.sequence=snapshot.ack; this.pendingJump=false; this.accMs=0;
+      this.predictionPaused=false;
       this.prevPos={...this.pos}; this.offset={x:0,y:0,z:0}; this.primed=true;
     } else {
       this.pending=this.pending.filter(p=>p.command.seq>snapshot.ack);
@@ -141,6 +156,11 @@ export class Predictor {
       if (this.pending.length === 0) this.prevPos = {
         x:beforePrev.x+this.pos.x-before.x, y:beforePrev.y+this.pos.y-before.y, z:beforePrev.z+this.pos.z-before.z,
       };
+      // A capped window has already rendered its final step. Replaying it must
+      // not resurrect that step's interpolation segment: its compensating offset
+      // would decay backward even though the acknowledged position is exact.
+      // Resume interpolation only when frame() actually predicts a new command.
+      if (this.predictionPaused) this.prevPos = { ...this.pos };
       this.pendingJump=jump;
       const correction=distance(before,this.pos);
       this.offset={x:0,y:0,z:0};
@@ -165,14 +185,27 @@ export class Predictor {
       this.primed = true;
     }
     if (intent.jump && this.alive) this.pendingJump = true;
+    if (this.connection && this.epoch < 0) {
+      this.startRetryMs += Math.min(dtMs, MOVE.maxDtMs);
+      if (this.startRetryMs >= START_RETRY_MS) {
+        this.startRetryMs = 0;
+        this.connection.send('movementStart', { version:MOVEMENT_SYNC.version });
+      }
+    }
     if (this.alive && (!this.connection || this.epoch >= 0)) {
       this.accMs += Math.min(dtMs, MOVE.maxDtMs);
       while (this.accMs >= TICK_MS) {
-        if (this.connection && this.pending.length >= MOVEMENT_SYNC.maxPending) {
-          this.accMs = TICK_MS; // bounded prediction during a disconnected/stalled link
-          break;
-        }
         this.accMs -= TICK_MS;
+        if (this.connection && this.pending.length >= MOVEMENT_SYNC.maxPending) {
+          // Stop prediction, not delivery. Otherwise losing the last batch of a
+          // full window deadlocks: no acknowledgement, no new step, no retry.
+          // Consume elapsed time so retries stay at 20 Hz even at high render FPS.
+          this.prevPos = { ...this.pos };
+          this.predictionPaused = true;
+          this.sendPending();
+          continue;
+        }
+        this.predictionPaused = false;
         this.prevPos = this.pos;
         const command: MovementCommand = { ...intent,ads:intent.ads===true,jump:this.pendingJump,
           seq:this.sequence+1,yaw:Math.atan2(Math.sin(yaw),Math.cos(yaw)) };
@@ -180,13 +213,17 @@ export class Predictor {
         if (this.connection) {
           this.sequence=command.seq;
           this.pending.push({command,state:this.save()});
-          this.connection.send('movementSteps',{epoch:this.epoch,
-            commands:this.pending.slice(0,MOVEMENT_SYNC.maxBatch).map(p=>p.command)});
+          this.sendPending();
         }
       }
     }
     const k = RECONCILE_TAU_MS > 0 && dtMs > 0 ? Math.exp(-dtMs / RECONCILE_TAU_MS) : 0;
     this.offset = { x: this.offset.x * k, y: this.offset.y * k, z: this.offset.z * k };
+  }
+
+  private sendPending(): void {
+    this.connection?.send('movementSteps', { epoch:this.epoch,
+      commands:this.pending.slice(0,MOVEMENT_SYNC.maxBatch).map(p=>p.command) });
   }
 
   private step(inp: MoveIntent, yaw: number): void {

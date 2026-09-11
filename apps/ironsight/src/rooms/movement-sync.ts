@@ -83,8 +83,22 @@ export function isMovementSnapshot(p: unknown): p is MovementSnapshot {
 export class MovementInbox {
   ack = 0;
   private credit = 0;
+  private lastAppliedAt = -Infinity;
   readonly commands = new Map<number, MovementCommand>();
   constructor(readonly epoch: number) {}
+
+  /** Record execution, not receipt: duplicates and queued future commands
+   * cannot keep a silent player suspended. Time is supplied by the server. */
+  applied(now: number): void { this.lastAppliedAt = now; }
+  /** A delayed server timer may run several ticks before the next transport
+   * callback. After applying its available commands, allow at most ONE ordinary
+   * timestep for the next command instead of adding idle gravity immediately
+   * within that burst and then integrating the late command on top of it.
+   * Silence beyond this bounded window still advances autonomous physics. */
+  waitingForInput(now: number, stepMs: number): boolean {
+    return now >= this.lastAppliedAt && now - this.lastAppliedAt < stepMs;
+  }
+
   receive(commands: readonly MovementCommand[]): void {
     for (const c of commands) if (c.seq>this.ack && c.seq<=this.ack+MOVEMENT_SYNC.maxPending && !this.commands.has(c.seq))
       this.commands.set(c.seq,c);

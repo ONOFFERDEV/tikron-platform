@@ -5,8 +5,8 @@ import { AirSupport } from '../air-support.js';
 import { MORTAR, MortarSupport, mortarTarget, type MortarStrike } from '../mortar.js';
 import { signalEpoch, signalFrame } from '../signal-event.js';
 import { CoreCollision, CoreGate, CorePush } from '../core-gate.js';
-import { PING, resolvePing, type TeamPing } from '../ping.js';
-import { BOT_CONTACT, BotContacts } from '../bot-contacts.js';
+import { PING, BOT_CONTACT, resolvePing, type TeamPing } from '../ping.js';
+import { BotRadio } from './bot-radio.js';
 import { WaistTraversal } from '../traversal.js';
 import { SprintSlide } from '../slide.js';
 import { advanceRecoil, emptyRecoil, recoilSample, type RecoilState } from "../recoil.js";
@@ -37,7 +37,7 @@ import {
 } from "../config.js";
 import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../physics.js";
 import { chooseSafeSpawn, spawnFacingYaw, SpawnSightHistory } from "../map/spawn.js";
-import { GroundNavigator } from "../map/navigation.js";
+import { botNavigators } from './bot-navigation.js';
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
@@ -53,7 +53,7 @@ import {
   type ModeCtx,
   type ShowcaseBotDef,
 } from "../modes.js";
-import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, BOT_ARCHETYPES, combatBotArchetype, type BotBrain, type BotView, type BotDifficulty } from "../bots.js";
+import { alertBot, botHearsShot, botThink, createBotBrain, resetBotPerception, startBotFlank, startBotPosition, BOT_ARCHETYPES, combatBotArchetype, type BotBrain, type BotView, type BotDifficulty } from "../bots.js";
 import { BotCoverIndex } from './bot-cover.js';
 import { MovementInbox, MOVEMENT_SYNC, readMovementBatch, saveControllers, type MovementSnapshot } from './movement-sync.js';
 import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
@@ -214,7 +214,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly reserveByW = new Map<string, number[]>();
   private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading (current weapon only)
   private readonly recoil = new Map<string, RecoilState>();
-  private readonly lastShotAt = new Map<string, number>(); // epoch ms
+  private readonly lastShotAt = new Map<string, number>(); // server receipt epoch ms
   private readonly swapUntil = new Map<string, number>(); // epoch ms; can't fire until a weapon swap settles
   private readonly nadeReadyAt = new Map<string, number>(); // epoch ms; earliest next grenade throw
   private readonly primaryWeapon = new Map<string, number>(); // chosen spawn weapon index (loadout)
@@ -222,7 +222,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly protUntil = new Map<string, number>(); // sim tick
   /** Bot AI state per bot id (created on addBot, discarded on removeBot). */
   private readonly botBrains = new Map<string, BotBrain>();
-  private readonly botContacts = new BotContacts();
+  private readonly botContacts = new BotRadio();
 
   /** Grenades currently in flight (stepped every tick). */
   private grenades: Grenade[] = [];
@@ -296,8 +296,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly coreGate = new CoreGate(this.map.signalCore);
   private readonly corePush = new CorePush(this.map.signalCore);
   private readonly domOrders = new DomOrders(this.map);
-  private readonly closedNavigator = this.map.presentation ? new GroundNavigator(this.map) : undefined;
-  private readonly openNavigator = this.map.signalCore ? new GroundNavigator({ ...this.map, boxes: this.coreCollision.open }) : this.closedNavigator;
+  private readonly closedNavigator = this.map.presentation ? botNavigators(this.map).closed : undefined;
+  private readonly openNavigator = this.map.presentation ? botNavigators(this.map).open : undefined;
   private readonly closedBotCover = new BotCoverIndex(this.map);
   private readonly openBotCover = this.map.signalCore ? new BotCoverIndex({ ...this.map, boxes: this.coreCollision.open }) : this.closedBotCover;
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
@@ -387,8 +387,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     });
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
-    this.onMessage("reload", (client) => this.handleReload(client));
-    this.onMessage("switch", (client, payload) => this.handleSwitch(client, payload));
+    this.onMessage("reload", (client, _payload, _seq, input) => this.handleReload(client, input));
+    this.onMessage("switch", (client, payload, _seq, input) => this.handleSwitch(client, payload, input));
     this.onMessage("nade", (client) => this.handleNade(client));
     this.onMessage("loadout", (client, payload) => this.handleLoadout(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
@@ -583,14 +583,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           if (commands.length) {
             for (const command of commands) {
               this.inputs.set(id, { ...command });
-              p.yaw = ((command.yaw % TAU) + TAU) % TAU;
-              this.integrate(id, p, dt);
+              // This heading belongs to the historical movement command. Look
+              // and fire may already carry a newer aim; never roll that back.
+              this.integrate(id, p, dt, command.yaw);
+              inbox.applied(now);
             }
             continue;
           }
+          if (inbox.waitingForInput(now, TICK_MS)) continue;
           // Missing commands cannot repeat horizontal movement or jump edges.
-          // Gravity, collision and committed traversal STILL run every tick:
-          // a disconnected/flooding client cannot freeze itself in the air.
+          // After the bounded input wait, gravity, collision and committed
+          // traversal run even without commands: silence cannot sustain a hover.
           if (!(this.grounded.get(id) ?? true) || this.traversals.get(id)?.active || this.slides.get(id)?.active)
             inbox.spendIdleTick();
           this.inputs.set(id, { ...NO_INPUT, crouch:p.crouch });
@@ -681,14 +684,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.ownerClient(id)?.send('movement', snapshot);
   }
 
-  private integrate(id: string, p: ArenaPlayer, dt: number): void {
+  private integrate(id: string, p: ArenaPlayer, dt: number, movementYaw = p.yaw): void {
     const inp = this.inputs.get(id) ?? NO_INPUT;
     let slide = this.slides.get(id);
     if (!slide) { slide = new SprintSlide(); this.slides.set(id, slide); }
     let traversal = this.traversals.get(id);
     if (!traversal) { traversal = new WaistTraversal(); this.traversals.set(id, traversal); }
     const wasTraversing = traversal.active;
-    const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, p.yaw,
+    const traversed = traversal.step(dt * 1000, inp, this.grounded.get(id) ?? true, p, movementYaw,
       this.boxes, this.map.bounds, this.map.ramps ?? [], this.map.launchPads);
     if (traversed) {
       if (!wasTraversing) this.sendNear('traversal', { id, kind: traversal.kind, x:p.x,y:p.y,z:p.z },p.x,p.z,{ always:[id] });
@@ -703,7 +706,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       return;
     }
     const wasSliding = slide.active;
-    const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, p.yaw);
+    const momentum = slide.step(dt * 1000, inp, this.grounded.get(id) ?? true, movementYaw);
 
     // Crouch (updated before speed/height so this tick uses it). Standing up is
     // rejected if the taller capsule would clip cover/ceiling.
@@ -725,8 +728,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.updateHandling(id, Date.now());
 
     // Wish direction in world xz: forward = (sin yaw, cos yaw), right = (cos yaw, −sin yaw).
-    const sy = Math.sin(p.yaw);
-    const cy = Math.cos(p.yaw);
+    const sy = Math.sin(movementYaw);
+    const cy = Math.cos(movementYaw);
     let wx = sy * inp.mz + cy * inp.mx;
     let wz = cy * inp.mz - sy * inp.mx;
     const wl = Math.hypot(wx, wz);
@@ -866,9 +869,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (!shooter || !shooter.alive) return;
 
     const now = Date.now();
+    const shotAt = input?.receivedAt ?? now;
     const spec = this.weaponOf(shooter);
     const w = shooter.weapon;
-    const handling = this.updateHandling(id, now);
+    // Readiness and cadence must use the same trusted receipt clock. Otherwise
+    // an early input borrows its queue wait to finish ADS/sprint recovery, spends
+    // ammo, and rejects the correctly timed shot behind it as a cadence violation.
+    const handling = this.updateHandling(id, shotAt);
     if (!handling.canFire) {
       // A boundary shot may beat its move's server timer by a render/network
       // scheduling interval. Correct predicted ammo and retry only while held;
@@ -880,28 +887,40 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     // A weapon swap must settle before the new weapon can fire.
     const swap = this.swapUntil.get(id);
-    if (swap !== undefined && now < swap) return;
+    if (swap !== undefined && shotAt < swap) return;
 
+    // Queue drain times lie on the 50 ms tick grid. Comparing them drops legal
+    // 65 ms SMG / 160 ms pistol shots, and can accept genuinely early arrivals
+    // whose drains happen to be far enough apart. Only the SDK's server receipt
+    // clock owns cadence; neither payload timestamps nor input.ts grant credit.
+    // Bots call directly during the tick, so their receipt instant is `now`.
     const last = this.lastShotAt.get(id);
-    if (last !== undefined && now - last < spec.fireIntervalMs) return; // server fire-rate cap
+    if (last !== undefined && shotAt - last < spec.fireIntervalMs) {
+      // Real transport jitter can still compress arrival spacing. Reuse the
+      // handling-denial path to restore predicted ammo and retry only if the
+      // trigger remains held. This advice never bypasses the next rate check.
+      client.send("fireBlocked", { retryMs: Math.max(TICK_MS, Math.ceil(spec.fireIntervalMs - (shotAt - last))),
+        mag: this.magArr(id)[w] ?? 0, weapon: spec.slot });
+      return;
+    }
 
     // Ammo (server-authoritative, per weapon). Reloading blocks; an empty mag auto-reloads.
     const done = this.reloadUntil.get(id);
     if (done !== undefined) {
-      if (now < done) return; // mid-reload
+      if (shotAt < done) return; // mid-reload
       this.reloadUntil.delete(id);
       this.finishReload(id);
     }
     const mags = this.magArr(id);
     if ((mags[w] ?? 0) <= 0) {
-      this.startReload(id, now);
+      this.startReload(id, shotAt);
       return;
     }
     mags[w] = (mags[w] ?? 0) - 1;
-    this.lastShotAt.set(id, now);
+    this.lastShotAt.set(id, shotAt);
     const burst = this.recoil.get(id) ?? emptyRecoil();
-    const kick = recoilSample(burst, spec, now, handling.adsProgress >= 1);
-    this.recoil.set(id, advanceRecoil(burst, spec, now));
+    const kick = recoilSample(burst, spec, shotAt, handling.adsProgress >= 1);
+    this.recoil.set(id, advanceRecoil(burst, spec, shotAt));
     // Fire carries current raw mouse intent atomically, avoiding the throttled
     // look stream lagging behind an honest recoil-compensating mouse movement.
     this.handleLook(client, payload);
@@ -1196,7 +1215,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return this.clientList().find((c) => c.id === id);
   }
 
-  private handleReload(client: Client): void {
+  private handleReload(client: Client, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
     if (!p || !p.alive) return;
@@ -1204,7 +1223,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const spec = this.weaponOf(p);
     if ((this.magArr(id)[p.weapon] ?? 0) >= spec.mag) return; // full
     if ((this.reserveArr(id)[p.weapon] ?? 0) <= 0) return; // no spare rounds
-    this.startReload(id, Date.now());
+    this.startReload(id, input?.receivedAt ?? Date.now());
   }
 
   private startReload(id: string, now: number): void {
@@ -1246,7 +1265,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // --- weapon switch / loadout / grenades -------------------------------------
 
   /** Switch to loadout slot 1–5; the swap delay gates the next shot. */
-  private handleSwitch(client: Client, payload: unknown): void {
+  private handleSwitch(client: Client, payload: unknown, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
     if (!p || !p.alive) return;
@@ -1254,11 +1273,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (slot === undefined) return;
     const idx = Math.round(slot) - 1;
     if (idx < 0 || idx >= WEAPONS.length || idx === p.weapon) return;
+    const now = input?.receivedAt ?? Date.now();
     p.weapon = idx;
-    this.swapUntil.set(id, Date.now() + WEAPON.swapMs);
+    this.swapUntil.set(id, now + WEAPON.swapMs);
     p.reloadEnd = 0;
     this.reloadUntil.delete(id); // a swap cancels an in-progress reload
-    this.updateHandling(id, Date.now());
+    this.updateHandling(id, now);
     this.recoil.delete(id);
     this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
@@ -1610,6 +1630,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const patrolBrain = this.botBrains.get(id);
     if (patrolBrain) resetBotPerception(patrolBrain);
     if (patrolBrain) startBotFlank(patrolBrain, p);
+    if (patrolBrain?.archetype === 'marksman' && patrolBrain.decisionDepth >= 2 && this.gameMode.id !== 'dom')
+      startBotPosition(patrolBrain, this.navigator?.nearestHighGround(p));
     if (patrolBrain && this.map.patrolWaypoints?.length)
       patrolBrain.wpIndex = (Number(id.slice(4)) - 1) % patrolBrain.waypoints.length;
     // Loadout: spawn holding the chosen primary (default AR), full ammo on every
@@ -1808,15 +1830,6 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       if (!self || !self.alive) continue;
       const view = this.botView(id, self);
       const decision = botThink(view, brain, dtMs);
-      if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
-        const contact = this.botContacts.observe(id, view, brain, Date.now());
-        if (contact) for (const recipient of this.clientList()) {
-          const ally = this.state.players[recipient.id];
-          if (ally?.alive && ally.team === self.team &&
-            Math.hypot(ally.x - contact.x, ally.z - contact.z) <= BOT_CONTACT.recipientRange)
-            recipient.send('teamPing', contact);
-        }
-      }
       this.inputs.set(id, {
         mx: decision.move.mx,
         mz: decision.move.mz,
@@ -1829,7 +1842,23 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
       if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
       if (decision.reload) this.handleReload({ id } as Client);
+      const previousShotAt = this.lastShotAt.get(id);
       if (decision.fire) this.botFire(id);
+      if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
+        const now = Date.now();
+        const contact = this.botContacts.observe(id, view, brain, now, decision, {
+          reloading: (this.reloadUntil.get(id) ?? 0) > now,
+          // Wall time may advance during hit validation. Compare the accepted
+          // shot marker, not equality with a second Date.now() read afterward.
+          fired: decision.fire && this.lastShotAt.get(id) !== previousShotAt,
+        });
+        if (contact) for (const recipient of this.clientList()) {
+          const ally = this.state.players[recipient.id];
+          if (ally?.alive && ally.team === self.team &&
+            Math.hypot(ally.x - contact.x, ally.z - contact.z) <= BOT_CONTACT.recipientRange)
+            recipient.send('teamPing', contact);
+        }
+      }
       // Only an already-visible firing solution may be designated; no radar or
       // hidden target lookup. Same ground/range/cooldown checks as human callers.
       if (decision.fire && !this.showcaseActive && this.mortarSupport.hasCharge(id)) {

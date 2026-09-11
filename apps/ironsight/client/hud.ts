@@ -5,6 +5,7 @@
  * is injected here so `index.html` stays a bare mount point.
  */
 import { MODE_ORDER, isTeamless } from "../src/modes.js";
+import { combatBotLabel, readSquadPing, SQUAD_BARKS, type SquadBark } from '../src/bots.js';
 import { GAME } from "../src/game-config.js";
 import { damageDirection } from './damage-direction.js';
 import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
@@ -33,6 +34,8 @@ import type { CompositorFrame } from './compositor-preparation.js';
 
 const css = `
 #hud { position: fixed; inset: 0; pointer-events: none; font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: #eef; user-select: none; }
+#squadRadio { position:absolute;left:28px;bottom:244px;max-width:280px;padding:8px 10px;border-left:2px solid #a9b8a0;background:#19201ded;color:#e2e4d6;font:11px/1.5 Arial,sans-serif;white-space:pre-line;opacity:0;pointer-events:none; }
+@media(max-width:800px){#squadRadio{left:16px;bottom:294px;max-width:230px}}
 #hud .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 #xhair i { position: absolute; background: #d8f0ff; box-shadow: 0 0 0 1px #07101b, 0 0 4px #07101b; }
 #hud .panel { position: absolute; background: linear-gradient(135deg,rgba(12,22,36,0.90),rgba(8,14,24,0.75)); padding: 8px 12px; border-radius: 4px; border: 1px solid rgba(125,200,255,0.18); box-shadow: 0 4px 16px #0003; }
@@ -228,6 +231,10 @@ export class Hud {
   private readonly elimination = el('div', 'elimination');
   private eliminationAt = -1e9;
   private readonly ping: HTMLElement;
+  private readonly squadRadio = document.createElement('div');
+  private radioUntil = 0;
+  private radioVisible = false;
+  private lastRadioKey = '';
   private readonly xhair: HTMLElement[];
   private readonly hitmarker: HTMLElement;
   private readonly vignette: HTMLElement;
@@ -424,6 +431,10 @@ export class Hud {
     this.ping.append(this.delayLabel, this.delayNumbers);
     this.setPing(0);
     this.root.appendChild(this.ping);
+    this.squadRadio.id = 'squadRadio';
+    this.squadRadio.setAttribute('role', 'status');
+    this.squadRadio.setAttribute('aria-hidden', 'true');
+    this.root.appendChild(this.squadRadio);
     this.vignette = el("div", "vignette"); this.root.appendChild(this.vignette);
     this.damageFlash = el('div', 'damage-flash'); this.root.appendChild(this.damageFlash);
     this.damageIndicator = el('div', 'damage-direction');
@@ -458,6 +469,7 @@ export class Hud {
     sample.addKill('OPERATOR', 'SCOUT', 'head', 0, 'ANCHOR', { weapon: 1, localKill: true });
     sample.addKill('SCOUT', 'OPERATOR', 'body', 1, undefined, { weapon: 4, localVictim: true });
     sample.showStreak('OPERATOR', 3);
+    sample.presentSquadRadio('bot-9', 'suppress', performance.now() + 3000);
     for (const [index, direction] of ['front', 'right', 'back', 'left'].entries()) {
       sample.showDamageDirection(index * Math.PI / 2);
       sample.update(performance.now());
@@ -479,6 +491,7 @@ export class Hud {
   }
 
   setHp(hp: number): void {
+    if (hp <= 0) this.clearSquadRadio();
     if (hp === this.lastHp) return;
     this.lastHp = hp;
     this.hpValue.textContent = String(Math.max(0, Math.ceil(hp)));
@@ -650,9 +663,42 @@ export class Hud {
   }
 
   clearDamage(): void {
+    this.clearSquadRadio();
     this.damageBearing = null; this.damageAt = this.vignetteAt = -1e9;
     this.damageIndicator.style.opacity = this.damageFlash.style.opacity = '0';
     this.vignette.style.opacity = '0';
+  }
+
+  /** Call only after the normal live/online/living/pointer-lock ping guard.
+   * Returns the accepted radio cue; human marks immediately clear bot captions.
+   * Duplicate/stale frames cannot replay sound or extend the card lifetime. */
+  receiveSquadRadio(payload: unknown, serverNow: number): SquadBark | undefined {
+    const ping = readSquadPing(payload, serverNow);
+    if (!ping) {
+      if (payload && typeof payload === 'object' &&
+        typeof (payload as { from?: unknown }).from === 'string' &&
+        !combatBotLabel((payload as { from: string }).from)) this.clearSquadRadio();
+      return;
+    }
+    const key = `${ping.from}/${ping.expiresAt}/${ping.radio}`;
+    if (key === this.lastRadioKey) return;
+    this.lastRadioKey = key;
+    this.presentSquadRadio(ping.from, ping.radio, performance.now() + ping.expiresAt - serverNow);
+    return ping.radio;
+  }
+
+  private presentSquadRadio(from: string, bark: SquadBark, until: number): void {
+    this.squadRadio.textContent = `${combatBotLabel(from) ?? 'SQUAD'} / RADIO\n${SQUAD_BARKS[bark]}`;
+    this.radioUntil = until; this.radioVisible = true;
+    this.squadRadio.style.opacity = '1';
+    this.squadRadio.setAttribute('aria-hidden', 'false');
+  }
+
+  clearSquadRadio(): void {
+    if (!this.radioVisible) return;
+    this.radioVisible = false; this.radioUntil = 0;
+    this.squadRadio.style.opacity = '0';
+    this.squadRadio.setAttribute('aria-hidden', 'true');
   }
 
   private readonly quality = new ConnectionQuality();
@@ -708,6 +754,7 @@ export class Hud {
 
   /** The click-to-play / ESC prompt. */
   showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
+    if (show) this.clearSquadRadio();
     if (show) {
       this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>${this.trainingHelp ? this.trainingHelp + "<br>" : ""}Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
     } else {
@@ -775,6 +822,7 @@ export class Hud {
 
   /** Per-frame animation: reload bar, hitmarker + vignette fade, killfeed decay. */
   update(now: number, yaw = 0): void {
+    if (now >= this.radioUntil) this.clearSquadRadio();
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const damageAge = now - this.damageAt;
     this.damageIndicator.style.opacity = this.damageBearing === null ? '0' : String(Math.max(0, Math.min(1, (900 - damageAge) / 250)));

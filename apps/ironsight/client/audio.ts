@@ -6,7 +6,7 @@
  * decoded buffers.
  */
 import type { MapDef } from "../src/map/types.js";
-import { coverMix, footSurface, spatialMix, type SoundPoint } from "./spatial-audio.js";
+import { acousticOccluders, coverMix, footSurface, prepareDistantFire, spatialMix, type SoundPoint } from "./spatial-audio.js";
 import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
 import type { DeploymentCue } from './deployment-presentation.js';
@@ -66,8 +66,11 @@ export function playReloadCue(phase: string, source?: SoundPoint, threatGain = 1
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let gunfire: GainNode | null = null;
+let confirmHoldUntil = 0;
+let confirmLevel = 1;
 let noise: AudioBuffer | null = null;
-const fireBuffers: AudioBuffer[][] = [];
+const fireBuffers: AudioBuffer[][][] = [];
 let fireVariation = 0;
 let muted = false;
 let volume = 1;
@@ -76,17 +79,20 @@ let listenerYaw = 0;
 let remoteVoices = 0;
 let acousticMap: MapDef | undefined;
 let auditMixes: { gain: number; cutoff: number; pan: number; threatGain: number; blocked: boolean }[] | null = null;
-export function setAudioMap(map: MapDef): void { acousticMap = map; }
+export function setAudioMap(map: MapDef): void {
+  acousticOccluders(map); // prepare once, outside the first audible event
+  acousticMap = map;
+}
 export function setAudioListener(pos: SoundPoint, yaw: number): void {
   Object.assign(listener, pos); listenerYaw = yaw;
 }
 /** Bounded short-lived stereo graph; confirmation cues bypass this voice budget. */
-function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1) {
-  if (!master) return null;
-  if (!source) return { input: master as AudioNode, release: () => {} };
+function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1, output = master) {
+  if (!output) return null;
+  if (!source) return { input: output as AudioNode, release: () => {} };
   const mix = spatialMix(source, listener, listenerYaw);
   if (mix.gain < 0.015) return null;
-  const cover = coverMix(source, listener, acousticMap?.boxes ?? []);
+  const cover = coverMix(source, listener, acousticMap ? acousticOccluders(acousticMap) : []);
   // Reserve four of the existing twenty voices for clear enemy foley.
   if (remoteVoices >= (threatGain > 1 && !cover.blocked ? 20 : 16)) return null;
   remoteVoices++;
@@ -94,7 +100,7 @@ function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1) {
   gain.gain.value = mix.gain * 0.7 * threatGain * cover.gain; pan.pan.value = mix.pan;
   filter.type = 'lowpass'; filter.frequency.value = Math.min(mix.cutoff, cover.cutoff);
   auditMixes?.push({ gain: gain.gain.value, cutoff: filter.frequency.value, pan: pan.pan.value, threatGain, blocked: cover.blocked });
-  filter.connect(gain).connect(pan).connect(master);
+  filter.connect(gain).connect(pan).connect(output);
   return { input: filter as AudioNode, release: () => { filter.disconnect(); gain.disconnect(); pan.disconnect(); remoteVoices--; } };
 }
 
@@ -114,6 +120,8 @@ function ensure(): AudioContext | null {
   ctx = new Ctor();
   master = ctx.createGain();
   master.gain.value = muted ? 0 : A.masterGain * volume;
+  gunfire = ctx.createGain();
+  gunfire.connect(master);
   const compressor = ctx.createDynamicsCompressor();
   compressor.threshold.value = -12; compressor.knee.value = 12;
   compressor.ratio.value = 6; compressor.attack.value = 0.003; compressor.release.value = 0.18;
@@ -133,16 +141,33 @@ function ensure(): AudioContext | null {
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
   noise = buf;
   for (const [weapon, tone] of A.fireParams.entries()) {
-    const variants: AudioBuffer[] = [];
+    const variants: AudioBuffer[][] = [];
     for (let variation = 0; variation < FIRE_VARIANTS; variation++) {
       const pcm = synthesizeWeaponSound(ctx.sampleRate, weapon, tone, variation);
-      const shot = ctx.createBuffer(1, pcm.length, ctx.sampleRate);
-      shot.copyToChannel(pcm, 0); variants.push(shot);
+      variants.push([0, 1, 2].map(band => {
+        const samples = prepareDistantFire(pcm, ctx!.sampleRate, band);
+        const shot = ctx!.createBuffer(1, samples.length, ctx!.sampleRate);
+        shot.copyToChannel(samples, 0); return shot;
+      }));
     }
     fireBuffers.push(variants);
   }
   startAmbient(ctx, master);
   return ctx;
+}
+
+/** Only weapons yield to confirmed feedback. Foley, warnings and victim cues
+ * keep their gain. AudioParam automation needs no timer or per-frame work. */
+function prioritizeConfirmation(c: AudioContext, kill: boolean): void {
+  if (!gunfire) return;
+  const t = c.currentTime, level = kill ? .20 : .28;
+  confirmLevel = t < confirmHoldUntil ? Math.min(confirmLevel, level) : level;
+  confirmHoldUntil = Math.max(confirmHoldUntil, t + (kill ? .10 : .025));
+  const gain = gunfire.gain;
+  gain.cancelAndHoldAtTime(t);
+  gain.linearRampToValueAtTime(confirmLevel, t + .004);
+  gain.setValueAtTime(confirmLevel, confirmHoldUntil);
+  gain.linearRampToValueAtTime(1, confirmHoldUntil + .10);
 }
 
 /**
@@ -180,9 +205,13 @@ export function playFire(weaponIndex = 0, source?: SoundPoint): void {
   const c = ready();
   if (!c || !master) return;
   const variants = fireBuffers[weaponIndex] ?? fireBuffers[0];
-  const buffer = variants?.[fireVariation % FIRE_VARIANTS];
+  const distance = source ? Math.hypot(source.x-listener.x, source.y-listener.y, source.z-listener.z) : 0;
+  // Prepared close (<12 m), field (12-28 m), and distant (28-55 m) shots.
+  // The existing spatial bus still owns audibility, pan and solid occlusion.
+  const band = distance < 12 ? 0 : distance < 28 ? 1 : 2;
+  const buffer = variants?.[fireVariation % FIRE_VARIANTS]?.[band];
   if (!buffer) return;
-  const bus = spatialBus(c, source); if (!bus) return;
+  const bus = spatialBus(c, source, 1, gunfire); if (!bus) return;
   fireVariation++;
   const src = c.createBufferSource();
   src.buffer = buffer;
@@ -248,6 +277,7 @@ export function playSwap(): void {
 export function playHit(head = false): void {
   const c = ready();
   if (!c || !master) return;
+  prioritizeConfirmation(c, false);
   const t = c.currentTime;
   const osc = c.createOscillator();
   osc.type = "square";
@@ -258,6 +288,7 @@ export function playHit(head = false): void {
   osc.connect(g).connect(master);
   osc.start(t);
   osc.stop(t + A.hit.stopSec);
+  osc.onended = () => { osc.disconnect(); g.disconnect(); };
 }
 
 /** Footstep: a soft short low-passed noise tap, scaled by `atten` (distance falloff
@@ -332,6 +363,7 @@ export function playHurt(): void {
 export function playKill(): void {
   const c = ready();
   if (!c || !master) return;
+  prioritizeConfirmation(c, true);
   const t = c.currentTime;
   for (const [i, f] of A.kill.freqs.entries()) {
     const osc = c.createOscillator();
@@ -345,6 +377,7 @@ export function playKill(): void {
     osc.connect(g).connect(master);
     osc.start(start);
     osc.stop(start + A.kill.stopSec);
+    osc.onended = () => { osc.disconnect(); g.disconnect(); };
   }
 }
 
@@ -397,6 +430,7 @@ export async function inspectThreatAudio() {
   const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
   const source = { x: 0, y: 1, z: 10 };
   const mixes: NonNullable<typeof auditMixes> = [];
+  const geometryMixes: NonNullable<typeof auditMixes> = [];
   try {
     await wait(600);
     acousticMap = { ...savedMap!, boxes: [] };
@@ -418,7 +452,30 @@ export async function inspectThreatAudio() {
     const threatPeak = remoteVoices;
     playHit(); playKill(); // confirmed cues remain outside the remote budget
     await wait(600);
-    return { context: c.state, sampleRate: c.sampleRate, mixes, ordinaryPeak, threatPeak, drained: remoteVoices,
+    auditMixes = geometryMixes;
+    setAudioMap({ ...savedMap!, boxes: [], ramps: [
+      { minX: 4, maxX: 8, minZ: 4, maxZ: 6, axis: 'x', dir: 1, topY: 3 },
+    ] });
+    setAudioListener({ x: 7, y: 1, z: 0 }, 0);
+    playReloadCue('bolt', { x: 7, y: 1, z: 10 }, 1.4);
+    setAudioListener({ x: 7, y: 4, z: 0 }, 0);
+    playReloadCue('bolt', { x: 7, y: 4, z: 10 }, 1.4);
+    setAudioMap({ ...savedMap!, ramps: [], boxes: [
+      { min: { x: -2, y: 0, z: 4 }, max: { x: 2, y: 3, z: 5 } },
+    ] });
+    setAudioListener({ x: 0, y: 1, z: 4 }, 0);
+    playReloadCue('bolt', source, 1.4);
+    setAudioMap({ ...savedMap!, ramps: [], boxes: [
+      { min: { x: -2, y: 0, z: .01 }, max: { x: 2, y: 3, z: .03 } },
+    ] });
+    setAudioListener({ x: 0, y: 1, z: 0 }, 0);
+    playReloadCue('bolt', { x: 0, y: 1, z: 40 }, 1.4);
+    auditMixes = null;
+    await wait(600);
+    if (geometryMixes.length !== 4 || !geometryMixes[0]?.blocked || geometryMixes[1]?.blocked
+      || !geometryMixes[2]?.blocked || !geometryMixes[3]?.blocked)
+      throw Error('Ramp/contact acoustic graph failed');
+    return { context: c.state, sampleRate: c.sampleRate, mixes, geometryMixes, ordinaryPeak, threatPeak, drained: remoteVoices,
       note: 'Actual node parameters before master compressor; not headphone loudness or HRTF acceptance.' };
   } finally {
     auditMixes = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);
@@ -524,10 +581,12 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
 
 /** Quiet two-note radio ident, not positional enemy audio. The card supplies
  * direction and lane even with audio muted. Every node drains within 240ms. */
-export function playContactCue(): void {
+export function playContactCue(bark?: import('../src/bots.js').SquadBark): void {
   const c = ready(); if (!c || !master) return;
   const t = c.currentTime;
-  for (const [i, frequency] of [620, 830].entries()) {
+  const notes = bark === 'reload' || bark === 'retreat' ? [740, 520]
+    : bark === 'flank' || bark === 'highGround' ? [520, 660] : [620, 830];
+  for (const [i, frequency] of notes.entries()) {
     const tone = c.createOscillator(), gain = c.createGain(), start = t + i * .10;
     tone.type = 'sine'; tone.frequency.value = frequency;
     gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(.045, start + .008);

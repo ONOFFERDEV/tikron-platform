@@ -4,6 +4,7 @@ import { nearestBox, type Box, type Vec3 } from "./physics.js";
 import { PLAYER } from "./config.js";
 import { GAME } from "./game-config.js";
 import type { BotRole } from './bot-roles.js';
+import type { TeamPing } from './ping.js';
 
 /**
  * ironsight server filler bot — a pure brain with no room import.
@@ -61,6 +62,33 @@ export function combatBotLabel(id: string): string | undefined {
   return role ? `${BOT_ARCHETYPES[role].label} ${id.slice(4)}` : undefined;
 }
 
+/** Fixed radio vocabulary. Never relay arbitrary text or a live target id. */
+export const SQUAD_BARKS = {
+  contact: 'Contact. Eyes on.',
+  suppress: 'Covering fire. Move up.',
+  reload: 'Changing mag. Cover me.',
+  retreat: 'Taking fire. Falling back.',
+  flank: 'Moving around the flank.',
+  highGround: 'High ground. Holding here.',
+} as const;
+export type SquadBark = keyof typeof SQUAD_BARKS;
+export type SquadPing = TeamPing & { radio: SquadBark };
+
+/** Narrow a server event before presenting it. Standard ping callers cannot
+ * provide radio metadata: the room constructs the entire envelope itself. */
+export function readSquadPing(payload: unknown, now: number): SquadPing | undefined {
+  if (!payload || typeof payload !== 'object' || !Number.isFinite(now)) return;
+  const p = payload as SquadPing;
+  if (typeof p.from !== 'string' || !combatBotArchetype(p.from) || typeof p.radio !== 'string' ||
+    !Object.hasOwn(SQUAD_BARKS, p.radio) || !Number.isFinite(p.x) || !Number.isFinite(p.z) ||
+    !Number.isFinite(p.expiresAt) || p.expiresAt <= now || p.expiresAt > now + 4000) return;
+  const contact = p.radio === 'contact' || p.radio === 'suppress';
+  const kind = contact ? 'enemy' : p.radio === 'reload' || p.radio === 'retreat' ? 'backup' : 'go';
+  if (p.kind !== kind || (contact ? p.contact !== true : p.contact !== undefined)) return;
+  return { from: p.from, kind, x: p.x, z: p.z, expiresAt: p.expiresAt, radio: p.radio,
+    ...(contact ? { contact: true as const } : {}) };
+}
+
 /** y is feet height, when supplied. Never consider the floor below a roof an
  * arrival. A navigator owns the route; the brain only sends movement intents. */
 export interface BotRoutePoint { x: number; z: number; y?: number }
@@ -116,7 +144,7 @@ export interface BotDecision {
   fire: boolean;
   switchSlot?: number;
   reload?: boolean;
-  tactic?: 'reload' | 'retreat' | 'suppress';
+  tactic?: 'reload' | 'retreat' | 'suppress' | 'position' | 'hold' | 'flank';
 }
 
 /** The subset of a player's state the bot brain can see (itself or an enemy). */
@@ -211,6 +239,7 @@ export interface BotBrain {
   readonly difficulty: BotDifficulty;
   readonly decisionDepth: number;
   flank?: { points: readonly BotRoutePoint[]; index: number; untilMs: number };
+  positioning?: { point: Vec3; untilMs: number; holdUntilMs?: number };
   recentThreat?: Vec3 & { untilMs: number };
   recovery?: BotCover & { startedMs: number; untilMs: number; reason: 'reload' | 'retreat' };
   nextCoverMs: number;
@@ -286,6 +315,7 @@ export function resetBotPerception(brain: BotBrain): void {
   brain.nextCoverMs = 0;
   brain.nextRetreatMs = 0;
   brain.flank = undefined;
+  brain.positioning = undefined;
   brain.sound = undefined;
   brain.nextSoundMs = 0;
   brain.lockId = null;
@@ -302,6 +332,14 @@ export function startBotFlank(brain: BotBrain, self: {x:number;z:number}): void 
   if (brain.role !== 'rusher' || brain.decisionDepth < 2 || !route || !first || !last) return;
   const reverse = Math.hypot(last.x-self.x,last.z-self.z) < Math.hypot(first.x-self.x,first.z-self.z);
   brain.flank = { points: reverse ? [...route].reverse() : route, index: 0, untilMs: brain.clockMs + 35000 };
+}
+
+/** A reachable, map-derived firing position, selected from the bot's own spawn.
+ * Higher decision depth buys route planning, never a health/aim advantage.
+ * One bounded trip and a six-second hold per life; objectives take priority. */
+export function startBotPosition(brain: BotBrain, point: Vec3 | undefined): void {
+  if (brain.archetype !== 'marksman' || brain.decisionDepth < 2 || !point) return;
+  brain.positioning = { point: { ...point }, untilMs: brain.clockMs + 35000 };
 }
 
 function flankTarget(brain: BotBrain, self: BotPlayerView): BotRoutePoint | undefined {
@@ -458,7 +496,7 @@ function combatStrafe(brain: BotBrain, self: BotPlayerView, yaw: number): BotMov
  * normal room weapon/handling gates. */
 function roleCombat(view: BotView, brain: BotBrain, enemy: BotEnemyView, yaw: number): BotMoveIntent {
   const distance = Math.hypot(enemy.x - view.self.x, enemy.z - view.self.z);
-  if (brain.role === 'rusher' && distance > BOT_ARCHETYPES.rusher.closeTo) {
+  if (brain.role === 'rusher' && (distance > BOT_ARCHETYPES.rusher.closeTo || Math.abs(enemy.y - view.self.y) > .65)) {
     const next = view.navigate?.(enemy) ?? enemy;
     const dir = dirTo(view.self, next);
     return worldToMove(yaw, dir.x, dir.z);
@@ -531,7 +569,26 @@ function showcaseThink(view: ShowcaseView, _self: BotPlayerView, _brain: BotBrai
 export function botThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision {
   const decision = combatThink(view, brain, dtMs);
   if (!view.self.alive || view.showcase) return decision;
-  return recoveryThink(view, brain, decision);
+  return recoveryThink(view, brain, positionThink(view, brain, decision, dtMs));
+}
+
+function positionThink(view: BotView, brain: BotBrain, decision: BotDecision, dtMs: number): BotDecision {
+  const order = brain.positioning;
+  if (!order) return decision;
+  if (view.objective || brain.clockMs >= order.untilMs ||
+    order.holdUntilMs !== undefined && brain.clockMs >= order.holdUntilMs) {
+    brain.positioning = undefined; return decision;
+  }
+  // Fight a visible close attacker normally; no hidden-player distance checks.
+  const close = brain.lockId && view.enemies.find(p => p.id === brain.lockId);
+  if (close && Math.hypot(close.x-view.self.x,close.y-view.self.y,close.z-view.self.z) < CLOSE_THREAT_M) return decision;
+  if (botReached(view.self, order.point, .65)) {
+    order.holdUntilMs ??= brain.clockMs + 6000;
+    return { ...decision, move: { mx:0,mz:0,jump:false,crouch:false,sprint:false,ads:true }, tactic:'hold' };
+  }
+  const next = view.navigate?.(order.point) ?? order.point, dir = dirTo(view.self, next);
+  const look = brain.lockId ? decision.look : searchLook(view.self,brain,next,dtMs);
+  return { ...decision, look, move:worldToMove(look.yaw,dir.x,dir.z), tactic:'position' };
 }
 
 /** Recovery interrupts movement briefly, without replacing the strategic goal
@@ -635,6 +692,7 @@ function combatThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision 
       look,
       move: worldToMove(look.yaw, dir.x, dir.z),
       fire: false,
+      tactic: flank ? 'flank' : undefined,
     };
   }
 
@@ -654,7 +712,7 @@ function combatThink(view: BotView, brain: BotBrain, dtMs: number): BotDecision 
   const dir = next ? dirTo(self, next) : undefined;
   const move = dir ? worldToMove(look.yaw, dir.x, dir.z) : roleCombat(view, brain, enemy, look.yaw);
   const fire = brain.lockMs >= brain.reactionMs && aimSettled(self, enemy, look);
-  return { look, move, fire };
+  return { look, move, fire, tactic: dir ? 'flank' : undefined };
 }
 
 /**
