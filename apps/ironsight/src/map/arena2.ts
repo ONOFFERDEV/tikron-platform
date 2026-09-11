@@ -5,6 +5,7 @@ import { withStructures } from './structures.js';
 import { UNDERTOW_BUILDINGS, UNDERTOW_CRATES } from './undertow-structures.js';
 import { UNDERTOW_CHANNEL, UNDERTOW_CHANNEL_CUT } from './undertow-channel.js';
 import { excavate } from './terrain.js';
+import { isReplacedUndertowYardBlock, UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from './undertow-yard.js';
 
 /** UNDERTOW: 150 x 100 m reclamation works, six deployments per side.
  * Clarifier rifle route (north), paired control-deck shortcuts (middle),
@@ -89,7 +90,8 @@ export const ARENA2: MapDef = withStructures(excavate({
   ] },
   signalCore: { doors, chamber: { min: { x: 68, y: 0, z: 48 }, max: { x: 82, y: 3, z: 52 } } },
   boxes: [...compiled.boxes.filter(b =>
-    !(b.min.x < UNDERTOW_CHANNEL_CUT.maxX && b.max.x > UNDERTOW_CHANNEL_CUT.minX
+    !isReplacedUndertowYardBlock(b)
+    && !(b.min.x < UNDERTOW_CHANNEL_CUT.maxX && b.max.x > UNDERTOW_CHANNEL_CUT.minX
       && b.min.z < UNDERTOW_CHANNEL_CUT.maxZ && b.max.z > UNDERTOW_CHANNEL_CUT.minZ)
     && !(b.min.x === 68 && b.max.x === 82 && b.min.z === 40 && b.max.z === 60)
     && !UNDERTOW_BUILDINGS.some(s => b.min.x === s.origin.x && b.max.x === s.origin.x + s.width
@@ -103,6 +105,8 @@ export const ARENA2: MapDef = withStructures(excavate({
     // Solid central pressure stack, inaccessible above the existing 6m roof.
     { min: { x: 73, y: 6, z: 47 }, max: { x: 77, y: 14, z: 51 } },
     ...UNDERTOW_CRATES,
+    ...UNDERTOW_YARD_PARTS.map(p => p.box),
+    ...UNDERTOW_YARD_CRATES,
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minZ: r.dir === 1 ? r.minZ - 4 : r.minZ,

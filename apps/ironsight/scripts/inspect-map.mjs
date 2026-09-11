@@ -1,6 +1,7 @@
 import { droneProbe } from './drone-probe.mjs';
 import { structuresProbe } from './structures-probe.mjs';
 import { relayYardProbe } from './relay-yard-probe.mjs';
+import { undertowYardProbe } from './undertow-yard-probe.mjs';
 import { undertowPlacesProbe } from './undertow-places-probe.mjs';
 import { switchyardPlacesProbe } from './switchyard-places-probe.mjs';
 import { trenchProbe } from './trench-probe.mjs';
@@ -147,12 +148,13 @@ try {
   for (const name of shots) {
     if (!/^[a-z-]+$/.test(name)) throw Error('Invalid shot name');
     const url = new URL(base);
-    gameplay = ['relay-yard-play', 'switchyard-places-play', 'undertow-places-play', 'viewmodel-play', 'trench-play', 'places-play', 'cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
+    gameplay = ['undertow-yard-play', 'relay-yard-play', 'switchyard-places-play', 'undertow-places-play', 'viewmodel-play', 'trench-play', 'places-play', 'cargo', 'gallery', 'flood', 'ambush', 'deployment-play', 'blast-play', 'flash-play', 'drone', 'mortar', 'support', 'core', 'signal', 'launch', 'vault', 'slide', 'recoil', 'audio', 'handling', 'journey', 'journey-match', 'menu-probe', 'game', 'flow', 'flow-undertow', 'self-respawn', 'tdm', 'dom', 'ffa', 'practice-two', 'practice-three', 'reconnect', 'onboarding'].includes(name);
     if (gameplay && !name.startsWith('flow') && !name.startsWith('journey')) {
       url.searchParams.set('mode', name === 'deployment-play' ? 'tdm' : ['tdm', 'dom', 'ffa'].includes(name) ? name : 'practice');
       if (name === 'vault') url.searchParams.set('map', 'arena2');
       if (name === 'relay-yard-play') { url.searchParams.set('map', 'arena1'); url.searchParams.set('movement-review', '1'); }
       if (name === 'switchyard-places-play') { url.searchParams.set('map', 'arena3'); url.searchParams.set('movement-review', '1'); }
+      if (name === 'undertow-yard-play') { url.searchParams.set('map', 'arena2'); url.searchParams.set('movement-review', '1'); }
       if (name === 'undertow-places-play') { url.searchParams.set('map', 'arena2'); url.searchParams.set('movement-review', '1'); }
       if (name === 'flood' || name === 'gallery') url.searchParams.set('map', 'arena2');
       if (name === 'launch' || name === 'cargo') url.searchParams.set('map', 'arena3');
@@ -271,6 +273,11 @@ try {
       if (name === 'switchyard-places-play') combat = await switchyardPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'), rail: args.includes('--rail'), site: args.includes('--site'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
         record: async report => { await writeFile(join(output, `${prefix}-movement.json`), JSON.stringify(report, null, 2)); console.log(report.stages.at(-1)?.label ?? 'movement'); },
+      });
+      if (name === 'undertow-yard-play') combat = await undertowYardProbe({ send, evaluate, delay, east: args.includes('--places-east'),
+        capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });
+          await writeFile(join(output, `${prefix}-${label}.png`), Buffer.from(shot.data, 'base64')); },
+        record: report => writeFile(join(output, `${prefix}-movement.json`), JSON.stringify(report, null, 2)),
       });
       if (name === 'undertow-places-play') combat = await undertowPlacesProbe({ send, evaluate, delay, east: args.includes('--places-east'), channel: args.includes('--channel'), site: args.includes('--site'),
         capture: async label => { const shot = await send('Page.captureScreenshot', { format: 'png' });

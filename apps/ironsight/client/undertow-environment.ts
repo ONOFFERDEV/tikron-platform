@@ -3,6 +3,7 @@ import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
 import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
+import { UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from '../src/map/undertow-yard.js';
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { undertowCanalSurface, undertowSiteBoundary, undertowSiteSigns, undertowSiteSupplies } from './undertow-site.js';
@@ -25,12 +26,41 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   };
   if (!bakeOnly) buildSiteGround(scene, map, true);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
+  const yardParts = new Map(UNDERTOW_YARD_PARTS.map(p => [p.box, p]));
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // floor mesh owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
-    if (UNDERTOW_CRATES.includes(b)) continue; // separate detail/fallback pair, never baked twice
+    if (UNDERTOW_CRATES.includes(b) || UNDERTOW_YARD_CRATES.includes(b)) continue; // separate detail/fallback pair, never baked twice
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
+    const yard = yardParts.get(b);
+    if (yard) {
+      const bench = yard.kind === 'bench', steel = !yard.west && !bench;
+      add(bench ? 1 : steel ? 2 : 0, x, b.min.y + h / 2, z, w, h, d);
+      // Flush cladding only: no panel bridges an opening or hides false cover.
+      for (const side of [-1, 1]) {
+        const face = z + side * (d / 2 + .004);
+        if (steel) {
+          for (let px = b.min.x + .15; px < b.max.x; px += .38)
+            add(1, px, b.min.y + h / 2, face, .04, h, .008);
+        } else if (!bench) {
+          for (let py = b.min.y + .48; py < b.max.y; py += .5)
+            add(2, x, py, face, w, .016, .008);
+          add(4, x, b.min.y + Math.min(.3, h / 2), face + side * .005, w, Math.min(.55, h), .002);
+        } else {
+          add(2, x, .65, face, w * .85, .6, .008);
+          if (yard.west) for (let px = b.min.x + .55; px < b.max.x - .3; px += .85) {
+            add(4, px, .66, face + side * .008, .48, .008, .48, true, Math.PI / 2);
+            add(3, px, .66, face + side * .014, .23, .004, .23, true, Math.PI / 2);
+          } else for (let px = b.min.x + .25; px < b.max.x; px += .4) {
+            add(4, px, .7, face + side * .008, .21, .38, .004);
+            add(3, px, .81, face + side * .012, .12, .045, .004);
+          }
+        }
+      }
+      if (bench) add(2, x, b.max.y + .004, z, w, .008, d);
+      continue;
+    }
     const structure = structureParts.get(b);
     if (structure) {
       // Exact thin wall/lintel/slab faces: old turbine cladding would close
@@ -241,9 +271,28 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     add(3, cap.x + side * 2.7, 0.004, cap.z, 0.08, 0.008, 5.4);
     add(3, cap.x, 0.004, cap.z + side * 2.7, 5.4, 0.008, 0.08);
   }
+  // Excavation removed the old yard under some circulation marks. Clip
+  // each rectangle to real horizontal surfaces at y=0, including bridges;
+  // neither the lower floor nor a descending ramp supports floating paint.
+  const paintSupports = map.terrain ? map.boxes.filter(b => b.max.y === 0) : [
+    { min: { x: 0, z: 0 }, max: { x: width, z: depth } },
+  ];
+  const groundPaint = (m: number, x: number, z: number, w: number, d: number) => {
+    for (const b of paintSupports) {
+      const x0 = Math.max(x - w / 2, b.min.x), x1 = Math.min(x + w / 2, b.max.x);
+      const z0 = Math.max(z - d / 2, b.min.z), z1 = Math.min(z + d / 2, b.max.z);
+      if (x1 > x0 && z1 > z0) add(m, (x0 + x1) / 2, .005, (z0 + z1) / 2, x1 - x0, .01, z1 - z0);
+    }
+  };
   for (const z of [depth * .27, depth * .70]) for (const x of [width * .25, width / 2, width * .75]) {
-    add(5, x, 0.005, z, 7, 0.01, 0.08);
-    for (let i = -2; i <= 2; i++) add(3, x + i * 0.5, 0.006, z + 0.5, 0.2, 0.01, 0.65);
+    groundPaint(5, x, z, 7, .08);
+    for (let i = -2; i <= 2; i++) groundPaint(3, x + i * .5, z + .5, .2, .65);
+  }
+  // Service-bay threshold strips on the intact yard plane.
+  for (const east of [false, true]) for (const [xx, zz] of [[34, 82.6], [35, 75.5]] as const) {
+    const x = east ? width - xx : xx;
+    groundPaint(5, x, zz, 3.5, .12);
+    for (const dx of [-1.2, -.6, 0, .6, 1.2]) groundPaint(3, x + dx, zz + .35, .12, .4);
   }
   for (const [key, transforms] of batches) {
     const [material, shape] = key.split('-');
@@ -286,6 +335,11 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   sign(0, 17.984, 2.35, 28, -Math.PI / 2, 6);
   sign(2, 132.016, 2.35, 28, Math.PI / 2, 6);
   sign(3, width / 2, 22.8, -14.46, 0, 6);
+  for (const east of [false, true]) {
+    const x = (n: number) => east ? width - n : n;
+    sign(7, x(29.5), 2.15, 82.016, 0, 4.3);
+    sign(7, x(40), 2.15, 77.016, 0, 4.2);
+  }
   // One label per face: the former site label overlapped CLARIFIER ROUTE.
   sign(4, 46, 2.35, 44.016, 0, 4);
   sign(5, width - 46, 2.35, 44.016, 0, 4);
@@ -335,7 +389,7 @@ export async function loadUndertowSupplies(scene: T.Scene, map: MapDef): Promise
   const library = createPropLibrary();
   const size = PROP_LIBRARY['ammo-crate-stack'].sizeM;
   const placements = [
-    ...UNDERTOW_CRATES.map(b => ({ x: (b.min.x + b.max.x) / 2, y: b.min.y, z: (b.min.z + b.max.z) / 2,
+    ...[...UNDERTOW_CRATES, ...UNDERTOW_YARD_CRATES].map(b => ({ x: (b.min.x + b.max.x) / 2, y: b.min.y, z: (b.min.z + b.max.z) / 2,
       w: b.max.x - b.min.x, h: b.max.y - b.min.y, d: b.max.z - b.min.z })),
     ...undertowSiteSupplies(map.bounds.depth).map(p => ({ ...p, w: size[0], h: size[1], d: size[2] })),
   ];
