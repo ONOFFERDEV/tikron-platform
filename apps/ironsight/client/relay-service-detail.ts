@@ -4,6 +4,7 @@ import { ATLAS_W, ATLAS_H, tiles, relayServiceGeometry, relayStructureDetail, re
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { paintRelayDamage, relayDamageGeometry } from './relay-fieldworks.js';
 import { relayYardDetail } from './relay-yard.js';
+import { relayWorkshopDetail } from './relay-workshop-detail.js';
 
 export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   const canvas = document.createElement('canvas'); canvas.width = ATLAS_W; canvas.height = ATLAS_H;
@@ -99,7 +100,7 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   }
   paintRelayDamage(c);
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
-  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map), relayBoundaryDetail(map), relayYardDetail()].filter(g => g.hasAttribute('position'));
+  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map), relayBoundaryDetail(map), relayYardDetail(), relayWorkshopDetail()].filter(g => g.hasAttribute('position'));
   const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose());
   const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ map: texture, roughness: 0.94, alphaTest: .28 }));
   mesh.name = 'relay-service-detail'; mesh.receiveShadow = true; scene.add(mesh);

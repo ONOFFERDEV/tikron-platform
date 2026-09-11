@@ -7,6 +7,10 @@ import { FIELDWORKS_ATLAS } from './relay-fieldworks.js';
 /** Freight awaiting collection on the exterior rail bank, clear of both tracks. */
 export const RELAY_YARD_SUPPLIES = [24, 25.1, 28, 29.1, 120.9, 122, 124.9, 126].map(x => ({ x, y: 3.9, z: 100.4 }));
 
+/** Spare filters/crates staged on the repair hall's solid exterior roof slab.
+ * Same library template and merged draw as the rail supplies. */
+export const RELAY_WORKSHOP_SUPPLIES = [50, 51.1, 53.3, 54.4].map(z => ({ x: -.8, y: 11.24, z }));
+
 /** Signs and old blast scars on intact faces; merged into the resident atlas
  * draw. No sign or decal pretends the ground-level breach is still a wall. */
 export function relayYardDetail(): T.BufferGeometry {
@@ -33,7 +37,7 @@ export function relayYardDetail(): T.BufferGeometry {
  * at their vertices. One static draw, no additional resident texture. All
  * sampling/merging happens once during loading, before renderer preparation. */
 export async function loadRelayYardSupplies(scene: T.Scene): Promise<void> {
-  const crates = RELAY_YARD_SUPPLIES.map(p => ({ min: {x:p.x-.531171/2,y:p.y,z:p.z-.598316/2},
+  const crates = [...RELAY_YARD_SUPPLIES, ...RELAY_WORKSHOP_SUPPLIES].map(p => ({ min: {x:p.x-.531171/2,y:p.y,z:p.z-.598316/2},
     max: {x:p.x+.531171/2,y:p.y+1.15,z:p.z+.598316/2} }));
   const geometry = new T.BoxGeometry(1, 1, 1);
   const material = new T.MeshStandardMaterial({ color: 0x4c5140, roughness: .86, metalness: .08 });

@@ -10,6 +10,58 @@ export interface RelaySitePart {
   w: number; h: number; d: number; yaw: number;
 }
 
+/** Repair-hall extraction plant: all hardware is outside the server rectangle.
+ * Feet land on the existing 11.24 m roof, ducts connect to supported housings,
+ * and the front stays solid. This is machinery, never a false playable door. */
+export function relayWorkshopPlant(): RelaySitePart[] {
+  const parts: RelaySitePart[] = [];
+  const add = (material: RelaySiteMaterial, x: number, y: number, z: number,
+    w: number, h: number, d: number) => parts.push({ material, x, y, z, w, h, d, yaw: 0 });
+  for (const [z, length, height] of [[43, 7.2, 2.8], [63, 5.6, 2.1]] as const) {
+    // Raised skids and an olive steel housing with a deep, framed intake.
+    for (const dz of [-length / 2 + .5, length / 2 - .5])
+      add('dark', -3.8, 11.54, z + dz, 5.8, .6, .36);
+    add('teal', -3.8, 11.84 + height / 2, z, 5.4, height, length);
+    add('pale', -3.8, 11.94 + height, z, 5.65, .20, length + .24);
+    add('dark', -1.088, 11.84 + height / 2, z, .024, height - .38, length - .42);
+    for (let y = 12.10; y < 11.84 + height - .15; y += .24)
+      add('metal', -.995, y, z, .20, .065, length - .60);
+    for (const dz of [-length / 2 + .08, 0, length / 2 - .08])
+      add('pale', -1.02, 11.84 + height / 2, z + dz, .16, height, .10);
+    // Box-section extraction duct, flange bands and capped outlet. Each
+    // elbow intersects its housing; no floating pipe or open smoke occluder.
+    add('metal', -5.5, 12.7, z - length / 2 - 1.0, 1.5, 1.5, 2.2);
+    add('dark', -5.5, 11.54, z - length / 2 - 1.7, 1.65, .6, 1.65);
+    add('metal', -5.5, 13.45, z - length / 2 - 1.7, 1.45, 3.22, 1.45);
+    for (const y of [12.0, 13.1, 14.2])
+      add('dark', -5.5, y, z - length / 2 - 1.7, 1.58, .10, 1.58);
+    add('dark', -5.5, 15.10, z - length / 2 - 1.7, 1.45, .12, 1.45);
+    add('pale', -5.5, 15.35, z - length / 2 - 1.7, 1.85, .16, 1.85);
+    for (const dx of [-.6, .6])
+      add('metal', -5.5 + dx, 15.20, z - length / 2 - 1.7, .10, .30, .10);
+  }
+  // A roof service edge connects the two machines. The roof slab supports
+  // every post, and its whole footprint remains west of x=0.
+  for (let z = 37; z <= 69; z += 4)
+    add('metal', -.42, 11.79, z, .09, 1.1, .09);
+  for (const y of [11.8, 12.34]) add('metal', -.42, y, 53, .09, .075, 32);
+  // Workshop facade repairs and supply risers, flush against existing mass.
+  // The irregular patch widths avoid another repeated full-height panel grid.
+  for (const [z, w, y, h] of [[37.7, 2.2, 4.2, 4.5], [54.3, 3.5, 5.2, 6.2], [69, 1.7, 3.7, 3.6]]) {
+    add('amber', -.017, y!, z!, .022, h!, w!);
+    for (const dz of [-w! / 2 + .09, w! / 2 - .09])
+      add('dark', -.003, y!, z! + dz, .006, h!, .055);
+    for (let yy = y! - h! / 2 + .3; yy < y! + h! / 2; yy += .65)
+      add('metal', -.002, yy, z!, .004, .035, w! - .1);
+  }
+  for (const z of [39, 56.8, 67.5]) {
+    add('dark', -.008, 5.6, z, .012, 10.9, .38);
+    add('metal', -.002, 5.6, z, .004, 10.9, .12);
+    for (let y = 1; y < 11; y += 1.3) add('pale', -.001, y, z, .002, .08, .44);
+  }
+  return parts;
+}
+
 export function relaySiteBoundary(width: number, depth: number): RelaySitePart[] {
   const parts: RelaySitePart[] = [];
   const add = (material: RelaySiteMaterial, x: number, y: number, z: number,
@@ -111,5 +163,6 @@ export function relaySiteBoundary(width: number, depth: number): RelaySitePart[]
       add('metal', x! + k * c - 1.26 * s, 1.5, z! - k * s - 1.26 * c, .08, 2.7, .06, yaw);
     }
   }
+  parts.push(...relayWorkshopPlant());
   return parts;
 }
