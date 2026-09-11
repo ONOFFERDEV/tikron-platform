@@ -4,6 +4,7 @@ import { withStructures } from './structures.js';
 import { SWITCHYARD_BUILDINGS, SWITCHYARD_CRATES } from './switchyard-structures.js';
 import { excavate } from './terrain.js';
 import { SWITCHYARD_RAIL, SWITCHYARD_RAIL_CUT } from './switchyard-rail-cut.js';
+import { isReplacedSwitchyardYardBlock, SWITCHYARD_YARD_PARTS, SWITCHYARD_YARD_CRATES } from './switchyard-yard.js';
 
 /** SWITCHYARD: 150 x 100 m, twelve screened deployment bays.
  * Two inner south arrivals relocate to north switchgear courts, away from B's
@@ -100,6 +101,7 @@ export const ARENA3: MapDef = withStructures(excavate({
   ],
   boxes: [...compiled.boxes.filter(b =>
     !railStaging(b)
+    && !isReplacedSwitchyardYardBlock(b)
     && !(b.min.x < SWITCHYARD_RAIL_CUT.maxX && b.max.x > SWITCHYARD_RAIL_CUT.minX
       && b.min.z < SWITCHYARD_RAIL_CUT.maxZ && b.max.z > SWITCHYARD_RAIL_CUT.minZ)
     && !SWITCHYARD_BUILDINGS.some(s =>
@@ -111,6 +113,7 @@ export const ARENA3: MapDef = withStructures(excavate({
     { min: { x: 79, y: 3, z: 51 }, max: { x: 81, y: 14, z: 53 } },
     freightCounterweight,
     ...SWITCHYARD_CRATES,
+    ...SWITCHYARD_YARD_PARTS.map(p => p.box), ...SWITCHYARD_YARD_CRATES,
   ],
   ramps: compiled.ramps!.map(r => ({ ...r, topY: 3,
     minX: r.axis === 'x' && r.dir === 1 ? r.minX - 4 : r.minX,

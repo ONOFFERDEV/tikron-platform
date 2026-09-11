@@ -3,6 +3,7 @@ import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { SWITCHYARD_FINISH } from './switchyard-palette.js';
 import { SWITCHYARD_CRATES } from '../src/map/switchyard-structures.js';
+import { SWITCHYARD_YARD_PARTS, SWITCHYARD_YARD_CRATES } from '../src/map/switchyard-yard.js';
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
 import { switchyardSiteBoundary, switchyardSiteSigns, switchyardSiteSupplies } from './switchyard-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -26,13 +27,47 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   };
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
+  const yardParts = new Map(SWITCHYARD_YARD_PARTS.map(p => [p.box, p]));
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // exposed terrain owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
-    if (SWITCHYARD_CRATES.includes(b)) continue; // removable supply fallback below
+    if (SWITCHYARD_CRATES.includes(b) || SWITCHYARD_YARD_CRATES.includes(b)) continue; // removable supply fallback below
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2, base = b.min.y;
     const low = h < 1.5, wall = w > 6;
+    const yard = yardParts.get(b);
+    if (yard) {
+      const bench = yard.kind === 'bench', steel = !yard.west && !bench;
+      add(bench ? 2 : steel ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
+      const alongX = w >= d;
+      for (const side of [-1, 1]) {
+        const fx = alongX ? x : x + side * (w / 2 + .004);
+        const fz = alongX ? z + side * (d / 2 + .004) : z;
+        const length = alongX ? w : d;
+        const strip = (mat: number, offset: number, y: number, span: number, height: number, depth = .008) =>
+          add(mat, fx + (alongX ? offset : 0), y, fz + (alongX ? 0 : offset),
+            alongX ? span : depth, height, alongX ? depth : span);
+        if (steel) {
+          for (let p = -length / 2 + .15; p < length / 2; p += .38)
+            strip(2, p, base + h / 2, .045, h);
+        } else if (!bench) {
+          for (let y = base + .5; y < b.max.y; y += .5) strip(1, 0, y, length, .02);
+          // Faded maintenance dado is clipped to each surviving wall piece.
+          if (base === 0) strip(4, 0, .38, length, .55, .012);
+        } else {
+          strip(1, 0, .57, length * .86, .67);
+          for (let p = -length / 2 + .3; p < length / 2 - .2; p += .55) {
+            strip(yard.west ? 4 : 3, p, .68, .25, .36, .012);
+            strip(5, p, .8, .13, .05, .016);
+          }
+        }
+      }
+      if (bench) {
+        add(1, x, b.max.y + .004, z, w, .008, d);
+        add(4, x, b.max.y + .009, z, w * .78, .002, d * .7);
+      }
+      continue;
+    }
     const part = structureParts.get(b);
     if (part) {
       if (base < 0) {
@@ -187,6 +222,12 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   for (const p of switchyardSiteBoundary(width, depth))
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, 'exterior', false, new T.Euler(0, p.yaw, 0));
+  // Flush thresholds lead through the offset breaches; no paint spans the rail cut.
+  for (const east of [false, true]) for (const [px, pz] of [[47, 35.5], [46, 44.5], [52.5, 42]] as const) {
+    const x = east ? width - px : px;
+    add(3, x, .005, pz, 2.4, .006, .16, 'paint');
+    for (const dx of [-.85, 0, .85]) add(1, x + dx, .009, pz, .22, .002, .16, 'paint');
+  }
   // North substation: three portal frames and visible ceramic insulator stacks.
   // The generated transformer sits between these bays; all geometry is beyond z=0.
   for (const z of [-5, -13]) {
@@ -287,7 +328,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   // Only the interior supplies are authority shells. Exterior fallbacks have
   // the same separate classification as the rest of the out-of-bounds depot.
   for (const [name, supplyBoxes] of [
-    ['switchyard-shell-supplies', SWITCHYARD_CRATES],
+    ['switchyard-shell-supplies', [...SWITCHYARD_CRATES, ...SWITCHYARD_YARD_CRATES]],
     ['switchyard-exterior-supplies', exteriorSupplies],
   ] as const) {
   const supplyGeometry = new T.BoxGeometry(1, 1, 1);
@@ -332,6 +373,12 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   sign(0, width * .3, 2.05, depth - 0.006, Math.PI, 7);
   for (const s of switchyardSiteSigns(width, depth)) sign(s.label, s.x, s.y, s.z, s.yaw, s.width);
+  for (const east of [false, true]) {
+    const x = (v: number) => east ? width - v : v;
+    sign(east ? 12 : 9, x(51.5), 2.25, 35.984, Math.PI, 4.4);
+    sign(east ? 12 : 9, x(42.5), 2.25, 44.016, 0, 2.8);
+    sign(1, x(51.5), 2.25, 37.016, 0, 4.4);
+  }
   for (const s of map.structures ?? []) {
     if (s.id === 'rail-loading-cut') {
       for (const x of [45, 105]) {
@@ -360,7 +407,7 @@ export async function loadSwitchyardSupplies(scene: T.Scene, depth: number): Pro
   const finishes = new Map<T.MeshStandardMaterial, T.MeshStandardMaterial>();
   try {
     const positions = [
-      ...SWITCHYARD_CRATES.map(b => ({x:(b.min.x+b.max.x)/2,y:b.min.y,z:(b.min.z+b.max.z)/2})),
+      ...[...SWITCHYARD_CRATES, ...SWITCHYARD_YARD_CRATES].map(b => ({x:(b.min.x+b.max.x)/2,y:b.min.y,z:(b.min.z+b.max.z)/2})),
       ...switchyardSiteSupplies(depth),
     ];
     const crates = await Promise.all(positions.map(async p => {
