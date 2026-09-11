@@ -61,11 +61,14 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    after a periodic snapshot. The storage promise resolves immediately; this
    correlation is not a root cause. Keep receipt-based validation and investigate
    local Worker scheduling/storage without changing persistence guarantees.
-5. **Grounded firefight audio, arc 1/2 delivered:** Session 9 fixes concrete
-   surfaces/support and shared stair occlusion; real audio graph and a recorded
-   interior/roof route pass. Next: distance identity and hit/kill audibility in
-   a dense mix (R-G15/R-G17), then surface impact feedback. This does not close
-   the higher-priority main movement/presentation or local-delivery requests.
+5. **Surface impact feedback is the next actionable combat arc:** Session 10
+   completes the prepared distance/confirmation mix implementation following
+   Session 9's support/occlusion repair. Native audio fixtures preserve weapon
+   identity at three distances, reserve threat foley, and put hit/kill cues
+   above a dense gunfire stem. Human headphone acceptance remains open.
+   Next audit muzzle/impact dust, spall and suppression against R-G10/R-G11,
+   using existing bounded VFX pools. This does not close the higher-priority
+   main movement/presentation or local-delivery requests.
 6. Retest bot routes as main lands new buildings; DOM keeps ground-objective
    priority and has no forced high-ground diversion in this session.
 
@@ -74,6 +77,17 @@ verified-cover reloads. Session 5 delivers arc 2/3: collision-derived multi-leve
 walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 
 ## Cross-stream requests
+
+- **Main / supervisor - Session 10 audio:** no new main hook is needed.
+  Existing confirmed `playHit` / `playKill` calls briefly lower the dedicated
+  gunfire gain; foley, victim cues, warnings and the master mute/volume retain
+  their existing paths. Prepared close/field/far perspectives select at
+  **12 / 28 m**, within the existing **55 m** audible range and geometry filter.
+  There is one additional persistent audio gain and **2,131,200 extra cached
+  PCM bytes at 48 kHz**, no per-shot PCM generation or extra shot source.
+  Keep the pending movement/radio hooks and presentation investigation above
+  these audio changes in release priority. No movement activation, renderer
+  repair, local-delivery fix or human headphone acceptance is claimed here.
 
 - **Main / supervisor - Session 9 presentation recurrence:** initial pair 2
   FFA fails at **1618.9 ms**, plus **512.3 ms**, **4.950%** stalled time,
@@ -419,9 +433,9 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-G12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G14 | met | Session 9 actual Web Audio graph preserves 1.4x enemy footstep/reload gain, 16/20 voice priority and complete drainage. Terrain/slab/stair material and capsule support regressions pass; live concrete stair/roof capture retained. |
-| R-G15 | partial | Existing hit and distinct kill cues bypass the remote voice cap; browser fixture plays them at saturation. Dense-mix audibility still needs an isolated listening/measurement comparison. |
+| R-G15 | partial | Session 10 native audio A/B: confirmed hit/kill cues retain their original level while gunfire dips 11.06/13.98 dB; cue-to-fire RMS is +1.88/+7.55 dB in the specified dense windows. Overlap, recovery, voice saturation and mute pass. WAV comparisons retained; subjective headphone acceptance remains open. |
 | R-G16 | met | Session 9 uses authoritative box/ramp occluders, retains open doors and above-ramp paths, fixes endpoint/thin-wall leaks, and verifies actual 0.32 gain/1100 Hz occluded nodes. No diffraction/HRTF claim. |
-| R-G17 | partial | Existing cached per-weapon crack, mechanical identity, body and tail remain. Session 9 makes geometry occlusion consistent across levels; dedicated distance variants and dense-mix comparison remain next. |
+| R-G17 | met | Session 10: cached close/field/far perspectives keep all five original weapon shapes/three variations, with damped mechanism and more diffuse distant tails. Native graph A/B at 0/8/20/40 m, 44.1/48/96 kHz synthesis regressions, unchanged one-source shot lifetime/caps, and confirmation priority. No HRTF, physical diffraction or headphone-quality claim. |
 | R-G18 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G19 | partial | Table ADS 250/200/225/400/165 ms and sprint 120/100/130/150/90 ms match targets. Session 8 fixes early queue-drained shots stealing the legal shot behind them: all five weapons pass exact receipt-time ADS/sprint boundaries, plus swap/reload boundaries. Full suite 855 passed. Live AR first-shot bound fails; relay/Worker observations locate delayed ADS input before SDK receipt. Keep end-to-end timing partial until that cause is resolved. |
 | R-G20 | partial | Client and room read GAME.weapons and the same recoil/spread/handling helpers. Session 7 uses trusted receipt time for cadence/recoil, rejects forged subtick credit and corrects denied prediction. Compressed delivery and existing predicted muzzle/audio policy remain; no claim of fully server-confirmed local juice. |
@@ -450,6 +464,94 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 10 - 2026-09-11: Grounded firefight audio, arc 2/2 - confirmations cut through
+
+Reference: **R-G15**, **R-G17**, **R-G14**, **R-G16**, **R-L14**, **R-L19**.
+Targets: retain the five close weapon identities; prepare separate field/far
+perspectives without event-time synthesis or more sources per shot; make a
+confirmed hit/kill exceed the dense gunfire stem by **at least 1 dB RMS** in
+the stated cue windows; retain the **16/20** remote-voice caps, enemy foley
+gain, muted/zero-volume silence, finite unclipped output and complete drainage.
+Those digital targets pass; headphone preference is not inferred from RMS.
+
+Started clean at **2f79869**, branch `ironsight-aaa-combat`, port **8798**.
+Read the lane first, then the standing brief, Session 10 status, combat plan,
+art concept and design reference. Main still uses legacy `net.setMoveIntent`;
+the owner movement repair activation remains outside this lane. The preceding
+session's retained FFA failures remain valid despite the supervisor's green
+summary. No physics/map/scene/main/config/asset or other-stream source edit,
+new dependency, Meshy expenditure, commit, push or deployment.
+
+Delivered through existing production hooks:
+
+- `client/audio.ts` prepares three perspectives for each of the five weapons'
+  three existing variations. Local and <12 m recordings are unchanged;
+  12-28 m field and >=28 m distant shots soften the mechanism and increase
+  relative reflection energy. The existing 55 m spatial range, pan and
+  authoritative-geometry occlusion still apply. One source/remote voice per
+  shot, same <0.6 s maximum tail, no new per-frame work or audio timer.
+- `client/spatial-audio.ts` owns the pure deterministic preparation helper.
+  All PCM is generated during initial audio preparation; a shot only selects
+  its cached buffer. No gameplay or collision data changes.
+- A dedicated persistent gunfire gain yields to existing server-confirmed
+  hit/kill calls. A **4 ms** ramp reaches **0.28 / 0.20**, holds for **25 /
+  100 ms**, then recovers over **100 ms**. Native cancel-and-hold automation
+  preserves continuity on repeated cues; a later hit cannot shorten an active
+  kill hold. Threat footsteps/reloads, victim feedback and warnings bypass
+  this duck; every path still passes through master volume/mute and limiter.
+  Completed hit/kill oscillators and gains now explicitly disconnect.
+
+Native **48 kHz OfflineAudioContext** A/B renders the original module snapshot
+and final production module in fresh pages under the shared inspection lease.
+Deterministic ambience and identical scheduled volleys allow comparison;
+read-only stems are tapped before master, and output WAVs retain the actual
+compressor/limiter. **28 fixtures per build** cover all weapons at **0, 8, 20,
+40 m**, dense fire, hit, kill, overlapping confirmations, cap/reserve, recovery,
+mute and zero volume. No fixture is substituted for gameplay/hitch acceptance.
+Evidence: `.inspect/combat-s10-{before,final}-audio-report.json`, matching WAVs,
+`combat-s10-audio-summary.json`; regenerate via `combat-s10-offline.mjs` and
+`combat-s10-audio-summary.mjs` (baseline uses `--baseline`).
+
+| Confirm / window | Gunfire change | Cue above gunfire RMS | Recovery |
+|---|---:|---:|---|
+| Hit / 154-175 ms | -11.057 dB | +1.875 dB | full gain |
+| Kill / 175-245 ms | -13.979 dB | +7.553 dB | full gain |
+| Kill then two hits / 175-245 ms | -13.979 dB | +10.811 dB | full gain |
+
+Cue stems retain exactly the same RMS as baseline. At 0/8 m all five output
+peaks match baseline; distance synthesis tests measure progressively lower
+high-frequency difference energy and greater relative tail energy on every
+weapon at **44.1/48/96 kHz**. All fixtures allocate **zero event-time PCM
+buffers**, retain voice caps/recovery, and drain every transient. Final maximum
+digital output peak **0.872491**, with exact mute/zero-volume silence.
+Three new synthesis tests pass. **897 tests passed / 9 skipped**, **101 files
+passed / 7 skipped**: **866 application cases** plus the inherited 31-case
+archived cadence suite. `pnpm typecheck`, `pnpm test`, `pnpm build:client`, and
+`pnpm audit:assets` pass in `combat-s10-final-checks.json` and command logs.
+
+Audio buffer allocation: **1,929,600 -> 4,060,800 bytes** at 48 kHz, including
+existing noise/ambient buffers; delta **2,131,200 bytes / 2.032 MiB**.
+Median preparation **20.5 -> 28.8 ms** in fresh offline fixtures; this is
+preparation on this host, not event cost or deployed first-load latency.
+Assets remain **30,121,938 bytes**, largest **7,183,364 bytes**. Public total
+**37,287,000 bytes**, **+6,107** versus Session 9, including JS/source map.
+**0 new shipped asset bytes, WebGL textures/lights/passes, Meshy credits or
+generated-asset rejects.** One persistent audio gain added. Client SHA-256:
+`65d977f1605fb725d496cd32c8d119e7914b900e3e6c5cf8b7500471f1058443`.
+
+Intermediate corrections retained: the endpoint assertion originally treated
+IEEE negative zero as nonzero; it now checks absolute zero. Importing the pure
+helper from `audio.ts` pulled DOM types into the Workers test project; moving
+it into the owned pure spatial module fixes that without changing tsconfig.
+The first duck candidate measured **-0.063 dB** hit-to-fire in the dense
+window, below the +1 dB target; final gains above meet it. Retained evidence:
+`combat-s10-focused.log`, `combat-s10-typecheck-before-helper-move.log`,
+`combat-s10-initial-duck-report.json`. No gate threshold or browser flag changed.
+
+Fixed-camera, live wow capture, repeated hitch acceptance and cleanup follow.
+No owner answer is needed; default remains these bounded procedural sounds.
+Human listening feedback can adjust timbre later without changing authority.
 
 ### Session 9 - 2026-09-11: Grounded firefight audio, arc 1/2 - hear every floor
 

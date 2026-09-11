@@ -3,6 +3,27 @@ import { PLAYER } from "../src/config.js";
 import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { MapDef } from "../src/map/types.js";
 export interface SoundPoint { x: number; y: number; z: number }
+
+/** Three cached perspectives, all retaining the weapon's own crack/body/tail.
+ * Distance shifts energy from the mechanism to diffuse reflections. This runs
+ * only during audio preparation, never in a shot or render callback. */
+export function prepareDistantFire(pcm: Float32Array<ArrayBuffer>, sampleRate: number, band: number): Float32Array<ArrayBuffer> {
+  if (band === 0) return pcm;
+  const far = band >= 2, output = new Float32Array(pcm.length);
+  const alpha = 1 - Math.exp(-2 * Math.PI * (far ? 1500 : 3000) / sampleRate);
+  const delay = Math.round(sampleRate * (far ? .047 : .025));
+  let low = 0;
+  for (let i = 0; i < pcm.length; i++) {
+    low += alpha * (pcm[i]! - low);
+    const t = i / sampleRate;
+    const direct = low * (far ? .64 : .82) + pcm[i]! * (far ? .06 : .12);
+    const reflection = i >= delay ? output[i - delay]! * (far ? .34 : .20) : 0;
+    const fade = Math.min(1, (pcm.length - 1 - i) / (sampleRate * .015));
+    output[i] = (direct * (1 - (far ? .32 : .16) * Math.exp(-t / .018)) + reflection) * fade;
+  }
+  return output;
+}
+
 /** Camera yaw zero faces +Z; screen-right is -X in this game's view. */
 export function spatialMix(source: SoundPoint, listener: SoundPoint, yaw: number, range = 55) {
   const dx = source.x - listener.x, dz = source.z - listener.z;
