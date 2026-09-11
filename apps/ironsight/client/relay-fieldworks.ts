@@ -2,6 +2,7 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from '../src/map/types.js';
+import { ATLAS_W, ATLAS_H } from './relay-service-geometry.js';
 
 export const FIELDWORKS_ATLAS = {
   spall: [0, 256, 512, 512], chips: [0, 768, 256, 256],
@@ -103,8 +104,8 @@ export function relayDamageGeometry(map: MapDef): T.BufferGeometry {
   const parts = relayDamagePatches(map).map(patch => {
     const g = new T.PlaneGeometry(patch.width, patch.height), uv = g.getAttribute('uv');
     const [x, y, w, h] = FIELDWORKS_ATLAS[patch.tile];
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, (x + 2 + uv.getX(i) * (w - 4)) / 1024,
-      1 - (y + 2 + (1 - uv.getY(i)) * (h - 4)) / 1024);
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (x + 2 + uv.getX(i) * (w - 4)) / ATLAS_W,
+      1 - (y + 2 + (1 - uv.getY(i)) * (h - 4)) / ATLAS_H);
     if (patch.ground) g.rotateX(-Math.PI / 2);
     g.rotateY(patch.yaw); g.translate(...patch.position); return g;
   });
@@ -113,7 +114,8 @@ export function relayDamageGeometry(map: MapDef): T.BufferGeometry {
 
 /** A perimeter parapet is outside movement bounds. Sacks sit on its existing
  * coping and change only the exterior skyline, never a playable shot boundary. */
-export function relaySandbagGeometry(model: T.Object3D, width: number): T.BufferGeometry {
+export function relaySandbagGeometry(model: T.Object3D, width: number,
+  atlasSize: readonly [number, number] = [1024, 1024]): T.BufferGeometry {
   const normalized = new T.Group(); normalized.add(model);
   model.updateMatrixWorld(true);
   let bounds = new T.Box3().setFromObject(model), size = bounds.getSize(new T.Vector3());
@@ -133,7 +135,10 @@ export function relaySandbagGeometry(model: T.Object3D, width: number): T.Buffer
     // Controlled assembly avoids accepting a generated wall's weak stacking.
     g.scale(.67 / size.x, .235 / size.y, .44 / size.z);
     const uv = g.getAttribute('uv');
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, .5 + uv.getX(i) * .5, 1 - uv.getY(i) * .5);
+    // Keep the standalone helper's original atlas contract; the live caller
+    // supplies its resident dimensions when packing into a larger service atlas.
+    for (let i = 0; i < uv.count; i++) uv.setXY(i,
+      (512 + uv.getX(i) * 512) / atlasSize[0], 1 - uv.getY(i) * 512 / atlasSize[1]);
     source.push(g);
   });
   const sack = mergeGeometries(source)!; source.forEach(g => g.dispose());
@@ -180,7 +185,7 @@ export async function loadRelayFieldworks(scene: T.Scene, map: MapDef): Promise<
     if (albedos.size !== 1) throw Error('Sandbags must share one albedo');
     albedo = [...albedos][0];
     if (!albedo) throw Error('Sandbag albedo missing');
-    sacks = relaySandbagGeometry(model, map.bounds.width);
+    sacks = relaySandbagGeometry(model, map.bounds.width, [ATLAS_W, ATLAS_H]);
     const canvas = atlas.image as HTMLCanvasElement, c = canvas.getContext('2d')!;
     c.drawImage(albedo.image as CanvasImageSource, 512, 0, 512, 512);
     // Preserve the source folds/creases while dyeing its pale fabric dusty khaki.
@@ -197,7 +202,7 @@ export async function loadRelayFieldworks(scene: T.Scene, map: MapDef): Promise<
     if (!next) throw Error('Fieldworks merge failed');
     detail.geometry.dispose(); detail.geometry = next;
     detail.userData.fieldworks = { modules: 8, sacks: 96, exterior: true, sandbagBounds: sacks.boundingBox,
-      damagePatches: relayDamagePatches(map).length, atlas: [1024, 1024], drawsAdded: 0 };
+      damagePatches: relayDamagePatches(map).length, atlas: [ATLAS_W, ATLAS_H], drawsAdded: 0 };
   } finally {
     sacks?.dispose();
     model.traverse(node => { if (node instanceof T.Mesh) node.geometry.dispose(); });

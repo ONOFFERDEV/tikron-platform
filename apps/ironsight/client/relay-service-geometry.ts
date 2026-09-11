@@ -5,7 +5,7 @@ import { rampSurfaceY } from '../src/physics.js';
 
 // Service hardware occupies the original upper-left 512x256 region. Fieldworks
 // shares this atlas/draw: scars below it, generated canvas sacks at upper right.
-export const ATLAS_W = 1024, ATLAS_H = 1024;
+export const ATLAS_W = 2048, ATLAS_H = 1024;
 export const tiles = {
   hatch: [0, 0, 128, 256], cabinet: [128, 0, 128, 256],
   vent: [256, 0, 256, 128], label: [256, 128, 128, 128], case: [384, 128, 128, 128],
@@ -13,6 +13,11 @@ export const tiles = {
   control: [512, 960, 512, 64],
   trench: [768, 576, 256, 96], cable: [768, 672, 256, 192],
   workshop: [768, 864, 256, 48], freight: [768, 912, 256, 48],
+  radio: [1024, 0, 256, 512], instruments: [1280, 0, 256, 512],
+  circuit: [1536, 0, 512, 256], orders: [1536, 256, 256, 256],
+  radioBench: [1792, 256, 256, 128], controlBench: [1792, 384, 256, 128],
+  lining: [1024, 512, 512, 256], wiring: [1024, 768, 512, 128],
+  ceilingVent: [1536, 512, 512, 256], floorService: [1024, 896, 512, 128],
 } as const;
 
 /** Geometry is derived from existing solid faces, at most 12 mm outside them.
@@ -110,7 +115,7 @@ export function relayStructureDetail(map: MapDef): T.BufferGeometry {
       const b = p.box;
       face('console', (b.min.x + b.max.x) / 2, b.max.y + .014, (b.min.z + b.max.z) / 2,
         b.max.x - b.min.x - .08, b.max.z - b.min.z - .08, 0, true);
-      face('cabinet', (b.min.x + b.max.x) / 2, .56, b.max.z + .012,
+      face(east ? 'controlBench' : 'radioBench', (b.min.x + b.max.x) / 2, .56, b.max.z + .012,
         Math.min(1.3, b.max.x - b.min.x - .1), .94, 0);
     }
     // Anti-slip nosings follow the actual slope. The staircase remains a
@@ -148,4 +153,3 @@ export function relayBoundaryDetail(map: MapDef): T.BufferGeometry {
   }
   const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose()); return geometry;
 }
-

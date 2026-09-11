@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { paintRelayDamage, relayDamageGeometry } from './relay-fieldworks.js';
 import { relayYardDetail } from './relay-yard.js';
 import { relayWorkshopDetail } from './relay-workshop-detail.js';
+import { paintRelayInterior, relayInteriorDetail } from './relay-interior-detail.js';
 
 export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   const canvas = document.createElement('canvas'); canvas.width = ATLAS_W; canvas.height = ATLAS_H;
@@ -84,6 +85,7 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   }
   rect('#333a32', 768, 864, 256, 48); text('WORKSHOP / 01', 779, 897, 28, '#c8c0a3');
   rect('#333a32', 768, 912, 256, 48); text('FREIGHT / 03', 790, 945, 28, '#c8c0a3');
+  paintRelayInterior(c);
   // Deterministic edge chips, fastener runoff and scuffs. Baked once at creation;
   // keep central labels readable and large color fields quiet at combat distance.
   for (const [x, y, w, h] of Object.values(tiles)) {
@@ -100,7 +102,7 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
   }
   paintRelayDamage(c);
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
-  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map), relayBoundaryDetail(map), relayYardDetail(), relayWorkshopDetail()].filter(g => g.hasAttribute('position'));
+  const parts = [relayServiceGeometry(map), relayDamageGeometry(map), relayStructureDetail(map), relayBoundaryDetail(map), relayYardDetail(), relayWorkshopDetail(), relayInteriorDetail(map)].filter(g => g.hasAttribute('position'));
   const geometry = mergeGeometries(parts)!; parts.forEach(g => g.dispose());
   const mesh = new T.Mesh(geometry, new T.MeshStandardMaterial({ map: texture, roughness: 0.94, alphaTest: .28 }));
   mesh.name = 'relay-service-detail'; mesh.receiveShadow = true; scene.add(mesh);
