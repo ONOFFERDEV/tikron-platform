@@ -25,11 +25,37 @@ Scope and ownership: `tools/aaa-stream-combat.md`. No commits, pushes, deploymen
    Session 6 stock passes five final pairs, but the exact radio-hook candidate
    FFA still fails at **2507.7 ms / 8.830% stalled time**. Keep the presentation
    investigation open; radio is inactive in FFA, which alone proves no cause.
+   Session 7 also retains a stock pair-4 FFA failure at **1870.7 ms** with
+   two deaths and zero errors/recompiles. Final requalification fails again
+   at **1973.4 ms** in pair 2 FFA. Separate traces do not reproduce these
+   completed intervals; causes remain unassigned. Five pairs were not achieved.
+   Session 8 retains stock FFA **1995.2 / 2051.4 ms** intervals. A separate
+   complete trace covers a **3369.233 ms** native raster wait on a pixel
+   executable task; no combat resource/shader work is created. The exact main
+   request below distinguishes that reproduction from the untraced gate gaps.
+   Final Session 8 qualification fails pair 2 FFA at **2302.2 ms**, plus a
+   **325.3 ms** first-death interval. Five pairs are not achieved. A focused
+   death trace does not reproduce either failure; keep both causes open.
 3. **Bot squad radio integration:** Session 6 implements six authoritative
    callouts and a role caption readable with audio muted. The legacy client receives
    compatible markers by default; main must activate the exact caption/audio
    hook below before the full three-session bot arc is called complete.
-4. Shared weapon table audit (R-G02–08, R-G19–20).
+4. **Weapon authority, arc 2/2:** Session 8 also uses server receipt time for
+   ADS/sprint eligibility, swap and reload. Ten queued boundary regressions fail
+   before the fix; all 31 cadence tests and 855 full-suite tests now pass.
+   Damage, recoil and timer values remain unchanged. Session 7 repairs cadence and recoil using
+   server-recorded input receipt time, preserving the exact weapon table.
+   The baseline live SMG accepts only 10/18 inputs; the queue regression also
+   reproduces rejection of legal pistol shots and acceptance of early AR shots.
+   Existing denial feedback now corrects ammo/recoil. Final SMG capture still
+   accepts only **5/18** after thirteen inputs arrive 1 ms behind a delayed
+   accepted shot. Trace delivery compression next; do not widen the rate cap.
+   Reduced view kick remains a main-owned request. Session 8 reproduces delayed
+   ADS delivery downstream of a local relay that preserves input spacing.
+   A separate Worker observer finds a **347 ms** tick/input pause immediately
+   after a periodic snapshot. The storage promise resolves immediately; this
+   correlation is not a root cause. Keep receipt-based validation and investigate
+   local Worker scheduling/storage without changing persistence guarantees.
 5. Layered, occluded firefight audio (R-G14–17), then surface impact feedback.
 6. Retest bot routes as main lands new buildings; DOM keeps ground-objective
    priority and has no forced high-ground diversion in this session.
@@ -39,6 +65,112 @@ verified-cover reloads. Session 5 delivers arc 2/3: collision-derived multi-leve
 walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 
 ## Cross-stream requests
+
+- **Main / SDK owner - Session 8 delayed local input:** the standard handling
+  check first fails AR at **461.8 ms** (bound **450 ms**). A read-only send/reply
+  observer then reproduces **799 ms**. The transparent-relay run preserves
+  **262.5 ms** browser / **262.215 ms** relay spacing from ADS to fire, yet the
+  first denial arrives at **902.2 ms** with **250 ms** ADS remaining; first
+  confirmed shot is **1139.7 ms**. That compression is downstream of the relay.
+  A separate Worker observer captures a **347 ms** tick gap immediately after
+  periodic snapshot `put` at **1789084795563**. ADS reaches the relay at
+  **1789084795764.274**, Worker `_message` at **1789084795891**; fire reaches
+  them at **1789084796021.467 / 1789084796022**. The authority correctly sees
+  only **131 ms** of ADS and reports **119 ms** remaining. First shot **463.1
+  ms**. SDK `receivedAt` therefore cannot recover the earlier missing interval.
+  Evidence: `combat-s8-readiness-delivery-summary.json`,
+  `combat-s8-handling-{wire,worker-context}-trace-1.json`, corresponding wire
+  logs and `combat-s8-handling-worker-context-worker.json`.
+  Inspect local workerd scheduling and storage flush/gating around these
+  boundaries; `put`'s promise resolves in the same millisecond, which does not
+  time its flush. This is correlation, not proof of a storage defect. Do not
+  add client-clock fire credit, relax cadence or change storage options from
+  this evidence. SDK/runtime files are outside combat ownership. Observers
+  preserved arguments/results but can affect timing; the added TCP hop can
+  also affect timing. The owned preview was restarted before final checks.
+
+- **Main / supervisor - Session 8 covered presentation recurrence:** ordinary
+  pair 1 FFA fails at **1995.2 / 2051.4 ms**, **5.309%** stalled time, **8.4
+  ms** callback max, p99 **9 ms**, two deaths, zero shaders/errors. The separate
+  immediate-stop startup trace reproduces **2796.5 ms** measured, overlapping
+  a **3366.4 ms** post-ready interval; these overlap and are not two stalls.
+  The complete trace covers it: `BrowserRasterWorker` takes **3369.233 ms wall /
+  3.301 ms CPU**, waiting on `GetPixelExecutableTask::run` (**3365.458 /
+  3.431 ms**). Game submissions immediately before cost **1.0-1.4 ms**, **96
+  calls / 50 materials**; the returning frame costs **2.4 ms**, **125 calls /
+  81 materials**. Zero resource creation, shader links, shadow requests or
+  target passes; existing bone textures and the 256-byte buffer update remain.
+  Files: `combat-s8-accept-ffa-1.json` and
+  `combat-s8-ffa-diagnostic{,-trace,-trace-summary}.json`. Timers keep firing
+  through the gap. This locates this reproduced native wait, not a specific
+  driver defect or the causes of both untraced acceptance intervals. Combat
+  client bytes are unchanged. Continue main's compositor/presentation work;
+  no gate change or speculative combat HUD/VFX edit follows from this trace.
+  **Final qualification fails again:** pair 2 FFA has **2302.2 / 325.3 ms**
+  gaps, **3.116%** stalled time, **7.9 ms** callback max, p99 **8 ms**, three
+  deaths and zero errors/recompiles. The **325.3 ms** gap also fails the
+  separate first-death **150 ms** bound. A **2940.2 ms** post-ready startup
+  interval overlaps the initial measured gap; do not add them. Evidence:
+  `combat-s8-final-accept-ffa-2.json` / `combat-s8-final-acceptance.json`.
+  A focused first-death trace completes its window at **8.7 ms** and does not
+  reproduce the failure. Its older loading intervals are outside renderer
+  coverage. `combat-s8-death-diagnostic{,-trace,-trace-summary}.json` cannot
+  assign a cause to either failed acceptance interval. No further unchanged
+  acceptance retries, source speculation, threshold or browser-flag change.
+
+- **Supervisor - Session 8 inspection scheduling:** Session 7's supervisor
+  timeout occurred while waiting for main's GPU lease, before the combat probe
+  launched a browser. The shared helper allows a **600 s acquisition wait**;
+  the supervisor kills the whole command after **360 s**. Start the measurement
+  watchdog after lease acquisition, or allow the existing acquisition budget
+  plus probe/cleanup time. Retain the same lease, browser cleanup and every
+  performance limit; never terminate another stream's inspector or bypass the
+  lease. Session 8's baseline acquired immediately and passed; the decoded
+  transport diagnostic waited **79.279 s** behind main's normal hitch probe.
+  This request fixes scheduling, not the separately retained FFA stalls. The
+  combat lane cannot edit the supervisor or `scripts/inspection-lease.mjs`.
+
+- **Main / supervisor - Session 8 weapon integration:** take the inherited
+  Session 7 cadence repair together with this session's readiness fix in
+  `arena-room.ts` and `test/weapon-cadence.test.ts`. Fire readiness and cadence,
+  plus swap/reload starts, now use the same SDK-recorded receipt instant.
+  Early ADS/sprint/swap/reload shots cannot borrow the queue wait and steal the
+  following legal shot. No new client hook or protocol change is required.
+  Keep the existing weapon table and receipt-based rate cap. The separate
+  local delivery investigation above does not justify a client-clock workaround.
+
+- **Main / supervisor - Session 7 presentation recurrence:** stock pair-4 FFA
+  fails the unchanged 1500 ms presentation ceiling at **1870.7 ms**, the first
+  measured interval. Callback max **7.7 ms**, p99 **8 ms**, stalled share
+  **2.651%**, two natural deaths, zero errors/recompiles, first-damage/death
+  windows pass. `combat-s7-accept-ffa-4.json` and `combat-s7-acceptance.json`
+  retain the failure; CPU **1768/1787** idle samples do not identify its cause.
+  The full traced diagnostic has no gameplay spike; its startup intervals
+  have rolled out of trace coverage. The short trace covers only **344 /
+  161.3 ms** loading intervals before UI preparation, not this 1.87 s gap.
+  Evidence: `combat-s7-ffa-{diagnostic,startup-diagnostic}{,-trace-summary}.json`.
+  No client bundle, renderer, assets, browser flags or limits changed here.
+  Continue the existing presentation investigation; a fresh passing sequence
+  cannot close this request or turn the untraced failure into a driver diagnosis.
+  **Final qualification also fails** in pair 2 FFA: **1973.4 / 195.8 ms**
+  gaps, **5.9 ms** callback max, p99 **8 ms**, **2.990%** stalled time, two
+  deaths, zero errors/recompiles, first-damage/death checks pass. Its startup
+  observer also retains a **2604.2 ms** post-ready interval overlapping the
+  first measured gap. Files: `combat-s7-final-accept-ffa-2.json` and
+  `combat-s7-final-acceptance.json`. The bounded sequence stopped; no further
+  acceptance retry. Session 7 is **not green**. Three diagnostic captures,
+  including a longer startup/recovery trace, do not identify the failure's
+  cause. See `combat-s7-summary.json` for the complete failed disposition.
+
+- **Main / supervisor - Session 7 reduced view kick:** the weapon audit finds
+  `client/scene.ts` still computes `const kick = this.recoil;` after its
+  exponential decay, regardless of `reducedMotion`. In that viewmodel-only
+  block, use `const kick = this.recoil * (this.reducedMotion ? 0.25 : 1);`.
+  Keep `src/recoil.ts`, `main.ts` aim offsets and authoritative rays unchanged.
+  This extends the existing reduced-motion setting to the cosmetic weapon
+  translation/rotation (R-G08); it must not reduce gameplay recoil. Validate
+  both modes at the same shot index and confirm identical hit rays. This is
+  a reviewable request, not an edit or a shipped claim in the combat stream.
 
 - **Main / supervisor - Session 6 presentation blocker:** final stock passes
   five consecutive TDM/FFA pairs, but the exact radio-hook candidate stops at
@@ -226,13 +358,13 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-M19 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-M20 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G01 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-G02 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G03 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G04 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G05 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G06 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G07 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G08 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
+| R-G02 | partial | Session 7 audits ideal TTK at 5/15/30/60 m, verifies real queued AR/SMG/pistol body-shot kills, and fixes tick-dependent cadence rejection. Live delivery compression remains; ideal TTK is not measured network TTK or a balance claim. |
+| R-G03 | partial | Existing sniper glint/tracer, 400 ms ADS, 150 ms sprint recovery; handling browser proof passes. Opponent-side telegraph readability remains a separate visual audit. |
+| R-G04 | met | Shared-table audit and recoil tests: first-shot accuracy <=0.0002 rad, large movement penalty, 25% crouch reduction; AR 300 ms and SMG 260 ms ideal close body TTK. |
+| R-G05 | met | First four automatic pattern entries are vertical, then fixed lateral drift; real-room rays follow the shared pattern. Session 7 removes drain-clock distortion from recoil recovery. |
+| R-G06 | met | Shared center-biased bounded jitter, ADS/crouch multiplication, hybrid spread after AR 8 / SMG 7 / pistol 5; existing distribution/stance tests and new queued recoil parity pass. |
+| R-G07 | partial | Existing blast trauma uses squared strength, rotational-only 2-degree cap and 2 s decay; full tests pass. Weapon cosmetic kick remains a separate main-owned presentation path. |
+| R-G08 | partial | Aim recoil and cosmetic viewmodel kick are separate. Reduced-motion currently leaves weapon kick unchanged; exact main request above, no combat edit to scene/settings. |
 | R-G09 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-G10 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-G11 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
@@ -243,11 +375,11 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-G16 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-G17 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
 | R-G18 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-G19 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
-| R-G20 | partial | Bots use normal handleFire/handleReload/handling. Session 4 preserves newer look/fire aim while replaying older movement headings (real-room regression). Shared weapon-table audit remains next arc. |
+| R-G19 | partial | Table ADS 250/200/225/400/165 ms and sprint 120/100/130/150/90 ms match targets. Session 8 fixes early queue-drained shots stealing the legal shot behind them: all five weapons pass exact receipt-time ADS/sprint boundaries, plus swap/reload boundaries. Full suite 855 passed. Live AR first-shot bound fails; relay/Worker observations locate delayed ADS input before SDK receipt. Keep end-to-end timing partial until that cause is resolved. |
+| R-G20 | partial | Client and room read GAME.weapons and the same recoil/spread/handling helpers. Session 7 uses trusted receipt time for cadence/recoil, rejects forged subtick credit and corrects denied prediction. Compressed delivery and existing predicted muzzle/audio policy remain; no claim of fully server-confirmed local juice. |
 | R-L01 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L02 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L03 | not yet | Queued combat-stream audit; no Session 1 compliance claim. |
+| R-L03 | met | AR is four close body hits / 300 ms ideal TTK; the queued room duel confirms the four-hit kill. This is a weapon contract, not a claim of completed PvP balance tuning. |
 | R-L04 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L05 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L06 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
@@ -258,7 +390,7 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L11 | partial | Four profiles, 150-600 ms reactions, identical seeded aim, depth 1/2/3 cover search and verified multi-level routing. Session 6 natural rounds show six radio kinds across team modes; no FFA radio. Rich caption/audio activation and legacy role/kit names still require main. |
 | R-L12 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L13 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
-| R-L14 | partial | Session 6 adds no WebGL resources. 824 tests, build/audit, fixed-camera/live/muted inspections and five final stock TDM/FFA pairs pass. Exact radio-hook candidate fails pair 1 FFA at 2507.7 ms / 8.830% stalled time despite two deaths and zero errors/recompiles. Initial stock failure and all prior covered compositor evidence retained; candidate repeatability remains open, no iGPU claim. |
+| R-L14 | partial | Session 8 adds no client bytes or WebGL resources. 855 tests, typecheck/build/audit and fixed-camera/live inspections pass. Initial FFA fails at 1995.2/2051.4 ms; final qualification fails pair 2 FFA at 2302.2 ms and first-death 325.3 ms. Zero errors/recompiles. Five pairs not achieved. A separate native wait is covered; the focused death trace does not reproduce the failure. All evidence retained; no iGPU or presentation-fix claim. |
 | R-L15 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L16 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 | R-L17 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
@@ -270,6 +402,422 @@ walking and bounded marksman high-ground orders. Priorities above are re-ranked.
 | R-L23 | n.a. | Outside this session/combat lane; other-stream work left untouched. |
 
 ## Session log
+
+### Session 8 - 2026-09-11: Weapon authority, arc 2/2 - ready means ready
+
+Reference: **R-G19**, **R-G20**, **R-G02**, **R-G05**, **R-L19**, **R-L14**.
+Target: one server-recorded clock for weapon readiness and cadence; an input
+received **1 ms before** ADS/sprint/swap/reload completion must be denied,
+while the input received **at** completion fires, even when both drain in one
+50 ms tick. Keep every shared-table value, damage, rate budget and movement
+reconciliation threshold unchanged. No authority is granted to payload clocks
+or the optional client subtick timestamp.
+
+Resumed **88a5bc5** with Session 7's uncommitted `arena-room.ts`, cadence test
+and plan changes intact. No other stream's source, asset, inspector or gate is
+edited. Port **8798**, no Meshy/dependencies/commit/push/deploy. The supervisor
+failure was a **360 s watchdog timeout while waiting for main's GPU lease**,
+not a measured combat frame failure. The distinct Session 7 FFA failures
+remain valid. The precise scheduling request is above; our inspections and
+checks keep the shared lease and never stop another stream's process.
+
+The first fresh ordinary stock FFA gate passes with **3 natural deaths**,
+**36.110 s** measured, **14.2 ms** max presentation, **4.0 ms** max callback,
+p99 **9 ms**, zero >150 ms intervals, shaders or console errors. First
+damage/death windows both max **8.2 ms**. Lease wait **0 ms**.
+Evidence: `combat-s8-baseline-ffa.json`. This is a baseline result, not a
+repair claim for the intermittent presentation stall.
+
+Delivered on by default, no main hookup required:
+
+- Session 7 fixed cadence/recoil but readiness still used `Date.now()` at
+  drain. The real queued-room test demonstrates the early shot passing and
+  the correctly timed shot behind it losing the cadence contest on **all five
+  weapons**, for both ADS and sprint recovery. Baseline result **10 failed /
+  12 passed**, retained in `combat-s8-before-handling.log`.
+- `resolveFire` now evaluates readiness, swap/reload eligibility, automatic
+  empty-mag reload, cadence and recoil at `InputMeta.receivedAt`. Wall time
+  still drives current-world event/lag-history work. Swap and manual reload
+  handlers receive the same trusted metadata and start their timers at receipt.
+  Direct bot calls retain their actual invocation time. No deferred shot or
+  release-time retry is scheduled on the server.
+- **19 new regression cases** cover early/ready ADS and sprint on all five
+  weapons, all four actual swaps away from AR, and reload completion/ammo/
+  reserve on every weapon. Forged switch/reload payload clocks are ignored.
+  All **31 cadence tests** and the **79-test** cadence/handling/prediction
+  subset pass (`combat-s8-final-focused.log`). Prior forged-subtick,
+  queue-phase, recoil-ray, close-duel and release-after-denial cases remain.
+
+`pnpm typecheck`, `pnpm test`, `pnpm build:client`, `pnpm audit:assets`:
+**PASS**, **855 tests passed / 9 skipped**, **98 files passed / 7 skipped**.
+Evidence: `combat-s8-final-checks.json` and matching command logs. Both
+checks and inspections acquire the GPU lease, keeping builds/tests out of
+another stream's acceptance interval. The first focused command's outer
+PowerShell redirection reported a native stderr warning as an error even
+though its recorded child exit was **0**; the direct final focused invocation
+and JSON result both verify success. No failed test was reclassified.
+
+Client SHA-256 remains
+`5c1d9c597ff8da9bfcb58fc81cd0ef4e873c24eada2dae22a1782718af98c67a`.
+Assets **30,121,938 bytes**, public **37,271,472 bytes**, largest asset
+**7,183,364 bytes**, all unchanged. **0 new asset bytes, textures, WebGL
+lights/passes, Meshy credits or generated-asset rejects.** Weapon-table audit
+is retained as `combat-s8-weapon-table.json`; ideal TTK/ADS/sprint numbers
+remain those tabulated in Session 7.
+
+Transport diagnosis: `.inspect/combat-s8-wire-proxy.mjs` forwards WebSocket
+bytes unchanged through an ephemeral loopback TCP relay and observes frame
+arrival on both sides. The inspection browser also records native CDP frame
+events and raw send/reply performance times. This is an inspection-only
+connection path, never an acceptance substitute or shipped networking change.
+The first capture found negotiated compression and could not label raw wire
+messages; it retains **11/12 AR**, **17/18 SMG**, **2/2 shotgun**, **1/1 sniper**,
+**8/8 pistol** confirmations in `combat-s8-delivery-*`. Its decoder limitation
+is not treated as evidence about where those two denials occurred.
+
+The second observer decodes negotiated deflate off the forwarding path and
+retains **425 compressed frames / 418 decoded text frames**. It confirms
+**12/12 AR, 18/18 SMG, 2/2 shotgun, 1/1 sniper, 8/8 pistol**, no denials.
+SMG browser intervals **67.4 / 69.5 / 71.5 ms** min/median/max; relay arrival
+intervals **67.54 / 69.47 / 71.45 ms**. This burst preserves spacing through
+the relay and reaches the server legally. Separate epoch clocks have a
+roughly **3.6 ms offset** in this capture; their raw differences are retained,
+not called one-way latency. Node's two >40 ms heartbeat gaps (**75.2 / 61.7
+ms**) are also retained. These observations **do not reproduce or explain**
+Session 7's 1.2 s compressed delivery, and do not justify widening the cap.
+Evidence: `combat-s8-delivery-decoded-{wire,summary}.json`, per-weapon JSON,
+report and stills; `.inspect/combat-s8-delivery-summary.mjs` reproduces the
+summary without altering the game. No renderer/driver cause is inferred.
+
+The required fixed-camera inspector passes with zero errors/network violations:
+`combat-s8-final-{report.json,relay.png,practice-two.png}`. Relay remains
+**27 calls / 200,300 triangles / 16 textures / 25.681 MiB**, median **7.0 ms**,
+p99/max **7.1 ms**; construction **196.2 ms**, scene preparation **1039.9 ms**.
+This machine reports **RTX 5070 / ANGLE D3D11**; these are not iGPU claims.
+No visual source changed, so the before/after fixed camera has no intended
+visual delta. Captures are inspected, including the readable kill banner.
+
+Readiness delivery remains a separate open problem. The stock handling
+assertion fails AR (**257 ms** sight settle, **461.8 ms** first confirmed shot
+against **450 ms** bound), with zero console errors. Its failure is retained
+in `combat-s8-handling-report.json`. Inspection-only send/reply observers
+preserve the existing input path and assertions and save raw traces before
+assertions; an unasserted diagnostic reproduces **799 ms**. A separate relay
+run gives **1139.7 ms**, preserving **262.5 / 262.215 ms** browser/relay ADS-to-
+fire spacing. Denial at **902.2 ms** reports all **250 ms** of ADS remaining.
+The Worker observer then captures a **347 ms** tick gap immediately after a
+periodic snapshot, delays ADS by roughly **127 ms** while the later fire
+arrives promptly, and correctly rejects that compressed readiness interval.
+The exact timestamps, traces and bounded request are above. Buffered storage
+write promises do not establish flush completion; see the official
+[Durable Object storage API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/).
+No storage option, persistence period, transport, client-clock credit or
+weapon threshold changed. The observed coincidence warrants investigation,
+not a storage/driver diagnosis or a claim that Session 7's exact stall is solved.
+
+Rejected diagnostic intermediates are retained: native Node WebSocket could
+not complete the local inspector handshake; the first raw CDP helper omitted
+the Worker's execution context; neither launched a gameplay browser. The
+successful observer uses the bundle's reported execution context and a
+non-pausing conditional breakpoint, then bounded wrappers around storage,
+raw arrival, handlers and ticks. Its report completed but the CDP socket
+stayed open. Only its verified own PID was stopped, documented in
+`combat-s8-handling-worker-context-manual-cleanup.json`; the helper now closes
+its socket. `combat-s8-diagnostic-server-cleanup.json` proves the entire
+owned preview tree/8798 listener stopped. A clean preview was restarted to
+remove all ephemeral Worker observers before the final ordinary captures.
+
+**Wow check:** `combat-s8-final-play-report.json` and five
+`combat-s8-final-play-fight-{0,5,10,15,20}s.png` stills cover **20.524 s** of
+live TDM. Sprint release and ADS at **8.015 s**, **11 confirmed SMG shots /
+12 intents**, **9 hit events**, **1 elimination**, ending at **50 HP**.
+The 10-second still shows the confirmed Anchor 3 elimination. Normal movement,
+sprint, ADS and trigger keys/buttons drive the capture; inspection aim only
+targets clear replicated enemies. No state/HP/pose/clock injection. Player
+sentence: **"I can sprint into a lane, shoulder the SMG, and land the burst."**
+The five normal practice bursts retain **12/12 AR, 16/17 SMG, 2/2 shotgun,
+1/1 sniper, 7/8 pistol** confirmations and two denials; do not call delivery
+loss solved. Zero browser errors. This capture is separate from acceptance.
+
+**Final qualification: FAIL; Session 8 is not green.** The original stock
+probe runs with `--assert --assert-first-use`, the existing 1500 ms
+presentation / 150 ms main-thread and first-use ceilings, p99 25 ms and 5%
+stalled-time bounds, fresh browser profiles, unchanged flags and shared lease.
+The initial sequence already failed pair 1 FFA (**1995.2 / 2051.4 ms**,
+**5.309%** stalled time); it remains in `combat-s8-acceptance.json`.
+The separate complete startup trace located the **3369.233 ms** native raster
+wait described above. After removing diagnostic observers and restarting the
+preview, one final ordinary sequence stopped at pair 2 FFA:
+
+| Pair / mode | Gate | Deaths | Max frame / callback ms | p99 ms | First damage / death ms | First-ready ms | Lease wait s |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 / TDM | PASS | 2 | 20.2 / 12.3 | 8 | 7.9 / 8.1 | 3480.7 | 97.5 |
+| 1 / FFA | PASS | 2 | 14.4 / 8.3 | 8 | 7.8 / 8.7 | 3448.4 | 87.5 |
+| 2 / TDM | PASS | 2 | 16.6 / 11.9 | 8 | 7.7 / 8.1 | 3245.9 | 0.0 |
+| 2 / FFA | FAIL | 3 | 2302.2 / 7.9 | 8 | 10.6 / 325.3 | 3068.2 | 120.7 |
+
+The failed FFA retains **2627.5 ms / 3.116%** stalled time and zero
+errors/recompiles. Its separate **325.3 ms** first-death interval fails the
+150 ms first-use bound too. First-ready time is **3068.2-3480.7 ms**, not a
+deployed or cold-driver result. Every loading/startup interval remains in
+the raw reports, including the **2940.2 ms** post-ready interval overlapping
+the failed run's initial measured gap. Five consecutive pairs were **not**
+achieved. `combat-s8-final-gate-table.mjs` reproduces the table from
+`combat-s8-final-acceptance.json` and the four individual reports.
+
+One focused diagnostic copies the original hitch driver only under `.inspect/`
+and exports **1.3 s after the first natural death**, with an explicit refusal
+of acceptance flags. Normal controls, CPU/GPU observers and shared lease remain.
+It retains one death, first damage **7.9 ms**, first death **8.7 ms**, gameplay
+max **13 ms**, callback **4 ms**, no errors/recompiles. The first-use window is
+complete; it **does not reproduce** the 325.3 ms failure. Older startup gaps
+**271.7 / 151.6 / 487.9 ms** have fallen outside renderer trace coverage and
+are not attributed. This one-death diagnostic deliberately cannot qualify as
+acceptance. An initial inspection-copy import rewrite mistakenly changed the
+in-memory map imports; that setup error happened before browser launch and
+is retained as `combat-s8-death-diagnostic-setup-failure.log`. The corrected
+copy preserves those paths. There is no actionable HUD/VFX cause from this
+trace, so no speculative production change or further acceptance retry.
+
+Cleanup and final scope verification are recorded in
+`combat-s8-server-cleanup.json` and `combat-s8-scope.json`. The final disposition
+is `combat-s8-summary.json`. `combat-s8-review.patch` plus the separate
+`combat-s8-weapon-cadence.test.ts` preserve the uncommitted Session 7 + 8
+work for review/recovery; `combat-s8-review.json` records their hashes. No
+commit, push, deploy, new dependency or another stream's source edit.
+
+Open owner questions: none required for this repair. Defaults remain the
+shared weapon table, trusted server receipt times, unchanged persistence and
+unchanged hitch thresholds. Next priority stays the owner's movement fix
+activation and the main-owned presentation investigation; do not start the
+next audio/impact arc by treating these partial rows as closed.
+
+### Session 7 - 2026-09-11: Weapon authority, arc 1/2 - every legal round counts
+
+Reference: **R-G02**, **R-G04**, **R-G05**, **R-G06**, **R-G19**, **R-G20**,
+**R-L03**, **R-L14**. Main's rollback/radio activations and presentation
+investigation remain the first integration prerequisites. This session takes
+the next actionable combat gap, auditing the shared weapon table through the
+actual queued room instead of treating theoretical TTK as delivered cadence.
+
+Target: every legally spaced arrival survives the 50 ms queue boundary,
+genuinely early arrivals are rejected, and recoil uses the same authoritative
+shot clock as cadence. All three now pass the queued-room regression. The
+exact weapon intervals, damage, movement, ADS/sprint timers, input budget and
+reconciliation thresholds are unchanged. Client-claimed clocks grant no
+firing credit. This fixes tick quantization; it does not make compressed
+network delivery disappear (retained browser evidence below).
+
+Started clean at **88a5bc5**, branch `ironsight-aaa-combat`. Only the combat
+allowlist and new `.inspect/combat-s7-*` artifacts are touched. Port **8798**;
+tests/builds/browsers share the inspection lease. No Meshy, assets, dependencies,
+commits, pushes or deployments. Session 6's retained candidate FFA failure
+remains valid despite the supervisor's green summary.
+
+Delivered, on by default without a new main hook:
+
+- `arena-room.ts` previously compared `Date.now()` at queue drain for the fire
+  cap. It now compares the SDK's server-recorded `InputMeta.receivedAt` and
+  uses that same instant for recoil sampling/recovery. Direct bot calls use
+  their actual tick invocation time. Payload `receivedAt`, payload deadlines
+  and the optional client subtick `ts` cannot buy a faster shot.
+- Real arrival compression still gets a strict rejection. The rate branch
+  now returns the existing `fireBlocked` ammo/retry reply as well as the
+  existing recoil acknowledgement. Net's already-wired handling recovery
+  restores prediction and retries only while the trigger is held. Advice is
+  at least one tick, never skips the next cap check, and schedules no server
+  shot after release. No new input type, retry queue, timer or client bundle.
+- Twelve new tests retain the real 20 Hz queue and normal hit validation.
+  They cover three tick phases for all five weapons (141 legal arrivals),
+  recoil parity, actual close AR/SMG/pistol body kills, early-arrival rejection,
+  forged payload and wire-envelope clocks, and release after denial.
+
+The regression was observed failing before repair:
+`combat-s7-before-cadence.log` has **6 failed / 4 passed**. At phase 1, the
+SMG and pistol each accept only **7/12** legal intents. Recoil stamps the
+first SMG shot **33 ms** late; the expected five/three-shot body kills fail.
+The inverse exploit also reproduces: AR arrivals only **52 ms** apart are
+accepted because their drains are 100 ms apart. After repair the focused
+75-test run passes. The final suite includes the two later security/release
+checks: **836 passed / 9 skipped**, **98 files passed / 7 skipped**.
+
+Final `pnpm typecheck`, `pnpm test`, `pnpm build:client`, `pnpm audit:assets`:
+**PASS**, `combat-s7-final-checks.json` and `combat-s7-final-*.log`. The
+prior verified run has **835** tests; it predates the final denial-recovery
+test and is retained separately. Client SHA-256 stays
+`5c1d9c597ff8da9bfcb58fc81cd0ef4e873c24eada2dae22a1782718af98c67a`.
+
+Shared-table audit: `combat-s7-weapon-table.json` reads the actual shared
+roster and pellet/falloff helpers. Values are **ideal first-shot-to-kill-shot
+body TTK**, excluding acquisition, reload, aim error, tick and network delay:
+
+| Weapon | Interval ms | ADS / sprint ms | Body TTK 5 / 15 / 30 / 60 m, ms |
+|---|---:|---:|---|
+| AR | 100 | 250 / 120 | 300 / 300 / 300 / 500 |
+| SMG | 65 | 200 / 100 | 260 / 260 / 455 / 585 |
+| Shotgun | 850 | 225 / 130 | 0 / 2550 / 11900 / out of range |
+| Sniper | 1300 | 400 / 150 | 1300 / 1300 / 1300 / 1300 |
+| Pistol | 160 | 165 / 90 | 320 / 320 / 480 / 640 |
+
+The shotgun's 30 m ideal sequence exceeds its magazine; that value is not a
+practical reload-inclusive TTK. First-shot spread is <=**0.0002 rad**,
+crouch reduces grounded spread **25%**, and movement dominates that benefit.
+AR/SMG open with four vertical pattern entries, then lateral drift; hybrid
+spread begins at indices **8/7**, and pistol at **5**. ADS/crouch multiply,
+and airborne crouch grants no accuracy benefit. Existing focused tests prove
+the shared math. No damage or speed retuning was justified by this audit.
+Bots still decide at 20 Hz: this repair does not invent subtick bot intents.
+
+The real pointer/key handling inspection passes all five weapons:
+`combat-s7-after-report.json`, `--assert-handling`. Measured ADS completion
+is **255.6 / 207.5 / 235.3 / 408.9 / 171.4 ms** (AR through pistol);
+first server-confirmed shots arrive at **325.1 / 228.6 / 290.8 / 465.3 /
+211.2 ms**. Pistol sprint release confirms its first shot at **145.3 ms**
+against the 90 ms timer. These include render/tick/transport scheduling,
+not measured RTT or human comfort. Reduced view kick remains the precise
+main-owned request above; its current omission was not hidden by a scorecard.
+
+Stock-client held-pointer evidence, each burst lasting **1.2 s**, no pose,
+health, clock or weapon-stat injection (confirmed / sent):
+
+| Weapon | Before | Receipt-clock repair | Final denial-recovery build |
+|---|---:|---:|---:|
+| AR | 8 / 12 | 12 / 12 | 12 / 12 |
+| SMG | 10 / 18 | 17 / 18 | 5 / 18 |
+| Shotgun | 1 / 2 | 2 / 2 | 2 / 2 |
+| Sniper | 1 / 1 | 1 / 1 | 1 / 1 |
+| Pistol | 7 / 8 | 8 / 8 | 7 / 8 |
+
+All runs are retained at `combat-s7-{before,after,final-play}-recoil-*.json`
+and their reports. **The final SMG outlier is not erased or called fixed.**
+Client sends stay **69.3-69.6 ms** apart, but the fifth accepted input has a
+**1247 ms estimated clock delay** (server receipt minus the SDK's estimated
+server timestamp; not a measured one-way network latency). The next thirteen
+denials each report **64 ms** remaining on the **65 ms** cap, directly showing
+that those inputs were received only **1 ms** after the accepted one. The
+new reply corrects them; it cannot restore intent spacing lost upstream.
+The earlier 17/18 run retains an **11 ms** estimated receipt-delay outlier
+before its one rejection. The source of these delays is untraced; no browser,
+Wrangler, server-CPU or driver cause is assigned. This is the next bounded
+weapon-authority task, not grounds to trust client clocks or widen the cap.
+`combat-s7-delivery-summary.json` indexes the exact request/reply evidence.
+
+Wow check: `combat-s7-final-play-report.json` and
+`combat-s7-final-play-fight-{0,5,10,15,20}s.png` capture **20.530 s** of
+ordinary live Relay TDM. **21 confirmed local shots, 16 hit events, two
+local SMG body eliminations**, magazine **25 -> 4**, **zero reload replies**,
+HP **100 -> 85**. The human uses normal W, aim, slot and trigger inputs;
+bots, damage and game time are unmodified. Player sentence:
+**"I dropped two attackers with one SMG magazine."** The same capture also
+retains 44 fire attempts and an approximately 1.5 s receipt/reply bunch early
+in the fight; its two kills are not proof that delivery is consistently smooth.
+Readback captures remain separate from hitch acceptance.
+
+Required fixed-camera inspection: **PASS**, zero errors/forbidden requests,
+`combat-s7-{before,final}-report.json` and matching Relay/practice-two PNGs.
+Relay stays **27 draws / 200,300 triangles / 16 textures / 25.681 MiB**;
+practice stays **49 draws / 101,470 triangles / 17 textures**. Median Relay
+frame **6.9 -> 7.0 ms**, p99 **7.1 -> 7.2 ms**. These are host/run variation,
+not a claimed rendering improvement or laptop-iGPU proof. Fixed Relay scene
+preparation **1017 -> 1023 ms**, construction **199.7 -> 198.0 ms**; final
+qualification first-ready spans **3119.9-4984.1 ms** across four fresh profiles.
+Assets **30,121,938 bytes**, public **37,271,472 bytes**, largest asset
+**7,183,364 bytes**, all unchanged. **0 bytes, textures, WebGL lights, passes,
+Meshy credits or generated-asset rejects added.**
+
+Rejected/intermediate tooling: the first raw-envelope security fixture used
+`c:m`, so the real wire parser correctly dropped it. It now imports the SDK's
+`ClientMessageType.Message` (`c:msg`). Keep the initial **834 pass / 1 fail**
+release log. The initial delivery-summary helper mistakenly treated recoil
+state `at` as a local frame timestamp; that invalid summary is retained as
+`combat-s7-delivery-summary-first.json`. The corrected summary derives no
+frame intervals from those samples, and future probes use `sampleAtMs`.
+Neither fixture correction changes runtime code or a gate threshold.
+The first post-run process audit accidentally included large raw trace JSON;
+that owned audit process was stopped and replaced with explicit report/manifest
+inputs. The corrected process audit passes. Acceptance had already ended and
+the dev server was already stopped; this did not produce an acceptance sample.
+
+Initial ordinary acceptance stops on **pair 4 FFA**:
+`combat-s7-acceptance.json`, `combat-s7-accept-stats.json` and eight original
+reports/logs. Earlier TDM maxima **13.8 / 17.5 / 14.5 / 17.8 ms** and FFA
+**14.4 / 14.6 / 14.3 ms** pass. The failing FFA has a **1870.7 ms** first
+measured interval, **7.7 ms** callback max, p99 **8 ms**, **2.651%** stalled
+time, two natural deaths, zero errors/recompiles. First damage/death windows
+pass at **7.8 / 8.4 ms**. Its **1768/1787** idle CPU samples are not a cause.
+
+Two separate diagnostic runs retain the original flags plus cross-process
+tracing, GPU submissions and callback timing. The full FFA diagnostic has
+**43.378 s**, two deaths and **16.2 ms** max; it does not reproduce the gap.
+Its **281.3 / 158.9 ms** loading intervals are outside retained trace coverage.
+The short startup diagnostic covers **344 / 161.3 ms** intervals before UI
+preparation. In the first, an image-load task takes **279.749 ms wall /
+15.070 ms CPU**, overlapping a **259.304 / 2.577 ms** WebGL program-status
+wait. The second overlaps a **156.892 / 63.769 ms** DOM timer task. Neither
+is the failed post-ready presentation interval. The short diagnostic has no
+measured gameplay frames or deaths and is explicitly **not acceptance**.
+Original reports and `-trace-summary.json` companions are retained under
+`combat-s7-ffa-{diagnostic,startup-diagnostic}`; no new runtime fix is claimed.
+
+After those diagnostics, one fresh, explicitly bounded five-pair qualification
+sequence is run as `combat-s7-final-accept-*`, stopping at its first failure.
+The initial failure stays in the final summary and the main request. Runtime,
+CPU sampling, ordinary probe, browser flags and every gate limit are unchanged;
+this remeasurement qualifies its own runs only and cannot establish reliability
+or erase the earlier failure. It **fails again**, so no further acceptance
+retry is performed:
+
+| Final pair | Mode | Max presentation / callback ms | Result |
+|---|---|---:|---|
+| 1 | TDM | 343.9 / 7.3 | PASS under the existing presentation allowance |
+| 1 | FFA | 14.4 / 6.6 | PASS |
+| 2 | TDM | 14.3 / 7.3 | PASS |
+| 2 | FFA | 1973.4 / 5.9 | FAIL: presentation gap |
+
+All four have two natural deaths, p99 **8 ms**, zero errors/recompiles, and
+passing first-damage/death checks. Final FFA also retains **195.8 ms**, for
+**2169.2 ms / 2.990%** stalled time. Its first-use windows are **7.6 / 8.5 ms**.
+The startup observer records **2604.2 ms** after ready, overlapping the first
+measured gap; do not add those two observations as independent stalls.
+CPU samples are **1856/1877** idle in the large gap and **180/185** in the
+second, without causal attribution. `combat-s7-final-acceptance.json` and
+`combat-s7-final-accept-stats.json` index all four original reports/logs.
+
+The follow-up recovery diagnostic extends the short observation to **6.147 s**
+and records **886** gameplay frames, max **10.1 ms**, with no reproduced spike.
+Its earlier loading intervals are outside retained renderer trace coverage;
+it lacks two deaths and is not acceptance. The earlier zero-frame diagnostic
+is also inspected over its actual **1820.9 ms** measurement window in
+`combat-s7-zero-frame-trace.json`, explicitly labeled an **uncompleted window,
+not a completed frame**. It has a clock anchor and retained renderer task
+coverage, but no long completed task explaining the missing callback. An
+unfinished native task need not have a completed trace event. Neither this
+absence nor the recovery run proves a cause or a repair. No combat-owned
+runtime change is justified by these traces; main's investigation remains open.
+
+Open owner choices/defaults: keep the exact shared weapon damage, recoil and
+handling table while tracing the compressed-delivery path; do not compensate
+for missing shots with extra damage or client-clock credit. Default reduced
+cosmetic kick is **25%** when main activates the existing accessibility setting.
+The next combat arc should timestamp real sends, server receipt and delivery
+with distinct clock domains, then test any demonstrated fix without changing
+authoritative rate caps. Main still owns presentation and the pending movement/
+radio hooks; no owner answer is needed to retain these conservative defaults.
+
+Final disposition: **NOT GREEN - FFA hitch acceptance failed; five consecutive
+TDM/FFA pairs were not achieved.** The combat change remains reviewable with
+all 836 tests and required typecheck/build/assets/fixed-camera checks passing.
+No threshold, observer, browser, map, driver or other-stream file was changed
+to turn the failed run green. `combat-s7-summary.json` reports **FAIL**, includes
+both acceptance sequences and all diagnostic limits, and does not substitute
+diagnostic passes for acceptance. `combat-s7-scope.json` verifies only
+`src/rooms/arena-room.ts`, `test/weapon-cadence.test.ts`, and this plan changed.
+The owned server tree rooted at PID **61008** was stopped, with **0** remaining
+tree processes and **0** listeners on 8798 (`combat-s7-server-cleanup.json`).
+All inspection processes finished through their browser-close/lease cleanup.
+`combat-s7-process-audit.json` independently finds no remaining owned Node or
+browser roots and no port 8798 listener.
+No commit, push or deployment was performed; HEAD remains **88a5bc5**.
 
 ### Session 6 - 2026-09-11: Bot squad tactics, arc 3/3 - squad radio handoff
 

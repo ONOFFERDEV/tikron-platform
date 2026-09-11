@@ -214,7 +214,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly reserveByW = new Map<string, number[]>();
   private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading (current weapon only)
   private readonly recoil = new Map<string, RecoilState>();
-  private readonly lastShotAt = new Map<string, number>(); // epoch ms
+  private readonly lastShotAt = new Map<string, number>(); // server receipt epoch ms
   private readonly swapUntil = new Map<string, number>(); // epoch ms; can't fire until a weapon swap settles
   private readonly nadeReadyAt = new Map<string, number>(); // epoch ms; earliest next grenade throw
   private readonly primaryWeapon = new Map<string, number>(); // chosen spawn weapon index (loadout)
@@ -387,8 +387,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     });
     this.onMessage("look", (client, payload) => this.handleLook(client, payload));
     this.onMessage("fire", (client, payload, _seq, input) => this.handleFire(client, payload, input));
-    this.onMessage("reload", (client) => this.handleReload(client));
-    this.onMessage("switch", (client, payload) => this.handleSwitch(client, payload));
+    this.onMessage("reload", (client, _payload, _seq, input) => this.handleReload(client, input));
+    this.onMessage("switch", (client, payload, _seq, input) => this.handleSwitch(client, payload, input));
     this.onMessage("nade", (client) => this.handleNade(client));
     this.onMessage("loadout", (client, payload) => this.handleLoadout(client, payload));
     this.onMessage("respawn", (client) => this.handleRespawn(client));
@@ -869,9 +869,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (!shooter || !shooter.alive) return;
 
     const now = Date.now();
+    const shotAt = input?.receivedAt ?? now;
     const spec = this.weaponOf(shooter);
     const w = shooter.weapon;
-    const handling = this.updateHandling(id, now);
+    // Readiness and cadence must use the same trusted receipt clock. Otherwise
+    // an early input borrows its queue wait to finish ADS/sprint recovery, spends
+    // ammo, and rejects the correctly timed shot behind it as a cadence violation.
+    const handling = this.updateHandling(id, shotAt);
     if (!handling.canFire) {
       // A boundary shot may beat its move's server timer by a render/network
       // scheduling interval. Correct predicted ammo and retry only while held;
@@ -883,28 +887,40 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     // A weapon swap must settle before the new weapon can fire.
     const swap = this.swapUntil.get(id);
-    if (swap !== undefined && now < swap) return;
+    if (swap !== undefined && shotAt < swap) return;
 
+    // Queue drain times lie on the 50 ms tick grid. Comparing them drops legal
+    // 65 ms SMG / 160 ms pistol shots, and can accept genuinely early arrivals
+    // whose drains happen to be far enough apart. Only the SDK's server receipt
+    // clock owns cadence; neither payload timestamps nor input.ts grant credit.
+    // Bots call directly during the tick, so their receipt instant is `now`.
     const last = this.lastShotAt.get(id);
-    if (last !== undefined && now - last < spec.fireIntervalMs) return; // server fire-rate cap
+    if (last !== undefined && shotAt - last < spec.fireIntervalMs) {
+      // Real transport jitter can still compress arrival spacing. Reuse the
+      // handling-denial path to restore predicted ammo and retry only if the
+      // trigger remains held. This advice never bypasses the next rate check.
+      client.send("fireBlocked", { retryMs: Math.max(TICK_MS, Math.ceil(spec.fireIntervalMs - (shotAt - last))),
+        mag: this.magArr(id)[w] ?? 0, weapon: spec.slot });
+      return;
+    }
 
     // Ammo (server-authoritative, per weapon). Reloading blocks; an empty mag auto-reloads.
     const done = this.reloadUntil.get(id);
     if (done !== undefined) {
-      if (now < done) return; // mid-reload
+      if (shotAt < done) return; // mid-reload
       this.reloadUntil.delete(id);
       this.finishReload(id);
     }
     const mags = this.magArr(id);
     if ((mags[w] ?? 0) <= 0) {
-      this.startReload(id, now);
+      this.startReload(id, shotAt);
       return;
     }
     mags[w] = (mags[w] ?? 0) - 1;
-    this.lastShotAt.set(id, now);
+    this.lastShotAt.set(id, shotAt);
     const burst = this.recoil.get(id) ?? emptyRecoil();
-    const kick = recoilSample(burst, spec, now, handling.adsProgress >= 1);
-    this.recoil.set(id, advanceRecoil(burst, spec, now));
+    const kick = recoilSample(burst, spec, shotAt, handling.adsProgress >= 1);
+    this.recoil.set(id, advanceRecoil(burst, spec, shotAt));
     // Fire carries current raw mouse intent atomically, avoiding the throttled
     // look stream lagging behind an honest recoil-compensating mouse movement.
     this.handleLook(client, payload);
@@ -1199,7 +1215,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return this.clientList().find((c) => c.id === id);
   }
 
-  private handleReload(client: Client): void {
+  private handleReload(client: Client, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
     if (!p || !p.alive) return;
@@ -1207,7 +1223,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const spec = this.weaponOf(p);
     if ((this.magArr(id)[p.weapon] ?? 0) >= spec.mag) return; // full
     if ((this.reserveArr(id)[p.weapon] ?? 0) <= 0) return; // no spare rounds
-    this.startReload(id, Date.now());
+    this.startReload(id, input?.receivedAt ?? Date.now());
   }
 
   private startReload(id: string, now: number): void {
@@ -1249,7 +1265,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // --- weapon switch / loadout / grenades -------------------------------------
 
   /** Switch to loadout slot 1–5; the swap delay gates the next shot. */
-  private handleSwitch(client: Client, payload: unknown): void {
+  private handleSwitch(client: Client, payload: unknown, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
     if (!p || !p.alive) return;
@@ -1257,11 +1273,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (slot === undefined) return;
     const idx = Math.round(slot) - 1;
     if (idx < 0 || idx >= WEAPONS.length || idx === p.weapon) return;
+    const now = input?.receivedAt ?? Date.now();
     p.weapon = idx;
-    this.swapUntil.set(id, Date.now() + WEAPON.swapMs);
+    this.swapUntil.set(id, now + WEAPON.swapMs);
     p.reloadEnd = 0;
     this.reloadUntil.delete(id); // a swap cancels an in-progress reload
-    this.updateHandling(id, Date.now());
+    this.updateHandling(id, now);
     this.recoil.delete(id);
     this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
