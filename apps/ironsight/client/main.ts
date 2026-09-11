@@ -195,7 +195,10 @@ async function main(): Promise<void> {
   // Keep ordinary play on the established path until combat fixes held ADS/
   // sprint continuity when an acknowledged-command tick has no queued input.
   const reviewMovement = net.state?.mode === 3 && new URLSearchParams(location.search).has('movement-review');
-  if (reviewMovement) predictor.connect(net.room);
+  // `connect` gained an online gate in the combat stream's rollback repair: PartySocket
+  // queues writes while the link is down, so retried commands must be dropped rather than
+  // turned into an unbounded backlog. Net.online is the same gate Net.send already uses.
+  if (reviewMovement) predictor.connect(net.room, () => net.online);
 
   const name = (id: string): string => {
     if (id === net.myId) return GAME.text.selfName;
