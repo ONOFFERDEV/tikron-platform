@@ -106,17 +106,28 @@ function buildKit(mesh: THREE.SkinnedMesh, kit: OperatorKit): THREE.BufferGeomet
   return result;
 }
 
-export function kitShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
+export function kitShader(shader: THREE.WebGLProgramParametersWithUniforms, wool: THREE.Color): void {
+  shader.uniforms.fieldWoolColor = { value: wool };
   shader.vertexShader = shader.vertexShader.replace('#include <common>',
     '#include <common>\nattribute vec4 fieldKit; varying vec4 vFieldKit;\nattribute vec3 fieldPosition; varying vec3 vFieldPosition;')
     .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFieldKit = fieldKit; vFieldPosition = fieldPosition;');
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-    varying vec4 vFieldKit; varying vec3 vFieldPosition;
+    varying vec4 vFieldKit; varying vec3 vFieldPosition; uniform vec3 fieldWoolColor;
     float fieldNoise(vec3 p){ return fract(sin(dot(floor(p),vec3(127.1,311.7,74.7)))*43758.5453); }`)
     .replace('#include <color_fragment>', `#include <color_fragment>
-      vec3 canvas = mix(vec3(.15,.12,.075), diffuseColor.rgb, clamp(vFieldKit.y,0.0,1.0));
-      float wear = fieldNoise(vFieldPosition * 31.0);
-      diffuseColor.rgb = mix(diffuseColor.rgb, canvas * (.86 + .18 * wear), min(1.0,vFieldKit.x));`)
+      float sourceValue = clamp(dot(diffuseColor.rgb / max(diffuse,vec3(.001)),vec3(.2126,.7152,.0722)),.15,1.0);
+      vec3 p = vFieldPosition;
+      float wear = fieldNoise(p * 31.0);
+      float threadFade = 1.0 - smoothstep(.2,.8,max(length(dFdx(p * 260.0)),length(dFdy(p * 260.0))));
+      float weave = sin(p.y * 1500.0) * sin((p.x + p.z) * 1500.0) * threadFade;
+      float torso = smoothstep(.83,.97,p.y) * (1.0 - smoothstep(1.36,1.46,p.y));
+      vec3 cloth = mix(fieldWoolColor, diffuse * .62, torso * .32);
+      cloth *= (.65 + .35 * sourceValue) * (.92 + .12 * wear + .045 * weave);
+      float boot = 1.0 - smoothstep(.22,.34,p.y);
+      cloth = mix(cloth,vec3(.047,.036,.025) * (.78 + .3 * sourceValue),boot);
+      vec3 canvas = mix(vec3(.052,.034,.019),vec3(.24,.205,.13),clamp(vFieldKit.y,0.0,1.0));
+      canvas *= .84 + .20 * wear + .025 * weave;
+      diffuseColor.rgb = mix(cloth,canvas,min(1.0,vFieldKit.x));`)
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = max(.9,roughnessFactor);')
     .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = min(.03,metalnessFactor);');
 }

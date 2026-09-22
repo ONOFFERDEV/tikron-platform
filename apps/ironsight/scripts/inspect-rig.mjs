@@ -92,12 +92,13 @@ try {
       if (ready) break;
     }
     if (!ready) { console.warn(`Readiness timed out: weapon ${weapon}, arms ${arms}, ${name}`); timedOut = true; }
+    const readyMs = (await send('Runtime.evaluate', { expression: 'performance.now()', returnByValue: true })).result?.value;
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     const tag = sweep ? `-${pose}-aim${aim}-t${sample}` : '';
     const file = join(output, `${prefix}${tag}-w${weapon}-arms${arms}-${name}.png`);
     await writeFile(file, Buffer.from(shot.data, 'base64'));
     console.log(file);
-    measurements.push({ name, pose, aim, sample, weapon, arms, metrics: (await send('Runtime.evaluate', { expression: 'window.__rigInspect', returnByValue: true })).result?.value });
+    measurements.push({ name, pose, aim, sample, weapon, arms, readyMs, metrics: (await send('Runtime.evaluate', { expression: 'window.__rigInspect', returnByValue: true })).result?.value });
   }
   if (forbiddenNetwork.length) throw Error("Inspector opened gameplay network connections");
   await writeFile(join(output, `${prefix}-report.json`), JSON.stringify({ reload: base.searchParams.get('reload'), poses, aims, samples, weapons, angles: selectedAngles, armModes, measurements, errors, forbiddenNetwork }, null, 2));

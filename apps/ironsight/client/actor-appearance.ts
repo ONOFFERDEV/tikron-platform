@@ -24,6 +24,8 @@ export class ActorAppearance {
 
   constructor(root: THREE.Object3D, color: number) {
     this.color = color;
+    const identity = new THREE.Color(color);
+    const wool = new THREE.Color(identity.r >= identity.b ? 0x8b8061 : 0x65766f);
     const lod1 = root.getObjectByName('LOD1'), lod2 = root.getObjectByName('LOD2');
     if (lod1) lod1.visible = false;
     if (lod2) lod2.visible = false;
@@ -45,7 +47,7 @@ export class ActorAppearance {
         material.transparent = false;
         const rim = { value: material.color };
         material.onBeforeCompile = shader => {
-          if (fieldKit) kitShader(shader);
+          if (fieldKit) kitShader(shader, wool);
           shader.uniforms.actorRimColor = rim;
           shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
             '#include <common>\nuniform vec3 actorRimColor;');

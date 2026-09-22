@@ -343,6 +343,9 @@ export class RemoteWeapon {
       }
       for (const finger of this.fingers) {
         finger.pose.copy(finger.bone.quaternion);
+        // Legacy support fingers already wrap the baked fore-end. Only a
+        // measured surface frame can resolve a different curl without drift.
+        if (finger.side > 0 && !this.parts?.gripL) continue;
         this.a.set(0, 0, 1);
         this.q.setFromAxisAngle(this.a, GRIP_CURL[finger.family]);
         finger.bone.quaternion.multiply(this.q);

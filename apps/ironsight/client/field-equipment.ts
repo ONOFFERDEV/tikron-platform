@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 export type OperatorKit = 'anchor' | 'flanker' | 'sniper';
 export type FieldEquipmentKind = 'webbing' | 'ammunition-pouches' | 'canteen' | 'pack' | 'blanket-roll';
@@ -12,19 +13,18 @@ export type FieldEquipmentPart = {
 };
 
 function roundedBox(width: number, height: number, depth: number): THREE.BufferGeometry {
-  const geometry = new THREE.BoxGeometry(width, height, depth, 2, 2, 2);
-  const position = geometry.getAttribute('position');
-  for (let index = 0; index < position.count; index += 1) {
-    const x = position.getX(index), y = position.getY(index), z = position.getZ(index);
-    const crease = 0.018 * Math.min(width, height) / Math.max(0.001, Math.hypot(x, y, z));
-    position.setXYZ(index, x * (1 - crease), y * (1 - crease), z * (1 - crease));
-  }
-  geometry.computeVertexNormals();
-  return geometry.toNonIndexed();
+  return new RoundedBoxGeometry(width, height, depth, 1, Math.min(width, height, depth) * .2);
 }
 
-function roll(radius: number, length: number): THREE.BufferGeometry {
-  const indexed = new THREE.CylinderGeometry(radius, radius * 0.94, length, 12, 3);
+function box(width: number, height: number, depth: number): THREE.BufferGeometry {
+  const indexed = new THREE.BoxGeometry(width, height, depth);
+  const geometry = indexed.toNonIndexed();
+  indexed.dispose();
+  return geometry;
+}
+
+function roll(radius: number, length: number, open = false): THREE.BufferGeometry {
+  const indexed = new THREE.CylinderGeometry(radius, radius, length, 12, 1, open);
   indexed.rotateZ(Math.PI / 2);
   const geometry = indexed.toNonIndexed();
   indexed.dispose();
@@ -32,11 +32,15 @@ function roll(radius: number, length: number): THREE.BufferGeometry {
 }
 
 function canteen(): THREE.BufferGeometry {
-  const indexed = new THREE.CylinderGeometry(0.065, 0.072, 0.15, 12, 3);
-  indexed.rotateX(Math.PI / 2);
-  indexed.scale(1, 1.12, 0.43);
+  const indexed = new THREE.SphereGeometry(1, 12, 8);
+  indexed.scale(.064, .083, .032);
   const geometry = indexed.toNonIndexed();
   indexed.dispose();
+  return geometry;
+}
+
+function named(name: string, geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  geometry.name = name;
   return geometry;
 }
 
@@ -45,27 +49,64 @@ function part(kind: FieldEquipmentKind, bone: string, center: readonly [number, 
   return { kind, bone, center, tint, geometry };
 }
 
-/** Original late-war field kit. Every role carries the same required equipment;
- * placement changes silhouette only and never grants mechanics or hit volume. */
+/** Original late-war field kit. Closures share their load's bone; all geometry
+ * joins the existing skin draw and is excluded from body hit claims. */
 export function fieldEquipmentParts(kit: OperatorKit): readonly FieldEquipmentPart[] {
-  const packX = kit === 'flanker' ? -0.035 : kit === 'sniper' ? 0.04 : 0;
-  const pouchY = kit === 'anchor' ? -0.23 : -0.26;
+  const packX = kit === 'flanker' ? -.025 : kit === 'sniper' ? .025 : 0;
+  const pouchY = kit === 'anchor' ? -.26 : -.28;
+  const canteenX = kit === 'sniper' ? -.22 : .22;
   const parts: FieldEquipmentPart[] = [
-    part('webbing', 'spine_03', [-0.12, -0.08, 0.155], 0.54, roundedBox(0.035, 0.55, 0.025)),
-    part('webbing', 'spine_03', [0.12, -0.08, 0.155], 0.54, roundedBox(0.035, 0.55, 0.025)),
-    part('webbing', 'spine_02', [0, -0.27, 0.16], 0.48, roundedBox(0.31, 0.035, 0.025)),
-    part('ammunition-pouches', 'spine_02', [-0.105, pouchY, 0.185], 0.28, roundedBox(0.085, 0.12, 0.055)),
-    part('ammunition-pouches', 'spine_02', [0, pouchY, 0.19], 0.28, roundedBox(0.085, 0.12, 0.055)),
-    part('ammunition-pouches', 'spine_02', [0.105, pouchY, 0.185], 0.28, roundedBox(0.085, 0.12, 0.055)),
-    part('pack', 'spine_03', [packX, -0.09, -0.15], 0.4, roundedBox(0.32, 0.34, 0.105)),
-    part('blanket-roll', 'spine_03', [packX, 0.105, -0.185], 0.72, roll(0.065, 0.35)),
-    part('canteen', 'spine_02', [kit === 'sniper' ? -0.18 : 0.18, -0.42, -0.055], 0.18, canteen()),
+    part('webbing', 'spine_03', [-.12, -.08, .155], .54, box(.035, .55, .025)),
+    part('webbing', 'spine_03', [.12, -.08, .155], .54, box(.035, .55, .025)),
+    part('webbing', 'spine_02', [0, -.27, .16], .48, box(.34, .035, .025)),
+    part('pack', 'spine_02', [packX, -.17, -.17], .4,
+      named('pack-body', roundedBox(.28, .30, .13))),
+    part('pack', 'spine_02', [packX, -.071, -.242], .54,
+      named('pack-flap', roundedBox(.275, .095, .019))),
+    part('blanket-roll', 'spine_02', [packX, -.397, -.18], .72,
+      named('blanket-roll-body', roll(.063, .34))),
+    part('canteen', 'spine_02', [canteenX, -.39, -.045], .36,
+      named('canteen-body', canteen())),
+    part('canteen', 'spine_02', [canteenX, -.296, -.045], .12,
+      named('canteen-cap', roll(.018, .03).rotateZ(-Math.PI / 2))),
+    part('canteen', 'spine_02', [canteenX, -.31, -.005], .18, box(.018, .14, .008)),
+    part('canteen', 'spine_02', [canteenX, -.40, -.01], .18, box(.09, .018, .008)),
   ];
-  if (kit === 'anchor') {
-    parts.push(part('ammunition-pouches', 'spine_02', [-0.175, -0.18, 0.12], 0.24, roundedBox(0.075, 0.14, 0.05)));
-    parts.push(part('ammunition-pouches', 'spine_02', [0.175, -0.18, 0.12], 0.24, roundedBox(0.075, 0.14, 0.05)));
+  for (const x of [-.105, 0, .105]) {
+    parts.push(part('ammunition-pouches', 'spine_02', [x, pouchY, .187], .34, roundedBox(.086, .12, .062)));
+    parts.push(part('ammunition-pouches', 'spine_02', [x, pouchY + .033, .221], .52,
+      box(.082, .046, .009).rotateX(-.12)));
+    parts.push(part('ammunition-pouches', 'spine_02', [x, pouchY + .008, .229], .16, box(.018, .048, .007)));
   }
-  return parts;
+  for (const side of [-1, 1]) {
+    const x = packX + side * .086;
+    parts.push(part('pack', 'spine_02', [x, -.182, -.242], .17, box(.023, .272, .01)));
+    parts.push(part('pack', 'spine_02', [x, -.347, -.245], .17, box(.023, .074, .01)));
+    parts.push(part('blanket-roll', 'spine_02', [x, -.397, -.18], .17, roll(.066, .024, true)));
+    const seam = new THREE.TorusGeometry(.040, .003, 3, 12);
+    seam.rotateY(Math.PI / 2);
+    const seamGeometry = seam.toNonIndexed();
+    seam.dispose();
+    parts.push(part('blanket-roll', 'spine_02', [packX + side * .171, -.397, -.18], .42, seamGeometry));
+    // Open buckle frames retain a visible strap through the centre.
+    for (const edge of [-1, 1]) {
+      parts.push(part('pack', 'spine_02', [x + edge * .014, -.15, -.249], .66, box(.005, .033, .004)));
+      parts.push(part('pack', 'spine_02', [x, -.15 + edge * .014, -.249], .66, box(.023, .005, .004)));
+    }
+    if (kit === 'anchor') {
+      parts.push(part('ammunition-pouches', 'spine_02', [side * .175, -.20, .12], .28, roundedBox(.07, .13, .055)));
+      parts.push(part('ammunition-pouches', 'spine_02', [side * .175, -.16, .151], .48, box(.068, .043, .009)));
+    }
+  }
+  // A rigid load follows the back's taper; translating it alone buries the top.
+  const pivot = new THREE.Vector3(packX, -.02, -.105);
+  const axis = new THREE.Vector3(1, 0, 0);
+  return parts.map(equipment => {
+    if (equipment.kind !== 'pack' && equipment.kind !== 'blanket-roll') return equipment;
+    equipment.geometry.rotateX(-.25);
+    const center = new THREE.Vector3(...equipment.center).sub(pivot).applyAxisAngle(axis, -.25).add(pivot);
+    return { ...equipment, center: [center.x, center.y, center.z - .015] as const };
+  });
 }
 
 /** Compatibility hook for rig-loader. Individual modern radios were removed. */
