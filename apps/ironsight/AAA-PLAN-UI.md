@@ -2,20 +2,21 @@
 
 ## AAA gap list
 
-1. Match presentation: deployment, scoreboard, honors, intermission and results need one coherent field-report treatment. Next UI arc.
-2. Settings, loading and remaining connection overlays: complete the shared field framing and dense-screen checks. Training coach/HUD telemetry geometry is verified in Session 2.
-3. Remaining combat overlays and shorter/mobile combat layouts: extend the HUD migration beyond the desktop states proven this session; retain gameplay information and compositor preparation.
-4. Deployment world vistas await the world stream's WW1 artwork. Menu skin is complete; the live instruments now share its field palette.
+1. Settings, loading and connection/reconnect/quit overlays: finish the shared field framing and dense-screen checks. Next UI arc; deployment flow panel remains in this scope.
+2. Remaining combat overlays and shorter/mobile combat layouts: extend the HUD skin beyond the desktop states proven in Session 2. Preserve gameplay information and compositor preparation.
+3. Live deployment camera-intro framing awaits look-stream integration; UI countdown/results/roster/honors/intermission skin is accepted in Session 4.
+4. Deployment world vistas await world-stream WW1 artwork. Menu and live instruments already share the field palette.
 
 ## Reference scorecard
 
 | Reference | Status | UI evidence / target |
 | --- | --- | --- |
-| R-L09 | partial | Menu objective/training/action readability and live training completion verified. Other presentation screens remain. |
-| R-L12, R-L13 | partial | Sessions 1–2 menu/HUD use existing field tokens and Korean fonts. Session 2 critical text ≥14px, sampled neutral contrast ≥6.3388:1; 14 unchanged-copy pairs. Other screens remain. |
+| R-L09 | partial | Menu objective/training/action readability and live training completion verified. Result and countdown presentation verified in Session 4; settings/recovery remain. |
+| R-L12, R-L13 | partial | Sessions 1–2 menu/HUD use existing field tokens and Korean fonts. Session 2 critical text ≥14px, sampled neutral contrast ≥6.3388:1; 14 unchanged-copy pairs. Session 4 adds paper/olive match reports with 20 unchanged-text pairs and 38 current captures; recovery/settings remain. |
 | R-L14, R-L23 | partial | Menu/HUD preserve controls, information and enemy choices; no new combat effects. Final hardware acceptance is recorded below separately. |
 | R-L20 | partial | Four retained kill-feed entries and server messages stay separated in Session 2 captures; complete match presentation still pending. |
-| R-L05, R-L06, R-L07, R-L17, R-L19, R-L21, R-L22 | partial | Functional presentation remains; visual migration scheduled next. |
+| R-L05, R-L07, R-L17 | met (UI scope) | Session 4 countdown, outcomes, honors, rosters and next-round statuses preserve behavior and pass both independent reviews. No new claim about gameplay timing or MVP selection. |
+| R-L06, R-L19, R-L21, R-L22 | partial | Existing function retained; remaining recovery/combat overlays and camera presentation are future arcs. |
 | R-M01–R-M20, R-G01–R-G20, R-L01–R-L04, R-L08, R-L10–R-L11, R-L15–R-L16, R-L18 | n.a. | Gameplay, maps, weapon rendering and audio are outside the UI lane; no claim on other streams' acceptance. |
 
 ## Session 1 plan — 2026-09-22: Field orders, deployment skin
@@ -27,6 +28,8 @@
 - Blocked: global green acceptance. Asset audit fails on unchanged kit-owned builder/metadata hashes. The unmodified hardware hitch probe exhausted its official 1,800,000ms shared GPU lease wait without launching a browser or producing a hitch result. Neither gate is waived or represented as passing.
 
 ## Cross-stream requests
+
+- **Session 4 / Look / supervisor:** required map/hitch gates PASS. Preserve the separately observed post-ready/pre-measurement gaps of 234.7ms and 322.5ms (`.inspect/ui-session-4/hitch-summary.json`, original `hitch-acceptance.json`) alongside Session 2 startup diagnostics. No cause is established and no threshold/renderer/probe file was changed by UI. First-ready 3,598.7ms; UI preparation 596.7ms. This is a renderer/startup follow-up, not a waiver of a red gate.
 
 Session 1 failures below remain historical receipts. Session 2 closes the weapon audit and required hitch acceptance requests; the existing soldier quarantine and world-vista request remain separate.
 
@@ -40,6 +43,74 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 - **World:** Existing `relay-vista.webp`, `undertow-vista.webp` and `switchyard-vista.webp` show the earlier environment. Regenerate those existing menu vistas when the corresponding WW1 world is ready; keep their current URLs. This session changes menu framing only.
 
 ## Session log
+
+### Session 4 - 2026-09-22: Field reports (all required gates green)
+
+Plan: all four steps completed: untouched baseline; token skin and preparation; fresh visual/interaction acceptance; required gates, log and cleanup. Session 3's interrupted preparation is completed by this session.
+
+Reference: R-L05/R-L07/R-L17 (unchanged round timing, results and honors), R-L12/R-L13 (readable value hierarchy), R-L14/R-L23 (preserved information and enemy choices).
+
+Continues the unfinished Session 3 field-report arc. Initial product worktree was clean; only the prior plan entry was modified. UI lane only, no asset generation, dependency, gameplay, copy, state-machine or flow changes, commit, push or deploy.
+
+#### Delivered change
+
+- `client/ui/match-field-style.ts` supplies the existing live result and deployment components with one field-report skin. The paper result header gives outcome and score a strong readable hierarchy; olive honors and a compact personal ledger align left. Roster names receive 64% of each table while kill/death columns stay aligned. The existing fixed header/action footer and body-only scrolling remain.
+- Explicitly scoped button styles preserve the shared paper primary action and olive secondary action against older HUD rules. Before the change both buttons rendered the same saturated amber; the browser regression check fails before and passes after. Actions, vote state and content are unchanged.
+- Deployment countdown/go/waiting/standby retain the same labels/timing/progress, using a paper count stamp, body-font Korean and shared olive/success tones. The connection flow panel is unchanged and remains in the next arc.
+- Loading preparation includes the real result skin and additional inert defeat/voted/draw and go copies. No new blur, gradient, shadow, animation, texture, light, render pass or asset. Two skin-boundary invariants verify defined tokens and prohibit added effects/information suppression; existing presentation tests retain behavior coverage.
+
+#### Wow check and browser evidence
+
+**“전과 보고서처럼 승패와 내 활약이 한눈에 들어온다.”**
+
+Evidence root `.inspect/ui-session-4/`: 20 untouched before and 20 after PNGs, covering countdown/go/waiting/standby plus TDM, domination, FFA, defeat, draw and empty results at 1920×1080 and 1280×720. `fixture-before.js` was bundled from unmodified production classes before implementation, then preserved; both fixtures use the same fixed Relay vista only as background. This is real production DOM, not a UI image substitute; it is not a recording of a completed server round.
+
+An additional 18 current images cover 375/768px results, dense 200% equivalent reflow, long player names, actual wheel-scrolled lower rosters, vote-disabled state, keyboard focus, actual font-request failure plus hover, reduced motion, and hover rest/middle/end. `checks.json` proves actual restart/leave callbacks each fire once, disabled repeat does not fire, Tab reaches leave, reduced-motion transitions are 0s, and preparation leaves zero nodes. The 768px report naturally fits without scrolling; the harness was corrected to require wheel movement only when overflow exists.
+
+`evidence.json` binds all 38 current PNG signatures/dimensions/freshness to eight exact source/bundle hashes. All 20 full-screen text comparisons match after normalizing layout whitespace. Controls are 16px/44px; honors labels are 14px. Neutral sampled contrast: ink/paper 11.416:1, secondary/raised 8.229:1, accent/raised 6.657:1, button ink/hover 9.774:1 and control boundary/plate 4.779:1. `diffs.json` contains all 20 before/after pixel analyses; changed-pixel ratios describe the redesign, not a clone-fidelity score.
+
+The captures use isolated software Aside to avoid sharing the GPU with other streams. 200% is 960×540 CSS at DPR2, an equivalent reflow check, not an observed native browser zoom shortcut. Font failure is confirmed by Noto Sans KR `status:error`; fallback Hangul remains readable. Unbroken long names wrap and retain their existing compact-name policy. Mobile evidence establishes report access, not mobile FPS gameplay.
+
+Rejected evidence: the first capture timed out while returning a FontFaceSet through CDP. Phase instrumentation showed navigation, injection, rendering and font loading complete; returning a primitive from the font-ready promise allowed the full run. No product workaround was added. The first responsive script wrongly required scrolling at 768px where all content fits; its assertion was corrected without touching product CSS.
+
+#### Gates and measured cost
+
+Typecheck, full test suite (1,603 Vitest passes across 186 files, nine pre-existing skipped cases in seven files unchanged; 92 Node passes), build and asset audit pass. Focused presentation tests and real-browser style regression pass. Official hardware map inspection passes with no console errors. The official `hitch-probe` with 150000ms maximum and `--assert` passes. Receipt: `hardware-gates-acceptance.json`, `hitch-acceptance.json`.
+
+No added asset/texture bytes; 0 Meshy credits. Asset audit counts 40,853,455 asset bytes unchanged and 52,676,319 shipping public bytes. Conservative on-disk total including quarantined files is 61,078,361 bytes (94 files), largest 8,025,108 bytes. Public artifacts increased 27,342 bytes from the retained initial build: bundle +11,055 to 4,011,726 bytes, sourcemap +16,287. The initial bundle retained Session 2's hash; these are artifact deltas, not a controlled isolation of UI-only bundling from intervening source changes.
+
+Required Relay inspection on RTX 5070 at 1920×1080: median 6.9ms, p99/max 7.1ms, 38 calls, 230,200 triangles, 18 textures, estimated 33.681MiB texture residency; construction 448.6ms, scene preparation 1,507.5ms. Practice-two has one live player at 100HP, 63 calls and 26 textures. No paired gameplay-frame/texture/load delta was collected; this desktop GPU does not establish the laptop iGPU target. Software UI-only preparation was 586ms, including the additional prepared states; final hardware startup timing remains separate.
+
+Open owner questions: none. Defaults: retain gameplay/copy/controls, enemy choices and existing world vistas. Next coherent arc is settings/loading/connection overlays. Owned Wrangler root PID 17308 and its six descendants are stopped; port 8804 is closed. No session profile, browser, official inspection browser or gate runner remains (`cleanup.json`).
+
+Final hardware hitch receipt: lease acquired 13:23:56Z; 131,307ms measured across 18,906 frames, two deaths/respawns; max frame 14.5ms, max animation callback 9.3ms, p99 upper 8ms, zero long tasks, frames above24ms, shader recompiles or console errors. First-damage/death windows max13.9ms/9.5ms. First-ready from navigation 3,598.7ms; scene preparation1,193.4ms, UI preparation596.7ms. These are fresh-profile loopback observations, not production cold-load or paired improvements.
+
+Separate startup diagnostics retain post-ready/pre-measurement gaps of234.7ms and322.5ms. The unchanged official gate excludes this window. As in Session2, this does not establish hitch-free startup or identify a UI/renderer/driver root cause; measurements are routed to Look/supervisor. No threshold or official inspector file was changed.
+
+#### Independent acceptance and handoff
+
+Both independent reviews PASS with HIGH confidence and no blockers: `review-design.md` (/root/ui4_design_review, all 38 actual images, six baseline images, all hashes and source/interaction traces) and `review-visual.md` (/root/ui4_visual_review, all 38 actual plus all 20 baseline images). All eight source/bundle hashes independently match. The reviewed bundle SHA-256 is `d083673d1a0561ac20570f055034eff6621b5ca7c5455cbe0712f51c7cbbb8be`; hardware acceptance runs the same bundle.
+
+| Gate | Result | Receipt |
+| --- | --- | --- |
+| Typecheck / full tests / build / assets | PASS | `typecheck.log`, `test.log`, `build.log`, `assets.log` |
+| Official hardware Aside map inspection, relay/practice-two | PASS, no console errors | `inspect-map-acceptance.log`, `../ui-session-4-acceptance-{relay,practice-two}.png` |
+| Official 150000ms-max hitch probe with --assert | PASS, two deaths, max frame 14.5ms, zero shader changes/errors | `hitch-acceptance.json`, `hardware-gates-acceptance.json` |
+| Independent design and visual/Korean review | PASS / HIGH, both | `review-design.md`, `review-visual.md` |
+| Lane/diff check and cleanup | PASS | `final-check.json`, `cleanup.json` |
+
+No out-of-lane file was edited; `AAA-PLAN.md`, admission records, gameplay, other streams and official inspection scripts are unchanged. No commit, push or deploy. Software fixtures and a hardware bot-round gate provide the scoped evidence; native zoom, a completed live-server result screen, five-run TDM/FFA stability and the laptop iGPU remain outside the demonstrated acceptance of this session.
+
+### Session 3 - 2026-09-22: Field reports (interrupted preparation; superseded by Session 4)
+
+Reference: R-L05/R-L07/R-L17 (unchanged round rhythm, winner and honors), R-L12/R-L13 (readable value hierarchy), R-L14/R-L23 (unchanged information and enemy choices).
+
+1. Superseded: capture untouched deployment/result baselines in Aside; verify the existing shared primitives and live integration.
+2. Superseded: apply the field-report treatment to results, honors and deployment countdown; retain copy, state, actions and timing; cover paint preparation.
+3. Superseded: before/after 1920×1080 and 1280×720, dense 200% reflow, narrow layouts, font failure, reduced motion and real interactions; independent visual reviews.
+4. Superseded: typecheck, full tests, build, asset audit, required hardware map inspection and hitch probe; finish receipts, gap list and process cleanup.
+
+Scope: UI-owned files only. No new asset, dependency, commit, push or deploy. The camera-intro view is look-owned; any requested skin integration there will be routed through Cross-stream requests.
 
 ### Session 2 - 2026-09-22: Field instruments (required gates green)
 

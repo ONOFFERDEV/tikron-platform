@@ -4,24 +4,7 @@ import type { ArenaState } from '../src/schema.js';
 import { deploymentFlowContent, type PlayerFlowState } from './ui/flow-state.js';
 import { modeCopy } from './ui/copy.js';
 
-const css = `
-#deployment-banner{position:absolute;inset-block-start:146px;inset-inline-start:50%;transform:translateX(-50%);inline-size:min(600px,calc(100vw - 32px));box-sizing:border-box;padding:var(--ui-space-4) var(--ui-space-6);border-block-start:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-hud-backing);color:var(--ui-text-primary);pointer-events:none;font-family:var(--ui-font-body)}
-#deployment-banner[hidden]{display:none}
-#hud[data-deploying=true] #matchBrief{visibility:hidden}
-#deployment-banner .deployment-kicker{font-size:var(--ui-type-hud);color:var(--ui-accent)}
-#deployment-banner .deployment-body{display:flex;align-items:center;gap:22px;margin:4px 0 8px}
-#deployment-banner .deployment-count{font:bold 76px/.98 ui-monospace,monospace;min-width:100px;letter-spacing:-6px;color:#fff0d4;border-right:1px solid #edaa5255}
-#deployment-banner h2{margin:0;font:700 var(--ui-type-panel)/1.1 var(--ui-font-body)}
-#deployment-banner .deployment-detail{font:var(--ui-type-hud)/1.5 var(--ui-font-key);margin:7px 0 0;color:#b9cbd2}
-#deployment-banner .deployment-progress{display:flex;gap:5px;height:3px;margin-top:12px}
-#deployment-banner .deployment-progress i{flex:1;background:#edaa5230}
-#deployment-banner .deployment-progress i[data-lit=true]{background:#edaa52}
-#deployment-banner[data-kind=go]{border-color:#64c7cc}
-#deployment-banner[data-kind=go] .deployment-count,#deployment-banner[data-kind=go] .deployment-kicker{color:#8ce5df}
-#deployment-banner[data-kind=go] .deployment-progress i{background:#64c7cc}
-@media(max-height:700px){#deployment-banner{top:96px;padding:10px 18px;width:min(530px,calc(100vw - 32px))}#deployment-banner .deployment-count{font-size:44px;min-width:76px;letter-spacing:-3px}#deployment-banner h2{font-size:18px}#deployment-banner .deployment-body{margin:4px 0}#deployment-banner .deployment-progress{margin-top:7px}}
-@media(max-width:800px){#deployment-banner{top:202px;padding:12px}#deployment-banner .deployment-body{gap:12px}#deployment-banner .deployment-count{font-size:48px;min-width:69px;letter-spacing:-3px}#deployment-banner h2{font-size:18px}#deployment-banner .deployment-kicker{letter-spacing:1px}#hud[data-deploying=true] #caps{top:330px}#hud[data-deploying=true] #lb{top:350px}}
-`;
+import { DEPLOYMENT_FIELD_CSS } from './ui/match-field-style.js';
 
 const flowCss = `
 #deployment-flow{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:var(--ui-safe-edge);box-sizing:border-box;background:linear-gradient(90deg,rgba(7,16,21,.96),rgba(7,16,21,.74));color:var(--ui-text-primary);pointer-events:auto}
@@ -92,7 +75,7 @@ export class DeploymentBanner {
 
   constructor(private readonly container: HTMLElement, site: string) {
     this.site = site.toUpperCase();
-    const style = document.createElement('style'); style.textContent = css; document.head.append(style);
+    const style = document.createElement('style'); style.textContent = DEPLOYMENT_FIELD_CSS; document.head.append(style);
     this.root.id = 'deployment-banner'; this.root.hidden = true;
     this.root.setAttribute('role', 'status'); this.root.setAttribute('aria-live', 'polite');
     this.root.setAttribute('aria-atomic', 'true');

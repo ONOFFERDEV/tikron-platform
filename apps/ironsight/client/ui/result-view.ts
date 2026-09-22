@@ -209,12 +209,4 @@ function rosterNode(section: ResultPresentation["sections"][number], target: Doc
   return region;
 }
 
-export const resultViewCss = `
-.result-view{inline-size:min(var(--ui-modal-max),calc(100vw - 2 * var(--ui-safe-edge)));max-block-size:calc(100dvh - 2 * var(--ui-safe-edge))}
-.result-view__header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--ui-space-2) var(--ui-space-6);align-items:end}.result-view__header h2{grid-column:1/-1}.result-view__outcome{font:700 var(--ui-type-screen)/1.1 var(--ui-font-display);color:var(--ui-accent)}
-.result-view[data-outcome="defeat"] .result-view__outcome{color:var(--ui-error)}.result-view[data-outcome="draw"] .result-view__outcome{color:var(--ui-neutral)}.result-view__score{font:700 var(--ui-type-score)/1.2 var(--ui-font-body);font-variant-numeric:tabular-nums}
-.result-view__local{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--ui-space-2);margin:0 0 var(--ui-space-6)}.result-view__local>div{padding:var(--ui-space-3);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-surface-2)}.result-view__local dt{color:var(--ui-text-secondary);font-size:var(--ui-type-hud)}.result-view__local dd{margin:0;font:700 var(--ui-type-score)/1.2 var(--ui-font-body)}
-.result-view__rosters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ui-space-4)}.result-view__rosters:has(>section:only-child){grid-template-columns:minmax(0,1fr)}.result-view__rosters h3{margin:0 0 var(--ui-space-2);font-size:var(--ui-type-hud)}.result-view table{inline-size:100%;border-collapse:collapse;table-layout:fixed}.result-view th,.result-view td{padding:var(--ui-space-2);border-block-end:var(--ui-border-width) solid var(--ui-border-subtle);text-align:end;overflow-wrap:anywhere}.result-view th:first-child,.result-view td:first-child{text-align:start}.result-view tr[data-self="true"]{background:var(--ui-surface-2);box-shadow:inset var(--ui-border-emphasis) 0 0 var(--ui-accent)}
-.result-view__footer{align-items:center}.result-view__status{display:grid;gap:var(--ui-space-1);margin-inline-end:auto;color:var(--ui-text-secondary)}.result-view__status strong{color:var(--ui-warning)}
-@media(max-width:767px){.result-view__rosters{grid-template-columns:minmax(0,1fr)}.result-view__local{grid-template-columns:minmax(0,1fr)}.result-view__footer{align-items:stretch}.result-view__status{inline-size:100%}.result-view__footer .ui-button{flex:1 1 10rem}}
-`;
+export { RESULT_FIELD_CSS as resultViewCss } from "./match-field-style.js";

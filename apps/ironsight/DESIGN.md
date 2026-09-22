@@ -170,6 +170,14 @@ Only the body row scrolls and it has `min-block-size:0; overflow:auto`. Header a
 - Ping-hint phrases separated by bullets/slashes/newlines and the three-word training completion suffix stay together; words and separators remain identical. Completed training plates use 12px block padding and an 8px action gap to keep a clear separation from the hint.
 - Existing loading-time HUD clones pre-paint these same plates. The preparation fixture also includes authoritative objective, shot-confirmation and reload rows; no live game state or input is used.
 
+### Match field reports (Session 4)
+
+- The existing result header/body/footer shell remains intact. A paper header carries the outcome at screen scale, the existing mode label at HUD scale and the final score at score scale. All align to the same left report margin; the score stays at the opposite edge. Defeat/draw retain their explicit outcome words, with the neutral ink maintaining paper contrast.
+- Honors use the raised olive plate and one brass rule. Its title is at least 14px, its name 24px, with natural Korean wrapping. Personal figures form one compact three-column ledger even on narrow screens. Roster names receive 64% of each table, with the two numeric columns sharing the remainder; full existing compact names remain available through wrapping.
+- Only the body scrolls. Header and footer retain their existing actions/status. At 767px the roster becomes one column; footer actions wrap using the existing 44px button primitive. Result buttons explicitly use the shared primitive states so legacy overlay selectors cannot override them. There is no new motion.
+- The deployment banner retains its current timing, location, labels and progress segments. It uses a paper countdown stamp, body-font Korean instructions, and olive framing. Local layout tokens: `--report-name-column:64%`, `--deployment-count-width:104px`, `--deployment-count-size:clamp(40px,4vw,64px)`, `--deployment-top:146px` (202px below 800px). These are geometry for existing content, not new information. Countdown/go/waiting/standby share the same material; the go state uses the existing success token.
+- No new asset, gradient, filter, blur, shadow or animation. Result and banner variants are painted by the existing loading-time preparation; disabled controls, draw/defeat results and the go variant are included in those inert copies. Existing shared hover/focus effects are unchanged.
+
 ## 6. Motion and interaction
 
 | Token | Value | Purpose |
