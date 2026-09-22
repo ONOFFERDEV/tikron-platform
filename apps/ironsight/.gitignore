@@ -33,3 +33,7 @@ assets-src/**
 !public/assets/undertow-dusk-sky.png
 !public/assets/switchyard-overcast.hdr
 !public/assets/switchyard-overcast-sky.png
+
+# ui
+!public/assets/ui/fonts/StardosStencil-Bold.ttf
+!public/assets/ui/fonts/StardosStencil-OFL.txt

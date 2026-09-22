@@ -1710,3 +1710,24 @@ normalization result conflicted with GLB JSON inspection, which shows only the
 three intended LOD mesh nodes. The record therefore makes no bad-export claim:
 it remains quarantined until a true Three.js Box3 check and current packet are
 independently reviewed. The configured `player.glb` remains the runtime model.
+
+# ui
+
+## Session UI-1: deployment stencil wordmark
+
+`ui/fonts/StardosStencil-Bold.ttf` (33,044 bytes) is Stardos Stencil Bold from
+[Google Fonts](https://github.com/google/fonts/tree/main/ofl/stardosstencil),
+licensed under the SIL Open Font License 1.1. The unmodified license is retained as
+`ui/fonts/StardosStencil-OFL.txt` (4,424 bytes). Only the Latin menu wordmark requests
+this face; Korean uses the existing Noto Sans KR / Malgun Gothic system fallback.
+No added WebGL textures, no runtime filter or blur, no new dependency.
+
+Reproduce from the app directory:
+
+```bash
+curl -fL https://raw.githubusercontent.com/google/fonts/main/ofl/stardosstencil/StardosStencil-Bold.ttf -o public/assets/ui/fonts/StardosStencil-Bold.ttf
+curl -fL https://raw.githubusercontent.com/google/fonts/main/ofl/stardosstencil/OFL.txt -o public/assets/ui/fonts/StardosStencil-OFL.txt
+```
+
+The UI block in `scripts/audit-assets.mjs` pins SHA-256 values; updated upstream
+bytes require an explicit provenance update before admission.

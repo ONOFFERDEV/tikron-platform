@@ -59,6 +59,7 @@ Primary users:
 - Latin display: `"Barlow Condensed", "Noto Sans KR", "Malgun Gothic", sans-serif` in weights 600 and 700.
 - Numeric/keys: inherit body with `font-variant-numeric: tabular-nums`; keycaps may use `ui-monospace, "SFMono-Regular", Consolas, monospace`.
 - Self-hosted files and their licenses live at `public/assets/ui/fonts/`. A failed font request must retain readable metrics and layout through the fallback stack.
+- Deployment wordmark only: `--ui-font-wordmark: "Stardos Stencil", "Barlow Condensed", "Noto Sans KR", "Malgun Gothic", sans-serif`, weight 700. The self-hosted Latin stencil carries the field-equipment identity; all Korean copy retains the body stack. It uses the existing display scale and never changes live HUD typography.
 
 ### Scale
 
@@ -150,6 +151,24 @@ Only the body row scrolls and it has `min-block-size:0; overflow:auto`. Header a
 - Structure: content region with one logical-edge rule, kicker, title, body, and optional actions.
 - Usage: deploy briefing, connection status, training step, result header.
 - Rule: the edge and brass accent serve hierarchy; no decorative motion or texture overlays.
+
+### Deployment field desk
+
+- Reuse the existing header/body/footer DOM and shared button states. The body uses two non-overlapping columns above 1024px: briefing at left, a field-order map plate at right; mode plates span both columns. Below 1024px, the existing content reflows to one column and only the body scrolls.
+- Map diagrams use the paper surface, ink high cover, subtle-border low cover and ink-outlined paper ramps inside their plate (minimum mark/boundary contrast 3:1). These are the same collision-derived rectangles and ramps, with no new information. The image behind the menu keeps its existing two directional gradients, now mixed from surface tokens; below 1024px the scrim protects the full text width. No filters, blur or text shadows.
+- Mode plates place the Korean label above the English descriptor visually. Labels and objectives are at least 14px; nonessential metadata is 12px. Korean has zero tracking and `word-break: keep-all`, with overflow wrapping for unbroken stress strings. Authored detail and route phrases stay together in inline spans, split only at the existing slash/bullet separators; wording and information stay identical.
+- Selection uses the shared button edge and a stable border, without changing control dimensions. Unselected, hovered, focused and selected controls remain distinct under font failure and reduced motion.
+
+### Live field instruments
+
+- Health, ammunition, weapon slots, match instructions, capture labels, kill feed and confirmed elimination use the existing body/numeric scale and stable HUD backing. Critical labels are 14px or larger with zero tracking for Korean; existing English identifiers retain their copy.
+- Square field plates use the existing border and edge tokens. No new gradient, filter, blur, shadow, texture or animation is introduced. Existing reticle and damage effects retain their appearance.
+- The kill feed and server event log share a right-hand grid column, with intrinsic rows so four feed entries cannot paint over server confirmations. Objective status sits below the match brief and above the existing capture gauges. Content and authoritative gating are unchanged.
+- HUD-specific geometry: right column `--hud-log-width:clamp(280px,28vw,400px)`, center width `--hud-center-width:min(40vw,520px)`, vitals width 208px, ammo width 176px, capture columns 96px. Below 900px the loadout moves above the vitals; these dimensions place instruments, never reduce type size. The center aim point remains clear.
+- At desktop gameplay sizes, the connection and input-latency plates precede the training coach (safe edge + 316px). Bottom-left hint, ping notice and radio plates use safe edge + 88px, +160px and +252px respectively so backgrounds have a visible gap. The compact FFA table retains 14px text with 1.4 line height.
+- Ping hints size to their content up to 360px and the viewport safe edges, so valid long rebinding labels retain two lines alongside the completed coach.
+- Ping-hint phrases separated by bullets/slashes/newlines and the three-word training completion suffix stay together; words and separators remain identical. Completed training plates use 12px block padding and an 8px action gap to keep a clear separation from the hint.
+- Existing loading-time HUD clones pre-paint these same plates. The preparation fixture also includes authoritative objective, shot-confirmation and reload rows; no live game state or input is used.
 
 ## 6. Motion and interaction
 

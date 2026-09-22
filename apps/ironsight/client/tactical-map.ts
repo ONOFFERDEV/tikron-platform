@@ -1,3 +1,4 @@
+import { setFieldPhrases } from './ui/field-copy.js';
 import { PING, type TeamPing } from '../src/ping.js';
 import { contactText } from './contact-presentation.js';
 import type { SupportView } from '../src/air-support.js';
@@ -54,14 +55,14 @@ export class TacticalMap {
         (ramp.maxX - ramp.minX) * this.scale, (ramp.maxZ - ramp.minZ) * this.scale);
     }
     const style = document.createElement('style');
-    style.textContent = '@media(max-width:800px){#teamPingNotice{bottom:200px!important}#teamPingHint{bottom:156px!important}}';
+    style.textContent = '#teamPingHint .field-phrase{display:inline-block;white-space:nowrap}@media(max-width:800px){#teamPingNotice{bottom:200px!important}#teamPingHint{bottom:156px!important}}';
     document.head.appendChild(style);
     this.hint.id = 'teamPingHint';
     this.notice.id = 'teamPingNotice'; this.notice.setAttribute('role', 'status');
-    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:var(--ui-text-primary);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:9rem;inline-size:220px;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);overflow-wrap:anywhere';
+    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:var(--ui-text-primary);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:calc(var(--ui-safe-edge) + 160px);inline-size:220px;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);overflow-wrap:anywhere';
     this.notice.hidden = true;
     this.notice.style.whiteSpace = 'pre-line';
-    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:6.25rem;inline-size:240px;padding:var(--ui-space-2) 0;color:var(--ui-text-secondary);white-space:pre-line';
+    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:calc(var(--ui-safe-edge) + 88px);inline-size:max-content;max-inline-size:min(360px,calc(100vw - 2 * var(--ui-safe-edge)));box-sizing:border-box;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);color:var(--ui-text-secondary);white-space:pre-line';
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
 
@@ -99,7 +100,7 @@ export class TacticalMap {
     this.hint.hidden = !active || state.mode === 1 || state.phase !== 'live' || !me.alive;
     const backup = this.settings ? formatBinding(this.settings.get().binds.backup) : 'B';
     const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} · ${state.mode === 3 ? FIELD_UI_COPY.tactical.rehearsePing : FIELD_UI_COPY.tactical.teamPing} · ${FIELD_UI_COPY.tactical.tapHold}\n${backup} · ${FIELD_UI_COPY.tactical.backup} · ${FIELD_UI_COPY.tactical.atLocation}`;
-    if (this.hint.textContent !== hint) this.hint.textContent = hint;
+    if (this.hint.textContent !== hint) setFieldPhrases(this.hint, hint);
     const ctx = this.context;
     const signal=signalFrame(state.signalAt,state.phase,serverNow);
     const blackout=this.map.presentation==='relay' && signal.phase==='blackout';

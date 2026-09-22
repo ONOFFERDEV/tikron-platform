@@ -129,3 +129,13 @@ const publicBytes = files.reduce((n, f) => n + f.bytes, 0);
 if (publicBytes > 60 * 1024 * 1024) throw Error('Deployed public asset set exceeds 60 MiB budget');
 console.log(JSON.stringify({ assetBytes, publicBytes, excludedPaths: [...excludedPaths], maxFileBytes: Math.max(...files.map(f => f.bytes)),
   derivedFiles: files.filter(f => approvedDerived.includes(f.path)), originalFiles: files.filter(f => approvedOriginal.includes(f.path)), authoredWw1: authoredWw1Audit, previewAuthoredWw1: previewAuthoredWw1Audit, weaponCandidates: weaponCandidateAudit, soldierCandidates: soldierCandidateAudit, note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));
+
+// # ui
+const approvedUiFonts = [
+  ['assets/ui/fonts/StardosStencil-Bold.ttf', '6b15f50b1b358512d922b5f11937af17e90704587e1d7fb009f1715d2d5dfa74'],
+  ['assets/ui/fonts/StardosStencil-OFL.txt', '88d3abd47414e7912d0d2eb44ca89e0b1bd7c43cc2ebe58a8a75281ad75a0f60'],
+];
+for (const [fontPath, digest] of approvedUiFonts) {
+  const bytes = await readFile(join(root, fontPath));
+  if (createHash('sha256').update(bytes).digest('hex') !== digest) throw Error('UI font provenance mismatch: ' + fontPath);
+}
