@@ -437,7 +437,7 @@ export class Net {
       if (revision !== CONTENT_REVISION) this.failContent(revision);
     });
     room.onMessage("contentAccepted", payload => {
-      if (readContentRevision(payload) !== CONTENT_REVISION) return;
+      if (this.mismatch || readContentRevision(payload) !== CONTENT_REVISION) return;
       this.link.open = true;
       this.link.lostAt = 0;
       const waiter = this.contentWaiter;
@@ -479,6 +479,7 @@ export class Net {
     this.mismatch = error;
     this.link.open = false;
     if (this.link.lostAt === 0) this.link.lostAt = performance.now();
+    this.room.leave();
     const waiter = this.contentWaiter;
     this.contentWaiter = undefined;
     if (waiter) {

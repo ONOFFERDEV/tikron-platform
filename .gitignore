@@ -34,3 +34,6 @@ internal/
 apps/ironsight/public/assets/models/player.glb
 apps/ironsight/public/assets/models/weapons-vm.glb
 apps/ironsight/public/assets/maps/*-dressing.glb
+
+# Agent run state (ulw loop ledger) — operational, not product.
+apps/ironsight/.omo/

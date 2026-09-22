@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { PerfSnapshot } from '../tools/ironsight-load-options.mjs';
 import { classifyServerLog, createStateImpairment, LoadOptionError, parseLoadOptions, readPerfSnapshot } from '../tools/ironsight-load-options.mjs';
 import {
   aggregatePerfSnapshots,
@@ -12,8 +13,176 @@ import {
   verifyManifestFiles,
   verifySourceManifestFile,
 } from '../tools/ironsight-load.mjs';
+import { canReconnect, createStatsProbe, requestTransportClose } from '../tools/ironsight-load-timing.mjs';
+
+function causalStatsFixture() {
+  const timing = { startedAtMonotonicMs: 500_000, finishedAtMonotonicMs: 680_000,
+    startedAtEpochMs: 1_000_000, finishedAtEpochMs: 1_180_000, observedActiveMs: 180_000,
+    scheduledTicks: 3_600, executedTicks: 3_600, skippedTicks: 0 };
+  const metric = { p50: 1, p95: 2, p99: 3, max: 4, n: 200 };
+  const drops = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0,
+    relayRateLimited: 0, relayOversized: 0, relayBadTarget: 0 };
+  const snapshots = Array.from({ length: 182 }, (_, index) => ({ tick: metric, flush: metric, windowMs: 10_000,
+    measuredAtMs: 900_000 + index * 1_000, measuredAtEpochMs: 1_000_002 + index * 1_000,
+    receivedAtMs: 1_000_000 + index * 1_000, requestSeq: index + 1,
+    requestedAtMs: 1_000_000 + index * 1_000, requestedAtMonotonicMs: 500_000 + index * 1_000,
+    receivedAtMonotonicMs: 500_000.5 + index * 1_000, drops, errors: 0 }));
+  return { timing, snapshots };
+}
+
+function disconnectFixture() {
+  const initial = { index: 0, connectionKind: 'initial' as const, session: 'same-session', openedAt: 0, joinedAt: 1,
+    closedAt: 8_786, closeCode: 1000, finalBufferedBytes: 0, errors: [],
+    sent: { move: 1, fire: 1, reload: 1, objective: 1 },
+    closeRequestedAtMonotonicMs: 5_600, transportUnusableAtMonotonicMs: 5_600.25, closeReadyState: 2,
+    closedAtMonotonicMs: 8_786 };
+  const reconnect = { ...initial, connectionKind: 'reconnect' as const, openedAt: 8_770, joinedAt: 8_795,
+    connectRequestedAtMonotonicMs: 8_700, openedAtMonotonicMs: 8_770, joinedAtMonotonicMs: 8_795 };
+  const timing = { observedActiveMs: 8_000, scheduledTicks: 160, executedTicks: 160, skippedTicks: 0 };
+  return { initial, reconnect, timing };
+}
 
 describe('ironsight load tool boundaries', () => {
+  it('certifies causal stats coverage when independent server epoch is two milliseconds ahead', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: snapshots }]), timing);
+    expect(coverage).toMatchObject({ covered: true, serverTickRate20Hz: true, serverTickWindowCount: 170 });
+  });
+
+  it('does not certify receipt-only legacy stats as causal timing proof', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const legacy = snapshots.map(({ requestSeq, requestedAtMs, requestedAtMonotonicMs, receivedAtMonotonicMs, ...snapshot }) =>
+      ({ ...snapshot, receivedAtMs: snapshot.measuredAtEpochMs + 1 }));
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: legacy }]), timing);
+    expect(coverage.covered).toBe(false);
+  });
+
+  it('measures disconnect from the unusable transport boundary despite a delayed close event', () => {
+    const { initial, reconnect, timing } = disconnectFixture();
+    const checks = scenarioChecks({ scenario: 'disconnect', seconds: 8, clients: 12 }, [initial, reconnect], 2, null, timing);
+    expect(checks).toMatchObject({ disconnectedForThreeSeconds: true, reconnectedSameSession: true });
+  });
+
+  it('does not turn a legacy close-event gap into three-second outage proof', () => {
+    const { initial, reconnect, timing } = disconnectFixture();
+    const { closeRequestedAtMonotonicMs, transportUnusableAtMonotonicMs, closeReadyState, ...legacy } = initial;
+    const checks = scenarioChecks({ scenario: 'disconnect', seconds: 8, clients: 12 },
+      [{ ...legacy, closedAt: 5_600 }, reconnect], 2, null, timing);
+    expect(checks.disconnectedForThreeSeconds).toBe(false);
+  });
+
+  it.each([
+    ['reverse bracket', { requestedAtMonotonicMs: 590_001, receivedAtMonotonicMs: 590_000 }],
+    ['window-long round trip', { requestedAtMonotonicMs: 580_000.5 }],
+    ['window-erasing round trip', { requestedAtMonotonicMs: 575_000 }],
+    ['overlapping requests', { requestedAtMonotonicMs: 589_000 }],
+    ['replayed request sequence', { requestSeq: 90 }],
+    ['replayed server measurement', { measuredAtMs: 989_000, measuredAtEpochMs: 1_089_002 }],
+    ['server clock contradiction', { measuredAtEpochMs: 1_100_002 }],
+  ])('rejects causal stats with %s', (name, patch) => {
+    const { snapshots, timing } = causalStatsFixture();
+    const changed = snapshots.map((snapshot, index) => index === 90 ? { ...snapshot, ...patch } : snapshot);
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: changed }]), timing);
+    expect(coverage).toMatchObject({ covered: false,
+      timestampsAvailable: !['reverse bracket', 'window-long round trip', 'window-erasing round trip'].includes(name) });
+  });
+
+  it('does not fill a real half-millisecond coverage hole with request uncertainty', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: snapshots.slice(10) }]), timing);
+    expect(coverage).toMatchObject({ covered: false, maxRoundTripUncertaintyMs: 0.5 });
+  });
+
+  it('keeps an uncovered active tail unqualified', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: snapshots.slice(0, 180) }]), timing);
+    expect(coverage.covered).toBe(false);
+  });
+
+  it('attributes tick rates only when the complete possible window fits inside the active interval', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const changed = snapshots.map((snapshot, index) => index === 180 ? { ...snapshot, tick: { ...snapshot.tick, n: 20 } } : snapshot);
+    const coverage = evaluateStatsCoverage(aggregatePerfSnapshots([{ index: 0, perfSnapshots: changed }]), timing);
+    expect(coverage).toMatchObject({ covered: true, serverTickRate20Hz: true, serverTickWindowCount: 170 });
+  });
+
+  it('preserves tick rate and p99/max failures after clock-domain correction', () => {
+    const { snapshots, timing } = causalStatsFixture();
+    const changed = snapshots.map((snapshot, index) => index === 90
+      ? { ...snapshot, tick: { ...snapshot.tick, n: 164, p99: 20, max: 77 } } : snapshot);
+    const checks = evaluateServerQualification(aggregatePerfSnapshots([{ index: 0, perfSnapshots: changed }]), timing);
+    expect(checks).toMatchObject({ statsTemporalCoverage: true, serverTickRate20Hz: false,
+      tickP99WithinBudget: false, tickMaxWithinBudget: false });
+  });
+
+  it('captures a single causal request/reply pair and ignores forged payload timing', () => {
+    const { snapshots } = causalStatsFixture();
+    const record: { errors: string[]; perfSnapshots: PerfSnapshot[]; perf: null } = { errors: [], perfSnapshots: [], perf: null };
+    let clock = 100, sends = 0;
+    const probe = createStatsProbe(record, { monotonicNow: () => clock, epochNow: () => 6_000 + clock });
+    probe.request(7, () => { sends += 1; });
+    clock = 140;
+    probe.receive({ ...snapshots[0], requestSeq: 999, requestedAtMonotonicMs: 999_999 });
+    expect({ sends, errors: record.errors, snapshot: record.perf }).toMatchObject({ sends: 1, errors: [], snapshot: {
+      requestSeq: 7, requestedAtMs: 6_100, requestedAtMonotonicMs: 100, receivedAtMs: 6_140, receivedAtMonotonicMs: 140,
+    } });
+  });
+
+  it('cannot silently reassign a second stats request while a response is outstanding', () => {
+    const record: { errors: string[]; perfSnapshots: PerfSnapshot[] } = { errors: [], perfSnapshots: [] };
+    let sends = 0;
+    const probe = createStatsProbe(record);
+    probe.request(7, () => { sends += 1; });
+    const accepted = probe.request(8, () => { sends += 1; });
+    expect({ accepted, sends, errors: record.errors }).toEqual({ accepted: false, sends: 1, errors: ['stats_request_pending'] });
+  });
+
+  it('rejects an unsolicited or duplicate stats response instead of inventing a request bracket', () => {
+    const { snapshots } = causalStatsFixture();
+    const record: { errors: string[]; perfSnapshots: PerfSnapshot[] } = { errors: [], perfSnapshots: [] };
+    const probe = createStatsProbe(record);
+    probe.receive(snapshots[0]);
+    expect(record).toEqual({ errors: ['unmatched_tk_stats'], perfSnapshots: [] });
+  });
+
+  it.each([
+    ['just below three seconds', 8_600.249, 8_700, 8_795, false],
+    ['exactly three seconds', 8_600.25, 8_600.25, 8_795, true],
+    ['early open and delayed welcome', 8_500, 8_550, 8_795, false],
+    ['open before recorded attempt', 8_700, 8_650, 8_795, false],
+    ['welcome before open', 8_700, 8_770, 8_750, false],
+  ])('measures the outage boundary for %s', (_name, attempt, opened, joined, expected) => {
+    const { initial, reconnect, timing } = disconnectFixture();
+    const checks = scenarioChecks({ scenario: 'disconnect', seconds: 8, clients: 12 }, [initial, { ...reconnect,
+      connectRequestedAtMonotonicMs: attempt, openedAtMonotonicMs: opened, joinedAtMonotonicMs: joined }], 2, null, timing);
+    expect(checks.disconnectedForThreeSeconds).toBe(expected);
+  });
+
+  it('does not require close completion before a proven three-second reconnect', () => {
+    const { initial, reconnect, timing } = disconnectFixture();
+    const checks = scenarioChecks({ scenario: 'disconnect', seconds: 8, clients: 12 },
+      [{ ...initial, closedAt: 9_000, closedAtMonotonicMs: 9_000 }, reconnect], 2, null, timing);
+    expect(checks.disconnectedForThreeSeconds).toBe(true);
+  });
+
+  it('records close request and unusability before the close event and schedules by actual elapsed time', () => {
+    const record = { closeRequestedAtMonotonicMs: null, transportUnusableAtMonotonicMs: null, closedAtMonotonicMs: null,
+      closeReadyState: null };
+    const socket = { readyState: 1, close() { this.readyState = 2; } };
+    let clock = 5_000;
+    requestTransportClose({ socket, record }, 'intentional-3s-disconnect', () => { clock += 0.25; return clock; });
+    expect(record).toEqual({ closeRequestedAtMonotonicMs: 5_000.25, transportUnusableAtMonotonicMs: 5_000.5,
+      closedAtMonotonicMs: null, closeReadyState: 2 });
+    expect(canReconnect(record, 8_000.499)).toBe(false);
+    expect(canReconnect(record, 8_000.5)).toBe(true);
+  });
+
+  it('does not fabricate an unusable boundary when close leaves the socket open', () => {
+    const record = { transportUnusableAtMonotonicMs: null };
+    requestTransportClose({ socket: { readyState: 1, close() {} }, record }, 'probe', () => 5_000);
+    expect(canReconnect(record, 20_000)).toBe(false);
+  });
+
   it('parses a finite loopback-only capacity run', () => {
     const options = parseLoadOptions(['--url', 'http://127.0.0.1:8896/path', '--clients', '12', '--seconds', '180', '--out', 'report.json', '--server-log', 'server.log', '--source-manifest', 'source.json', '--seed', '17', '--latency-ms', '40', '--jitter-ms', '5', '--state-loss-rate', '.01', '--state-reorder-rate', '.02']);
     expect(options).toMatchObject({ url: 'http://127.0.0.1:8896', clients: 12, seconds: 180, serverLog: 'server.log', sourceManifest: 'source.json', seed: 17, latencyMs: 40, jitterMs: 5, stateLossRate: .01, stateReorderRate: .02, scenario: 'normal' });
@@ -130,7 +299,10 @@ describe('ironsight load tool boundaries', () => {
     const drops = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0, relayRateLimited: 0, relayOversized: 0, relayBadTarget: 0 };
     const snapshots = Array.from({ length: 18 }, (_, index) => ({ tick: metric, flush: metric, windowMs: 10_000,
       measuredAtMs: 500_000 + (index + 1) * 10_000, measuredAtEpochMs: activeStart + (index + 1) * 10_000,
-      receivedAtMs: activeStart + (index + 1) * 10_000 + 1, drops, errors: 0 }));
+      receivedAtMs: activeStart + (index + 1) * 10_000 + 1, requestSeq: index + 1,
+      requestedAtMs: activeStart + (index + 1) * 10_000,
+      requestedAtMonotonicMs: 500_000 + (index + 1) * 10_000,
+      receivedAtMonotonicMs: 500_000 + (index + 1) * 10_000, drops, errors: 0 }));
     const stats = aggregatePerfSnapshots([{ index: 0, perfSnapshots: snapshots }]);
     expect(stats).not.toBeNull();
     const records = Array.from({ length: 12 }, (_, index) => ({
@@ -177,7 +349,10 @@ describe('ironsight load tool boundaries', () => {
     const metric = { p50: 1, p95: 2, p99: 3, max: 4, n: 200 };
     const drops = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0, relayRateLimited: 0, relayOversized: 0, relayBadTarget: 0 };
     const snapshot = (measuredAtEpochMs: number) => ({ tick: metric, flush: metric, windowMs: 10_000, drops, errors: 0,
-      measuredAtMs: measuredAtEpochMs - activeStart + 500_000, measuredAtEpochMs, receivedAtMs: measuredAtEpochMs + 2 });
+      measuredAtMs: measuredAtEpochMs - activeStart + 500_000, measuredAtEpochMs, receivedAtMs: measuredAtEpochMs + 2,
+      requestSeq: measuredAtEpochMs, requestedAtMs: measuredAtEpochMs,
+      requestedAtMonotonicMs: measuredAtEpochMs - activeStart + 500_000,
+      receivedAtMonotonicMs: measuredAtEpochMs - activeStart + 500_000 });
     const complete = aggregatePerfSnapshots([{ index: 0,
       perfSnapshots: Array.from({ length: 18 }, (_, index) => snapshot(activeStart + (index + 1) * 10_000)) }]);
     const timing = { startedAtMonotonicMs: 500_000, finishedAtMonotonicMs: 680_000,
@@ -201,7 +376,7 @@ describe('ironsight load tool boundaries', () => {
       { ...snapshot(activeStart + 20_000), measuredAtMs: 499_000 }] }]);
     expect(evaluateStatsCoverage(clockRegression, timing)).toMatchObject({ covered: false, clockProgressConsistent: false });
     const lateReceipt = aggregatePerfSnapshots([{ index: 0, perfSnapshots: [
-      { ...snapshot(activeStart + 10_000), receivedAtMs: activeStart + 25_000 }] }]);
+      { ...snapshot(activeStart + 10_000), receivedAtMonotonicMs: 525_000 }] }]);
     expect(evaluateStatsCoverage(lateReceipt, timing)).toMatchObject({ covered: false, timestampsAvailable: false });
     expect(evaluateStatsCoverage(complete, { ...timing, finishedAtEpochMs: activeStart + 10_000 }))
       .toMatchObject({ covered: false, timestampsAvailable: true, activeClockSpanConsistent: false });

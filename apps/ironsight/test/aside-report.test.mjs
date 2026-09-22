@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import {
   EXIT,
@@ -358,7 +361,10 @@ const capacityRun = (scenario, finishedAt = Date.now()) => {
   if (scenario === 'impairment') Object.assign(perSocket[0].stateFrames, { dropped: 1, reordered: 1 });
   if (scenario === 'disconnect') {
     perSocket[0].closedAt = 1000;
-    perSocket.push({ ...socket(12), connectionKind: 'reconnect', session: 'session-0', openedAt: 4000, joinedAt: 4100 });
+    Object.assign(perSocket[0], { closeRequestedAtMonotonicMs: 501_000, transportUnusableAtMonotonicMs: 501_000,
+      closedAtMonotonicMs: 501_000, closeReadyState: 2 });
+    perSocket.push({ ...socket(12), connectionKind: 'reconnect', session: 'session-0', openedAt: 4000, joinedAt: 4100,
+      connectRequestedAtMonotonicMs: 504_000, openedAtMonotonicMs: 504_000, joinedAtMonotonicMs: 504_100 });
   }
   if (scenario === 'expiry') perSocket[1].peerLeftAt = [32_000];
   const drops = { rateLimited: 0, staleSeq: 0, oversizedBatch: 0, unknownType: 0,
@@ -369,7 +375,9 @@ const capacityRun = (scenario, finishedAt = Date.now()) => {
     const samples = Math.round(windowMs / 50);
     return { tick: { p50: 1, p95: 2, p99: 2.5, max: 3, n: samples },
       flush: { p50: 1, p95: 2, p99: 2.5, max: 3, n: samples }, windowMs, measuredAtMs: 500_000 + elapsed,
-      measuredAtEpochMs: startedAt + elapsed, receivedAtMs: startedAt + elapsed + 1, drops, errors: 0 };
+      measuredAtEpochMs: startedAt + elapsed, receivedAtMs: startedAt + elapsed + 1, requestSeq: index + 1,
+      requestedAtMs: startedAt + elapsed, requestedAtMonotonicMs: 500_000 + elapsed,
+      receivedAtMonotonicMs: 500_000 + elapsed, drops, errors: 0 };
   });
   perSocket[0].perfSnapshots = snapshots; perSocket[0].perf = snapshots.at(-1);
   const stats = aggregatePerfSnapshots(perSocket);
@@ -533,4 +541,165 @@ test('handler audit names every manifest scenario whose module is missing or fai
     { id: 'missing', module: 'missing.mjs', code: 'handler_missing' },
     { id: 'broken', module: 'broken.mjs', code: 'module_load_failed', detail: 'TypeError:bad import' },
   ]);
+});
+
+async function asideLeaseFixture(mode, output, runnerUrl) {
+  const { mock } = await import('node:test');
+  const { fileURLToPath } = await import('node:url');
+  const { readFile, mkdir } = await import('node:fs/promises');
+  const events = [];
+  let held = false;
+  const browserActivity = name => events.push({ name, held });
+  const timestamp = Date.now();
+  Date.now = () => timestamp;
+  const relative = name => new URL(name, runnerUrl).href;
+  mock.module(relative('./inspection-lease.mjs'), { namedExports: {
+    acquireInspectionLease: async label => {
+      events.push({ name: 'acquire', label });
+      if (mode === 'acquire-error') throw new Error('lease unavailable');
+      if (mode === 'contention') await new Promise(resolve => setImmediate(() => {
+        events.push({ name: 'pending-acquisition', browserActivities: events.filter(item => 'held' in item).length });
+        resolve();
+      }));
+      held = true;
+      events.push({ name: 'acquired' });
+      return { release: async () => {
+        events.push({ name: 'release' });
+        held = false;
+        if (mode === 'release-error') throw new Error('lease release failed');
+      } };
+    },
+  } });
+  mock.module('node:child_process', { namedExports: {
+    spawnSync: () => { browserActivity('version'); return { status: 0, stdout: 'aside-fixture' }; },
+  } });
+  mock.module(relative('./aside-source.mjs'), { namedExports: { sourceIdentity: async () => ({ fixture: true }) } });
+  mock.module(relative('./aside-repl.mjs'), { namedExports: {
+    discoverAsideExecutable: async () => {
+      browserActivity('discover');
+      if (mode === 'discovery-error') throw new Error('discovery failed');
+      return 'aside-fixture';
+    },
+    PersistentAsideRepl: class {
+      sessionDir = output;
+      transcript = [{ command: 'fixture' }];
+      isUsable() { return true; }
+      async start() {
+        browserActivity('start');
+        if (mode === 'startup-error') throw new Error('startup failed');
+        return { sessionDir: output };
+      }
+      async close() {
+        browserActivity('close-start');
+        await new Promise(resolve => setImmediate(resolve));
+        browserActivity('close-end');
+        if (mode === 'close-error') throw new Error('close failed');
+      }
+    },
+  } });
+  mock.module(relative(`./aside-scenarios/performance.mjs?qa=${timestamp}`), { namedExports: {
+    scenarioHandlers: { 'perf-input': async ({ definition, recordCleanup }) => {
+      browserActivity('scenario');
+      try {
+        if (mode === 'scenario-error') throw new Error('scenario failed');
+        return { cases: definition.cases.map(id => ({ id, verdict: 'PASS', reasons: [], observations: {}, artifacts: [] })), inputProvenance: 'fixture' };
+      } finally {
+        await new Promise(resolve => setImmediate(resolve));
+        browserActivity('tab-cleanup');
+        recordCleanup({ action: 'fixture-tab-close' });
+      }
+    } },
+  } });
+  if (mode === 'audit') {
+    process.argv = [process.execPath, fileURLToPath(runnerUrl), '--audit-handlers', '--output', `${output}/audit.json`];
+    await import(runnerUrl);
+    const report = JSON.parse(await readFile(`${output}/audit.json`, 'utf8'));
+    console.log(JSON.stringify({ events, report, held }));
+    process.exitCode = 0;
+    return;
+  }
+  if (mode === 'report-error') await mkdir(`${output}/report.json`);
+  const { run } = await import(runnerUrl);
+  let report = null;
+  let error = null;
+  try {
+    report = await run({ output, scenario: 'perf-input', url: 'http://127.0.0.1:8896/', viewport: { width: 1280, height: 720 } });
+  } catch (caught) { error = caught.message; }
+  const persisted = report ? JSON.parse(await readFile(`${output}/report.json`, 'utf8')) : null;
+  console.log(JSON.stringify({ events, held, report, persisted, error }));
+}
+
+async function runAsideLeaseFixture(mode) {
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+  const tempRoot = path.join(repoRoot, 'apps', 'ironsight', '.inspect');
+  await mkdir(tempRoot, { recursive: true });
+  const directory = await mkdtemp(path.join(tempRoot, 'aside-lease-test-'));
+  try {
+    const runnerUrl = new URL('../scripts/aside-qa.mjs', import.meta.url).href;
+    const script = `(${asideLeaseFixture.toString()})(${JSON.stringify(mode)},${JSON.stringify(directory)},${JSON.stringify(runnerUrl)})`;
+    const { stdout } = await promisify(execFile)(process.execPath, ['--experimental-test-module-mocks', '--input-type=module', '-e', script], {
+      cwd: repoRoot, timeout: 15_000, maxBuffer: 1024 * 1024,
+    });
+    return JSON.parse(stdout.trim().split('\n').at(-1));
+  } finally {
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tempRoot));
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+test('Aside runner waits for its inspection lease and retains it through tab and REPL cleanup', async () => {
+  const result = await runAsideLeaseFixture('contention');
+  assert.deepEqual(result.events.map(item => item.name), [
+    'acquire', 'pending-acquisition', 'acquired', 'discover', 'version', 'start', 'scenario', 'tab-cleanup', 'close-start', 'close-end', 'release',
+  ]);
+  assert.equal(result.events.find(item => item.name === 'pending-acquisition').browserActivities, 0);
+  assert.ok(result.events.filter(item => 'held' in item).every(item => item.held));
+  assert.equal(result.held, false);
+  assert.equal(result.error, null);
+  assert.equal(result.report.verdict, VERDICT.PASS);
+  assert.equal(result.report.exitCode, EXIT.PASS);
+  assert.deepEqual(result.persisted, result.report);
+  assert.deepEqual(result.report.cleanup, [{ scenario: 'perf-input', action: 'fixture-tab-close' }]);
+  assert.equal(result.report.cases.length, 4);
+});
+
+test('Aside runner refuses browser activity when inspection lease acquisition fails', async () => {
+  const result = await runAsideLeaseFixture('acquire-error');
+  assert.equal(result.error, 'lease unavailable');
+  assert.deepEqual(result.events.map(item => item.name), ['acquire']);
+  assert.equal(result.report, null);
+  assert.equal(result.held, false);
+});
+
+for (const mode of ['discovery-error', 'startup-error', 'scenario-error', 'close-error', 'report-error', 'release-error']) {
+  test(`Aside runner releases its inspection lease on ${mode}`, async () => {
+    const result = await runAsideLeaseFixture(mode);
+    assert.equal(result.events.at(-1).name, 'release');
+    assert.equal(result.events.filter(item => item.name === 'release').length, 1);
+    assert.ok(result.events.filter(item => 'held' in item).every(item => item.held));
+    assert.equal(result.held, false);
+    if (mode === 'startup-error' || mode === 'scenario-error') {
+      assert.equal(result.report.verdict, VERDICT.FAIL);
+      assert.equal(result.report.exitCode, EXIT.FAIL);
+      assert.deepEqual(result.persisted, result.report);
+      assert.ok(result.report.cases.every(item => item.reasons[0].code === 'scenario_execution_error'));
+      assert.equal(result.error, null);
+    } else {
+      assert.equal(result.report, null);
+      assert.ok(result.error);
+    }
+    if (!['discovery-error'].includes(mode)) {
+      const closeIndex = result.events.findIndex(item => item.name === 'close-end');
+      assert.ok(closeIndex >= 0);
+      assert.ok(closeIndex < result.events.findIndex(item => item.name === 'release'));
+    }
+  });
+}
+
+test('Aside handler audit CLI does not acquire an inspection lease or touch the browser', async () => {
+  const result = await runAsideLeaseFixture('audit');
+  assert.deepEqual(result.events, []);
+  assert.equal(result.held, false);
+  assert.equal(result.report.total, 31);
+  assert.equal(result.report.schemaVersion, 1);
 });

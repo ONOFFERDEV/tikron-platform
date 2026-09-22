@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { canReconnect, createStatsProbe, evaluateStatsCoverage, hasThreeSecondOutage, requestTransportClose } from './ironsight-load-timing.mjs';
+export { evaluateStatsCoverage } from './ironsight-load-timing.mjs';
 import { classifyServerLog, createStateImpairment, LoadOptionError, parseLoadOptions, readPerfSnapshot } from './ironsight-load-options.mjs';
 
 class LoadRunError extends Error {
@@ -86,7 +88,10 @@ function websocketUrl(origin, party, room, session) {
   url.pathname = `/parties/${encodeURIComponent(party)}/${encodeURIComponent(room)}`; url.searchParams.set('_session', session); return url.href;
 }
 function socketRecord(index) {
-  return { index, connectionKind: 'initial', session: null, connectionId: null, openedAt: null, joinedAt: null, closedAt: null, closeCode: null, closeReason: null, bytesIn: 0, bytesOut: 0, maxBufferedBytes: 0, finalBufferedBytes: null, sent: { move: 0, look: 0, fire: 0, reload: 0, objective: 0, stats: 0, time: 0 }, acks: 0, stateFrames: { received: 0, applied: 0, dropped: 0, reordered: 0 }, actualRttMs: [], simulatedStateDelayMs: [], errors: [], peerLeftAt: [], perfSnapshots: [] };
+  return { index, connectionKind: 'initial', session: null, connectionId: null, openedAt: null, joinedAt: null, closedAt: null,
+    connectRequestedAtMonotonicMs: null, openedAtMonotonicMs: null, joinedAtMonotonicMs: null,
+    closeRequestedAtMonotonicMs: null, transportUnusableAtMonotonicMs: null, closedAtMonotonicMs: null, closeReadyState: null,
+    closeCode: null, closeReason: null, bytesIn: 0, bytesOut: 0, maxBufferedBytes: 0, finalBufferedBytes: null, sent: { move: 0, look: 0, fire: 0, reload: 0, objective: 0, stats: 0, time: 0 }, acks: 0, stateFrames: { received: 0, applied: 0, dropped: 0, reordered: 0 }, actualRttMs: [], simulatedStateDelayMs: [], errors: [], peerLeftAt: [], perfSnapshots: [] };
 }
 export function readFixtureClient(value, index) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new LoadRunError('invalid_fixture');
@@ -94,6 +99,9 @@ export function readFixtureClient(value, index) {
   if (Object.keys(value).some(key => !allowed.has(key)) || value.index !== index || ![value.session, value.connectionId, value.closeReason].every(item => item === null || typeof item === 'string') || ![value.openedAt, value.joinedAt, value.closedAt, value.closeCode].every(item => item === null || Number.isSafeInteger(item) && item >= 0) || ![value.bytesIn, value.bytesOut, value.maxBufferedBytes, value.acks].every(item => Number.isSafeInteger(item) && item >= 0) || value.finalBufferedBytes !== undefined && value.finalBufferedBytes !== null && (!Number.isSafeInteger(value.finalBufferedBytes) || value.finalBufferedBytes < 0)) throw new LoadRunError('invalid_fixture');
   const counters = object => object && typeof object === 'object' && Object.values(object).every(item => Number.isSafeInteger(item) && item >= 0);
   const samples = array => Array.isArray(array) && array.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0);
+  if (Object.keys(baseline).filter(key => key.endsWith('AtMonotonicMs')).some(key =>
+    value[key] !== undefined && value[key] !== null && !samples([value[key]]))
+    || value.closeReadyState !== undefined && value.closeReadyState !== null && ![0, 1, 2, 3].includes(value.closeReadyState)) throw new LoadRunError('invalid_fixture');
   if (!counters(value.sent) || !counters(value.stateFrames) || !samples(value.actualRttMs) || !samples(value.simulatedStateDelayMs) || !Array.isArray(value.errors) || value.errors.some(item => typeof item !== 'string') || !Array.isArray(value.peerLeftAt) || !samples(value.peerLeftAt)) throw new LoadRunError('invalid_fixture');
   const perf = value.perf === undefined || value.perf === null ? undefined : readPerfSnapshot(value.perf);
   if (value.perf !== undefined && value.perf !== null && !perf) throw new LoadRunError('invalid_fixture');
@@ -117,13 +125,15 @@ async function connectOne(options, index, startedAt, burst, priorAllocation = nu
   const allocation = priorAllocation ?? await matchmake(options), record = socketRecord(index);
   record.connectionKind = priorAllocation ? 'reconnect' : 'initial'; record.session = allocation.session;
   const impairment = createStateImpairment({ seed: options.seed + index, latencyMs: options.latencyMs, jitterMs: options.jitterMs, lossRate: options.stateLossRate, reorderRate: options.stateReorderRate });
+  record.connectRequestedAtMonotonicMs = performance.now();
   const socket = new WebSocket(websocketUrl(options.url, allocation.party, allocation.room, allocation.session)); socket.binaryType = 'arraybuffer';
+  const statsProbe = createStatsProbe(record);
   let resolveJoin, rejectJoin, resolveClose;
   const joined = new Promise((resolvePromise, rejectPromise) => { resolveJoin = resolvePromise; rejectJoin = rejectPromise; });
   const closed = new Promise(resolvePromise => { resolveClose = resolvePromise; });
-  socket.addEventListener('open', () => { record.openedAt = Date.now() - startedAt; });
+  socket.addEventListener('open', () => { record.openedAtMonotonicMs = performance.now(); record.openedAt = Date.now() - startedAt; });
   socket.addEventListener('error', () => { record.errors.push('transport_error'); rejectJoin(new LoadRunError('socket_error', record)); });
-  socket.addEventListener('close', event => { record.closedAt = Date.now() - startedAt; record.closeCode = event.code; record.closeReason = event.reason; record.finalBufferedBytes = socket.bufferedAmount; resolveClose(); if (record.joinedAt === null) rejectJoin(new LoadRunError(event.code === 4002 ? 'room_full' : 'closed_before_join', record)); });
+  socket.addEventListener('close', event => { record.closedAtMonotonicMs = performance.now(); record.closedAt = Date.now() - startedAt; record.closeCode = event.code; record.closeReason = event.reason; record.finalBufferedBytes = socket.bufferedAmount; resolveClose(); if (record.joinedAt === null) rejectJoin(new LoadRunError(event.code === 4002 ? 'room_full' : 'closed_before_join', record)); });
   socket.addEventListener('message', event => {
     record.bytesIn += bytesOf(event.data);
     if (event.data instanceof ArrayBuffer) {
@@ -133,12 +143,10 @@ async function connectOne(options, index, startedAt, burst, priorAllocation = nu
       setTimeout(() => { record.stateFrames.applied += 1; }, outcome.delayMs); return;
     }
     let frame; try { frame = JSON.parse(String(event.data)); } catch { record.errors.push('malformed_server_frame'); return; }
-    if (frame.t === 's:welcome') { record.connectionId = frame.connectionId; record.joinedAt = Date.now() - startedAt; send(record, socket, message('contentReady', 1, { revision: allocation.contentRevision })); resolveJoin(); }
+    if (frame.t === 's:welcome') { record.connectionId = frame.connectionId; record.joinedAtMonotonicMs = performance.now(); record.joinedAt = Date.now() - startedAt; send(record, socket, message('contentReady', 1, { revision: allocation.contentRevision })); resolveJoin(); }
     else if (frame.t === 's:ack') record.acks += 1;
     else if (frame.t === 's:time' && Number.isFinite(frame.t0)) record.actualRttMs.push(Math.max(0, Date.now() - frame.t0));
-    else if (frame.t === 's:msg' && frame.type === 'tk:stats') { const parsed = readPerfSnapshot(frame.payload); if (parsed) {
-      const received = Object.freeze({ ...parsed, receivedAtMs: Date.now() }); record.perf = received; record.perfSnapshots.push(received);
-    } else record.errors.push('invalid_tk_stats'); }
+    else if (frame.t === 's:msg' && frame.type === 'tk:stats') statsProbe.receive(frame.payload);
     else if (frame.t === 's:peer-left') record.peerLeftAt.push(Date.now() - startedAt);
     else if (frame.t === 's:error') record.errors.push(typeof frame.code === 'string' ? frame.code : 'server_error');
   });
@@ -146,7 +154,12 @@ async function connectOne(options, index, startedAt, burst, priorAllocation = nu
   if (ownedConnections) ownedConnections.push(ownership);
   try { await Promise.race([joined, sleep(5000).then(() => { throw new LoadRunError('join_timeout', record); })]); }
   catch (error) { await closeOwnedConnections([ownership], { timeoutMs: 5000, reason: 'join-failed' }); throw error; }
-  return { socket, record, nextSeq: 2, allocation, closed };
+  return { socket, record, nextSeq: 2, allocation, closed, statsProbe };
+}
+
+function sendStats(client) {
+  const seq = client.nextSeq++;
+  if (client.statsProbe.request(seq, () => send(client.record, client.socket, message('tk:stats', seq, {})))) client.record.sent.stats += 1;
 }
 
 function sendIntents(client, tick, now) {
@@ -179,7 +192,7 @@ export async function closeOwnedConnections(connections, { timeoutMs = 35_000, w
   for (const connection of connections) {
     if (connection.socket.readyState > WebSocket.OPEN) continue;
     attempted += 1;
-    try { connection.socket.close(1000, reason); } catch { connection.record.errors.push('close_failed'); }
+    try { requestTransportClose(connection, reason); } catch { connection.record.errors.push('close_failed'); }
   }
   const outcomes = await Promise.all(connections.map(async connection => {
     if (connection.socket.readyState === WebSocket.CLOSED) return true;
@@ -206,71 +219,6 @@ export function aggregatePerfSnapshots(records) {
     measuredAtMs: null, measuredAtEpochMs: null, receivedAtMs: null,
     drops: Object.fromEntries(DROP_KEYS.map(key => [key, Math.max(...series.map(entry => entry.snapshot.drops[key]))])),
     errors: Math.max(...series.map(entry => entry.snapshot.errors)), snapshotCount: series.length, series };
-}
-
-export function evaluateStatsCoverage(stats, timing) {
-  const activeStart = timing?.startedAtEpochMs, activeEnd = timing?.finishedAtEpochMs;
-  const monotonicStart = timing?.startedAtMonotonicMs, monotonicEnd = timing?.finishedAtMonotonicMs;
-  const observedActiveMs = timing?.observedActiveMs;
-  const timingClocksAvailable = Number.isSafeInteger(activeStart) && Number.isSafeInteger(activeEnd) && activeEnd >= activeStart
-    && Number.isFinite(monotonicStart) && Number.isFinite(monotonicEnd) && monotonicEnd >= monotonicStart
-    && Number.isFinite(observedActiveMs) && observedActiveMs >= 0;
-  const activeClockSpanConsistent = timingClocksAvailable
-    && Math.abs((activeEnd - activeStart) - observedActiveMs) <= 1000
-    && Math.abs((monotonicEnd - monotonicStart) - observedActiveMs) <= 1000;
-  const timestampsAvailable = timingClocksAvailable && stats !== null && stats !== undefined
-    && Array.isArray(stats.series) && stats.series.length > 0
-    && stats.series.every(entry => Number.isFinite(entry.snapshot.measuredAtMs)
-      && Number.isSafeInteger(entry.snapshot.measuredAtEpochMs) && Number.isSafeInteger(entry.snapshot.receivedAtMs)
-      && entry.snapshot.receivedAtMs >= entry.snapshot.measuredAtEpochMs
-      && entry.snapshot.receivedAtMs - entry.snapshot.measuredAtEpochMs <= entry.snapshot.windowMs);
-  if (!timestampsAvailable) return { covered: false, timestampsAvailable: false, gapCount: null,
-    activeClockSpanConsistent: false, clockProgressConsistent: false, validWindowCount: 0,
-    serverTickRateAvailable: false, serverTickRate20Hz: false, serverTickWindowCount: 0,
-    serverTickHzMin: null, serverTickHzMax: null,
-    activeStartEpochMs: activeStart ?? null, activeEndEpochMs: activeEnd ?? null, coveredUntilEpochMs: null };
-  if (!activeClockSpanConsistent) return { covered: false, timestampsAvailable: true, gapCount: null,
-    activeClockSpanConsistent: false, clockProgressConsistent: false, validWindowCount: 0,
-    serverTickRateAvailable: false, serverTickRate20Hz: false, serverTickWindowCount: 0,
-    serverTickHzMin: null, serverTickHzMax: null,
-    activeStartEpochMs: activeStart, activeEndEpochMs: activeEnd, coveredUntilEpochMs: null };
-  const ordered = [...stats.series].sort((left, right) => left.snapshot.receivedAtMs - right.snapshot.receivedAtMs);
-  const clockProgressConsistent = ordered.slice(1).every((entry, index) => {
-    const prior = ordered[index].snapshot, current = entry.snapshot;
-    const monotonicDelta = current.measuredAtMs - prior.measuredAtMs;
-    const epochDelta = current.measuredAtEpochMs - prior.measuredAtEpochMs;
-    return monotonicDelta >= 0 && epochDelta >= 0 && Math.abs(monotonicDelta - epochDelta) <= 1000;
-  });
-  if (!clockProgressConsistent) return { covered: false, timestampsAvailable: true, gapCount: null,
-    activeClockSpanConsistent: true, clockProgressConsistent: false, validWindowCount: 0,
-    serverTickRateAvailable: false, serverTickRate20Hz: false, serverTickWindowCount: 0,
-    serverTickHzMin: null, serverTickHzMax: null,
-    activeStartEpochMs: activeStart, activeEndEpochMs: activeEnd, coveredUntilEpochMs: null };
-  const intervals = stats.series.filter(entry => entry.snapshot.tick.n > 0 && entry.snapshot.flush.n > 0)
-    .map(entry => ({ start: entry.snapshot.measuredAtEpochMs - entry.snapshot.windowMs, end: entry.snapshot.measuredAtEpochMs }))
-    .sort((left, right) => left.start - right.start || left.end - right.end);
-  let coveredUntil = activeStart, gapCount = 0;
-  for (const interval of intervals) {
-    if (interval.end < activeStart || interval.start > activeEnd) continue;
-    if (interval.start > coveredUntil) gapCount += 1;
-    if (interval.start <= coveredUntil) coveredUntil = Math.max(coveredUntil, interval.end);
-  }
-  if (coveredUntil < activeEnd) gapCount += 1;
-  const fullWindowTicks = stats.series
-    .filter(entry => entry.snapshot.measuredAtEpochMs - entry.snapshot.windowMs >= activeStart
-      && entry.snapshot.measuredAtEpochMs <= activeEnd);
-  const fullWindowTickRates = fullWindowTicks.map(entry => entry.snapshot.tick.n * 1000 / entry.snapshot.windowMs);
-  const serverTickRateAvailable = fullWindowTicks.length > 0;
-  const serverTickRate20Hz = serverTickRateAvailable && fullWindowTicks.every(entry =>
-    Math.abs(entry.snapshot.tick.n - entry.snapshot.windowMs / 50) <= 1);
-  const serverTickHzMin = serverTickRateAvailable ? Math.min(...fullWindowTickRates) : null;
-  const serverTickHzMax = serverTickRateAvailable ? Math.max(...fullWindowTickRates) : null;
-  return { covered: gapCount === 0 && coveredUntil >= activeEnd, timestampsAvailable: true, gapCount,
-    activeClockSpanConsistent: true, clockProgressConsistent: true,
-    serverTickRateAvailable, serverTickRate20Hz, serverTickWindowCount: fullWindowTicks.length,
-    serverTickHzMin, serverTickHzMax,
-    validWindowCount: intervals.length, activeStartEpochMs: activeStart, activeEndEpochMs: activeEnd,
-    coveredUntilEpochMs: coveredUntil };
 }
 
 export function evaluateServerQualification(stats, timing = null) {
@@ -307,7 +255,8 @@ export function scenarioChecks(options, records, joined, stats, timing) {
   if (options.scenario === 'room-cap') return { ...common, thirteenthRejected: initial.length === 13 && joined === 12
     && rejected.length === 1 && rejected[0].errors.includes('room_full') };
   if (options.scenario === 'disconnect') return { ...common, disconnectedForThreeSeconds: reconnects.length === 1
-    && reconnects[0].joinedAt - (initial[0]?.closedAt ?? Infinity) >= 3000, reconnectedSameSession: reconnects.length === 1
+    && hasThreeSecondOutage(initial[0], reconnects[0]), reconnectedSameSession: reconnects.length === 1
+    && typeof reconnects[0].session === 'string' && reconnects[0].session.length > 0
     && reconnects[0].session === initial[0]?.session && reconnects[0].joinedAt !== null };
   if (options.scenario === 'expiry') return { ...common, seatExpired: options.seconds >= 34
     && records.some(record => record.peerLeftAt.length > 0), noReconnectAttempt: reconnects.length === 0 };
@@ -347,7 +296,7 @@ async function runLive(options) {
     const cadence = await runAbsoluteCadence({ durationMs: options.seconds * 1000, onTick: async ({ tick }) => {
       const now = Date.now(); for (const client of liveClients) if (client.socket.readyState === WebSocket.OPEN) sendIntents(client, tick, now);
       if (tick >= nextStatsTick && liveClients[0]?.socket.readyState === WebSocket.OPEN) {
-        send(liveClients[0].record, liveClients[0].socket, message('tk:stats', liveClients[0].nextSeq++, {})); liveClients[0].record.sent.stats += 1;
+        sendStats(liveClients[0]);
         nextStatsTick = (Math.floor(tick / 20) + 1) * 20;
       }
       if (!malformedSent && options.scenario === 'malformed-stale' && tick >= 20 && liveClients[0]) {
@@ -355,9 +304,9 @@ async function runLive(options) {
       }
       if (!disconnected && (options.scenario === 'disconnect' || options.scenario === 'expiry') && tick >= 60 && liveClients[0]) {
         disconnected = true;
-        liveClients[0].socket.close(1000, options.scenario === 'disconnect' ? 'intentional-3s-disconnect' : 'intentional-expiry');
+        requestTransportClose(liveClients[0], options.scenario === 'disconnect' ? 'intentional-3s-disconnect' : 'intentional-expiry');
       }
-      if (!reconnectStarted && options.scenario === 'disconnect' && tick >= 122 && liveClients[0]) {
+      if (!reconnectStarted && options.scenario === 'disconnect' && liveClients[0] && canReconnect(liveClients[0].record)) {
         reconnectStarted = true;
         reconnectPromise = connectOne(options, liveClients[0].record.index, startedAt, true, liveClients[0].allocation, ownedConnections)
           .then(reconnected => { clients.push(reconnected); liveClients.push(reconnected); })
@@ -369,8 +318,7 @@ async function runLive(options) {
     if (reconnectPromise) await reconnectPromise;
     await sleep(1000);
     if (liveClients[0]?.socket.readyState === WebSocket.OPEN) {
-      send(liveClients[0].record, liveClients[0].socket, message('tk:stats', liveClients[0].nextSeq++, {}));
-      liveClients[0].record.sent.stats += 1;
+      sendStats(liveClients[0]);
       await sleep(500);
     }
     completed = true;

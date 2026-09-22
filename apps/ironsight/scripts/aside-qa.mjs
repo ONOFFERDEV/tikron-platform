@@ -18,6 +18,7 @@ import {
 } from './aside-common.mjs';
 import { PersistentAsideRepl, discoverAsideExecutable } from './aside-repl.mjs';
 import { sourceIdentity } from './aside-source.mjs';
+import { acquireInspectionLease } from './inspection-lease.mjs';
 export { sourceIdentity } from './aside-source.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -115,6 +116,15 @@ async function runHandlerAudit(output) {
 }
 
 export async function run(options) {
+  const lease = await acquireInspectionLease(`Aside / ${options.scenario}`);
+  try {
+    return await runWithLease(options);
+  } finally {
+    await lease.release();
+  }
+}
+
+async function runWithLease(options) {
   const outputDir = path.resolve(repoRoot, options.output);
   if (!within(repoRoot, outputDir)) throw new Error('output must stay inside the repository');
   await mkdir(outputDir, { recursive: true });

@@ -1,4 +1,13 @@
-export interface SocketFixtureRecord {
+export interface ConnectionTiming {
+  readonly connectRequestedAtMonotonicMs?: number | null;
+  readonly openedAtMonotonicMs?: number | null;
+  readonly joinedAtMonotonicMs?: number | null;
+  readonly closeRequestedAtMonotonicMs?: number | null;
+  readonly transportUnusableAtMonotonicMs?: number | null;
+  readonly closedAtMonotonicMs?: number | null;
+  readonly closeReadyState?: number | null;
+}
+export interface SocketFixtureRecord extends ConnectionTiming {
   readonly index: number;
   readonly connectionKind: 'initial' | 'reconnect';
   readonly session: string | null;
@@ -39,7 +48,9 @@ export interface CapacityTiming {
 }
 
 export interface CapacityPerfStage { readonly p50: number; readonly p95: number; readonly p99: number | null; readonly max: number; readonly n: number }
-export interface CapacityPerfSnapshot { readonly tick: CapacityPerfStage; readonly flush: CapacityPerfStage; readonly windowMs: number; readonly measuredAtMs: number | null; readonly measuredAtEpochMs: number | null; readonly receivedAtMs: number | null; readonly drops: Readonly<Record<string, number>>; readonly errors: number }
+export interface CapacityPerfSnapshot { readonly tick: CapacityPerfStage; readonly flush: CapacityPerfStage; readonly windowMs: number; readonly measuredAtMs: number | null; readonly measuredAtEpochMs: number | null; readonly receivedAtMs: number | null; readonly drops: Readonly<Record<string, number>>; readonly errors: number;
+  readonly requestSeq?: number | null; readonly requestedAtMs?: number | null;
+  readonly requestedAtMonotonicMs?: number | null; readonly receivedAtMonotonicMs?: number | null }
 export interface CapacityPerfAggregate extends CapacityPerfSnapshot { readonly snapshotCount: number; readonly series: readonly Readonly<{ socketIndex: number | null; snapshotIndex: number; snapshot: CapacityPerfSnapshot }>[] }
 
 export function runAbsoluteCadence(options: Readonly<{
@@ -50,13 +61,13 @@ export function runAbsoluteCadence(options: Readonly<{
   onTick: (tick: Readonly<{ tick: number; scheduledAt: number; actualAt: number }>) => Promise<void> | void;
 }>): Promise<Readonly<CapacityTiming>>;
 export function aggregatePerfSnapshots(records: readonly Readonly<{ index?: number; perf?: CapacityPerfSnapshot; perfSnapshots?: readonly CapacityPerfSnapshot[] }>[]): CapacityPerfAggregate | null;
-export function evaluateStatsCoverage(stats: CapacityPerfAggregate | null, timing: Readonly<{ startedAtEpochMs?: number; finishedAtEpochMs?: number; startedAtMonotonicMs?: number; finishedAtMonotonicMs?: number; observedActiveMs?: number }> | null): Readonly<{ covered: boolean; timestampsAvailable: boolean; gapCount: number | null; activeClockSpanConsistent: boolean; clockProgressConsistent: boolean; validWindowCount: number; serverTickRateAvailable: boolean; serverTickRate20Hz: boolean; serverTickWindowCount: number; serverTickHzMin: number | null; serverTickHzMax: number | null; activeStartEpochMs: number | null; activeEndEpochMs: number | null; coveredUntilEpochMs: number | null }>;
+export { evaluateStatsCoverage } from './ironsight-load-timing.mjs';
 export function evaluateServerQualification(stats: CapacityPerfSnapshot | CapacityPerfAggregate | null, timing?: Readonly<{ startedAtEpochMs?: number; finishedAtEpochMs?: number }> | null): Readonly<Record<string, boolean>>;
 export function scenarioChecks(options: Readonly<{ scenario: string; seconds: number; clients: number; stateReorderRate?: number }>, records: readonly Readonly<{
   connectionKind: 'initial' | 'reconnect'; openedAt?: number | null; joinedAt: number | null; closedAt: number | null;
   closeCode?: number | null; finalBufferedBytes?: number | null; sent: Readonly<Record<string, number>>; errors: readonly string[];
   stateFrames?: Readonly<Record<string, number>>; session?: string | null; peerLeftAt?: readonly number[];
-}>[], joined: number, stats: CapacityPerfAggregate | null, timing: Pick<CapacityTiming, 'observedActiveMs' | 'scheduledTicks' | 'executedTicks' | 'skippedTicks'> & Readonly<{ startedAtEpochMs?: number; finishedAtEpochMs?: number }> | null): Readonly<Record<string, boolean>>;
+} & ConnectionTiming>[], joined: number, stats: CapacityPerfAggregate | null, timing: Pick<CapacityTiming, 'observedActiveMs' | 'scheduledTicks' | 'executedTicks' | 'skippedTicks'> & Readonly<{ startedAtEpochMs?: number; finishedAtEpochMs?: number }> | null): Readonly<Record<string, boolean>>;
 
 export function closeOwnedConnections(connections: readonly Readonly<{
   socket: { readyState: number; close(code: number, reason: string): void };

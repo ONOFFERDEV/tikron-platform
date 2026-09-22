@@ -26,6 +26,9 @@ function ownerAt(port) {
     socket.once('error', reject);
     socket.once('end', () => {
       try {
+        if (body.length === 0) throw Object.assign(Error('Inspection lease owner ended with zero response bytes'), {
+          code: 'INSPECTION_OWNER_EMPTY_EOF',
+        });
         const owner = JSON.parse(body);
         if (owner.protocol !== PROTOCOL || !Number.isInteger(owner.pid)) throw Error('Port belongs to another service');
         resolve(owner);
@@ -69,7 +72,7 @@ export async function acquireInspectionLease(label, { port = PORT, timeoutMs = I
       }
     } catch (error) {
       // The previous owner may exit between bind and identification.
-      if (error.code !== 'ECONNREFUSED' && error.code !== 'ECONNRESET')
+      if (error.code !== 'ECONNREFUSED' && error.code !== 'ECONNRESET' && error.code !== 'INSPECTION_OWNER_EMPTY_EOF')
         throw Error(`Cannot acquire GPU inspection port ${port}: ${error.message}`, { cause: error });
     }
     if (Date.now() - started >= timeoutMs) throw Error(`GPU inspection lease timed out after ${timeoutMs}ms`);

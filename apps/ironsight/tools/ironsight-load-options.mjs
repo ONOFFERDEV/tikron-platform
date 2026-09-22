@@ -80,13 +80,18 @@ export function readPerfSnapshot(value) {
   const measuredAtMs = value.measuredAtMs === undefined ? null : value.measuredAtMs;
   const measuredAtEpochMs = value.measuredAtEpochMs === undefined ? null : value.measuredAtEpochMs;
   const receivedAtMs = value.receivedAtMs === undefined ? null : value.receivedAtMs;
+  const proofKeys = ['requestSeq', 'requestedAtMs', 'requestedAtMonotonicMs', 'receivedAtMonotonicMs'];
+  const proof = Object.fromEntries(proofKeys.filter(key => value[key] !== undefined).map(key => [key, value[key]]));
   const dropKeys = ['rateLimited', 'staleSeq', 'oversizedBatch', 'unknownType', 'relayRateLimited', 'relayOversized', 'relayBadTarget'];
   if (!tick || !flush || !Number.isSafeInteger(value.windowMs) || value.windowMs < 1
     || measuredAtMs !== null && !finiteNumber(measuredAtMs)
     || measuredAtEpochMs !== null && (!Number.isSafeInteger(measuredAtEpochMs) || measuredAtEpochMs < 0)
     || receivedAtMs !== null && (!Number.isSafeInteger(receivedAtMs) || receivedAtMs < 0)
+    || proofKeys.some(key => value[key] !== undefined && value[key] !== null && !finiteNumber(value[key]))
+    || value.requestSeq !== undefined && value.requestSeq !== null && (!Number.isSafeInteger(value.requestSeq) || value.requestSeq < 1)
+    || value.requestedAtMs !== undefined && value.requestedAtMs !== null && !Number.isSafeInteger(value.requestedAtMs)
     || !drops || typeof drops !== 'object' || dropKeys.some(key => !Number.isSafeInteger(drops[key]) || drops[key] < 0)
     || !Number.isSafeInteger(value.errors) || value.errors < 0) return null;
-  return Object.freeze({ tick, flush, windowMs: value.windowMs, measuredAtMs, measuredAtEpochMs, receivedAtMs,
+  return Object.freeze({ tick, flush, windowMs: value.windowMs, measuredAtMs, measuredAtEpochMs, receivedAtMs, ...proof,
     drops: Object.fromEntries(dropKeys.map(key => [key, drops[key]])), errors: value.errors });
 }

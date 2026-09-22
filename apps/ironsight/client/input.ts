@@ -108,11 +108,9 @@ export class Input {
       if (intent && this.locked && this.communicationActive) this.onPing?.(intent);
     });
     // Losing window focus must not leave keys "stuck" down (tab-out mid-strafe).
-    window.addEventListener("blur", () => {
-      this.cancelPing();
-      this.held.clear();
-      this.fire.clear("blur");
-      this.adsHeldState = false;
+    window.addEventListener("blur", () => this.releaseControls("blur"));
+    window.addEventListener("focusin", (e) => {
+      if (this.isTyping(e)) this.releaseControls("menu");
     });
 
     this.canvas.addEventListener("mousedown", (e) => {
@@ -149,14 +147,7 @@ export class Input {
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.canvas;
       if (this.locked) this.lockRetry = false;
-      if (!this.locked) {
-        this.cancelPing();
-        this.held.clear();
-        this.jumpEdge = false;
-        this.reloadEdge = false;
-        this.fire.clear("pointer_unlock");
-        this.adsHeldState = false;
-      }
+      if (!this.locked) this.releaseControls("pointer_unlock");
       this.onLockChange?.(this.locked);
     });
 
@@ -186,6 +177,15 @@ export class Input {
   }
 
   private cancelPing(): void { this.pingGesture.cancel(); this.pingWheel.update(this.pingGesture); }
+
+  private releaseControls(reason: FireClearReason): void {
+    this.cancelPing();
+    this.held.clear();
+    this.jumpEdge = false;
+    this.reloadEdge = false;
+    this.fire.clear(reason);
+    this.adsHeldState = false;
+  }
 
   /** Request pointer lock (from a user gesture, e.g. clicking the resume overlay). */
   lock(): void {
@@ -254,7 +254,7 @@ export class Input {
     return r;
   }
 
-  private isTyping(e: KeyboardEvent): boolean {
+  private isTyping(e: Event): boolean {
     const t = e.target;
     return (
       t instanceof HTMLInputElement ||
