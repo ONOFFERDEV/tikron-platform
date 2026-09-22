@@ -1,6 +1,9 @@
 # Stream "world" — maps, environment art and set dressing (late-WW1 front)
 
-You are one of three astra streams working on ironsight at the same time, each in its own
+You are one of four astra streams working on ironsight at the same time — world (you),
+kit (soldiers, weapons, first-person arms), look (lighting, post, atmosphere, VFX) and
+ui (menu, HUD and match presentation skin, worktree `D:/wt-ironsight-ui`, which owns the
+screen files the "look" list below attributes to look). Each runs in its own
 git worktree on its own branch. Your worktree is `D:/wt-ironsight-world`, your branch is
 `ironsight-ww1-world`, your dev-server port is **8801**, and you log every session to
 `apps/ironsight/AAA-PLAN-WORLD.md` (create it; never touch `AAA-PLAN.md`).

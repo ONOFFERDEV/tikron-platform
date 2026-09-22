@@ -85,10 +85,16 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
 const evaluate = async expr => (await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.value;
 const waitFor = async (expr, ms = 60000) => { const end = Date.now() + ms; while (Date.now() < end) { try { if (await evaluate(expr)) return; } catch {} await delay(150); } throw Error('timeout ' + expr); };
 const key = (value, code, keyCode, type) => send('Input.dispatchKeyEvent', { type, key: value, code, windowsVirtualKeyCode: keyCode });
-const clickCenter = async () => {
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'left', clickCount: 1 });
+const clickGameplay = async () => {
+  const position = await evaluate(`(() => {
+    const button = document.querySelector('#deployment-flow[data-flow="control-required"] .deployment-flow__actions button:first-child');
+    if (!button) return { x: 960, y: 540 };
+    const rect = button.getBoundingClientRect();
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  })()`);
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...position, button: 'left', clickCount: 1 });
   await delay(80);
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...position, button: 'left', clickCount: 1 });
 };
 try {
   let port; for (let i = 0; i < 100 && !port; i++) { try { port = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]; } catch { await delay(100); } }
@@ -156,9 +162,9 @@ try {
   const url = new URL(base); url.searchParams.set('mode', mode);
   await send('Page.navigate', { url: url.href });
   await waitFor('!!window.ironsight?.state()?.players[window.ironsight.myId]');
-  await delay(1500);
+  await waitFor('document.querySelector("#deployment-flow")?.dataset.flow === "control-required"');
   await send('Page.bringToFront');
-  await clickCenter();
+  await clickGameplay();
   await waitFor('!!document.pointerLockElement');
   await delay(500);
   const nowBefore = await evaluate('performance.now()');
@@ -252,7 +258,7 @@ try {
       await key('w', 'KeyW', 87, 'keyDown'); await delay(1800); await key('w', 'KeyW', 87, 'keyUp');
     }
     if (untilEnded && await evaluate(`window.ironsight.state().phase === 'ended'`)) continue;
-    await clickCenter();
+    await clickGameplay();
     await delay(600);
     if (!untilEnded && doneAt === Infinity && (!captureFight || nextCapture > 20000)
       && (await evaluate(`window.__perf.events.filter(e => e.kind === 'death').length`)) >= 2) doneAt = Date.now() + 6000;

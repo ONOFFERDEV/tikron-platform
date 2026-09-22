@@ -29,7 +29,11 @@ const NODE_TEST_FILES = [
   "test/aside-source.test.mjs",
   "test/audio-capture.test.mjs",
   "test/combat-telemetry-consumer.test.mjs",
+  "test/combat-acceptance.tool.test.mjs",
+  "test/combat-scenario.test.mjs",
+  "test/map-failure-proxy.test.mjs",
   "test/render-budget-policy.test.mjs",
+  "test/target-device-report.test.mjs",
   "test/ui-showcase.test.mjs",
 ] as const;
 

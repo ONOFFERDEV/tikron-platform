@@ -1,6 +1,6 @@
 # Stream "look" — lighting, post, atmosphere, VFX, decals and HUD/menu skin (late-WW1 front)
 
-You are one of three astra streams working on ironsight at the same time, each in its own
+You are one of four astra streams working on ironsight at the same time, each in its own
 git worktree on its own branch. Your worktree is `D:/wt-ironsight-look`, your branch is
 `ironsight-ww1-look`, your dev-server port is **8803**, and you log every session to
 `apps/ironsight/AAA-PLAN-LOOK.md` (create it; never touch `AAA-PLAN.md`).
@@ -23,9 +23,9 @@ Everything that is light, air, impact and screen:
 3. **Impact and weapon VFX** — muzzle blast dust, tracers, spent brass, dust puffs, spall,
    ricochet sparks, scorch and bullet-hole decals, explosion shockwave and debris, camera
    weight (sway, landing dip, blast shake, lens dust), the damage vignette.
-4. **HUD, deployment, intermission and menu skin** per `DESIGN.md`'s WW1 target —
-   typography, tokens, frames, iconography, kill feed and objective bar styling. Skin only:
-   no flow, binding or state changes.
+4. **The 3D presentation cameras** — deployment fly-through, killcam and drone/support
+   views — as camera, framing and grade work. The menu and HUD skin belongs to the "ui"
+   stream, not to you.
 
 Rules that bite here: the real-time light count stays constant (a hidden light is a removed
 light and recompiles every lit material), no extra render passes, no per-frame CPU bakes,
@@ -44,17 +44,14 @@ would say.
 `client/site-atmosphere.ts`, `client/vfx.ts`, `client/combat-fx.ts`, `client/weapon-flash.ts`,
 `client/mortar-fx.ts`, `client/blast-trauma.ts`, `client/shot-feedback.ts`,
 `client/contact-presentation.ts`, `client/damage-direction.ts`, `client/scope-glint.ts`,
-`client/hud.ts`, `client/*-hud.ts`, `client/tactical-map.ts`, `client/deployment-*.ts`,
-`client/intermission.ts`, `client/match-presentation.ts`, `client/map-presentation.ts`,
-`client/mode-select.ts`, `client/settings-ui.ts`, `client/round-honors.ts`,
-`client/recon-flyover.ts`, `client/*-view.ts`, `client/sentry-drone.ts`, `client/ui/**`,
-`client/compositor-*.ts`, `config/visuals.ts`, `public/index.html`, `public/assets/ui/**`,
-`public/assets/*.hdr`, `public/assets/*-sky.png`, `tools/bake-environment.py`,
-`tools/bake-*-sky.py`, `tools/bake-damage-vignette.mjs`, `scripts/hitch-*.mjs`,
-`scripts/compositor-trace-summary.mjs`, `DESIGN.md`, `docs/HITCH-GATE.md`, `AAA-PLAN-LOOK.md`,
-tests that exercise only these files, and new files under `.inspect/`.
+`client/recon-flyover.ts`, `client/*-view.ts`, `client/sentry-drone.ts`,
+`client/compositor-inspect.ts`, `config/visuals.ts`,
+`public/assets/ui/damage-vignette.png`, `public/assets/*.hdr`, `public/assets/*-sky.png`,
+`tools/bake-environment.py`, `tools/bake-*-sky.py`, `tools/bake-damage-vignette.mjs`,
+`scripts/hitch-*.mjs`, `scripts/compositor-trace-summary.mjs`, `docs/HITCH-GATE.md`,
+`AAA-PLAN-LOOK.md`, tests that exercise only these files, and new files under `.inspect/`.
 
-Allowlists: you may add lines for new UI/sky/LUT assets to `.gitignore`,
+Allowlists: you may add lines for new sky/LUT/VFX assets to `.gitignore`,
 `scripts/audit-assets.mjs` and `public/assets/README.md` — append only, inside a block
 marked `# look` (create it) so merges stay clean.
 
@@ -82,6 +79,17 @@ marked `# look` (create it) so merges stay clean.
   `public/assets/models/**`, `public/assets/weapons/**`, `tools/*ww1*`, `tools/fit-*.py`,
   `tools/meshy-*.mjs`, `tools/shrink-glb.py`, `scripts/*ww1*`, `scripts/inspect-rig.mjs`,
   `docs/VIEWMODEL-FIT.md`, `AAA-PLAN-KIT.md`.
+- **ui** (menu, HUD, match presentation skin; worktree `D:/wt-ironsight-ui`, port 8804):
+  `client/hud.ts`, `client/*-hud.ts`, `client/mode-select.ts`, `client/intermission.ts`,
+  `client/match-presentation.ts`, `client/map-presentation.ts`, `client/deployment-banner.ts`,
+  `client/deployment-presentation.ts`, `client/deployment-intro.ts`, `client/round-honors.ts`,
+  `client/settings-ui.ts`, `client/quit-confirm.ts`, `client/connection-quality.ts`,
+  `client/training-coach.ts`, `client/tactical-map.ts`, `client/ui/**`,
+  `client/compositor-preparation.ts`, `public/index.html`, `public/assets/ui/**` (except the
+  damage vignette), `scripts/build-ui-showcase.mjs`, `scripts/contrast-probe.mjs`,
+  `DESIGN.md`, `AAA-PLAN-UI.md`. The compositor pre-render that keeps the first fight
+  stall-free is split: ui owns the preparation module, you own the inspector and the gate,
+  so tell ui through a cross-stream request when its new DOM or CSS effects need covering.
 - **Nobody this phase (visuals only; supervisor-owned)**: `src/**`, `client/net.ts`,
   `client/predict.ts`, `client/input.ts`, `client/fire-input.ts`, `client/audio*.ts`,
   `client/spatial-audio.ts`, `client/weapon-sound.ts`, `client/settings.ts`, `client/config.ts`,

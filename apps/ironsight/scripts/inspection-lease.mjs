@@ -9,7 +9,10 @@ const HOST = '127.0.0.1';
 const PORT = 18796;
 const PROTOCOL = 'ironsight-gpu-inspection-v1';
 // Supervisors must budget queue time separately from browser execution time.
-export const INSPECTION_LEASE_TIMEOUT_MS = 600000;
+// Four parallel lanes each take the lease twice per gate (inspect, then hitch),
+// so the last one in the queue can wait for three full gates ahead of it; 10
+// minutes made that a spurious RED. Queue time is not execution time.
+export const INSPECTION_LEASE_TIMEOUT_MS = 1800000;
 
 function ownerAt(port) {
   return new Promise((resolve, reject) => {

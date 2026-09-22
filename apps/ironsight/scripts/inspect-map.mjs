@@ -247,10 +247,9 @@ try {
       await writeFile(join(output, `${prefix}-onboarding-briefing.png`), Buffer.from(capture.data, 'base64'));
     }
     if (gameplay) {
-      await delay(1500);
+      await waitFor('document.querySelector("#deployment-flow")?.dataset.flow === "control-required"');
       await send('Page.bringToFront');
-      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 960, y: 540, button: 'left', clickCount: 1 });
-      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 960, y: 540, button: 'left', clickCount: 1 });
+      await click('#deployment-flow .deployment-flow__actions button:first-child');
       await delay(300);
       const locked = (await send('Runtime.evaluate', { expression: 'document.pointerLockElement instanceof HTMLCanvasElement', returnByValue: true })).result?.value;
       if (!locked) {
@@ -520,7 +519,7 @@ try {
         throw Error(`Renderer resource budget or effect cleanup failed: ${JSON.stringify(report)}`);
       // Frame timing is deliberately not an automated hardware acceptance gate.
     }
-    const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/"))');
+    const assetRequests = await evaluate('performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(p => p.startsWith("/assets/maps/") || p.startsWith("/assets/props/") || p.startsWith("/assets/ww1/environment/"))');
     if (report?.lighting) {
       const lighting = report.lighting;
       const atmosphereName = report.siteGround?.some(g => g.name === 'undertow-ground') ? 'undertow-dusk'
@@ -595,8 +594,11 @@ try {
     // Validate the rendered map, rather than assuming every generic name is Relay.
     const inspectedSite = report?.siteGround?.find(g => g.name.endsWith('-ground'))?.name;
     if (!gameplay && !name.startsWith('menu') && inspectedSite === 'relay-ground' && report?.uplinks) {
-      if (!assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)
-        throw Error('Relay uplinks not loaded');
+      if (assetRequests.includes('/assets/props/relay-uplink.glb') || report.uplinks.length !== 2)
+        throw Error('Relay WW1 field aerials missing or obsolete uplink loaded');
+      for (const key of ['duckboard', 'sandbag', 'wire'])
+        if (!assetRequests.includes(`/assets/ww1/environment/${key}.glb`))
+          throw Error(`Relay WW1 environment kit not loaded: ${key}`);
       if (report.uplinks.some(p => p.max[2] >= 0 || Math.abs(p.min[1]) > 0.001 || p.triangles > 5000))
         throw Error('Relay uplink exceeds exterior geometry budget');
     }

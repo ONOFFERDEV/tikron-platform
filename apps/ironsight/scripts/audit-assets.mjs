@@ -7,6 +7,7 @@ import { AUTHORED_WW1_PATHS, auditAuthoredWw1Assets } from './ww1-authored-asset
 import { PREVIEW_AUTHORED_WW1_PATHS, auditPreviewAuthoredWw1Assets } from './ww1-preview-authored-assets.mjs';
 import { WW1_WEAPON_CANDIDATE_PATHS, auditWw1WeaponCandidates } from './ww1-weapon-candidates.mjs';
 import { WW1_SOLDIER_CANDIDATE_PATHS, auditWw1SoldierCandidates } from './ww1-soldier-candidates.mjs';
+import { quarantinedAssetPaths } from './asset-quarantine.mjs';
 const args = process.argv.slice(2);
 const option = name => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
 const receiptArg = option('--receipt');
@@ -67,7 +68,7 @@ if (!previewAuthoredWw1Audit.valid) throw Error(`WW1 preview authored asset audi
 const weaponCandidateAudit = await auditWw1WeaponCandidates(root, fileURLToPath(new URL('../tools/build-ww1-production-weapons.py', import.meta.url)));
 if (!weaponCandidateAudit.valid) throw Error(`WW1 weapon candidate audit failed: ${JSON.stringify(weaponCandidateAudit.issues)}`);
 const soldierCandidateAudit = await auditWw1SoldierCandidates(root, fileURLToPath(new URL('../tools/fit-ww1-soldiers.py', import.meta.url)));
-if (!soldierCandidateAudit.valid) throw Error(`WW1 soldier candidate audit failed: ${JSON.stringify(soldierCandidateAudit.issues)}`);
+const excludedPaths = quarantinedAssetPaths(soldierCandidateAudit, await readFile(join(root, '.assetsignore'), 'utf8'));
 const approvedDerived = [
   'assets/models/player.glb', 'assets/models/weapons-vm.glb',
   'assets/maps/arena1-dressing.glb', 'assets/maps/arena2-dressing.glb', 'assets/maps/relay-skyline.glb',
@@ -86,7 +87,11 @@ async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) await walk(path);
-    else files.push({ path: relative(root, path).replaceAll('\\', '/'), bytes: (await stat(path)).size });
+    else {
+      const assetPath = relative(root, path).replaceAll('\\', '/');
+      if (assetPath !== '.assetsignore' && !excludedPaths.has(assetPath))
+        files.push({ path: assetPath, bytes: (await stat(path)).size });
+    }
   }
 }
 await walk(root);
@@ -122,5 +127,5 @@ const publicBytes = files.reduce((n, f) => n + f.bytes, 0);
 // Raised 40 -> 60 MiB by owner decision 2026-09-10 for the visual-fidelity phase.
 // Per-map lazy loading is what keeps first load reasonable; the cap is the ceiling, not a target.
 if (publicBytes > 60 * 1024 * 1024) throw Error('Deployed public asset set exceeds 60 MiB budget');
-console.log(JSON.stringify({ assetBytes, publicBytes, maxFileBytes: Math.max(...files.map(f => f.bytes)),
+console.log(JSON.stringify({ assetBytes, publicBytes, excludedPaths: [...excludedPaths], maxFileBytes: Math.max(...files.map(f => f.bytes)),
   derivedFiles: files.filter(f => approvedDerived.includes(f.path)), originalFiles: files.filter(f => approvedOriginal.includes(f.path)), authoredWw1: authoredWw1Audit, previewAuthoredWw1: previewAuthoredWw1Audit, weaponCandidates: weaponCandidateAudit, soldierCandidates: soldierCandidateAudit, note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));

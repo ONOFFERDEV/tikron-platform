@@ -6,6 +6,7 @@ import { acquireWeaponModel, weaponMuzzle, weaponSource } from "../client/weapon
 import { GAME } from '../src/game-config.js';
 import { splitRifleMagazine } from '../client/rifle-magazine.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { addWeaponPalm } from './helpers/weapon-palm.js';
 vi.mock("../client/weapon-loader.js", async importOriginal => ({
   ...await importOriginal<typeof import("../client/weapon-loader.js")>(),
   acquireWeaponModel: vi.fn(),
@@ -101,16 +102,19 @@ describe("remote weapon presentation", () => {
       upper.name = `UpperArm_${suffix}`; lower.name = `lowerarm_${suffix.toLowerCase()}`; hand.name = `Hand_${suffix}`;
       upper.position.set(sign * .15, 1.4, 0); lower.position.set(sign * .08, -.3, .1);
       hand.position.set(-sign * .1, .13, suffix === "R" ? .2 : .27);
+      addWeaponPalm(hand, suffix);
       root.add(upper); upper.add(lower); lower.add(hand); if (suffix === "L") support = hand;
     }
     vi.mocked(acquireWeaponModel).mockReturnValue(lease(Promise.resolve(f.gltf)));
     const weapon = new RemoteWeapon(group, root); weapon.setWeapon(0); await flush();
     group.updateMatrixWorld(true); weapon.update(1.65, 0, true); group.updateMatrixWorld(true);
-    const grip = weapon.mount.getObjectByName("grip_l")!;
-    const palm = support!.localToWorld(new THREE.Vector3(-.045, 0, 0));
+    const grip = weapon.mount.getObjectByName("grip_l");
+    expect(grip).toBeDefined(); expect(support).toBeDefined();
+    if (!grip || !support) throw new Error("Missing calibrated grip or support hand");
+    const palm = support.localToWorld(new THREE.Vector3(-.014, -.045, 0));
     expect(palm.distanceTo(grip.getWorldPosition(new THREE.Vector3())))
       .toBeLessThan(.002);
-    expect(support!.getWorldQuaternion(new THREE.Quaternion()).angleTo(grip.getWorldQuaternion(new THREE.Quaternion())))
+    expect(support.getWorldQuaternion(new THREE.Quaternion()).angleTo(grip.getWorldQuaternion(new THREE.Quaternion())))
       .toBeLessThan(.002);
     weapon.dispose();
   });

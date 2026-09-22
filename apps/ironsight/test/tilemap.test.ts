@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { compileTileMap, rampOccluderBoxes, TILE } from "../src/map/tilemap.js";
 import { ARENA1 } from "../src/map/arena1.js";
+import { blockingEnvironmentBoxes } from "../src/map/environment-props.js";
 import { ARENA, PLAYER } from "../src/config.js";
 import { canStand, type Box, type Bounds, type Vec3 } from "../src/physics.js";
 
@@ -401,10 +402,14 @@ describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", 
     expect(ARENA1.presentation).toBe("relay"); // legacy index-based dressing must not load
     const structureParts = new Set(ARENA1.structures!.flatMap(s => s.parts.map(p => p.box)));
     const structureRamps = new Set(ARENA1.structures!.flatMap(s => s.ramps));
+    const environmentBoxes = blockingEnvironmentBoxes("relay");
+    expect(environmentBoxes.length).toBeGreaterThan(0);
+    for (const box of environmentBoxes) expect(ARENA1.boxes).toContain(box);
     const core = ARENA1.signalCore!;
     expect(ARENA1.ramps!.filter(r => !structureRamps.has(r))).toHaveLength(4);
     expect(structureRamps.size).toBe(4);
-    for (const b of ARENA1.boxes.filter(b => !structureParts.has(b) && !ARENA1.terrain?.boxes.includes(b))) {
+    for (const b of ARENA1.boxes.filter(b => !structureParts.has(b) && !ARENA1.terrain?.boxes.includes(b)
+      && !environmentBoxes.includes(b))) {
       const insideAuthoredEventFrame = b.min.x >= core.chamber.min.x && b.max.x <= core.chamber.max.x
         && b.min.z >= core.chamber.min.z - .4 && b.max.z <= core.chamber.max.z + .4;
       if (insideAuthoredEventFrame) continue;

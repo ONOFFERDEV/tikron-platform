@@ -2345,7 +2345,7 @@ export class SceneRig {
   }
 
   inspectRelayUplinks() {
-    return this.scene.children.filter(node => node.name === 'relay-uplink').map(node => {
+    return this.scene.children.filter(node => node.name === 'relay-field-aerial').map(node => {
       const box = new THREE.Box3().setFromObject(node);
       let triangles = 0;
       node.traverse(child => { if (child instanceof THREE.Mesh) triangles += (child.geometry.index?.count ?? child.geometry.attributes.position!.count) / 3; });

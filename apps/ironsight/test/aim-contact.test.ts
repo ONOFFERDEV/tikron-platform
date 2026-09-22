@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as T from 'three';
 import { RemoteWeapon } from '../client/remote-weapon.js';
+import { addWeaponPalm } from './helpers/weapon-palm.js';
 
 function fixture() {
   const group = new T.Group(), root = new T.Group(); group.add(root); root.userData.rifleHold = true;
@@ -12,6 +13,7 @@ function fixture() {
     upper.position.set(sign * 0.15, 1.4, 0);
     lower.position.set(sign * 0.08, -0.30, 0.10);
     hand.position.set(-sign * 0.10, 0.13, suffix === 'R' ? 0.20 : 0.27);
+    addWeaponPalm(hand, suffix);
     root.add(upper); upper.add(lower); lower.add(hand); bones.push(upper, lower, hand);
   }
   const head = new T.Object3D(); head.position.set(0, 1.65, 0); root.add(head);
