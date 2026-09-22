@@ -11,6 +11,7 @@ import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
 import { createSiteSkyMaterial, siteSunDirection, siteAtmosphere } from './site-atmosphere.js';
+import { createSkyWeather } from './scene-sky-weather.js';
 import { buildWedgeGeometry } from "./site-wedge.js";
 /**
  * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
@@ -519,7 +520,8 @@ export class SceneRig {
       fragmentShader: "uniform vec3 horizon; uniform vec3 zenith; varying vec3 vDirection; void main(){ float h=smoothstep(0.,0.75,normalize(vDirection).y); gl_FragColor=vec4(mix(horizon,zenith,h),1.); \n #include <tonemapping_fragment> \n #include <colorspace_fragment> \n }",
     }));
     sky.name = 'site-sky';
-    if (atmosphere) sky.frustumCulled = false;
+    this.skyWeather = createSkyWeather(sky.material, map.presentation);
+    if (atmosphere || this.skyWeather) sky.frustumCulled = false;
     sky.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2);
     sky.raycast = () => {};
     this.scene.add(sky);
@@ -2275,7 +2277,9 @@ export class SceneRig {
     instanceSlots: this.preparedInstanceSlots }; }
 
   private readonly introCamera = new IntroCamera();
+  private readonly skyWeather: ReturnType<typeof createSkyWeather>;
   render(now = performance.now(), intro?: IntroPose): void {
+    this.skyWeather?.update(now, this.reducedMotion);
     this.updateTracers(now);
     this.stepFx(now);
     this.vfx.update(now);
