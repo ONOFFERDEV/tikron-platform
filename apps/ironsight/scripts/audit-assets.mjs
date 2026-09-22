@@ -129,3 +129,15 @@ const publicBytes = files.reduce((n, f) => n + f.bytes, 0);
 if (publicBytes > 60 * 1024 * 1024) throw Error('Deployed public asset set exceeds 60 MiB budget');
 console.log(JSON.stringify({ assetBytes, publicBytes, excludedPaths: [...excludedPaths], maxFileBytes: Math.max(...files.map(f => f.bytes)),
   derivedFiles: files.filter(f => approvedDerived.includes(f.path)), originalFiles: files.filter(f => approvedOriginal.includes(f.path)), authoredWw1: authoredWw1Audit, previewAuthoredWw1: previewAuthoredWw1Audit, weaponCandidates: weaponCandidateAudit, soldierCandidates: soldierCandidateAudit, note: 'All purchased derivatives must remain unversioned; see .gitignore and assets/README.md.' }, null, 2));
+
+// # world
+const worldSkylineBytes = await readFile(join(root, 'assets/maps/relay-skyline.glb'));
+if (worldSkylineBytes.readUInt32LE(0) !== 0x46546c67 || worldSkylineBytes.readUInt32LE(4) !== 2
+    || worldSkylineBytes.readUInt32LE(8) !== worldSkylineBytes.length || worldSkylineBytes.readUInt32LE(16) !== 0x4e4f534a)
+  throw Error('Original Signal Station skyline must be a GLB 2.0 container');
+const worldSkyline = JSON.parse(worldSkylineBytes.subarray(20, 20 + worldSkylineBytes.readUInt32LE(12)).toString());
+if (!worldSkyline.nodes?.some(node => node.extras?.provenance === 'ironsight-original-signal-village-v1')
+    || worldSkyline.materials?.length !== 1 || (worldSkyline.images?.length ?? 0) !== 0 || (worldSkyline.textures?.length ?? 0) !== 0
+    || (worldSkyline.animations?.length ?? 0) !== 0 || worldSkylineBytes.length > 1168772)
+  throw Error('Original Signal Station skyline provenance or resident-resource contract failed');
+// /world

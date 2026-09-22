@@ -7,6 +7,7 @@ import { relaySiteBoundary } from './relay-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RELAY_YARD_PARTS } from '../src/map/relay-yard.js';
 import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
+import { buildRelaySkyline } from './relay-skyline.js';
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
  * Detail is inset into solids; skyline is outside the playable rectangle.
@@ -14,8 +15,6 @@ import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
  */
 export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly = false): void {
   const width = map.bounds.width, depth = map.bounds.depth;
-  const contextX = (x: number) => x < 0 ? x : x > 60 ? width + x - 60 : x * width / 60;
-  const contextZ = (z: number) => z < 0 ? z : z > 40 ? depth + z - 40 : z * depth / 40;
   const mastX = width / 2;
   const mats = {
     concrete: new THREE.MeshStandardMaterial(RELAY_FINISH.concrete),
@@ -24,20 +23,17 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     metal: new THREE.MeshStandardMaterial(RELAY_FINISH.metal),
     amber: new THREE.MeshStandardMaterial(RELAY_FINISH.amber),
     teal: new THREE.MeshStandardMaterial(RELAY_FINISH.teal),
-    light: new THREE.MeshBasicMaterial({ color: 0xc9c8ac }),
+    light: new THREE.MeshBasicMaterial({ color: RELAY_FINISH.dark.color }),
     paint: new THREE.MeshStandardMaterial(RELAY_FINISH.paint),
   };
   type Mat = keyof typeof mats;
   const batches = new Map<Mat, THREE.Matrix4[]>();
-  const skylineBatches = new Map<Mat, THREE.Matrix4[]>();
-  let activeBatch = batches;
   const matrix = new THREE.Matrix4();
   const quat = new THREE.Quaternion();
   const add = (m: Mat, x: number, y: number, z: number, w: number, h: number, d: number, yaw = 0) => {
-    if (activeBatch === skylineBatches) { x = contextX(x); z = contextZ(z); }
     quat.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     matrix.compose(new THREE.Vector3(x, y, z), quat, new THREE.Vector3(w, h, d));
-    const list = activeBatch.get(m) ?? []; list.push(matrix.clone()); activeBatch.set(m, list);
+    const list = batches.get(m) ?? []; list.push(matrix.clone()); batches.set(m, list);
   };
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
@@ -176,47 +172,31 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   for (const x of [3, width - 3]) for (const z of [39, 43, 47, 51, 55, 59].map(z => z * depth / 100)) {
     add(x < width / 2 ? "amber" : "teal", x, 0.008, z, 3, 0.015, 0.12);
   }
-  // Site context: large silhouettes, never cover in the playable world.
-  activeBatch = skylineBatches;
-  for (const [x, z, w, h, d] of [
-    [-12, 4, 15, 18, 18], [-13, 33, 14, 12, 14], [72, 7, 17, 24, 22],
-    [76, 36, 21, 15, 18], [9, -16, 18, 13, 20], [49, -19, 17, 22, 21],
-    [15, 58, 23, 13, 22], [52, 59, 20, 20, 22],
-  ] as const) {
-    add("concrete", x, (h - 2.8) / 2, z, w, h - 2.8, d);
-    add("dark", x, h - 1.4, z, w + 0.2, 2.8, d + 0.2);
-    add("metal", x, h + 0.8, z, w * 0.6, 1.6, d * 0.65);
-    for (let yy = 4; yy < h - 2; yy += 3)
-      add("teal", x, yy, z, w + 0.02, 0.45, d + 0.02);
-  }
-  activeBatch = batches;
   // The moving dish and its mast live in SignalArray; only the static gantry
   // belongs in the architecture bake. Every part remains outside the arena.
   for (const x of [mastX - 9, mastX + 9]) add("amber", x, 8, -3, 0.6, 16, 0.8);
   add("amber", mastX, 15.6, -3, 19, 0.8, 1);
   for (let x = mastX - 8; x < mastX + 9; x += 2) add("dark", x, 15.1, -3, 0.16, 1.5, 0.5, 0.35);
-  const fallback = new THREE.Group(); fallback.name = "relay-skyline-fallback"; scene.add(fallback);
-  for (const [batch, parent] of [[batches, scene], [skylineBatches, fallback]] as const) {
-   for (const [name, transforms] of batch) {
+  if (bakeOnly) scene.add(buildRelaySkyline(map.bounds));
+  for (const [name, transforms] of batches) {
     const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mats[name], transforms.length);
     transforms.forEach((m, i) => mesh.setMatrixAt(i, m));
     mesh.instanceMatrix.needsUpdate = true;
     mesh.castShadow = name !== "light" && name !== "paint";
     mesh.receiveShadow = name !== "light";
     mesh.name = `relay-${name}`;
-    mesh.computeBoundingSphere(); parent.add(mesh);
-   }
+    mesh.computeBoundingSphere(); scene.add(mesh);
   }
   // One original atlas for all world signs (no external fonts/textures).
   if (bakeOnly) return;
   buildRelayServiceDetail(scene, map);
   const atlas = document.createElement("canvas"); atlas.width = 1024; atlas.height = 512;
   const ctx = atlas.getContext("2d")!;
-  const labels = ["01 / COOLING", "02 / RELAY", "03 / FREIGHT", "RELAY / 07"];
+  const labels = ["01 / SIGNALS", "02 / WIRELESS", "03 / SUPPLIES", "FIELD POST / 07"];
   labels.forEach((label, i) => {
-    ctx.fillStyle = "#243a41"; ctx.fillRect(0, i * 128, 1024, 128);
-    ctx.fillStyle = i === 0 ? "#86d7d9" : "#f2b35d"; ctx.fillRect(0, i * 128, 14, 128);
-    ctx.fillStyle = "#ecede2"; ctx.font = "600 70px 'Arial', sans-serif";
+    ctx.fillStyle = "#3c4132"; ctx.fillRect(0, i * 128, 1024, 128);
+    ctx.fillStyle = "#a28c61"; ctx.fillRect(0, i * 128, 14, 128);
+    ctx.fillStyle = "#d4ccb3"; ctx.font = "600 70px 'Arial', sans-serif";
     ctx.fillText(label, 42, i * 128 + 89);
   });
   const texture = new THREE.CanvasTexture(atlas); texture.colorSpace = THREE.SRGBColorSpace;

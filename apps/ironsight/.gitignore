@@ -33,3 +33,7 @@ assets-src/**
 !public/assets/undertow-dusk-sky.png
 !public/assets/switchyard-overcast.hdr
 !public/assets/switchyard-overcast-sky.png
+
+# world
+# Original village geometry replaces the former private skyline at this path.
+!public/assets/maps/relay-skyline.glb

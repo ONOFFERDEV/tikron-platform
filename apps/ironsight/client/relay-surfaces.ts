@@ -1,4 +1,6 @@
 import * as T from 'three';
+import { relayBakedFinish } from './relay-palette.js';
+import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns.js';
 
 export const RELAY_PHYSICAL_SURFACES = {
   mud: { roughness: 0.97, metalness: 0 },
@@ -18,7 +20,11 @@ interface GroundCanvas {
  * The fine normal and R8 roughness textures are shared by the entire Relay kit.
  * No uniforms, texture uploads, resource creation or CPU bakes during play. */
 export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'ground' | 'concrete' | 'apron' | 'coated'): void {
-  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel' : kind === 'concrete' ? 'concrete' : 'metal';
+  const finish = relayBakedFinish(material.name);
+  const timber = kind === 'coated' && (finish === 'dark' || finish === 'teal' || finish === 'amber' || finish === 'ramp');
+  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel' : kind === 'concrete' || finish === 'pale' ? 'concrete' : timber ? 'wood' : 'metal';
+  const pattern = kind === 'concrete' ? RELAY_FIELD_PATTERNS.brick : timber ? RELAY_FIELD_PATTERNS.wood
+    : kind === 'ground' || kind === 'apron' ? RELAY_FIELD_PATTERNS.earth : '';
   material.setValues(RELAY_PHYSICAL_SURFACES[surface]);
   material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
@@ -37,6 +43,7 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
     `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = roughness;
+      float fieldRelief = 0.0;
       #ifdef USE_ROUGHNESSMAP
       float surfaceGrain = texture2D(roughnessMap, vRoughnessMapUv).r;
       roughnessFactor *= surfaceGrain;
@@ -61,7 +68,7 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.63, 0.57, 0.43), streak * 0.72);
       roughnessFactor = mix(roughnessFactor, 0.97, max(streak, dust) * 0.55);
       ` : ''}
-      ${kind === 'coated' ? `
+      ${surface === 'metal' ? `
       // Broken paint reveals dull steel in small patches; derivative filtering
       // fades the fine chips before they can sparkle down a rifle lane.
       float chip = smoothstep(0.58, 0.72, aggregate) * smoothstep(0.51, 0.64, broad);
@@ -69,36 +76,13 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.17, 0.16, 0.13), chip * 0.48);
       roughnessFactor = mix(roughnessFactor, 0.65, chip);
       ` : ''}
-      ${kind === 'apron' || kind === 'coated' ? '' : `
-      vec2 spacing = vec2(${kind === 'ground' ? '6.0, 5.0' : '2.4, 1.2'});
-      vec2 cell = floor(metres / spacing);
-      vec2 local = mod(metres, spacing);
-      vec2 edgeDistance = min(local, spacing - local);
-      // Physical widths, with a pixel-wide analytic filter at grazing angles.
-      vec2 seam = 1.0 - smoothstep(vec2(0.016), vec2(0.016) + footprint, edgeDistance);
-      seam *= min(vec2(1.0), vec2(0.032) / footprint);
-      float joint = max(seam.x, seam.y);
-      float pour = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-      diffuseColor.rgb *= mix(0.90, 1.06, pour) * mix(1.0, 0.68, joint);
-      roughnessFactor = mix(roughnessFactor, 0.99, joint);
-      ${kind === 'concrete' ? `
-      // Recessed form ties: shading only, never holes through gameplay cover.
-      vec2 tieDistance = abs(local - spacing * 0.5);
-      float tie = 1.0 - smoothstep(0.021, 0.021 + max(footprint.x, footprint.y), length(tieDistance));
-      tie *= min(1.0, 0.042 / max(footprint.x, footprint.y));
-      diffuseColor.rgb *= 1.0 - 0.32 * tie;
-      // Rust bleed directly beneath recessed tie plugs, never alpha holes.
-      float rustWidth = 0.023 + local.y * 0.004;
-      float rust = (1.0 - smoothstep(rustWidth, rustWidth + footprint.x, tieDistance.x));
-      rust *= smoothstep(0.0, 0.025, spacing.y * 0.5 - local.y)
-        * (1.0 - smoothstep(0.03 + pour * 0.10, 0.18 + pour * 0.24, spacing.y * 0.5 - local.y));
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.63, 0.46, 0.29), rust * vRelayWall * 0.40);
-      ` : ''}
-      `}
+      ${pattern}
       #endif
     `);
+    if (pattern) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
+      `#include <normal_fragment_maps>\n${RELAY_FIELD_RELIEF}`);
   };
-  material.customProgramCacheKey = () => `relay-surface-v2-${kind}`;
+  material.customProgramCacheKey = () => `relay-field-v1-${kind}-${surface}`;
   material.needsUpdate = true;
 }
 
