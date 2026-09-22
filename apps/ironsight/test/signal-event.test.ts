@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+﻿import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createTestRoom } from '@tikron/server/testing';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaState } from '../src/schema.js';
@@ -65,7 +65,7 @@ it('keeps warmup and unknown maps inactive, while every event map gets the real 
   await h.connect();await h.advance(50);expect(h.snapshot().signalAt).toBeGreaterThan(Date.now());
 });
 
-it('shares the Switchyard transfer with late FFA seats and rejects attempts to move its epoch or cover',async()=>{
+it('shares the Switchyard warning with late FFA seats and keeps freight cover fixed',async()=>{
   const h=await createTestRoom(SignalRoom,{codec:ArenaSchema,id:'arena-ffa'});
   const first=await h.connect();await h.advance(50);
   const epoch=h.snapshot().signalAt;expect(epoch).toBe(1000000+SIGNAL.firstWarningMs);
@@ -75,7 +75,7 @@ it('shares the Switchyard transfer with late FFA seats and rejects attempts to m
   const late=await h.connect();await h.advance(50);
   expect(h.snapshot().signalAt).toBe(epoch);expect(late.frames().length).toBeGreaterThan(0);
   expect(signalFrame(epoch,h.snapshot().phase,Date.now()).phase).toBe('blackout');
-  expect(h.snapshot().coreOpen).toBe(true); // Freight cover retracts during the shared transfer.
+  expect(h.snapshot().coreOpen).toBe(false);
 });
 
 it('replicates Undertow discharge to late seats without allowing input to reset it or blanking earned UAV',async()=>{

@@ -1,0 +1,62 @@
+[
+  {
+    "faction": "khaki",
+    "clip": "rifle_idle",
+    "clipIndex": 0,
+    "phaseMs": 1249.875,
+    "headCenter": [-0.011281266737131278, 1.6621992757894737, 0.05016065774013864],
+    "headRadius": 0.12530029889481964,
+    "bodyTopY": 1.5676944035657259,
+    "groundOffsetY": 0.07470698978041292
+  },
+  {
+    "faction": "khaki",
+    "clip": "rifle_crouch_walk",
+    "clipIndex": 4,
+    "phaseMs": 1674.8325,
+    "headCenter": [0.03103140680734187, 0.9962811044050681, 0.4639533905922191],
+    "headRadius": 0.12530060503636598,
+    "bodyTopY": 1.0151118361525286,
+    "groundOffsetY": -0.3538087851745261
+  },
+  {
+    "faction": "khaki",
+    "clip": "pistol_sprint",
+    "clipIndex": 27,
+    "phaseMs": 416.6250124163925,
+    "headCenter": [-0.015606402199958923, 1.5553486594181023, 0.3861645621072105],
+    "headRadius": 0.12530054448893793,
+    "bodyTopY": 1.5157179380518813,
+    "groundOffsetY": 0.07470698978041292
+  },
+  {
+    "faction": "fieldgrey",
+    "clip": "rifle_idle",
+    "clipIndex": 0,
+    "phaseMs": 1249.875,
+    "headCenter": [-0.011281266737131278, 1.6621992757894737, 0.05016065774013864],
+    "headRadius": 0.12530029889481964,
+    "bodyTopY": 1.5676944035657259,
+    "groundOffsetY": 0.07470698978041292
+  },
+  {
+    "faction": "fieldgrey",
+    "clip": "rifle_crouch_walk",
+    "clipIndex": 4,
+    "phaseMs": 1674.8325,
+    "headCenter": [0.03103140680734187, 0.9962811044050681, 0.4639533905922191],
+    "headRadius": 0.12530060503636598,
+    "bodyTopY": 1.0151118361525286,
+    "groundOffsetY": -0.3538087851745261
+  },
+  {
+    "faction": "fieldgrey",
+    "clip": "pistol_sprint",
+    "clipIndex": 27,
+    "phaseMs": 416.6250124163925,
+    "headCenter": [-0.015606402199958923, 1.5553486594181023, 0.3861645621072105],
+    "headRadius": 0.12530054448893793,
+    "bodyTopY": 1.5157179380518813,
+    "groundOffsetY": 0.07470698978041292
+  }
+]

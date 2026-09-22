@@ -1,5 +1,12 @@
 import * as T from 'three';
 
+export const RELAY_PHYSICAL_SURFACES = {
+  mud: { roughness: 0.97, metalness: 0 },
+  gravel: { roughness: 0.94, metalness: 0 },
+  wood: { roughness: 0.86, metalness: 0 },
+  concrete: { roughness: 0.9, metalness: 0 },
+  metal: { roughness: 0.62, metalness: 0.58 },
+} as const;
 interface GroundCanvas {
   width: number;
   height: number;
@@ -11,6 +18,9 @@ interface GroundCanvas {
  * The fine normal and R8 roughness textures are shared by the entire Relay kit.
  * No uniforms, texture uploads, resource creation or CPU bakes during play. */
 export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'ground' | 'concrete' | 'apron' | 'coated'): void {
+  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel' : kind === 'concrete' ? 'concrete' : 'metal';
+  material.setValues(RELAY_PHYSICAL_SURFACES[surface]);
+  material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
     const panel = kind === 'concrete' || kind === 'coated';
     shader.vertexShader = `${panel ? 'attribute vec2 relayElevation; varying vec2 vRelayElevation;' : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.vertexShader}`

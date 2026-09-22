@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "key": "wire",
+  "sha256": "22d751202758aae7c7047569b2c97221cfd39f8b08cd1900c4ae22dc5609c4fb",
+  "dimensionsM": [
+    3,
+    1.1,
+    0.18
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    2340,
+    780,
+    288
+  ],
+  "joints": {
+    "join_left": [
+      -1.5,
+      0,
+      0
+    ],
+    "join_right": [
+      1.5,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "metal"
+  ],
+  "collision": {
+    "kind": "none"
+  },
+  "maxCladdingOffsetM": 0,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/wire.json",
+    "outputSha256": "22d751202758aae7c7047569b2c97221cfd39f8b08cd1900c4ae22dc5609c4fb"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

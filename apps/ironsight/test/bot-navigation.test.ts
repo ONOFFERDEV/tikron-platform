@@ -48,9 +48,9 @@ it('escapes the Switchyard north deployment wall at the measured post-respawn co
 
 it.each([
   ['Relay comms',ARENA1,{x:41,y:0,z:46},{x:50.5,y:3,z:35.5}],
-  ['Relay control',ARENA1,{x:109,y:0,z:46},{x:99.5,y:3,z:35.5}],
+  ['Relay control',ARENA1,{x:109,y:0,z:46},{x:99,y:3,z:35.5}],
   ['Undertow',ARENA2,{x:45,y:0,z:29},{x:45.5,y:3,z:41.5}],
-  ['Switchyard',ARENA3,{x:59,y:0,z:49},{x:77.5,y:3,z:49.5}],
+  ['Switchyard',ARENA3,{x:55,y:0,z:49},{x:77.5,y:3,z:49.5}],
 ] as const)('%s enters at the low stair/ramp, reaches the roof and walks back down',(_name,map,start,goal)=>{
   const nav=new BotNavigator(map);
   const ascent=follow(map,nav,start,goal);
@@ -68,6 +68,20 @@ it('keeps room and slab floors distinct and does not shortcut through a stair vo
   expect(path.some(p=>p.y<-.5&&p.y>-2.5)).toBe(true);
 });
 
+it.each([
+  ['Relay',ARENA1,ARENA1.spawns.red[1]!,{x:60.5,y:-3,z:76}],
+  ['Undertow',ARENA2,ARENA2.spawns.red[1]!,{x:60.5,y:-3,z:71}],
+  ['Switchyard',ARENA3,ARENA3.spawns.red[1]!,{x:65.5,y:-3,z:72}],
+] as const)('%s reaches its below-grade route through real ramp transitions',(_name,map,start,goal)=>{
+  const path=follow(map,new BotNavigator(map),start,goal);
+  expect(path.some(p=>p.y<-.4&&p.y>-2.6)).toBe(true);
+});
+
+it('reaches Undertow B from every spawn without reversing on a long authored link',()=>{
+  const nav=new BotNavigator(ARENA2);
+  for(const spawn of [...ARENA2.spawns.red,...ARENA2.spawns.blue]) follow(ARENA2,nav,spawn,ARENA2.caps.b);
+});
+
 it('never opens a sub-capsule doorway or sealed route and bounds its destination cache',()=>{
   const start={x:5,y:0,z:5},goal={x:5,y:0,z:15};
   const map:MapDef={bounds:{width:20,depth:20,ceiling:8},boxes:[
@@ -82,10 +96,9 @@ it('never opens a sub-capsule doorway or sealed route and bounds its destination
 });
 
 it('keeps closed and open shutters in separate immutable navigation graphs',()=>{
-  const {closed,open}=botNavigators(ARENA1),start={x:67,y:0,z:50},goal={x:75,y:0,z:50};
+  const {closed,open}=botNavigators(ARENA1),start={x:69,y:0,z:53},goal={x:82,y:0,z:53};
   expect(closed.walkable(start,goal)).toBe(false);
   expect(open.walkable(start,goal)).toBe(true);
-  expect(closed.next(start,goal)).toEqual(start);
-  expect(open.next(start,goal)).not.toEqual(start);
+  expect(closed.next(start,goal)).not.toEqual(open.next(start,goal));
   expect(botNavigators(ARENA1)).toEqual({closed,open});
 });

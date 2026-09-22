@@ -1,6 +1,13 @@
 import * as T from 'three';
 import { applyRelayWeathering } from './relay-weathering.js';
 
+export const SWITCHYARD_PHYSICAL_SURFACES = {
+  mud: { roughness: 0.96, metalness: 0 },
+  gravel: { roughness: 0.92, metalness: 0 },
+  wood: { roughness: 0.84, metalness: 0 },
+  concrete: { roughness: 0.88, metalness: 0 },
+  metal: { roughness: 0.78, metalness: 0.32 },
+} as const;
 export type SwitchyardSurface = 'ground' | 'concrete' | 'apron' | 'coated' | 'steel' | 'deck';
 
 /** The original baked kit's material slots: concrete shell, dark steel, pale
@@ -74,6 +81,9 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
   const panelled = kind === 'steel' || kind === 'coated' || kind === 'deck';
   const weathered = panelled || kind === 'concrete';
   material.userData.switchyardSurface = kind;
+  const surface = kind === 'ground' ? 'gravel' : kind === 'apron' ? 'mud' : kind === 'concrete' ? 'concrete' : 'metal';
+  material.setValues(SWITCHYARD_PHYSICAL_SURFACES[surface]);
+  material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
     if (weathered) {
       shader.vertexShader = `attribute vec4 switchyardWeather; varying vec4 vSwitchyardWeather;\n${shader.vertexShader}`

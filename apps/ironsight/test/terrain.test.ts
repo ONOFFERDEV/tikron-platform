@@ -18,8 +18,9 @@ import { resolvePing } from '../src/ping.js';
 import { mortarTarget } from '../src/mortar.js';
 
 const collision = new CoreCollision(ARENA1);
-const walkRoute = [{x:36,y:0,z:76},{x:48,y:-3,z:76},{x:57,y:-3,z:77.6},{x:63,y:-3,z:77.6},
-  {x:87,y:-3,z:74.4},{x:94,y:-3,z:74.4},{x:102,y:-3,z:76},{x:114,y:0,z:76}];
+const walkRoute = [{x:36,y:0,z:76},{x:46,y:-3,z:76},{x:52,y:-3,z:77.6},{x:55,y:-3,z:77.6},
+  {x:63,y:-3,z:74.4},{x:67,y:-3,z:74.4},{x:79,y:-3,z:77.6},{x:83,y:-3,z:77.6},
+  {x:91,y:-3,z:74.4},{x:95,y:-3,z:74.4},{x:104,y:-3,z:76},{x:114,y:0,z:76}];
 function walk(points: readonly Vec3[], stride: number) {
   let p = {...points[0]!}; const samples = [p];
   for (const goal of points.slice(1)) {
@@ -69,12 +70,11 @@ describe('excavated Relay freight route', () => {
     expect(up.pos.y).toBeCloseTo(-2.1); expect(up.vy).toBe(0);
   });
 
-  it('has matched rotated trench cover and exact negative ramp geometry', () => {
+  it('has four alternating trench traverses and exact negative ramp geometry', () => {
     const trench=ARENA1.structures!.find(s=>s.id==='freight-trench')!;
-    const near=(a:number,b:number)=>Math.abs(a-b)<1e-6;
-    for(const {box:a} of trench.parts) expect(trench.parts.some(({box:b})=>near(b.min.x,150-a.max.x)
-      &&near(b.max.x,150-a.min.x)&&near(b.min.z,152-a.max.z)&&near(b.max.z,152-a.min.z)
-      &&near(b.min.y,a.min.y)&&near(b.max.y,a.max.y))).toBe(true);
+    const traverses=trench.parts.filter(part=>part.kind==='cover'&&part.box.max.y-part.box.min.y>=1.8);
+    expect(traverses).toHaveLength(4);
+    traverses.forEach((part,index)=>expect(part.box.min.z-73).toBeCloseTo([.4,2.4,.4,2.4][index]!,6));
     for(const r of trench.ramps) {
       const g=buildWedgeGeometry(r);g.computeBoundingBox();
       expect(g.boundingBox!.min.y).toBe(-3);expect(g.boundingBox!.max.y).toBe(0);
@@ -84,8 +84,8 @@ describe('excavated Relay freight route', () => {
 
   it('blocks earth, machinery and the bridge while allowing fire along the lower route', () => {
     for(const boxes of [collision.openHits,collision.closedHits]) {
-      expect(nearestBox({x:65,y:-1.35,z:76},{x:1,y:0,z:0},boxes,20)).toBe(Infinity);
-      expect(nearestBox({x:65,y:-1.35,z:76},{x:0,y:0,z:-1},boxes,20)).toBeCloseTo(2.6);
+      expect(nearestBox({x:67,y:-1.35,z:76},{x:1,y:0,z:0},boxes,12)).toBe(Infinity);
+      expect(nearestBox({x:69,y:-1.35,z:76},{x:0,y:0,z:-1},boxes,20)).toBeCloseTo(2.6);
       expect(nearestBox({x:75,y:-1.35,z:76},{x:0,y:1,z:0},boxes,20)).toBeCloseTo(1.05);
       expect(nearestBox({x:65,y:1.65,z:70},{x:0,y:-1,z:0},boxes,20)).toBeCloseTo(1.65);
       expect(groundRay({x:65,y:-1.35,z:76},{x:0,y:-1,z:0},boxes,ARENA1.bounds,20)).toBeCloseTo(1.65);
@@ -93,10 +93,10 @@ describe('excavated Relay freight route', () => {
   });
 
   it('lets a grenade fall through the hole, bounce below grade and stops fast wall penetration', () => {
-    const grenade={pos:{x:65,y:1,z:76},vel:{x:0,y:0,z:0}};let lowest=Infinity,bounced=false;
+    const grenade={pos:{x:69,y:1,z:76},vel:{x:0,y:0,z:0}};let lowest=Infinity,bounced=false;
     for(let i=0;i<80;i++) { bounced=stepGrenade(grenade,.025,20,.45,.12,collision.closedHits,ARENA1.bounds)||bounced;lowest=Math.min(lowest,grenade.pos.y); }
     expect(lowest).toBeLessThan(-2.8);expect(lowest).toBeGreaterThanOrEqual(-2.88001);expect(bounced).toBe(true);
-    const fast={pos:{x:65,y:-1,z:76},vel:{x:0,y:0,z:-100}};
+    const fast={pos:{x:69,y:-1,z:76},vel:{x:0,y:0,z:-100}};
     stepGrenade(fast,.05,0,.5,.12,collision.closedHits,ARENA1.bounds);
     expect(fast.pos.z).toBeGreaterThanOrEqual(73.52);expect(fast.vel.z).toBeGreaterThan(0);
   });
@@ -124,8 +124,8 @@ describe('below-grade authority and prediction',()=>{
         const h=await createTestRoom(TerrainRoom,{id:'arena-tdm',codec:ArenaSchema});
         const a=await h.connect(),b=await h.connect();await h.advance(100);
         const s=(h.room as unknown as {state:ArenaState}).state;
-        Object.assign(s.players[a.id]!,{x:65,y:-3,z:76,team:0,prot:false,yaw:blocked?Math.PI:Math.PI/2,pitch:Math.atan2((blocked?4.4:1.4)-1.65,10)});
-        Object.assign(s.players[b.id]!,{x:blocked?65:75,y:blocked?0:-3,z:blocked?66:76,team:1,prot:false});
+        Object.assign(s.players[a.id]!,{x:69,y:-3,z:76,team:0,prot:false,yaw:blocked?Math.PI:Math.PI/2,pitch:Math.atan2((blocked?4.4:1.4)-1.65,8)});
+        Object.assign(s.players[b.id]!,{x:blocked?69:77,y:blocked?0:-3,z:blocked?68:76,team:1,prot:false});
         await h.advance(300);
         const decoded=decodeFull(ArenaSchema,encodeFull(ArenaSchema,s));
         expect(decoded.players[a.id]!.y).toBe(-3);
@@ -152,4 +152,3 @@ describe('below-grade authority and prediction',()=>{
     } finally {vi.clearAllTimers();vi.useRealTimers();}
   });
 });
-

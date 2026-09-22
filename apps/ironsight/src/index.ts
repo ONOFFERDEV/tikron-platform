@@ -2,6 +2,7 @@ import { routePartykitRequest } from "partyserver";
 import { defineRoom } from "@tikron/server";
 import { ArenaRoomImpl } from "./rooms/arena-room.js";
 import { GAME } from "./game-config.js";
+import { CONTENT_REVISION } from "../config/ww1-content.js";
 
 export interface Env {
   ArenaRoom: DurableObjectNamespace;
@@ -45,6 +46,7 @@ export function handleMatchmake(url: URL): Response {
       party: GAME.meta.party,
       room,
       session: crypto.randomUUID(),
+      contentRevision: CONTENT_REVISION,
     });
   }
   const mode = modeParam === "ffa" || modeParam === "dom" ? modeParam : "tdm";
@@ -52,6 +54,7 @@ export function handleMatchmake(url: URL): Response {
     party: "arena-room",
     room: `arena-${mode}`,
     session: crypto.randomUUID(),
+    contentRevision: CONTENT_REVISION,
   });
 }
 

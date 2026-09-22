@@ -7,6 +7,7 @@ import { SWITCHYARD_YARD_PARTS, SWITCHYARD_YARD_CRATES } from '../src/map/switch
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
 import { switchyardSiteBoundary, switchyardSiteSigns, switchyardSiteSupplies } from './switchyard-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
 /** Power-distribution yard. Complete collider envelopes remain visibly solid;
  * millimetre face cladding cannot create a route, opening or extra cover.
@@ -28,9 +29,11 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   const yardParts = new Map(SWITCHYARD_YARD_PARTS.map(p => [p.box, p]));
+  const environmentBoxes = new Set(blockingEnvironmentBoxes('switchyard'));
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // exposed terrain owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
+    if (environmentBoxes.has(b)) continue;
     if (SWITCHYARD_CRATES.includes(b) || SWITCHYARD_YARD_CRATES.includes(b)) continue; // removable supply fallback below
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2, base = b.min.y;

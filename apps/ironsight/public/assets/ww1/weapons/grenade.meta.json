@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "assetKey": "grenade",
+  "role": "weapon-support",
+  "status": "frozen_v3_candidate_pending_independent_review",
+  "heroAccepted": false,
+  "runtimeAccepted": false,
+  "intendedPublicUrl": "/assets/ww1/weapons/grenade.glb",
+  "provenance": {
+    "kind": "original-authored-support-source",
+    "paidGeneration": false,
+    "source": {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\local-components\\grenade.glb",
+      "bytes": 31640,
+      "sha256": "2dc55c935ea9bc545043dbfc56562264c29ec8fb932455ca26e4d166144c37c5"
+    },
+    "output": {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\support\\grenade\\candidate.glb",
+      "bytes": 31640,
+      "sha256": "2dc55c935ea9bc545043dbfc56562264c29ec8fb932455ca26e4d166144c37c5"
+    }
+  },
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "metrics": {
+    "bytes": 31640,
+    "triangles": 1080,
+    "nodes": 8,
+    "bounds": {
+      "min": [
+        -0.06199999898672104,
+        -0.058000002056360245,
+        0.019999995827674866
+      ],
+      "max": [
+        0.1290000043809414,
+        0.058000002056360245,
+        0.3450000137090683
+      ]
+    }
+  },
+  "renders": [
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\grenade-1.png",
+      "bytes": 64247,
+      "sha256": "811fe234668d7fe5e214d73a60524bbc3e505813d8b50cc2d3cdb46bb47d4c65",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\grenade-2.png",
+      "bytes": 64697,
+      "sha256": "e29908eb0586dde5714c27059fe60a2a43d45a070b9b5a68484b5da2d524c431",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\grenade-3.png",
+      "bytes": 59574,
+      "sha256": "b94747b6759b044fe8000356e5c0be327d65c9c2850e2c270758eda6fd5dd2c9",
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

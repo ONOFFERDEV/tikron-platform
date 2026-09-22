@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "key": "ammo-crate",
+  "sha256": "6cc1ae75b8db44be87f65803ce55c67e2df05755d6df6a9a84bf4f6de024fbaa",
+  "dimensionsM": [
+    1.2,
+    0.65,
+    0.62
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    262,
+    202,
+    112
+  ],
+  "joints": {
+    "lid": [
+      0,
+      0.65,
+      0
+    ],
+    "carry_left": [
+      -0.6,
+      0.4,
+      0
+    ],
+    "carry_right": [
+      0.6,
+      0.4,
+      0
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "metal"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      1.2,
+      0.65,
+      0.62
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/ammo-crate.json",
+    "outputSha256": "6cc1ae75b8db44be87f65803ce55c67e2df05755d6df6a9a84bf4f6de024fbaa"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

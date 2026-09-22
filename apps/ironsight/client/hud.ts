@@ -8,10 +8,16 @@ import { MODE_ORDER, isTeamless } from "../src/modes.js";
 import { combatBotLabel, readSquadPing, SQUAD_BARKS, type SquadBark } from '../src/bots.js';
 import { GAME } from "../src/game-config.js";
 import { damageDirection } from './damage-direction.js';
-import { ConnectionQuality, DELAY_LABELS } from './connection-quality.js';
+import { ConnectionQuality } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
-import { honorsCss, honorsMarkup, type PresentedMvp } from './round-honors.js';
-import { intermissionLabel } from './intermission.js';
+import { honorsCss, type PresentedMvp } from './round-honors.js';
+import { intermissionStatus } from './intermission.js';
+import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, type StableMapId } from './ui/copy.js';
+import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui/combat-hud.js';
+import { CombatHudPresenter } from './ui/combat-hud-view.js';
+import { ResultView, resultViewCss } from './ui/result-view.js';
+import type { ShotFeedbackEvent } from './shot-feedback.js';
+import type { WeaponActionState } from '../src/weapon-action.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
@@ -243,12 +249,15 @@ export class Hud {
   private damageBearing: number | null = null;
   private damageAt = -1e9;
   private readonly overlay: HTMLElement;
+  private readonly resultView: ResultView;
   private readonly wslots: HTMLElement[];
   private readonly nadeCount: HTMLElement;
   private lastNades = NaN;
   private lastHp = NaN;
   private lastMode = NaN;
   private readonly settings: SettingsStore;
+  private readonly combat = new CombatHud();
+  private readonly combatPresenter: CombatHudPresenter;
 
   private reloadStart = -1;
   private reloadMs = 0;
@@ -269,12 +278,35 @@ export class Hud {
     return this.deployment?.update(state, now, myId, active);
   }
   private trainingHelp = '';
-  private readonly muteBadge = el('div', 'audioMuted', 'AUDIO MUTED · M / SETTINGS');
+  private readonly muteBadge = el('div', 'audioMuted', FIELD_UI_COPY.hud.audioMuted);
   setMuted(muted: boolean): void { this.muteBadge.hidden = !muted; }
-  setTrainingSite(hasTargets: boolean, hasObjective = false): void {
-    this.trainingHelp = hasTargets ? 'Passive targets stand in West Service. Try all five weapons (1–5), then reload.'
-      : hasObjective ? 'Follow the training card to rehearse holding A for Domination. No targets or scoring here.'
-      : 'Map exploration: no targets here. Choose Relay training for target practice.';
+  receiveCombatEvents(events: readonly ShotFeedbackEvent[]): void {
+    for (const event of events) this.combat.receiveShot(event);
+    this.renderCombat();
+  }
+  receiveWeaponAction(action: WeaponActionState | null, serverNow: number): void {
+    this.combat.receiveReload(action, serverNow);
+    this.renderCombat();
+  }
+  setCombatObjectives(objectives: readonly ObjectiveHudState[]): void {
+    this.combat.setObjectives(objectives);
+    this.renderCombat();
+  }
+  setCombatLatency(latency: { readonly status: string; readonly validSamples: number; readonly clockUncertaintyMs: number }): void {
+    const safe: E32LatencyHudState = latency.status === "ready" && Number.isSafeInteger(latency.validSamples) && latency.validSamples > 0
+      ? { status: "ready", validSamples: latency.validSamples, clockUncertaintyMs: latency.clockUncertaintyMs }
+      : { status: "unavailable", validSamples: 0, clockUncertaintyMs: latency.clockUncertaintyMs };
+    this.combat.setLatency(safe);
+    this.renderCombat();
+  }
+  resetCombat(): void {
+    this.combat.reset();
+    this.renderCombat();
+  }
+  private renderCombat(): void { this.combatPresenter.render(this.combat.snapshot()); }
+  setTrainingSite(route: 'relay' | 'undertow' | 'switchyard'): void {
+    const mapId: StableMapId = route === 'relay' ? 'arena1' : route === 'undertow' ? 'arena2' : 'arena3';
+    this.trainingHelp = mapCopy(mapId).description;
   }
   private readonly brief = el("div", "matchBrief");
   private restart: () => void = () => {};
@@ -289,6 +321,7 @@ export class Hud {
     if (this.brief.innerHTML !== markup) this.brief.innerHTML = markup;
   }
   private present(kind: string, markup: string): void {
+    if (kind !== 'end') this.resultView.hide();
     const enteringEnd = kind === 'end' && (this.overlay.dataset.kind !== 'end' || !this.overlayVisible);
     if (!this.overlayVisible) {
       this.overlayVisible = true;
@@ -312,7 +345,7 @@ export class Hud {
   }
   showConnection(expired: boolean): void {
     this.clearDamage();
-    this.present('connection', `<div class="result"><div class="eyebrow">CONNECTION / 연결</div><h1>${expired ? 'CONNECTION LOST' : 'RECONNECTING'}</h1><p>${expired ? 'Return to deployment to join a new room.' : 'Waiting for the room. Your operator remains in the match.'}</p><button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div>`);
+    this.present('connection', `<div class="result"><div class="eyebrow">연결 상태</div><h1>${expired ? '연결 종료' : '연결 복구 중'}</h1><p>${expired ? '새 전장에 합류하려면 출격 메뉴로 돌아가세요.' : '전투원 자리를 유지한 채 서버 응답을 기다립니다.'}</p><button class="secondary" data-action="leave">출격 메뉴로</button></div>`);
   }
 
   /** `settings` drives the click-to-play overlay's controls hint, which is
@@ -321,10 +354,11 @@ export class Hud {
   constructor(settings: SettingsStore, container: HTMLElement = document.body, installStyles = true) {
     this.settings = settings;
     const style = el("style");
-    style.textContent = css + honorsCss;
+    style.textContent = css + honorsCss + resultViewCss;
     if (installStyles) document.head.appendChild(style);
 
     this.root = el("div", "hud");
+    this.combatPresenter = new CombatHudPresenter(this.root, installStyles);
 
     // Crosshair (4 arms around a centre gap).
     const xh = el("div", "xhair");
@@ -345,7 +379,7 @@ export class Hud {
     // HP.
     const hp = el("div", "hp"); hp.className = "panel";
     this.hpValue = el("span", undefined, "100"); this.hpValue.className = "healthValue";
-    const healthLabel = el("span", undefined, "VITALS"); healthLabel.className = "healthLabel";
+    const healthLabel = el("span", undefined, FIELD_UI_COPY.hud.health); healthLabel.className = "healthLabel";
     hp.append(this.hpValue, healthLabel);
     const hpbar = el("div", "hpbar");
     this.hpFill = el("div", "hpfill");
@@ -385,7 +419,7 @@ export class Hud {
     // FFA leaderboard (toggled with #scores by setMode).
     this.lb = el("div", "lb");
     const lbTable = el("table");
-    lbTable.appendChild(el("thead", undefined, "<tr><th>#</th><th>name</th><th>K</th><th>D</th></tr>"));
+    lbTable.appendChild(el("thead", undefined, `<tr><th>#</th><th>${FIELD_UI_COPY.hud.player}</th><th>${COPY.results.kills}</th><th>${COPY.results.deaths}</th></tr>`));
     this.lbBody = el("tbody");
     lbTable.appendChild(this.lbBody);
     this.lb.appendChild(lbTable);
@@ -443,17 +477,26 @@ export class Hud {
     this.root.appendChild(this.damageIndicator);
     this.overlay = el("div", "overlay"); this.overlay.inert = true;
     this.overlay.setAttribute('aria-hidden', 'true'); this.root.appendChild(this.overlay);
+    this.resultView = new ResultView({ restart: () => this.restart(), leave: () => this.leave() });
+    this.resultView.mount(this.overlay);
 
     this.root.appendChild(this.brief);
-    this.muteBadge.style.cssText = 'position:absolute;left:28px;top:230px;color:#edaa52;background:#10242bcc;padding:6px 10px;font:11px Arial';
+    this.muteBadge.style.cssText = 'position:absolute;inset-inline-start:var(--ui-safe-edge);inset-block-start:14.5rem;color:var(--ui-warning);background:var(--ui-hud-backing);padding:var(--ui-space-2) var(--ui-space-3);font:500 var(--ui-type-hud)/1.4 var(--ui-font-body)';
     this.muteBadge.hidden = true; this.root.appendChild(this.muteBadge);
     this.overlay.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('.result-view')) return;
       const action = (event.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
       if (action === 'restart') this.restart();
       if (action === 'leave') this.leave();
     });
     container.appendChild(this.root);
     this.setSpread(0);
+    this.renderCombat();
+  }
+
+  dispose(): void {
+    this.combatPresenter.dispose();
+    this.root.remove();
   }
 
   /** Detached presentation copies use the same methods/markup as real events.
@@ -497,9 +540,9 @@ export class Hud {
     this.hpValue.textContent = String(Math.max(0, Math.ceil(hp)));
     const pct = Math.max(0, Math.min(100, hp));
     this.hpFill.style.width = `${pct}%`;
-    this.hpFill.style.background = pct > 50 ? "#d2ded3"
-      : pct > 25 ? "linear-gradient(90deg,#d8a63a,#f0c040)"
-      : "linear-gradient(90deg,#c0392b,#e05a4a)";
+    this.hpFill.style.background = pct > 50 ? "var(--ui-success)"
+      : pct > 25 ? "var(--ui-warning)"
+      : "var(--ui-error)";
   }
 
   setAmmo(mag: number, reserve: number, reloadMs?: number): void {
@@ -552,16 +595,16 @@ export class Hud {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
     const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
-    const cause = part === 'head' ? 'HEADSHOT' : part === 'blast' ? 'BLAST' : 'ELIMINATION';
+    const cause = part === 'head' ? '헤드샷' : part === 'blast' ? '폭발' : '처치';
     const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
     node.style.setProperty('--team', color);
     node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? '<span class="tag">YOU</span>' : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? '<span class="tag">YOU</span>' : ''}${esc(victim)}</span>${assistName ? `<span class="assist">ASSIST / ${esc(assistName)}</span>` : ''}`;
     this.feed.prepend(node);
     this.kills.push({ node, born: performance.now() });
-    while (this.kills.length > 5) this.kills.shift()!.node.remove();
+    while (this.kills.length > 4) this.kills.shift()?.node.remove();
     if (details.localKill && !details.localVictim) {
       const ambush = details.medal === 'ambush';
-      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? 'AMBUSH' : 'ELIMINATION CONFIRMED'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? 'FROM BEHIND / ' : ''}${esc(weapon)}${part === 'head' ? ' / HEADSHOT' : ''}</span>`;
+      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? '기습' : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
       this.eliminationAt = performance.now();
       this.elimination.style.opacity = '1';
     }
@@ -573,7 +616,7 @@ export class Hud {
     if (modeIndex === this.lastMode) return;
     this.lastMode = modeIndex;
     const id = MODE_ORDER[modeIndex];
-    this.modeLabel.textContent = id?.toUpperCase() ?? "";
+    this.modeLabel.textContent = id ? modeCopy(id).label : "";
     const teamless = id !== undefined && isTeamless(id);
     this.lb.style.display = id === "ffa" ? "block" : "none";
     this.scoresPanel.style.display = teamless ? "none" : "flex";
@@ -709,7 +752,7 @@ export class Hud {
 
   setPing(ms: number, online = true, now = performance.now(), expired = false): void {
     const band = this.quality.update(ms, online, now);
-    const label = expired && !online ? 'CONNECTION LOST' : DELAY_LABELS[band];
+    const label = expired && !online ? '연결 종료' : band === 'offline' ? '연결 복구 중' : band === 'high' ? '응답 지연 큼' : band === 'delayed' ? '응답 지연' : '연결 안정';
     if (this.delayLabel.textContent !== label) {
       this.delayLabel.textContent = label;
       this.ping.dataset.quality = band;
@@ -721,7 +764,7 @@ export class Hud {
     if (now >= this.nextDelayNumbersAt || online !== this.wasOnline) {
       this.nextDelayNumbersAt = now + 500;
       this.wasOnline = online;
-      const text = `${online && Number.isFinite(ms) && ms > 0 ? Math.round(ms) : '—'} ms RTT · ${this.fps || '—'} fps`;
+      const text = `${online ? FIELD_UI_COPY.hud.connected : FIELD_UI_COPY.hud.waiting} · ${this.fps || '—'} ${FIELD_UI_COPY.hud.frames}`;
       if (this.delayNumbers.textContent !== text) this.delayNumbers.textContent = text;
     }
   }
@@ -781,35 +824,31 @@ export class Hud {
    */
   showMatchEnd(winner: string, red: number, blue: number, myKills: number, myDeaths: number, teamless: boolean, roster?: ResultRoster): void {
     this.clearDamage();
+    this.overlayVisible = true;
     this.overlay.style.display = "flex";
-    // "draw" is checked before teamless so an FFA no-score timeout renders "DRAW"
-    // in neutral color, matching team-mode draw rendering, instead of "draw WINS".
-    const title = winner === "draw"
-      ? T.hud.draw
-      : fmt(T.hud.winsFmt, { winner: teamless ? esc(winner) : winner.toUpperCase() });
-    const color = teamless ? "#eee" : winner === "red" ? UI_RED : winner === "blue" ? UI_BLUE : "#eee";
-    const scoreLine = teamless ? "" : `<div class="finalScore" aria-label="Final team scores"><span style="color:${UI_RED}">RED<strong>${red}</strong></span><span class="divider">/</span><span style="color:${UI_BLUE}">BLUE<strong>${blue}</strong></span></div>`;
-    const voteLine = this.voteCount >= 0 ? `${this.voteCount} / ${this.voteNeed} votes to restart` : 'A majority can skip the intermission.';
-    const outcome = winner === 'draw' ? 'DRAW' : roster ? roster.won ? 'VICTORY' : 'DEFEAT' : title;
-    const accent = winner === 'draw' ? '#d2ded3' : roster ? roster.won ? '#edaa52' : '#e7a49c' : color;
-    const groups = teamless ? [null] : [0, 1];
-    const tables = roster ? groups.map(team => {
-      const rows = roster.rows.filter(r => team === null || r.team === team).slice()
-        .sort((a, b) => b.k - a.k || a.d - b.d || a.name.localeCompare(b.name));
-      const label = team === null ? 'OPERATORS' : team === 0 ? 'RED TEAM' : 'BLUE TEAM';
-      return `<section class="roster" style="--team:${team === null ? '#b8cccc' : team === 0 ? UI_RED : UI_BLUE}"><h2>${label} / ${rows.length}</h2><table aria-label="${label} final standings"><thead><tr><th scope="col">#</th><th scope="col">OPERATOR</th><th scope="col"><abbr title="Eliminations">K</abbr></th><th scope="col"><abbr title="Deaths">D</abbr></th></tr></thead><tbody>${rows.map((r, i) => `<tr class="${r.isMe ? 'me' : ''}"><td>${i + 1}</td><td>${r.isMe ? '<span class="youTag">YOU</span>' : ''}${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`).join('')}</tbody></table></section>`;
-    }).join('') : '';
-    this.present('end', `<div class="debrief" style="--result-accent:${accent}" role="region" aria-label="Round results"><div class="eyebrow">RELAY / ROUND DEBRIEF</div><div class="resultHeader"><div><h1>${outcome}</h1><div class="resultWinner">${title}</div></div>${scoreLine}</div>`
-      + honorsMarkup(roster?.mvp, roster?.dom === true)
-      + '<div class="nextDeployment"><span>NEXT DEPLOYMENT</span><strong data-next-round></strong><span>Vote below to return sooner</span></div>'
-      + `<div class="personalStats" aria-label="Your performance"><div><strong>${myKills}</strong><span>ELIMINATIONS</span></div><div><strong>${myDeaths}</strong><span>DEATHS</span></div><div><strong>${myDeaths === 0 ? '—' : (myKills / myDeaths).toFixed(2)}</strong><span>K / D RATIO</span></div></div>`
-      + (tables ? `<div class="rosters${teamless ? ' solo' : ''}">${tables}</div>` : '')
-      + `<div class="resultFooter"><div><p>${voteLine}</p><p class="hint">The next round starts automatically after intermission. Standings show operators still in the room.</p></div><div class="resultActions">`
-      + `<button data-action="restart" ${this.voteSent ? 'disabled' : ''}>${this.voteSent ? 'VOTE SENT / 대기' : 'REMATCH / 다시 플레이 · R'}</button>`
-      + `<button class="secondary" data-action="leave">DEPLOYMENT / 메뉴</button></div></div></div>`);
-    const timer = this.overlay.querySelector<HTMLElement>('[data-next-round]');
-    const label = intermissionLabel(roster?.intermissionEndMs, roster?.serverNow ?? NaN);
-    if (timer && timer.textContent !== label) timer.textContent = label;
+    this.overlay.style.opacity = '1';
+    this.overlay.inert = false;
+    this.overlay.removeAttribute('aria-hidden');
+    this.overlay.dataset.kind = 'end';
+    if (this.resultView.root.parentElement !== this.overlay || this.overlay.childElementCount !== 1) {
+      this.overlay.replaceChildren();
+      this.resultView.mount(this.overlay);
+    }
+    const mode = teamless ? 'ffa' : roster?.dom ? 'dom' : 'tdm';
+    this.resultView.update({
+      mode,
+      winner,
+      red,
+      blue,
+      won: roster?.won ?? winner !== 'draw',
+      localKills: myKills,
+      localDeaths: myDeaths,
+      rows: (roster?.rows ?? []).map((row, index) => ({ id: `result-${index}`, name: row.name, team: row.team, kills: row.k, deaths: row.d, isMe: row.isMe })),
+      ...(roster?.mvp === undefined ? {} : { mvp: roster.mvp }),
+      intermission: intermissionStatus(roster?.intermissionEndMs, roster?.serverNow ?? Number.NaN),
+      vote: this.voteCount < 0 ? null : { count: this.voteCount, need: this.voteNeed, sent: this.voteSent },
+    });
+    this.resultView.show();
   }
 
   hideOverlay(): void {
@@ -818,6 +857,7 @@ export class Hud {
     this.overlay.style.opacity = '0';
     this.overlay.inert = true;
     this.overlay.setAttribute('aria-hidden', 'true');
+    this.resultView.hide();
   }
 
   /** Per-frame animation: reload bar, hitmarker + vignette fade, killfeed decay. */

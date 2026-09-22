@@ -2,16 +2,17 @@ import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { ARENA3 } from '../src/map/arena3.js';
 import type { MapDef } from '../src/map/types.js';
+import { COPY } from './ui/copy.js';
 
 export const SITES = {
-  arena1: { name: 'RELAY', number: '01', subtitle: 'COMMUNICATIONS TRANSFER YARD',
-    routes: 'Cooling / Relay core / Freight', description: 'Split the core. Control three connected lanes.',
+  arena1: { name: COPY.maps.arena1.name, number: '01', subtitle: COPY.maps.arena1.subtitle,
+    routes: COPY.maps.arena1.routes.join(' / '), description: COPY.maps.arena1.description,
     image: '/assets/relay-vista.webp', map: ARENA1, legacy: false },
-  arena2: { name: 'UNDERTOW', number: '02', subtitle: 'WATER RECLAMATION PLANT',
-    routes: 'Clarifier route / Control decks / Maintenance', description: 'Cross the pump hall. Hold the three control points.',
+  arena2: { name: COPY.maps.arena2.name, number: '02', subtitle: COPY.maps.arena2.subtitle,
+    routes: COPY.maps.arena2.routes.join(' / '), description: COPY.maps.arena2.description,
     image: '/assets/undertow-vista.webp', map: ARENA2, legacy: false },
-  arena3: { name: 'SWITCHYARD', number: '03', subtitle: 'POWER DISTRIBUTION DEPOT',
-    routes: 'North bus / Switch deck / South service', description: 'Cross the switch deck. Watch every approach in free-for-all.',
+  arena3: { name: COPY.maps.arena3.name, number: '03', subtitle: COPY.maps.arena3.subtitle,
+    routes: COPY.maps.arena3.routes.join(' / '), description: COPY.maps.arena3.description,
     image: '/assets/switchyard-vista.webp', map: ARENA3, legacy: false },
 } as const;
 export type SiteId = keyof typeof SITES;
@@ -20,28 +21,21 @@ export type SiteId = keyof typeof SITES;
 export function mapCallout(map: MapDef, x: number, z: number): string {
   if (map.presentation === 'relay') {
     const cut = map.terrain?.cut;
-    if (cut && x >= cut.minX && x <= cut.maxX && z >= cut.minZ && z <= cut.maxZ) return 'CABLE TRENCH / -03 M';
+    if (cut && x >= cut.minX && x <= cut.maxX && z >= cut.minZ && z <= cut.maxZ) return COPY.maps.arena1.routes[1];
     const room = map.structures?.find(s => x >= s.footprint.minX && x <= s.footprint.maxX
       && z >= s.footprint.minZ && z <= s.footprint.maxZ);
-    if (room) return room.id === 'cooling-control' ? 'CONTROL / EAST' : 'COMMS / WEST';
-    if (x < map.bounds.width * .12) return 'WEST SERVICE'; if (x > map.bounds.width * .88) return 'EAST SERVICE';
-    return z < map.bounds.depth * .34 ? '01 / COOLING' : z > map.bounds.depth * .66 ? '03 / FREIGHT' : '02 / RELAY';
+    if (room) return room.id === 'cooling-control' ? COPY.maps.arena1.routes[0] : COPY.maps.arena1.routes[1];
+    return z < map.bounds.depth * .34 ? COPY.maps.arena1.routes[0] : z > map.bounds.depth * .66 ? COPY.maps.arena1.routes[2] : COPY.maps.arena1.routes[1];
   }
   if (map.presentation === 'undertow') {
-    if (x < map.bounds.width * .12) return 'WEST SERVICE';
-    if (x > map.bounds.width * .88) return 'EAST SERVICE';
-    if (z > map.bounds.depth * .86) return 'B / PUMP HALL';
-    if (z > map.bounds.depth * .65) return 'MAINTENANCE';
-    if (z < map.bounds.depth * .23) return x < map.bounds.width * .3 ? 'A / WEST CONTROL'
-      : x > map.bounds.width * .7 ? 'C / EAST CONTROL' : 'CLARIFIER ROUTE';
-    return z < map.bounds.depth * .33 ? 'CLARIFIER ROUTE'
-      : x < map.bounds.width / 2 ? 'WEST DECK' : 'EAST DECK';
+    if (z < map.bounds.depth * .33) return COPY.maps.arena2.routes[0];
+    if (z > map.bounds.depth * .65) return COPY.maps.arena2.routes[2];
+    return COPY.maps.arena2.routes[1];
   }
   if (map.presentation === 'switchyard') {
-    if (x < map.bounds.width * .12 || x > map.bounds.width * .88) return 'PERIMETER SERVICE';
-    return z < map.bounds.depth * .34 ? '01 / NORTH BUS' : z > map.bounds.depth * .66 ? '03 / SOUTH SERVICE' : '02 / SWITCH DECK';
+    return z < map.bounds.depth * .34 ? COPY.maps.arena3.routes[0] : z > map.bounds.depth * .66 ? COPY.maps.arena3.routes[2] : COPY.maps.arena3.routes[1];
   }
-  return 'TRAINING GROUND';
+  return COPY.missingRegion;
 }
 
 /** Original collision-derived plan; used as a site card, never enemy intel. */

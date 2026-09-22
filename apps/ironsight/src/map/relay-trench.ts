@@ -2,8 +2,8 @@ import type { StructureDef } from './structures.js';
 
 export const RELAY_TRENCH_CUT = { minX: 38, maxX: 112, minZ: 73, maxZ: 79 } as const;
 
-/** Freight cable gallery: opposing ramps, two staggered machine bays and an
- * overhead yard crossing. All large visible geometry is authoritative. */
+/** Sunken supply road: opposing ramps, four timber/earth traverses and an
+ * overhead yard crossing. Every turn retains more than two metres of passage. */
 export const RELAY_TRENCH: StructureDef = {
   id: 'freight-trench', origin: { x: 38, y: -3, z: 73 }, width: 74, depth: 6,
   walls: [
@@ -16,9 +16,11 @@ export const RELAY_TRENCH: StructureDef = {
     { minX: 66, maxX: 74, minZ: .4, maxZ: 5.6, axis: 'x', dir: 1, topY: 3 },
   ],
   cover: [
-    { min: { x: 20, y: 0, z: .4 }, max: { x: 22, y: 1.8, z: 3.6 } },
-    { min: { x: 52, y: 0, z: 2.4 }, max: { x: 54, y: 1.8, z: 5.6 } },
-    { min: { x: 29, y: 0, z: .4 }, max: { x: 32, y: 1.1, z: 1.4 } },
-    { min: { x: 42, y: 0, z: 4.6 }, max: { x: 45, y: 1.1, z: 5.6 } },
+    { min: { x: 14, y: 0, z: .4 }, max: { x: 16, y: 1.8, z: 3.6 } },
+    { min: { x: 26, y: 0, z: 2.4 }, max: { x: 28, y: 1.8, z: 5.6 } },
+    { min: { x: 42, y: 0, z: .4 }, max: { x: 44, y: 1.8, z: 3.6 } },
+    { min: { x: 54, y: 0, z: 2.4 }, max: { x: 56, y: 1.8, z: 5.6 } },
+    { min: { x: 20, y: 0, z: 4.6 }, max: { x: 23, y: 1.1, z: 5.6 } },
+    { min: { x: 47, y: 0, z: .4 }, max: { x: 50, y: 1.1, z: 1.4 } },
   ],
 };

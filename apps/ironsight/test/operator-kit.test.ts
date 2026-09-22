@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import * as T from 'three';
 import { fitOperatorKit, operatorKit } from '../client/operator-kit.js';
 import { ActorAppearance } from '../client/actor-appearance.js';
-import { prepareRadioGeometry } from '../client/field-equipment.js';
 
 // A quantized-style skin: the decode scale/offset live in inverse bind matrices,
 // as in the private glTF. Tests need no purchased asset or browser image decoder.
@@ -25,14 +24,15 @@ function fixture() {
 }
 
 describe('original operator field kits',()=>{
-  it('skins the radio in the existing draw while excluding luggage from hit claims',()=>{
-    const asset=new T.Group(),pack=new T.BoxGeometry(.26,.46,.18);
-    pack.setAttribute('color',new T.Float32BufferAttribute(Array(pack.getAttribute('position').count*3).fill(.2),3));
-    asset.add(new T.Mesh(pack));const radio=prepareRadioGeometry(asset),f=fixture();
-    fitOperatorKit(f.root,'anchor',radio);f.mesh.skeleton.update();
-    const start=f.mesh.geometry.userData.radioStartTriangle as number;
+  it('skins field equipment in the existing draw while excluding every added triangle from hit claims',()=>{
+    const f=fixture();
+    fitOperatorKit(f.root,'anchor');f.mesh.skeleton.update();
+    const start=f.mesh.geometry.userData.equipmentStartTriangle as number;
     expect(f.root.children.filter(n=>n instanceof T.Mesh)).toHaveLength(1);
-    expect(f.mesh.geometry.userData.radioTriangles).toBe(12);
+    expect(f.mesh.geometry.userData.hitTarget).toBe(false);
+    expect(f.mesh.geometry.userData.equipmentKinds).toEqual([
+      'ammunition-pouches','blanket-roll','canteen','pack','webbing',
+    ]);
     const vertex=f.mesh.geometry.index!.getX(start*3);
     expect(f.mesh.geometry.getAttribute('skinIndex').getX(vertex)).toBe(0);
     expect(f.mesh.geometry.getAttribute('skinWeight').getX(vertex)).toBe(1);
@@ -49,11 +49,11 @@ describe('original operator field kits',()=>{
   });
   it('uses the authoritative stable role identity and leaves human weapon choice independent',()=>{
     expect(['bot-1','bot-2','bot-3','bot-4','bot-5','bot-6'].map(operatorKit))
-      .toEqual(['rusher','rusher','anchor','anchor','sniper','sniper']);
+      .toEqual(['flanker','flanker','anchor','anchor','sniper','sniper']);
     for(const id of ['human','bot-idle','bot-0','bot-NaN'])expect(operatorKit(id)).toBe('anchor');
   });
   it('preserves source vertices, skin weights and foot/crown bounds through a decode transform',()=>{
-    for(const role of ['rusher','anchor','sniper'] as const){
+    for(const role of ['flanker','anchor','sniper'] as const){
       const f=fixture(), before=Array.from({length:f.count},(_,i)=>f.mesh.getVertexPosition(i,new T.Vector3()).clone());
       const source=Array.from(f.geometry.getAttribute('position').array);
       fitOperatorKit(f.root,role);

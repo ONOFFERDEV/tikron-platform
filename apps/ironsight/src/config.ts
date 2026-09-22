@@ -1,4 +1,5 @@
 import { RECOIL, type RecoilProfile } from "./recoil.js";
+import type { FireMode, SightKind, WeaponKey, WeaponReload } from "./weapon-contract.js";
 /**
  * ironsight M0 tunables — every gameplay constant in one place.
  *
@@ -80,9 +81,10 @@ export const HIT = {
 
 /** Movement model (server-integrated from WASD intents). */
 export const MOVE = {
-  walk: 6, // m/s ground speed
-  sprint: 9, // m/s while sprinting (grounded, moving forward)
-  crouch: 3, // m/s while crouched
+  walk: 5.5, // m/s ground speed
+  sprint: 8, // m/s while sprinting (grounded, moving forward)
+  crouch: 2.6, // m/s while crouched
+  adsGroundMultiplier: 0.75,
   gravity: 20, // m/s² downward
   jumpSpeed: 7, // m/s initial upward (jump height ≈ v²/2g ≈ 1.22 m)
   maxDtMs: TICK_MS * 2, // integration dt clamp (a GC/tab-out hitch can't fling a player)
@@ -115,8 +117,11 @@ export const MOVE = {
  * and shotgun fall off a cliff past close range, the AR holds, the sniper never
  * falls off — so the best weapon differs per range band.
  */
-export interface WeaponSpec {
+type WeaponCore = {
   readonly recoil: RecoilProfile;
+  readonly key: WeaponKey;
+  readonly fireMode: FireMode;
+  readonly sight: SightKind;
   /** Loadout slot 1–5 (the `switch` intent's slot; wire `weapon` stores slot−1). */
   readonly slot: number;
   readonly name: string;
@@ -131,7 +136,6 @@ export interface WeaponSpec {
   readonly mag: number;
   /** Spare rounds available to reload from. */
   readonly reserve: number;
-  readonly reloadMs: number;
   /** Hitscan reach (metres). */
   readonly range: number;
   /** Rays per trigger pull (1 for all but the shotgun). */
@@ -158,96 +162,117 @@ export interface WeaponSpec {
    *  instead of every weapon sharing one flat speed (user report: "총알 속도가
    *  느린 것 같다" — the shared constant this replaced was 300 for all five). */
   readonly tracerSpeed: number;
-}
+};
 
-/** AR — the all-rounder baseline (PLAN §4: body 25 / head 50, 100 ms, 30-mag, 1.8 s). */
+export type WeaponSpec = WeaponCore & WeaponReload;
+
 const AR_SPEC: WeaponSpec = {
+  key: "automatic_rifle",
+  fireMode: "automatic",
+  reloadKind: "magazine",
+  sight: "iron",
   slot: 1,
   recoil: RECOIL[0]!,
   name: "AR",
   adsMs: 250,
-  sprintToFireMs: 120,
-  damageBody: 25,
+  sprintToFireMs: 160,
+  damageBody: 28,
   damageHead: 50,
-  fireIntervalMs: 100,
-  mag: 30,
-  reserve: 90,
-  reloadMs: 1800,
+  fireIntervalMs: 110,
+  mag: 20,
+  reserve: 80,
+  reloadMs: 2400,
   range: 100,
   pellets: 1,
   pelletSpread: 0,
   spreadStill: 0,
   spreadMove: 0.02,
   spreadAir: 0.05,
-  falloffStart: 30,
-  falloffEnd: 65,
-  falloffMin: 0.7,
+  falloffStart: 25,
+  falloffEnd: 60,
+  falloffMin: 0.72,
   tracerSpeed: 800,
 };
 
 /** SMG — higher close-range DPS, cliffs off past mid (owns the 15 m band). */
 const SMG_SPEC: WeaponSpec = {
+  key: "trench_smg",
+  fireMode: "automatic",
+  reloadKind: "magazine",
+  sight: "iron",
   slot: 2,
   recoil: RECOIL[1]!,
   name: "SMG",
-  adsMs: 200,
-  sprintToFireMs: 100,
+  adsMs: 190,
+  sprintToFireMs: 110,
   damageBody: 20,
-  damageHead: 30,
-  fireIntervalMs: 65,
-  mag: 25,
-  reserve: 100,
-  reloadMs: 1600,
+  damageHead: 32,
+  fireIntervalMs: 80,
+  mag: 32,
+  reserve: 96,
+  reloadMs: 2700,
   range: 80,
   pellets: 1,
   pelletSpread: 0,
   spreadStill: 0.0002,
   spreadMove: 0.03,
   spreadAir: 0.06,
-  falloffStart: 16,
-  falloffEnd: 36,
+  falloffStart: 14,
+  falloffEnd: 35,
   falloffMin: 0.5,
   tracerSpeed: 700,
 };
 
 /** Shotgun — 8 pellets: a point-blank one-shot that decays to nothing past ~20 m. */
 const SHOTGUN_SPEC: WeaponSpec = {
+  key: "pump_shotgun",
+  fireMode: "semi",
+  reloadKind: "pump",
+  sight: "iron",
   slot: 3,
   recoil: RECOIL[2]!,
   name: "Shotgun",
-  adsMs: 225,
-  sprintToFireMs: 130,
-  damageBody: 14, // per pellet (× up to 8)
-  damageHead: 20, // per pellet
-  fireIntervalMs: 850,
-  mag: 6,
-  reserve: 24,
-  reloadMs: 2800,
+  adsMs: 220,
+  sprintToFireMs: 150,
+  damageBody: 13, // per pellet (× up to 8)
+  damageHead: 16, // per pellet
+  fireIntervalMs: 800,
+  cycleMs: 800,
+  mag: 5,
+  reserve: 25,
+  reloadStartMs: 400,
+  reloadInsertMs: 450,
+  reloadEndMs: 300,
+  reloadMs: 2950,
   range: 40,
   pellets: 8,
   pelletSpread: 0.055,
   spreadStill: 0,
   spreadMove: 0.02,
   spreadAir: 0.05,
-  falloffStart: 6,
-  falloffEnd: 22,
-  falloffMin: 0.25,
+  falloffStart: 5,
+  falloffEnd: 20,
+  falloffMin: 0.2,
   tracerSpeed: 500,
 };
 
-/** Sniper — bolt-action: body chunk (2-shot), head one-shot, no falloff, huge move penalty. */
 const SNIPER_SPEC: WeaponSpec = {
+  key: "bolt_service_rifle",
+  fireMode: "semi",
+  reloadKind: "stripper_clip",
+  sight: "iron",
   slot: 4,
   recoil: RECOIL[3]!,
   name: "Sniper",
-  adsMs: 400,
-  sprintToFireMs: 150,
-  damageBody: 80,
+  adsMs: 330,
+  sprintToFireMs: 180,
+  damageBody: 75,
   damageHead: 150,
-  fireIntervalMs: 1300,
+  fireIntervalMs: 1100,
+  cycleMs: 1100,
   mag: 5,
-  reserve: 20,
-  reloadMs: 3000,
+  reserve: 30,
+  reloadMs: 2600,
   range: 100,
   pellets: 1,
   pelletSpread: 0,
@@ -262,26 +287,30 @@ const SNIPER_SPEC: WeaponSpec = {
 
 /** Pistol — the reliable semi-auto sidearm every loadout carries (slot 5). */
 const PISTOL_SPEC: WeaponSpec = {
+  key: "service_pistol",
+  fireMode: "semi",
+  reloadKind: "magazine",
+  sight: "iron",
   slot: 5,
   recoil: RECOIL[4]!,
   name: "Pistol",
   adsMs: 165,
-  sprintToFireMs: 90,
+  sprintToFireMs: 100,
   damageBody: 34,
   damageHead: 60,
-  fireIntervalMs: 160,
-  mag: 12,
-  reserve: 48,
-  reloadMs: 1400,
-  range: 90,
+  fireIntervalMs: 200,
+  mag: 7,
+  reserve: 35,
+  reloadMs: 1900,
+  range: 80,
   pellets: 1,
   pelletSpread: 0,
   spreadStill: 0.0002,
   spreadMove: 0.02,
   spreadAir: 0.05,
-  falloffStart: 20,
-  falloffEnd: 45,
-  falloffMin: 0.7,
+  falloffStart: 15,
+  falloffEnd: 40,
+  falloffMin: 0.65,
   tracerSpeed: 600,
 };
 

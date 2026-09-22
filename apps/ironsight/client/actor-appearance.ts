@@ -24,14 +24,19 @@ export class ActorAppearance {
 
   constructor(root: THREE.Object3D, color: number) {
     this.color = color;
-    const clones = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    const lod1 = root.getObjectByName('LOD1'), lod2 = root.getObjectByName('LOD2');
+    if (lod1) lod1.visible = false;
+    if (lod2) lod2.visible = false;
+    const clones = new Map<THREE.Material, Map<boolean, THREE.MeshStandardMaterial>>();
     root.traverse(node => {
       if (!(node instanceof THREE.Mesh)) return;
       const fieldKit = !!node.geometry.getAttribute('fieldKit');
       const tint = (source: THREE.Material) => {
-        let material = clones.get(source);
+        let variants = clones.get(source);
+        if (!variants) { variants = new Map(); clones.set(source, variants); }
+        let material = variants.get(fieldKit);
         if (material) return material;
-        material = source instanceof THREE.MeshStandardMaterial && source.map
+        material = source instanceof THREE.MeshStandardMaterial
           ? source.clone() : new THREE.MeshStandardMaterial({ roughness: .7, metalness: .05 });
         material.color.setHex(color);
         // Keep cover occlusion invariant for every accessibility choice.
@@ -53,7 +58,7 @@ export class ActorAppearance {
           `);
         };
         material.customProgramCacheKey = () => fieldKit ? 'ironsight-field-kit-rim-v2' : 'ironsight-actor-rim-v1';
-        clones.set(source, material);
+        variants.set(fieldKit, material);
         this.materials.push(material);
         return material;
       };

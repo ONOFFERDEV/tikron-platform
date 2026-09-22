@@ -1,8 +1,28 @@
 import { rampSurfaceY, type Box } from "../src/physics.js";
 import { PLAYER } from "../src/config.js";
 import { rampOccluderBoxes } from "../src/map/tilemap.js";
+import {
+  surfaceForBox,
+  surfaceForRamp,
+  surfaceForTerrainFace,
+  type MapSurface,
+} from '../src/map/materials.js';
 import type { MapDef } from "../src/map/types.js";
 export interface SoundPoint { x: number; y: number; z: number }
+
+export const FOOTSTEP_SURFACE_PROFILES: Record<MapSurface, {
+  readonly playbackRate: number;
+  readonly filter: 'lowpass' | 'bandpass';
+  readonly frequency: number;
+  readonly q: number;
+  readonly gain: number;
+}> = {
+  mud: { playbackRate: .68, filter: 'lowpass', frequency: 240, q: .45, gain: .92 },
+  gravel: { playbackRate: 1.08, filter: 'bandpass', frequency: 1180, q: .75, gain: 1.08 },
+  wood: { playbackRate: .94, filter: 'bandpass', frequency: 720, q: 1.15, gain: 1.02 },
+  metal: { playbackRate: 1.35, filter: 'bandpass', frequency: 1900, q: 2.2, gain: 1 },
+  concrete: { playbackRate: .85, filter: 'lowpass', frequency: 350, q: .7, gain: 1 },
+};
 
 /** Three cached perspectives, all retaining the weapon's own crack/body/tail.
  * Distance shifts energy from the mechanism to diffuse reflections. This runs
@@ -91,8 +111,13 @@ export function coverMix(source: SoundPoint, listener: SoundPoint, boxes: readon
 }
 
 function supportingBox(pos: SoundPoint, map: MapDef): Box | undefined {
-  return map.boxes.find(b => pos.x + PLAYER.radius > b.min.x && pos.x - PLAYER.radius < b.max.x
-    && pos.z + PLAYER.radius > b.min.z && pos.z - PLAYER.radius < b.max.z && Math.abs(pos.y - b.max.y) < .16);
+  return map.boxes.filter(b => {
+    const dx = Math.max(b.min.x - pos.x, 0, pos.x - b.max.x);
+    const dz = Math.max(b.min.z - pos.z, 0, pos.z - b.max.z);
+    return dx * dx + dz * dz < PLAYER.radius * PLAYER.radius && Math.abs(pos.y - b.max.y) < .16;
+  })
+    .sort((a, b) => Math.abs(pos.y - a.max.y) - Math.abs(pos.y - b.max.y)
+      || (a.max.x-a.min.x)*(a.max.z-a.min.z) - (b.max.x-b.min.x)*(b.max.z-b.min.z))[0];
 }
 
 function supportingRamp(pos: SoundPoint, map: MapDef) {
@@ -100,12 +125,20 @@ function supportingRamp(pos: SoundPoint, map: MapDef) {
     && Math.abs(pos.y - rampSurfaceY(r, pos.x, pos.z)) < .16);
 }
 
-export function footSurface(pos: SoundPoint, map?: MapDef): 'concrete' | 'metal' {
+function supportingTerrainFace(pos: SoundPoint, map: MapDef) {
+  return map.terrain?.faces.find(face => pos.x >= face.minX && pos.x <= face.maxX
+    && pos.z >= face.minZ && pos.z <= face.maxZ && Math.abs(pos.y - face.y) < .16);
+}
+
+export function footSurface(pos: SoundPoint, map?: MapDef): MapSurface {
   if (!map) return 'concrete';
-  const box = supportingBox(pos, map);
-  if (box) return acousticData(map).concrete.has(box) ? 'concrete' : 'metal';
   const ramp = supportingRamp(pos, map);
-  if (ramp) return map.structures?.some(s => s.ramps.includes(ramp)) ? 'concrete' : 'metal';
+  if (ramp) return surfaceForRamp(map, ramp)
+    ?? (map.structures?.some(s => s.ramps.includes(ramp)) ? 'concrete' : 'metal');
+  const box = supportingBox(pos, map);
+  if (box) return surfaceForBox(map, box) ?? (acousticData(map).concrete.has(box) ? 'concrete' : 'metal');
+  const face = supportingTerrainFace(pos, map);
+  if (face) return surfaceForTerrainFace(map, face) ?? 'concrete';
   return 'concrete';
 }
 export function hostileFoley(sourceTeam: number, listenerTeam: number, teamless: boolean): number {

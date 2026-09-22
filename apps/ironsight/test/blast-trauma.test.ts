@@ -37,7 +37,9 @@ it('attenuates distance, rejects invalid/out-of-range events, and respects curre
   for (const z of [30, 100, NaN, Infinity]) fx.impact({ ...point, z }, eye, [], 1000);
   expect(fx.inspect().trauma).toBe(0);
   fx.impact({ ...point, z: 17 }, eye, [], 1000, 1); expect(fx.inspect().trauma).toBe(.5);
-  const core = new CoreCollision(ARENA1), viewer = { x: 67, y: 1.65, z: 50 }, blast = { x: 83, y: 1.65, z: 50 };
+  const chamber = ARENA1.signalCore!.chamber, z = (chamber.min.z + chamber.max.z) / 2;
+  const core = new CoreCollision(ARENA1), viewer = { x: chamber.min.x - 3, y: 1.65, z },
+    blast = { x: chamber.max.x + 3, y: 1.65, z };
   fx.clear(); fx.impact(blast, viewer, core.closedHits, 1000); expect(fx.inspect().trauma).toBe(0);
   fx.impact(blast, viewer, core.hits(true), 1000); expect(fx.inspect().trauma).toBeGreaterThan(0);
 });

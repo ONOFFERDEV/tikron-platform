@@ -13,6 +13,8 @@
  */
 
 import type { GameConfig } from "./schema.js";
+import { assertWeaponContract } from "../src/weapon-contract.js";
+export { assertWeaponContract } from "../src/weapon-contract.js";
 
 // ── #1 — maps fit the arena / wire quant freeze ──────────────────────────────
 
@@ -54,6 +56,11 @@ export function assertParallelArrayLengths(cfg: GameConfig): string[] {
       errs.push(`${name}.length (${len}) must equal weapons.length (${n})`);
     }
   }
+  cfg.camera.adsFov.forEach((fov, index) => {
+    if (!Number.isFinite(fov) || fov <= 0) {
+      errs.push(`camera.adsFov[${index}] must be finite and positive`);
+    }
+  });
   return errs;
 }
 
@@ -268,6 +275,7 @@ const ERROR_ASSERTS: readonly ((cfg: GameConfig) => string[])[] = [
   assertRespawnCoupling,
   assertInterpCoupling,
   assertWeaponIndices,
+  assertWeaponContract,
   assertModesWireOrder,
   assertHitPlayerCoupling,
   assertTracerSpeedPositive,

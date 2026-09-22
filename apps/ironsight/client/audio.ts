@@ -1,22 +1,41 @@
 /**
- * Web Audio SFX — fully synthesized (no asset files): a rifle crack, a hit-confirm
+ * Web Audio SFX ??fully synthesized (no asset files): a rifle crack, a hit-confirm
  * tick, and a kill-confirm ding. One AudioContext + master gain, resumed on the
  * first user gesture (browser autoplay policy), muted with `M`. A reduced sibling
  * of emberfall's file-based `audio.ts`; the same lifecycle, oscillators instead of
  * decoded buffers.
  */
 import type { MapDef } from "../src/map/types.js";
-import { acousticOccluders, coverMix, footSurface, prepareDistantFire, spatialMix, type SoundPoint } from "./spatial-audio.js";
-import { FIRE_VARIANTS, synthesizeWeaponSound } from "./weapon-sound.js";
+import { FOOTSTEP_SURFACE_PROFILES, acousticOccluders, coverMix, footSurface, prepareDistantFire, spatialMix, type SoundPoint } from "./spatial-audio.js";
+import {
+  FIRE_VARIANTS,
+  WEAPON_FAMILY_NAMES,
+  synthesizeWeaponSound,
+  type WeaponMechanicCue,
+  type WeaponMechanicCuePlan,
+} from "./weapon-sound.js";
 import { GAME } from "../src/game-config.js";
 import type { DeploymentCue } from './deployment-presentation.js';
+import {
+  AudioMixGraph,
+  AudioVoiceBudget,
+  createAudioMixGraph,
+  effectiveMasterGain,
+  startLiveMixCapture,
+  type AudioDynamicRange,
+  type AudioMixBusKey,
+  type AudioMixDriver,
+  type LiveCaptureOptions,
+  type LiveCaptureReceipt,
+} from './audio-mix.js';
+import type { Settings } from './settings.js';
 
 const MUTED_KEY = "iron_muted";
 const A = GAME.audio;
 
 /** One short, resolved commendation sting through the existing mute/volume bus. */
 export function playHonorsCue(): void {
-  const c = ready(); if (!c || !master) return;
+  const c = ready(); if (!c || !ui) return;
   const now = c.currentTime;
   for (const [index, frequency] of [196, 293.66, 392, 493.88].entries()) {
     const at = now + index * .09;
@@ -26,7 +45,7 @@ export function playHonorsCue(): void {
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(.045, at + .015);
     gain.gain.exponentialRampToValueAtTime(.001, at + .55);
-    osc.connect(gain).connect(master); osc.start(at); osc.stop(at + .57);
+    osc.connect(gain).connect(ui); osc.start(at); osc.stop(at + .57);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 }
@@ -34,7 +53,7 @@ export function playHonorsCue(): void {
 /** Three short countdown pips and a resolved start chord. Called on observed
  * phase/second edges only; no timer queue can leak a GO after cancellation. */
 export function playDeploymentCue(cue: DeploymentCue): void {
-  const c = ready(); if (!c || !master) return;
+  const c = ready(); if (!c || !ui) return;
   const t = c.currentTime, duration = cue === 'go' ? .48 : .085;
   const frequencies = cue === 'go' ? [164.81, 246.94, 329.63] : [740];
   for (const frequency of frequencies) {
@@ -43,7 +62,7 @@ export function playDeploymentCue(cue: DeploymentCue): void {
     gain.gain.setValueAtTime(0, t);
     gain.gain.linearRampToValueAtTime(cue === 'go' ? .065 : .10, t + .008);
     gain.gain.exponentialRampToValueAtTime(.001, t + duration);
-    osc.connect(gain).connect(master); osc.start(t); osc.stop(t + duration + .015);
+    osc.connect(gain).connect(ui); osc.start(t); osc.stop(t + duration + .015);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 }
@@ -51,21 +70,56 @@ export function playDeploymentCue(cue: DeploymentCue): void {
 /** Short mechanical cues at presentation phase boundaries. No scheduled tails
  * survive death/swap; each transient releases and disconnects within 90 ms. */
 export function playReloadCue(phase: string, source?: SoundPoint, threatGain = 1): void {
-  const frequencies: Record<string, number> = { 'mag-out': 380, 'mag-in': 620, bolt: 1150 };
-  const frequency = frequencies[phase];
-  if (!frequency) return;
-  const c = ready(); if (!c || !master) return;
-  const bus = spatialBus(c, source, threatGain); if (!bus) return;
-  const t = c.currentTime, osc = c.createOscillator(), gain = c.createGain();
-  osc.type = 'triangle'; osc.frequency.setValueAtTime(frequency, t);
-  osc.frequency.exponentialRampToValueAtTime(frequency * 0.45, t + 0.06);
-  gain.gain.setValueAtTime(0.09, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-  osc.connect(gain).connect(bus.input); osc.start(t); osc.stop(t + 0.09);
-  osc.onended = () => { osc.disconnect(); gain.disconnect(); bus.release(); };
+  if (!['mag-out', 'mag-in', 'bolt', 'shell'].includes(phase)) return;
+  playWeaponActionCues([{ cue: phase as WeaponMechanicCue, delayMs: 0, serial: 0 }], source, threatGain);
+}
+
+const MECHANIC_FREQUENCIES: Record<WeaponMechanicCue, number> = {
+  'mag-out': 380,
+  'mag-in': 620,
+  bolt: 1150,
+  shell: 820,
+};
+
+export function playWeaponActionCues(
+  cues: readonly WeaponMechanicCuePlan[],
+  source?: SoundPoint,
+  threatGain = 1,
+): () => void {
+  const c = ready(); if (!c || !combat) return () => {};
+  const bus = spatialBus(c, source, threatGain); if (!bus) return () => {};
+  if (cues.length === 0) { bus.release(); return () => {}; }
+  const active: { oscillator: OscillatorNode; gain: GainNode }[] = [];
+  let remaining = cues.length;
+  for (const cue of cues) {
+    const t = c.currentTime + Math.max(0, cue.delayMs) / 1000;
+    const frequency = MECHANIC_FREQUENCIES[cue.cue];
+    const oscillator = c.createOscillator(), gain = c.createGain();
+    oscillator.type = cue.cue === 'shell' ? 'square' : 'triangle';
+    oscillator.frequency.setValueAtTime(frequency, t);
+    oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.45, t + 0.06);
+    gain.gain.setValueAtTime(0.09, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    oscillator.connect(gain).connect(bus.input); oscillator.start(t); oscillator.stop(t + 0.09);
+    active.push({ oscillator, gain });
+    oscillator.onended = () => {
+      oscillator.disconnect(); gain.disconnect();
+      remaining -= 1; if (remaining === 0) bus.release();
+    };
+  }
+  return () => {
+    for (const voice of active) {
+      voice.gain.gain.cancelScheduledValues(c.currentTime);
+      voice.gain.gain.setTargetAtTime(.001, c.currentTime, .005);
+      try { voice.oscillator.stop(c.currentTime + .02); } catch {}
+    }
+  };
 }
 
 let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
+let mix: AudioMixGraph<AudioNode> | null = null;
+let combat: AudioNode | null = null;
+let ambience: AudioNode | null = null;
+let ui: AudioNode | null = null;
 let gunfire: GainNode | null = null;
 let confirmHoldUntil = 0;
 let confirmLevel = 1;
@@ -76,9 +130,32 @@ let muted = false;
 let volume = 1;
 const listener = { x: 0, y: 0, z: 0 };
 let listenerYaw = 0;
-let remoteVoices = 0;
+const remoteVoices = new AudioVoiceBudget(20, 4);
+const audioLevels: Record<AudioMixBusKey, number> = { combat: 1, ambience: 0.35, music: 0.25, ui: 0.8 };
+let dynamicRange: AudioDynamicRange = 'headphones';
+let muteWhenHidden = false;
+let initialized = false;
+let configured = false;
+let muteObserver: ((value: boolean) => void) | undefined;
+let resumeAttempts = 0;
+let resumeError: string | null = null;
+let ambientSource: AudioBufferSourceNode | null = null;
+let qaCapture: Awaited<ReturnType<typeof startLiveMixCapture>> | null = null;
+let qaCaptureStart: { readonly controller: AbortController; readonly promise: ReturnType<typeof startLiveMixCapture> } | null = null;
+let qaCaptureReceipt: Omit<LiveCaptureReceipt, 'wav'> | null = null;
+let qaCaptureError: string | null = null;
+
+declare global {
+  interface Window {
+    __ironsightAudioCapture?: {
+      start(options: LiveCaptureOptions): Promise<unknown>;
+      inspect(): unknown;
+    };
+  }
+}
 let acousticMap: MapDef | undefined;
 let auditMixes: { gain: number; cutoff: number; pan: number; threatGain: number; blocked: boolean }[] | null = null;
+let auditSurfaces: Array<{ surface: string; playbackRate: number; filter: string; frequency: number; q: number; gain: number }> | null = null;
 export function setAudioMap(map: MapDef): void {
   acousticOccluders(map); // prepare once, outside the first audible event
   acousticMap = map;
@@ -87,21 +164,21 @@ export function setAudioListener(pos: SoundPoint, yaw: number): void {
   Object.assign(listener, pos); listenerYaw = yaw;
 }
 /** Bounded short-lived stereo graph; confirmation cues bypass this voice budget. */
-function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1, output = master) {
+function spatialBus(c: AudioContext, source?: SoundPoint, threatGain = 1, output = combat) {
   if (!output) return null;
-  if (!source) return { input: output as AudioNode, release: () => {} };
+  if (!source) return { input: output, release: () => {} };
   const mix = spatialMix(source, listener, listenerYaw);
   if (mix.gain < 0.015) return null;
   const cover = coverMix(source, listener, acousticMap ? acousticOccluders(acousticMap) : []);
   // Reserve four of the existing twenty voices for clear enemy foley.
-  if (remoteVoices >= (threatGain > 1 && !cover.blocked ? 20 : 16)) return null;
-  remoteVoices++;
+  const releaseVoice = remoteVoices.acquire(threatGain > 1 && !cover.blocked ? 'critical' : 'ordinary');
+  if (!releaseVoice) return null;
   const gain = c.createGain(), pan = c.createStereoPanner(), filter = c.createBiquadFilter();
   gain.gain.value = mix.gain * 0.7 * threatGain * cover.gain; pan.pan.value = mix.pan;
   filter.type = 'lowpass'; filter.frequency.value = Math.min(mix.cutoff, cover.cutoff);
   auditMixes?.push({ gain: gain.gain.value, cutoff: filter.frequency.value, pan: pan.pan.value, threatGain, blocked: cover.blocked });
   filter.connect(gain).connect(pan).connect(output);
-  return { input: filter as AudioNode, release: () => { filter.disconnect(); gain.disconnect(); pan.disconnect(); remoteVoices--; } };
+  return { input: filter as AudioNode, release: () => { filter.disconnect(); gain.disconnect(); pan.disconnect(); releaseVoice(); } };
 }
 
 export function setMasterVolume(value: number): void {
@@ -110,7 +187,71 @@ export function setMasterVolume(value: number): void {
   volume = next; applyMute();
 }
 
+export function setAudioLevel(level: AudioMixBusKey | 'master', value: number): void {
+  const next = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+  if (level === 'master') {
+    setMasterVolume(next);
+    return;
+  }
+  audioLevels[level] = next;
+  mix?.setBusLevel(level, next);
+}
+
+export function configureAudio(settings: Pick<Settings, 'audio' | 'muted'>): void {
+  configured = true;
+  volume = settings.audio.master;
+  muted = settings.muted;
+  for (const level of ['combat', 'ambience', 'music', 'ui'] as const) setAudioLevel(level, settings.audio[level]);
+  dynamicRange = settings.audio.dynamicRange;
+  muteWhenHidden = settings.audio.muteWhenHidden;
+  mix?.setDynamicRange(dynamicRange);
+  applyMute();
+}
+
 type WebkitWindow = Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+
+function audioMixDriver(c: AudioContext): AudioMixDriver<AudioNode> {
+  const gains = new Map<AudioNode, GainNode>();
+  const compressors = new Map<AudioNode, DynamicsCompressorNode>();
+  return {
+    destination: c.destination,
+    createGain: (_name, value) => {
+      const node = c.createGain();
+      node.gain.value = value;
+      gains.set(node, node);
+      return node;
+    },
+    createCompressor: () => {
+      const node = c.createDynamicsCompressor();
+      compressors.set(node, node);
+      return node;
+    },
+    createCeiling: () => {
+      const node = c.createWaveShaper();
+      const curve = new Float32Array(2049);
+      for (let index = 0; index < curve.length; index += 1) {
+        const x = index / (curve.length - 1) * 2 - 1;
+        const magnitude = Math.abs(x);
+        curve[index] = Math.sign(x) * (magnitude <= 0.8 ? magnitude : 0.8 + 0.18 * (1 - Math.exp(-(magnitude - 0.8) / 0.18)));
+      }
+      node.curve = curve;
+      return node;
+    },
+    connect: (source, destination) => { source.connect(destination); },
+    disconnect: node => { node.disconnect(); },
+    setGain: (node, value) => { gains.get(node)?.gain.setTargetAtTime(value, c.currentTime, 0.01); },
+    setDynamicRange: (node, value) => {
+      const compressor = compressors.get(node);
+      if (!compressor) return;
+      const profile = value === 'reduced' ? { threshold: -24, knee: 6, ratio: 12, attack: 0.002, release: 0.24 }
+        : value === 'speakers' ? { threshold: -16, knee: 18, ratio: 5, attack: 0.004, release: 0.2 }
+          : { threshold: -12, knee: 12, ratio: 6, attack: 0.003, release: 0.18 };
+      compressor.threshold.value = profile.threshold; compressor.knee.value = profile.knee;
+      compressor.ratio.value = profile.ratio; compressor.attack.value = profile.attack;
+      compressor.release.value = profile.release;
+    },
+  };
+}
 
 function ensure(): AudioContext | null {
   if (ctx) return ctx;
@@ -118,23 +259,15 @@ function ensure(): AudioContext | null {
   const Ctor = window.AudioContext ?? (window as WebkitWindow).webkitAudioContext;
   if (!Ctor) return null;
   ctx = new Ctor();
-  master = ctx.createGain();
-  master.gain.value = muted ? 0 : A.masterGain * volume;
+  mix = createAudioMixGraph(audioMixDriver(ctx), {
+    master: A.masterGain * volume,
+    muted: muted || (muteWhenHidden && document.hidden),
+    levels: audioLevels,
+    dynamicRange,
+  });
+  combat = mix.bus('combat'); ambience = mix.bus('ambience'); ui = mix.bus('ui');
   gunfire = ctx.createGain();
-  gunfire.connect(master);
-  const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -12; compressor.knee.value = 12;
-  compressor.ratio.value = 6; compressor.attack.value = 0.003; compressor.release.value = 0.18;
-  // A compressor's attack can overshoot on synchronized volleys. The final
-  // safety knee is linear below 0.8 and bounds that transient before output.
-  const ceiling = ctx.createWaveShaper();
-  const curve = new Float32Array(2049);
-  for (let i = 0; i < curve.length; i++) {
-    const x = i / (curve.length - 1) * 2 - 1, a = Math.abs(x);
-    curve[i] = Math.sign(x) * (a <= 0.8 ? a : 0.8 + 0.18 * (1 - Math.exp(-(a - 0.8) / 0.18)));
-  }
-  ceiling.curve = curve;
-  master.connect(compressor).connect(ceiling).connect(ctx.destination);
+  gunfire.connect(combat);
   // One second of white noise, reused for every gunshot.
   const buf = ctx.createBuffer(1, ctx.sampleRate * A.noiseBufferSec, ctx.sampleRate);
   const data = buf.getChannelData(0);
@@ -152,7 +285,7 @@ function ensure(): AudioContext | null {
     }
     fireBuffers.push(variants);
   }
-  startAmbient(ctx, master);
+  startAmbient(ctx, ambience);
   return ctx;
 }
 
@@ -173,10 +306,10 @@ function prioritizeConfirmation(c: AudioContext, kill: boolean): void {
 /**
  * Ambient wind bed: a long low-passed noise loop through the master gain (so `M`
  * mutes it), started once alongside the rest of the graph. It's silent until the
- * context resumes on the first user gesture — same lifecycle as everything else
+ * context resumes on the first user gesture ??same lifecycle as everything else
  * here, just no explicit resume call of its own.
  */
-function startAmbient(c: AudioContext, m: GainNode): void {
+function startAmbient(c: AudioContext, m: AudioNode): void {
   const buf = c.createBuffer(1, c.sampleRate * A.ambient.bufferSec, c.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -191,6 +324,7 @@ function startAmbient(c: AudioContext, m: GainNode): void {
   g.gain.value = A.ambient.gain;
   src.connect(lp).connect(g).connect(m);
   src.start(0);
+  ambientSource = src;
 }
 
 function ready(): AudioContext | null {
@@ -201,29 +335,30 @@ function ready(): AudioContext | null {
 
 /** Mechanical snap, ballistic body and outdoor reflections in one cached source.
  * One remote voice covers the complete tail; all layers share spatial attenuation. */
-export function playFire(weaponIndex = 0, source?: SoundPoint): void {
+export function playFire(weaponIndex = 0, source?: SoundPoint): boolean {
   const c = ready();
-  if (!c || !master) return;
+  if (!c || !combat) return false;
   const variants = fireBuffers[weaponIndex] ?? fireBuffers[0];
   const distance = source ? Math.hypot(source.x-listener.x, source.y-listener.y, source.z-listener.z) : 0;
   // Prepared close (<12 m), field (12-28 m), and distant (28-55 m) shots.
   // The existing spatial bus still owns audibility, pan and solid occlusion.
   const band = distance < 12 ? 0 : distance < 28 ? 1 : 2;
   const buffer = variants?.[fireVariation % FIRE_VARIANTS]?.[band];
-  if (!buffer) return;
-  const bus = spatialBus(c, source, 1, gunfire); if (!bus) return;
+  if (!buffer) return false;
+  const bus = spatialBus(c, source, 1, gunfire); if (!bus) return false;
   fireVariation++;
   const src = c.createBufferSource();
   src.buffer = buffer;
   src.connect(bus.input);
   src.onended = () => { src.disconnect(); bus.release(); };
   src.start(c.currentTime);
+  return true;
 }
 
 /** Grenade detonation: a long low-passed noise rumble + a 50 Hz sub swell. */
 export function playBoom(source?: SoundPoint): void {
   const c = ready();
-  if (!c || !master || !noise) return;
+  if (!c || !combat || !noise) return;
   const bus = spatialBus(c, source); if (!bus) return;
   const t = c.currentTime;
   const src = c.createBufferSource();
@@ -257,7 +392,7 @@ export function playBoom(source?: SoundPoint): void {
 /** Weapon-swap: a short mechanical double click. */
 export function playSwap(): void {
   const c = ready();
-  if (!c || !master) return;
+  if (!c || !combat) return;
   const t = c.currentTime;
   for (const [i, f] of A.swap.freqs.entries()) {
     const osc = c.createOscillator();
@@ -267,16 +402,17 @@ export function playSwap(): void {
     const start = t + i * A.swap.staggerSec;
     g.gain.setValueAtTime(A.swap.gain, start);
     g.gain.exponentialRampToValueAtTime(0.001, start + A.swap.rampSec);
-    osc.connect(g).connect(master);
+    osc.connect(g).connect(combat);
     osc.start(start);
     osc.stop(start + A.swap.stopSec);
+    osc.onended = () => { osc.disconnect(); g.disconnect(); };
   }
 }
 
 /** Hit confirm: a short high tick. */
 export function playHit(head = false): void {
   const c = ready();
-  if (!c || !master) return;
+  if (!c || !ui) return;
   prioritizeConfirmation(c, false);
   const t = c.currentTime;
   const osc = c.createOscillator();
@@ -285,7 +421,7 @@ export function playHit(head = false): void {
   const g = c.createGain();
   g.gain.setValueAtTime(A.hit.gain, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.hit.rampSec);
-  osc.connect(g).connect(master);
+  osc.connect(g).connect(ui);
   osc.start(t);
   osc.stop(t + A.hit.stopSec);
   osc.onended = () => { osc.disconnect(); g.disconnect(); };
@@ -295,19 +431,21 @@ export function playHit(head = false): void {
  *  for remote players; self always passes 1). */
 export function playFootstep(atten = 1, source?: SoundPoint, feet?: SoundPoint): void {
   const c = ready();
-  if (!c || !master || !noise || atten <= 0.02) return;
+  if (!c || !combat || !noise || atten <= 0.02) return;
   const bus = spatialBus(c, source, source ? atten : 1); if (!bus) return;
-  const metal = feet && footSurface(feet, acousticMap) === 'metal';
+  const surface = feet ? footSurface(feet, acousticMap) : 'concrete';
+  const profile = FOOTSTEP_SURFACE_PROFILES[surface];
+  auditSurfaces?.push({ surface, ...profile });
   const t = c.currentTime;
   const src = c.createBufferSource();
   src.buffer = noise;
-  src.playbackRate.value = metal ? 1.35 : 0.85;
+  src.playbackRate.value = profile.playbackRate;
   const lp = c.createBiquadFilter();
-  lp.type = metal ? "bandpass" : "lowpass";
-  lp.Q.value = metal ? 2.2 : 0.7;
-  lp.frequency.value = metal ? 1900 : A.footstep.lpFreq;
+  lp.type = profile.filter;
+  lp.Q.value = profile.q;
+  lp.frequency.value = profile.frequency;
   const g = c.createGain();
-  g.gain.setValueAtTime(A.footstep.gain * (source ? 1 : atten), t);
+  g.gain.setValueAtTime(A.footstep.gain * profile.gain * (source ? 1 : atten), t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.footstep.rampSec);
   src.connect(lp).connect(g).connect(bus.input);
   src.start(t);
@@ -318,7 +456,7 @@ export function playFootstep(atten = 1, source?: SoundPoint, feet?: SoundPoint):
 /** Surface scrape + equipment transient. Reuses prepared noise; bounded to 800 ms. */
 export function playSlide(feet: SoundPoint, source?: SoundPoint, threatGain = 1): () => void {
   const c = ready();
-  if (!c || !master || !noise) return () => {};
+  if (!c || !combat || !noise) return () => {};
   const bus = spatialBus(c, source, threatGain); if (!bus) return () => {};
   const t = c.currentTime, src = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
   src.buffer = noise; src.loop = true;
@@ -342,10 +480,10 @@ export function playLanding(feet: SoundPoint): void {
 }
 
 /** Hurt: a short descending low-register thud, distinct from the shooter-side
- *  `playHit` tick — this is the VICTIM's feedback on taking damage. */
+ *  `playHit` tick ??this is the VICTIM's feedback on taking damage. */
 export function playHurt(): void {
   const c = ready();
-  if (!c || !master) return;
+  if (!c || !ui) return;
   const t = c.currentTime;
   const osc = c.createOscillator();
   osc.type = "sawtooth";
@@ -354,15 +492,16 @@ export function playHurt(): void {
   const g = c.createGain();
   g.gain.setValueAtTime(A.hurt.gain, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + A.hurt.gainRampSec);
-  osc.connect(g).connect(master);
+  osc.connect(g).connect(ui);
   osc.start(t);
   osc.stop(t + A.hurt.stopSec);
+  osc.onended = () => { osc.disconnect(); g.disconnect(); };
 }
 
 /** Kill confirm: a quick two-tone rising ding. */
 export function playKill(): void {
   const c = ready();
-  if (!c || !master) return;
+  if (!c || !ui) return;
   prioritizeConfirmation(c, true);
   const t = c.currentTime;
   for (const [i, f] of A.kill.freqs.entries()) {
@@ -374,7 +513,7 @@ export function playKill(): void {
     g.gain.setValueAtTime(0.0001, start);
     g.gain.linearRampToValueAtTime(A.kill.gainPeak, start + A.kill.rampUpSec);
     g.gain.exponentialRampToValueAtTime(0.001, start + A.kill.rampDownSec);
-    osc.connect(g).connect(master);
+    osc.connect(g).connect(ui);
     osc.start(start);
     osc.stop(start + A.kill.stopSec);
     osc.onended = () => { osc.disconnect(); g.disconnect(); };
@@ -389,24 +528,27 @@ export function setMuted(value: boolean): void {
   muted = value;
   try { localStorage.setItem(MUTED_KEY, muted ? '1' : '0'); } catch { /* private storage */ }
   applyMute();
+  muteObserver?.(muted);
 }
 
 function applyMute(): void {
-  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : A.masterGain * volume, ctx.currentTime, 0.01);
+  mix?.setMaster(effectiveMasterGain(A.masterGain * volume, muted, document.hidden, muteWhenHidden), false);
 }
 
 /** Self-wire gesture-resume + the M mute toggle. Returns the mute state on toggle. */
 export function initAudio(onToggle?: (muted: boolean) => void): void {
   if (typeof window === "undefined") return;
-  try {
-    muted = localStorage.getItem(MUTED_KEY) === "1";
-  } catch {
-    // localStorage may throw (private mode) — keep the default.
+  muteObserver = onToggle ?? muteObserver;
+  if (!configured) {
+    try {
+      muted = localStorage.getItem(MUTED_KEY) === "1";
+    } catch {
+      // localStorage may throw (private mode); keep the default.
+    }
   }
-  const resume = (): void => {
-    const c = ensure();
-    if (c && c.state === "suspended") void c.resume();
-  };
+  if (initialized) return;
+  initialized = true;
+  const resume = (): void => { void resumeAudioContext(); };
   window.addEventListener("pointerdown", resume);
   window.addEventListener("keydown", resume);
   window.addEventListener("keydown", (e) => {
@@ -418,8 +560,109 @@ export function initAudio(onToggle?: (muted: boolean) => void): void {
       // ignore persistence failure
     }
     applyMute();
-    onToggle?.(muted);
   });
+  document.addEventListener('visibilitychange', applyMute);
+  installAudioCaptureProbe();
+}
+
+function installAudioCaptureProbe(): void {
+  if (!['localhost', '127.0.0.1', '::1'].includes(location.hostname) || window.__ironsightAudioCapture) return;
+  window.__ironsightAudioCapture = {
+    start: async options => {
+      if (qaCapture || qaCaptureStart) throw new Error('live mix capture is already recording');
+      const c = ensure();
+      if (!c || !mix) throw new Error('game AudioContext is unavailable');
+      qaCaptureError = null; qaCaptureReceipt = null;
+      const controller = new AbortController();
+      const pending = { controller, promise: startLiveMixCapture(c, mix.finalBus, { ...options, signal: controller.signal }) };
+      qaCaptureStart = pending;
+      try {
+        qaCapture = await pending.promise;
+      } finally {
+        if (qaCaptureStart === pending) qaCaptureStart = null;
+      }
+      const button = document.createElement('button');
+      button.id = 'qa-audio-export'; button.type = 'button'; button.textContent = 'Export live mix';
+      button.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:1000';
+      button.addEventListener('click', () => { void exportQaAudio(button); }, { once: true });
+      document.body.append(button);
+      return { state: 'recording', contextState: c.state, sampleRate: c.sampleRate,
+        sourceSha256: options.sourceSha256, processorName: qaCapture.processorName };
+    },
+    inspect: () => ({ recording: qaCapture !== null, receipt: qaCaptureReceipt, error: qaCaptureError,
+      lifecycle: inspectAudioLifecycle() }),
+  };
+}
+
+async function exportQaAudio(button: HTMLButtonElement): Promise<void> {
+  try {
+    if (!qaCapture) throw new Error('live mix capture is not recording');
+    const receipt = await qaCapture.stop();
+    const { wav, ...metadata } = receipt;
+    qaCaptureReceipt = metadata;
+    const url = URL.createObjectURL(wav), anchor = document.createElement('a');
+    anchor.href = url; anchor.download = 'ironsight-live-mix.wav'; document.body.append(anchor); anchor.click(); anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  } catch (error) {
+    qaCaptureError = error instanceof Error ? error.message : String(error);
+  } finally {
+    qaCapture = null;
+    button.remove();
+  }
+}
+
+export async function resumeAudioContext(): Promise<boolean> {
+  const c = ensure();
+  if (!c) return false;
+  resumeAttempts += 1;
+  const result = await resumeContext(c);
+  resumeError = result.error;
+  return result.running;
+}
+
+export async function resumeContext(context: Pick<AudioContext, 'state' | 'resume'>): Promise<{ running: boolean; error: string | null }> {
+  try {
+    if (context.state === 'suspended') await context.resume();
+    return { running: context.state === 'running', error: null };
+  } catch (error) {
+    return { running: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export function inspectAudioLifecycle() {
+  return {
+    state: ctx?.state ?? (typeof window === 'undefined' || !(window.AudioContext || (window as WebkitWindow).webkitAudioContext) ? 'unavailable' : 'suspended'),
+    resumeAttempts,
+    resumeError,
+    activeRemoteVoices: remoteVoices.active,
+    muted,
+    hiddenMuted: muteWhenHidden && typeof document !== 'undefined' && document.hidden,
+  };
+}
+
+export async function disposeAudio(): Promise<void> {
+  const pendingCapture = qaCaptureStart;
+  qaCaptureStart = null;
+  if (pendingCapture) {
+    pendingCapture.controller.abort();
+    try { await pendingCapture.promise; } catch (error) { qaCaptureError = error instanceof Error ? error.message : String(error); }
+  }
+  if (qaCapture) {
+    try { await qaCapture.stop(); } catch (error) { qaCaptureError = error instanceof Error ? error.message : String(error); }
+    qaCapture = null;
+  }
+  ambientSource?.stop();
+  ambientSource?.disconnect();
+  ambientSource = null;
+  gunfire?.disconnect();
+  gunfire = null;
+  mix?.dispose();
+  mix = null; combat = null; ambience = null; ui = null;
+  noise = null; fireBuffers.length = 0;
+  remoteVoices.reset();
+  const closing = ctx;
+  ctx = null;
+  if (closing && closing.state !== 'closed') await closing.close();
 }
 
 /** Explicit developer fixture: real Web Audio nodes after a user gesture.
@@ -431,7 +674,46 @@ export async function inspectThreatAudio() {
   const source = { x: 0, y: 1, z: 10 };
   const mixes: NonNullable<typeof auditMixes> = [];
   const geometryMixes: NonNullable<typeof auditMixes> = [];
+  const weaponMixes: Array<{ family: string; band: 'close' | 'field' | 'far'; played: boolean; mix: (typeof mixes)[number] | null }> = [];
+  const surfaceAuditions: NonNullable<typeof auditSurfaces> = [];
   try {
+    acousticMap = { ...savedMap!, boxes: [] };
+    auditMixes = mixes;
+    setAudioListener({ x: 0, y: 1, z: 0 }, 0);
+    for (const [weapon, family] of WEAPON_FAMILY_NAMES.entries()) {
+      for (const [band, z] of [['close', 5], ['field', 20], ['far', 40]] as const) {
+        const before = mixes.length;
+        const played = playFire(weapon, { x: 0, y: 1, z });
+        weaponMixes.push({ family, band, played, mix: mixes[before] ?? null });
+        await wait(330);
+      }
+    }
+    acousticMap = savedMap;
+    auditSurfaces = surfaceAuditions;
+    const heardSurfaces = new Set<string>();
+    for (const binding of savedMap?.surfaceBindings ?? []) {
+      if (heardSurfaces.has(binding.surface)) continue;
+      let feet: SoundPoint;
+      switch (binding.kind) {
+        case 'box':
+          feet = { x: (binding.box.min.x + binding.box.max.x) / 2, y: binding.box.max.y,
+            z: (binding.box.min.z + binding.box.max.z) / 2 };
+          break;
+        case 'ramp':
+          feet = { x: (binding.ramp.minX + binding.ramp.maxX) / 2,
+            y: ((binding.ramp.baseY ?? 0) + binding.ramp.topY) / 2,
+            z: (binding.ramp.minZ + binding.ramp.maxZ) / 2 };
+          break;
+        case 'terrain':
+          feet = { x: (binding.face.minX + binding.face.maxX) / 2, y: binding.face.y,
+            z: (binding.face.minZ + binding.face.maxZ) / 2 };
+          break;
+      }
+      playFootstep(1, undefined, feet);
+      heardSurfaces.add(binding.surface);
+      await wait(90);
+    }
+    auditSurfaces = null;
     await wait(600);
     acousticMap = { ...savedMap!, boxes: [] };
     auditMixes = mixes;
@@ -447,9 +729,9 @@ export async function inspectThreatAudio() {
     acousticMap = { ...savedMap!, boxes: [] };
     setAudioListener({ x: 0, y: 1, z: 0 }, 0);
     for (let i = 0; i < 24; i++) playReloadCue('mag-in', source, 1);
-    const ordinaryPeak = remoteVoices;
+    const ordinaryPeak = remoteVoices.active;
     for (let i = 0; i < 24; i++) playReloadCue('bolt', source, 1.4);
-    const threatPeak = remoteVoices;
+    const threatPeak = remoteVoices.active;
     playHit(); playKill(); // confirmed cues remain outside the remote budget
     await wait(600);
     auditMixes = geometryMixes;
@@ -475,16 +757,16 @@ export async function inspectThreatAudio() {
     if (geometryMixes.length !== 4 || !geometryMixes[0]?.blocked || geometryMixes[1]?.blocked
       || !geometryMixes[2]?.blocked || !geometryMixes[3]?.blocked)
       throw Error('Ramp/contact acoustic graph failed');
-    return { context: c.state, sampleRate: c.sampleRate, mixes, geometryMixes, ordinaryPeak, threatPeak, drained: remoteVoices,
+    return { context: c.state, sampleRate: c.sampleRate, weaponMixes, surfaceAuditions, mixes, geometryMixes, ordinaryPeak, threatPeak, drained: remoteVoices.active,
       note: 'Actual node parameters before master compressor; not headphone loudness or HRTF acceptance.' };
   } finally {
-    auditMixes = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);
+    auditMixes = null; auditSurfaces = null; acousticMap = savedMap; setAudioListener(savedListener, savedYaw);
   }
 }
 
 /** Induction coil rise and compressed-air release on an accepted room launch. */
 export function playLaunch(source?: SoundPoint, threatGain = 1): void {
-  const c=ready(); if (!c || !master || !noise) return;
+  const c=ready(); if (!c || !combat || !noise) return;
   const bus=spatialBus(c,source,threatGain); if (!bus) return;
   const t=c.currentTime, air=c.createBufferSource(), filter=c.createBiquadFilter(),
     coil=c.createOscillator(), gain=c.createGain();
@@ -502,7 +784,7 @@ export function playLaunch(source?: SoundPoint, threatGain = 1): void {
 
 /** Hand contact and sleeve scrape, emitted only by an accepted room traversal. */
 export function playTraversal(source?: SoundPoint, threatGain = 1): void {
-  const c=ready(); if (!c || !master || !noise) return;
+  const c=ready(); if (!c || !combat || !noise) return;
   const bus=spatialBus(c,source,threatGain); if (!bus) return;
   const t=c.currentTime, src=c.createBufferSource(), filter=c.createBiquadFilter(), gain=c.createGain();
   src.buffer=noise; filter.type='lowpass'; filter.frequency.value=1300;
@@ -515,7 +797,7 @@ export function playTraversal(source?: SoundPoint, threatGain = 1): void {
 /** Map-wide PA/relay cue, bounded below confirmed combat transients. Uses the
  * existing master volume, mute and limiter, with no lingering loop/timers. */
 export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
-  const c=ready();if(!c || !master || !noise || phase==='idle')return;
+  const c=ready();if(!c || !ui || !noise || phase==='idle')return;
   const t=c.currentTime, gain=c.createGain(), tone=c.createOscillator(),
     air=c.createBufferSource(), filter=c.createBiquadFilter();
   const blackout=phase==='blackout', duration=blackout ? 1.8 : .85;
@@ -525,7 +807,7 @@ export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): vo
   air.buffer=noise;filter.type='lowpass';filter.frequency.value=blackout ? 460 : 120;
   gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(blackout ? .17 : .10,t+.05);
   gain.gain.exponentialRampToValueAtTime(.001,t+duration);
-  tone.connect(gain);air.connect(filter).connect(gain);gain.connect(master);
+  tone.connect(gain);air.connect(filter).connect(gain);gain.connect(ui);
   tone.start(t);air.start(t);tone.stop(t+duration);air.stop(t+duration);
   air.onended=()=>{air.disconnect();filter.disconnect();tone.disconnect();gain.disconnect();};
 }
@@ -534,13 +816,13 @@ export function playSignalCue(phase: 'idle'|'warning'|'blackout'|'recovery'): vo
  * water/servo release. No perpetual loop, new buffer, or delayed cue queue. */
 export function playFloodCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
   if(phase!=='blackout'){playSignalCue(phase);return;}
-  const c=ready();if(!c||!master||!noise)return;
+  const c=ready();if(!c||!ui||!noise)return;
   const t=c.currentTime,air=c.createBufferSource(),filter=c.createBiquadFilter(),gain=c.createGain(),servo=c.createOscillator();
   air.buffer=noise;air.loop=true;filter.type='lowpass';filter.frequency.setValueAtTime(350,t);
   filter.frequency.exponentialRampToValueAtTime(1800,t+.7);filter.frequency.exponentialRampToValueAtTime(400,t+2.4);
   servo.type='sine';servo.frequency.setValueAtTime(110,t);servo.frequency.exponentialRampToValueAtTime(45,t+2.4);
   gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.11,t+.25);gain.gain.exponentialRampToValueAtTime(.001,t+2.4);
-  air.connect(filter).connect(gain);servo.connect(gain);gain.connect(master);
+  air.connect(filter).connect(gain);servo.connect(gain);gain.connect(ui);
   air.start(t);servo.start(t);air.stop(t+2.45);servo.stop(t+2.45);
   air.onended=()=>{air.disconnect();filter.disconnect();servo.disconnect();gain.disconnect();};
 }
@@ -549,7 +831,7 @@ export function playFloodCue(phase: 'idle'|'warning'|'blackout'|'recovery'): voi
  * and limiter. The visual transfer continues silently after this short ident. */
 export function playCargoCue(phase: 'idle'|'warning'|'blackout'|'recovery'): void {
   if(phase!=='blackout'){playSignalCue(phase);return;}
-  const c=ready();if(!c||!master||!noise)return;
+  const c=ready();if(!c||!ui||!noise)return;
   const t=c.currentTime,chain=c.createBufferSource(),filter=c.createBiquadFilter(),gain=c.createGain(),motor=c.createOscillator();
   chain.buffer=noise;chain.loop=true;filter.type='bandpass';filter.Q.value=1.1;
   filter.frequency.setValueAtTime(180,t);filter.frequency.exponentialRampToValueAtTime(620,t+1.2);
@@ -558,7 +840,7 @@ export function playCargoCue(phase: 'idle'|'warning'|'blackout'|'recovery'): voi
   motor.frequency.linearRampToValueAtTime(50,t+3.2);
   gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(.075,t+.12);
   gain.gain.exponentialRampToValueAtTime(.001,t+3.2);
-  chain.connect(filter).connect(gain);motor.connect(gain);gain.connect(master);
+  chain.connect(filter).connect(gain);motor.connect(gain);gain.connect(ui);
   chain.start(t);motor.start(t);chain.stop(t+3.25);motor.stop(t+3.25);
   chain.onended=()=>{chain.disconnect();filter.disconnect();motor.disconnect();gain.disconnect();};
 }
@@ -566,7 +848,7 @@ export function playCargoCue(phase: 'idle'|'warning'|'blackout'|'recovery'): voi
 /** Short radio-ident and radar chirp. Entire graph drains in <=1.25s, through
  * the existing volume/mute/limiter. No browser speech dependency or extra loop. */
 export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'): void {
-  const c = ready(); if (!c || !master) return;
+  const c = ready(); if (!c || !ui) return;
   const notes = kind === 'earned' ? [330, 440, 660, 880] : kind === 'friendly' ? [440, 660, 880] : kind === 'enemy' ? [330, 247, 165] : [1046];
   const t = c.currentTime;
   for (const [i, frequency] of notes.entries()) {
@@ -574,7 +856,7 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
     tone.type = kind === 'enemy' ? 'triangle' : 'sine'; tone.frequency.value = frequency;
     gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(kind === 'pulse' ? .045 : .09, start + .015);
     gain.gain.exponentialRampToValueAtTime(.001, start + .42);
-    tone.connect(gain).connect(master); tone.start(start); tone.stop(start + .44);
+    tone.connect(gain).connect(ui); tone.start(start); tone.stop(start + .44);
     tone.onended = () => { tone.disconnect(); gain.disconnect(); };
   }
 }
@@ -582,7 +864,7 @@ export function playSupportCue(kind: 'earned' | 'friendly' | 'enemy' | 'pulse'):
 /** Quiet two-note radio ident, not positional enemy audio. The card supplies
  * direction and lane even with audio muted. Every node drains within 240ms. */
 export function playContactCue(bark?: import('../src/bots.js').SquadBark): void {
-  const c = ready(); if (!c || !master) return;
+  const c = ready(); if (!c || !ui) return;
   const t = c.currentTime;
   const notes = bark === 'reload' || bark === 'retreat' ? [740, 520]
     : bark === 'flank' || bark === 'highGround' ? [520, 660] : [620, 830];
@@ -591,7 +873,7 @@ export function playContactCue(bark?: import('../src/bots.js').SquadBark): void 
     tone.type = 'sine'; tone.frequency.value = frequency;
     gain.gain.setValueAtTime(.001, start); gain.gain.linearRampToValueAtTime(.045, start + .008);
     gain.gain.exponentialRampToValueAtTime(.001, start + .12);
-    tone.connect(gain).connect(master); tone.start(start); tone.stop(start + .14);
+    tone.connect(gain).connect(ui); tone.start(start); tone.stop(start + .14);
     tone.onended = () => { tone.disconnect(); gain.disconnect(); };
   }
 }

@@ -6,6 +6,7 @@ import { RELAY_FINISH } from './relay-palette.js';
 import { relaySiteBoundary } from './relay-site.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RELAY_YARD_PARTS } from '../src/map/relay-yard.js';
+import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
 /** Original structural kit. Every playable solid uses the authority's exact AABB.
  * Detail is inset into solids; skyline is outside the playable rectangle.
@@ -41,12 +42,14 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   if (!bakeOnly) buildSiteGround(scene, map);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   const yardParts = new Map(RELAY_YARD_PARTS.map(p => [p.box, p]));
+  const environmentBoxes = new Set(blockingEnvironmentBoxes('relay'));
 
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // earth tops use the ground atlas
     // Moving shutters have their own prebuilt render kit; never bake a closed
     // door or its shadow across the passage into the permanent architecture.
     if (map.signalCore?.doors.includes(b)) continue;
+    if (environmentBoxes.has(b)) continue;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const y = b.min.y;
@@ -89,6 +92,10 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
       }
       continue;
     }
+    if (h <= .48) {
+      add('dark', x, y + h / 2, z, w, h, d);
+      continue;
+    }
     const low = h < 1.5;
     // End pillars fill the last 18 cm of each tall volume, rather than placing
     // a second coplanar face on a complete box (which causes depth fighting).
@@ -121,8 +128,8 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
             add('pale', face + side * 0.008, level, z, 0.010, 0.95, d - 0.70);
             add('metal', face + side * 0.015, level, z, 0.006, 0.65, d - 1.0);
             for (let k = -2; k <= 2; k++)
-              add('dark', face + side * 0.020, level, z + k * 0.40, 0.005, 0.44, 0.10);
-            add('light', face + side * 0.024, level - 0.28, z, 0.004, 0.035, d - 1.30);
+              add('dark', face + side * 0.0175, level, z + k * 0.40, 0.005, 0.44, 0.10);
+            add('light', face + side * 0.018, level - 0.28, z, 0.004, 0.035, d - 1.30);
           }
           for (const end of [-1, 1]) add('amber', face + side * 0.012, 3.2, z + end * (d / 2 - 0.12), 0.010, 5.65, 0.12);
         }
@@ -132,7 +139,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
         // End-face machinery panel. All thickness is inside the collider.
         add("metal", x + sx * (w / 2 + 0.006), y + 1.35, z, 0.012, 1.75, Math.min(d - 0.4, 2.8));
         for (let k = 0; k < 5; k++)
-          add("dark", x + sx * (w / 2 + 0.020), y + 0.8 + k * 0.24, z, 0.008, 0.075, Math.min(d - 0.6, 2.5));
+          add("dark", x + sx * (w / 2 + 0.016), y + 0.8 + k * 0.24, z, 0.008, 0.075, Math.min(d - 0.6, 2.5));
       }
       for (const sz of [-1, 1]) {
         for (let px = b.min.x + 0.55; px < b.max.x - 0.2; px += 1.45)

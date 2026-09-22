@@ -6,6 +6,10 @@ import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
 import { spawnExposed } from '../src/map/spawn.js';
 import { CoreCollision } from '../src/core-gate.js';
+import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
+
+const undertowEnvironmentBoxes = new Set(blockingEnvironmentBoxes('undertow'));
+const undertowCoreBoxes = map.boxes.filter(box => !undertowEnvironmentBoxes.has(box));
 
 describe('Undertow encounter safety', () => {
   it('screens the second northern crossing from the recorded inner-lane threats', () => {
@@ -57,7 +61,7 @@ describe('Undertow encounter safety', () => {
   it('keeps ground cover within 12m of sampled rifle, deck-approach and service lanes', () => {
     for (const [z,from,to] of [[27,20,130],[48,18,65],[48,85,132],[72,18,132],[86,18,132]]) {
       for(let x=from!;x<=to!;x+=2) {
-        const distance=Math.min(...map.boxes.filter(b=>b.min.y===0).map(b=>
+        const distance=Math.min(...undertowCoreBoxes.filter(b=>b.min.y===0).map(b=>
           Math.hypot(Math.max(b.min.x-x,0,x-b.max.x),Math.max(b.min.z-z!,0,z!-b.max.z))));
         expect(distance,`lane ${x},${z}`).toBeLessThanOrEqual(12);
       }
@@ -65,8 +69,8 @@ describe('Undertow encounter safety', () => {
   });
   it('shows the solid central pressure stack above all three lane approaches',()=>{
     const stack=map.boxes.find(b=>b.min.y===6 && b.max.y===14)!;
-    expect(stack).toBeDefined();const target={x:75,y:13,z:49};
-    for(const [x,z] of [[75,27],[30,50],[120,50],[75,76]]){
+    expect(stack).toBeDefined();const target={x:75,y:13,z:42};
+    for(const [x,z] of [[75,27],[30,42],[120,42],[75,65]]){
       const eye={x:x!,y:PLAYER.standEye,z:z!};const d=Math.hypot(target.x-eye.x,target.y-eye.y,target.z-eye.z);
       const dir={x:(target.x-eye.x)/d,y:(target.y-eye.y)/d,z:(target.z-eye.z)/d};
       expect(nearestBox(eye,dir,map.boxes.filter(b=>b!==stack),d)).toBe(Infinity);
@@ -90,7 +94,9 @@ describe('Undertow encounter safety', () => {
       const seconds = walkSeconds(map, caps[i]!, to, MOVE.sprint);
       expect(seconds).toBeGreaterThanOrEqual(10); expect(seconds).toBeLessThanOrEqual(15);
     }
-    for (const b of map.boxes.filter(b => b.min.y === 0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
+    expect(undertowEnvironmentBoxes.size).toBe(2);
+    expect([...undertowEnvironmentBoxes].every(box => map.boxes.includes(box))).toBe(true);
+    for (const b of undertowCoreBoxes.filter(b => b.min.y === 0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
     expect(map.spawns.red).toHaveLength(6); expect(map.spawns.blue).toHaveLength(6);
   });
   it('B has two four-metre north entrances visible together from the objective', () => {
@@ -110,7 +116,7 @@ describe('Undertow encounter safety', () => {
   it('both control decks can be crossed on foot from either ramp, without jumping', () => {
     for (const x of [45, 105]) for (const direction of [-1, 1]) {
       let p = { x, y: 0, z: direction === 1 ? 29 : 51 }, vy = 0, peak = 0;
-      for (let t = 0; t < 74; t++) {
+      for (let t = 0; t < 90; t++) {
         vy -= MOVE.gravity * 0.05;
         const r = moveAndSlide(p, PLAYER.radius, PLAYER.standHeight, { x: 0, y: vy * 0.05, z: direction * MOVE.walk * 0.05 }, vy, map.boxes, map.bounds, MOVE.stepUp, map.ramps);
         p = r.pos; vy = r.vy; peak = Math.max(peak, p.y);

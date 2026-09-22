@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "status": "registered; runner implemented; field handlers remain owner-supplied",
+  "cwd": "D:/webgame-baas",
+  "runtimeManifestOwnerTask": 6,
+  "runtimeManifest": "apps/ironsight/scripts/aside-scenarios/manifest.json",
+  "defaultUrl": "http://localhost:8896",
+  "execution": "One browser/GPU lease; each command runs every normal and failure case listed, never just its screenshot fixture",
+  "evidenceCases": "Separate case directories; PASS/FAIL/UNQUALIFIED; no unsupported case silently skipped",
+  "aliases": {
+    "perf-target-device": "perf-target",
+    "perf-render-budget": "perf-render",
+    "map-infantry": "map-play",
+    "ui-01-primitives": "ui-primitives"
+  },
+  "scenarios": [
+    {
+      "id": "perf-input",
+      "ownerTask": 6,
+      "module": "apps/ironsight/scripts/aside-scenarios/performance.mjs",
+      "cases": [
+        "owned session",
+        "20s actual pointer lock",
+        "move/look/fire/reload/Esc/resume",
+        "capability failures"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-input --output .omo/evidence/ww1/task-06/perf-input --viewport 1920x1080"
+    },
+    {
+      "id": "ui-primitives",
+      "ownerTask": 4,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui.mjs",
+      "cases": [
+        "all control states",
+        "fonts failure",
+        "Korean long text",
+        "200% zoom",
+        "small menu"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-primitives --output .omo/evidence/ww1/task-04/ui-primitives --viewport 1920x1080"
+    },
+    {
+      "id": "ui-copy",
+      "ownerTask": 15,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui.mjs",
+      "cases": [
+        "all modes and maps",
+        "Korean terms",
+        "missing name",
+        "escaping"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-copy --output .omo/evidence/ww1/task-15/ui-copy --viewport 1920x1080"
+    },
+    {
+      "id": "environment-kit",
+      "ownerTask": 10,
+      "module": "apps/ironsight/scripts/aside-scenarios/environment.mjs",
+      "cases": [
+        "all module turntables",
+        "combat distance",
+        "bad scale",
+        "invalid surface",
+        "blocked doorway"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario environment-kit --output .omo/evidence/ww1/task-10/environment-kit --viewport 1920x1080"
+    },
+    {
+      "id": "art-weapon",
+      "ownerTask": 8,
+      "module": "apps/ironsight/scripts/aside-scenarios/art.mjs",
+      "cases": [
+        "five slots baseline",
+        "sockets and bounds",
+        "actual ADS",
+        "missing mesh"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario art-weapon --output .omo/evidence/ww1/task-08/art-weapon --viewport 1920x1080"
+    },
+    {
+      "id": "art-character",
+      "ownerTask": 9,
+      "module": "apps/ironsight/scripts/aside-scenarios/art.mjs",
+      "cases": [
+        "two factions",
+        "LOD",
+        "shared-material mutation",
+        "bad rig"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario art-character --output .omo/evidence/ww1/task-09/art-character --viewport 1920x1080"
+    },
+    {
+      "id": "art-weapon-actions",
+      "ownerTask": 19,
+      "module": "apps/ironsight/scripts/aside-scenarios/art.mjs",
+      "cases": [
+        "five reload and cycle timelines",
+        "cancel/switch/death/reconnect",
+        "readyAt mismatch"
+      ],
+      "compose": [
+        "art-weapon"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario art-weapon-actions --output .omo/evidence/ww1/task-19/art-weapon-actions --viewport 1920x1080"
+    },
+    {
+      "id": "art-character-poses",
+      "ownerTask": 20,
+      "module": "apps/ironsight/scripts/aside-scenarios/art.mjs",
+      "cases": [
+        "five weapons times pose and aim grid",
+        "head/torso samples",
+        "death/reload/AOI entry"
+      ],
+      "compose": [
+        "art-character"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario art-character-poses --output .omo/evidence/ww1/task-20/art-character-poses --viewport 1920x1080"
+    },
+    {
+      "id": "perf-audio-lifecycle",
+      "ownerTask": 14,
+      "module": "apps/ironsight/scripts/aside-scenarios/audio.mjs",
+      "cases": [
+        "real gesture context resume",
+        "live digital capture",
+        "mute and setting restore",
+        "hidden/disconnect",
+        "missing capture"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-audio-lifecycle --output .omo/evidence/ww1/task-14/perf-audio-lifecycle --viewport 1920x1080"
+    },
+    {
+      "id": "perf-audio-combat",
+      "ownerTask": 21,
+      "module": "apps/ironsight/scripts/aside-scenarios/audio.mjs",
+      "cases": [
+        "five guns at three distances",
+        "surfaces and occlusion",
+        "dense mix",
+        "no false hit or duplicate sound"
+      ],
+      "compose": [
+        "perf-audio-lifecycle"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-audio-combat --output .omo/evidence/ww1/task-21/perf-audio-combat --viewport 1920x1080"
+    },
+    {
+      "id": "ui-deploy",
+      "ownerTask": 22,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui.mjs",
+      "cases": [
+        "four modes and three training sites",
+        "join/ready/retry",
+        "asset404",
+        "lock rejection",
+        "direct URL"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-deploy --output .omo/evidence/ww1/task-22/ui-deploy --viewport 1920x1080"
+    },
+    {
+      "id": "combat-feedback",
+      "ownerTask": 25,
+      "module": "apps/ironsight/scripts/aside-scenarios/combat.mjs",
+      "cases": [
+        "actual shot prediction and confirmation",
+        "reduced motion",
+        "denied shot",
+        "echo dedup",
+        "unknown damage bearing"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario combat-feedback --output .omo/evidence/ww1/task-25/combat-feedback --viewport 1920x1080"
+    },
+    {
+      "id": "ui-settings",
+      "ownerTask": 26,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui.mjs",
+      "cases": [
+        "menu and in-game edit",
+        "persist and reopen",
+        "last-row access",
+        "corrupt storage",
+        "key conflict",
+        "death while editing"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-settings --output .omo/evidence/ww1/task-26/ui-settings --viewport 1920x1080"
+    },
+    {
+      "id": "ui-combat-hud",
+      "ownerTask": 27,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui.mjs",
+      "cases": [
+        "shot/hit/reload/objective",
+        "denied/delayed/duplicate event",
+        "colour change",
+        "bounded log"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-combat-hud --output .omo/evidence/ww1/task-27/ui-combat-hud --viewport 1920x1080"
+    },
+    {
+      "id": "combat-supports",
+      "ownerTask": 29,
+      "module": "apps/ironsight/scripts/aside-scenarios/combat.mjs",
+      "cases": [
+        "observer/mortar/strafe/telephone",
+        "warning/cover/cooldown",
+        "stale recon",
+        "cancelled support",
+        "no homing"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario combat-supports --output .omo/evidence/ww1/task-29/combat-supports --viewport 1920x1080"
+    },
+    {
+      "id": "map-art-collision",
+      "ownerTask": 30,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "three maps",
+        "render vs collision",
+        "slope shot pairs",
+        "missing asset fallback",
+        "bake and texture lifetime"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-art-collision --output .omo/evidence/ww1/task-30/map-art-collision --viewport 1920x1080"
+    },
+    {
+      "id": "perf-render",
+      "ownerTask": 31,
+      "module": "apps/ironsight/scripts/aside-scenarios/performance.mjs",
+      "cases": [
+        "cold/warm/stress/bake",
+        "map/asset switches",
+        "budget overflow",
+        "resource leak"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-render --output .omo/evidence/ww1/task-31/perf-render --viewport 1920x1080"
+    },
+    {
+      "id": "perf-input-latency",
+      "ownerTask": 32,
+      "module": "apps/ironsight/scripts/aside-scenarios/performance.mjs",
+      "cases": [
+        "actual gesture trace stages",
+        "stale/missing stages",
+        "mixed clocks",
+        "late confirmation"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-input-latency --output .omo/evidence/ww1/task-32/perf-input-latency --viewport 1920x1080"
+    },
+    {
+      "id": "ui-training",
+      "ownerTask": 33,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui-journeys.mjs",
+      "cases": [
+        "three training routes",
+        "actual reload confirmation",
+        "wall stuck",
+        "unlock",
+        "cancel",
+        "objective exit"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-training --output .omo/evidence/ww1/task-33/ui-training --viewport 1920x1080"
+    },
+    {
+      "id": "ui-results",
+      "ownerTask": 34,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui-journeys.mjs",
+      "cases": [
+        "death/respawn",
+        "tdm/ffa/dom round end",
+        "vote/next round",
+        "disconnect/reconnect",
+        "tie/empty roster/late result"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario ui-results --output .omo/evidence/ww1/task-34/ui-results --viewport 1920x1080"
+    },
+    {
+      "id": "art-scene",
+      "ownerTask": 35,
+      "module": "apps/ironsight/scripts/aside-scenarios/art.mjs",
+      "cases": [
+        "all maps factions and distances",
+        "all weapon actions",
+        "colourblind mode",
+        "asset404",
+        "false ready",
+        "stale part"
+      ],
+      "compose": [
+        "art-weapon-actions",
+        "art-character-poses"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario art-scene --output .omo/evidence/ww1/task-35/art-scene --viewport 1920x1080"
+    },
+    {
+      "id": "map-play",
+      "ownerTask": 36,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "all maps both teams and ffa",
+        "two10min route observations each side",
+        "spawn/interior/roof/lower/objective"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-play --output .omo/evidence/ww1/task-36/map-play --viewport 1920x1080"
+    },
+    {
+      "id": "map-asset-failure",
+      "ownerTask": 36,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "missing GLB/texture",
+        "fallback identical cover"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-asset-failure --output .omo/evidence/ww1/task-36/map-asset-failure --viewport 1920x1080"
+    },
+    {
+      "id": "map-respawn-crossfire",
+      "ownerTask": 36,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "all threatened spawns",
+        "respawn protection",
+        "two exits"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-respawn-crossfire --output .omo/evidence/ww1/task-36/map-respawn-crossfire --viewport 1920x1080"
+    },
+    {
+      "id": "map-layer-route",
+      "ownerTask": 36,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "-3/0/+3 layer paths",
+        "blocked layer",
+        "required route without vault"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-layer-route --output .omo/evidence/ww1/task-36/map-layer-route --viewport 1920x1080"
+    },
+    {
+      "id": "map-low-contrast",
+      "ownerTask": 36,
+      "module": "apps/ironsight/scripts/aside-scenarios/maps.mjs",
+      "cases": [
+        "factions/lighting/distance",
+        "low contrast fixture"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario map-low-contrast --output .omo/evidence/ww1/task-36/map-low-contrast --viewport 1920x1080"
+    },
+    {
+      "id": "combat-first-shot",
+      "ownerTask": 37,
+      "module": "apps/ironsight/scripts/aside-scenarios/combat.mjs",
+      "cases": [
+        "normal tdm/ffa/dom",
+        "five weapons",
+        "ready boundary",
+        "latency/reconnect/cold asset"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario combat-first-shot --output .omo/evidence/ww1/task-37/combat-first-shot --viewport 1920x1080"
+    },
+    {
+      "id": "combat-acceptance",
+      "ownerTask": 37,
+      "module": "apps/ironsight/scripts/aside-scenarios/combat.mjs",
+      "cases": [
+        "full actual combat trace",
+        "missing/duplicate stages",
+        "authority mismatch"
+      ],
+      "compose": [
+        "combat-first-shot",
+        "combat-feedback",
+        "combat-supports"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario combat-acceptance --output .omo/evidence/ww1/task-37/combat-acceptance --viewport 1920x1080"
+    },
+    {
+      "id": "perf-network",
+      "ownerTask": 38,
+      "module": "apps/ironsight/scripts/aside-scenarios/performance.mjs",
+      "cases": [
+        "12 sockets plus actual Aside client",
+        "seeded impairments",
+        "13th reject",
+        "three-second disconnect"
+      ],
+      "compose": [],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-network --output .omo/evidence/ww1/task-38/perf-network --viewport 1920x1080"
+    },
+    {
+      "id": "perf-target",
+      "ownerTask": 39,
+      "module": "apps/ironsight/scripts/aside-scenarios/performance.mjs",
+      "cases": [
+        "qualified hardware preflight",
+        "render scale1 at1080p",
+        "warm3min",
+        "thermal20min",
+        "unavailable hardware refusal"
+      ],
+      "compose": [
+        "perf-render",
+        "perf-input-latency"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-target --output .omo/evidence/ww1/task-39/perf-target --viewport 1920x1080"
+    },
+    {
+      "id": "final-player-journey",
+      "ownerTask": 34,
+      "module": "apps/ironsight/scripts/aside-scenarios/ui-journeys.mjs",
+      "cases": [
+        "full all-mode player journey",
+        "all failures from composed scenarios",
+        "actual live digital audio capture"
+      ],
+      "compose": [
+        "ui-primitives",
+        "ui-copy",
+        "ui-deploy",
+        "ui-settings",
+        "ui-training",
+        "ui-combat-hud",
+        "ui-results",
+        "combat-acceptance",
+        "map-play",
+        "perf-audio-combat"
+      ],
+      "command": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario final-player-journey --output .omo/evidence/ww1/task-34/final-player-journey --viewport 1920x1080"
+    }
+  ],
+  "finalCommands": {
+    "F3": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario final-player-journey --output .omo/evidence/ww1/final/f3 --viewport 1920x1080",
+    "F4": "node apps/ironsight/scripts/aside-qa.mjs --url http://localhost:8896 --scenario perf-target --output .omo/evidence/ww1/final/f4-device --viewport 1920x1080"
+  }
+}

@@ -45,12 +45,28 @@ export type BindAction =
   | "backup"
   | "support";
 
+export const AUDIO_LEVEL_KEYS = ["master", "combat", "ambience", "music", "ui"] as const;
+export type AudioLevelKey = (typeof AUDIO_LEVEL_KEYS)[number];
+export type DynamicRange = "headphones" | "speakers" | "reduced";
+export interface AudioSettings {
+  master: number;
+  combat: number;
+  ambience: number;
+  music: number;
+  ui: number;
+  dynamicRange: DynamicRange;
+  muteWhenHidden: boolean;
+}
+
 export interface Settings {
   /** Multiplier applied on top of the base `MOUSE_SENSITIVITY` rad/px constant. */
   sensitivity: number;
   invertY: boolean;
   reducedMotion: boolean;
+  /** Runtime compatibility alias for `audio.master`; omitted from persisted v1 JSON. */
   volume: number;
+  muted: boolean;
+  audio: AudioSettings;
   enemyHighlight: EnemyHighlight;
   binds: Record<BindAction, string[]>;
 }
@@ -64,6 +80,7 @@ export interface SettingsStorage {
 }
 
 const STORAGE_KEY = "ironsight.settings.v1";
+const LEGACY_MUTED_KEY = "iron_muted";
 const MIN_SENSITIVITY = 0.1;
 const MAX_SENSITIVITY = 3.0;
 
@@ -105,7 +122,28 @@ const DEFAULT_INVERT_Y = false;
 function defaultSettings(): Settings {
   const binds = {} as Record<BindAction, string[]>;
   for (const action of BIND_ACTIONS) binds[action] = [...DEFAULT_BINDS[action]];
-  return { sensitivity: DEFAULT_SENSITIVITY, invertY: DEFAULT_INVERT_Y, reducedMotion: false, volume: 1, enemyHighlight: 'team', binds };
+  return {
+    sensitivity: DEFAULT_SENSITIVITY,
+    invertY: DEFAULT_INVERT_Y,
+    reducedMotion: false,
+    volume: 1,
+    muted: false,
+    audio: {
+      master: 1,
+      combat: 1,
+      ambience: 0.35,
+      music: 0.25,
+      ui: 0.8,
+      dynamicRange: "headphones",
+      muteWhenHidden: false,
+    },
+    enemyHighlight: 'team',
+    binds,
+  };
+}
+
+function clampUnit(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
 }
 
 function clampSensitivity(value: number): number {
@@ -117,23 +155,39 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
 /** Overlays whatever well-typed fields exist in `raw` onto a fresh set of
  *  defaults. Anything missing, mistyped, or unrecognized is silently ignored
  *  rather than rejecting the whole blob — a partial save (e.g. from an older
  *  version of this file with fewer actions) should merge cleanly. */
-function mergeWithDefaults(raw: unknown): Settings {
+function mergeWithDefaults(raw: unknown, legacyMuted: boolean): Settings {
   const out = defaultSettings();
-  if (raw === null || typeof raw !== "object") return out;
-  const r = raw as Record<string, unknown>;
+  out.muted = legacyMuted;
+  if (!isRecord(raw)) return out;
+  const r = raw;
   out.enemyHighlight = enemyHighlight(r.enemyHighlight);
 
   if (typeof r.sensitivity === "number") out.sensitivity = clampSensitivity(r.sensitivity);
   if (typeof r.invertY === "boolean") out.invertY = r.invertY;
   if (typeof r.reducedMotion === "boolean") out.reducedMotion = r.reducedMotion;
-  if (typeof r.volume === "number" && Number.isFinite(r.volume)) out.volume = Math.max(0, Math.min(1, r.volume));
+  if (typeof r.volume === "number") out.volume = clampUnit(r.volume);
+  if (typeof r.muted === "boolean") out.muted = r.muted;
+  const hasCanonicalMaster = isRecord(r.audio) && typeof r.audio.master === "number";
+  if (isRecord(r.audio)) {
+    const audio = r.audio;
+    for (const key of AUDIO_LEVEL_KEYS) if (typeof audio[key] === "number") out.audio[key] = clampUnit(audio[key]);
+    if (audio.dynamicRange === "headphones" || audio.dynamicRange === "speakers" || audio.dynamicRange === "reduced") {
+      out.audio.dynamicRange = audio.dynamicRange;
+    }
+    if (typeof audio.muteWhenHidden === "boolean") out.audio.muteWhenHidden = audio.muteWhenHidden;
+  }
+  out.volume = out.audio.master = hasCanonicalMaster ? out.audio.master : out.volume;
 
-  if (r.binds !== null && typeof r.binds === "object") {
-    const rb = r.binds as Record<string, unknown>;
+  if (isRecord(r.binds)) {
+    const rb = r.binds;
     if (!('support' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyV'))) out.binds.support = [];
     if (!('backup' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyB'))) out.binds.backup = [];
     if (!('ping' in rb) && Object.values(rb).some(v => isStringArray(v) && v.includes('KeyQ'))) out.binds.ping = [];
@@ -148,8 +202,9 @@ function mergeWithDefaults(raw: unknown): Settings {
 function load(storage: SettingsStorage): Settings {
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    if (raw === null) return defaultSettings();
-    return mergeWithDefaults(JSON.parse(raw));
+    const legacyMuted = storage.getItem(LEGACY_MUTED_KEY) === "1";
+    if (raw === null) return mergeWithDefaults(null, legacyMuted);
+    return mergeWithDefaults(JSON.parse(raw), legacyMuted);
   } catch {
     return defaultSettings();
   }
@@ -157,7 +212,8 @@ function load(storage: SettingsStorage): Settings {
 
 function save(storage: SettingsStorage, settings: Settings): void {
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const { volume: _compatibilityAlias, ...persisted } = settings;
+    storage.setItem(STORAGE_KEY, JSON.stringify(persisted));
   } catch {
     // Storage can throw (quota exceeded, private-browsing restrictions, etc).
     // The in-memory settings still apply for the rest of this session.
@@ -194,7 +250,33 @@ export class SettingsStore {
   }
 
   setVolume(value: number): void {
-    this.current = { ...this.current, volume: Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1 };
+    const master = clampUnit(value);
+    this.current = { ...this.current, volume: master, audio: { ...this.current.audio, master } };
+    save(this.storage, this.current);
+  }
+
+  setMuted(value: boolean): void {
+    this.current = { ...this.current, muted: value };
+    save(this.storage, this.current);
+  }
+
+  setAudioLevel(level: AudioLevelKey, value: number): void {
+    const next = clampUnit(value);
+    this.current = {
+      ...this.current,
+      volume: level === "master" ? next : this.current.volume,
+      audio: { ...this.current.audio, [level]: next },
+    };
+    save(this.storage, this.current);
+  }
+
+  setDynamicRange(value: DynamicRange): void {
+    this.current = { ...this.current, audio: { ...this.current.audio, dynamicRange: value } };
+    save(this.storage, this.current);
+  }
+
+  setMuteWhenHidden(value: boolean): void {
+    this.current = { ...this.current, audio: { ...this.current.audio, muteWhenHidden: value } };
     save(this.storage, this.current);
   }
 
@@ -216,9 +298,16 @@ export class SettingsStore {
 
   /** Restore one action's binding to its shipped default. */
   resetBind(action: BindAction): void {
+    const defaults = new Set(DEFAULT_BINDS[action]);
+    const binds = {} as Record<BindAction, string[]>;
+    for (const current of BIND_ACTIONS) {
+      binds[current] = current === action
+        ? [...DEFAULT_BINDS[action]]
+        : this.current.binds[current].filter((code) => !defaults.has(code));
+    }
     this.current = {
       ...this.current,
-      binds: { ...this.current.binds, [action]: [...DEFAULT_BINDS[action]] },
+      binds,
     };
     save(this.storage, this.current);
   }

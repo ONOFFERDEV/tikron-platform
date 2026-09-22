@@ -5,9 +5,13 @@ import { ArenaSchema, type ArenaPlayer, type ArenaState } from '../src/schema.js
 import { MORTAR, MortarSupport, mortarTarget, type MortarView } from '../src/mortar.js';
 import type { SupportView } from '../src/air-support.js';
 import type { Box } from '../src/physics.js';
+import { WEAPONS } from '../src/config.js';
+import { HIT_ANIMATION_NONE } from '../src/hit-state-bucket.js';
 
 const p = (team = 0): ArenaPlayer => ({ x: 6, y: 0, z: 11, yaw: Math.PI / 2, pitch: -.1, hp: 100,
-  alive: true, prot: false, team, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0 });
+  alive: true, prot: false, team, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0,
+  hitClipIndex: HIT_ANIMATION_NONE, hitClipStartedAt: 0, hitBlendSources: [], hitReactionKind: 0, hitReactionStartedAt: 0, hitReactionSeq: 0,
+  hitSegmentSeq: 0, hitSegmentStartedAt: 0 });
 const state = (): ArenaState => ({ players: { owner:p(), ally:p(), enemy:p(1) }, mode:0, phase:'live', seed:1,
   redScore:0,blueScore:0,signalAt:0,coreOpen:false,warmupEndMs:0,matchEndMs:1e9,capA:100,capB:100,capC:100 });
 const point = { x: 16, y: .12, z: 11 }, bounds = { width:150, depth:100, ceiling:16 };
@@ -75,7 +79,7 @@ it('real room rejects forged rewards/coordinates and earns by fire; cover, prote
     Object.assign(s.players[red.id]!,{x:6,y:0,z:11,yaw:Math.PI/2,pitch:Math.atan2(1-1.65,10),prot:false});
     Object.assign(s.players[blue.id]!,{x:16,y:0,z:11,hp:100,alive:true,prot:false});
     await h.advance(350);
-    if(kill===4){await red.send('reload',{});await h.advance(2300);}
+    if(kill===4){await red.send('reload',{});await h.advance(WEAPONS[0]!.reloadMs);}
     for(let shot=0;shot<4;shot++){await red.send('fire',{});await h.advance(110);}
     expect(s.players[red.id]!.k).toBe(kill+1);
     await h.advance(3100);

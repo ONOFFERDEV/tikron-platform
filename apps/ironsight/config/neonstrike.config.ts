@@ -26,7 +26,7 @@ import { MODE_ORDER } from "../src/modes.js";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
-import { MOUSE_SENSITIVITY, LOOK_SEND_MS, MOVE_KEEPALIVE_MS, INTERP_DELAY_MS, RECONCILE_SOFT_M, RECONCILE_SNAP_M, RECONCILE_FRAC, RECONCILE_TAU_MS, HIP_FOV, ADS_FOV } from "../client/config.js";
+import { MOUSE_SENSITIVITY, LOOK_SEND_MS, MOVE_KEEPALIVE_MS, INTERP_DELAY_MS, RECONCILE_SOFT_M, RECONCILE_SNAP_M, RECONCILE_FRAC, RECONCILE_TAU_MS, HIP_FOV } from "../client/config.js";
 import { defineConfig, type GameConfig } from "./schema.js";
 
 export const neonstrikeConfig: GameConfig = defineConfig({
@@ -53,6 +53,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
   // part of this theme's balance identity, so it's reused rather than retuned.
   weapons: [
     {
+      key: "automatic_rifle", fireMode: "automatic", reloadKind: "magazine", sight: "iron",
       adsMs: 250, sprintToFireMs: 120,
       recoil: RECOIL[0]!, slot: 1, name: "Pulse Rifle", damageBody: 30, damageHead: 58, fireIntervalMs: 95,
       mag: 32, reserve: 96, reloadMs: 1650, range: 105, pellets: 1, pelletSpread: 0,
@@ -60,6 +61,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
       tracerSpeed: 800,
     },
     {
+      key: "trench_smg", fireMode: "automatic", reloadKind: "magazine", sight: "iron",
       adsMs: 200, sprintToFireMs: 100,
       recoil: RECOIL[1]!, slot: 2, name: "Voltage SMG", damageBody: 23, damageHead: 34, fireIntervalMs: 58,
       mag: 27, reserve: 108, reloadMs: 1450, range: 78, pellets: 1, pelletSpread: 0,
@@ -67,20 +69,24 @@ export const neonstrikeConfig: GameConfig = defineConfig({
       tracerSpeed: 700,
     },
     {
+      key: "pump_shotgun", fireMode: "semi", reloadKind: "pump", sight: "iron",
       adsMs: 225, sprintToFireMs: 130,
       recoil: RECOIL[2]!, slot: 3, name: "Scatter Cannon", damageBody: 16, damageHead: 22, fireIntervalMs: 780,
-      mag: 6, reserve: 24, reloadMs: 2500, range: 42, pellets: 8, pelletSpread: 0.05,
+      cycleMs: 780, mag: 6, reserve: 24, reloadMs: 2500, reloadStartMs: 400, reloadInsertMs: 300, reloadEndMs: 300,
+      range: 42, pellets: 8, pelletSpread: 0.05,
       spreadStill: 0, spreadMove: 0.02, spreadAir: 0.05, falloffStart: 7, falloffEnd: 24, falloffMin: 0.28,
       tracerSpeed: 500,
     },
     {
+      key: "bolt_service_rifle", fireMode: "semi", reloadKind: "stripper_clip", sight: "scope",
       adsMs: 400, sprintToFireMs: 150,
       recoil: RECOIL[3]!, slot: 4, name: "Ion Railgun", damageBody: 82, damageHead: 155, fireIntervalMs: 1350,
-      mag: 5, reserve: 20, reloadMs: 3100, range: 105, pellets: 1, pelletSpread: 0,
+      cycleMs: 1350, mag: 5, reserve: 20, reloadMs: 3100, range: 105, pellets: 1, pelletSpread: 0,
       spreadStill: 0.0005, spreadMove: 0.125, spreadAir: 0.2, falloffStart: 105, falloffEnd: 106, falloffMin: 1,
       tracerSpeed: 1200,
     },
     {
+      key: "service_pistol", fireMode: "semi", reloadKind: "magazine", sight: "iron",
       adsMs: 165, sprintToFireMs: 90,
       recoil: RECOIL[4]!, slot: 5, name: "Stinger Pistol", damageBody: 32, damageHead: 58, fireIntervalMs: 155,
       mag: 13, reserve: 52, reloadMs: 1350, range: 92, pellets: 1, pelletSpread: 0,
@@ -210,7 +216,7 @@ export const neonstrikeConfig: GameConfig = defineConfig({
     lights: { hemiSky: 0x6a3aff, hemiGround: 0x1a0e30, key: 0xff2bd6, ambient: 0x2a1750 },
   },
 
-  camera: { hipFov: HIP_FOV, adsFov: ADS_FOV, near: 0.05, far: 300 }, // reused, not retuned
+  camera: { hipFov: HIP_FOV, adsFov: [55, 55, 55, 30, 55], near: 0.05, far: 300 }, // reused, not retuned
 
   feel: {
     mouseSensitivity: MOUSE_SENSITIVITY,

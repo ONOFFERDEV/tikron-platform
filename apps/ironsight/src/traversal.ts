@@ -51,8 +51,6 @@ function launchPoint(route:Route,t:number):Vec3 {
  */
 export function traversalRoute(pos: Vec3, yaw: number, boxes: readonly Box[], bounds: Bounds,
   ramps: readonly RampDef[]): Route | null {
-  // Ground-level waist cover only: never chain a low crate into a full-cover roof.
-  if (Math.abs(pos.y) > .03) return null;
   const dx = Math.sin(yaw), dz = Math.cos(yaw), r = PLAYER.radius + TRAVERSAL.clearance;
   let nearest: { box: Box; enter: number; exit: number } | undefined;
   for (const box of boxes) {
@@ -69,11 +67,11 @@ export function traversalRoute(pos: Vec3, yaw: number, boxes: readonly Box[], bo
   }
   if (!nearest) return null;
   const b = nearest.box, height = b.max.y - b.min.y;
-  if (b.min.y !== 0 || height < TRAVERSAL.minHeight || height > TRAVERSAL.maxHeight) return null;
+  if (Math.abs(b.min.y - pos.y) > .03 || height < TRAVERSAL.minHeight || height > TRAVERSAL.maxHeight) return null;
   const vault = nearest.exit - Math.max(0, nearest.enter) <= TRAVERSAL.maxVaultDepth + 2 * r;
   const travel = vault ? nearest.exit + .02 : Math.max(0, nearest.enter) + 2 * r + .12;
   const route: Route = { start: { ...pos }, end: { x: pos.x + dx * travel,
-    y: vault ? 0 : b.max.y, z: pos.z + dz * travel }, top: b.max.y + TRAVERSAL.clearance,
+    y: vault ? pos.y : b.max.y, z: pos.z + dz * travel }, top: b.max.y + TRAVERSAL.clearance,
     kind: vault ? 'vault' : 'mantle' };
   // A diagonal skim must not finish floating beside the platform. Require the
   // entire landing footprint on its top for a mantle; vaults land on ground.

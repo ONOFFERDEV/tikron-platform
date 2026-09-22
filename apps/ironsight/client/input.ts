@@ -17,8 +17,10 @@ import { PingWheel } from './ping-wheel.js';
  * rebindable and stay as literal codes, per spec.
  */
 import { MOUSE_SENSITIVITY } from "./config.js";
+import { FireInputBuffer, type FireClearReason, type FireRequest } from "./fire-input.js";
 import type { MoveIntent } from "./net.js";
 import type { BindAction, SettingsStore } from "./settings.js";
+import type { FireMode } from "../src/weapon-contract.js";
 
 const PITCH_LIMIT = Math.PI / 2 - 0.01; // matches the server's clamp
 
@@ -41,7 +43,7 @@ export class Input {
   private communicationActive = false;
 
   private readonly held = new Set<string>();
-  private firing = false;
+  private readonly fire = new FireInputBuffer();
   private jumpEdge = false;
   private reloadEdge = false;
   private adsHeldState = false;
@@ -91,7 +93,10 @@ export class Input {
           if (!e.repeat) this.onPing?.('backup');
         } else if (e.code.startsWith("Digit")) {
           const slot = Number(e.code.slice(5));
-          if (!e.repeat && slot >= 1 && slot <= 5) this.onSwitch?.(slot);
+          if (!e.repeat && slot >= 1 && slot <= 5) {
+            this.clearFire("weapon_switch");
+            this.onSwitch?.(slot);
+          }
         }
       }
       if (this.locked) this.held.add(e.code);
@@ -106,7 +111,7 @@ export class Input {
     window.addEventListener("blur", () => {
       this.cancelPing();
       this.held.clear();
-      this.firing = false;
+      this.fire.clear("blur");
       this.adsHeldState = false;
     });
 
@@ -120,11 +125,11 @@ export class Input {
         return;
       }
       if (e.button !== 0) return;
-      if (this.locked) this.firing = true;
+      if (this.locked) this.fire.press(performance.now());
       else this.lock();
     });
     window.addEventListener("mouseup", (e) => {
-      if (e.button === 0) this.firing = false;
+      if (e.button === 0) this.fire.release();
       else if (e.button === 2) this.adsHeldState = false;
     });
     // Right-click drives ADS, not the browser context menu.
@@ -134,6 +139,7 @@ export class Input {
       "wheel",
       (e) => {
         if (!this.locked) return;
+        this.clearFire("weapon_switch");
         this.onCycle?.(e.deltaY > 0 ? 1 : -1);
         e.preventDefault();
       },
@@ -148,7 +154,7 @@ export class Input {
         this.held.clear();
         this.jumpEdge = false;
         this.reloadEdge = false;
-        this.firing = false;
+        this.fire.clear("pointer_unlock");
         this.adsHeldState = false;
       }
       this.onLockChange?.(this.locked);
@@ -175,7 +181,7 @@ export class Input {
     this.communicationActive = active && this.locked;
     if (!this.communicationActive) this.cancelPing();
     this.pingGesture.update(performance.now());
-    if (this.pingGesture.open) { this.firing = false; this.adsHeldState = false; }
+    if (this.pingGesture.open) { this.fire.clear("menu"); this.adsHeldState = false; }
     this.pingWheel.update(this.pingGesture);
   }
 
@@ -195,7 +201,20 @@ export class Input {
 
   /** Whether left-fire is currently held (only true while pointer-locked). */
   get isFiring(): boolean {
-    return this.firing && this.locked && !this.pingGesture.open;
+    return this.fire.held && this.locked && !this.pingGesture.open;
+  }
+
+  get wantsFire(): boolean {
+    return this.fire.active && this.locked && !this.pingGesture.open;
+  }
+
+  takeFire(now: number, mode: FireMode, ready: boolean): FireRequest | null {
+    if (!this.locked || this.pingGesture.open) return null;
+    return this.fire.take(now, mode, ready);
+  }
+
+  clearFire(reason: FireClearReason): void {
+    this.fire.clear(reason);
   }
 
   /** Whether right-click ADS is currently held (only true while pointer-locked). */

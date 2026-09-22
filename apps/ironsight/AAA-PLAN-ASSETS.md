@@ -3,7 +3,31 @@
 Lane: `ironsight-aaa-assets`, `D:/wt-ironsight-assets`, app scope only. Local port
 8797. No commit, push or deploy. Map/gameplay integration belongs to other streams.
 
-## AAA gap list
+## WW1 task 3 delivery checkpoint — 2026-09-11
+
+The active execution plan replaces the historical modern asset programme below. The stable
+typed authority is `config/ww1-assets.ts`: five weapon keys retain wire indices 0–4 and slots
+1–5, all use iron sights, two faction soldiers share the 55-joint mapping, and FP arms,
+grenade, pooled clip/shell/casing, twelve environment modules, non-pilot biplane, animation
+source and deterministic fallback have distinct receipt roles.
+
+All entries begin `planned` with no accepted hash. A public delivery becomes `accepted` only
+through P's receipt journal and a 64-character output SHA-256; `rejected` and `planned` entries
+cannot carry an output hash. Paid lineage is limited to five weapon candidates, two soldier
+candidates and these six environment candidates: brick rubble, field telephone, ammunition
+crate, supply wagon, observation post and freight wagon wreck. Repeated structures,
+dimension-sensitive weapon parts, grenade/consumables and biplane are original-authored.
+
+Common weapon sockets are `grip_r`, `grip_l`, `muzzle`, `eject`, `sight_rear` and
+`sight_front`. LOD groups are `fp`, `tp_lod0`, `tp_lod1`, `tp_lod2`; a copied mesh under a
+different name is not a real LOD. Mechanical nodes are weapon-specific and nonempty. Missing
+sockets, moving parts, rig joints, invalid provenance states, rejected hashes and prop/hero
+role confusion fail `auditWw1AssetManifest` before model production.
+
+The historical session ledger remains evidence for already shipped props. Its plate carrier,
+modern carbine, radio and rejected helmet work are not approved WW1 character/weapon assets.
+
+## Historical AAA gap list
 
 1. **Soldier silhouettes with realistic prompt language.** Two helmets and the
    plate carrier remain rejected. Remove the old low-poly art wording, inspect
@@ -24,7 +48,7 @@ Lane: `ironsight-aaa-assets`, `D:/wt-ironsight-assets`, app scope only. Local po
    existing uplink/transformer are legacy distant silhouettes, not new close-up
    fidelity approvals. Replace them when a close player view warrants the spend.
 
-## Reference scorecard
+## Historical reference scorecard
 
 | Reference | Status | Checkable target / evidence |
 |---|---|---|

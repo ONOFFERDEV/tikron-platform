@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "key": "sandbag",
+  "sha256": "c215dc14c506e406b6a1afc4c701c7e9659943e50896073fb409c9b09ba1e483",
+  "dimensionsM": [
+    2,
+    0.72,
+    0.62
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    2592,
+    960,
+    512
+  ],
+  "joints": {
+    "join_left": [
+      -1,
+      0,
+      0
+    ],
+    "join_right": [
+      1,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "mud"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      2,
+      0.72,
+      0.62
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/sandbag.json",
+    "outputSha256": "c215dc14c506e406b6a1afc4c701c7e9659943e50896073fb409c9b09ba1e483"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

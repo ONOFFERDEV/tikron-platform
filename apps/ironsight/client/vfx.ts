@@ -11,9 +11,12 @@
  * rate rather than frame rate.
  */
 import * as THREE from "three";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { playFootstep } from "./audio.js";
 import { GAME } from "../src/game-config.js";
 import { flashEnvelope, weaponFlash, weaponFlashTexture } from './weapon-flash.js';
+import { acquireWeaponModel, cloneWeaponBundleNode, weaponSupportSource } from './weapon-loader.js';
+import type { AssetLease } from './shared-gltf-cache.js';
 
 const PALETTE = GAME.palette;
 
@@ -44,13 +47,19 @@ const CASING_GRAVITY = -9.8;
 
 interface CasingSlot {
   floor: number;
-  mesh: THREE.Mesh;
-  mat: THREE.MeshStandardMaterial;
+  mesh: THREE.Object3D;
+  materials: THREE.Material[];
   vel: THREE.Vector3;
   born: number;
   grounded: boolean;
   groundedAt: number;
 }
+
+export type VfxOptions = {
+  readonly candidatePreview?: boolean;
+  readonly acquireWeaponModel?: (url: string) => AssetLease<GLTF>;
+  readonly cloneWeaponBundleNode?: (gltf: GLTF, nodeName: string) => THREE.Object3D | undefined;
+};
 
 // --- impact bursts (blood / spark) ----------------------------------------------
 const PARTICLE_POOL = 48;
@@ -89,11 +98,33 @@ export class Vfx {
   private readonly feet = new Map<string, FootTrack>();
   private readonly seenFeet = new Set<string>(); // ids stepFoot() saw this frame; reused, cleared in update()
   private lastTick = performance.now();
+  private casingLease: AssetLease<GLTF> | undefined;
+  private casingModel: 'procedural' | 'authored' = 'procedural';
+  private disposed = false;
+  private readonly assetReady: Promise<void>;
 
-  constructor(private readonly scene: THREE.Scene, private readonly floorAt: (p: Vec3) => number = () => 0) {
+  constructor(private readonly scene: THREE.Scene, private readonly floorAt: (p: Vec3) => number = () => 0,
+    options: VfxOptions = {}) {
     for (let i = 0; i < MUZZLE_POOL; i++) this.muzzles.push(this.buildMuzzle());
     for (let i = 0; i < CASING_POOL; i++) this.casings.push(this.buildCasing());
     for (let i = 0; i < PARTICLE_POOL; i++) this.particles.push(this.buildParticle());
+    this.assetReady = this.installAuthoredCasings(options);
+  }
+
+  ready(): Promise<void> { return this.assetReady; }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const slot of this.casings) {
+      this.scene.remove(slot.mesh);
+      for (const material of slot.materials) material.dispose();
+      if (this.casingModel === 'procedural') slot.mesh.traverse(node => {
+        if (node instanceof THREE.Mesh) node.geometry.dispose();
+      });
+    }
+    this.casings.length = 0;
+    this.releaseCasingLease(this.casingLease);
   }
 
   // --- construction (once, at pool build time) ---------------------------------
@@ -128,7 +159,7 @@ export class Vfx {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.07, 6), mat);
     mesh.visible = false;
     this.scene.add(mesh);
-    return { mesh, mat, vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9, floor: 0 };
+    return { mesh, materials: [mat], vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9, floor: 0 };
   }
 
   private buildParticle(): ParticleSlot {
@@ -180,7 +211,7 @@ export class Vfx {
       right.z * (1 + Math.random()) - d.z * 0.4 * Math.random(),
     );
     slot.mesh.visible = true;
-    slot.mat.opacity = 1;
+    setOpacity(slot.materials, 1);
     slot.born = performance.now();
     slot.grounded = false;
     slot.groundedAt = -1e9;
@@ -303,9 +334,9 @@ export class Vfx {
         const age = now - c.groundedAt;
         if (age >= CASING_FADE_MS) {
           c.mesh.visible = false;
-          c.mat.opacity = 0;
+          setOpacity(c.materials, 0);
         } else {
-          c.mat.opacity = 1 - age / CASING_FADE_MS;
+          setOpacity(c.materials, 1 - age / CASING_FADE_MS);
         }
       }
     }
@@ -337,6 +368,81 @@ export class Vfx {
     }
     this.seenFeet.clear();
   }
+
+  private async installAuthoredCasings(options: VfxOptions): Promise<void> {
+    const source = weaponSupportSource('casing', { candidatePreview: options.candidatePreview });
+    if (!source?.nodeName) return;
+    const acquire = options.acquireWeaponModel ?? acquireWeaponModel;
+    const clone = options.cloneWeaponBundleNode ?? cloneWeaponBundleNode;
+    let lease: AssetLease<GLTF> | undefined;
+    const replacements: { object: THREE.Object3D; materials: THREE.Material[] }[] = [];
+    try {
+      lease = acquire(source.url);
+      this.casingLease = lease;
+      const gltf = await lease.value;
+      if (!gltf || this.disposed || this.casingLease !== lease) {
+        this.releaseCasingLease(lease);
+        return;
+      }
+      for (let i = 0; i < this.casings.length; i++) {
+        const object = clone(gltf, source.nodeName);
+        if (!object) {
+          for (const replacement of replacements) for (const material of replacement.materials) material.dispose();
+          this.releaseCasingLease(lease);
+          return;
+        }
+        replacements.push({ object, materials: cloneFadeMaterials(object) });
+      }
+      if (this.disposed || this.casingLease !== lease) {
+        for (const replacement of replacements) for (const material of replacement.materials) material.dispose();
+        return;
+      }
+      for (let i = 0; i < this.casings.length; i++) {
+        const slot = this.casings[i]!;
+        const replacement = replacements[i]!;
+        replacement.object.position.copy(slot.mesh.position);
+        replacement.object.quaternion.copy(slot.mesh.quaternion);
+        replacement.object.scale.copy(slot.mesh.scale);
+        replacement.object.visible = slot.mesh.visible;
+        this.scene.remove(slot.mesh);
+        slot.mesh.traverse(node => { if (node instanceof THREE.Mesh) node.geometry.dispose(); });
+        for (const material of slot.materials) material.dispose();
+        this.scene.add(replacement.object);
+        slot.mesh = replacement.object;
+        slot.materials = replacement.materials;
+      }
+      this.casingModel = 'authored';
+    } catch {
+      for (const replacement of replacements) for (const material of replacement.materials) material.dispose();
+      this.releaseCasingLease(lease);
+    }
+  }
+
+  private releaseCasingLease(lease: AssetLease<GLTF> | undefined): void {
+    if (!lease || this.casingLease !== lease) return;
+    this.casingLease = undefined;
+    lease.release();
+  }
+}
+
+function setOpacity(materials: readonly THREE.Material[], opacity: number): void {
+  for (const material of materials) material.opacity = opacity;
+}
+
+function cloneFadeMaterials(object: THREE.Object3D): THREE.Material[] {
+  const materials: THREE.Material[] = [];
+  object.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const clone = (material: THREE.Material): THREE.Material => {
+      const result = material.clone();
+      result.transparent = true;
+      result.opacity = 0;
+      materials.push(result);
+      return result;
+    };
+    node.material = Array.isArray(node.material) ? node.material.map(clone) : clone(node.material);
+  });
+  return materials;
 }
 
 function normalize(v: Vec3): THREE.Vector3 {

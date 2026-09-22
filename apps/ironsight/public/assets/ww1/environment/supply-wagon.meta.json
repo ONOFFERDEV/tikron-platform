@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "key": "supply-wagon",
+  "sha256": "dd7f1526ecd82a9279fb365a784f78f58c8d7ea802adba50e8c4cab5b0114827",
+  "dimensionsM": [
+    3.6,
+    2.1,
+    1.9
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    2232,
+    1080,
+    880
+  ],
+  "joints": {
+    "drawbar": [
+      0,
+      0.62,
+      0.95
+    ],
+    "load_origin": [
+      0,
+      1.25,
+      -0.15
+    ],
+    "wheel_front_left": [
+      -1.25,
+      0.55,
+      0.92
+    ],
+    "wheel_front_right": [
+      1.25,
+      0.55,
+      0.92
+    ],
+    "wheel_rear_left": [
+      -1.25,
+      0.55,
+      -0.72
+    ],
+    "wheel_rear_right": [
+      1.25,
+      0.55,
+      -0.72
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "metal"
+  ],
+  "collision": {
+    "kind": "compound",
+    "dimensionsM": [
+      3.6,
+      2.1,
+      1.9
+    ],
+    "parts": 6
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/supply-wagon.json",
+    "outputSha256": "dd7f1526ecd82a9279fb365a784f78f58c8d7ea802adba50e8c4cab5b0114827"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

@@ -1,6 +1,11 @@
 import type { StructureDef } from './structures.js';
 
 export const UNDERTOW_CHANNEL_CUT = { minX: 34, maxX: 116, minZ: 68, maxZ: 74 } as const;
+export const UNDERTOW_BRIDGE_SPANS = [
+  { minX: 44, maxX: 48 },
+  { minX: 73, maxX: 77 },
+  { minX: 102, maxX: 106 },
+] as const;
 
 /** Drained pump-service channel. Two end stairs connect the -3m floor to
  * the yard; three bridges preserve north/south crossings at ground level.
@@ -12,8 +17,8 @@ export const UNDERTOW_CHANNEL: StructureDef = {
     { axis: 'x', at: 0, from: 0, to: 82, thickness: .4, bottom: 0, top: 3 },
     { axis: 'x', at: 5.6, from: 0, to: 82, thickness: .4, bottom: 0, top: 3 },
   ],
-  slabs: [10, 39, 68].map(x => ({
-    minX: x, maxX: x + 4, minZ: 0, maxZ: 6, bottom: 2.72, top: 3,
+  slabs: UNDERTOW_BRIDGE_SPANS.map(({ minX, maxX }) => ({
+    minX: minX - 34, maxX: maxX - 34, minZ: 0, maxZ: 6, bottom: 2.68, top: 3,
   })),
   stairs: [
     { minX: 0, maxX: 8, minZ: .4, maxZ: 5.6, axis: 'x', dir: -1, topY: 3 },

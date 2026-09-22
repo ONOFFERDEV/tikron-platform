@@ -61,13 +61,13 @@ describe('room and predicted traversal',()=>{
     const h=await createTestRoom(TestArena,{id:'arena-dom',codec:ArenaSchema,sync:'throttled'});
     const c=await h.connect();const p=(h.room as unknown as {state:ArenaState}).state.players[c.id]!;
     // Unit fixture only. Live browser capture reaches this lip by walking.
-    Object.assign(p,{x:22,y:0,z:43.2,yaw:0});const nades=p.nades;
+    Object.assign(p,{x:22,y:0,z:33.2,yaw:0});const nades=p.nades;
     await c.send('move',{...jump,target:{x:149,y:14,z:99},vault:true,durationMs:1});
     for(let i=0;i<13;i++) {
       await h.advance(TICK_MS);
       if(i===1){await c.send('fire',{});await c.send('nade',{});}
     }
-    expect(p.z).toBeCloseTo(46.48);expect(p.y).toBe(0);
+    expect(p.z).toBeCloseTo(36.48);expect(p.y).toBe(0);
     expect(p.nades).toBe(nades);
     expect(c.frames().filter(f=>f.type==='traversal')).toHaveLength(1);
     expect(c.frames().filter(f=>f.type==='shot')).toHaveLength(0);

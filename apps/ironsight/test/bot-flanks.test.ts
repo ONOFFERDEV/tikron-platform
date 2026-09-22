@@ -3,9 +3,9 @@ import { createTestRoom } from '@tikron/server/testing';
 import { botThink, createBotBrain, resetBotPerception, startBotFlank, type BotBrain, type BotView } from '../src/bots.js';
 import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA3 } from '../src/map/arena3.js';
-import { GroundNavigator } from '../src/map/navigation.js';
+import { BotNavigator } from '../src/rooms/bot-navigation.js';
 import { moveAndSlide, canStand } from '../src/physics.js';
-import { PLAYER } from '../src/config.js';
+import { MOVE, PLAYER } from '../src/config.js';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaPlayer } from '../src/schema.js';
 
@@ -55,7 +55,7 @@ it('orients from the actual spawn and clears old-life state; objectives cancel a
 });
 
 it.each([ARENA1,ARENA3])('walks both directions of every $presentation flank from every spawn without clipping', map => {
-  const nav=new GroundNavigator(map);
+  const nav=new BotNavigator(map);
   for(const points of map.flankRoutes!)for(const spawn of [...map.spawns.red,...map.spawns.blue]) {
     const brain=createBotBrain({seed:1,role:'rusher',waypoints:[{x:0,y:0}],flankRoute:points});
     startBotFlank(brain,spawn);let p={...spawn};
@@ -64,8 +64,8 @@ it.each([ARENA1,ARENA3])('walks both directions of every $presentation flank fro
       while(Math.hypot(goal.x-p.x,goal.z-p.z)>.35&&steps++<1500) {
         const next=nav.next(p,goal),d=Math.hypot(next.x-p.x,next.z-p.z);
         if(d<.001)break;
-        const step=Math.min(.12,d);
-        p=moveAndSlide(p,PLAYER.radius,PLAYER.standHeight,{x:(next.x-p.x)/d*step,y:-.02,z:(next.z-p.z)/d*step},-.5,map.boxes,map.bounds,.45,map.ramps).pos;
+        const step=Math.min(MOVE.walk*.05,d);
+        p=moveAndSlide(p,PLAYER.radius,PLAYER.standHeight,{x:(next.x-p.x)/d*step,y:-.02,z:(next.z-p.z)/d*step},-.5,map.boxes,map.bounds,MOVE.stepUp,map.ramps).pos;
         expect(canStand(p.x,p.y,p.z,PLAYER.radius-1e-6,PLAYER.standHeight,map.boxes,map.bounds)).toBe(true);
       }
       expect(Math.hypot(goal.x-p.x,goal.z-p.z),`${spawn.x},${spawn.z} -> ${goal.x},${goal.z}, stopped ${p.x},${p.z}`).toBeLessThan(.4);

@@ -9,7 +9,7 @@ import { ARENA2 } from '../src/map/arena2.js';
 import { ARENA3 } from '../src/map/arena3.js';
 import { MOVEMENT_SYNC, MovementInbox, readMovementBatch, type MovementCommand, type MovementSnapshot } from '../src/rooms/movement-sync.js';
 import type { MapDef } from '../src/map/types.js';
-import { TICK_MS } from '../src/config.js';
+import { MOVE, TICK_MS } from '../src/config.js';
 
 afterEach(()=>{ vi.clearAllTimers(); vi.restoreAllMocks(); vi.useRealTimers(); });
 const walk={mx:0,mz:1,jump:false,crouch:false,sprint:false,ads:false};
@@ -81,7 +81,7 @@ describe('acknowledged local movement',()=>{
     await l.c.send('look',{yaw:Math.PI/2,pitch:.1});
     await l.h.advance(TICK_MS);
     expect(l.me.x).toBeCloseTo(before.x,8);
-    expect(l.me.z-before.z).toBeCloseTo(.3,8);
+    expect(l.me.z-before.z).toBeCloseTo(MOVE.walk*TICK_MS/1000,8);
     expect(l.me.yaw).toBeCloseTo(Math.PI/2,8);
     expect(l.me.pitch).toBeCloseTo(.1,8);
     await l.c.send('movementSteps',{epoch:snapshot.epoch,commands:[{...command(snapshot.ack+2),yaw:0}]});
@@ -89,7 +89,7 @@ describe('acknowledged local movement',()=>{
     await l.h.advance(TICK_MS);
     expect(l.c.frames().some(f=>f.type==='shot')).toBe(true);
     expect(l.me.yaw).toBeCloseTo(Math.PI,8);
-    expect(l.me.z-before.z).toBeCloseTo(.6,8);
+    expect(l.me.z-before.z).toBeCloseTo(2*MOVE.walk*TICK_MS/1000,8);
   });
 
   it.each([
@@ -163,6 +163,7 @@ describe('acknowledged local movement',()=>{
     for(let i=0;i<45;i++)await l.tick(walk,Math.PI/2);
     expect(l.samples.at(-1)?.ack).toBeGreaterThan(25);
     expect(l.samples.some(s=>s.reset)).toBe(true);
+    expect(l.samples.find(s=>s.reset)?.reason).toBe('epoch_reset');
   });
   it.each([
     ['Relay yard',ARENA1,'arena-tdm',{x:55,y:0,z:27},Math.PI/2,80,0],
@@ -185,9 +186,10 @@ describe('acknowledged local movement',()=>{
     expect(l.samples.every(s=>s.pending<=MOVEMENT_SYNC.maxPending)).toBe(true);
   });
 
-  it('replays jump, sprint slide, crouch and cooldown state without latency corrections',async()=>{
+  it('replays jump, sprint slide, crouch, ADS and cooldown state without latency corrections',async()=>{
     const l=await link(ARENA1,'arena-tdm',{x:55,y:0,z:27},3);
-    for(let i=0;i<90;i++)await l.tick({...walk,sprint:i<20||i>50,crouch:i>=12&&i<28,jump:i===45},Math.PI/2);
+    for(let i=0;i<90;i++)await l.tick({...walk,sprint:i<20||i>50,crouch:i>=12&&i<28,
+      ads:i>=28&&i<40,jump:i===45},Math.PI/2);
     const matched=l.samples.filter(s=>s.matchedError!==null);
     expect(matched.length).toBeGreaterThan(75);
     expect(Math.max(...matched.map(s=>s.matchedError!))).toBeLessThan(1e-8);
@@ -240,10 +242,8 @@ describe('acknowledged local movement',()=>{
     expect(after.ack).toBe(snapshot.ack);
   });
 
-  it.each([
-    ['vault',ARENA2,'arena-dom',{x:22,y:0,z:43.2},0,20],
-    ['launch',ARENA3,'arena-ffa',ARENA3.launchPads![0]!.from,Math.PI/2,30],
-  ] as const)('round-trips active %s progress through delayed snapshots',async(_name,map,id,start,yaw,steps)=>{
+  it('round-trips active vault progress through delayed snapshots',async()=>{
+    const map=ARENA2,id='arena-dom',start={x:22,y:0,z:43.2},yaw=0,steps=20;
     const l=await link(map,id,start,2);
     for(let i=0;i<steps;i++)await l.tick({...walk,jump:i===0,mz:i===0?1:0},yaw);
     expect(Math.max(...l.samples.map(s=>s.matchedError??0))).toBeLessThan(1e-8);
@@ -313,6 +313,7 @@ describe('acknowledged local movement',()=>{
     for(let i=0;i<8;i++)await l.tick({...walk,mz:0});
     expect(distance(before,l.me)).toBeLessThan(1e-8);
     expect(l.samples.filter(s=>s.reset).length).toBeGreaterThanOrEqual(2);
+    expect(l.samples.some(s=>s.reason==='liveness_reset')).toBe(true);
   });
 });
 

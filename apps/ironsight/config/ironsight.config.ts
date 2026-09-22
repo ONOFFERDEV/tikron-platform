@@ -138,7 +138,7 @@ export const ironsightConfig: GameConfig = defineConfig({
   },
 
   // --- text: transcribed verbatim (no exported strings in any client module) --
-  text: {
+  text: Object.assign({
     title: "IRONSIGHT", // client/mode-select.ts's fullscreen menu <h1>
     controlsHintFmt: "{move} move · {sprint} sprint · {crouch} crouch / sprint-slide · {jump} jump / vault near waist cover · {reload} reload · {grenade} grenade · 1–5 weapons · LMB fire · M mute", // client/hud.ts showLockPrompt
     modeLabels: {
@@ -148,9 +148,10 @@ export const ironsightConfig: GameConfig = defineConfig({
       practice: { ko: "연습 모드", en: "PRACTICE" },
     },
     quit: {
-      prompt: "게임을 나가시겠습니까?", // client/quit-confirm.ts
+      title: "경기 메뉴",
+      prompt: "메뉴를 여는 동안에도 경기는 계속됩니다.", // client/quit-confirm.ts
       continueLabel: "계속하기",
-      quitLabel: "나가기",
+      quitLabel: "출격 화면으로",
     },
     hud: {
       gameTitle: "ironsight", // client/hud.ts showLockPrompt's <h1>ironsight</h1>
@@ -179,11 +180,22 @@ export const ironsightConfig: GameConfig = defineConfig({
       title: "설정",
       sensitivityLabel: "마우스 감도",
       invertYLabel: "상하 시점 반전",
+      reducedMotionLabel: "움직임 줄이기",
+      reducedMotionHint: "무기 흔들림과 폭발 화면 흔들림을 줄입니다. 반동과 재장전 신호는 유지됩니다.",
+      enemyColourLabel: "적 식별 색상",
+      enemyColourHint: "적 전투원의 색상과 표식을 함께 바꿉니다.",
+      enemyColours: { team: "진영 색상", yellow: "노란색", violet: "보라색" },
+      audioTitle: "소리",
+      audioLevels: { master: "전체 음량", combat: "전투", ambience: "환경", music: "음악", ui: "인터페이스" },
+      mutedLabel: "모든 소리 끄기",
+      dynamicRangeLabel: "음향 범위",
+      dynamicRanges: { headphones: "헤드폰", speakers: "스피커", reduced: "야간 / 좁게" },
+      muteWhenHiddenLabel: "다른 창을 볼 때 음소거",
       keybindingsTitle: "키 설정",
       actionLabels: {
-        ping: "Team ping",
-        backup: "Need backup",
-        support: "Call mortar",
+        ping: "위치 표시",
+        backup: "지원 요청",
+        support: "박격포 지원",
         forward: "앞으로",
         back: "뒤로",
         left: "왼쪽",
@@ -195,11 +207,49 @@ export const ironsightConfig: GameConfig = defineConfig({
         grenade: "수류탄",
       },
       captureHint: "아무 키나 누르세요…",
+      captureCancelHint: "Esc로 취소",
+      savedLabel: "현재 실행에 적용 · 저장됨",
+      saveFailedLabel: "현재 실행에는 적용됨 · 저장하지 못했습니다",
       resetAllLabel: "기본값 복원",
       closeLabel: "닫기",
       openLabel: "설정",
     },
-  },
+  }, {
+    ui: {
+      modes: {
+        tdm: { description: "분대와 함께 적 전력을 소진하십시오.", detailFmt: "목표 처치 수 {target} · 팀 전투" },
+        ffa: { description: "모든 전투원이 적입니다.", detailFmt: "{target}명 처치 · 개인 전투" },
+        dom: { description: "A·B·C 거점을 점령하고 방어하십시오.", detailFmt: "목표 점수 {target} · 거점 전투" },
+        practice: { description: "이동, 조준, 사격, 재장전, 핑을 익히십시오.", detailFmt: "비공개 훈련 · 시간 제한 없음" },
+      },
+      maps: {
+        arena1: { name: "통신 참호선", subtitle: "야전 통신 중계 참호", routes: ["북측 폐허", "통신소", "보급 참호"], description: "참호와 폐허를 오가며 세 전선을 통제하십시오." },
+        arena2: { name: "운하 교두보", subtitle: "수문과 배수로 방어선", routes: ["제방길", "수문 광장", "배수로"], description: "제방을 건너 수문과 하부 우회로를 지키십시오." },
+        arena3: { name: "전선 보급역", subtitle: "철도 하역 및 보급 거점", routes: ["철도 둑", "하역장", "선로 절개지"], description: "하역장을 가로질러 노출된 접근로를 경계하십시오." },
+      },
+      training: {
+        arena1: "이동·조준·명중·재장전·핑 훈련",
+        arena2: "거점 진입·점령·방어 훈련",
+        arena3: "철도 둑과 하역장 경로 탐색",
+        freeTraining: "자유 훈련",
+      },
+      match: {
+        objectives: {
+          tdmFmt: "적 전력을 소진하십시오 · 목표 {target}명",
+          ffaFmt: "모든 전투원이 적입니다 · 목표 {target}명",
+          domFmt: "A·B·C를 점령하십시오 · 목표 {target}점",
+          practice: "훈련 · 이동, 조준, 사격, 재장전",
+        },
+        clocks: { roundComplete: "라운드 종료", warmupWaiting: "준비 중 · 전투원 대기", warmupStandBy: "준비 중 · 대기", deployInFmt: "{seconds}초 후 출격", noTimeLimit: "시간 제한 없음" },
+        affiliations: { red: "적색 진영", blue: "청색 진영", solo: "개인 전투" },
+      },
+      intermission: { automatic: "자동 진행 · 대기", inFmt: "{seconds}초 후", awaitingServer: "서버 응답 대기" },
+      results: { player: "전투원", kills: "처치", deaths: "사망", score: "점수", unknownPlayer: "이름 없는 전투원", draw: "무승부", victory: "승리", defeat: "패배" },
+      support: { ping: "위치 표시", backup: "지원 요청", mortar: "박격포 지원", unavailable: "지원 사용 불가" },
+      controls: { moveFmt: "{keys} 이동", sprintFmt: "{keys} 달리기", crouchFmt: "{keys} 앉기", jumpFmt: "{keys} 점프", reloadFmt: "{keys} 재장전", grenadeFmt: "{keys} 수류탄" },
+      missingRegion: "지역 정보 없음",
+    },
+  }),
 
   // --- palette: transcribed verbatim from client/scene.ts + client/vfx.ts -----
   palette: {

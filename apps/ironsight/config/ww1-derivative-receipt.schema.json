@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ironsight-ww1-meshy-derived-authored-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "assetKey", "receiptRole", "sourceKind", "source", "correction", "final", "quality"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "ww1-meshy-derived-authored" },
+    "assetKey": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "receiptRole": { "enum": ["hero-weapon", "hero-character", "environment-prop"] },
+    "sourceKind": { "const": "meshy-derived-authored" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetKey", "providerReceiptPath", "providerReceiptSha256", "providerState", "attemptId", "taskId", "glb"],
+      "properties": {
+        "assetKey": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+        "providerReceiptPath": { "type": "string" },
+        "providerReceiptSha256": { "$ref": "#/$defs/sha256" },
+        "providerState": { "const": "review_rejected" },
+        "attemptId": { "type": "string", "pattern": "^attempt-[1-9][0-9]*$" },
+        "taskId": { "type": "string", "minLength": 1 },
+        "glb": { "$ref": "#/$defs/file" }
+      }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recipe", "author", "tool", "toolVersion", "exporterVersion", "operations", "completedAt"],
+      "properties": {
+        "recipe": { "$ref": "#/$defs/hashedPath" },
+        "author": { "type": "string", "minLength": 1 },
+        "tool": { "type": "string", "minLength": 1 },
+        "toolVersion": { "type": "string", "minLength": 1 },
+        "exporterVersion": { "type": "string", "minLength": 1 },
+        "operations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "completedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "final": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publicPath", "bytes", "sha256"],
+      "properties": {
+        "publicPath": { "type": "string", "pattern": "^/assets/ww1/.+\\.glb$" },
+        "bytes": { "type": "integer", "minimum": 20 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewer", "decision", "audit", "evidence"],
+      "properties": {
+        "status": { "const": "accepted" },
+        "reviewer": { "type": "string", "minLength": 1 },
+        "decision": { "$ref": "#/$defs/hashedPath" },
+        "audit": { "$ref": "#/$defs/hashedPath" },
+        "evidence": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/file" } }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "hashedPath": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": { "path": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "file": {
+      "type": "object", "additionalProperties": false, "required": ["path", "bytes", "sha256"],
+      "properties": { "path": { "type": "string", "minLength": 1 }, "bytes": { "type": "integer", "minimum": 1 }, "sha256": { "$ref": "#/$defs/sha256" } }
+    }
+  }
+}

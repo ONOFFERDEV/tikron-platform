@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "key": "duckboard",
+  "sha256": "5312be9e3d81851cc1803d5a3ade9f1a81566227e52244f892013fd77d09ade3",
+  "dimensionsM": [
+    2,
+    0.1,
+    1
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    168,
+    132,
+    96
+  ],
+  "joints": {
+    "join_left": [
+      -1,
+      0,
+      0
+    ],
+    "join_right": [
+      1,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "wood"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      2,
+      0.1,
+      1
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/duckboard.json",
+    "outputSha256": "5312be9e3d81851cc1803d5a3ade9f1a81566227e52244f892013fd77d09ade3"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

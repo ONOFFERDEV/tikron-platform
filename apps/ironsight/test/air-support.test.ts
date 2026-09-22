@@ -3,9 +3,12 @@ import { AirSupport, RECON, type SupportView } from '../src/air-support.js';
 import { ArenaSchema, type ArenaState, type ArenaPlayer } from '../src/schema.js';
 import { createTestRoom } from '@tikron/server/testing';
 import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
+import { HIT_ANIMATION_NONE } from '../src/hit-state-bucket.js';
 
 const player = (team: number, x = 10): ArenaPlayer => ({ x, y: 0, z: 11, team, hp: 100, alive: true, prot: false,
-  yaw: 0, pitch: 0, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0 });
+  yaw: 0, pitch: 0, crouch: false, k: 0, d: 0, weapon: 0, nades: 2, reloadEnd: 0,
+  hitClipIndex: HIT_ANIMATION_NONE, hitClipStartedAt: 0, hitBlendSources: [], hitReactionKind: 0, hitReactionStartedAt: 0, hitReactionSeq: 0,
+  hitSegmentSeq: 0, hitSegmentStartedAt: 0 });
 const state = (): ArenaState => ({ players: { red: player(0), ally: player(0), blue: player(1, 90.4), shield: { ...player(1), prot: true },
   dead: { ...player(1), alive: false } }, mode: 0, phase: 'live', seed: 1, redScore: 0, blueScore: 0,
   signalAt: 0, coreOpen: false, warmupEndMs: 0, matchEndMs: 1e9, capA: 100, capB: 100, capC: 100 });
@@ -59,8 +62,9 @@ it('keeps FFA/warmup disabled and practice private despite shared team numbers',
   const a = new AirSupport(), s = state();
   s.mode = 1; a.earn('red', 3, s); a.tick(s, 1000, false); expect(a.view('red', 3, s, 1000).flights).toHaveLength(0);
   s.mode = 0; s.phase = 'warmup'; a.earn('red', 3, s); a.tick(s, 1000, false); expect(a.view('red', 3, s, 1000).flights).toHaveLength(0);
-  s.phase = 'live'; s.mode = 3; a.earn('red', 3, s); a.tick(s, 2000, false); a.tick(s, 4000, false);
-  expect(a.view('red', 3, s, 4000).scan!.contacts).toHaveLength(2);
+  s.phase = 'live'; s.mode = 3; a.earn('red', 3, s); const targets = new Map([['blue', {}]]);
+  a.tick(s, 2000, false, [], targets); a.tick(s, 4000, false, [], targets);
+  expect(a.view('red', 3, s, 4000).scan!.contacts).toHaveLength(1);
   expect(a.view('ally', 0, s, 4000)).toMatchObject({ flights: [], scan: null });
 });
 

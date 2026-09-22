@@ -1,25 +1,19 @@
 import * as T from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-/** One lazy generated mesh/texture set, shared by three exterior transformers.
- * Normalize from measured GLB bounds; the entire envelope must remain north of
- * z=0, so model revisions can never become uncollidable playable cover. */
+/** Lightweight rail signals outside the playable rectangle. Task 10 supplies
+ * the final authored wagons and yard detail without changing collision. */
 export async function loadSwitchyardTransformers(scene: T.Scene, width: number): Promise<void> {
-  const { scene: model } = await new GLTFLoader().loadAsync('/assets/props/switchyard-transformer.glb');
-  const bounds = new T.Box3().setFromObject(model), size = bounds.getSize(new T.Vector3());
-  const scale = Math.min(7 / size.x, 6 / size.y, 6 / size.z);
-  if (!Number.isFinite(scale) || scale <= 0) throw Error('Invalid transformer bounds');
-  const center = bounds.getCenter(new T.Vector3());
-  model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-  model.scale.setScalar(scale);
-  model.traverse(node => {
-    if (node instanceof T.Light) throw Error('Generated machinery must not contain lights');
-    if (node instanceof T.Mesh) { node.castShadow = true; node.receiveShadow = true; }
-  });
+  const iron = new T.MeshStandardMaterial({ color: 0x353732, roughness: 0.9, metalness: 0.25 });
+  const arm = new T.MeshStandardMaterial({ color: 0xa27a3d, roughness: 0.85, metalness: 0.05 });
   for (const x of [width / 2 - 40, width / 2, width / 2 + 40]) {
-    const group = new T.Group(); group.name = 'switchyard-transformer';
-    group.add(model.clone(true)); group.position.set(x, 0, -8);
-    if (new T.Box3().setFromObject(group).max.z >= 0) throw Error('Transformer crosses playable boundary');
+    const group = new T.Group(); group.name = 'switchyard-rail-signal';
+    const post = new T.Mesh(new T.CylinderGeometry(0.1, 0.13, 5.4, 8), iron);
+    post.position.y = 2.7;
+    const semaphore = new T.Mesh(new T.BoxGeometry(2.4, 0.18, 0.18), arm);
+    semaphore.position.set(0.9, 4.7, 0);
+    semaphore.rotation.z = Math.PI / 10;
+    group.add(post, semaphore);
+    group.position.set(x, 0, -4);
     scene.add(group);
   }
 }

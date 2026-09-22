@@ -4,30 +4,29 @@ import { canStand, nearestBox } from "../src/physics.js";
 import { PLAYER, MOVE, MATCH } from "../src/config.js";
 import { PRACTICE_SHOWCASE_BOTS } from "../src/modes.js";
 import { walkSeconds } from "../src/map/nav.js";
+import { blockingEnvironmentBoxes } from "../src/map/environment-props.js";
+
+const relayEnvironmentBoxes = new Set(blockingEnvironmentBoxes('relay'));
+const relayCoreBoxes = ARENA1.boxes.filter(box => !relayEnvironmentBoxes.has(box));
 
 describe("Relay encounter safety", () => {
   it('keeps cover within twelve metres along the cooling, service and freight routes', () => {
     for (const [z, from, to] of [[27, 20, 130], [50, 20, 66], [50, 84, 130], [76, 20, 130]]) {
       for (let x = from!; x <= to!; x += 2) {
-        const distance = Math.min(...ARENA1.boxes.filter(b => b.min.y === 0).map(b =>
+        const distance = Math.min(...relayCoreBoxes.filter(b => b.min.y === 0).map(b =>
           Math.hypot(Math.max(b.min.x - x, 0, x - b.max.x), Math.max(b.min.z - z!, 0, z! - b.max.z))));
         expect(distance, `route ${x},${z}`).toBeLessThanOrEqual(12);
       }
     }
   });
-  it('exposes the solid signal spine above cover from all three lane approaches', () => {
-    const spine = ARENA1.boxes.find(b => b.min.y === 6 && b.max.y === 14)!;
-    expect(spine).toBeDefined();
-    const target = { x: 75, y: 13, z: 51 };
-    for (const [x, z] of [[75, 27], [30, 50], [120, 50], [75, 76]]) {
-      const eye = { x: x!, y: PLAYER.standEye, z: z! };
-      const length = Math.hypot(target.x-eye.x, target.y-eye.y, target.z-eye.z);
-      const dir = { x: (target.x-eye.x)/length, y: (target.y-eye.y)/length, z: (target.z-eye.z)/length };
-      expect(nearestBox(eye, dir, ARENA1.boxes.filter(b => b !== spine), length)).toBe(Infinity);
-      expect(nearestBox(eye, dir, [spine], length)).toBeLessThan(length);
-    }
+  it('uses a narrow telegraph mast without creating another playable floor', () => {
+    const mast = ARENA1.boxes.find(b => b.min.y === 3 && b.max.y === 8)!;
+    expect(mast).toEqual({ min: { x: 74.8, y: 3, z: 52.8 }, max: { x: 75.2, y: 8, z: 53.2 } });
+    expect(ARENA1.navigation?.anchors.filter(anchor => anchor.layer === 3).map(anchor => anchor.id)).toEqual([
+      'arena1.roof.west', 'arena1.roof.east',
+    ]);
   });
-  it("keeps expanded 6v6 density and all objective sprint rotations in the reference band", () => {
+  it("keeps expanded 6v6 density and S-turn objective rotations within fifteen seconds", () => {
     expect(ARENA1.bounds.width * ARENA1.bounds.depth / MATCH.maxClients).toBeGreaterThanOrEqual(1250);
     const caps = Object.values(ARENA1.caps);
     for (let i = 0; i < caps.length; i++) for (const to of caps.slice(i + 1)) {
@@ -36,11 +35,13 @@ describe("Relay encounter safety", () => {
       expect(seconds).toBeLessThanOrEqual(15);
     }
     // Raised lintels/slabs are structural support, not freestanding cover.
-    for (const box of ARENA1.boxes.filter(b => b.min.y === 0)) {
+    expect(relayEnvironmentBoxes.size).toBe(2);
+    expect([...relayEnvironmentBoxes].every(box => ARENA1.boxes.includes(box))).toBe(true);
+    for (const box of relayCoreBoxes.filter(b => b.min.y === 0)) {
       const height = box.max.y - box.min.y;
       expect((height >= 1 && height <= 1.25) || height >= 1.75).toBe(true);
     }
-    expect(new Set(ARENA1.boxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([2.72, 3, 6]));
+    expect(new Set(relayCoreBoxes.filter(b => b.min.y === 0 && b.max.y >= 1.75).map(b => b.max.y))).toEqual(new Set([2.35, 2.72, 3, 6]));
     expect(ARENA1.ramps!.every(r => r.topY - (r.baseY ?? 0) === 3)).toBe(true);
   });
   it("no team spawn has a direct eye-height shot into any opposing spawn", () => {
@@ -66,8 +67,8 @@ describe("Relay encounter safety", () => {
   });
   it("pairs the rooms, stair voids, consoles and yard cover across the map", () => {
     const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
-    for (const a of ARENA1.boxes.filter(b => !ARENA1.structures!.find(s => s.id === 'freight-trench')!.parts.some(p => p.box === b))) {
-      expect(ARENA1.boxes.some(b => near(b.min.x, ARENA1.bounds.width - a.max.x) && near(b.max.x, ARENA1.bounds.width - a.min.x)
+    for (const a of relayCoreBoxes.filter(b => !ARENA1.structures!.find(s => s.id === 'freight-trench')!.parts.some(p => p.box === b))) {
+      expect(relayCoreBoxes.some(b => near(b.min.x, ARENA1.bounds.width - a.max.x) && near(b.max.x, ARENA1.bounds.width - a.min.x)
         && near(b.min.z, a.min.z) && near(b.max.z, a.max.z) && near(b.min.y, a.min.y) && near(b.max.y, a.max.y)), JSON.stringify(a)).toBe(true);
     }
     expect(ARENA1.structures!.filter(s => s.id !== 'freight-trench').map(s => s.footprint)).toEqual([

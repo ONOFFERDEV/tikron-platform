@@ -1,87 +1,111 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { DRONE, type DroneFlight } from '../src/drone.js';
+import { WW1_ENVIRONMENT_MANIFEST } from '../config/ww1-environment.js';
+import type { DroneFlight } from '../src/drone.js';
 
-/** Original ducted-fan sentry with baked vertex shading. Three fixed instanced
- * draws for both teams: chassis and warning beams/crosses. No new lights,
- * textures, shadow updates or per-frame geometry; prepares before controls. */
+const AIRFRAME = WW1_ENVIRONMENT_MANIFEST.assets.find(asset => asset.key === 'biplane')!;
+let authoredAirframe: Promise<THREE.Object3D | null> | undefined;
+
+function fallbackAirframe(team: number): THREE.Mesh {
+  const parts: THREE.BufferGeometry[] = [];
+  const fabric = team === 0 ? 0x887a51 : 0x667069;
+  const part = (geometry: THREE.BufferGeometry, color: number, x = 0, y = 0, z = 0) => {
+    const flat = geometry.index ? geometry.toNonIndexed() : geometry.clone();
+    geometry.dispose(); flat.translate(x, y, z);
+    const shade = new THREE.Color(color), colors = new Float32Array(flat.getAttribute('position').count * 3);
+    for (let i = 0; i < colors.length; i += 3) { colors[i] = shade.r; colors[i + 1] = shade.g; colors[i + 2] = shade.b; }
+    flat.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(flat);
+  };
+  part(new THREE.BoxGeometry(.72, .62, 4.8), 0x6b6042);
+  part(new THREE.BoxGeometry(9.2, .12, 1.15), fabric, 0, .44, .25);
+  part(new THREE.BoxGeometry(8.1, .12, 1.05), fabric, 0, -.42, .1);
+  part(new THREE.BoxGeometry(3.1, .1, .8), fabric, 0, .2, -2.65);
+  part(new THREE.BoxGeometry(.12, 1.65, .8), 0x665c40, 0, .68, -2.65);
+  const propeller = new THREE.BoxGeometry(2.2, .08, .12); propeller.rotateZ(Math.PI / 4);
+  part(propeller, 0x3f3829, 0, -.225, 3.2);
+  const geometry = mergeGeometries(parts)!; parts.forEach(geometryPart => geometryPart.dispose());
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }));
+  mesh.name = 'biplane-fallback'; return mesh;
+}
+
+function factionAirframe(source: THREE.Object3D, team: number): THREE.Object3D {
+  const clone = source.clone(true), tint = new THREE.Color(team === 0 ? 0xb2a16b : 0x87938a);
+  clone.traverse(object => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const materials = (Array.isArray(object.material) ? object.material : [object.material]).map(material => {
+      const copy = material.clone();
+      if (copy instanceof THREE.MeshStandardMaterial || copy instanceof THREE.MeshBasicMaterial) copy.color.multiply(tint);
+      return copy;
+    });
+    object.material = Array.isArray(object.material) ? materials : materials[0]!;
+  });
+  return clone;
+}
+
+function loadAirframe(): Promise<THREE.Object3D | null> {
+  authoredAirframe ??= new GLTFLoader().loadAsync(AIRFRAME.publicUrl).then(gltf => {
+    const lod = gltf.scene.getObjectByName('LOD1') ?? gltf.scene;
+    return lod.clone(true);
+  }).catch(() => null);
+  return authoredAirframe;
+}
+
 export class SentryDrone {
-  private readonly bodies: THREE.InstancedMesh;
-  private readonly rotors: THREE.InstancedMesh;
-  private readonly rotorPose = new THREE.Object3D();
-  private readonly beams: THREE.InstancedMesh;
+  readonly root = new THREE.Group();
+  private readonly aircraft: THREE.Group[];
+  private readonly corridors: THREE.InstancedMesh;
   private readonly pose = new THREE.Object3D();
-  private readonly color = new THREE.Color();
-  private readonly up = new THREE.Vector3(0,1,0);
-  private readonly direction = new THREE.Vector3();
+
   constructor(scene: THREE.Scene) {
-    const parts: THREE.BufferGeometry[] = [];
-    const part = (g: THREE.BufferGeometry, color: number, x=0,y=0,z=0) => {
-      const flat = g.index ? g.toNonIndexed() : g.clone(); g.dispose(); flat.translate(x,y,z);
-      const c = new THREE.Color(color), normals=flat.getAttribute('normal'), shades = new Float32Array(normals.count*3);
-      for(let i=0;i<normals.count;i++) {
-        const shade=.45+.55*Math.max(0,normals.getY(i)*.8+normals.getX(i)*.4+normals.getZ(i)*.3);
-        shades[i*3]=c.r*shade;shades[i*3+1]=c.g*shade;shades[i*3+2]=c.b*shade;
-      }
-      flat.setAttribute('color',new THREE.BufferAttribute(shades,3));parts.push(flat);
-    };
-    part(new THREE.BoxGeometry(.85,.38,1.4),0xc8d3cf);
-    part(new THREE.BoxGeometry(.6,.2,.7),0x223c47,0,.28,-.1);
-    part(new THREE.BoxGeometry(.64,.12,.14),0xffc879,0,-.02,.77);
-    part(new THREE.BoxGeometry(2.5,.12,.18),0x38515b,0,0,-.48);
-    part(new THREE.BoxGeometry(2.5,.12,.18),0x38515b,0,0,.48);
-    for(const x of [-1.05,1.05]) for(const z of [-.68,.68]) {
-      const ring=new THREE.TorusGeometry(.42,.075,5,18);ring.rotateX(Math.PI/2);part(ring,0xa7bebb,x,.02,z);
-      part(new THREE.CylinderGeometry(.12,.12,.16,8),0xedaa52,x,0,z);
-    }
-    for(const x of [-.24,.24]) {
-      const barrel=new THREE.CylinderGeometry(.055,.085,.85,8);barrel.rotateX(Math.PI/2);part(barrel,0x24363d,x,-.27,.54);
-      part(new THREE.BoxGeometry(.12,.12,.06),0xffd198,x,-.27,1);
-      part(new THREE.BoxGeometry(.1,.2,.55),0x4a646a,x,-.29,-.4);
-    }
-    const geometry=mergeGeometries(parts)!;parts.forEach(p=>p.dispose());
-    this.bodies=new THREE.InstancedMesh(geometry,new THREE.MeshBasicMaterial({vertexColors:true}),2);
-    this.rotors=new THREE.InstancedMesh(new THREE.BoxGeometry(.64,.025,.07),new THREE.MeshBasicMaterial({color:0x263e47}),8);
-    const beamGeometry=new THREE.CylinderGeometry(1,1,1,6);
-    this.beams=new THREE.InstancedMesh(beamGeometry,new THREE.MeshBasicMaterial({color:0xffffff}),6);
-    for(const m of [this.bodies,this.beams,this.rotors]) {
-      m.count=0;m.visible=false;m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);
-    }
-    for(let i=0;i<6;i++)this.beams.setColorAt(i,this.color.set(0xffbe75));
-    this.bodies.name='sentry-chassis';this.beams.name='sentry-lock';
+    this.aircraft = Array.from({ length: 2 }, (_, team) => {
+      const group = new THREE.Group(); group.visible = false; group.userData.factionVariant = team === 0 ? 'khaki' : 'fieldgrey';
+      group.add(fallbackAirframe(team)); this.root.add(group); return group;
+    });
+    this.corridors = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .035, 1),
+      new THREE.MeshBasicMaterial({ color: 0xc86942, transparent: true, opacity: .36, depthWrite: false }), 4);
+    this.corridors.count = 0; this.corridors.visible = false; this.corridors.name = 'strafe-corridor';
+    this.root.add(this.corridors); this.root.name = 'attack-biplane'; scene.add(this.root);
+    void loadAirframe().then(template => {
+      if (!template) return;
+      for (const [team, group] of this.aircraft.entries()) { group.clear(); group.add(factionAirframe(template, team)); }
+    });
   }
-  private line(index:number,a:{x:number;y:number;z:number},b:{x:number;y:number;z:number},radius:number,color:number):void {
-    this.direction.set(b.x-a.x,b.y-a.y,b.z-a.z);
-    this.pose.position.set((a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2);
-    this.pose.scale.set(radius,this.direction.length(),radius);
-    this.pose.quaternion.setFromUnitVectors(this.up,this.direction.normalize());this.pose.updateMatrix();
-    this.beams.setMatrixAt(index,this.pose.matrix);this.beams.setColorAt(index,this.color.set(color));
-  }
-  update(flights:readonly DroneFlight[],now:number,reduced=false):void {
-    let bodies=0,beams=0,rotors=0;
-    for(const f of flights.slice(0,2)) {
-      if(now<f.startedAt || now>=f.endsAt)continue;
-      // Cosmetic bob never changes server origin or the warning endpoint.
-      this.pose.position.set(f.x,f.y+(reduced?0:Math.sin((now-f.startedAt)*.004)*.055),f.z);
-      this.pose.scale.setScalar(.75);
-      this.pose.rotation.set(0,f.lock?Math.atan2(f.lock.point.x-f.x,f.lock.point.z-f.z):f.team===0?Math.PI/2:-Math.PI/2,0);
-      this.pose.updateMatrix();this.bodies.setMatrixAt(bodies++,this.pose.matrix);
-      for(const x of [-1.05,1.05])for(const z of [-.68,.68]) {
-        this.rotorPose.position.set(x,.04,z);this.rotorPose.scale.setScalar(1);
-        this.rotorPose.rotation.set(0,reduced?Math.PI/4:(now-f.startedAt)*.045*(x*z>0?1:-1),0);
-        this.rotorPose.updateMatrix();this.rotorPose.matrix.premultiply(this.pose.matrix);this.rotors.setMatrixAt(rotors++,this.rotorPose.matrix);
+
+  update(flights: readonly DroneFlight[], now: number, _reduced = false): void {
+    let corridorCount = 0;
+    for (let index = 0; index < this.aircraft.length; index++) {
+      const group = this.aircraft[index]!, flight = flights[index], corridor = flight?.corridor;
+      group.visible = !!flight && !!corridor && now >= flight.warningEndsAt! && now < flight.endsAt;
+      if (!flight || !corridor || now < flight.startedAt || now >= flight.endsAt) continue;
+      const dx = corridor.end.x - corridor.start.x, dz = corridor.end.z - corridor.start.z;
+      const length = Math.hypot(dx, dz), yaw = Math.atan2(dx, dz);
+      const warningEndsAt = flight.warningEndsAt!;
+      if (group.visible) {
+        const t = Math.min(1, Math.max(0, (now - warningEndsAt) / (flight.endsAt - warningEndsAt)));
+        group.position.set(corridor.start.x + dx * t, flight.y, corridor.start.z + dz * t);
+        group.rotation.set(0, yaw, 0);
       }
-      const lock=f.lock;
-      if(lock && now<lock.fireAt && lock.fireAt-now<=DRONE.warningMs+1000) {
-        const p=lock.point, color=0xffa85e;
-        this.line(beams++,f,p,.012,color);
-        this.line(beams++,{x:p.x-.32,y:p.y,z:p.z},{x:p.x+.32,y:p.y,z:p.z},.022,color);
-        this.line(beams++,{x:p.x,y:p.y-.32,z:p.z},{x:p.x,y:p.y+.32,z:p.z},.022,color);
+      const nx = -dz / length, nz = dx / length;
+      for (const side of [-1, 1]) {
+        const offset = side * corridor.width / 2;
+        this.pose.position.set((corridor.start.x + corridor.end.x) / 2 + nx * offset, .025,
+          (corridor.start.z + corridor.end.z) / 2 + nz * offset);
+        this.pose.scale.set(.07, .035, length);
+        this.pose.rotation.set(0, yaw, 0); this.pose.updateMatrix();
+        this.corridors.setMatrixAt(corridorCount++, this.pose.matrix);
       }
     }
-    this.bodies.count=bodies;this.beams.count=beams;this.rotors.count=rotors;
-    for(const m of [this.bodies,this.beams,this.rotors]) {m.visible=m.count>0;m.instanceMatrix.needsUpdate=true;}
-    this.beams.instanceColor!.needsUpdate=true;
+    this.corridors.count = corridorCount; this.corridors.visible = corridorCount > 0;
+    this.corridors.instanceMatrix.needsUpdate = true;
+    for (let index = flights.length; index < this.aircraft.length; index++) this.aircraft[index]!.visible = false;
   }
-  inspect() { return { bodies:this.bodies.count,beams:this.beams.count,draws:Number(this.bodies.visible)+Number(this.beams.visible)+Number(this.rotors.visible),trianglesPerDrone:this.bodies.geometry.getAttribute('position').count/3 }; }
+
+  inspect() {
+    return { bodies: this.aircraft.filter(group => group.visible).length, corridors: this.corridors.count,
+      draws: this.aircraft.filter(group => group.visible).length + Number(this.corridors.visible),
+      positions: this.aircraft.map(group => group.position.toArray()), assetUrl: AIRFRAME.publicUrl,
+      variants: this.aircraft.map(group => group.userData.factionVariant),
+      pilotable: AIRFRAME.pilotable, presentation: AIRFRAME.presentation };
+  }
 }

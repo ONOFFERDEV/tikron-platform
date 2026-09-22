@@ -1,0 +1,3930 @@
+[
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033634922830162173,
+                                                      1.2124670713429522,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.41522991513089996,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008246441897482977,
+                                                     1.5659678920201914,
+                                                     0.1254213918157347
+                                                 ],
+                                      "radius":  0.12530036054479798,
+                                      "topY":  1.6890104893521483
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.00017195749659169868,
+                                                      1.1313188571820159,
+                                                      0.04446766032041509
+                                                  ],
+                                       "radius":  0.41027070781177466,
+                                       "topY":  1.4888761426507484
+                                   },
+                         "groundOffsetY":  -0.008283826002450728
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.004586252038606353,
+                                                     1.4991482977554411,
+                                                     0.21021077798336607
+                                                 ],
+                                      "radius":  0.12530041206709427,
+                                      "topY":  1.6211623654733804
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.004966428429497224,
+                                                      1.084938017864508,
+                                                      0.07359470454584592
+                                                  ],
+                                       "radius":  0.40806756281219014,
+                                       "topY":  1.4418421026521036
+                                   },
+                         "groundOffsetY":  -0.04718475197709944
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0016072578210434355,
+                                                     1.397163217162759,
+                                                     0.28986267077140543
+                                                 ],
+                                      "radius":  0.12530047078776807,
+                                      "topY":  1.5176309166857485
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01171751935132366,
+                                                      1.006764415354553,
+                                                      0.09643476110904554
+                                                  ],
+                                       "radius":  0.4099945830629459,
+                                       "topY":  1.358247166145384
+                                   },
+                         "groundOffsetY":  -0.109428022438169
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.009918275604373278,
+                                                     1.2642092403449494,
+                                                     0.36209995984159
+                                                 ],
+                                      "radius":  0.12530053161294438,
+                                      "topY":  1.3826953084234637
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.019783721403656224,
+                                                      0.9031827513422579,
+                                                      0.116177197726608
+                                                  ],
+                                       "radius":  0.41353728727245426,
+                                       "topY":  1.2434869037768401
+                                   },
+                         "groundOffsetY":  -0.19202427409516587
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.030777137999460608,
+                                                     0.9245598973914968,
+                                                     0.47796781454825715
+                                                 ],
+                                      "radius":  0.1253006485699027,
+                                      "topY":  1.0385633777665602
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.03568813943265074,
+                                                      0.642530134579814,
+                                                      0.1435847667183428
+                                                  ],
+                                       "radius":  0.4212372537185102,
+                                       "topY":  0.9541050383518807
+                                   },
+                         "groundOffsetY":  -0.40531954066420084
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0357020172679086,
+                                                      0.642731706066382,
+                                                      0.14344738868765888
+                                                  ],
+                                       "radius":  0.4209345304245096,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0357020172679086,
+                                                      0.642731706066382,
+                                                      0.14344738868765888
+                                                  ],
+                                       "radius":  0.4209345304245096,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020500234142228124,
+                                                     1.1063884610481662,
+                                                     0.4273316389380265
+                                                 ],
+                                      "radius":  0.1253005847797747,
+                                      "topY":  1.222219011105138
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.028870150558061677,
+                                                      0.7806612167442732,
+                                                      0.13100566867767904
+                                                  ],
+                                       "radius":  0.4193537859536964,
+                                       "topY":  1.1027174230040913
+                                   },
+                         "groundOffsetY":  -0.2875310268757487
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.010659327369215418,
+                                                     1.2669060350561259,
+                                                     0.3656666649437866
+                                                 ],
+                                      "radius":  0.12530052379233347,
+                                      "topY":  1.3847408103491805
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.019801233017948255,
+                                                      0.9090608210909061,
+                                                      0.11599920301133892
+                                                  ],
+                                       "radius":  0.4129193968140224,
+                                       "topY":  1.248514864540918
+                                   },
+                         "groundOffsetY":  -0.18566268596987834
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0022182031847949313,
+                                                     1.4000618053980831,
+                                                     0.2944920679663534
+                                                 ],
+                                      "radius":  0.1253004521818054,
+                                      "topY":  1.5195771137487832
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01164435943861157,
+                                                      1.0129726353268889,
+                                                      0.09672327615058575
+                                                  ],
+                                       "radius":  0.40915782095693015,
+                                       "topY":  1.3637600721422336
+                                   },
+                         "groundOffsetY":  -0.10292338613871636
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.004273559159238473,
+                                                     1.5013769580551324,
+                                                     0.2151812896652637
+                                                 ],
+                                      "radius":  0.1253003965059287,
+                                      "topY":  1.6228442619786383
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.004778050992923513,
+                                                      1.0898898465215896,
+                                                      0.07424886522929754
+                                                  ],
+                                       "radius":  0.4072975037894724,
+                                       "topY":  1.4463184756513836
+                                   },
+                         "groundOffsetY":  -0.04210667875881337
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.0092281969474751,
+                                                     1.664030364924272,
+                                                     0.03945957327457017
+                                                 ],
+                                      "radius":  0.12530031545133735,
+                                      "topY":  1.7881154907244832
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0035757269495497596,
+                                                      1.2124882315618997,
+                                                      0.0017093183921628036
+                                                  ],
+                                       "radius":  0.4152279277835036,
+                                       "topY":  1.5670535042819513
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033634922830162173,
+                                                      1.2124670713429522,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.41522991513089996,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.018096972556788493,
+                                                      1.2185767157880154,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.41330215994315345,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.012623413930889393,
+                                                     1.648398331620453,
+                                                     0.15921518735526746
+                                                 ],
+                                      "radius":  0.125300391797216,
+                                      "topY":  1.7712238888430343
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.011733249057964856,
+                                                      1.2160572665596814,
+                                                      0.07289006849122923
+                                                  ],
+                                       "radius":  0.4132594184203325,
+                                       "topY":  1.572243898902001
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0056340035205598715,
+                                                     1.635442875031899,
+                                                     0.2089265962447301
+                                                 ],
+                                      "radius":  0.12530042835207228,
+                                      "topY":  1.7578663976372104
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.006293685720495851,
+                                                      1.214092259888913,
+                                                      0.09427535076137283
+                                                  ],
+                                       "radius":  0.4164545181968019,
+                                       "topY":  1.5744617484358567
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.000865468226824373,
+                                                     1.619771470176306,
+                                                     0.2559655416912097
+                                                 ],
+                                      "radius":  0.12530045609968338,
+                                      "topY":  1.7417531752536346
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0021538858554828455,
+                                                      1.2081285317421746,
+                                                      0.11002141931062162
+                                                  ],
+                                       "radius":  0.414451190543001,
+                                       "topY":  1.5677019902192253
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.0023051801176305203,
+                                                     1.5988740857406485,
+                                                     0.30469998798571674
+                                                 ],
+                                      "radius":  0.12530049438228041,
+                                      "topY":  1.720413089401529
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0013381969467082672,
+                                                      1.1969266995205246,
+                                                      0.12179659873904386
+                                                  ],
+                                       "radius":  0.40696254012295996,
+                                       "topY":  1.5490918968559795
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008109252922575541,
+                                                     1.5356043133148911,
+                                                     0.40544100473136374
+                                                 ],
+                                      "radius":  0.1253006087253528,
+                                      "topY":  1.6567570604278583
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.00977716646026175,
+                                                      1.177156681208072,
+                                                      0.16700607241231397
+                                                  ],
+                                       "radius":  0.41727559437888023,
+                                       "topY":  1.5200956858863133
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.013288097619871785,
+                                                     1.5262874496178613,
+                                                     0.41016910518372107
+                                                 ],
+                                      "radius":  0.12530064631522483,
+                                      "topY":  1.6481367603564312
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.015877037331444563,
+                                                      1.1806236321297936,
+                                                      0.17688007754722296
+                                                  ],
+                                       "radius":  0.43353158769204175,
+                                       "topY":  1.532862280593434
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.018096972556788493,
+                                                      1.2185767157880154,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.41330215994315345,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.019815441751452244,
+                                                     1.6584978735669649,
+                                                     0.105298580981118
+                                                 ],
+                                      "radius":  0.1253003513405132,
+                                      "topY":  1.781864394478136
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.017312289086321583,
+                                                      1.2185364380011257,
+                                                      0.04453779596634162
+                                                  ],
+                                       "radius":  0.4132212319449662,
+                                       "topY":  1.5753024143985095
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.019925368415903387,
+                                                     1.6589024344352437,
+                                                     0.10382294345952353
+                                                 ],
+                                      "radius":  0.12530035229090772,
+                                      "topY":  1.7823482718499553
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.017416009087092843,
+                                                      1.218546781252678,
+                                                      0.04396950075458373
+                                                  ],
+                                       "radius":  0.41334592574982715,
+                                       "topY":  1.5753929990009952
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020687502724821748,
+                                                     1.6593010583203438,
+                                                     0.10222597898343087
+                                                 ],
+                                      "radius":  0.12530035270549175,
+                                      "topY":  1.7828093720619171
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.018114633139235184,
+                                                      1.2185981057798012,
+                                                      0.043543896768599516
+                                                  ],
+                                       "radius":  0.41361372442062033,
+                                       "topY":  1.5756575805050572
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0220433009088902,
+                                                     1.6594777941867278,
+                                                     0.10133159634294997
+                                                 ],
+                                      "radius":  0.12530035271936513,
+                                      "topY":  1.783007753608042
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.019339491047054166,
+                                                      1.2186978705893632,
+                                                      0.04351922908058319
+                                                  ],
+                                       "radius":  0.4139496761960723,
+                                       "topY":  1.5761023667823464
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.02589849203263002,
+                                                     1.659037530930053,
+                                                     0.10226005776839825
+                                                 ],
+                                      "radius":  0.12530035207360476,
+                                      "topY":  1.7824857382031627
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.02277425921136167,
+                                                      1.218997432256963,
+                                                      0.04468804332143291
+                                                  ],
+                                       "radius":  0.4146341142884749,
+                                       "topY":  1.5773496395658169
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.018096972556788493,
+                                                      1.2185767157880154,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.41330215994315345,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  240,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.01979847124028982,
+                                                     1.6587600605211261,
+                                                     0.10435838720745624
+                                                 ],
+                                      "radius":  0.12530035196802183,
+                                      "topY":  1.782178575575974
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.017300068550614278,
+                                                      1.2185369798903352,
+                                                      0.044154001726920945
+                                                  ],
+                                       "radius":  0.41328317421202915,
+                                       "topY":  1.5753339296535942
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  280,
+                            "weight":  0.4666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  80,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  6,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.02412025823031993,
+                                                     1.659896517135281,
+                                                     0.09939458323940074
+                                                 ],
+                                      "radius":  0.12530035375551068,
+                                      "topY":  1.7835034981103275
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.021174910353849205,
+                                                      1.218882729557898,
+                                                      0.04296794320481787
+                                                  ],
+                                       "radius":  0.414499203889816,
+                                       "topY":  1.5769598573174375
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  120,
+                            "weight":  0.4666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  6,
+                            "phaseMs":  80,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.029867902156807395,
+                                                     1.6604137461561006,
+                                                     0.09617794882987356
+                                                 ],
+                                      "radius":  0.1253003551360315,
+                                      "topY":  1.78410936114422
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.026317272982730705,
+                                                      1.2193341752239681,
+                                                      0.04273116745184427
+                                                  ],
+                                       "radius":  0.415833960993613,
+                                       "topY":  1.5790013862085561
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033634922830162173,
+                                                      1.2124670713429522,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.41522991513089996,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.009297524553210361,
+                                                     1.6645502853363632,
+                                                     0.03767340431705002
+                                                 ],
+                                      "radius":  0.12530032610105518,
+                                      "topY":  1.788858118336647
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033460172858581633,
+                                                      1.2124158491723576,
+                                                      0.0017286793431298825
+                                                  ],
+                                       "radius":  0.4151709120538288,
+                                       "topY":  1.5668540935933193
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.011184409886827479,
+                                                     1.663813319074733,
+                                                     0.04183532804324837
+                                                 ],
+                                      "radius":  0.12530035567498998,
+                                      "topY":  1.7884208380133022
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.003363826706025072,
+                                                      1.2132545840574744,
+                                                      0.004977132194520617
+                                                  ],
+                                       "radius":  0.41379451659781846,
+                                       "topY":  1.5684511605081293
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01607637038708859,
+                                                     1.6506663928904923,
+                                                     0.0905294059506057
+                                                 ],
+                                      "radius":  0.1253003902832676,
+                                      "topY":  1.7749293998330047
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.004223937449539805,
+                                                      1.2167939567732673,
+                                                      0.02251124444334078
+                                                  ],
+                                       "radius":  0.40910082065642883,
+                                       "topY":  1.575087877742549
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01507750455157545,
+                                                     1.6444749692952663,
+                                                     0.11354803411225572
+                                                 ],
+                                      "radius":  0.12530025260155633,
+                                      "topY":  1.7656486771654105
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0061866101652713335,
+                                                      1.216798443665183,
+                                                      0.02566362252795064
+                                                  ],
+                                       "radius":  0.40869736913832166,
+                                       "topY":  1.5743352459173086
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033634922830162173,
+                                                      1.2124670713429522,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.41522991513089996,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008980028259663639,
+                                                     1.6647313990819188,
+                                                     0.03676134655349547
+                                                 ],
+                                      "radius":  0.12530032559160142,
+                                      "topY":  1.7890506735317042
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0033504600040881183,
+                                                      1.212462617176328,
+                                                      0.0013771081071626001
+                                                  ],
+                                       "radius":  0.4152087226233189,
+                                       "topY":  1.5669476296012603
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.009745180579337848,
+                                                     1.665214461348702,
+                                                     0.03507772710703628
+                                                 ],
+                                      "radius":  0.12530035883596302,
+                                      "topY":  1.7898809561273128
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.003389898034890884,
+                                                      1.2125950659454168,
+                                                      0.0025140922408796174
+                                                  ],
+                                       "radius":  0.41492511197773646,
+                                       "topY":  1.5671321242840142
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.013658721944233641,
+                                                     1.6609189726921896,
+                                                     0.052754406927687056
+                                                 ],
+                                      "radius":  0.12530040387928168,
+                                      "topY":  1.7856701392455379
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0041923304588322025,
+                                                      1.2144146293921088,
+                                                      0.010590307592286907
+                                                  ],
+                                       "radius":  0.41223823453536457,
+                                       "topY":  1.5703292229802317
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01576662417740115,
+                                                     1.6457047652628858,
+                                                     0.10783683542256309
+                                                 ],
+                                      "radius":  0.12530028767245668,
+                                      "topY":  1.7679753170811217
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.006144460816414191,
+                                                      1.2162775699361659,
+                                                      0.0224083695029359
+                                                  ],
+                                       "radius":  0.4093632938142952,
+                                       "topY":  1.5732934984592741
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0357020172679086,
+                                                      0.642731706066382,
+                                                      0.14344738868765888
+                                                  ],
+                                       "radius":  0.4209345304245096,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.03120500688607912,
+                                                     0.9227962650700574,
+                                                     0.47852468693169226
+                                                 ],
+                                      "radius":  0.1253006514371886,
+                                      "topY":  1.036723283924549
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.03580840264656053,
+                                                      0.6426420408509257,
+                                                      0.1434279104826361
+                                                  ],
+                                       "radius":  0.4205668411645851,
+                                       "topY":  0.9538431626365115
+                                   },
+                         "groundOffsetY":  -0.4050571430723958
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031136352331546414,
+                                                     0.9171215583297325,
+                                                     0.4786064258270349
+                                                 ],
+                                      "radius":  0.12530069647933337,
+                                      "topY":  1.032013111185877
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.03640069799206248,
+                                                      0.641780974136551,
+                                                      0.14347745819094576
+                                                  ],
+                                       "radius":  0.4188910988670651,
+                                       "topY":  0.9518471598901638
+                                   },
+                         "groundOffsetY":  -0.40491343108801436
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.03776253586331137,
+                                                     0.8723006626624303,
+                                                     0.49247900987521886
+                                                 ],
+                                      "radius":  0.1253007327627639,
+                                      "topY":  0.9856873101543284
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.038883600478796077,
+                                                      0.6377363910792901,
+                                                      0.14269785155939918
+                                                  ],
+                                       "radius":  0.4111301767236136,
+                                       "topY":  0.9427496712911554
+                                   },
+                         "groundOffsetY":  -0.4043992847406055
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.043731285651348116,
+                                                     0.85967141741982,
+                                                     0.5041494085998389
+                                                 ],
+                                      "radius":  0.12530049853095002,
+                                      "topY":  0.9653715870240978
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.038158719026622934,
+                                                      0.6400538246074304,
+                                                      0.1417101591672321
+                                                  ],
+                                       "radius":  0.41159653046137384,
+                                       "topY":  0.9457959968337526
+                                   },
+                         "groundOffsetY":  -0.4036133176700327
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0357020172679086,
+                                                      0.642731706066382,
+                                                      0.14344738868765888
+                                                  ],
+                                       "radius":  0.4209345304245096,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031329002993361006,
+                                                     0.9236249322245513,
+                                                     0.47818539760345663
+                                                 ],
+                                      "radius":  0.12530064936560553,
+                                      "topY":  1.037531736632872
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.03573541093463563,
+                                                      0.6427612127154205,
+                                                      0.1434008532886853
+                                                  ],
+                                       "radius":  0.42073865882258166,
+                                       "topY":  0.9540815063655009
+                                   },
+                         "groundOffsetY":  -0.4050571430723958
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031220855772471218,
+                                                     0.9231294553794691,
+                                                     0.4760133638753703
+                                                 ],
+                                      "radius":  0.12530069004536168,
+                                      "topY":  1.038457363188817
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.03591452970992605,
+                                                      0.642610797678624,
+                                                      0.14334315221248753
+                                                  ],
+                                       "radius":  0.4200552090714188,
+                                       "topY":  0.9535068069743095
+                                   },
+                         "groundOffsetY":  -0.40491343108801436
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.032948718416890954,
+                                                     0.905803709653311,
+                                                     0.47887441535565767
+                                                 ],
+                                      "radius":  0.12530073515474216,
+                                      "topY":  1.0219005470964113
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.036837167301041585,
+                                                      0.641382082178221,
+                                                      0.1430216397235781
+                                                  ],
+                                       "radius":  0.4166907923708645,
+                                       "topY":  0.9500410534890171
+                                   },
+                         "groundOffsetY":  -0.4043992847406055
+                     }
+    },
+    {
+        "faction":  "khaki",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.04248663227775348,
+                                                     0.863766524352807,
+                                                     0.49932899404393283
+                                                 ],
+                                      "radius":  0.125300545820216,
+                                      "topY":  0.9716576147159062
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.037650105581689464,
+                                                      0.6409422204570004,
+                                                      0.14197392611243143
+                                                  ],
+                                       "radius":  0.41249980220473065,
+                                       "topY":  0.9475727885328926
+                                   },
+                         "groundOffsetY":  -0.4036133176700327
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.000995391108646937,
+                                                      1.1631841277188877,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.4564935923093293,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008246441897482977,
+                                                     1.5659678920201914,
+                                                     0.1254213918157347
+                                                 ],
+                                      "radius":  0.12530036054479798,
+                                      "topY":  1.6890104893521483
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.004407536619081651,
+                                                      1.0808120533285128,
+                                                      0.04446766032041509
+                                                  ],
+                                       "radius":  0.45507414327551476,
+                                       "topY":  1.4888761426507484
+                                   },
+                         "groundOffsetY":  -0.008283826002450728
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.004586252038606353,
+                                                     1.4991482977554411,
+                                                     0.21021077798336607
+                                                 ],
+                                      "radius":  0.12530041206709427,
+                                      "topY":  1.6211623654733804
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01120609496796253,
+                                                      1.034209419429076,
+                                                      0.07359470454584592
+                                                  ],
+                                       "radius":  0.45596654178793616,
+                                       "topY":  1.4418421026521036
+                                   },
+                         "groundOffsetY":  -0.04718475197709944
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0016072578210434355,
+                                                     1.397163217162759,
+                                                     0.28986267077140543
+                                                 ],
+                                      "radius":  0.12530047078776807,
+                                      "topY":  1.5176309166857485
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.015533687916666775,
+                                                      0.9566181593748232,
+                                                      0.09626644196818136
+                                                  ],
+                                       "radius":  0.4522375245671253,
+                                       "topY":  1.358247166145384
+                                   },
+                         "groundOffsetY":  -0.109428022438169
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.009918275604373278,
+                                                     1.2642092403449494,
+                                                     0.36209995984159
+                                                 ],
+                                      "radius":  0.12530053161294438,
+                                      "topY":  1.3826953084234637
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.017125312669351037,
+                                                      0.8539630314313714,
+                                                      0.11256265059894353
+                                                  ],
+                                       "radius":  0.4559528233359575,
+                                       "topY":  1.2434869037768401
+                                   },
+                         "groundOffsetY":  -0.19202427409516587
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.030777137999460608,
+                                                     0.9245598973914968,
+                                                     0.47796781454825715
+                                                 ],
+                                      "radius":  0.1253006485699027,
+                                      "topY":  1.0385633777665602
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.02043615725286682,
+                                                      0.5961459545461039,
+                                                      0.13370012191781086
+                                                  ],
+                                       "radius":  0.46640572917248624,
+                                       "topY":  0.9541050383518807
+                                   },
+                         "groundOffsetY":  -0.40531954066420084
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle-\u003erifle_crouch_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020402747514903244,
+                                                      0.5963272841870364,
+                                                      0.13360789858309075
+                                                  ],
+                                       "radius":  0.4660991189945437,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020402747514903244,
+                                                      0.5963272841870364,
+                                                      0.13360789858309075
+                                                  ],
+                                       "radius":  0.4660991189945437,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020500234142228124,
+                                                     1.1063884610481662,
+                                                     0.4273316389380265
+                                                 ],
+                                      "radius":  0.1253005847797747,
+                                      "topY":  1.222219011105138
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.018713670241357505,
+                                                      0.7326544599944473,
+                                                      0.1242515171475326
+                                                  ],
+                                       "radius":  0.46384287296987975,
+                                       "topY":  1.1027174230040913
+                                   },
+                         "groundOffsetY":  -0.2875310268757487
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.010659327369215418,
+                                                     1.2669060350561259,
+                                                     0.3656666649437866
+                                                 ],
+                                      "radius":  0.12530052379233347,
+                                      "topY":  1.3847408103491805
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01706929984066477,
+                                                      0.8597969257656175,
+                                                      0.11253269137055073
+                                                  ],
+                                       "radius":  0.45523143316105497,
+                                       "topY":  1.248514864540918
+                                   },
+                         "groundOffsetY":  -0.18566268596987834
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0022182031847949313,
+                                                     1.4000618053980831,
+                                                     0.2944920679663534
+                                                 ],
+                                      "radius":  0.1253004521818054,
+                                      "topY":  1.5195771137487832
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.015479940713922433,
+                                                      0.9627938818457318,
+                                                      0.09671152330207793
+                                                  ],
+                                       "radius":  0.45181528497263057,
+                                       "topY":  1.3637600721422336
+                                   },
+                         "groundOffsetY":  -0.10292338613871636
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.004273559159238473,
+                                                     1.5013769580551324,
+                                                     0.2151812896652637
+                                                 ],
+                                      "radius":  0.1253003965059287,
+                                      "topY":  1.6228442619786383
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.011014481637069029,
+                                                      1.0391458292243736,
+                                                      0.07424886522929754
+                                                  ],
+                                       "radius":  0.4562406441679551,
+                                       "topY":  1.4463184756513836
+                                   },
+                         "groundOffsetY":  -0.04210667875881337
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.0092281969474751,
+                                                     1.664030364924272,
+                                                     0.03945957327457017
+                                                 ],
+                                      "radius":  0.12530031545133735,
+                                      "topY":  1.7881154907244832
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.001109435959230437,
+                                                      1.1632087734066976,
+                                                      0.0017093183921628036
+                                                  ],
+                                       "radius":  0.4564552640549949,
+                                       "topY":  1.5670535042819513
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle-\u003erifle_idle",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.000995391108646937,
+                                                      1.1631841277188877,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.4564935923093293,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013891893227573643,
+                                                      1.1681716529576758,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.4599716129460268,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.012623413930889393,
+                                                     1.648398331620453,
+                                                     0.15921518735526746
+                                                 ],
+                                      "radius":  0.125300391797216,
+                                      "topY":  1.7712238888430343
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.009994119704642757,
+                                                      1.1667635454709364,
+                                                      0.07289006849122923
+                                                  ],
+                                       "radius":  0.4659610207994213,
+                                       "topY":  1.572243898902001
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0056340035205598715,
+                                                     1.635442875031899,
+                                                     0.2089265962447301
+                                                 ],
+                                      "radius":  0.12530042835207228,
+                                      "topY":  1.7578663976372104
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.006237330232131924,
+                                                      1.1656463404425228,
+                                                      0.09427535076137283
+                                                  ],
+                                       "radius":  0.47148619397202235,
+                                       "topY":  1.5744617484358567
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.000865468226824373,
+                                                     1.619771470176306,
+                                                     0.2559655416912097
+                                                 ],
+                                      "radius":  0.12530045609968338,
+                                      "topY":  1.7417531752536346
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.0021538858554828455,
+                                                      1.1608188192195417,
+                                                      0.10880751644385256
+                                                  ],
+                                       "radius":  0.47132742896071267,
+                                       "topY":  1.5677019902192253
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.0023051801176305203,
+                                                     1.5988740857406485,
+                                                     0.30469998798571674
+                                                 ],
+                                      "radius":  0.12530049438228041,
+                                      "topY":  1.720413089401529
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0016628116071720905,
+                                                      1.1510765465502837,
+                                                      0.1169500428695038
+                                                  ],
+                                       "radius":  0.464258104780968,
+                                       "topY":  1.5490918968559795
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008109252922575541,
+                                                     1.5356043133148911,
+                                                     0.40544100473136374
+                                                 ],
+                                      "radius":  0.1253006087253528,
+                                      "topY":  1.6567570604278583
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.008476068951060609,
+                                                      1.134950130348957,
+                                                      0.15516614591792705
+                                                  ],
+                                       "radius":  0.4752084308628124,
+                                       "topY":  1.5200956858863133
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003erifle_sprint",
+        "actions":  [
+                        {
+                            "clipIndex":  2,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.013288097619871785,
+                                                     1.5262874496178613,
+                                                     0.41016910518372107
+                                                 ],
+                                      "radius":  0.12530064631522483,
+                                      "topY":  1.6481367603564312
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.010091510837759304,
+                                                      1.1378619147508564,
+                                                      0.1648040265447477
+                                                  ],
+                                       "radius":  0.4880538231474554,
+                                       "topY":  1.532862280593434
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  0,
+                            "weight":  0,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013891893227573643,
+                                                      1.1681716529576758,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.4599716129460268,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  225,
+                            "weight":  0.8333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  25,
+                            "weight":  0.16666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.019815441751452244,
+                                                     1.6584978735669649,
+                                                     0.105298580981118
+                                                 ],
+                                      "radius":  0.1253003513405132,
+                                      "topY":  1.781864394478136
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01321689507164478,
+                                                      1.1681388237698518,
+                                                      0.04453779596634162
+                                                  ],
+                                       "radius":  0.45947893942955415,
+                                       "topY":  1.5753024143985095
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  250,
+                            "weight":  0.6666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  50,
+                            "weight":  0.3333333333333333,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.019925368415903387,
+                                                     1.6589024344352437,
+                                                     0.10382294345952353
+                                                 ],
+                                      "radius":  0.12530035229090772,
+                                      "topY":  1.7823482718499553
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013312905266993386,
+                                                      1.1681423692459534,
+                                                      0.04396950075458373
+                                                  ],
+                                       "radius":  0.4593251075088422,
+                                       "topY":  1.5753929990009952
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  275,
+                            "weight":  0.5,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  75,
+                            "weight":  0.5,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020687502724821748,
+                                                     1.6593010583203438,
+                                                     0.10222597898343087
+                                                 ],
+                                      "radius":  0.12530035270549175,
+                                      "topY":  1.7828093720619171
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013924038840476285,
+                                                      1.168177599401755,
+                                                      0.043543896768599516
+                                                  ],
+                                       "radius":  0.45939867438979387,
+                                       "topY":  1.5756575805050572
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  300,
+                            "weight":  0.33333333333333337,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  100,
+                            "weight":  0.6666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.0220433009088902,
+                                                     1.6594777941867278,
+                                                     0.10133159634294997
+                                                 ],
+                                      "radius":  0.12530035271936513,
+                                      "topY":  1.783007753608042
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.014960850014609978,
+                                                      1.1682527073352107,
+                                                      0.04351922908058319
+                                                  ],
+                                       "radius":  0.4597391953763677,
+                                       "topY":  1.5761023667823464
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  150,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.02589849203263002,
+                                                     1.659037530930053,
+                                                     0.10226005776839825
+                                                 ],
+                                      "radius":  0.12530035207360476,
+                                      "topY":  1.7824857382031627
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01776674485966928,
+                                                      1.1684867200174192,
+                                                      0.04468804332143291
+                                                  ],
+                                       "radius":  0.46102282537136097,
+                                       "topY":  1.5773496395658169
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_walk-\u003epistol_walk",
+        "actions":  [
+                        {
+                            "clipIndex":  26,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.020676903023307193,
+                                                     1.6581097456980247,
+                                                     0.10654684299705877
+                                                 ],
+                                      "radius":  0.1253003504680696,
+                                      "topY":  1.7813986069515277
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013891893227573643,
+                                                      1.1681716529576758,
+                                                      0.045361577256715545
+                                                  ],
+                                       "radius":  0.4599716129460268,
+                                       "topY":  1.5754533341212502
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  240,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.01979847124028982,
+                                                     1.6587600605211261,
+                                                     0.10435838720745624
+                                                 ],
+                                      "radius":  0.12530035196802183,
+                                      "topY":  1.782178575575974
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.013212202238823259,
+                                                      1.1681364728054926,
+                                                      0.044154001726920945
+                                                  ],
+                                       "radius":  0.4593524845545386,
+                                       "topY":  1.5753339296535942
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  280,
+                            "weight":  0.4666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  80,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  6,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.02412025823031993,
+                                                     1.659896517135281,
+                                                     0.09939458323940074
+                                                 ],
+                                      "radius":  0.12530035375551068,
+                                      "topY":  1.7835034981103275
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.01644152628042196,
+                                                      1.1683887467034473,
+                                                      0.04296794320481787
+                                                  ],
+                                       "radius":  0.4600141477916712,
+                                       "topY":  1.5769598573174375
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rapid-reversal",
+        "actions":  [
+                        {
+                            "clipIndex":  5,
+                            "phaseMs":  120,
+                            "weight":  0.4666666666666667,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  6,
+                            "phaseMs":  80,
+                            "weight":  0.7333333333333334,
+                            "current":  false
+                        },
+                        {
+                            "clipIndex":  1,
+                            "phaseMs":  40,
+                            "weight":  0.26666666666666666,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  null,
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.029867902156807395,
+                                                     1.6604137461561006,
+                                                     0.09617794882987356
+                                                 ],
+                                      "radius":  0.1253003551360315,
+                                      "topY":  1.78410936114422
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020663626115192096,
+                                                      1.1687277013131974,
+                                                      0.04273116745184427
+                                                  ],
+                                       "radius":  0.4613291642513409,
+                                       "topY":  1.5790013862085561
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.000995391108646937,
+                                                      1.1631841277188877,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.4564935923093293,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.009297524553210361,
+                                                     1.6645502853363632,
+                                                     0.03767340431705002
+                                                 ],
+                                      "radius":  0.12530032610105518,
+                                      "topY":  1.788858118336647
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0009928083976363938,
+                                                      1.1631284030864015,
+                                                      0.0017286793431298825
+                                                  ],
+                                       "radius":  0.4564455221404682,
+                                       "topY":  1.5668540935933193
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.011184409886827479,
+                                                     1.663813319074733,
+                                                     0.04183532804324837
+                                                 ],
+                                      "radius":  0.12530035567498998,
+                                      "topY":  1.7884208380133022
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0010189163641202703,
+                                                      1.1639554388558688,
+                                                      0.004977132194520617
+                                                  ],
+                                       "radius":  0.4557351486181374,
+                                       "topY":  1.5684511605081293
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01607637038708859,
+                                                     1.6506663928904923,
+                                                     0.0905294059506057
+                                                 ],
+                                      "radius":  0.1253003902832676,
+                                      "topY":  1.7749293998330047
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0016501582479380855,
+                                                      1.1674318323738455,
+                                                      0.02251124444334078
+                                                  ],
+                                       "radius":  0.45473265802061447,
+                                       "topY":  1.575087877742549
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01507750455157545,
+                                                     1.6444749692952663,
+                                                     0.11354803411225572
+                                                 ],
+                                      "radius":  0.12530025260155633,
+                                      "topY":  1.7656486771654105
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0029994970689822265,
+                                                      1.16733304161056,
+                                                      0.02566362252795064
+                                                  ],
+                                       "radius":  0.45476945896318793,
+                                       "topY":  1.5743352459173086
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.00893440632917715,
+                                                     1.6644793199220507,
+                                                     0.037500225009958754
+                                                 ],
+                                      "radius":  0.12530031844442738,
+                                      "topY":  1.788670008035297
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.000995391108646937,
+                                                      1.1631841277188877,
+                                                      0.001210766019417761
+                                                  ],
+                                       "radius":  0.4564935923093293,
+                                       "topY":  1.566987360092653
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.008980028259663639,
+                                                     1.6647313990819188,
+                                                     0.03676134655349547
+                                                 ],
+                                      "radius":  0.12530032559160142,
+                                      "topY":  1.7890506735317042
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.000996827574455822,
+                                                      1.163175171090372,
+                                                      0.0013771081071626001
+                                                  ],
+                                       "radius":  0.45648115658966504,
+                                       "topY":  1.5669476296012603
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.009745180579337848,
+                                                     1.665214461348702,
+                                                     0.03507772710703628
+                                                 ],
+                                      "radius":  0.12530035883596302,
+                                      "topY":  1.7898809561273128
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.001042394808152769,
+                                                      1.1632959207438112,
+                                                      0.0025140922408796174
+                                                  ],
+                                       "radius":  0.45620549615776856,
+                                       "topY":  1.5671321242840142
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.013658721944233641,
+                                                     1.6609189726921896,
+                                                     0.052754406927687056
+                                                 ],
+                                      "radius":  0.12530040387928168,
+                                      "topY":  1.7856701392455379
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0016320004291426465,
+                                                      1.1650525049926868,
+                                                      0.010590307592286907
+                                                  ],
+                                       "radius":  0.45534921877268764,
+                                       "topY":  1.5703292229802317
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  0,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     -0.01576662417740115,
+                                                     1.6457047652628858,
+                                                     0.10783683542256309
+                                                 ],
+                                      "radius":  0.12530028767245668,
+                                      "topY":  1.7679753170811217
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      -0.0029714964701317154,
+                                                      1.1668121678815428,
+                                                      0.0224083695029359
+                                                  ],
+                                       "radius":  0.45411495572988336,
+                                       "topY":  1.5732934984592741
+                                   },
+                         "groundOffsetY":  0.07470698978041292
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020402747514903244,
+                                                      0.5963272841870364,
+                                                      0.13360789858309075
+                                                  ],
+                                       "radius":  0.4660991189945437,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.03120500688607912,
+                                                     0.9227962650700574,
+                                                     0.47852468693169226
+                                                 ],
+                                      "radius":  0.1253006514371886,
+                                      "topY":  1.036723283924549
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020388994215046072,
+                                                      0.596229312826899,
+                                                      0.13360701622405574
+                                                  ],
+                                       "radius":  0.46574618638245713,
+                                       "topY":  0.9538431626365115
+                                   },
+                         "groundOffsetY":  -0.4050571430723958
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031136352331546414,
+                                                     0.9171215583297325,
+                                                     0.4786064258270349
+                                                 ],
+                                      "radius":  0.12530069647933337,
+                                      "topY":  1.032013111185877
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020361529945890633,
+                                                      0.5953517029098636,
+                                                      0.13369371127531107
+                                                  ],
+                                       "radius":  0.4641510139448487,
+                                       "topY":  0.9518471598901638
+                                   },
+                         "groundOffsetY":  -0.40491343108801436
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.03776253586331137,
+                                                     0.8723006626624303,
+                                                     0.49247900987521886
+                                                 ],
+                                      "radius":  0.1253007327627639,
+                                      "topY":  0.9856873101543284
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.02025746501595542,
+                                                      0.591244936861038,
+                                                      0.1330550983028964
+                                                  ],
+                                       "radius":  0.45576926278820035,
+                                       "topY":  0.9427496712911554
+                                   },
+                         "groundOffsetY":  -0.4043992847406055
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_chest",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  1,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.043731285651348116,
+                                                     0.85967141741982,
+                                                     0.5041494085998389
+                                                 ],
+                                      "radius":  0.12530049853095002,
+                                      "topY":  0.9653715870240978
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020089118843757733,
+                                                      0.5934635067157712,
+                                                      0.1322961842560645
+                                                  ],
+                                       "radius":  0.4555483175593387,
+                                       "topY":  0.9457959968337526
+                                   },
+                         "groundOffsetY":  -0.4036133176700327
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  200,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  0,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031191965130891293,
+                                                     0.9237740497822702,
+                                                     0.47851801498558905
+                                                 ],
+                                      "radius":  0.12530064292374757,
+                                      "topY":  1.0375719687785412
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020402747514903244,
+                                                      0.5963272841870364,
+                                                      0.13360789858309075
+                                                  ],
+                                       "radius":  0.4660991189945437,
+                                       "topY":  0.9541613080048869
+                                   },
+                         "groundOffsetY":  -0.4051308150377123
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  217.5,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  17.5,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031329002993361006,
+                                                     0.9236249322245513,
+                                                     0.47818539760345663
+                                                 ],
+                                      "radius":  0.12530064936560553,
+                                      "topY":  1.037531736632872
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020388994215046072,
+                                                      0.5963484846913937,
+                                                      0.13357995903010494
+                                                  ],
+                                       "radius":  0.46590532530104295,
+                                       "topY":  0.9540815063655009
+                                   },
+                         "groundOffsetY":  -0.4050571430723958
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  250,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  50,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.031220855772471218,
+                                                     0.9231294553794691,
+                                                     0.4760133638753703
+                                                 ],
+                                      "radius":  0.12530069004536168,
+                                      "topY":  1.038457363188817
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020361529945890633,
+                                                      0.5961815264519366,
+                                                      0.13355940529685284
+                                                  ],
+                                       "radius":  0.4652397523210229,
+                                       "topY":  0.9535068069743095
+                                   },
+                         "groundOffsetY":  -0.40491343108801436
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  350,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  150,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.032948718416890954,
+                                                     0.905803709653311,
+                                                     0.47887441535565767
+                                                 ],
+                                      "radius":  0.12530073515474216,
+                                      "topY":  1.0219005470964113
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.02025746501595542,
+                                                      0.5948906279599688,
+                                                      0.13337888646707532
+                                                  ],
+                                       "radius":  0.461923778584867,
+                                       "topY":  0.9500410534890171
+                                   },
+                         "groundOffsetY":  -0.4043992847406055
+                     }
+    },
+    {
+        "faction":  "fieldgrey",
+        "label":  "rifle_crouch_idle+hit_head",
+        "actions":  [
+                        {
+                            "clipIndex":  3,
+                            "phaseMs":  480,
+                            "weight":  1,
+                            "current":  true
+                        }
+                    ],
+        "reaction":  {
+                         "kind":  2,
+                         "ageMs":  280,
+                         "seq":  1
+                     },
+        "expected":  {
+                         "head":  {
+                                      "center":  [
+                                                     0.04248663227775348,
+                                                     0.863766524352807,
+                                                     0.49932899404393283
+                                                 ],
+                                      "radius":  0.125300545820216,
+                                      "topY":  0.9716576147159062
+                                  },
+                         "torso":  {
+                                       "center":  [
+                                                      0.020089118843757733,
+                                                      0.5943519025653412,
+                                                      0.13255995120126382
+                                                  ],
+                                       "radius":  0.45734736089289657,
+                                       "topY":  0.9475727885328926
+                                   },
+                         "groundOffsetY":  -0.4036133176700327
+                     }
+    }
+]

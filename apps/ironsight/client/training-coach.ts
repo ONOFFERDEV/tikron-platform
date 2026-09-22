@@ -1,84 +1,196 @@
-import { formatBinding, type SettingsStore } from './settings.js';
-import { TrainingProgress, type TrainingObjective } from './training-progress.js';
+import type { MapDef } from "../src/map/types.js";
+import { mapCallout } from "./map-presentation.js";
+import { formatBinding, type SettingsStore } from "./settings.js";
+import { COPY } from "./ui/copy.js";
+import { createUiButton, createUiKeycap } from "./ui/primitives.js";
+import {
+  TrainingProgress,
+  type TrainingCheckpoint,
+  type TrainingRouteSpec,
+  type TrainingStepId,
+} from "./training-progress.js";
 
-/** One peripheral lesson at a time; no input interception or render resources. */
+export interface TrainingCoachOptions {
+  readonly spec: TrainingRouteSpec;
+  readonly settings: SettingsStore;
+  readonly onFreeTraining: () => void;
+  readonly onMenu: () => void;
+}
+
+interface StepContent {
+  readonly title: string;
+  readonly detail: string;
+  readonly binding: string | null;
+  readonly action: string | null;
+}
+
+export function createTrainingRouteSpec(map: MapDef): TrainingRouteSpec | null {
+  switch (map.presentation) {
+    case "relay": return { route: "relay" };
+    case "undertow": return { route: "undertow", objective: map.caps.a };
+    case "switchyard": {
+      const points = map.patrolWaypoints ?? [];
+      const labels = COPY.maps.arena3.routes;
+      const checkpoints = labels.map((label, index): TrainingCheckpoint | null => {
+        const point = points.find(candidate => mapCallout(map, candidate.x, candidate.z) === label);
+        if (point === undefined) return null;
+        const ids = ["rail-embankment", "loading-yard", "rail-cut"] as const;
+        const id = ids[index];
+        return id === undefined ? null : { id, x: point.x, z: point.z, radius: 5 };
+      });
+      const first = checkpoints[0];
+      const second = checkpoints[1];
+      const third = checkpoints[2];
+      return first !== null && first !== undefined && second !== null && second !== undefined && third !== null && third !== undefined
+        ? { route: "switchyard", checkpoints: [first, second, third] }
+        : null;
+    }
+    case undefined: return null;
+  }
+}
+
 export class TrainingCoach {
   readonly progress: TrainingProgress;
-  private readonly card = document.createElement('aside');
-  private readonly heading = document.createElement('strong');
-  private readonly detail = document.createElement('p');
-  private readonly track = document.createElement('div');
-  private readonly guidance = document.createElement('div');
-  private readonly hold = document.createElement('progress');
+  private readonly card = document.createElement("aside");
+  private readonly heading = document.createElement("strong");
+  private readonly detail = document.createElement("p");
+  private readonly key = document.createElement("div");
+  private readonly guidance = document.createElement("div");
+  private readonly meter = document.createElement("progress");
+  private readonly track = document.createElement("div");
+  private readonly actions = document.createElement("div");
+  private readonly settings: SettingsStore;
   private nextGuidanceAt = 0;
-  private completedAt = Infinity;
-  private lastStep = -1;
-  private lastSettings: ReturnType<SettingsStore['get']> | null = null;
+  private lastStep: TrainingStepId | null = null;
+  private lastSettings: ReturnType<SettingsStore["get"]> | null = null;
 
-  constructor(hasTargets: boolean, private readonly settings: SettingsStore, objective?: TrainingObjective) {
-    this.progress = new TrainingProgress(hasTargets, objective);
-    this.card.id = 'trainingCoach';
+  constructor(options: TrainingCoachOptions) {
+    this.progress = new TrainingProgress(options.spec);
+    this.settings = options.settings;
+    this.card.id = "trainingCoach";
+    this.card.className = "ui-surface training-coach";
     this.card.hidden = true;
-    this.card.setAttribute('role', 'status');
-    this.card.setAttribute('aria-live', 'polite');
-    this.card.setAttribute('aria-atomic', 'true');
-    const style = document.createElement('style');
-    style.textContent = `#trainingCoach{position:fixed;left:28px;top:238px;width:250px;box-sizing:border-box;padding:16px 18px;background:#10242bf2;border-left:3px solid #edaa52;color:#e8efea;font:12px/1.5 system-ui;pointer-events:none;z-index:8}#trainingCoach[hidden]{display:none}#trainingCoach strong{display:block;font-size:14px;letter-spacing:.7px}#trainingCoach p{margin:8px 0 12px;color:#bdd0ce}#trainingCoach .steps{font-size:10px;letter-spacing:1px;color:#edaa52}#trainingCoach[data-step="3"]{border-color:#64c7cc}#trainingCoach[data-step="3"] .steps{color:#64c7cc}@media(max-height:650px),(max-width:800px){#trainingCoach{top:190px;left:16px;width:205px;padding:10px 12px;font-size:11px}}`;
-    // Leave breathing room under the two-line connection panel on short/narrow screens.
-    style.textContent += '@media(max-height:650px),(max-width:800px){#trainingCoach{top:202px}}';
-    style.textContent += '#trainingCoach .guidance{margin:0 0 10px;color:#fff3cf;font-size:11px;letter-spacing:.5px}#trainingCoach progress{display:block;width:100%;height:5px;margin:8px 0 0;accent-color:#edaa52}#trainingCoach .guidance[hidden]{display:none}';
-    style.textContent += '@media(max-width:800px){#matchBrief{top:110px;left:242px;right:16px;width:auto;transform:none;text-align:right}}';
-    // Only step changes are live announcements, not the changing distance/timer.
-    this.guidance.className = 'guidance';
-    this.guidance.setAttribute('aria-live', 'off');
-    this.guidance.hidden = true;
-    this.guidance.append(document.createElement('span'), this.hold);
-    this.hold.max = this.progress.objectiveHoldMs;
-    this.hold.setAttribute('aria-label', 'Capture rehearsal hold progress');
-    this.track.className = 'steps';
-    this.card.append(this.heading, this.detail, this.guidance, this.track);
+    this.card.setAttribute("aria-label", "훈련 안내");
+    this.heading.setAttribute("role", "status");
+    this.heading.setAttribute("aria-live", "polite");
+    this.heading.setAttribute("aria-atomic", "true");
+    this.key.className = "training-coach__key";
+    this.guidance.className = "training-coach__guidance";
+    this.guidance.setAttribute("aria-live", "off");
+    this.meter.max = 1;
+    this.meter.setAttribute("aria-label", "현재 훈련 진행률");
+    this.track.className = "training-coach__track";
+    this.actions.className = "training-coach__actions";
+    this.actions.append(
+      createUiButton({ label: COPY.training.freeTraining, tone: "accent", onClick: options.onFreeTraining }),
+      createUiButton({ label: "출격 화면으로", onClick: options.onMenu }),
+    );
+    this.card.append(this.heading, this.detail, this.key, this.guidance, this.meter, this.track, this.actions);
+    const style = document.createElement("style");
+    style.textContent = trainingCoachCss;
     document.head.append(style);
     document.body.append(this.card);
   }
 
-  update(now: number, active: boolean, x: number, z: number, aiming: boolean, dt: number): void {
-    this.progress.sample(active, x, z, aiming, dt);
+  update(now: number, serverNow: number, active: boolean, x: number, z: number, aiming: boolean, dtMs: number): void {
+    this.progress.sample(active, x, z, aiming, dtMs);
     const step = this.progress.step;
-    if (step === 3 && this.completedAt === Infinity) this.completedAt = now;
-    this.card.hidden = !active || now - this.completedAt > 12000;
-    this.guidance.hidden = step !== 4;
-    if (step === 4 && now >= this.nextGuidanceAt) {
-      this.nextGuidanceAt = now + 250;
-      const p = this.progress, goal = p.objective!;
-      const bearing = (Math.round(Math.atan2(goal.x - x, z - goal.z) / (Math.PI / 4)) + 8) % 8;
-      const compass = ['NORTH', 'NORTH-EAST', 'EAST', 'SOUTH-EAST', 'SOUTH', 'SOUTH-WEST', 'WEST', 'NORTH-WEST'][bearing]!;
-      this.guidance.firstElementChild!.textContent = p.objectiveDistance <= p.objectiveRadius
-        ? `INSIDE A · HOLD ${(p.heldMs / 1000).toFixed(1)} / ${p.objectiveHoldMs / 1000} s`
-        : `A · ${compass} · ${Math.ceil(p.objectiveDistance)} m`;
-      this.hold.value = p.heldMs;
-    }
+    this.card.hidden = !active && step !== "complete";
+    this.card.dataset.step = step;
+    this.actions.hidden = step !== "complete";
+
     const settings = this.settings.get();
-    if (step === this.lastStep && settings === this.lastSettings) return;
-    this.lastStep = step; this.lastSettings = settings;
-    this.card.dataset.step = String(step);
-    const binds = settings.binds;
-    const move = [binds.forward, binds.left, binds.back, binds.right].map(formatBinding).join(' / ');
-    const total = 3 + Number(this.progress.hasTargets) + Number(!!this.progress.objective);
-    const titles = ['01 / FIND YOUR FEET', '02 / STEADY YOUR AIM', '03 / LAND A HIT', 'TRAINING COMPLETE', '03 / HOLD OBJECTIVE A', `0${total} / MARK A ROUTE`];
-    const details = [
-      `${move} · Move four metres between cover. Use the minimap to keep your bearings.`,
-      'Hold right mouse to aim down sights. Keep it steady for half a second.',
-      'Left mouse · Hit a passive operator in West Service. The hit marker confirms your shot landed.',
-      this.progress.objective ? 'In Domination, hold sites to score. Enemies in the zone stop capture; owned sites keep scoring after you leave. Esc → Deployment → Domination to play.'
-        : this.progress.hasTargets ? `Try weapons 1–5 and ${formatBinding(binds.reload)} to reload. Esc → Deployment when you are ready for a match.`
-        : 'This site is for exploration, with no targets. Esc → Deployment → Relay training for shooting practice.',
-      `Find A on the minimap. Take the north aisle between the concrete screens. Stay within ${this.progress.objectiveRadius} m for ${this.progress.objectiveHoldMs / 1000} s. Rehearsal only; no score.`,
-      binds.ping.length
-        ? `Aim at a route, then press ${formatBinding(binds.ping)}. Look for + on the minimap and YOU / GO HERE. In team matches, allies see your mark for five seconds. Here, only you see it.`
-        : 'Team ping has no key assigned. Esc → Settings → Team ping: choose a key, then resume and mark a route. Training waits for your mark.',
-    ];
-    const done = step === 5 ? total - 1 : step === 4 ? 2 + Number(this.progress.hasTargets) : step;
-    const text = [titles[step]!, details[step]!, step === 3 ? `${total} / ${total} COMPLETE · FREE PRACTICE` : `${done} / ${total} COMPLETE · TRAINING`];
-    [this.heading, this.detail, this.track].forEach((node, i) => { if (node.textContent !== text[i]) node.textContent = text[i]!; });
+    if (step !== this.lastStep || settings !== this.lastSettings) {
+      const content = stepContent(step, settings);
+      this.heading.textContent = content.title;
+      this.detail.textContent = content.detail;
+      this.key.replaceChildren();
+      if (content.binding !== null && content.action !== null) {
+        this.key.append(createUiKeycap(content.binding, content.action, content.binding ? "default" : "unbound"));
+      }
+      this.lastStep = step;
+      this.lastSettings = settings;
+    }
+
+    if (now >= this.nextGuidanceAt) {
+      this.nextGuidanceAt = now + 250;
+      this.updateProgress(serverNow, x, z);
+    }
+    const current = stepIndex(step, this.progress.route);
+    const total = stepCount(this.progress.route);
+    this.track.textContent = step === "complete" ? `${total} / ${total}` : `${current} / ${total}`;
+  }
+
+  private updateProgress(serverNow: number, x: number, z: number): void {
+    const step = this.progress.step;
+    if (step === "reload") {
+      const progress = this.progress.reloadProgress(serverNow);
+      this.meter.hidden = progress === null;
+      this.meter.value = progress ?? 0;
+      this.guidance.textContent = progress === null ? "재장전 서버 확인 대기" : `${Math.round(progress * 100)}%`;
+      return;
+    }
+    if (step === "reach-objective" || step === "hold-objective") {
+      this.meter.hidden = step !== "hold-objective";
+      this.meter.value = this.progress.heldMs / this.progress.objectiveHoldMs;
+      this.guidance.textContent = step === "hold-objective"
+        ? `A 구역 유지 ${(this.progress.heldMs / 1_000).toFixed(1)} / ${(this.progress.objectiveHoldMs / 1_000).toFixed(1)}초`
+        : `A 거점까지 ${Math.ceil(this.progress.objectiveDistance)}m`;
+      return;
+    }
+    if (this.progress.spec.route === "switchyard" && step !== "complete") {
+      const checkpoint = this.progress.spec.checkpoints[stepIndex(step, "switchyard")];
+      this.meter.hidden = true;
+      this.guidance.textContent = checkpoint === undefined ? "" : `${Math.ceil(Math.hypot(checkpoint.x - x, checkpoint.z - z))}m`;
+      return;
+    }
+    this.meter.hidden = true;
+    this.guidance.textContent = step === "complete" ? "훈련 완료" : "";
   }
 }
+
+function stepContent(step: TrainingStepId, settings: ReturnType<SettingsStore["get"]>): StepContent {
+  const reload = formatBinding(settings.binds.reload);
+  const ping = formatBinding(settings.binds.ping);
+  switch (step) {
+    case "move": return { title: "이동", detail: "엄폐 사이를 4m 이동하십시오.", binding: movementBinding(settings), action: "이동" };
+    case "aim": return { title: "조준", detail: "조준 상태를 0.5초 유지하십시오.", binding: "마우스 오른쪽", action: "조준" };
+    case "hit": return { title: "명중", detail: "통신소 서쪽의 표적을 맞히고 서버 확인을 기다리십시오.", binding: "마우스 왼쪽", action: "사격" };
+    case "reload": return { title: "재장전", detail: "탄약이 실제로 장전될 때까지 서버 진행을 확인합니다.", binding: reload, action: "재장전" };
+    case "ping": return { title: "위치 표시", detail: ping ? "경로를 조준하고 위치를 표시하십시오." : "설정에서 위치 표시 키를 지정하십시오.", binding: ping, action: "위치 표시" };
+    case "reach-objective": return { title: "A 거점 접근", detail: "미니맵의 A 거점으로 이동하십시오.", binding: movementBinding(settings), action: "이동" };
+    case "hold-objective": return { title: "A 거점 유지", detail: "구역을 벗어나지 말고 점령 시간을 채우십시오. 연습 점수는 오르지 않습니다.", binding: null, action: null };
+    case "reach-rail-embankment": return { title: COPY.maps.arena3.routes[0], detail: "철도 둑의 엄폐 경로를 확인하십시오.", binding: movementBinding(settings), action: "이동" };
+    case "reach-loading-yard": return { title: COPY.maps.arena3.routes[1], detail: "하역장 중앙 통로로 이동하십시오.", binding: movementBinding(settings), action: "이동" };
+    case "reach-rail-cut": return { title: COPY.maps.arena3.routes[2], detail: "남측 선로 절개지까지 경로를 완주하십시오.", binding: movementBinding(settings), action: "이동" };
+    case "complete": return { title: "훈련 완료", detail: "자유 훈련을 계속하거나 출격 화면으로 돌아갈 수 있습니다.", binding: null, action: null };
+  }
+}
+
+function movementBinding(settings: ReturnType<SettingsStore["get"]>): string {
+  return [settings.binds.forward, settings.binds.left, settings.binds.back, settings.binds.right]
+    .map(formatBinding)
+    .join(" / ");
+}
+
+function stepCount(route: TrainingRouteSpec["route"]): number {
+  switch (route) {
+    case "relay": return 6;
+    case "undertow": return 2;
+    case "switchyard": return 3;
+  }
+}
+
+function stepIndex(step: TrainingStepId, route: TrainingRouteSpec["route"]): number {
+  const steps: Readonly<Record<TrainingRouteSpec["route"], readonly TrainingStepId[]>> = {
+    relay: ["move", "aim", "hit", "reload", "ping", "complete"],
+    undertow: ["reach-objective", "hold-objective", "complete"],
+    switchyard: ["reach-rail-embankment", "reach-loading-yard", "reach-rail-cut", "complete"],
+  };
+  const index = steps[route].indexOf(step);
+  return Math.max(0, index);
+}
+
+export const trainingCoachCss = `
+.training-coach{position:fixed;inset-block-start:238px;inset-inline-start:var(--ui-safe-edge);inline-size:min(320px,calc(100vw - 2 * var(--ui-safe-edge)));padding:var(--ui-space-4);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);border-radius:var(--ui-radius-panel);background:var(--ui-hud-backing);color:var(--ui-text-primary);pointer-events:none;z-index:var(--ui-z-notice)}.training-coach[hidden]{display:none}.training-coach>strong{display:block;font:700 var(--ui-type-hud)/1.4 var(--ui-font-body)}.training-coach>p{margin:var(--ui-space-2) 0;color:var(--ui-text-secondary);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);text-wrap:pretty}.training-coach__key{margin-block:var(--ui-space-2)}.training-coach__guidance{color:var(--ui-warning);font:500 var(--ui-type-hud)/1.4 var(--ui-font-body)}.training-coach progress{inline-size:100%;block-size:var(--ui-space-2);margin-block-start:var(--ui-space-2);accent-color:var(--ui-accent)}.training-coach__track{margin-block-start:var(--ui-space-2);color:var(--ui-accent);font:700 var(--ui-type-meta)/1.4 var(--ui-font-body);font-variant-numeric:tabular-nums}.training-coach__actions{display:flex;flex-wrap:wrap;gap:var(--ui-space-2);margin-block-start:var(--ui-space-4);pointer-events:auto}.training-coach__actions[hidden]{display:none}@media(max-height:650px),(max-width:800px){.training-coach{inset-block-start:202px}}
+`;

@@ -1,12 +1,12 @@
 import type { Box } from '../physics.js';
 import type { StructureDef } from './structures.js';
 
-/** Paired service rooms replace the sealed 16 x 6 m south housings. All new
+/** Paired baggage and signal rooms replace the sealed 16 x 6 m south housings. All new
  * solids fit inside those old envelopes; a saved valid position is never
  * enclosed. Two yard doors, permanent firing windows, an internal stair and
  * a +3 m roof with a south escape. The yard remains the bot navigation layer. */
 export const SWITCHYARD_MAINTENANCE: StructureDef = {
-  id: 'west-maintenance', origin: { x: 34, y: 0, z: 58 }, width: 16, depth: 6,
+  id: 'west-baggage-office', origin: { x: 34, y: 0, z: 58 }, width: 16, depth: 6,
   walls: [
     { axis: 'z', at: 0, from: 0, to: 6, thickness: .4, bottom: 0, top: 3,
       openings: [{ from: 2.8, to: 4.5, bottom: 1.1, top: 2.35 }] },
@@ -37,7 +37,7 @@ export const SWITCHYARD_MAINTENANCE: StructureDef = {
 
 const reflect = (x: number) => Math.round((16 - x) * 1e6) / 1e6;
 export const SWITCHYARD_DISPATCH: StructureDef = {
-  ...SWITCHYARD_MAINTENANCE, id: 'east-dispatch', origin: { x: 100, y: 0, z: 58 },
+  ...SWITCHYARD_MAINTENANCE, id: 'east-signal-office', origin: { x: 100, y: 0, z: 58 },
   walls: SWITCHYARD_MAINTENANCE.walls.map(w => w.axis === 'z'
     ? { ...w, at: reflect(w.at + w.thickness) }
     : { ...w, from: reflect(w.to), to: reflect(w.from),

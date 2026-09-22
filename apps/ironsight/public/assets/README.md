@@ -147,6 +147,17 @@ charging handle, SMG/sniper magazines and handles, energy-shotgun side cell and
 pistol slide are separated at runtime into complete welded components, keeping
 the cached purchased mesh immutable. The pistol insert is original box geometry inside its integrated source grip.
 No extra purchased weapon derivative is exported.
+
+The development preview ships `ww1/characters/fp-arms.glb` as unfinished original-authored
+runtime geometry. `tools/build-ww1-fp-arms.mjs` SHA-256
+`cac695eab2229bf9b7dac416e9ab329d1e234380312c514449274e7038d34269`
+reproduces the 61,236-byte GLB SHA-256
+`af97c6530220c06efe5dd367c7f60df568d39673936f4bddaa8ac673ece5b162`
+and metadata SHA-256
+`1fd81d4f9f776c154c4de7552b386828ba8a8aa8a034b1ded7d27f66dbe7c453`.
+The metadata status remains `pending_visual_and_weapon_fit`; development-preview admission
+does not claim final visual or hero-quality acceptance. Regenerate to an isolated path with
+`node tools/build-ww1-fp-arms.mjs --out <absolute-fp-arms.glb> --audit`.
 Undertow uses the original procedural reclamation kit, skyline and baked floor atlas; it never requests the
 legacy `arena2-dressing.glb`. That older bundle remains local for rollback.
 
@@ -1670,3 +1681,32 @@ reference; and matched before/after supply gallery views. Geometry, load,
 frame, budget and hitch results are recorded in `AAA-PLAN-ASSETS.md`.
 The game entrypoint does not import the library yet, so this addition creates
 zero game downloads or resident textures until the map stream integrates it.
+
+### WW1 source-model candidate gates (2026-09-12)
+
+`config/ww1-authored-admission.json` binds the exact builder, GLB and metadata
+hashes for the 13 original-authored environment/support models. Its independent
+review accepts only the source/model checkpoint. The independently reviewed
+source transform/collision adapter enables query-local preview QA. Runtime
+visuals remain unqualified pending browser review, so ordinary play retains the
+deterministic fallback until that review passes.
+
+`config/ww1-weapon-candidate-admission.json` binds the five weapon models,
+grenade and pooled clip/shell/casing candidates to their exact builder, recipe,
+review, GLB and metadata hashes. It deliberately records `heroAccepted: false`,
+`runtimeAccepted: false` and source/offline-only first-person fit. The five
+weapon GLB/metadata pairs, grenade pair and pooled clip/shell/casing pair are
+published for explicit development preview via `?weapon-candidates=1`.
+Ordinary runtime selection is unchanged. Preview gameplay and the weapon
+inspector use the same typed resolver. The authored grenade and casing
+consumers retain their procedural fallback on failure and hold a URL-keyed
+lease only while a clone uses shared geometry. Reload clips and shells remain
+the nodes authored into each weapon model; the pooled support model does not
+duplicate them during gameplay.
+
+`config/ww1-soldier-candidate-admission.json` quarantines the two licensed-derived
+staging16 soldiers by exact source, fitter, GLB and metadata hashes. A Blender
+normalization result conflicted with GLB JSON inspection, which shows only the
+three intended LOD mesh nodes. The record therefore makes no bad-export claim:
+it remains quarantined until a true Three.js Box3 check and current packet are
+independently reviewed. The configured `player.glb` remains the runtime model.

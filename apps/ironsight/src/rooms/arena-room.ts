@@ -17,6 +17,7 @@ import {
   type AOIConfig,
   type Client,
   type InputMeta,
+  type MessageHandler,
 } from "@tikron/server";
 import { xorshift32, type Vec2 } from "@tikron/sim";
 import { ArenaSchema, type ArenaState, type ArenaPlayer } from "../schema.js";
@@ -39,6 +40,8 @@ import { canStand, moveAndSlide, nearestBox, type Box, type Vec3 } from "../phys
 import { chooseSafeSpawn, spawnFacingYaw, SpawnSightHistory } from "../map/spawn.js";
 import { botNavigators } from './bot-navigation.js';
 import { resolveHitscan, type FireClaim, type HitTarget } from "../hitscan.js";
+import { validateHitClaim } from "../hit-claim.js";
+import { nearestOccluder } from "../ray-occlusion.js";
 import { accuracySpread, dirFromAngles, falloffMul, pelletPattern, jitter } from "../weapons.js";
 import { blastDamage, stepGrenade, type GrenadeBody } from "../grenade.js";
 import type { MapDef } from "../map/types.js";
@@ -58,15 +61,41 @@ import { BotCoverIndex } from './bot-cover.js';
 import { MovementInbox, MOVEMENT_SYNC, readMovementBatch, saveControllers, type MovementSnapshot } from './movement-sync.js';
 import { ambushOpening, AMBUSH_WINDOW_MS } from '../ambush.js';
 import { GAME } from "../game-config.js";
+import { CONTENT_REVISION, readContentRevision } from "../../config/ww1-content.js";
+import { BoundedShotDedup, scopedShotId, type BlockedServerShotResult } from "../combat-events.js";
+import { horizontalMovement } from "../movement-rules.js";
+import { WeaponActions, type WeaponActionEvent, type WeaponActionState } from "../weapon-action.js";
+import { advanceHitAnimationTimeline } from "../hit-animation-timeline.js";
+import {
+  encodeHitAnimationClip,
+  hitStateBucket,
+  HIT_ANIMATION_NONE,
+  type HitStateBucketPolicy,
+} from "../hit-state-bucket.js";
+import { migrateArenaState } from "../arena-state-migration.js";
+import {
+  HitVolumeHistory,
+  type HitAuthorityEvaluator,
+  type HitAuthorityFrame,
+} from "../hit-volume-history.js";
+import type { Stage33HitIdentity } from "../stage33-hit-calibration.js";
+import { createBundledHitAuthorityContract } from "../hit-authority-contract.js";
 
-// The active theme's weapon roster — swapping game-config.ts's loaded config
+export interface HitAuthorityPolicy {
+  readonly evaluator: HitAuthorityEvaluator;
+  readonly identity: (player: ArenaPlayer) => Stage33HitIdentity | undefined;
+}
+
+const BUNDLED_HIT_AUTHORITY = createBundledHitAuthorityContract();
+
+// The active theme's weapon roster ??swapping game-config.ts's loaded config
 // changes what these resolve to (GAME.weapons === WEAPONS by reference for the
 // ironsight theme, so this is a no-op alias for the shipped game).
 const WEAPONS = GAME.weapons;
 const DEFAULT_WEAPON = GAME.weaponMeta.defaultIndex;
 const PISTOL_INDEX = GAME.weaponMeta.pistolIndex;
 
-/** A live grenade in flight (server-only; never in wire state — see schema.ts). */
+/** A live grenade in flight (server-only; never in wire state ??see schema.ts). */
 interface Grenade {
   id: string;
   owner: string;
@@ -78,9 +107,9 @@ interface Grenade {
 
 /** Latest held-input intent for a player (server integrates it every tick). */
 interface PlayerInput {
-  /** Strafe axis (−1 left … +1 right). */
+  /** Strafe axis (?? left ??+1 right). */
   mx: number;
-  /** Forward axis (−1 back … +1 forward). */
+  /** Forward axis (?? back ??+1 forward). */
   mz: number;
   /** Edge-triggered jump request (consumed on the next grounded tick). */
   jump: boolean;
@@ -108,18 +137,18 @@ function readBool(o: unknown, key: string): boolean {
 /**
  * Reads a hybrid hit-registration claim off a `fire` payload's `claim` field.
  * Three states, distinguished on purpose (see `handleFire`):
- * - field absent → `{ present: false }` (old client, or the client didn't
- *   attempt a claim for this shot — e.g. a multi-pellet weapon) → the existing
+ * - field absent ??`{ present: false }` (old client, or the client didn't
+ *   attempt a claim for this shot ??e.g. a multi-pellet weapon) ??the existing
  *   analytic hitscan is the fallback, unchanged.
- * - `claim: null` → `{ present: true, value: null }` — the client raycast its
+ * - `claim: null` ??`{ present: true, value: null }` ??the client raycast its
  *   own rendered scene and found nothing (occluded or a genuine miss); trusted
  *   outright, no plausibility check needed (a forged "miss" only disadvantages
- *   the claimer, never a cheat vector) and — critically — NOT treated the same
+ *   the claimer, never a cheat vector) and ??critically ??NOT treated the same
  *   as "absent," or the analytic capsule could still register a hit through a
  *   gap the real mesh doesn't cover, defeating the point of the feature.
- * - `claim: {id, part}` → `{ present: true, value: {id, part} }`, validated by
+ * - `claim: {id, part}` ??`{ present: true, value: {id, part} }`, validated by
  *   `validateClaim` before being trusted for damage.
- * Anything malformed (wrong field types) reads as absent — fails open to
+ * Anything malformed (wrong field types) reads as absent ??fails open to
  * today's behavior rather than throwing on a bad client payload.
  */
 function readClaim(o: unknown, key: string): { present: false } | { present: true; value: FireClaim | null } {
@@ -141,7 +170,7 @@ const PITCH_LIMIT = Math.PI / 2 - 0.01;
 const TAU = Math.PI * 2;
 
 /**
- * ironsight arena room — a server-authoritative 3D TDM FPS on the {@link IoArenaRoom}
+ * ironsight arena room ??a server-authoritative 3D TDM FPS on the {@link IoArenaRoom}
  * preset (PLAN-IRONSIGHT M0). The server integrates movement from WASD *intents*
  * (not client-sent positions), resolves collisions against arena1's boxes, and
  * registers hits by **rewinding** targets to the instant the shooter fired.
@@ -157,24 +186,29 @@ const TAU = Math.PI * 2;
  * one `at` instant, so head/body discrimination survives real RTT.
  */
 export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
-  // v14 enlarges Relay Comms and replaces the opposite shelter with Control.
-  // Reset older snapshots so saved players cannot restore inside new walls or
-  // above the replaced roof. Default null migration starts a fresh match.
-  protected override stateVersion = 15;
+  // v18 appends the explicit geometry-segment boundary used by both rendering
+  // interpolation and rewound calibrated hit volumes.
+  protected override stateVersion = 18;
   protected readonly codec = ArenaSchema;
+  protected hitAnimationPolicy: HitStateBucketPolicy | undefined =
+    BUNDLED_HIT_AUTHORITY?.hitAnimationPolicy;
+  protected hitAuthorityPolicy: HitAuthorityPolicy | undefined = BUNDLED_HIT_AUTHORITY === undefined
+    ? undefined
+    : { evaluator: BUNDLED_HIT_AUTHORITY.evaluator,
+      identity: player => BUNDLED_HIT_AUTHORITY.identityForTeam(player.team) };
   protected override tickMs = TICK_MS;
-  // Must be ≤ tickMs, or the default 50 ms coalesce window would throttle the
+  // Must be ??tickMs, or the default 50 ms coalesce window would throttle the
   // per-tick flushes back down below the sim rate.
   protected override syncIntervalMs = TICK_MS;
   // The point of the FPS stack: rewind hit checks to the shooter's subtick instant.
   protected override lagCompensation = true;
-  // Explicit `: number` — the `as const` config narrows these to literal types, which blocks
+  // Explicit `: number` ??the `as const` config narrows these to literal types, which blocks
   // test subclasses from overriding with other latencies (W-C finding).
   protected override lagCompensationDepthMs: number = LAG.depthMs;
   protected override lagInterpolationMs: number = LAG.interpolationMs;
   // AOI is wired (event routing + anti-wallhack boundary), but the view radius
   // spans the whole small arena so a 12-player TDM never culls a teammate you
-  // need on the map — interest-tier tuning is an M2 concern at higher CCU.
+  // need on the map ??interest-tier tuning is an M2 concern at higher CCU.
   protected override aoi: AOIConfig<ArenaState> = {
     viewRadius: Math.max(GAME.match.aoiViewRadius, Math.hypot(ARENA1.bounds.width, ARENA1.bounds.depth)),
     mapFields: ["players"],
@@ -183,7 +217,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   };
 
   // --- match-flow tunables (mirrored from config; a test subclass can shrink
-  //     these — e.g. killTarget = 2 — without touching production values) ---
+  //     these ??e.g. killTarget = 2 ??without touching production values) ---
   protected killTarget: number = MATCH.killTarget;
   protected matchTimeMs: number = MATCH.timeLimitMs;
   protected intermissionMs: number = MATCH.intermissionMs;
@@ -194,7 +228,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected assistWindowMs: number = MATCH.assistWindowMs;
   /** Real+bot seat target; a test subclass sets 0 to keep bots out of a scripted room. */
   protected fillToPlayers: number = MATCH.fillToPlayers;
-  /** Boot straight into "live" (skips warmup) — for scripted tests that stage combat directly. */
+  /** Boot straight into "live" (skips warmup) ??for scripted tests that stage combat directly. */
   protected startInWarmup = true;
   /** Shared stats at every tier; only reaction time and decision depth differ. */
   protected botDifficulty: BotDifficulty = 'hard';
@@ -208,13 +242,17 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly grounded = new Map<string, boolean>();
   private readonly traversals = new Map<string, WaistTraversal>();
   private readonly slides = new Map<string, SprintSlide>();
-  // Per-weapon ammo: arrays indexed by weapon (0..WEAPONS.length−1), so each weapon
-  // keeps its own magazine + reserve (PLAN §4: "탄약/재장전 무기별 분리").
+  // Per-weapon ammo: arrays indexed by weapon (0..WEAPONS.length??), so each weapon
+  // keeps its own magazine + reserve (PLAN 짠4: "?꾩빟/?ъ옣??臾닿린蹂?遺꾨━").
   private readonly magByW = new Map<string, number[]>();
   private readonly reserveByW = new Map<string, number[]>();
   private readonly reloadUntil = new Map<string, number>(); // epoch ms; absent = not reloading (current weapon only)
+  private readonly weaponActions = new Map<string, WeaponActions>();
   private readonly recoil = new Map<string, RecoilState>();
-  private readonly lastShotAt = new Map<string, number>(); // server receipt epoch ms
+  private readonly lastShotAt = new Map<string, number[]>();
+  private readonly shotLives = new Map<string, number>();
+  private readonly serverFireSeq = new Map<string, number>();
+  private readonly shotDedup = new BoundedShotDedup(512);
   private readonly swapUntil = new Map<string, number>(); // epoch ms; can't fire until a weapon swap settles
   private readonly nadeReadyAt = new Map<string, number>(); // epoch ms; earliest next grenade throw
   private readonly primaryWeapon = new Map<string, number>(); // chosen spawn weapon index (loadout)
@@ -228,8 +266,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private grenades: Grenade[] = [];
   private nadeSeq = 0;
 
-  /** Vertical lag-comp channel: id → {x: feetY, y: headY}. Paired with {@link rewind}. */
-  private vertLag = new LagCompensator({ depthMs: LAG.depthMs });
+  /** Vertical lag-comp channel: id ??{x: feetY, y: headY}. Paired with {@link rewind}. */
+  protected vertLag = new LagCompensator({ depthMs: LAG.depthMs });
+  private hitVolumeHistory: HitVolumeHistory | undefined;
   /** Round-robin spawn cursor per team, so successive spawns don't stack. */
   private readonly spawnRot: Record<number, number> = { [TEAM.red]: 0, [TEAM.blue]: 0 };
   private readonly spawnSightHistory = new SpawnSightHistory();
@@ -240,7 +279,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private readonly roundHonors = new RoundHonors();
   /** One vote per player id; only meaningful while phase is "ended". */
   private readonly restartVotes = new Set<string>();
-  /** Recent non-lethal damage per victim, for assist attribution: victim → [{attacker, dmg, at}]. */
+  /** Recent non-lethal damage per victim, for assist attribution: victim ??[{attacker, dmg, at}]. */
   private readonly hits = new Map<string, { attacker: string; dmg: number; at: number; ambush?: boolean }[]>();
   /** Current consecutive-kill count per killer id (reset when that player dies). */
   private readonly streaks = new Map<string, number>();
@@ -251,6 +290,41 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private spreadRng: () => number = xorshift32(1);
   private dormant = false;
   private simulation: { tick: (dtMs: number) => void; intervalMs: number } | undefined;
+  private readonly contentReadyClients = new Set<string>();
+  private readonly contentMismatchSent = new Set<string>();
+
+  protected override onMessage(type: string, handler: MessageHandler): void {
+    super.onMessage(type, (client, payload, seq, input) => {
+      if (!this.contentReadyClients.has(client.id)) {
+        this.sendContentMismatch(client, null);
+        return;
+      }
+      return handler(client, payload, seq, input);
+    });
+  }
+
+  private receiveContentReady(client: Client, payload: unknown): void {
+    const revision = readContentRevision(payload);
+    if (revision !== CONTENT_REVISION) {
+      this.contentReadyClients.delete(client.id);
+      this.contentMismatchSent.delete(client.id);
+      this.sendContentMismatch(client, revision);
+      return;
+    }
+    this.contentReadyClients.add(client.id);
+    this.contentMismatchSent.delete(client.id);
+    client.send("contentAccepted", { revision: CONTENT_REVISION });
+  }
+
+  private sendContentMismatch(client: Client, received: number | null): void {
+    if (this.contentMismatchSent.has(client.id)) return;
+    this.contentMismatchSent.add(client.id);
+    client.send("contentMismatch", {
+      expected: CONTENT_REVISION,
+      received,
+      action: "reload",
+    });
+  }
 
   /** Retain the preset callback, including its lag-history recording and flush.
    * The host can reuse this instance after the last seat expires and the core
@@ -284,11 +358,11 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     super.setSimulationInterval(this.simulation.tick, this.simulation.intervalMs);
   }
 
-  /** This room's game mode, chosen from the room id (e.g. "arena-ffa" → FFA). */
+  /** This room's game mode, chosen from the room id (e.g. "arena-ffa" ??FFA). */
   private readonly gameMode: GameMode = modeFromRoomId(this.id);
 
-  /** This room's map, resolved once from its mode + room id (tdm → arena1, ffa → arena3, dom
-   *  → arena2, practice → arena1/2/3 per the room id's `map` suffix — see
+  /** This room's map, resolved once from its mode + room id (tdm ??arena1, ffa ??arena3, dom
+   *  ??arena2, practice ??arena1/2/3 per the room id's `map` suffix ??see
    *  modes.ts's `mapForRoom`, the single source of truth both this room and the
    *  client resolve the practice map through). */
   private readonly map: MapDef = mapForRoom(this.gameMode.id, this.id);
@@ -303,18 +377,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private get navigator() { return this.coreGate.open ? this.openNavigator : this.closedNavigator; }
   private get boxes(): readonly Box[] { return this.coreCollision.boxes(this.coreGate.open); }
   /** `boxes` plus each ramp's old step-box approximation (see
-   *  {@link rampOccluderBoxes}) — used ONLY for hit-scan/LoS occlusion, never
+   *  {@link rampOccluderBoxes}) ??used ONLY for hit-scan/LoS occlusion, never
    *  for movement. Movement (moveAndSlide/canStand) collides against a ramp's
    *  true sloped surface instead (moveAndSlide's `ramps` param); occlusion
    *  keeps the coarser step approximation since a wedge-accurate raycast
    *  isn't worth the added cost for "is this shot/blast blocked." */
   private get hitBoxes(): readonly Box[] { return this.coreCollision.hits(this.coreGate.open); }
 
-  /** True only for practice-on-arena1 — the single gate every showcase-roster
+  /** True only for practice-on-arena1 ??the single gate every showcase-roster
    *  code path (spawn pin, bot fill, view exposure) must check, so map
    *  selection can never leave arena2/arena3 practice half-showing the arena1-
    *  specific demo roster (its coordinates, PRACTICE_SHOWCASE_BOTS in
-   *  modes.ts, are placement baked for arena1 only — per-map showcase
+   *  modes.ts, are placement baked for arena1 only ??per-map showcase
    *  placement is out of scope here). `this.map === ARENA1` is a safe
    *  reference-equality check since mapForRoom always returns the same
    *  module-singleton MapDef object for a given map. */
@@ -324,25 +398,24 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   protected override onReady(): void {
     this.maxClients = MATCH.maxClients;
-    // The move+look stream runs ~ per-tick (20–30 Hz) plus fire — keep headroom
+    // The move+look stream runs ~ per-tick (20??0 Hz) plus fire ??keep headroom
     // over the 30/s default so inputs are never silently rate-dropped.
     this.maxInputsPerSecond = GAME.match.maxInputsPerSecond;
 
     // Practice is a solo/bot sandbox with no match flow to wait on or end: skip
     // warmup (straight into "live") and disable the mode-agnostic time-limit
     // fallback in onTick (PRACTICE_MODE.winCheck already never ends the match on
-    // its own — matchEndMs would otherwise still do it via that shared fallback).
+    // its own ??matchEndMs would otherwise still do it via that shared fallback).
     if (this.gameMode.id === "practice") {
       this.startInWarmup = false;
       this.matchTimeMs = Infinity;
-      // 1 solo player + the full showcase roster (see reconcileBots/addShowcaseBot) —
-      // unless a subclass already overrode fillToPlayers itself (e.g. a scripted-duel
+      // 1 solo player + the full showcase roster (see reconcileBots/addShowcaseBot) ??      // unless a subclass already overrode fillToPlayers itself (e.g. a scripted-duel
       // test room that wants zero filler bots), which this must not stomp.
       // Only when the showcase is actually active (practice on ARENA1): on an
       // arena2/arena3 practice room the roster is gated off, and leaving the
       // raised fill target in place would quietly backfill the deficit with
-      // REGULAR combat bots instead — exactly the live bug report ("아레나 2,
-      // 크로스야드 연습에 봇이 활동 중"): map-exploration practice must be an
+      // REGULAR combat bots instead ??exactly the live bug report ("?꾨젅??2,
+      // ?щ줈?ㅼ빞???곗뒿??遊뉗씠 ?쒕룞 以?): map-exploration practice must be an
       // empty map, so the fill target drops to 0 there.
       if (this.fillToPlayers === MATCH.fillToPlayers) {
         this.fillToPlayers = this.showcaseActive ? PRACTICE_SHOWCASE_BOTS.length + 1 : 0;
@@ -355,6 +428,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
     this.spreadRng = xorshift32(seed || 1);
     this.vertLag = new LagCompensator({ depthMs: this.lagCompensationDepthMs });
+    this.hitVolumeHistory = this.hitAnimationPolicy !== undefined && this.hitAuthorityPolicy !== undefined
+      ? new HitVolumeHistory({ depthMs: this.lagCompensationDepthMs }, this.hitAuthorityPolicy.evaluator)
+      : undefined;
 
     this.setState({
       players: {},
@@ -371,6 +447,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       capB: GAME.match.capNeutral,
       capC: GAME.match.capNeutral,
     });
+
+    super.onMessage("contentReady", (client, payload) => this.receiveContentReady(client, payload));
 
     this.onMessage("ping", (client, payload) => this.handlePing(client, payload));
     this.onMessage('mortar', (client, payload) => this.handleMortar(client, payload));
@@ -398,16 +476,39 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   override onJoin(client: Client): void {
     this.resumeArena();
+    this.contentReadyClients.delete(client.id);
+    this.contentMismatchSent.delete(client.id);
     const team = this.gameMode.teams ? this.assignTeam() : 0;
     const p = this.initPlayer(client.id, team);
     this.spawnInto(p, client.id);
+    client.send("shotScope", { life: this.shotLives.get(client.id) ?? 1 });
+    client.send("contentRevision", { revision: CONTENT_REVISION });
     this.markStateChanged();
+  }
+
+  override onReconnect(client: Client): void {
+    this.contentReadyClients.delete(client.id);
+    this.contentMismatchSent.delete(client.id);
+    client.send("contentRevision", { revision: CONTENT_REVISION });
+    client.send("shotScope", { life: this.shotLives.get(client.id) ?? 1 });
   }
 
   /** Runtime combat maps are deliberately not durable. A cold restore starts a
    * fresh round at safe spawns; it must never resume dead seats without timers,
    * stale protected flags, or an ended round without an intermission deadline. */
   protected override onRestore(): void {
+    this.contentReadyClients.clear();
+    this.contentMismatchSent.clear();
+    this.movementInboxes.clear();
+    this.grenades = [];
+    this.nadeSeq = 0;
+    this.primaryWeapon.clear();
+    this.shotLives.clear();
+    this.serverFireSeq.clear();
+    this.shotDedup.clear();
+    this.weaponActions.clear();
+    this.vertLag = new LagCompensator({ depthMs: this.lagCompensationDepthMs });
+    this.hitVolumeHistory?.clear();
     for (const id of Object.keys(this.state.players)) {
       if (id.startsWith("bot-") || PRACTICE_SHOWCASE_BOTS.some((bot) => bot.id === id)) {
         delete this.state.players[id];
@@ -421,20 +522,37 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.markStateChanged();
   }
 
+  protected override migrateState(fromVersion: number, oldState: unknown): ArenaState | null {
+    return migrateArenaState(fromVersion, oldState);
+  }
+
   /** Clear held intent immediately while preserving the preset's 30-second seat. */
   override async onLeave(client: Client): Promise<void> {
+    this.contentReadyClients.delete(client.id);
+    this.contentMismatchSent.delete(client.id);
     this.inputs.set(client.id, { ...NO_INPUT });
     this.movementInboxes.delete(client.id);
+    this.weaponActions.get(client.id)?.clear();
+    this.weaponActions.delete(client.id);
+    this.sendWeaponAction(client.id, null);
     await super.onLeave(client);
   }
 
   private syncView(client: Client): void {
     const p = this.state.players[client.id];
     if (!p) return;
+    client.send("shotScope", { life: this.shotLives.get(client.id) ?? 1 });
     client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, Date.now()));
     client.send('mortar', this.mortarSupport.view(client.id, this.state));
     client.send('drone', this.droneSupport.view(client.id, this.state, this.hitBoxes));
-    const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - Date.now());
+    const now = Date.now();
+    for (const [id, action] of this.weaponActions) {
+      const held = this.state.players[id]?.weapon;
+      const states = [...action.views(now)].sort((a, b) =>
+        Number(a.weaponIndex === held) - Number(b.weaponIndex === held));
+      for (const state of states) client.send("weaponAction", { id, state });
+    }
+    const remaining = Math.max(0, (this.reloadUntil.get(client.id) ?? 0) - now);
     client.send("ammo", {
       mag: this.magArr(client.id)[p.weapon] ?? 0,
       reserve: this.reserveArr(client.id)[p.weapon] ?? 0,
@@ -466,6 +584,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       d: 0,
       weapon: DEFAULT_WEAPON,
       nades: GRENADE.count, reloadEnd: 0,
+      hitClipIndex: HIT_ANIMATION_NONE,
+      hitClipStartedAt: 0,
+      hitBlendSources: [],
+      hitReactionKind: 0,
+      hitReactionStartedAt: 0,
+      hitReactionSeq: 0,
+      hitSegmentSeq: 0,
+      hitSegmentStartedAt: 0,
     };
     this.state.players[id] = p;
     this.inputs.set(id, { ...NO_INPUT });
@@ -506,12 +632,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     ]) {
       m.delete(id);
     }
+    this.weaponActions.get(id)?.clear();
+    this.weaponActions.delete(id);
     this.restartVotes.delete(id);
     this.grenades = this.grenades.filter((g) => g.owner !== id);
     this.markStateChanged();
   }
 
-  /** Horizontal lag-comp channel (the preset records this every tick): id → {x, z}. */
+  /** Horizontal lag-comp channel (the preset records this every tick): id ??{x, z}. */
   protected override lagSnapshot(): Map<string, Vec2> {
     const out = new Map<string, Vec2>();
     for (const [id, p] of Object.entries(this.state.players)) {
@@ -523,6 +651,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   protected override onTick(dtMs: number): void {
     const now = Date.now();
     const dt = clamp(dtMs, 0, MOVE.maxDtMs) / 1000;
+    const animationRoots = this.hitAnimationPolicy === undefined ? undefined : new Map(
+      Object.entries(this.state.players).map(([id, player]) => [id, { x: player.x, z: player.z }]),
+    );
 
     this.reconcileBots();
 
@@ -538,7 +669,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         this.endMatch(result.winner);
       } else if (
         // The killTarget fallback mirrors TDM's own winCheck (a symmetric red/blue
-        // score threshold) — gated to TDM only so it can't fire early for a mode
+        // score threshold) ??gated to TDM only so it can't fire early for a mode
         // whose winCheck uses a different score shape (dom's much-higher
         // scoreTarget, ffa's per-player kills). The time limit is mode-agnostic and
         // always applies.
@@ -602,6 +733,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       }
     }
 
+    if (animationRoots !== undefined) {
+      for (const [id, player] of Object.entries(this.state.players)) {
+        const before = animationRoots.get(id) ?? player;
+        this.updateHitAnimation(player, now, player.x - before.x, player.z - before.z, dt, false);
+      }
+    }
+
     // Sample authoritative post-movement sightlines before choosing respawns.
     // History uses simulation time and never changes cover or the spawn shield.
     if (this.spawnSightHistory.due(this.currentTick * TICK_MS)) {
@@ -628,11 +766,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       if (p?.prot) p.prot = false;
     }
 
-    // Complete due reloads (owner HUD reconcile).
-    for (const [id, done] of this.reloadUntil) {
-      if (now < done) continue;
-      this.reloadUntil.delete(id);
-      this.finishReload(id);
+    for (const [id, action] of this.weaponActions) {
+      this.applyActionEvents(id, action.advance(now, WEAPONS, this.magArr(id), this.reserveArr(id)));
     }
 
     // Grenades in flight: integrate + bounce, detonate on the fuse.
@@ -641,7 +776,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const mortar = this.mortarSupport.tick(this.state, now);
     for (const strike of mortar.impacts) this.explodeMortar(strike);
     if (mortar.changed) this.sendMortarViews();
-    const drone = this.droneSupport.tick(this.state, now, this.hitBoxes, this.map.bounds, this.botBrains);
+    const drone = this.droneSupport.tick(this.state, now, this.hitBoxes, this.map.bounds, this.botBrains, this.map.ramps ?? []);
     for (const shot of drone.shots) {
       if (!this.state.players[shot.owner]?.alive || this.state.phase !== 'live') continue;
       if (this.state.mode === 3) this.ownerClient(shot.owner)?.send('droneShot', shot);
@@ -653,14 +788,39 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     if (drone.changed) this.sendDroneViews();
 
     // Record the vertical lag channel for this tick (horizontal is recorded by the
-    // preset right after this returns — same cadence, same Date.now()). Uses
-    // hitHeight(), NOT height() — this feeds resolveHitscan's target headY
+    // preset right after this returns ??same cadence, same Date.now()). Uses
+    // hitHeight(), NOT height() ??this feeds resolveHitscan's target headY
     // (via rewind below), the one consumer HIT's crouchHeight split applies to.
     const vsnap = new Map<string, Vec2>();
     for (const [id, p] of Object.entries(this.state.players)) {
       if (p.alive && !p.prot) vsnap.set(id, { x: p.y, y: p.y + this.hitHeight(p) });
     }
     this.vertLag.record(this.currentTick, now, vsnap);
+    if (this.hitVolumeHistory !== undefined && this.hitAuthorityPolicy !== undefined) {
+      const frames = new Map<string, HitAuthorityFrame>();
+      for (const [id, player] of Object.entries(this.state.players)) {
+        const identity = this.hitAuthorityPolicy.identity(player);
+        if (!player.alive || player.prot || identity === undefined
+          || player.hitClipIndex === HIT_ANIMATION_NONE) continue;
+        frames.set(id, {
+          identity,
+          root: { x: player.x, z: player.z, feetY: player.y, yaw: player.yaw },
+          timeline: {
+            currentIndex: player.hitClipIndex,
+            currentStartedAt: player.hitClipStartedAt,
+            sources: player.hitBlendSources,
+          },
+          reaction: {
+            kind: player.hitReactionKind,
+            startedAt: player.hitReactionStartedAt,
+            seq: player.hitReactionSeq,
+          },
+          segmentSeq: player.hitSegmentSeq,
+          segmentStartedAt: player.hitSegmentStartedAt,
+        });
+      }
+      this.hitVolumeHistory.recordAuthority(this.currentTick, now, frames);
+    }
     for (const id of this.movementInboxes.keys()) this.sendMovement(id);
   }
 
@@ -721,22 +881,15 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     let grounded = this.grounded.get(id) ?? true;
     let vy = this.vy.get(id) ?? 0;
 
-    // Speed: crouch < walk < sprint (sprint only while moving forward, grounded).
-    let speed: number = MOVE.walk;
-    if (p.crouch) speed = MOVE.crouch;
-    else if (isSprinting({ ...inp, crouch: p.crouch }, grounded)) speed = MOVE.sprint;
+    const horizontal = horizontalMovement(
+      { ...inp, crouch: p.crouch, ads: inp.ads === true },
+      grounded,
+      movementYaw,
+    );
+    let { x: wx, z: wz, speed } = horizontal;
     this.updateHandling(id, Date.now());
 
-    // Wish direction in world xz: forward = (sin yaw, cos yaw), right = (cos yaw, −sin yaw).
-    const sy = Math.sin(movementYaw);
-    const cy = Math.cos(movementYaw);
-    let wx = sy * inp.mz + cy * inp.mx;
-    let wz = cy * inp.mz - sy * inp.mx;
-    const wl = Math.hypot(wx, wz);
-    if (wl > 1) {
-      wx /= wl;
-      wz /= wl;
-    }
+    // Wish direction in world xz: forward = (sin yaw, cos yaw), right = (cos yaw, ?뭩in yaw).
     if (momentum) { wx = momentum.x; wz = momentum.z; speed = momentum.speed; }
 
     // Jump (edge-triggered): fire only when grounded; consume the request either way.
@@ -775,7 +928,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return p.crouch ? PLAYER.crouchHeight : PLAYER.standHeight;
   }
 
-  /** Crown height per {@link HIT}'s dimensions, NOT {@link height}'s — feeds the
+  /** Crown height per {@link HIT}'s dimensions, NOT {@link height}'s ??feeds the
    *  vertical lag-comp channel resolveHitscan's target headY ultimately reads.
    *  Movement collision (moveAndSlide via `height()`) and eye/muzzle height
    *  (`eyeHeight()`) are unaffected by HIT's crouchHeight override on purpose. */
@@ -856,14 +1009,50 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   // --- shooting ---------------------------------------------------------------
 
   private handleFire(client: Client, payload: unknown, input?: InputMeta): void {
-    this.resolveFire(client, payload, input);
     const seq = readNum(payload, "fireSeq");
+    const validSeq = seq !== undefined && Number.isSafeInteger(seq) && seq > 0;
+    const fallbackSeq = (this.serverFireSeq.get(client.id) ?? 0) + 1;
+    this.serverFireSeq.set(client.id, validSeq ? Math.max(fallbackSeq - 1, seq) : fallbackSeq);
+    const shotId = scopedShotId(
+      { connectionId: client.id, life: this.shotLives.get(client.id) ?? 1 },
+      validSeq ? seq : fallbackSeq,
+    );
+    const shooter = this.state.players[client.id];
+    if (!this.shotDedup.accept(shotId)) {
+      if (shooter) this.sendShotBlocked(client, shotId, "duplicate", 0, this.weaponOf(shooter), input?.receivedAt ?? Date.now());
+    } else {
+      this.resolveFire(client, payload, shotId, input);
+    }
     if (seq !== undefined && Number.isSafeInteger(seq) && seq > 0) {
       client.send("recoilSync", { seq, ...(this.recoil.get(client.id) ?? emptyRecoil()) });
     }
   }
 
-  private resolveFire(client: Client, payload: unknown, input?: InputMeta): void {
+  private sendShotBlocked(
+    client: Client,
+    shotId: string,
+    reason: BlockedServerShotResult["reason"],
+    retryMs: number,
+    spec: WeaponSpec,
+    serverReceiveAt = Date.now(),
+  ): void {
+    const id = client.id;
+    client.send("shotResult", {
+      kind: "blocked",
+      shotId,
+      reason,
+      retryMs: Math.max(0, Math.ceil(retryMs)),
+      ammo: {
+        mag: this.magArr(id)[spec.slot - 1] ?? 0,
+        reserve: this.reserveArr(id)[spec.slot - 1] ?? 0,
+      },
+      recoil: this.recoil.get(id) ?? emptyRecoil(),
+      serverReceiveAt,
+      serverResolveAt: Date.now(),
+    });
+  }
+
+  private resolveFire(client: Client, payload: unknown, shotId: string, input?: InputMeta): void {
     const id = client.id;
     const shooter = this.state.players[id];
     if (!shooter || !shooter.alive) return;
@@ -872,61 +1061,110 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const shotAt = input?.receivedAt ?? now;
     const spec = this.weaponOf(shooter);
     const w = shooter.weapon;
+    const mags = this.magArr(id);
+    const reserves = this.reserveArr(id);
+    const action = this.actionOf(id);
+    this.applyActionEvents(id, action.advance(shotAt, WEAPONS, mags, reserves));
+    const actionRequest = action.requestFire(w, spec, shotAt, mags);
+    if (actionRequest !== "ready") {
+      const view = action.view(w, shotAt);
+      if (view && (actionRequest === "closing" || actionRequest === "buffered")) {
+        if (actionRequest === "closing") {
+          this.reloadUntil.set(id, view.endsAt);
+          shooter.reloadEnd = view.endsAt;
+          this.markStateChanged();
+        }
+        this.sendWeaponAction(id, view);
+      }
+      const reason: BlockedServerShotResult["reason"] = actionRequest === "buffered"
+        ? "empty"
+        : view?.kind === "cycle" ? "readiness" : "reload";
+      const retryMs = Math.max(TICK_MS, (view?.endsAt ?? shotAt + TICK_MS) - shotAt);
+      client.send("fireBlocked", { retryMs, mag: mags[w] ?? 0, weapon: spec.slot });
+      this.sendShotBlocked(client, shotId, reason, retryMs, spec, shotAt);
+      return;
+    }
     // Readiness and cadence must use the same trusted receipt clock. Otherwise
     // an early input borrows its queue wait to finish ADS/sprint recovery, spends
     // ammo, and rejects the correctly timed shot behind it as a cadence violation.
     const handling = this.updateHandling(id, shotAt);
     if (!handling.canFire) {
+      const swap = this.swapUntil.get(id);
+      const reload = this.reloadUntil.get(id);
+      const reason: BlockedServerShotResult["reason"] = swap !== undefined && shotAt < swap
+        ? "swap"
+        : reload !== undefined && shotAt < reload
+          ? "reload"
+          : "readiness";
+      const retryMs = Math.max(TICK_MS, Math.ceil(
+        reason === "swap" ? (swap ?? shotAt) - shotAt
+          : reason === "reload" ? (reload ?? shotAt) - shotAt
+            : handling.remainingMs,
+      ));
       // A boundary shot may beat its move's server timer by a render/network
       // scheduling interval. Correct predicted ammo and retry only while held;
       // never spend an entire sniper fire interval on a shot that did not happen.
-      client.send("fireBlocked", { retryMs: Math.max(TICK_MS, Math.ceil(handling.remainingMs)),
+      client.send("fireBlocked", { retryMs,
         mag: this.magArr(id)[w] ?? 0, weapon: spec.slot });
+      this.sendShotBlocked(client, shotId, reason, retryMs, spec, shotAt);
       return;
     }
 
     // A weapon swap must settle before the new weapon can fire.
     const swap = this.swapUntil.get(id);
-    if (swap !== undefined && shotAt < swap) return;
+    if (swap !== undefined && shotAt < swap) {
+      this.sendShotBlocked(client, shotId, "swap", swap - shotAt, spec, shotAt);
+      return;
+    }
 
     // Queue drain times lie on the 50 ms tick grid. Comparing them drops legal
     // 65 ms SMG / 160 ms pistol shots, and can accept genuinely early arrivals
     // whose drains happen to be far enough apart. Only the SDK's server receipt
     // clock owns cadence; neither payload timestamps nor input.ts grant credit.
     // Bots call directly during the tick, so their receipt instant is `now`.
-    const last = this.lastShotAt.get(id);
+    const last = this.lastShotAt.get(id)?.[w];
     if (last !== undefined && shotAt - last < spec.fireIntervalMs) {
+      const retryMs = Math.max(TICK_MS, Math.ceil(spec.fireIntervalMs - (shotAt - last)));
       // Real transport jitter can still compress arrival spacing. Reuse the
       // handling-denial path to restore predicted ammo and retry only if the
       // trigger remains held. This advice never bypasses the next rate check.
-      client.send("fireBlocked", { retryMs: Math.max(TICK_MS, Math.ceil(spec.fireIntervalMs - (shotAt - last))),
+      client.send("fireBlocked", { retryMs,
         mag: this.magArr(id)[w] ?? 0, weapon: spec.slot });
+      this.sendShotBlocked(client, shotId, "cadence", retryMs, spec, shotAt);
       return;
     }
 
-    // Ammo (server-authoritative, per weapon). Reloading blocks; an empty mag auto-reloads.
-    const done = this.reloadUntil.get(id);
-    if (done !== undefined) {
-      if (shotAt < done) return; // mid-reload
-      this.reloadUntil.delete(id);
-      this.finishReload(id);
-    }
-    const mags = this.magArr(id);
     if ((mags[w] ?? 0) <= 0) {
       this.startReload(id, shotAt);
+      this.sendShotBlocked(client, shotId, "empty", Math.max(TICK_MS,
+        (this.reloadUntil.get(id) ?? shotAt + spec.reloadMs) - shotAt), spec, shotAt);
       return;
     }
     mags[w] = (mags[w] ?? 0) - 1;
-    this.lastShotAt.set(id, shotAt);
+    let cadence = this.lastShotAt.get(id);
+    if (!cadence) { cadence = []; this.lastShotAt.set(id, cadence); }
+    cadence[w] = shotAt;
+    const cycle = action.beginCycle(w, spec, shotAt);
+    if (cycle) this.sendWeaponAction(id, cycle);
     const burst = this.recoil.get(id) ?? emptyRecoil();
     const kick = recoilSample(burst, spec, shotAt, handling.adsProgress >= 1);
-    this.recoil.set(id, advanceRecoil(burst, spec, shotAt));
+    const recoil = advanceRecoil(burst, spec, shotAt);
+    this.recoil.set(id, recoil);
     // Fire carries current raw mouse intent atomically, avoiding the throttled
     // look stream lagging behind an honest recoil-compensating mouse movement.
     this.handleLook(client, payload);
     const shotYaw = shooter.yaw + kick.yaw;
     const shotPitch = clamp(shooter.pitch + kick.pitch, -PITCH_LIMIT, PITCH_LIMIT);
     client.send("ammo", { mag: mags[w], reserve: this.reserveArr(id)[w] ?? 0, weapon: spec.slot });
+    client.send("shotResult", {
+      kind: "accepted",
+      shotId,
+      acceptedAt: shotAt,
+      ammo: { mag: mags[w], reserve: this.reserveArr(id)[w] ?? 0 },
+      recoil,
+      serverReceiveAt: shotAt,
+      serverResolveAt: Date.now(),
+    });
 
     // Firing ends spawn protection early (no shooting from behind the shield).
     if (shooter.prot) {
@@ -945,15 +1183,15 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     // Rewind both channels to the same instant: the subtick ts when the client
     // supplied one (Tikron's `rewind()` treats this as "the exact moment the
-    // shooter aimed" — see packages/server/src/presets.ts's doc comment), else
+    // shooter aimed" ??see packages/server/src/presets.ts's doc comment), else
     // the RTT estimate. Either way, `lagInterpolationMs` is subtracted
-    // UNCONDITIONALLY on top — Tikron's timing only accounts for network RTT/
+    // UNCONDITIONALLY on top ??Tikron's timing only accounts for network RTT/
     // subtick precision, not ironsight's own choice to render remote players
     // INTERP_DELAY_MS behind real time for smoothing (client/config.ts), so
     // without this term a shot resolves against the target's position at
     // roughly "now," not what the shooter's screen actually showed at the
     // moment they fired (hitbox/visual audit, is-anim: moving targets missed
-    // consistently despite an accurate spatial hit-volume — see LAG.interpolationMs's
+    // consistently despite an accurate spatial hit-volume ??see LAG.interpolationMs's
     // doc comment in src/config.ts for the measured before/after).
     const at = (input?.ts ?? now - client.rttMs) - this.lagInterpolationMs;
     // Barrier history is discrete: never interpolate an opening. Analytic rays,
@@ -961,6 +1199,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const shotBoxes = this.coreCollision.hits(this.coreGate.at(at));
     const horizontal = this.rewind(client, at);
     const vertical = this.vertLag.atTime(at);
+    const authority = this.hitVolumeHistory?.authorityAtTime(at);
 
     const targets: HitTarget[] = [];
     for (const [tid, h] of horizontal) {
@@ -968,13 +1207,18 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       const v = vertical.get(tid);
       const tp = this.state.players[tid];
       if (!v || !tp || !tp.alive || tp.prot) continue;
-      targets.push({ id: tid, x: h.x, z: h.y, feetY: v.x, headY: v.y, team: tp.team });
+      const calibrated = authority?.get(tid);
+      if (this.hitVolumeHistory !== undefined && calibrated === undefined) continue;
+      targets.push(calibrated === undefined
+        ? { id: tid, x: h.x, z: h.y, feetY: v.x, headY: v.y, team: tp.team }
+        : { id: tid, x: calibrated.x, z: calibrated.z, feetY: calibrated.feetY,
+          headY: calibrated.feetY + this.hitHeight(tp), yaw: calibrated.yaw,
+          hitVolume: calibrated.hitVolume, headRadius: calibrated.headRadius, team: tp.team });
     }
 
-    // One shot event per trigger pull (base aim ray → muzzle flash + tracer); the
+    // One shot event per trigger pull (base aim ray ??muzzle flash + tracer); the
     // tracer reaches the nearest pellet impact, else the map-occlusion distance.
-    // Also the reference direction hybrid claims are validated against below —
-    // a claim reflects where the client's crosshair pointed, not the analytic
+    // Also the reference direction hybrid claims are validated against below ??    // a claim reflects where the client's crosshair pointed, not the analytic
     // path's per-pellet jittered ray (the client can't predict the server's
     // secret spread RNG), so it is checked against recoil-adjusted aim, before random jitter.
     const baseDir = dirFromAngles(shotYaw, shotPitch);
@@ -991,14 +1235,14 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const dmgByVictim = new Map<string, { dmg: number; head: boolean }>();
     let nearestHitT = Infinity;
 
-    // Hybrid hit registration (HYBRID, hitscan.ts's FireClaim) — single-pellet
+    // Hybrid hit registration (HYBRID, hitscan.ts's FireClaim) ??single-pellet
     // weapons only; a shotgun's 8 simultaneous pellets can't collapse into one
     // claim, so it always falls through to the analytic loop below untouched.
     let usedClaim = false;
     const claimRead = HYBRID.enabled && spec.pellets === 1 ? readClaim(payload, "claim") : ({ present: false } as const);
     if (claimRead.present) {
       if (claimRead.value === null) {
-        // The client raycast its own rendered scene and found nothing — trusted
+        // The client raycast its own rendered scene and found nothing ??trusted
         // outright, no plausibility check needed (a forged "miss" only ever
         // disadvantages the claimer, never a cheat vector). Deliberately NOT
         // routed into the analytic fallback below: that capsule can still cover
@@ -1042,16 +1286,16 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
     if (!usedClaim) {
       // Third branch of the 3-way split (team-lead's wire-spec correction): no
-      // claim was attempted at all — a genuinely old client, a multi-pellet
+      // claim was attempted at all ??a genuinely old client, a multi-pellet
       // weapon, or HYBRID.enabled=false. Logged too, at the same tag, so a
       // Workers log review can tell "no claim offered" apart from "trusted
       // miss" and "rejected claim" without gaps in the audit trail. Bots are
       // excluded on purpose (team-lead): the logging exists for post-hoc CHEAT
       // review, and a bot (botFire always sends no payload/claim) can never be
-      // a cheat suspect — every bot shot would otherwise log this line at the
+      // a cheat suspect ??every bot shot would otherwise log this line at the
       // bot's full fire cadence (down to 65ms for a filler-bot SMG), drowning
       // the real per-human audit trail in zero-forensic-value noise.
-      if (HYBRID.enabled && !this.botBrains.has(id)) {
+      if (!claimRead.present && HYBRID.enabled && !this.botBrains.has(id)) {
         console.log(JSON.stringify({ tag: "hybridHit", shooter: id, result: "no-claim" }));
       }
       for (const off of pelletPattern(spec)) {
@@ -1065,6 +1309,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           shotBoxes,
           cfg,
           !this.gameMode.teams,
+          this.map.ramps ?? [],
         );
         if (!hit) continue;
         if (hit.t < nearestHitT) nearestHitT = hit.t;
@@ -1079,11 +1324,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const dist =
       nearestHitT < Infinity
         ? nearestHitT
-        : Math.min(spec.range, nearestBox(origin, baseDir, shotBoxes, spec.range));
+        : Math.min(spec.range, nearestOccluder(origin, baseDir, shotBoxes, this.map.ramps ?? [], spec.range));
     const victims = [...dmgByVictim.keys()];
     this.sendNear(
       "shot",
       {
+        shotId,
+        acceptedAt: shotAt,
         from: id,
         weapon: spec.slot,
         ox: origin.x,
@@ -1095,7 +1342,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         dist,
         hit: victims.length > 0,
         // Per-victim id + headshot flag, appended for the client's remote
-        // hit-reaction animation (rig-loader.ts/scene.ts) — `hit` above is
+        // hit-reaction animation (rig-loader.ts/scene.ts) ??`hit` above is
         // unchanged (the tracer color still reads that plain aggregate).
         hits: victims.map((vid) => ({ id: vid, head: dmgByVictim.get(vid)!.head })),
       },
@@ -1107,26 +1354,31 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     for (const [vid, agg] of dmgByVictim) {
       const dmg = Math.round(agg.dmg);
       if (dmg <= 0) continue;
-      this.applyDamage(vid, dmg, id, agg.head ? "head" : "body", spec.slot);
-      client.send("hit", { victim: vid, dmg, head: agg.head });
+      const part = agg.head ? "head" : "body";
+      const reactionTarget = this.state.players[vid];
+      if (reactionTarget && this.hitAnimationPolicy !== undefined) {
+        reactionTarget.hitReactionKind = agg.head ? 2 : 1;
+        reactionTarget.hitReactionStartedAt = shotAt;
+        reactionTarget.hitReactionSeq = (reactionTarget.hitReactionSeq + 1) & 0xffff;
+      }
+      this.applyDamage(vid, dmg, id, part, spec.slot, undefined, shotId);
+      client.send("hit", { shotId, victim: vid, dmg, damage: dmg, head: agg.head, part });
     }
     this.markStateChanged();
   }
 
   /**
-   * Hybrid hit registration's server-side plausibility gate (PLAN "모양 100%",
+   * Hybrid hit registration's server-side plausibility gate (PLAN "紐⑥뼇 100%",
    * user-confirmed casual-tolerant premise). The client's raycast-against-its-
-   * actual-rendered-scene claim is trusted for DAMAGE — skipping the analytic
-   * capsule/sphere approximation entirely — only if this coarse check passes;
+   * actual-rendered-scene claim is trusted for DAMAGE ??skipping the analytic
+   * capsule/sphere approximation entirely ??only if this coarse check passes;
    * any failure falls back to the existing `resolveHitscan` pellet loop
    * unchanged, so a forged or stale claim can never register a hit the
-   * analytic path wouldn't already have allowed — only fail to improve on it.
+   * analytic path wouldn't already have allowed ??only fail to improve on it.
    *
-   * Deliberately coarse: this does NOT re-derive whether the claimed point is
-   * really "head" vs "body" (the client's own mesh raycast already decided
-   * that, more precisely than this file's capsule/sphere ever could) — it only
-   * asks "could this shot plausibly have been aimed at this target," the same
-   * question a human reviewing a replay log would ask.
+   * The shared validator also confirms that a claimed head ray intersects the
+   * authoritative head sphere. A wrong-part claim falls back to analytic body
+   * resolution instead of trusting the client's part label.
    */
   private validateClaim(
     claim: FireClaim,
@@ -1138,47 +1390,21 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     acc: number,
     shotBoxes: readonly Box[],
   ): { accepted: true; t: number; angleErrDeg: number } | { accepted: false; reason: string; angleErrDeg?: number } {
-    // Not found in `targets` covers dead/protected/self/nonexistent in one
-    // check — that array was already filtered down to the valid victim set
-    // (see handleFire's rewind loop right above).
-    const tgt = targets.find((t) => t.id === claim.id);
-    if (!tgt) return { accepted: false, reason: "no-target" };
-    if (this.gameMode.teams && tgt.team === shooter.team) return { accepted: false, reason: "friendly" };
-
-    // Same headCentre/neck convention hitscan.ts's resolveHitscan uses, so the
-    // reference point a "head" or "body" claim is checked against matches what
-    // the analytic path would have aimed at for the same target.
-    const neckY = tgt.headY - 2 * HIT.headRadius;
-    const refPoint: Vec3 =
-      claim.part === "head"
-        ? { x: tgt.x, y: tgt.headY - HIT.headRadius, z: tgt.z }
-        : { x: tgt.x, y: (tgt.feetY + neckY) / 2, z: tgt.z };
-
-    const toRef: Vec3 = { x: refPoint.x - origin.x, y: refPoint.y - origin.y, z: refPoint.z - origin.z };
-    const dist = Math.hypot(toRef.x, toRef.y, toRef.z);
-    if (dist < 1e-6 || dist > range) return { accepted: false, reason: "range" };
-
-    const toRefDir: Vec3 = { x: toRef.x / dist, y: toRef.y / dist, z: toRef.z / dist };
-    const cos = clamp(aimDir.x * toRefDir.x + aimDir.y * toRefDir.y + aimDir.z * toRefDir.z, -1, 1);
-    const angleErr = Math.acos(cos);
-    const angleErrDeg = (angleErr * 180) / Math.PI;
-    // See HYBRID.coneMarginM's doc comment (src/config.ts) for why the base
-    // term scales with distance instead of a flat degree figure. `acc` (the
-    // shooter's CURRENT accuracySpread, moving/airborne included) is added on
-    // top as its worst-case combined angle: yaw and pitch jitter are each drawn
-    // independently and uniformly in [-acc, +acc] (weapons.ts's `jitter`, one
-    // roll client-side for the claim ray, a separate roll server-side for the
-    // analytic pellet), so the two axes' worst-case combined magnitude is
-    // acc·√2 — without this term, a moving shooter's client-rolled jitter
-    // (correctly reproducing the accuracy-cone movement penalty) would get
-    // its own honest claims rejected as "forged."
-    const tolerance = Math.atan2(HIT.radius + HYBRID.coneMarginM, dist) + acc * Math.SQRT2;
-    if (angleErr > tolerance) return { accepted: false, reason: "cone", angleErrDeg };
-
-    const occludeT = nearestBox(origin, toRefDir, shotBoxes, dist);
-    if (occludeT < dist) return { accepted: false, reason: "occluded", angleErrDeg };
-
-    return { accepted: true, t: dist, angleErrDeg };
+    return validateHitClaim({
+      claim,
+      shooterTeam: shooter.team,
+      targets,
+      origin,
+      aimDir,
+      range,
+      accuracySpread: acc,
+      boxes: shotBoxes,
+      ramps: this.map.ramps ?? [],
+      hitRadius: HIT.radius,
+      headRadius: HIT.headRadius,
+      coneMarginM: HYBRID.coneMarginM,
+      teamless: !this.gameMode.teams,
+    });
   }
 
   private weaponOf(p: ArenaPlayer): WeaponSpec {
@@ -1215,11 +1441,61 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     return this.clientList().find((c) => c.id === id);
   }
 
+  private actionOf(id: string): WeaponActions {
+    let action = this.weaponActions.get(id);
+    if (!action) {
+      action = new WeaponActions();
+      this.weaponActions.set(id, action);
+    }
+    return action;
+  }
+
+  private sendWeaponAction(
+    id: string,
+    state: WeaponActionState | null,
+    finished?: { weaponIndex: number; serial: number },
+  ): void {
+    this.broadcast("weaponAction", { id, state, ...finished });
+  }
+
+  private applyActionEvents(id: string, events: readonly WeaponActionEvent[]): void {
+    const p = this.state.players[id];
+    let compatibilityChanged = false;
+    for (const event of events) {
+      if (event.type === "state") {
+        if (p && event.state.kind !== "cycle") {
+          const terminal = event.state.phase === "reload_end"
+            ? event.state.endsAt
+            : this.reloadUntil.get(id) ?? event.state.endsAt;
+          this.reloadUntil.set(id, terminal);
+          p.reloadEnd = terminal;
+          compatibilityChanged = true;
+        }
+        this.sendWeaponAction(id, event.state);
+        continue;
+      }
+      if (event.type === "ammo") {
+        this.ownerClient(id)?.send("ammo", {
+          mag: event.mag,
+          reserve: event.reserve,
+          weapon: WEAPONS[event.weaponIndex]!.slot,
+        });
+        continue;
+      }
+      if (p) {
+        p.reloadEnd = 0;
+        compatibilityChanged = true;
+      }
+      this.reloadUntil.delete(id);
+      this.sendWeaponAction(id, null, { weaponIndex: event.weaponIndex, serial: event.serial });
+    }
+    if (compatibilityChanged) this.markStateChanged();
+  }
+
   private handleReload(client: Client, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
     if (!p || !p.alive) return;
-    if (this.reloadUntil.has(id)) return; // already reloading
     const spec = this.weaponOf(p);
     if ((this.magArr(id)[p.weapon] ?? 0) >= spec.mag) return; // full
     if ((this.reserveArr(id)[p.weapon] ?? 0) <= 0) return; // no spare rounds
@@ -1229,42 +1505,31 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private startReload(id: string, now: number): void {
     const p = this.state.players[id];
     if (!p) return;
-    if (this.reloadUntil.has(id)) return;
-    const spec = this.weaponOf(p);
-    const w = p.weapon;
-    if ((this.reserveArr(id)[w] ?? 0) <= 0) return;
-    this.reloadUntil.set(id, now + spec.reloadMs);
-    p.reloadEnd = now + spec.reloadMs;
-    this.updateHandling(id, now);
-    this.markStateChanged();
-    this.ownerClient(id)?.send("ammo", {
-      mag: this.magArr(id)[w] ?? 0,
-      reserve: this.reserveArr(id)[w] ?? 0,
-      weapon: spec.slot,
-      reloadMs: spec.reloadMs,
-    });
-  }
-
-  private finishReload(id: string): void {
-    const p = this.state.players[id];
-    if (!p) return;
-    p.reloadEnd = 0;
-    this.markStateChanged();
     const spec = this.weaponOf(p);
     const w = p.weapon;
     const mags = this.magArr(id);
     const reserves = this.reserveArr(id);
-    const mag = mags[w] ?? 0;
-    const reserve = reserves[w] ?? 0;
-    const take = Math.min(spec.mag - mag, reserve);
-    mags[w] = mag + take;
-    reserves[w] = reserve - take;
-    this.ownerClient(id)?.send("ammo", { mag: mags[w], reserve: reserves[w], weapon: spec.slot });
+    const state = this.actionOf(id).startReload(w, spec, now, mags, reserves);
+    if (!state) return;
+    const terminal = spec.reloadKind === "pump"
+      ? now + spec.reloadStartMs + spec.reloadInsertMs * Math.min(spec.mag - mags[w]!, reserves[w]!) + spec.reloadEndMs
+      : now + spec.reloadMs;
+    this.reloadUntil.set(id, terminal);
+    p.reloadEnd = terminal;
+    this.updateHandling(id, now);
+    this.markStateChanged();
+    this.sendWeaponAction(id, state);
+    this.ownerClient(id)?.send("ammo", {
+      mag: mags[w] ?? 0,
+      reserve: reserves[w] ?? 0,
+      weapon: spec.slot,
+      reloadMs: terminal - now,
+    });
   }
 
   // --- weapon switch / loadout / grenades -------------------------------------
 
-  /** Switch to loadout slot 1–5; the swap delay gates the next shot. */
+  /** Switch to loadout slot 1??; the swap delay gates the next shot. */
   private handleSwitch(client: Client, payload: unknown, input?: InputMeta): void {
     const id = client.id;
     const p = this.state.players[id];
@@ -1274,27 +1539,30 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const idx = Math.round(slot) - 1;
     if (idx < 0 || idx >= WEAPONS.length || idx === p.weapon) return;
     const now = input?.receivedAt ?? Date.now();
+    const action = this.actionOf(id);
+    this.applyActionEvents(id, action.switchWeapon(idx, now));
     p.weapon = idx;
     this.swapUntil.set(id, now + WEAPON.swapMs);
     p.reloadEnd = 0;
-    this.reloadUntil.delete(id); // a swap cancels an in-progress reload
+    this.reloadUntil.delete(id);
     this.updateHandling(id, now);
     this.recoil.delete(id);
-    this.lastShotAt.delete(id); // the new weapon's cadence starts after the swap
     this.ownerClient(id)?.send("ammo", {
       mag: this.magArr(id)[idx] ?? 0,
       reserve: this.reserveArr(id)[idx] ?? 0,
       weapon: WEAPONS[idx]!.slot,
     });
+    const view = action.view(idx, now);
+    if (view) this.sendWeaponAction(id, view);
     this.markStateChanged();
   }
 
-  /** Choose the weapon you SPAWN holding (primary = slots 1–4; applied next spawn). */
+  /** Choose the weapon you SPAWN holding (primary = slots 1??; applied next spawn). */
   private handleLoadout(client: Client, payload: unknown): void {
     const slot = readNum(payload, "primary");
     if (slot === undefined) return;
     const idx = Math.round(slot) - 1;
-    if (idx < 0 || idx >= PISTOL_INDEX) return; // a primary is slots 1–4, never the pistol
+    if (idx < 0 || idx >= PISTOL_INDEX) return; // a primary is slots 1??, never the pistol
     this.primaryWeapon.set(client.id, idx);
   }
 
@@ -1353,6 +1621,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
         GRENADE.projRadius,
         this.boxes,
         this.map.bounds,
+        this.map.ramps ?? [],
       );
       if (bounced) {
         const { pos, vel } = g.body;
@@ -1402,6 +1671,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     part: string,
     weaponSlot?: number,
     source?: { x: number; z: number },
+    shotId?: string,
   ): void {
     const victim = this.state.players[victimId];
     if (!victim || !victim.alive || victim.prot) return;
@@ -1432,9 +1702,12 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     const rally = part !== 'mortar' && part !== 'drone'
       ? this.droneSupport.shutdown(victimId, killerId, this.state, now) : 0;
     victim.alive = false;
+    this.clearHitReaction(victim, now);
     this.spawnSightHistory.forget(victimId);
     victim.reloadEnd = 0;
     this.reloadUntil.delete(victimId);
+    this.weaponActions.get(victimId)?.clear();
+    this.sendWeaponAction(victimId, null);
     this.vy.set(victimId, 0);
     const delayMs = warmup ? 0 : this.respawnMs;
     this.respawnAt.set(victimId, this.currentTick + Math.ceil(delayMs / TICK_MS));
@@ -1468,8 +1741,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.sendMortarViews();
     this.tickSupport(now, true);
 
-    // Structured log for offline map-timing/heatmap analysis (map-metrics tool test) —
-    // collectible live via `wrangler tail` the same way hybridHit already is. Coordinates
+    // Structured log for offline map-timing/heatmap analysis (map-metrics tool test) ??    // collectible live via `wrangler tail` the same way hybridHit already is. Coordinates
     // rounded to 1 decimal to keep this cheap even if tail volume ever grows; kills are
     // low-frequency, so this is never spam.
     const killerP = this.state.players[killerId];
@@ -1492,6 +1764,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     );
 
     this.broadcast("kill", {
+      ...(shotId ? { shotId } : {}),
       killer: killerId,
       victim: victimId,
       part,
@@ -1543,7 +1816,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private tickSupport(now: number, force = false): void {
     const changed = this.airSupport.tick(this.state, now,
-      this.map.presentation === 'relay' && signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout');
+      this.map.presentation === 'relay' && signalFrame(this.state.signalAt, this.state.phase, now).phase === 'blackout',
+      this.hitBoxes, this.botBrains);
     if (changed || force) for (const client of this.clientList())
       client.send('support', this.airSupport.view(client.id, this.streaks.get(client.id) ?? 0, this.state, now));
   }
@@ -1587,7 +1861,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   // --- spawning / teams -------------------------------------------------------
 
-  /** Assign the smaller team (ties → red) for balance. */
+  /** Assign the smaller team (ties ??red) for balance. */
   private assignTeam(): number {
     let red = 0;
     let blue = 0;
@@ -1600,6 +1874,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   private spawnInto(p: ArenaPlayer, id: string): void {
     if (this.movementInboxes.has(id)) this.resetMovementInbox(id);
+    this.shotLives.set(id, (this.shotLives.get(id) ?? 0) + 1);
+    this.serverFireSeq.set(id, 0);
+    this.ownerClient(id)?.send("shotScope", { life: this.shotLives.get(id) });
     this.slides.delete(id);
     this.traversals.delete(id);
     // Every map uses authoritative threat scoring. FFA considers everyone hostile
@@ -1639,6 +1916,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     p.weapon = this.primaryWeapon.get(id) ?? DEFAULT_WEAPON;
     p.nades = GRENADE.count;
     p.reloadEnd = 0;
+    const animationNow = Date.now();
+    if (this.hitAnimationPolicy !== undefined) {
+      p.hitSegmentSeq = (p.hitSegmentSeq + 1) & 0xffff;
+      p.hitSegmentStartedAt = animationNow;
+    }
+    this.clearHitReaction(p, animationNow);
+    this.updateHitAnimation(p, animationNow, 0, 0, TICK_MS / 1000, true);
     this.vy.set(id, 0);
     this.grounded.set(id, true);
     this.inputs.set(id, { ...NO_INPUT }); // drop a corpse's held keys
@@ -1646,6 +1930,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.magByW.set(id, WEAPONS.map((wpn) => wpn.mag));
     this.reserveByW.set(id, WEAPONS.map((wpn) => wpn.reserve));
     this.reloadUntil.delete(id);
+    this.weaponActions.get(id)?.clear();
+    this.sendWeaponAction(id, null);
     this.recoil.delete(id);
     this.lastShotAt.delete(id);
     this.swapUntil.delete(id);
@@ -1653,7 +1939,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     this.nadeReadyAt.delete(id);
     this.hits.delete(id);
 
-    // Practice showcase bots ignore the round-robin pool above — pinned to their
+    // Practice showcase bots ignore the round-robin pool above ??pinned to their
     // demo spot every spawn (including auto-respawn after a stray kill, since this
     // is the one spawn path both addShowcaseBot and the tick's respawn loop share)
     // so the layout never drifts. Facing/crouch settle themselves: showcaseThink
@@ -1664,6 +1950,74 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       p.z = showcase.z;
       p.yaw = PRACTICE_SHOWCASE_FACE_YAW;
     }
+  }
+
+  protected updateHitAnimation(
+    player: ArenaPlayer,
+    serverNowMs: number,
+    dx: number,
+    dz: number,
+    dtSeconds: number,
+    forceRestart: boolean,
+  ): void {
+    const policy = this.hitAnimationPolicy;
+    if (policy === undefined) {
+      this.clearHitAnimation(player);
+      return;
+    }
+    const bucket = hitStateBucket({
+      alive: player.alive,
+      crouch: player.crouch,
+      weapon: player.weapon,
+      yaw: player.yaw,
+      dx,
+      dz,
+      dtSeconds,
+    }, policy);
+    if (bucket === undefined) {
+      this.clearHitAnimation(player);
+      return;
+    }
+    const nextIndex = encodeHitAnimationClip(bucket.clip);
+    if (nextIndex === HIT_ANIMATION_NONE) {
+      this.clearHitAnimation(player);
+      return;
+    }
+    const timeline = advanceHitAnimationTimeline(
+      player.hitClipIndex === HIT_ANIMATION_NONE ? undefined : {
+        currentIndex: player.hitClipIndex,
+        currentStartedAt: player.hitClipStartedAt,
+        sources: player.hitBlendSources,
+      },
+      nextIndex,
+      serverNowMs,
+      forceRestart,
+    );
+    if (timeline === undefined) {
+      this.clearHitAnimation(player);
+      return;
+    }
+    player.hitClipIndex = timeline.currentIndex;
+    player.hitClipStartedAt = timeline.currentStartedAt;
+    player.hitBlendSources = timeline.sources.map(source => ({ ...source }));
+  }
+
+  private clearHitAnimation(player: ArenaPlayer): void {
+    player.hitClipIndex = HIT_ANIMATION_NONE;
+    player.hitClipStartedAt = 0;
+    player.hitBlendSources = [];
+  }
+
+  private clearHitReaction(player: ArenaPlayer, at: number): void {
+    if (this.hitAnimationPolicy === undefined) {
+      player.hitReactionKind = 0;
+      player.hitReactionStartedAt = 0;
+      player.hitReactionSeq = 0;
+      return;
+    }
+    player.hitReactionKind = 0;
+    player.hitReactionStartedAt = at;
+    player.hitReactionSeq = (player.hitReactionSeq + 1) & 0xffff;
   }
 
   private handleRespawn(client: Client): void {
@@ -1679,13 +2033,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   /** 1 vote per player; a majority of current seats during "ended" skips the
-   *  intermission and heads straight into warmup (M2 µ2b contract). */
+   *  intermission and heads straight into warmup (M2 쨉2b contract). */
   private handleVoteRestart(client: Client): void {
     if (this.state.phase !== "ended") return;
     const id = client.id;
     if (!this.state.players[id]) return;
     this.restartVotes.add(id);
-    // Filler bots never vote, so they must not inflate the quorum — count only
+    // Filler bots never vote, so they must not inflate the quorum ??count only
     // human seats (total seats minus the bot registry, the source of truth for
     // which ids are bots).
     const humanSeats = Object.keys(this.state.players).length - this.botBrains.size;
@@ -1698,7 +2052,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
 
   /** Map-authored patrol circuit when present, otherwise both spawn pools + capture points
    *  (or that cap's `capWaypoints` override, for a cap whose own (x,z) sits inside
-   *  solid geometry — see MapDef's doc comment), giving lane coverage without a
+   *  solid geometry ??see MapDef's doc comment), giving lane coverage without a
    *  dedicated waypoint table in arena1.ts/arena2.ts. */
   private botWaypoints(): { x: number; y: number }[] {
     if (this.map.patrolWaypoints?.length)
@@ -1733,7 +2087,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     while (deficit > 0) {
       if (showcase) {
         const def = PRACTICE_SHOWCASE_BOTS.find((b) => !this.state.players[b.id]);
-        if (!def) break; // roster exhausted — shouldn't happen given fillToPlayers's derivation
+        if (!def) break; // roster exhausted ??shouldn't happen given fillToPlayers's derivation
         this.addShowcaseBot(def);
       } else {
         this.addBot();
@@ -1767,9 +2121,9 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   /** Practice-only: adds one fixed-role showcase bot (see modes.ts's
-   *  {@link PRACTICE_SHOWCASE_BOTS}) — a stationary role gets a single-point
+   *  {@link PRACTICE_SHOWCASE_BOTS}) ??a stationary role gets a single-point
    *  "waypoint" (already at it, so advanceWaypoint never has anywhere to send
-   *  it), a pacing role gets its home ∓ amplitude along Z as a 2-point patrol. */
+   *  it), a pacing role gets its home ??amplitude along Z as a 2-point patrol. */
   private addShowcaseBot(def: ShowcaseBotDef): void {
     const p = this.initPlayer(def.id, 0);
     const waypoints =
@@ -1817,6 +2171,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     ]) {
       m.delete(id);
     }
+    this.weaponActions.get(id)?.clear();
+    this.weaponActions.delete(id);
     this.markStateChanged();
   }
 
@@ -1842,7 +2198,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
       self.pitch = clamp(decision.look.pitch, -PITCH_LIMIT, PITCH_LIMIT);
       if (decision.switchSlot !== undefined) this.botSwitch(id, decision.switchSlot);
       if (decision.reload) this.handleReload({ id } as Client);
-      const previousShotAt = this.lastShotAt.get(id);
+      const firedWeapon = self.weapon;
+      const previousShotAt = this.lastShotAt.get(id)?.[firedWeapon];
       if (decision.fire) this.botFire(id);
       if (this.state.phase === 'live' && (this.state.mode === 0 || this.state.mode === 2)) {
         const now = Date.now();
@@ -1850,7 +2207,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
           reloading: (this.reloadUntil.get(id) ?? 0) > now,
           // Wall time may advance during hit validation. Compare the accepted
           // shot marker, not equality with a second Date.now() read afterward.
-          fired: decision.fire && this.lastShotAt.get(id) !== previousShotAt,
+          fired: decision.fire && this.lastShotAt.get(id)?.[firedWeapon] !== previousShotAt,
         });
         if (contact) for (const recipient of this.clientList()) {
           const ally = this.state.players[recipient.id];
@@ -1906,19 +2263,19 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   /** Practice-only: this bot id's {@link ShowcaseView}, or undefined if `id` isn't
-   *  in the showcase roster (shouldn't happen — every practice bot comes from
-   *  addShowcaseBot — but this stays a lookup rather than an assumption). */
+   *  in the showcase roster (shouldn't happen ??every practice bot comes from
+   *  addShowcaseBot ??but this stays a lookup rather than an assumption). */
   private showcaseViewFor(id: string): { role: ShowcaseBotDef["role"]; faceYaw: number } | undefined {
     const def = PRACTICE_SHOWCASE_BOTS.find((b) => b.id === id);
     return def ? { role: def.role, faceYaw: PRACTICE_SHOWCASE_FACE_YAW } : undefined;
   }
 
-  /** Reuses {@link handleFire} with a stand-in client — bots have no real socket,
+  /** Reuses {@link handleFire} with a stand-in client ??bots have no real socket,
    *  and a fixed `ts: now` gives them zero simulated latency (rewind reads it as
    *  the subtick instant instead of estimating from RTT). */
   private botFire(id: string): void {
     const client = { id, rttMs: 0, send: () => {} } as unknown as Client;
-    // Bots have no rendered scene to raycast — no `payload`/claim, so this
+    // Bots have no rendered scene to raycast ??no `payload`/claim, so this
     // always takes the analytic `resolveHitscan` path, unchanged from before.
     this.handleFire(client, undefined, { ts: Date.now() } as unknown as InputMeta);
   }
@@ -1933,6 +2290,13 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   private endMatch(winner?: string): void {
     const { redScore, blueScore } = this.state;
     const w = winner ?? (redScore > blueScore ? "red" : blueScore > redScore ? "blue" : "draw");
+    for (const [id, action] of this.weaponActions) {
+      action.clear();
+      this.sendWeaponAction(id, null);
+    }
+    this.weaponActions.clear();
+    this.reloadUntil.clear();
+    for (const player of Object.values(this.state.players)) player.reloadEnd = 0;
     this.state.phase = "ended";
     this.state.warmupEndMs = 0;
     this.endedUntil = Date.now() + Math.ceil(this.intermissionMs / TICK_MS) * TICK_MS;
@@ -1943,7 +2307,7 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
   }
 
   /** Warmup: waits for {@link warmupMinPlayers}, then counts down {@link warmupMs} before a full
-   *  reset into "live" (a lone player stays in warmup indefinitely — practice mode). */
+   *  reset into "live" (a lone player stays in warmup indefinitely ??practice mode). */
   private tickWarmup(now: number): void {
     const seats = Object.keys(this.state.players).length;
     if (seats < this.warmupMinPlayers) {
@@ -1959,8 +2323,8 @@ export class ArenaRoomImpl extends IoArenaRoom<ArenaState> {
     }
   }
 
-  /** Post-match → warmup (not straight to "live"): routes through the same
-   *  min-players/countdown gate as room creation (M2 µ2b). */
+  /** Post-match ??warmup (not straight to "live"): routes through the same
+   *  min-players/countdown gate as room creation (M2 쨉2b). */
   private enterWarmup(): void {
     this.endedUntil = undefined;
     this.state.warmupEndMs = 0;

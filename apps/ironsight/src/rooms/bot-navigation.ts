@@ -7,6 +7,7 @@ import { CoreCollision } from '../core-gate.js';
 
 interface Node { point: Vec3; incoming: number[] }
 interface Geometry { boxes: Box[]; ramps: RampDef[] }
+type Attachment = 'from' | 'to';
 const CELL = 1, BUCKET = 4, EPS = .03, MAX_FIELDS = 24;
 
 /** Bot-only walking graph. Multiple supported feet heights can occupy one cell:
@@ -22,6 +23,7 @@ export class BotNavigator {
   private readonly nodes: Node[] = [];
   private readonly buckets = new Map<string, Geometry>();
   private readonly fields = new Map<number, Int32Array>();
+  private readonly dropEdges = new Set<string>();
   readonly highGround: readonly Vec3[];
 
   constructor(private readonly map: MapDef) {
@@ -74,12 +76,13 @@ export class BotNavigator {
         }
       }
     }
+    this.connectAuthoredLinks();
     const goals: Vec3[] = [];
     for (const r of map.ramps ?? []) {
       if (r.topY < 2 || (r.baseY ?? 0) < 0) continue;
       const p = { x: (r.minX + r.maxX) / 2, y: r.topY, z: (r.minZ + r.maxZ) / 2 };
       p[r.axis] = (r.dir === 1 ? (r.axis === 'x' ? r.maxX : r.maxZ) : (r.axis === 'x' ? r.minX : r.minZ)) + r.dir * 1.2;
-      const goal = this.attach(p, false);
+      const goal = this.attach(p, 'to');
       if (goal !== undefined && this.nodes[goal]!.incoming.length &&
         !goals.some(g => Math.hypot(g.x - p.x, g.z - p.z) < 3)) goals.push(this.nodes[goal]!.point);
     }
@@ -97,7 +100,9 @@ export class BotNavigator {
    * intentionally ignored inside/on-face origins are never used for movement. */
   walkable(from: Vec3, to: Vec3): boolean {
     const d = Math.hypot(to.x - from.x, to.z - from.z);
-    const steps = Math.max(1, Math.ceil(d / .2)), dx = (to.x - from.x) / steps, dz = (to.z - from.z) / steps;
+    const tickDistance = MOVE.walk * .05;
+    const steps = Math.max(1, Math.ceil(d / tickDistance));
+    const dx = (to.x - from.x) / steps, dz = (to.z - from.z) / steps;
     let p = from;
     for (let i = 0; i < steps; i++) {
       const result = this.step(p, dx, dz);
@@ -107,17 +112,56 @@ export class BotNavigator {
     }
     return Math.abs(p.y - to.y) < EPS;
   }
-  private attach(p: Vec3, sweep: boolean): number | undefined {
+  private dropWalkable(from: Vec3, to: Vec3): boolean {
+    if (to.y >= from.y - EPS) return false;
+    let p = { ...from }, vy = 0, airborne = false;
+    for (let tick = 0; tick < 60; tick++) {
+      const dx = to.x - p.x, dz = to.z - p.z, distance = Math.hypot(dx, dz);
+      const scale = distance ? Math.min(MOVE.walk * .05, distance) / distance : 0;
+      vy -= MOVE.gravity * .05;
+      const geometry = this.geometry(p.x, p.z);
+      const result = moveAndSlide(p, PLAYER.radius, PLAYER.standHeight,
+        { x: dx * scale, y: vy * .05, z: dz * scale }, vy,
+        geometry.boxes, this.map.bounds, MOVE.stepUp, geometry.ramps);
+      if (Math.hypot(result.pos.x - p.x - dx * scale, result.pos.z - p.z - dz * scale) > EPS) return false;
+      p = result.pos; vy = result.vy;
+      if (!result.grounded) airborne = true;
+      else if (airborne) return Math.abs(p.y - to.y) < EPS && Math.hypot(p.x - to.x, p.z - to.z) < .4;
+    }
+    return false;
+  }
+  private connectAuthoredLinks(): void {
+    const navigation = this.map.navigation;
+    if (!navigation) return;
+    const anchors = new Map(navigation.anchors.map(anchor => [anchor.id, anchor]));
+    const connect = (from: number, to: number) => {
+      const incoming = this.nodes[to]!.incoming;
+      if (!incoming.includes(from)) incoming.push(from);
+    };
+    for (const link of navigation.links) {
+      if (link.traversal !== 'drop' || link.minWidth + EPS < PLAYER.radius * 2) continue;
+      const fromAnchor = anchors.get(link.from), toAnchor = anchors.get(link.to);
+      if (!fromAnchor || !toAnchor) continue;
+      const from = this.attach(fromAnchor.point, 'from'), to = this.attach(toAnchor.point, 'to');
+      if (from === undefined || to === undefined) continue;
+      const a = this.nodes[from]!.point, b = this.nodes[to]!.point;
+      if (link.bidirectional || fromAnchor.layer <= toAnchor.layer || !this.dropWalkable(a, b)) continue;
+      connect(from, to); this.dropEdges.add(`${from}:${to}`);
+    }
+  }
+  private attach(p: Vec3, sweep: Attachment): number | undefined {
     const cx = Math.floor(p.x / CELL), cz = Math.floor(p.z / CELL);
     const candidates: { id: number; distance: number }[] = [];
-    for (let z = Math.max(0, cz - 1); z <= Math.min(this.depth - 1, cz + 1); z++)
-      for (let x = Math.max(0, cx - 1); x <= Math.min(this.width - 1, cx + 1); x++)
+    const radius = sweep === 'to' ? 4 : 1;
+    for (let z = Math.max(0, cz - radius); z <= Math.min(this.depth - 1, cz + radius); z++)
+      for (let x = Math.max(0, cx - radius); x <= Math.min(this.width - 1, cx + radius); x++)
         for (const id of this.cells[z * this.width + x]!) {
           const n = this.nodes[id]!.point;
           if (Math.abs(n.y - p.y) <= .65) candidates.push({ id, distance: Math.hypot(n.x - p.x, n.y - p.y, n.z - p.z) });
         }
     candidates.sort((a, b) => a.distance - b.distance);
-    return candidates.find(c => !sweep || this.walkable(p, this.nodes[c.id]!.point))?.id;
+    return candidates.find(c => sweep === 'from'
+      ? this.walkable(p, this.nodes[c.id]!.point) : this.walkable(this.nodes[c.id]!.point, p))?.id;
   }
   private field(goal: number): Int32Array {
     let field = this.fields.get(goal);
@@ -138,7 +182,7 @@ export class BotNavigator {
   next(from: Vec3, target: BotRoutePoint): Vec3 {
     const to = { ...target, y: target.y ?? routeFloor(this.map, target.x, target.z) };
     if (Math.hypot(to.x - from.x, to.z - from.z) <= 6 && this.walkable(from, to)) return to;
-    const start = this.attach(from, true), goal = this.attach(to, false);
+    const start = this.attach(from, 'from'), goal = this.attach(to, 'to');
     if (start === undefined || goal === undefined) return from;
     const field = this.field(goal);
     if (field[start] === -1) return from;
@@ -149,17 +193,25 @@ export class BotNavigator {
       const next = field[cursor];
       if (next === undefined || next < 0 || next === cursor) break;
       const point = this.nodes[next]!.point;
-      if (!this.walkable(from, point)) break;
+      const drop = this.dropEdges.has(`${cursor}:${next}`);
+      const floorTransition = Math.abs(this.nodes[cursor]!.point.y - point.y) > EPS;
+      const reachable = drop ? this.dropWalkable(from, point) : this.walkable(from, point);
+      if (!reachable) {
+        if (drop || floorTransition) break;
+        cursor = next;
+        continue;
+      }
       best = point; cursor = next;
+      if (drop || floorTransition) break;
     }
     return best;
   }
   /** Static tactical choice, based only on the bot's own spawn and map geometry. */
   nearestHighGround(from: Vec3): Vec3 | undefined {
-    const start = this.attach(from, true);
+    const start = this.attach(from, 'from');
     if (start === undefined) return;
     return [...this.highGround].sort((a, b) => Math.hypot(a.x - from.x, a.z - from.z) - Math.hypot(b.x - from.x, b.z - from.z))
-      .find(p => { const goal = this.attach(p, false); return goal !== undefined && this.field(goal)[start] !== -1; });
+      .find(p => { const goal = this.attach(p, 'to'); return goal !== undefined && this.field(goal)[start] !== -1; });
   }
   get stats() { return { nodes: this.nodes.length, edges: this.nodes.reduce((n, p) => n + p.incoming.length, 0),
     fields: this.fields.size, fieldBytes: this.fields.size * this.nodes.length * 4 }; }

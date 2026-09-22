@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "key": "rail-platform",
+  "sha256": "8aefe162b704d11f43db62e4575bb996aa94d80d40df1c306c4f50736edbe50c",
+  "dimensionsM": [
+    4,
+    0.32,
+    2.4
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    252,
+    156,
+    84
+  ],
+  "joints": {
+    "join_front": [
+      0,
+      0,
+      1.2
+    ],
+    "join_back": [
+      0,
+      0,
+      -1.2
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "metal",
+    "gravel"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      4,
+      0.32,
+      2.4
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/rail-platform.json",
+    "outputSha256": "8aefe162b704d11f43db62e4575bb996aa94d80d40df1c306c4f50736edbe50c"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

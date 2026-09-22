@@ -19,6 +19,7 @@ import type { SlideInput as MoveIntent } from '../src/slide.js';
 import { WaistTraversal } from '../src/traversal.js';
 import { SprintSlide } from '../src/slide.js';
 import { CoreCollision } from '../src/core-gate.js';
+import { horizontalMovement } from '../src/movement-rules.js';
 import type { Room } from '@tikron/client';
 import { isMovementSnapshot, MOVEMENT_SYNC, restoreControllers, saveControllers,
   type MovementCommand, type MovementSnapshot, type MovementState } from '../src/rooms/movement-sync.js';
@@ -28,6 +29,7 @@ const START_RETRY_MS = 500;
 
 export interface PredictionCorrection {
   epoch: number; tick: number; ack: number; pending: number; reset: boolean;
+  reason: 'epoch_reset' | 'liveness_reset' | 'replay_pending' | 'acknowledged' | 'unmatched_ack';
   /** Delayed position vs current prediction: useful telemetry, NOT a correction error. */
   rawError: number;
   /** Authoritative position vs prediction of that exact acknowledged command. */
@@ -130,7 +132,9 @@ export class Predictor {
   private receiveMovement(snapshot: MovementSnapshot): void {
     if (snapshot.epoch < this.epoch || snapshot.epoch === this.epoch &&
       (snapshot.tick < this.snapshotTick || snapshot.ack < this.acknowledged || snapshot.ack > this.sequence)) return;
-    const reset = snapshot.epoch !== this.epoch || snapshot.alive !== this.alive;
+    const resetReason = snapshot.epoch !== this.epoch ? 'epoch_reset'
+      : snapshot.alive !== this.alive ? 'liveness_reset' : null;
+    const reset = resetReason !== null;
     const before = {...this.pos}, beforePrev = {...this.prevPos}, beforeEye = this.eye();
     const matched = this.pending.find(p=>p.command.seq===snapshot.ack);
     const distance = (a: Vec3,b: Vec3) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -169,8 +173,11 @@ export class Predictor {
         this.offset={x:beforeEye.x-afterEye.x,y:beforeEye.y-afterEye.y,z:beforeEye.z-afterEye.z};
       }
     }
+    const reason = resetReason ?? (!matched ? 'unmatched_ack'
+      : this.pending.length > 0 ? 'replay_pending'
+      : 'acknowledged');
     this.onCorrection?.({epoch:snapshot.epoch,tick:snapshot.tick,ack:snapshot.ack,
-      pending:this.pending.length,reset,rawError:distance(before,snapshot.pos),matchedError,correction:distance(before,this.pos)});
+      pending:this.pending.length,reset,reason,rawError:distance(before,snapshot.pos),matchedError,correction:distance(before,this.pos)});
   }
 
   /** Advance prediction for a render frame: integrate held intent at the fixed tick
@@ -245,19 +252,8 @@ export class Predictor {
       this.crouch = inp.crouch;
     }
 
-    let speed: number = MOVE.walk;
-    if (this.crouch) speed = MOVE.crouch;
-    else if (inp.sprint && !inp.ads && inp.mz > 0 && this.grounded) speed = MOVE.sprint;
-
-    const sy = Math.sin(yaw);
-    const cy = Math.cos(yaw);
-    let wx = sy * inp.mz + cy * inp.mx;
-    let wz = cy * inp.mz - sy * inp.mx;
-    const wl = Math.hypot(wx, wz);
-    if (wl > 1) {
-      wx /= wl;
-      wz /= wl;
-    }
+    const horizontal = horizontalMovement({ ...inp, crouch: this.crouch, ads: inp.ads === true }, this.grounded, yaw);
+    let { x: wx, z: wz, speed } = horizontal;
     if (momentum) { wx = momentum.x; wz = momentum.z; speed = momentum.speed; }
 
     if (this.grounded && this.pendingJump) {

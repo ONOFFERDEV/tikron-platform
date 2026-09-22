@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "ww1-licensed-derived-soldier-quarantine-record",
+  "candidateStatus": "quarantined-inconsistent-runtime-normalization-evidence",
+  "sourceOfflineAccepted": false,
+  "runtimeAccepted": false,
+  "thirdPersonWeaponContact": "pending-v3-five-weapon-review",
+  "review": {
+    "status": "suspended-pending-true-three-box3",
+    "scope": "source-and-offline-morphology-pose-only",
+    "evidence": "D:/webgame-baas/.omo/evidence/ww1/task-09-20-post-deploy/independent-final-model-review-v3.json",
+    "sha256": "b2e33e82c7d705c0e51ccd7a2b80271a9c948bd9bad4c211203a8ea71b08b94a"
+  },
+  "builder": {
+    "path": "tools/fit-ww1-soldiers.py",
+    "sha256": "7dcc94ded7c62488bb6d09f5ed9fa6a0f80fbd1f17ee9dbcb7bc92517e50c815"
+  },
+  "source": {
+    "path": "assets/models/player.glb",
+    "sha256": "5dced0ed9b3ee898c9609bca372a60f869ca998ffec53f3ecae20b50699bec66"
+  },
+  "assets": [
+    { "key": "soldier-khaki", "glb": "assets/ww1/characters/soldier-khaki.glb", "glbSha256": "61255ca272403f54a4d81153c1ac5a4d0675c6df9f2e76aebfbd3dd58c71acd8", "meta": "assets/ww1/characters/soldier-khaki.meta.json", "metaSha256": "3e1908ee5bd7f3c2dfbf46ba4a2b4f0a3961ff070de3f594a8106c3a290237b4" },
+    { "key": "soldier-fieldgrey", "glb": "assets/ww1/characters/soldier-fieldgrey.glb", "glbSha256": "96c123b8d81da64dc2c43e41c28b86105d0f49494ba84146485d1ee8aaf11182", "meta": "assets/ww1/characters/soldier-fieldgrey.meta.json", "metaSha256": "da1128695875b140b43538a33c96dc817fc3c8b3a8d0ef1060fc1f68a749138d" }
+  ]
+}

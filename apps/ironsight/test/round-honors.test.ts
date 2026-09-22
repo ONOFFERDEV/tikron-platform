@@ -4,10 +4,12 @@ import { DOM_MODE, type ModeCtx } from '../src/modes.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { MODES } from '../src/config.js';
 import type { ArenaState, ArenaPlayer } from '../src/schema.js';
+import { HIT_ANIMATION_NONE } from '../src/hit-state-bucket.js';
 
 const player = (team = 0, k = 0, d = 0): ArenaPlayer => ({ x: 0, y: 0, z: 0,
   yaw: 0, pitch: 0, hp: 100, team, alive: true, crouch: false, prot: false,
-  k, d, weapon: 0, nades: 2, reloadEnd: 0 });
+  k, d, weapon: 0, nades: 2, reloadEnd: 0, hitClipIndex: HIT_ANIMATION_NONE, hitClipStartedAt: 0, hitBlendSources: [], hitReactionKind: 0, hitReactionStartedAt: 0, hitReactionSeq: 0,
+  hitSegmentSeq: 0, hitSegmentStartedAt: 0 });
 const state = (): ArenaState => ({ players: { cap: player(), frag: player(0, 1), enemy: player(1, 99) },
   seed: 1, redScore: 0, blueScore: 0, phase: 'live', mode: 2, matchEndMs: 1e9,
   signalAt: 0, coreOpen: false, warmupEndMs: 0, capA: 100, capB: 100, capC: 100 });

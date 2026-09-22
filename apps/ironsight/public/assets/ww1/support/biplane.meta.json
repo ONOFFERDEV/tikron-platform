@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "key": "biplane",
+  "sha256": "72ad5bd897d683c069e66bf8e19544f12a61e204562e6c03b4161357a655e3f1",
+  "dimensionsM": [
+    9.2,
+    2.75,
+    6.4
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "centre-of-mass",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    824,
+    608,
+    292
+  ],
+  "joints": {
+    "path_origin": [
+      0,
+      0,
+      0
+    ],
+    "propeller": [
+      0,
+      -0.225,
+      3.2
+    ],
+    "camera_observation": [
+      0,
+      0.325,
+      0.25
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "metal"
+  ],
+  "collision": {
+    "kind": "none"
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "support-airframe",
+    "receiptPath": "artifacts/ww1/receipts/biplane.json",
+    "outputSha256": "72ad5bd897d683c069e66bf8e19544f12a61e204562e6c03b4161357a655e3f1"
+  },
+  "factionVariants": [
+    "khaki",
+    "fieldgrey"
+  ],
+  "pilotable": false,
+  "presentation": [
+    "observation",
+    "fixed-linear-strafing"
+  ]
+}

@@ -74,11 +74,12 @@ describe('room recoil authority', () => {
   it('current raw mouse compensation rides the fire intent; non-finite angles cannot poison state', async () => {
     const h = await createTestRoom(RecoilArena, { codec: ArenaSchema, sync: 'throttled' });
     const c = await h.connect();
+    const interval = WEAPONS[0]!.fireIntervalMs;
     await c.send('fire', { fireSeq: 1, yaw: 0, pitch: 0 });
-    vi.setSystemTime(1_000_100);
+    vi.setSystemTime(1_000_000 + interval);
     await c.send('fire', { fireSeq: 2, yaw: 0, pitch: -.003 });
     expect(events(c, 'shot').at(-1)).toMatchObject({ dx: 0, dy: 0, dz: 1 });
-    vi.setSystemTime(1_000_200);
+    vi.setSystemTime(1_000_000 + interval * 2);
     await c.send('fire', { fireSeq: 3, yaw: 'NaN', pitch: null });
     expect(Number.isFinite(h.snapshot().players[c.id]!.yaw)).toBe(true);
     expect(events(c, 'shot').at(-1)?.dy).toBeCloseTo(Math.sin(.003));
@@ -86,9 +87,10 @@ describe('room recoil authority', () => {
   it('accepted rays follow the pattern; forged indices/releases and rate-rejected fire cannot reset/advance it', async () => {
     const h = await createTestRoom(RecoilArena, { codec: ArenaSchema, sync: 'throttled' });
     const c = await h.connect();
+    const interval = WEAPONS[0]!.fireIntervalMs;
     await c.send('look', { yaw: 0, pitch: 0 });
     for (let i = 0; i < 6; i++) {
-      vi.setSystemTime(1_000_000 + i * 100);
+      vi.setSystemTime(1_000_000 + i * interval);
       await c.send('fire', { fireSeq: i * 2 + 1, index: 0, recoil: 0, release: true, at: 0 });
       await c.send('fire', { fireSeq: i * 2 + 2 }); // same timestamp rejected
       expect(events(c, 'recoilSync').at(-1)?.count).toBe(i + 1);

@@ -2,13 +2,13 @@
 import { describe, it, expect, vi } from "vitest";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RemoteWeapon } from "../client/remote-weapon.js";
-import { loadWeaponModel, weaponMuzzle, weaponSource } from "../client/weapon-loader.js";
+import { acquireWeaponModel, weaponMuzzle, weaponSource } from "../client/weapon-loader.js";
 import { GAME } from '../src/game-config.js';
 import { splitRifleMagazine } from '../client/rifle-magazine.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 vi.mock("../client/weapon-loader.js", async importOriginal => ({
   ...await importOriginal<typeof import("../client/weapon-loader.js")>(),
-  loadWeaponModel: vi.fn(),
+  acquireWeaponModel: vi.fn(),
 }));
 const arNode = weaponSource(GAME.weaponVis, 0)!.nodeName!;
 function fixture() {
@@ -19,11 +19,14 @@ function fixture() {
   const material = new THREE.MeshStandardMaterial();
   const scene = new THREE.Group();
   for (const name of [arNode, "wep_pistol"]) {
-    const gun = new THREE.Mesh(geometry, material); gun.name = name; scene.add(gun);
+    const gun = new THREE.Mesh(geometry, material); gun.name = name;
+    const grip = new THREE.Object3D(); grip.name = "grip_l"; grip.position.set(0, 0.02, name === arNode ? 0.37 : 0.028);
+    gun.add(grip); scene.add(gun);
   }
   return { group, root, hand, geometry, material, gltf: { scene } as GLTF };
 }
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
+const lease = (value: Promise<GLTF | undefined>) => ({ value, release: vi.fn() });
 describe("remote weapon presentation", () => {
   it("preserves animated wrists, restores arms, and never accumulates the hold", () => {
     const group = new THREE.Group();
@@ -53,10 +56,11 @@ describe("remote weapon presentation", () => {
     weapon.dispose();
   });
   it("fits world length independently of player scale, follows the hand, and never becomes a hit target", async () => {
-    const f = fixture(); vi.mocked(loadWeaponModel).mockResolvedValue(f.gltf);
+    const f = fixture(); const held = lease(Promise.resolve(f.gltf));
+    vi.mocked(acquireWeaponModel).mockReturnValue(held);
     const weapon = new RemoteWeapon(f.group, f.root); weapon.setWeapon(0); await flush();
     const mesh = weapon.mount.getObjectByName(arNode)!;
-    expect(loadWeaponModel).toHaveBeenCalledWith(weaponSource(GAME.weaponVis, 0)!.url);
+    expect(acquireWeaponModel).toHaveBeenCalledWith(weaponSource(GAME.weaponVis, 0)!.url);
     f.group.updateMatrixWorld(true);
     expect(new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3()).z).toBeCloseTo(0.72);
     const before = weapon.muzzle.getWorldPosition(new THREE.Vector3());
@@ -67,20 +71,48 @@ describe("remote weapon presentation", () => {
     const disposeGeometry = vi.spyOn(f.geometry, "dispose");
     const disposeMaterial = vi.spyOn(f.material, "dispose");
     weapon.dispose();
+    expect(held.release).toHaveBeenCalledTimes(1);
     expect(disposeGeometry).not.toHaveBeenCalled(); expect(disposeMaterial).not.toHaveBeenCalled();
     expect(f.hand.children).toHaveLength(0);
   });
   it("ignores an old load after rapid swaps and after removal", async () => {
-    const f = fixture(); const resolves: ((gltf: GLTF) => void)[] = [];
-    vi.mocked(loadWeaponModel).mockImplementation(() => new Promise(resolve => resolves.push(resolve)));
+    const f = fixture(); const resolves: ((gltf: GLTF) => void)[] = [], releases: ReturnType<typeof vi.fn>[] = [];
+    vi.mocked(acquireWeaponModel).mockImplementation(() => {
+      const pending = lease(new Promise(resolve => resolves.push(resolve)));
+      releases.push(pending.release); return pending;
+    });
     const weapon = new RemoteWeapon(f.group, f.root);
     weapon.setWeapon(0); weapon.setWeapon(4);
     resolves[0]!(f.gltf); await flush();
+    expect(releases[0]).toHaveBeenCalledTimes(1);
     expect(weapon.mount.getObjectByName(arNode)).toBeUndefined();
     resolves[1]!(f.gltf); await flush();
     expect(weapon.mount.getObjectByName("wep_pistol")).toBeDefined();
     weapon.setWeapon(0); weapon.dispose(); resolves[2]!(f.gltf); await flush();
+    expect(releases[1]).toHaveBeenCalledTimes(1); expect(releases[2]).toHaveBeenCalledTimes(1);
     expect(weapon.mount.getObjectByName("wep_ar")).toBeUndefined();
+  });
+  it("places the support wrist on the loaded weapon foregrip at neutral aim", async () => {
+    const f = fixture(); const group = new THREE.Group(), root = new THREE.Group(); group.add(root);
+    root.userData.rifleHold = true;
+    let support: THREE.Bone | undefined;
+    for (const [suffix, sign] of [["R", -1], ["L", 1]] as const) {
+      const upper = new THREE.Bone(), lower = new THREE.Bone(), hand = new THREE.Bone();
+      upper.name = `UpperArm_${suffix}`; lower.name = `lowerarm_${suffix.toLowerCase()}`; hand.name = `Hand_${suffix}`;
+      upper.position.set(sign * .15, 1.4, 0); lower.position.set(sign * .08, -.3, .1);
+      hand.position.set(-sign * .1, .13, suffix === "R" ? .2 : .27);
+      root.add(upper); upper.add(lower); lower.add(hand); if (suffix === "L") support = hand;
+    }
+    vi.mocked(acquireWeaponModel).mockReturnValue(lease(Promise.resolve(f.gltf)));
+    const weapon = new RemoteWeapon(group, root); weapon.setWeapon(0); await flush();
+    group.updateMatrixWorld(true); weapon.update(1.65, 0, true); group.updateMatrixWorld(true);
+    const grip = weapon.mount.getObjectByName("grip_l")!;
+    const palm = support!.localToWorld(new THREE.Vector3(-.045, 0, 0));
+    expect(palm.distanceTo(grip.getWorldPosition(new THREE.Vector3())))
+      .toBeLessThan(.002);
+    expect(support!.getWorldQuaternion(new THREE.Quaternion()).angleTo(grip.getWorldQuaternion(new THREE.Quaternion())))
+      .toBeLessThan(.002);
+    weapon.dispose();
   });
   it("capsule fallback muzzle follows crouch height and aim", () => {
     const group = new THREE.Group(); const weapon = new RemoteWeapon(group);

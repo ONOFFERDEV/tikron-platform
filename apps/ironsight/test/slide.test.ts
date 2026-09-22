@@ -76,7 +76,7 @@ describe('room slide authority', () => {
     await c.send('move', sprint);
     for (let i = 0; i < 6; i++) await h.advance(TICK_MS);
     const start = p.x;
-    expect(start).toBeCloseTo(57.7);
+    expect(start).toBeCloseTo(55 + MOVE.sprint * 6 * TICK_MS / 1000);
     await c.send('move', { ...crouch, speed: 1000, slideEnd: 1e20, slide: true });
     await c.send('fire', {}); await h.advance(TICK_MS);
     expect(c.frames().filter(f => f.type === 'shot')).toHaveLength(0);

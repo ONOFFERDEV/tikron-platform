@@ -44,7 +44,9 @@ it('tests both eye and attachment rays, so a protruding or submerged lens cannot
 });
 it('uses actual Relay shutter state and real ramp/cover volumes on all maps', () => {
   const core = new CoreCollision(ARENA1);
-  const e = { x: 83, y: 1.65, z: 50 }, l = { x: 82.6, y: 1.55, z: 50 }, v = { x: 67, y: 1.65, z: 50 };
+  const chamber = ARENA1.signalCore!.chamber, z = (chamber.min.z + chamber.max.z) / 2;
+  const e = { x: chamber.max.x + 3, y: 1.65, z }, l = { x: chamber.max.x + 2.6, y: 1.55, z },
+    v = { x: chamber.min.x - 3, y: 1.65, z };
   const p = { ...threat, yaw: -Math.PI / 2 };
   expect(scopeGlintStrength(p, e, l, v, core.closed, 1000)).toBe(0);
   expect(scopeGlintStrength(p, e, l, v, core.open, 1000)).toBe(1);

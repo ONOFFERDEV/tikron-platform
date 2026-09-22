@@ -29,24 +29,24 @@
 import { openSettings, closeSettings } from "./settings-ui.js";
 import type { SettingsStore } from "./settings.js";
 import type { CompositorFrame } from './compositor-preparation.js';
+import { GAME } from '../src/game-config.js';
+import { createUiButton } from './ui/primitives.js';
+
+const T = GAME.text.quit as typeof GAME.text.quit & { readonly title: string };
 
 const css = `
 #quitConfirm { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center;
-  justify-content: center; background: rgba(6,8,12,0.55); font: 14px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
-  color: #eef; pointer-events: auto; }
+  justify-content: center; padding:var(--ui-safe-edge);box-sizing:border-box;background:var(--ui-scrim);font:400 var(--ui-type-body)/1.5 var(--ui-font-body);
+  color:var(--ui-text-primary); pointer-events: auto; }
 #quitConfirm .panel { display: flex; flex-direction: column; align-items: center; gap: 18px;
-  padding: 32px 40px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
-  background: rgba(20,24,32,0.85); }
-#quitConfirm h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+  padding:var(--ui-space-8); border:1px solid var(--ui-border-strong); border-radius:var(--ui-radius-panel);
+  background:var(--ui-surface-1);box-shadow:var(--ui-shadow-modal) }
+#quitConfirm h2 { margin: 0; font:700 var(--ui-type-panel)/1.25 var(--ui-font-body);color:var(--ui-text-primary) }
 #quitConfirm .row { display: flex; gap: 12px; flex-wrap:wrap; justify-content:center; }
-#quitConfirm button:focus-visible{outline:2px solid #edaa52;outline-offset:3px}
+#quitConfirm button:focus-visible{outline:var(--ui-focus-width) solid var(--ui-focus);outline-offset:3px}
 #quitConfirm .panel{max-width:calc(100vw - 32px);box-sizing:border-box}
-#quitConfirm p{margin:0;text-align:center;color:#becbd0}
-#quitConfirm button { padding: 10px 22px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
-  background: rgba(255,255,255,0.06); color: #eef; font: inherit; cursor: pointer;
-  transition: background 120ms, border-color 120ms; }
-#quitConfirm button:hover { background: rgba(70,130,220,0.25); border-color: rgba(156,196,255,0.6); }
-#quitConfirm button.quit:hover { background: rgba(220,70,70,0.25); border-color: rgba(255,140,120,0.6); }
+#quitConfirm p{margin:0;text-align:center;color:var(--ui-text-secondary);text-wrap:pretty;word-break:keep-all}
+#quitConfirm button.quit:hover { border-color:var(--ui-error); }
 `;
 
 let root: HTMLDivElement | null = null;
@@ -83,7 +83,8 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void, preparatio
   dlg.setAttribute('aria-labelledby', 'pause-title');
   const panel = document.createElement("div");
   panel.className = "panel";
-  panel.innerHTML = `<h2 id="pause-title">MATCH MENU / 메뉴</h2><p>The match continues while this menu is open.</p>`;
+  const heading=document.createElement('h2'), prompt=document.createElement('p');
+  heading.id='pause-title';heading.textContent=T.title;prompt.textContent=T.prompt;panel.append(heading,prompt);
   const rowEl = document.createElement("div");
   rowEl.className = "row";
 
@@ -104,11 +105,9 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void, preparatio
     }
   };
 
-  const continueBtn = document.createElement("button");
-  continueBtn.textContent = 'RESUME / 계속';
+  const continueBtn = createUiButton({label:T.continueLabel,tone:'accent'});
   continueBtn.addEventListener("click", () => dismiss(true));
-  const settingsBtn = document.createElement("button");
-  settingsBtn.textContent = 'SETTINGS / 설정';
+  const settingsBtn = createUiButton({label:GAME.text.settings.openLabel});
   settingsBtn.addEventListener("click", () => {
     window.removeEventListener("keydown", onKeydown);
     dlg.style.display = "none";
@@ -117,9 +116,8 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void, preparatio
       window.addEventListener("keydown", onKeydown);
     });
   });
-  const quitBtn = document.createElement("button");
-  quitBtn.className = "quit";
-  quitBtn.textContent = 'DEPLOYMENT / 메뉴';
+  const quitBtn = createUiButton({label:T.quitLabel,tone:'error'});
+  quitBtn.classList.add("quit");
   quitBtn.addEventListener("click", () => quitToMenu());
 
   rowEl.append(continueBtn, settingsBtn, quitBtn);

@@ -9,6 +9,69 @@ export interface UndertowSitePart {
 export interface UndertowSiteSign {
   label: number; x: number; y: number; z: number; yaw: number; width: number;
 }
+export interface UndertowFieldKitPlacement {
+  readonly key: EnvironmentAssetKey;
+  readonly publicUrl: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly yaw: number;
+  readonly dimensionsM: EnvironmentAsset['dimensionsM'];
+  readonly origin: EnvironmentAsset['origin'];
+  readonly joints: EnvironmentAsset['joints'];
+  readonly surface: EnvironmentSurface;
+  readonly collision: EnvironmentAsset['collision'];
+  readonly routeBoundary: boolean;
+  readonly maxCladdingOffsetM: number;
+}
+
+function fieldKitAsset(key: EnvironmentAssetKey): EnvironmentAsset {
+  const asset = WW1_ENVIRONMENT_MANIFEST.assets.find((candidate) => candidate.key === key);
+  if (asset === undefined) throw new TypeError(`Missing WW1 environment asset: ${key}`);
+  return asset;
+}
+
+function fieldKitPlacement(
+  key: EnvironmentAssetKey,
+  x: number,
+  y: number,
+  z: number,
+  yaw = 0,
+): UndertowFieldKitPlacement {
+  const asset = fieldKitAsset(key);
+  const surface = asset.surfaces[0];
+  if (surface === undefined) throw new TypeError(`Missing WW1 environment surface: ${key}`);
+  return {
+    key,
+    publicUrl: asset.publicUrl,
+    x,
+    y,
+    z,
+    yaw,
+    dimensionsM: asset.dimensionsM,
+    origin: asset.origin,
+    joints: asset.joints,
+    surface,
+    collision: asset.collision,
+    routeBoundary: asset.routeBoundary,
+    maxCladdingOffsetM: asset.maxCladdingOffsetM,
+  };
+}
+
+export function undertowFieldKitPlacements(): readonly UndertowFieldKitPlacement[] {
+  const bridgeDecks = UNDERTOW_BRIDGE_SPANS.flatMap(({ minX, maxX }) => {
+    const x = (minX + maxX) / 2;
+    return [69.2, 71, 72.8].map((z) => fieldKitPlacement('rail-platform', x, 2.68, z));
+  });
+  const traverses = [
+    [59, 0, 49], [61, 0, 49], [59, 0, 62], [61, 0, 62],
+    [89, 0, 49], [91, 0, 49], [89, 0, 62], [91, 0, 62],
+  ].map(([x, y, z]) => fieldKitPlacement('trench-wall', x!, y!, z!));
+  const sandbags = [
+    [66.5, 0, 50.5], [66.5, 0, 59.5], [83.5, 0, 50.5], [83.5, 0, 59.5],
+  ].map(([x, y, z]) => fieldKitPlacement('sandbag', x!, y!, z!));
+  return [...bridgeDecks, ...traverses, ...sandbags];
+}
 
 export function undertowCanalSurface(width: number, depth: number) {
   return { x: width / 2, y: .025, z: depth + 10, w: width + 50, d: 14 };
@@ -185,3 +248,10 @@ export function undertowSiteBoundary(width: number, depth: number): UndertowSite
   }
   return parts;
 }
+import {
+  WW1_ENVIRONMENT_MANIFEST,
+  type EnvironmentAsset,
+  type EnvironmentAssetKey,
+  type EnvironmentSurface,
+} from '../config/ww1-environment.js';
+import { UNDERTOW_BRIDGE_SPANS } from '../src/map/undertow-channel.js';

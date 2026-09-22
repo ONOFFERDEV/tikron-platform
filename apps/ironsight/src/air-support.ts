@@ -1,11 +1,13 @@
 import type { ArenaPlayer, ArenaState } from './schema.js';
+import { nearestBox, type Box } from './physics.js';
 
 /** Air Support arc: recon is the first earned tier. No client activation message. */
 export const RECON = { kills: 3, durationMs: 12000, pulseDelayMs: 2000, pulseEveryMs: 4000,
-  contactMs: 2200, cooldownMs: 30000 } as const;
+  contactMs: 2200, cooldownMs: 30000, presentation: 'observation_biplane', cue: 'biplane_observation' } as const;
 export interface ReconFlight { owner: string; team: number; startedAt: number; endsAt: number }
 export interface ReconScan { startedAt: number; sampledAt: number; expiresAt: number; contacts: { x: number; z: number }[] }
-export interface SupportView { count: number; queued: boolean; readyAt: number; flights: ReconFlight[]; scan: ReconScan | null }
+export interface SupportView { count: number; queued: boolean; readyAt: number; flights: ReconFlight[]; scan: ReconScan | null;
+  protocol?: 2; kind?: 'observation_biplane' }
 interface Flight extends ReconFlight { key: string; pulse: number; scan: ReconScan | null }
 
 /** Room-local, bounded by seats. Cold restore already starts a fresh round. */
@@ -25,7 +27,8 @@ export class AirSupport {
   /** Returns true only on a launch, pulse, cancellation or expiry. A delayed tick
    * takes ONE current snapshot, never replays missed scans. Blackout consumes the
    * pulse without sampling, so recovery cannot resurrect hidden enemy locations. */
-  tick(state: ArenaState, now: number, blackout: boolean): boolean {
+  tick(state: ArenaState, now: number, blackout: boolean, boxes: readonly Box[] = [],
+    practiceTargets: ReadonlyMap<string, unknown> = new Map()): boolean {
     if (!this.eligible(state)) {
       const changed = this.flights.size > 0 || this.queue.size > 0;
       this.clear(); return changed;
@@ -43,7 +46,8 @@ export class AirSupport {
         f.scan = blackout ? null : { startedAt: f.startedAt, sampledAt: now,
           expiresAt: Math.min(now + RECON.contactMs, f.endsAt),
           contacts: Object.entries(state.players).filter(([id, enemy]) => id !== f.owner && enemy.alive && !enemy.prot &&
-            (state.mode === 3 || enemy.team !== f.team)).slice(0, 12)
+            (state.mode === 3 ? practiceTargets.has(id) : enemy.team !== f.team) && nearestBox({ x: enemy.x, y: enemy.y + 1.1, z: enemy.z },
+              { x: 0, y: 1, z: 0 }, boxes, 100) >= 100).slice(0, 12)
             .map(([, enemy]) => ({ x: Math.round(enemy.x), z: Math.round(enemy.z) })) };
       }
     }
@@ -64,7 +68,7 @@ export class AirSupport {
     const key = this.key(id, p, state.mode), own = this.flights.get(key);
     // Only public flight metadata goes to opponents. Never send IDs, health,
     // live positions or private scans across teams (including syncView).
-    return { count, queued: this.queue.has(id), readyAt: this.ready.get(key) ?? 0,
+    return { protocol: 2, kind: 'observation_biplane', count, queued: this.queue.has(id), readyAt: this.ready.get(key) ?? 0,
       flights: [...this.flights.values()].filter(f => now < f.endsAt && (state.mode !== 3 || f.owner === id))
         .map(({ owner, team, startedAt, endsAt }) => ({ owner, team, startedAt, endsAt })),
       scan: p.alive && own?.scan && own.scan.expiresAt > now ? own.scan : null };

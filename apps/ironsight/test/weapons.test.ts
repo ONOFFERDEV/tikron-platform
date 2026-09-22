@@ -17,21 +17,20 @@ import {
 } from "../src/weapons.js";
 import { stepGrenade, blastDamage, type GrenadeBody } from "../src/grenade.js";
 import { WEAPONS, GRENADE, MOVE, PLAYER, type WeaponSpec } from "../src/config.js";
+import { weaponByKey } from "../src/weapon-contract.js";
 import type { Box, Bounds } from "../src/physics.js";
 
-const byName = (n: string): WeaponSpec => WEAPONS.find((w) => w.name === n)!;
-const AR = byName("AR");
-const SHOTGUN = byName("Shotgun");
-const SNIPER = byName("Sniper");
+const AR: WeaponSpec = weaponByKey(WEAPONS, "automatic_rifle");
+const SHOTGUN = weaponByKey(WEAPONS, "pump_shotgun");
+const SNIPER = weaponByKey(WEAPONS, "bolt_service_rifle");
 
 describe("weapons — falloff", () => {
   it("is 1 within falloffStart, floors at falloffMin past falloffEnd, linear between", () => {
-    expect(falloffMul(AR, 10)).toBe(1); // inside start (30)
-    expect(falloffMul(AR, 30)).toBe(1); // exactly start
-    expect(falloffMul(AR, 65)).toBeCloseTo(AR.falloffMin, 5); // exactly end
+    expect(falloffMul(AR, 10)).toBe(1);
+    expect(falloffMul(AR, 25)).toBe(1); // exactly start
+    expect(falloffMul(AR, 60)).toBeCloseTo(AR.falloffMin, 5); // exactly end
     expect(falloffMul(AR, 200)).toBe(AR.falloffMin); // past end, clamped
-    // Midpoint (47.5 m) sits halfway down to the floor.
-    expect(falloffMul(AR, (30 + 65) / 2)).toBeCloseTo(1 + 0.5 * (AR.falloffMin - 1), 5);
+    expect(falloffMul(AR, (25 + 60) / 2)).toBeCloseTo(1 + 0.5 * (AR.falloffMin - 1), 5);
   });
 
   it("the sniper never falls off inside its range", () => {
@@ -119,9 +118,9 @@ describe("weapons — tracerSpeed (per-weapon tracer flight time)", () => {
 
   it("flight time to a fixed 30 m target (dist/speed) differs per weapon, fastest-round-first", () => {
     const flightTime = (w: WeaponSpec) => 30 / w.tracerSpeed;
-    const sniper = byName("Sniper");
-    const ar = byName("AR");
-    const shotgun = byName("Shotgun");
+    const sniper = weaponByKey(WEAPONS, "bolt_service_rifle");
+    const ar = weaponByKey(WEAPONS, "automatic_rifle");
+    const shotgun = weaponByKey(WEAPONS, "pump_shotgun");
     // Sniper's round is the fastest-reading (tracerSpeed 1200) → shortest
     // flight time; the shotgun's (500) is the slowest-reading → longest.
     expect(flightTime(sniper)).toBeLessThan(flightTime(ar));

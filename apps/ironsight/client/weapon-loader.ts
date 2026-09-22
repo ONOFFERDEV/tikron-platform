@@ -10,20 +10,42 @@
  * Either way it's a plain `Object3D#clone()` — there's no skeleton involved
  * (unlike rig-loader.ts's player model), so no SkeletonUtils needed.
  *
- * Never rejects: `loadWeaponModel` resolves `undefined` — after a single
- * `console.warn` per URL — on any fetch/parse failure, and the caller
+ * An acquired lease resolves `undefined` after one `console.warn` per URL on
+ * any fetch/parse failure, and the caller
  * (scene.ts's setWeaponVisual) is expected to stay on the procedural
  * buildWeaponMesh() fallback in that case. The bundle is fetched once and
- * cached by URL same as any single-file model — every slot sharing the same
- * bundle URL hits the same cache entry, so switching weapons never re-fetches it.
+ * cached by URL while leased — every slot sharing the same bundle URL hits the
+ * same cache entry.
  */
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { WeaponVisConfig } from '../config/schema.js';
 import { finishLegacyWeapon } from './equipment-finish.js';
+import { SharedAssetCache, disposeGltfTemplate, type AssetCacheSnapshot, type AssetLease } from './shared-gltf-cache.js';
 
-/** One selection rule for first person, remote holds and loading-screen warmup. */
-export function weaponSource(config: WeaponVisConfig, index: number): { url: string; nodeName?: string } | undefined {
+export type WeaponSource = { readonly url: string; readonly nodeName?: string };
+export type WeaponSourceOptions = { readonly candidatePreview?: boolean };
+export const WW1_WEAPON_CANDIDATE_SOURCES: readonly WeaponSource[] = [
+  { url: '/assets/ww1/weapons/automatic-rifle.glb', nodeName: 'automatic_rifle' },
+  { url: '/assets/ww1/weapons/trench-smg.glb', nodeName: 'trench_smg' },
+  { url: '/assets/ww1/weapons/pump-shotgun.glb', nodeName: 'pump_shotgun' },
+  { url: '/assets/ww1/weapons/bolt-rifle.glb', nodeName: 'bolt_service_rifle' },
+  { url: '/assets/ww1/weapons/service-pistol.glb', nodeName: 'service_pistol' },
+];
+export type WeaponSupportSource = 'grenade' | 'clip' | 'shell' | 'casing';
+export const WW1_WEAPON_SUPPORT_SOURCES: Readonly<Record<WeaponSupportSource, WeaponSource>> = {
+  grenade: { url: '/assets/ww1/weapons/grenade.glb', nodeName: 'grenade' },
+  clip: { url: '/assets/ww1/weapons/clip-shell-casing.glb', nodeName: 'clip' },
+  shell: { url: '/assets/ww1/weapons/clip-shell-casing.glb', nodeName: 'shell' },
+  casing: { url: '/assets/ww1/weapons/clip-shell-casing.glb', nodeName: 'casing' },
+};
+
+export function weaponSupportSource(kind: WeaponSupportSource, options: WeaponSourceOptions = {}): WeaponSource | undefined {
+  return options.candidatePreview === true ? WW1_WEAPON_SUPPORT_SOURCES[kind] : undefined;
+}
+
+export function weaponSource(config: WeaponVisConfig, index: number, options: WeaponSourceOptions = {}): WeaponSource | undefined {
+  if (options.candidatePreview === true) return WW1_WEAPON_CANDIDATE_SOURCES[index];
   const override = config.overrides?.[index];
   if (override) return { url: override.url, nodeName: override.node };
   const nodeName = config.bundle?.nodes[index];
@@ -32,25 +54,28 @@ export function weaponSource(config: WeaponVisConfig, index: number): { url: str
   return url ? { url } : undefined;
 }
 
-const cache = new Map<string, Promise<GLTF | undefined>>();
 const warnedUrls = new Set<string>();
+const sharedCache = new SharedAssetCache<GLTF>(url => new GLTFLoader().loadAsync(url), disposeGltfTemplate);
 
-/** Fetches (and caches by URL) a weapon GLB — single-file or bundle, same call. */
-export async function loadWeaponModel(url: string): Promise<GLTF | undefined> {
-  let pending = cache.get(url);
-  if (!pending) {
-    pending = new GLTFLoader().loadAsync(url).catch((err: unknown) => {
+export function acquireWeaponModel(url: string): AssetLease<GLTF> {
+  const lease = sharedCache.acquire(url);
+  return {
+    value: lease.value.catch((error: unknown) => {
       if (!warnedUrls.has(url)) {
         warnedUrls.add(url);
-        console.warn(`[weapon-loader] failed to load ${url}, staying on procedural mesh`, err);
+        console.warn(`[weapon-loader] failed to load ${url}, staying on procedural mesh`, error);
       }
       return undefined;
-    });
-    cache.set(url, pending);
-  }
-  return pending;
+    }),
+    release: lease.release,
+  };
 }
 
+export function weaponCacheSnapshot(): AssetCacheSnapshot {
+  return sharedCache.snapshot();
+}
+
+/** Fetches (and caches by URL) a weapon GLB — single-file or bundle, same call. */
 /** Clones a fresh instance of the cached GLB's scene. Geometry is shared by
  *  reference across every clone (same as the cache itself) — callers must
  *  dispose only per-instance materials they create, never the geometry. */

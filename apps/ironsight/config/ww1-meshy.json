@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "credentialSource": "ironsight-meshy-20260911",
+  "provider": "meshy",
+  "limits": {
+    "totalCredits": 600,
+    "batchCredits": 150,
+    "minimumBalance": 300
+  },
+  "pricing": {
+    "previewCredits": 20,
+    "refine2kCredits": 10,
+    "rigCredits": 5
+  },
+  "model": {
+    "aiModel": "meshy-7",
+    "topology": "triangle",
+    "shouldRemesh": true,
+    "ultra": false,
+    "format": "glb",
+    "pbr": true,
+    "sourceTextureResolution": "2k"
+  },
+  "runtimeBudgets": {
+    "heroTextureMax": 1024,
+    "smallPropTextureMax": 512
+  },
+  "pilot": [
+    "automatic_rifle",
+    "soldier-khaki"
+  ],
+  "retryRecipes": {
+    "automatic_rifle": [
+      {
+        "attemptId": "attempt-2",
+        "priorAttemptId": "attempt-1",
+        "prompt": "Original late-1918 shoulder-fired automatic infantry rifle with realistic hard-surface proportions: full-length oiled walnut buttstock and separate walnut fore-end; long exposed blued-steel barrel visibly extending beyond the fore-end; rectangular machined automatic receiver above a distinct straight 20-round detachable box magazine projecting downward ahead of the trigger; visible charging handle and ejection port; small aligned open rear notch and protected front post; complete trigger guard. No pump tube, lever action, shotgun profile, optic, bayonet, bipod, sling, text, logo, ground, or display plinth. Neutral isolated object, clean readable component boundaries, barrel axis +Z.",
+        "authorizationArtifact": "D:/webgame-baas/.omo/evidence/ww1/task-08/weapon-preview-review/corrected-recipe.json",
+        "authorizationSha256": "605fcce82635f644e4698fb033c78e550e118a95c5c1e7cd4e00bda19cd292bb"
+      }
+    ],
+    "soldier-khaki": [
+      {
+        "attemptId": "attempt-2",
+        "priorAttemptId": "attempt-1",
+        "prompt": "Original full-body late-WWI fictional western-front infantry in a clean 35-degree A-pose, palms inward, with 8-12 cm arm-to-torso clearance and legs 12-16 cm apart. Shallow oval steel helmet with low domed crown and continuous thin brim; explicitly no pith helmet, bowler or campaign hat. Knee-length khaki wool tunic with four patch pockets, puttees and ankle boots. Two narrow H-webbing shoulder straps, waist belt, symmetric triple ammunition-pouch clusters, rear rectangular canvas pack, side oval canteen and horizontal rolled blanket. No weapon, radio, plate carrier, armor, insignia, logo, ground or plinth. Clear separable front, side and back silhouette, neutral closed-mouth face, under 14000 raw triangles, +Y up and facing +Z.",
+        "authorizationArtifact": "D:/webgame-baas/.omo/evidence/ww1/task-09/soldier-khaki-attempt2-spec.json",
+        "authorizationSha256": "4c7cb204d8a9310fd0699a4c9863cb457e7b243b4bda6338690fb283321048be"
+      }
+    ]
+  },
+  "assets": [
+    {
+      "assetKey": "automatic_rifle",
+      "role": "hero-weapon",
+      "prompt": "Original late-WWI automatic infantry rifle receiver and wood furniture, separate bolt and magazine forms, iron sights, no logos, no ground or display plinth",
+      "targetPolycount": 12000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "trench_smg",
+      "role": "hero-weapon",
+      "prompt": "Original late-WWI compact trench submachine gun with a straight wooden shoulder stock, short walnut grip panels, cylindrical blued-steel receiver, perforated barrel jacket, short exposed muzzle, and a distinct straight box magazine projecting downward ahead of the trigger. Include a simple charging handle, ejection port, rear notch and protected front post. No drum magazine, pistol-only silhouette, modern rails, optic, suppressor, folding stock, foregrip, logo, text, ground, or display plinth. Neutral isolated object with clean readable component boundaries and barrel axis +Z.",
+      "targetPolycount": 12000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "pump_shotgun",
+      "role": "hero-weapon",
+      "prompt": "Original early-20th-century trench pump shotgun with a full wooden buttstock, compact steel receiver, separate ribbed walnut pump fore-end, long round barrel, and clearly visible parallel tubular magazine below the barrel. Show the loading port, ejection port, trigger guard, hammer area and a small front bead. No detachable box magazine, double barrels, lever action, pistol grip, heat shield, bayonet, optic, modern rails, logo, text, ground, or display plinth. Neutral isolated object with clean readable pump and receiver boundaries and barrel axis +Z.",
+      "targetPolycount": 12000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "bolt_service_rifle",
+      "role": "hero-weapon",
+      "prompt": "Original late-WWI bolt-action infantry service rifle with a long one-piece walnut stock and handguard, long exposed blued-steel barrel, rectangular receiver, distinct rotating bolt handle on the right, internal five-round magazine floorplate, stripper-clip guide, rear tangent sight and protected front post. Preserve a slender full-length military-rifle silhouette. No detachable box magazine, scope, pistol grip, lever, pump, bipod, modern rail, logo, text, ground, or display plinth. Neutral isolated object with readable bolt and receiver boundaries and barrel axis +Z.",
+      "targetPolycount": 12000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "service_pistol",
+      "role": "hero-weapon",
+      "prompt": "Original early self-loading military service pistol with a blued-steel rectangular slide, separate frame, exposed hammer, single-stack grip with checkered dark wood panels, detachable magazine base, complete trigger guard, short round barrel opening, rear notch and front blade. Keep a compact heavy service sidearm silhouette. No revolver cylinder, long target barrel, suppressor, rail, optic, polymer frame, modern beavertail, logo, text, ground, or display plinth. Neutral isolated object with clean slide-frame boundaries and barrel axis +Z.",
+      "targetPolycount": 8000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "soldier-khaki",
+      "role": "hero-character",
+      "prompt": "Original full-body late-WWI infantry base in A-pose facing positive Z, simple khaki wool uniform and thin webbing, separated limbs and clear hands, no weapon, insignia, logo, ground or plinth",
+      "targetPolycount": 18000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": true
+    },
+    {
+      "assetKey": "soldier-fieldgrey",
+      "role": "hero-character",
+      "prompt": "Original full-body late-WWI infantry base in A-pose facing positive Z, simple field-grey wool uniform and thin webbing, separated limbs and clear hands, no weapon, insignia, logo, ground or plinth",
+      "targetPolycount": 18000,
+      "runtimeTextureMax": 1024,
+      "optionalRig": true
+    },
+    {
+      "assetKey": "supply-wagon",
+      "role": "environment-prop",
+      "prompt": "Original late-WWI timber military supply wagon, empty open wooden bed, period spoked wheels and simple iron fittings, no logo, ground or display plinth",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "ammo-crate",
+      "role": "environment-prop",
+      "prompt": "Original late-WWI stack of closed timber ammunition crates with simple iron latches, no readable stencil, logo, ground or display plinth",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "field-telephone",
+      "role": "environment-prop",
+      "prompt": "Original late-WWI portable field telephone in a compact rectangular timber case approximately 0.28 m wide, 0.22 m high and 0.22 m deep, with a distinct separate period handset resting across the top, two metal line terminals, a small side magneto crank, simple lid hinges, leather carry strap and short braided cable. Read clearly as a rugged 1910s field telephone from front, side and three-quarter views. No rotary dial, keypad, screen, radio antenna, modern plastic, readable text, logo, ground, or display plinth. Neutral isolated object, +Y up, front facing +Z, bottom-center origin.",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "freight-wagon-wreck",
+      "role": "environment-prop",
+      "prompt": "Original damaged late-WWI railway freight wagon chassis with broken timber deck and period iron running gear, no logo, ground or display plinth",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "brick-rubble",
+      "role": "environment-prop",
+      "prompt": "Modular pile of broken early-twentieth-century red and grey bricks with restrained mortar fragments, no rebar, logo, ground or display plinth",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    },
+    {
+      "assetKey": "observation-post",
+      "role": "environment-prop",
+      "prompt": "Original late-WWI timber field observation post module with braced walls and narrow protected opening, no weapons, logo, ground or display plinth",
+      "targetPolycount": 4000,
+      "runtimeTextureMax": 512,
+      "optionalRig": false
+    }
+  ]
+}

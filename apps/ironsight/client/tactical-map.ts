@@ -8,6 +8,8 @@ import type { MapDef } from "../src/map/types.js";
 import type { ArenaState } from "../src/schema.js";
 import { MODES } from '../src/config.js';
 import type { TrainingObjective } from './training-progress.js';
+import { FIELD_UI_COPY } from './ui/copy.js';
+import { UI_TOKENS } from './ui/tokens.js';
 
 /** Static floor plan, allies, pings and explicitly server-granted recon snapshots. */
 export class TacticalMap {
@@ -23,31 +25,31 @@ export class TacticalMap {
 
   constructor(private readonly map: MapDef, private readonly trainingObjective?: TrainingObjective, private readonly settings?: SettingsStore) {
     const root = document.createElement("aside"); root.id = "tacticalMap";
-    root.setAttribute("aria-label", "Tactical map and current location");
-    root.style.cssText = "position:fixed;left:28px;top:28px;width:180px;color:#e8eee9;pointer-events:none;font:10px Arial,sans-serif;letter-spacing:2px";
+    root.setAttribute("aria-label", FIELD_UI_COPY.tactical.label);
+    root.style.cssText = "position:fixed;inset-inline-start:var(--ui-safe-edge);inset-block-start:var(--ui-safe-edge);inline-size:180px;color:var(--ui-text-primary);pointer-events:none;font:500 var(--ui-type-hud)/1.4 var(--ui-font-body)";
     this.canvas.width = this.floor.width = 360;
     this.canvas.height = this.floor.height = 252;
-    this.canvas.style.cssText = "display:block;width:180px;height:126px;border:1px solid #abc2c044;background:#0d1d24dd";
-    this.canvas.setAttribute("aria-label", "Your position, teammates and temporary team pings; no enemy tracking");
-    this.label.style.cssText = "padding:9px 10px;background:#0d1d24dd;border-left:2px solid #edb467";
+    this.canvas.style.cssText = "display:block;inline-size:180px;block-size:126px;border:var(--ui-border-width) solid var(--ui-border-subtle);background:var(--ui-hud-backing)";
+    this.canvas.setAttribute("aria-label", FIELD_UI_COPY.tactical.canvas);
+    this.label.style.cssText = "padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent)";
     this.context = this.canvas.getContext("2d")!;
     this.scale = 324 / map.bounds.width;
     const ctx = this.floor.getContext("2d")!;
-    ctx.fillStyle = "#132b33"; ctx.fillRect(18, 18, 324, map.bounds.depth * this.scale);
-    ctx.strokeStyle = "#759294"; ctx.lineWidth = 1;
+    ctx.fillStyle = UI_TOKENS["--ui-surface-1"]; ctx.fillRect(18, 18, 324, map.bounds.depth * this.scale);
+    ctx.strokeStyle = UI_TOKENS["--ui-border-strong"]; ctx.lineWidth = 1;
     ctx.strokeRect(18, 18, 324, map.bounds.depth * this.scale);
-    ctx.fillStyle = '#b8ccc9'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
+    ctx.fillStyle = UI_TOKENS["--ui-text-secondary"]; ctx.font = '700 14px "Noto Sans KR"'; ctx.textAlign = 'left';
     ctx.fillText('N', 5, 13);
     for (const box of map.boxes) {
       if (map.terrain?.boxes.includes(box)) continue;
       // Ground floor plan: a roof or lintel must not paint over its doorway.
       if (box.min.y >= 1.8) continue;
-      ctx.fillStyle = box.max.y > 2 ? "#7d9798" : "#405e66";
+      ctx.fillStyle = box.max.y > 2 ? UI_TOKENS["--ui-border-strong"] : UI_TOKENS["--ui-border-subtle"];
       ctx.fillRect(18 + box.min.x * this.scale, 18 + box.min.z * this.scale,
         (box.max.x - box.min.x) * this.scale, (box.max.z - box.min.z) * this.scale);
     }
     for (const ramp of map.ramps ?? []) {
-      ctx.fillStyle = "#bc985e";
+      ctx.fillStyle = UI_TOKENS["--ui-accent"];
       ctx.fillRect(18 + ramp.minX * this.scale, 18 + ramp.minZ * this.scale,
         (ramp.maxX - ramp.minX) * this.scale, (ramp.maxZ - ramp.minZ) * this.scale);
     }
@@ -56,10 +58,10 @@ export class TacticalMap {
     document.head.appendChild(style);
     this.hint.id = 'teamPingHint';
     this.notice.id = 'teamPingNotice'; this.notice.setAttribute('role', 'status');
-    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:#e8eee9;font:11px Arial,sans-serif;left:28px;bottom:144px;width:200px;padding:9px;background:#10242bef;border-left:2px solid #edaa52;line-height:1.5;letter-spacing:1px;overflow-wrap:anywhere';
+    this.notice.style.cssText = 'position:fixed;pointer-events:none;color:var(--ui-text-primary);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:9rem;inline-size:220px;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);overflow-wrap:anywhere';
     this.notice.hidden = true;
     this.notice.style.whiteSpace = 'pre-line';
-    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:10px Arial,sans-serif;left:28px;bottom:100px;width:220px;padding:6px 0;font-size:9px;letter-spacing:1px;color:#c0d6d5;white-space:pre-line;line-height:1.5';
+    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:6.25rem;inline-size:240px;padding:var(--ui-space-2) 0;color:var(--ui-text-secondary);white-space:pre-line';
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
 
@@ -91,12 +93,12 @@ export class TacticalMap {
     this.notice.dataset.contact = latest?.contact ? 'true' : 'false';
     if (latest) {
       const text = latest.contact ? contactText(latest, me, yaw, mapCallout(this.map, latest.x, latest.z), serverNow)
-        : `${latest.from === myId ? 'YOU' : 'ALLY'} / ${latest.kind === 'enemy' ? 'ENEMY SEEN' : latest.kind === 'backup' ? 'NEED BACKUP' : 'GO HERE'} / ${mapCallout(this.map, latest.x, latest.z)} / ${latest.kind === 'backup' ? 'caller location when sent' : 'last marked location'}`;
+        : `${latest.from === myId ? FIELD_UI_COPY.tactical.me : FIELD_UI_COPY.tactical.ally} · ${latest.kind === 'enemy' ? FIELD_UI_COPY.tactical.enemySeen : latest.kind === 'backup' ? FIELD_UI_COPY.tactical.backup : FIELD_UI_COPY.tactical.go} · ${mapCallout(this.map, latest.x, latest.z)} · ${latest.kind === 'backup' ? FIELD_UI_COPY.tactical.callerPosition : FIELD_UI_COPY.tactical.markedPosition}`;
       if (this.notice.textContent !== text) this.notice.textContent = text;
     }
     this.hint.hidden = !active || state.mode === 1 || state.phase !== 'live' || !me.alive;
     const backup = this.settings ? formatBinding(this.settings.get().binds.backup) : 'B';
-    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} / ${state.mode === 3 ? 'REHEARSE PING' : 'TEAM PING'} / tap mark, hold wheel\n${backup} / NEED BACKUP / at your location`;
+    const hint = `${this.settings ? formatBinding(this.settings.get().binds.ping) : 'Q'} · ${state.mode === 3 ? FIELD_UI_COPY.tactical.rehearsePing : FIELD_UI_COPY.tactical.teamPing} · ${FIELD_UI_COPY.tactical.tapHold}\n${backup} · ${FIELD_UI_COPY.tactical.backup} · ${FIELD_UI_COPY.tactical.atLocation}`;
     if (this.hint.textContent !== hint) this.hint.textContent = hint;
     const ctx = this.context;
     const signal=signalFrame(state.signalAt,state.phase,serverNow);
@@ -109,12 +111,12 @@ export class TacticalMap {
       ctx.clearRect(0,0,360,252);ctx.fillStyle='#0d1d24';ctx.fillRect(0,0,360,252);
       ctx.strokeStyle='#35606a';ctx.lineWidth=1;
       for(let y=24;y<252;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(360,y);ctx.stroke();}
-      ctx.fillStyle='#ffcc88';ctx.textAlign='center';ctx.font='bold 23px Arial';ctx.fillText('SIGNAL LOST',180,113);
-      ctx.fillStyle='#c2dad4';ctx.font='16px Arial';ctx.fillText(`RELINK IN ${Math.ceil(signal.remainingMs/1000)}s`,180,143);
-      this.canvas.setAttribute('aria-label','Tactical map offline during relay realignment');
+      ctx.fillStyle=UI_TOKENS["--ui-warning"];ctx.textAlign='center';ctx.font='700 23px "Noto Sans KR"';ctx.fillText(FIELD_UI_COPY.tactical.signalLost,180,113);
+      ctx.fillStyle=UI_TOKENS["--ui-text-secondary"];ctx.font='16px "Noto Sans KR"';ctx.fillText(`${FIELD_UI_COPY.tactical.relinkIn} ${Math.ceil(signal.remainingMs/1000)}초`,180,143);
+      this.canvas.setAttribute('aria-label',FIELD_UI_COPY.tactical.mapOffline);
       this.label.textContent=mapCallout(this.map,me.x,me.z);return;
     }
-    this.canvas.setAttribute('aria-label','Your position, teammates, team pings and earned UAV last-seen contacts');
+    this.canvas.setAttribute('aria-label',`${FIELD_UI_COPY.tactical.canvas}. 획득한 관측 정보 표시`);
     ctx.clearRect(0, 0, 360, 252); ctx.drawImage(this.floor, 0, 0);
     if (this.map.signalCore) {
       const b=this.map.signalCore.chamber;
@@ -169,7 +171,7 @@ export class TacticalMap {
         ctx.arc(180, 126, Math.min(205, age * .11), 0, Math.PI * 2); ctx.stroke();
       }
       ctx.fillStyle = '#ffdab0'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right';
-      ctx.fillText(`UAV / LAST SEEN ${(age / 1000).toFixed(1)}s`, 338, 245);
+      ctx.fillText(`${FIELD_UI_COPY.tactical.lastSeen} ${(age / 1000).toFixed(1)}초`, 338, 245);
     }
     for (const ping of this.pings.values()) {
       const x = 18 + ping.x * this.scale, z = 18 + ping.z * this.scale;

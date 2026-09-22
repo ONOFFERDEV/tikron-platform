@@ -5,14 +5,20 @@
  * skinned bindings survive multiple instances, AnimationMixer crossfade — but
  * intentionally not shared code: this is a much smaller, single-model surface).
  *
- * Never rejects: `loadPlayerModel` resolves `undefined` (after one console.warn)
- * on any fetch/parse failure, and the caller (scene.ts) is expected to fall back
- * to the procedural capsule rig permanently in that case.
+ * An acquired lease resolves `undefined` after one console.warn on any
+ * fetch/parse failure, and the caller falls back to the procedural capsule rig.
  */
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { loadFieldRadio, prepareSoldierAtlas } from './field-equipment.js';
+import { SharedAssetCache, disposeGltfTemplate, type AssetCacheSnapshot, type AssetLease } from './shared-gltf-cache.js';
+import {
+  HIT_ANIMATION_CLIPS,
+  hitAnimationLocomotion,
+  hitAnimationWeaponIndex,
+} from '../src/hit-state-bucket.js';
+import type { HitAnimationActionSample, HitReactionSample } from '../src/hit-animation-timeline.js';
 
 export type LocomotionState =
   | "idle"
@@ -47,23 +53,31 @@ export function deathPresentationMs(durationSeconds: number | undefined): number
   return durationSeconds === undefined ? 1200 : Math.min(3000, durationSeconds * 1000 + 250);
 }
 
-let cachedGltf: Promise<GLTF> | undefined;
-let warnedOnce = false;
+const warnedUrls = new Set<string>();
 
-/** Fetches (and caches) the player GLB. Resolves `undefined` — after a single
- *  `console.warn` — on any failure; never rejects. */
-export async function loadPlayerModel(url: string): Promise<GLTF | undefined> {
-  if (!cachedGltf) cachedGltf = Promise.all([new GLTFLoader().loadAsync(url), loadFieldRadio()])
+function loadPlayerTemplate(url: string): Promise<GLTF> {
+  return Promise.all([new GLTFLoader().loadAsync(url), loadFieldRadio()])
     .then(([gltf]) => { prepareSoldierAtlas(gltf.scene); return gltf; });
-  try {
-    return await cachedGltf;
-  } catch (err) {
-    if (!warnedOnce) {
-      warnedOnce = true;
-      console.warn(`[rig-loader] failed to load player model (${url}), falling back to capsule rig`, err);
-    }
-    return undefined;
-  }
+}
+
+const sharedCache = new SharedAssetCache<GLTF>(loadPlayerTemplate, disposeGltfTemplate);
+
+export function acquirePlayerModel(url: string): AssetLease<GLTF> {
+  const lease = sharedCache.acquire(url);
+  return {
+    value: lease.value.catch((error: unknown) => {
+      if (!warnedUrls.has(url)) {
+        warnedUrls.add(url);
+        console.warn(`[rig-loader] failed to load player model (${url}), falling back to capsule rig`, error);
+      }
+      return undefined;
+    }),
+    release: lease.release,
+  };
+}
+
+export function playerCacheSnapshot(): AssetCacheSnapshot {
+  return sharedCache.snapshot();
 }
 
 /** One animated instance of the player model, driving its own AnimationMixer. */
@@ -93,10 +107,15 @@ export interface PlayerRigModel {
   /** Uses private baked rifle clips when present; old assets retain fallback. */
   setRifleHold(enabled: boolean): void;
   setWeaponHold(index: number | undefined): void;
+  animationDuration(state: LocomotionState): number | undefined;
   /** Snaps directly back to "idle", bypassing the death lock — used on the respawn edge,
    *  where the rig is about to become visible again and a lingering fade would show. */
   forceIdle(): void;
-  update(dt: number): void;
+  update(dt: number, authoritativeTimeSeconds?: number): void;
+  applyAuthoritativeAnimation(
+    samples: readonly HitAnimationActionSample[],
+    reaction: HitReactionSample | undefined,
+  ): boolean;
   /** Writes the "head" bone's CURRENT world position (post-mixer-update, so it
    *  reflects whatever pose/state is playing right now) into `out`. A no-op if
    *  the GLB has no bone named "head" (older/backup GLBs) — `out` is left
@@ -107,6 +126,26 @@ export interface PlayerRigModel {
   getFootWorldY(): number | undefined;
   /** Lowest death support joint; constant bone work, never a vertex scan. */
   getBodySupportWorldY(): number | undefined;
+  dispose(): void;
+}
+
+export interface CalibratedRigNormalization {
+  readonly feetOffsetY: number;
+  readonly rootScale: readonly [number, number, number];
+  readonly rootQuaternion: readonly [number, number, number, number];
+  readonly rootXZ: readonly [number, number];
+}
+
+export function cloneCalibratedPlayerRig(
+  gltf: GLTF,
+  normalization: CalibratedRigNormalization,
+): PlayerRigModel {
+  const rig = clonePlayerRig(gltf);
+  rig.object.scale.set(...normalization.rootScale);
+  rig.object.quaternion.set(...normalization.rootQuaternion);
+  rig.object.position.set(normalization.rootXZ[0], normalization.feetOffsetY, normalization.rootXZ[1]);
+  rig.object.updateMatrixWorld(true);
+  return rig;
 }
 
 /** Clones a fresh, independently-posable instance of `gltf` (SkeletonUtils.clone,
@@ -180,6 +219,7 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
 
   let current: THREE.AnimationAction | undefined;
   let state: LocomotionState = "idle";
+  let authoritativeActions: readonly THREE.AnimationAction[] | undefined;
 
   const play = (next: LocomotionState, restart = false): void => {
     const action = holdActions()?.get(next) ?? actions.get(next);
@@ -208,6 +248,9 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
       object.userData.rifleHold = !!holdActions()?.size;
       play(state);
     },
+    animationDuration(next): number | undefined {
+      return (holdActions()?.get(next) ?? actions.get(next))?.getClip().duration;
+    },
     setState(next: LocomotionState): void {
       if (state === "death") return; // terminal until forceIdle()
       if (next === "hit_chest" || next === "hit_head") {
@@ -217,7 +260,14 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
         hit.reset().setEffectiveWeight(0).play();
         return;
       }
-      if (next === "death") stopReaction();
+      if (next === "death") {
+        stopReaction();
+        if (authoritativeActions !== undefined) {
+          mixer.stopAllAction();
+          authoritativeActions = undefined;
+          current = undefined;
+        }
+      }
       const restart = ONE_SHOT_STATES.includes(next);
       if (next === state && !restart) return;
       state = next;
@@ -233,8 +283,9 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
         idle.weight = 1;
       }
       current = idle;
+      authoritativeActions = undefined;
     },
-    update(dt: number): void {
+    update(dt: number, authoritativeTimeSeconds?: number): void {
       if (reaction) {
         reactionAge += Math.max(0, dt);
         const duration = reaction.getClip().duration;
@@ -242,6 +293,68 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
         else reaction.setEffectiveWeight(0.7 * Math.min(1, reactionAge / 0.035, (duration - reactionAge) / 0.09));
       }
       mixer.update(dt);
+      if (current && authoritativeTimeSeconds !== undefined && Number.isFinite(authoritativeTimeSeconds)) {
+        const duration = current.getClip().duration;
+        if (duration > 0) {
+          current.time = Math.max(0, authoritativeTimeSeconds) % duration;
+          mixer.update(0);
+        }
+      }
+    },
+    applyAuthoritativeAnimation(samples, reactionSample): boolean {
+      if (samples.length === 0 || samples.length > HIT_ANIMATION_CLIPS.length) return false;
+      if (authoritativeActions === undefined) {
+        const resolved: THREE.AnimationAction[] = [];
+        const unique = new Set<THREE.AnimationAction>();
+        for (const clip of HIT_ANIMATION_CLIPS) {
+          const action = holds[hitAnimationWeaponIndex(clip)]?.get(hitAnimationLocomotion(clip));
+          if (!action || unique.has(action)) return false;
+          unique.add(action);
+          resolved.push(action);
+        }
+        authoritativeActions = resolved;
+      }
+      const seen = new Set<number>();
+      const scheduled: { action: THREE.AnimationAction; phaseSeconds: number; weight: number }[] = [];
+      for (let index = 0; index < samples.length; index++) {
+        const sample = samples[index]!;
+        const action = authoritativeActions[sample.clipIndex];
+        if (!action || seen.has(sample.clipIndex) || !Number.isFinite(sample.phaseMs) || sample.phaseMs < 0
+          || !Number.isFinite(sample.weight) || sample.weight < 0 || sample.weight > 1
+          || sample.current !== (index === samples.length - 1)
+          || (!sample.current && index > 0 && samples[index - 1]!.clipIndex >= sample.clipIndex)) return false;
+        seen.add(sample.clipIndex);
+        const duration = action.getClip().duration;
+        if (!(duration > 0)) return false;
+        scheduled.push({ action, phaseSeconds: sample.phaseMs / 1000 % duration, weight: sample.weight });
+      }
+      let scheduledReaction: { action: THREE.AnimationAction; age: number; weight: number } | undefined;
+      if (reactionSample && reactionSample.kind !== 0) {
+        const next = reactionSample.kind === 2 ? reactions.get("hit_head") ?? reactions.get("hit_chest")
+          : reactions.get("hit_chest");
+        if (!next || !Number.isFinite(reactionSample.ageMs) || reactionSample.ageMs < 0) return false;
+        const duration = next.getClip().duration;
+        const age = reactionSample.ageMs / 1000;
+        if (age < duration) {
+          scheduledReaction = {
+            action: next,
+            age,
+            weight: 0.7 * Math.min(1, age / 0.035, (duration - age) / 0.09),
+          };
+        }
+      }
+      mixer.stopAllAction();
+      stopReaction();
+      for (const item of scheduled) {
+        item.action.reset().setEffectiveWeight(item.weight).play();
+        item.action.time = item.phaseSeconds;
+      }
+      if (scheduledReaction) {
+        scheduledReaction.action.reset().setEffectiveWeight(scheduledReaction.weight).play();
+        scheduledReaction.action.time = scheduledReaction.age;
+      }
+      mixer.update(0);
+      return true;
     },
     getHeadWorldPos(out: THREE.Vector3): void {
       headBone?.getWorldPosition(out);
@@ -257,6 +370,11 @@ export function clonePlayerRig(gltf: GLTF): PlayerRigModel {
       let y = Infinity;
       for (const bone of feet) { bone.getWorldPosition(footPosition); y = Math.min(y, footPosition.y); }
       return y;
+    },
+    dispose(): void {
+      stopReaction();
+      mixer.stopAllAction();
+      mixer.uncacheRoot(object);
     },
   };
 }

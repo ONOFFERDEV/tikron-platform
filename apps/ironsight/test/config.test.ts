@@ -10,11 +10,13 @@ import {
   assertRespawnCoupling,
   assertInterpCoupling,
   assertWeaponIndices,
+  assertWeaponContract,
   assertModesWireOrder,
   assertTracerSpeedPositive,
 } from "../config/load.js";
 import type { GameConfig } from "../config/schema.js";
 import { ironsightConfig } from "../config/ironsight.config.js";
+import { neonstrikeConfig } from "../config/neonstrike.config.js";
 import { GAME } from "../src/game-config.js";
 import { ARENA, PLAYER, MOVE, WEAPONS, GRENADE, MATCH, LAG, MODES, DEFAULT_WEAPON, PISTOL_INDEX, WEAPON } from "../src/config.js";
 import { MODE_ORDER } from "../src/modes.js";
@@ -44,6 +46,38 @@ describe("loadConfig(ironsightConfig) [blueprint] — the static config object a
     expect(() => loadConfig(ironsightConfig)).not.toThrow();
     const { errors } = validateConfig(ironsightConfig);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("WW1 stable weapon contract [config: ironsight]", () => {
+  it("keeps the five stable keys on their existing index and slot", () => {
+    expect(WEAPONS.map((weapon) => ({ key: weapon.key, slot: weapon.slot }))).toEqual([
+      { key: "automatic_rifle", slot: 1 },
+      { key: "trench_smg", slot: 2 },
+      { key: "pump_shotgun", slot: 3 },
+      { key: "bolt_service_rifle", slot: 4 },
+      { key: "service_pistol", slot: 5 },
+    ]);
+  });
+
+  it("loads the alternate preset with the same stable role keys", () => {
+    expect(() => loadConfig(neonstrikeConfig)).not.toThrow();
+    expect(neonstrikeConfig.weapons.map((weapon) => weapon.key)).toEqual(
+      WEAPONS.map((weapon) => weapon.key),
+    );
+  });
+
+  it("uses the approved identity, action and tuning rows", () => {
+    expect(WEAPONS.map((weapon) => ({ key: weapon.key, fireMode: weapon.fireMode, reloadKind: weapon.reloadKind,
+      sight: weapon.sight, body: weapon.damageBody, head: weapon.damageHead, interval: weapon.fireIntervalMs,
+      mag: weapon.mag, reserve: weapon.reserve, ads: weapon.adsMs, sprint: weapon.sprintToFireMs,
+      reload: weapon.reloadMs, falloff: [weapon.falloffStart, weapon.falloffEnd, weapon.falloffMin], range: weapon.range }))).toEqual([
+      { key: "automatic_rifle", fireMode: "automatic", reloadKind: "magazine", sight: "iron", body: 28, head: 50, interval: 110, mag: 20, reserve: 80, ads: 250, sprint: 160, reload: 2400, falloff: [25, 60, 0.72], range: 100 },
+      { key: "trench_smg", fireMode: "automatic", reloadKind: "magazine", sight: "iron", body: 20, head: 32, interval: 80, mag: 32, reserve: 96, ads: 190, sprint: 110, reload: 2700, falloff: [14, 35, 0.5], range: 80 },
+      { key: "pump_shotgun", fireMode: "semi", reloadKind: "pump", sight: "iron", body: 13, head: 16, interval: 800, mag: 5, reserve: 25, ads: 220, sprint: 150, reload: 2950, falloff: [5, 20, 0.2], range: 40 },
+      { key: "bolt_service_rifle", fireMode: "semi", reloadKind: "stripper_clip", sight: "iron", body: 75, head: 150, interval: 1100, mag: 5, reserve: 30, ads: 330, sprint: 180, reload: 2600, falloff: [100, 101, 1], range: 100 },
+      { key: "service_pistol", fireMode: "semi", reloadKind: "magazine", sight: "iron", body: 34, head: 60, interval: 200, mag: 7, reserve: 35, ads: 165, sprint: 100, reload: 1900, falloff: [15, 40, 0.65], range: 80 },
+    ]);
   });
 });
 
@@ -111,6 +145,60 @@ describe("validateConfig — negative cases (one per coupling assert) [blueprint
     const errs = assertWeaponIndices(bad);
     expect(errs.length).toBeGreaterThan(0);
     expect(errs[0]).toMatch(/pistolIndex/);
+  });
+
+  it("assertWeaponContract rejects a duplicate stable key", () => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[1] ?? {}, "key", "automatic_rifle");
+    expect(assertWeaponContract(bad).some((error) => error.includes("duplicated"))).toBe(true);
+  });
+
+  it("assertWeaponContract rejects a slot that does not equal index plus one", () => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[2] ?? {}, "slot", 4);
+    expect(assertWeaponContract(bad).some((error) => error.includes("slot must equal 3"))).toBe(true);
+  });
+
+  it("assertParallelArrayLengths rejects a missing per-weapon ADS FOV", () => {
+    const bad = clone(ironsightConfig);
+    bad.camera.adsFov = bad.camera.adsFov.slice(0, -1);
+    expect(assertParallelArrayLengths(bad)).toEqual([
+      "camera.adsFov.length (4) must equal weapons.length (5)",
+    ]);
+  });
+
+  it.each([0, Number.NaN])("assertParallelArrayLengths rejects invalid ADS FOV %s", (value) => {
+    const bad = clone(ironsightConfig);
+    bad.camera.adsFov = bad.camera.adsFov.map((fov, index) => index === 0 ? value : fov);
+    expect(assertParallelArrayLengths(bad).some((error) => error.includes("camera.adsFov[0]"))).toBe(true);
+  });
+
+  it("assertWeaponContract rejects a zero reload duration", () => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[0] ?? {}, "reloadMs", 0);
+    expect(assertWeaponContract(bad).some((error) => error.includes("reloadMs must be finite and positive"))).toBe(true);
+  });
+
+  it.each([0, Number.NaN])("assertWeaponContract rejects invalid fire interval %s", (value) => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[0] ?? {}, "fireIntervalMs", value);
+    expect(assertWeaponContract(bad).some((error) => error.includes("fireIntervalMs must be finite and positive"))).toBe(true);
+  });
+
+  it("assertWeaponContract rejects a zero cycle duration", () => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[2] ?? {}, "cycleMs", 0);
+    expect(assertWeaponContract(bad).some((error) => error.includes("cycle and reload stage durations"))).toBe(true);
+  });
+
+  it.each([
+    ["fireMode", "burst"],
+    ["reloadKind", "battery"],
+    ["sight", "thermal"],
+  ])("assertWeaponContract rejects malformed %s metadata", (field, value) => {
+    const bad = clone(ironsightConfig);
+    Reflect.set(bad.weapons[0] ?? {}, field, value);
+    expect(assertWeaponContract(bad).some((error) => error.includes(`${field} \"${value}\" is unsupported`))).toBe(true);
   });
 
   it("assertModesWireOrder fires when the tdm/ffa/dom/practice prefix is reordered", () => {

@@ -44,11 +44,14 @@ describe('weapon cadence through the production input queue', () => {
     const firstAt = Date.now();
     await c.send('fire', { fireSeq: 1 });
     await h.advance(spec.fireIntervalMs + 17);
-    const readyAt = Date.now() + spec.reloadMs;
+    const reloadDuration = spec.reloadKind === 'pump'
+      ? spec.reloadStartMs + spec.reloadInsertMs + spec.reloadEndMs
+      : spec.reloadMs;
+    const readyAt = Date.now() + reloadDuration;
     await c.send('reload', { receivedAt: -1e12, reloadMs: 0 });
     await h.advance(TICK_MS);
     expect(h.snapshot().players[c.id]!.reloadEnd).toBe(readyAt);
-    await h.advance(spec.reloadMs - TICK_MS - 1);
+    await h.advance(reloadDuration - TICK_MS - 1);
     await c.send('fire', { fireSeq: 2 });
     await h.advance(1);
     await c.send('fire', { fireSeq: 3 });
@@ -73,6 +76,8 @@ describe('weapon cadence through the production input queue', () => {
     expect(messages(c, 'recoilSync').map(p => [p.seq, p.count])).toEqual([[1, 0], [2, 1]]);
     expect(messages(c, 'shot')).toHaveLength(1);
     expect(messages(c, 'ammo').at(-1)?.mag).toBe(spec.mag - 1);
+    expect(messages(c, 'shotResult').map(p => p.kind)).toEqual(['blocked', 'accepted']);
+    expect(messages(c, 'shotResult')[0]?.reason).toBe('readiness');
   });
 
   it.each(WEAPONS)('$name: sprint recovery cannot borrow the queue wait before firing', async spec => {
@@ -90,6 +95,8 @@ describe('weapon cadence through the production input queue', () => {
     expect(messages(c, 'recoilSync').map(p => [p.seq, p.count])).toEqual([[1, 0], [2, 1]]);
     expect(messages(c, 'shot')).toHaveLength(1);
     expect(messages(c, 'ammo').at(-1)?.mag).toBe(spec.mag - 1);
+    expect(messages(c, 'shotResult').map(p => p.kind)).toEqual(['blocked', 'accepted']);
+    expect(messages(c, 'shotResult')[0]?.reason).toBe('readiness');
   });
 
   it.each(WEAPONS)('$name: keeps every on-cadence intent across tick phases', async spec => {
@@ -132,7 +139,7 @@ describe('weapon cadence through the production input queue', () => {
     }
   });
 
-  it.each(WEAPONS.filter(w => ['AR', 'SMG', 'Pistol'].includes(w.name)))
+  it.each(WEAPONS.filter(w => w.fireMode === 'automatic' || w.key === 'service_pistol'))
   ('$name: the advertised close-range body-shot count kills in a queued duel', async spec => {
     const h = await createTestRoom(CadenceArena, { codec: ArenaSchema, sync: 'throttled' });
     const a = await h.connect(), b = await h.connect();
@@ -159,14 +166,15 @@ describe('weapon cadence through the production input queue', () => {
   it('rejects a genuinely early arrival even when the drain times are a full interval apart', async () => {
     const h = await createTestRoom(CadenceArena, { codec: ArenaSchema, sync: 'throttled' });
     const c = await h.connect();
-    // AR arrivals 49 and 101 ms: only 52 ms apart, but drained at 50 and 150.
+    const spec = WEAPONS[0]!;
     await h.advance(49); await c.send('fire', { fireSeq: 1 });
-    await h.advance(52); await c.send('fire', { fireSeq: 2,
+    await h.advance(102); await c.send('fire', { fireSeq: 2,
       receivedAt: 9e15, at: 9e15, ts: 9e15, fireIntervalMs: 0 });
     await h.advance(49);
     expect(messages(c, 'shot')).toHaveLength(1);
-    expect(messages(c, 'ammo').at(-1)?.mag).toBe(WEAPONS[0]!.mag - 1);
-    expect(messages(c, 'fireBlocked').at(-1)).toEqual({ retryMs: TICK_MS, mag: WEAPONS[0]!.mag - 1, weapon: 1 });
+    expect(messages(c, 'ammo').at(-1)?.mag).toBe(spec.mag - 1);
+    expect(messages(c, 'fireBlocked').at(-1)).toEqual({ retryMs: TICK_MS, mag: spec.mag - 1, weapon: 1 });
+    expect(messages(c, 'shotResult').at(-1)?.reason).toBe('cadence');
     expect(messages(c, 'recoilSync').at(-1)?.count).toBe(1);
     // A rejected request cannot push the accepted shot's deadline forward.
     await c.send('fire', { fireSeq: 3 }); await h.advance(TICK_MS);
@@ -183,19 +191,20 @@ describe('weapon cadence through the production input queue', () => {
       _message(c: RoomConnection, data: string): Promise<void>;
     })._message(conn, JSON.stringify({ t: ClientMessageType.Message, type: 'fire', seq, ts,
       receivedAt: 9e15, payload: { fireSeq: seq, receivedAt: 9e15 } }));
-    await h.advance(49); const first = Date.now(); await wire(1, first - 1e12);
-    await h.advance(52); await wire(2, Date.now() + 1e12);
+    await h.advance(49); const first = Date.now(); await wire(2, first - 1e12);
+    await h.advance(52); await wire(3, Date.now() + 1e12);
     await h.advance(49);
     expect(messages(c, 'shot')).toHaveLength(1);
-    expect(messages(c, 'recoilSync').at(-1)).toMatchObject({ seq: 2, count: 1, at: first });
+    expect(messages(c, 'recoilSync').at(-1)).toMatchObject({ seq: 3, count: 1, at: first });
   });
 
   it('does not generate a retry shot after a denied trigger has been released', async () => {
     const h = await createTestRoom(CadenceArena, { codec: ArenaSchema, sync: 'throttled' });
     const c = await h.connect();
+    const spec = WEAPONS[0]!;
     await c.send('fire', { fireSeq: 1 }); await h.advance(1);
     await c.send('fire', { fireSeq: 2 }); await h.advance(TICK_MS);
-    expect(messages(c, 'fireBlocked').at(-1)).toEqual({ retryMs: 99, mag: WEAPONS[0]!.mag - 1, weapon: 1 });
+    expect(messages(c, 'fireBlocked').at(-1)).toEqual({ retryMs: spec.fireIntervalMs - 1, mag: spec.mag - 1, weapon: 1 });
     const accepted = messages(c, 'recoilSync').at(-1);
     await h.advance(1000); // No more fire intent: never schedule an automatic shot.
     expect(messages(c, 'shot')).toHaveLength(1);

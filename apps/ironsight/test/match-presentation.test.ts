@@ -11,11 +11,11 @@ describe('match briefing', () => {
     expect(matchBrief(state, 300001, 'self').clock).toBe('0:00');
   });
   it('does not expose Infinity or a fictitious countdown in training and warmup', () => {
-    expect(matchBrief({ ...state, mode: 3, matchEndMs: Infinity }, 0, 'self').clock).toBe('NO TIME LIMIT');
-    expect(matchBrief({ ...state, phase: 'warmup' }, 0, 'self').clock).toContain('WARMUP');
+    expect(matchBrief({ ...state, mode: 3, matchEndMs: Infinity }, 0, 'self').clock).toBe('시간 제한 없음');
+    expect(matchBrief({ ...state, phase: 'warmup' }, 0, 'self').clock).toContain('준비 중');
   });
   it('explains capture scoring separately from eliminations', () => {
-    expect(matchBrief({ ...state, mode: 2 }, 0, 'self').objective).toContain('HOLD A / B / C');
-    expect(matchBrief({ ...state, mode: 1 }, 0, 'self').affiliation).toBe('SOLO');
+    expect(matchBrief({ ...state, mode: 2 }, 0, 'self').objective).toContain('A·B·C');
+    expect(matchBrief({ ...state, mode: 1 }, 0, 'self').affiliation).toBe('개인 전투');
   });
 });

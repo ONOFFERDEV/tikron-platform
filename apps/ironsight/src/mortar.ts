@@ -4,10 +4,13 @@ import { dirFromAngles } from './weapons.js';
 import { groundRay } from './map/terrain.js';
 
 export const MORTAR = { kills: 5, range: 60, minimumRange: 8, warningMs: 3000,
-  intervalMs: 650, rounds: 3, radius: 6, damage: 125, cooldownMs: 45000, tailMs: 1600 } as const;
-export interface MortarStrike extends Vec3 { owner: string; team: number; startedAt: number; endsAt: number }
-export interface MortarView { available: boolean; readyAt: number; strikes: MortarStrike[] }
-export const emptyMortar = (): MortarView => ({ available: false, readyAt: 0, strikes: [] });
+  intervalMs: 650, rounds: 3, radius: 6, damage: 125, cooldownMs: 45000, tailMs: 1600,
+  presentation: 'ww1_mortar_battery', warningCue: 'mortar_whistle', impactCue: 'mortar_impact' } as const;
+export interface MortarStrike extends Vec3 { kind?: 'ww1_mortar'; owner: string; team: number; startedAt: number;
+  warningEndsAt?: number; endsAt: number }
+export interface MortarView { available: boolean; readyAt: number; strikes: MortarStrike[];
+  protocol?: 2; kind?: 'ww1_mortar_battery' }
+export const emptyMortar = (): MortarView => ({ protocol: 2, kind: 'ww1_mortar_battery', available: false, readyAt: 0, strikes: [] });
 
 /** Aim is an intent. The server supplies origin, range, surface and sky clearance.
  * This tier designates open ground: roofs, walls and ramps explicitly reject. */
@@ -43,7 +46,8 @@ export class MortarSupport {
     const key = this.key(id, p, s.mode);
     if (this.active.has(key) || now < (this.cooldown.get(key) ?? 0)) return false;
     this.charges.delete(id); this.cooldown.set(key, now + MORTAR.cooldownMs);
-    this.active.set(key, { next: 0, strike: { ...point, owner: id, team: p.team, startedAt: now,
+    this.active.set(key, { next: 0, strike: { ...point, kind: 'ww1_mortar', owner: id, team: p.team, startedAt: now,
+      warningEndsAt: now + MORTAR.warningMs,
       endsAt: now + MORTAR.warningMs + (MORTAR.rounds - 1) * MORTAR.intervalMs + MORTAR.tailMs } });
     return true;
   }
@@ -60,14 +64,15 @@ export class MortarSupport {
       if (due >= entry.next && entry.next < MORTAR.rounds) {
         // A stalled worker never replays a stack of missed damage at once.
         entry.next = Math.min(MORTAR.rounds, due + 1); changed = true;
-        if (due < MORTAR.rounds) impacts.push({ ...strike });
+        const scheduledAt = strike.startedAt + MORTAR.warningMs + due * MORTAR.intervalMs;
+        if (due < MORTAR.rounds && now - scheduledAt < 250) impacts.push({ ...strike });
       }
     }
     return { changed, impacts };
   }
   view(id: string, s: ArenaState): MortarView {
     const p = s.players[id]; if (!p || !this.eligible(s)) return emptyMortar();
-    return { available: p.alive && this.charges.has(id), readyAt: this.cooldown.get(this.key(id, p, s.mode)) ?? 0,
+    return { protocol: 2, kind: 'ww1_mortar_battery', available: p.alive && this.charges.has(id), readyAt: this.cooldown.get(this.key(id, p, s.mode)) ?? 0,
       strikes: [...this.active.values()].filter(({ strike }) => s.mode !== 3 || strike.owner === id).map(({ strike }) => ({ ...strike })) };
   }
   forget(id: string): void {

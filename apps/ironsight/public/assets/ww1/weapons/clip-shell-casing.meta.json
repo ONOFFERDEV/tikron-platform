@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "assetKey": "clip-shell-casing",
+  "role": "weapon-support",
+  "status": "frozen_v3_candidate_pending_independent_review",
+  "heroAccepted": false,
+  "runtimeAccepted": false,
+  "intendedPublicUrl": "/assets/ww1/weapons/clip-shell-casing.glb",
+  "provenance": {
+    "kind": "original-authored-support-source",
+    "paidGeneration": false,
+    "source": {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\local-components\\clip-shell-casing.glb",
+      "bytes": 31992,
+      "sha256": "fcfcc277b25b36f19a989c954b762a016723ebd73d34e3bf6aa401d62bfe87ae"
+    },
+    "output": {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\support\\clip-shell-casing\\candidate.glb",
+      "bytes": 31992,
+      "sha256": "fcfcc277b25b36f19a989c954b762a016723ebd73d34e3bf6aa401d62bfe87ae"
+    }
+  },
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "metrics": {
+    "bytes": 31992,
+    "triangles": 572,
+    "nodes": 14,
+    "bounds": {
+      "min": [
+        -0.054999999701976776,
+        -0.013000000268220901,
+        0
+      ],
+      "max": [
+        0.1330000003799796,
+        0.013000000268220901,
+        0.1519999960437417
+      ]
+    }
+  },
+  "renders": [
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\clip-shell-casing-1.png",
+      "bytes": 72501,
+      "sha256": "6a71061caa663c1094b0c6c8fc69140e5ec664d20941a163ecd6539a8936cff8",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\clip-shell-casing-2.png",
+      "bytes": 72836,
+      "sha256": "d7165d9f424ca1474f02f1eb578406677897c2b8633fdb77a214e8b07441c9c3",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\a2-turntables\\clip-shell-casing-3.png",
+      "bytes": 70037,
+      "sha256": "a0d4e855d58cb7f678bceb8f96dd63c369fd15e707b0c7c9691a4405a35f5801",
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

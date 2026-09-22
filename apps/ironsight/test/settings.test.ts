@@ -150,6 +150,19 @@ describe("SettingsStore reset", () => {
     expect(store.get().binds.reload).toEqual(["KeyR"]);
   });
 
+  it("resetBind removes every restored default key from its current owner", () => {
+    const store = new SettingsStore(new FakeStorage());
+    store.rebind("grenade", "ShiftLeft");
+    store.rebind("backup", "ShiftRight");
+
+    store.resetBind("sprint");
+
+    expect(store.get().binds.sprint).toEqual(["ShiftLeft", "ShiftRight"]);
+    expect(store.get().binds.grenade).toEqual([]);
+    expect(store.get().binds.backup).toEqual([]);
+    expect(store.get().binds.reload).toEqual(["KeyR"]);
+  });
+
   it("resetAll restores sensitivity, invertY, and every binding to shipped defaults", () => {
     const store = new SettingsStore(new FakeStorage());
     store.setSensitivity(2.9);
@@ -239,6 +252,66 @@ describe("presentation accessibility settings", () => {
     expect(store.get().reducedMotion).toBe(false);
     store.setVolume(-2); expect(store.get().volume).toBe(0);
     store.setVolume(NaN); expect(store.get().volume).toBe(1);
+  });
+});
+
+describe("audio mix settings migration", () => {
+  it("migrates the legacy mute key while preserving an older v1 master volume", () => {
+    const storage = new FakeStorage();
+    storage.setItem(KEY, JSON.stringify({ volume: 0.35 }));
+    storage.setItem("iron_muted", "1");
+
+    const settings = new SettingsStore(storage).get();
+
+    expect(settings.volume).toBe(0.35);
+    expect(settings.muted).toBe(true);
+    expect(settings.audio).toEqual({
+      master: 0.35,
+      combat: 1,
+      ambience: 0.35,
+      music: 0.25,
+      ui: 0.8,
+      dynamicRange: "headphones",
+      muteWhenHidden: false,
+    });
+  });
+
+  it("prefers the v1 mute field and clamps independent bus levels", () => {
+    const storage = new FakeStorage();
+    storage.setItem(KEY, JSON.stringify({
+      muted: false,
+      audio: { master: 0.6, combat: 0.4, ambience: -2, music: 9, ui: "loud", dynamicRange: "reduced", muteWhenHidden: true },
+    }));
+    storage.setItem("iron_muted", "1");
+    const store = new SettingsStore(storage);
+
+    store.setAudioLevel("ambience", 0.25);
+    store.setMuted(true);
+
+    expect(store.get().muted).toBe(true);
+    expect(store.get().volume).toBe(0.6);
+    expect(store.get().audio).toEqual({
+      master: 0.6,
+      combat: 0.4,
+      ambience: 0.25,
+      music: 1,
+      ui: 0.8,
+      dynamicRange: "reduced",
+      muteWhenHidden: true,
+    });
+  });
+
+  it("persists only canonical audio.master while keeping the volume alias aligned", () => {
+    const storage = new FakeStorage();
+    const store = new SettingsStore(storage);
+
+    store.setVolume(0.45);
+
+    const saved: unknown = JSON.parse(storage.getItem(KEY) ?? "null");
+    if (saved === null || typeof saved !== "object") throw new Error("saved settings must be an object");
+    expect(Object.hasOwn(saved, "volume")).toBe(false);
+    expect(saved).toMatchObject({ audio: { master: 0.45 } });
+    expect(store.get().volume).toBe(store.get().audio.master);
   });
 });
 

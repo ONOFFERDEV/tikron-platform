@@ -1,5 +1,12 @@
 import * as T from 'three';
 
+export const UNDERTOW_PHYSICAL_SURFACES = {
+  mud: { roughness: 0.95, metalness: 0 },
+  gravel: { roughness: 0.93, metalness: 0 },
+  wood: { roughness: 0.88, metalness: 0 },
+  concrete: { roughness: 0.91, metalness: 0 },
+  metal: { roughness: 0.54, metalness: 0.52 },
+} as const;
 interface GroundCanvas {
   width: number;
   height: number;
@@ -33,6 +40,9 @@ export function updateUndertowGroundTexture(texture: T.DataTexture, canvas: Grou
 /** Fixed, opaque PBR finish: wet areas darken and catch the existing environment.
  * No planar reflections, extra pass/light, animation or runtime resource churn. */
 export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'ground' | 'concrete' | 'apron' | 'coated'): void {
+  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel' : kind === 'concrete' ? 'concrete' : 'metal';
+  material.setValues(UNDERTOW_PHYSICAL_SURFACES[surface]);
+  material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
     const panel = kind === 'concrete' || kind === 'coated';
     if (panel) {

@@ -4,6 +4,17 @@ import { ActorAppearance, actorColor } from '../client/actor-appearance.js';
 import { SettingsStore } from '../client/settings.js';
 
 describe('operator contrast', () => {
+  it('renders one bounded remote soldier LOD', () => {
+    const root = new THREE.Group();
+    for (const name of ['LOD0', 'LOD1', 'LOD2']) {
+      const lod = new THREE.Group(); lod.name = name; root.add(lod);
+    }
+    new ActorAppearance(root, 0xffffff);
+    expect(root.getObjectByName('LOD0')!.visible).toBe(true);
+    expect(root.getObjectByName('LOD1')!.visible).toBe(false);
+    expect(root.getObjectByName('LOD2')!.visible).toBe(false);
+  });
+
   it('classifies both teams, unknown viewers and teamless opponents without changing allies', () => {
     for (const team of [0, 1]) {
       expect(actorColor(0x123456, team, team, false, 'yellow')).toBe(0x123456);
@@ -36,6 +47,24 @@ describe('operator contrast', () => {
     expect(m.version).toBe(version);
     expect(m.customProgramCacheKey()).toBe(key);
     expect(m.depthTest && m.depthWrite && !m.transparent).toBe(true);
+  });
+
+  it('separates shader variants when one shared source material spans body and field-kit geometry', () => {
+    const source = new THREE.MeshStandardMaterial({ color: 0x736b54, roughness: .91 });
+    const bodyGeometry = new THREE.BoxGeometry();
+    const kitGeometry = new THREE.BoxGeometry();
+    kitGeometry.setAttribute('fieldKit', new THREE.Float32BufferAttribute(
+      new Float32Array(kitGeometry.getAttribute('position').count * 4), 4,
+    ));
+    const root = new THREE.Group();
+    root.add(new THREE.Mesh(bodyGeometry, source), new THREE.Mesh(kitGeometry, source));
+    const appearance = new ActorAppearance(root, 0x8c805d);
+    expect(appearance.materials).toHaveLength(2);
+    expect(appearance.materials[0]).not.toBe(appearance.materials[1]);
+    expect(new Set(appearance.materials.map(material => material.customProgramCacheKey())))
+      .toEqual(new Set(['ironsight-actor-rim-v1', 'ironsight-field-kit-rim-v2']));
+    expect(source.color.getHex()).toBe(0x736b54);
+    expect(source.roughness).toBe(.91);
   });
 
   it('migrates old saves, rejects invalid colours, persists and resets the choice', () => {

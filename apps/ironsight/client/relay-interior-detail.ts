@@ -25,7 +25,7 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
       rect('#828171', x, 23, 5, 462);
       for (let y = 28; y < 490; y += 24) { rect('#202722', x, y, 5, 5); rect('#aaa58c', x + 1, y, 2, 1); }
     }
-    text(control ? 'LOCAL CONTROL' : 'COMMS / RX', 39, 40, 17);
+    text(control ? 'LINE SWITCHBOARD' : 'FIELD TELEGRAPH', 31, 40, 17);
     for (let row = 0; row < 5; row++) {
       const y = 54 + row * 79;
       rect('#111b18', 34, y, 186, 73); rect(control ? '#666856' : '#4c574a', 37, y + 3, 180, 67);
@@ -40,22 +40,22 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
         rect('#958254', 184, y + 21, 13, 27); rect('#282e27', 187, y + 20, 7, 15);
       } else {
         rect('#252f27', 47, y + 13, 86, 22);
-        text(['074.80', '032.40', '018.25', '006.50', 'STANDBY'][row]!, 51, y + 28, 13, '#979e7f');
+        text(['WEST', 'NORTH', 'DEPOT', 'HQ', 'RESERVE'][row]!, 51, y + 28, 13, '#979e7f');
         for (const x of [157, 192]) {
           c.fillStyle = '#202922'; c.beginPath(); c.arc(x, y + 24, 12, 0, Math.PI * 2); c.fill();
           line([[x, y + 24], [x + 3, y + 16]], '#a4a088');
         }
         for (let x = 48; x < 125; x += 6) rect('#222c25', x, y + 46, 3, 11);
-        text(`CH / 0${row + 1}`, 146, y + 56, 10);
+        text(`LINE / 0${row + 1}`, 146, y + 56, 10);
       }
       for (const x of [41, 209]) for (const yy of [y + 8, y + 58]) rect('#aaa48c', x, yy, 3, 3);
     }
-    rect('#9e9474', 43, 457, 168, 24); text(control ? 'ISOLATE / TEST' : 'FIELD LINK / 07', 51, 474, 14, '#30372c');
+    rect('#9e9474', 43, 457, 168, 24); text(control ? 'CUT / TEST' : 'FIELD LINE / 07', 51, 474, 14, '#30372c');
     c.restore();
   }
   // Printed schematic: a functional analogue mimic board, intentionally quiet.
   rect('#6a6d59', 1536, 0, 512, 256); rect('#b4b099', 1542, 6, 500, 244);
-  rect('#3b453a', 1552, 16, 480, 224); text('RELAY / DISTRIBUTION', 1570, 48, 23);
+  rect('#3b453a', 1552, 16, 480, 224); text('FIELD LINE DISTRIBUTION', 1570, 48, 23);
   for (let row = 0; row < 3; row++) {
     const y = 88 + row * 58;
     line([[1574, y], [1660, y], [1660, y - 10], [1836, y - 10], [1836, y], [1995, y]], '#9c9e83', 3);
@@ -75,13 +75,13 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
     c.save(); c.translate(1792, ty);
     rect('#29352b', 0, 0, 256, 128); rect('#858570', 4, 4, 248, 120);
     rect('#4c5946', 8, 8, 240, 112); rect('#303d30', 14, 32, 228, 53);
-    text(control ? 'BUS / LOCAL OVERRIDE' : 'FIELD LINK / TRANSMIT', 17, 25, 14);
+    text(control ? 'LINE / LOCAL CUTOUT' : 'FIELD KEY / TRANSMIT', 17, 25, 14);
     for (const x of [34, 87, 140]) {
       if (control) {
         c.fillStyle = '#b6b397'; c.beginPath(); c.arc(x + 12, 57, 17, Math.PI, 2 * Math.PI); c.fill();
         line([[x + 12, 57], [x + 19, 42]], '#323d2e');
       } else {
-        rect('#929c7d', x - 9, 40, 43, 21); text('074', x - 3, 55, 14, '#354530');
+        rect('#929c7d', x - 9, 40, 43, 21); text('KEY', x - 3, 55, 14, '#354530');
       }
     }
     rect('#a99563', 209, 42, 14, 30); rect('#273324', 212, 39, 8, 20);

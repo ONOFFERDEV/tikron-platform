@@ -1,10 +1,12 @@
 import {
-  nearestBox,
   raySphere,
   rayVerticalCylinder,
   type Box,
   type Vec3,
 } from "./physics.js";
+import type { RampDef } from "./map/types.js";
+import { nearestOccluder } from "./ray-occlusion.js";
+import { rotateHitVolume, type SoldierHitVolume } from "./hit-calibration.js";
 
 /**
  * Server hitscan resolution — pure, so it unit-tests without a room or timers.
@@ -27,7 +29,26 @@ export interface HitTarget {
   feetY: number;
   /** Crown height = feetY + capsule height (rewound). */
   headY: number;
+  yaw?: number;
+  hitVolume?: SoldierHitVolume;
+  headRadius?: number;
   team: number;
+}
+
+export function targetHeadRadius(target: HitTarget, fallback: number): number {
+  return target.headRadius !== undefined && Number.isFinite(target.headRadius) && target.headRadius > 0
+    ? target.headRadius
+    : fallback;
+}
+
+export function targetHitVolume(target: HitTarget, headRadius: number): { headCenter: Vec3; bodyTopY: number } {
+  if (target.hitVolume !== undefined && target.yaw !== undefined && Number.isFinite(target.yaw)) {
+    const calibrated = rotateHitVolume(target.hitVolume, target.yaw);
+    return { headCenter: { x: target.x + calibrated.headCenter.x, y: target.feetY + calibrated.headCenter.y,
+      z: target.z + calibrated.headCenter.z }, bodyTopY: target.feetY + calibrated.bodyTopY };
+  }
+  return { headCenter: { x: target.x, y: target.headY - headRadius, z: target.z },
+    bodyTopY: target.headY - 2 * headRadius };
 }
 
 export interface HitConfig {
@@ -79,19 +100,21 @@ export function resolveHitscan(
   boxes: readonly Box[],
   cfg: HitConfig,
   teamless = false,
+  ramps: readonly RampDef[] = [],
 ): Hit | null {
-  const occludeT = nearestBox(origin, dir, boxes, range);
+  const occludeT = nearestOccluder(origin, dir, boxes, ramps, range);
   let best: Hit | null = null;
 
   for (const tgt of targets) {
     if (!teamless && tgt.team === shooterTeam) continue;
 
-    const headCentre: Vec3 = { x: tgt.x, y: tgt.headY - cfg.headRadius, z: tgt.z };
-    const tHead = raySphere(origin, dir, headCentre, cfg.headRadius, range);
+    const headRadius = targetHeadRadius(tgt, cfg.headRadius);
+    const volume = targetHitVolume(tgt, headRadius);
+    const tHead = raySphere(origin, dir, volume.headCenter, headRadius, range);
 
     // Body cylinder: feet up to the neck (crown − 2·headRadius), where the head
     // sphere's underside begins — so the two volumes meet without overlapping.
-    const yTop = tgt.headY - 2 * cfg.headRadius;
+    const yTop = volume.bodyTopY;
     const tBody =
       yTop > tgt.feetY
         ? rayVerticalCylinder(origin, dir, tgt.x, tgt.z, tgt.feetY, yTop, cfg.radius, range)
@@ -99,7 +122,7 @@ export function resolveHitscan(
 
     let t: number;
     let part: HitPart;
-    if (tHead !== null && (tBody === null || tHead <= tBody)) {
+    if (tHead !== null && (tgt.hitVolume !== undefined || tBody === null || tHead <= tBody)) {
       t = tHead;
       part = "head";
     } else if (tBody !== null) {

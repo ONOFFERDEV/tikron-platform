@@ -1,18 +1,121 @@
 import * as THREE from 'three';
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { GAME } from '../src/game-config.js';
+import { GRENADE } from '../src/config.js';
+import type { MapSurface } from '../src/map/materials.js';
+import { acquireWeaponModel, cloneWeaponBundleNode, weaponSupportSource } from './weapon-loader.js';
+import type { AssetLease } from './shared-gltf-cache.js';
 
 type Vec3 = { x: number; y: number; z: number };
 type Nade = Vec3 & { id: string; vx: number; vy: number; vz: number };
+type GrenadeSlot = { mesh: THREE.Object3D; id: string; vx: number; vy: number; vz: number };
+export type CombatFxOptions = {
+  readonly candidatePreview?: boolean;
+  readonly acquireWeaponModel?: (url: string) => AssetLease<GLTF>;
+  readonly cloneWeaponBundleNode?: (gltf: GLTF, nodeName: string) => THREE.Object3D | undefined;
+};
 export const BOOM_LIFE_MS = 650;
+export const GRENADE_VISUAL_TOLERANCE_M = .02;
 const GRAVITY = -22, FORWARD = new THREE.Vector3(0, 0, 1);
 const P = GAME.palette;
+
+export const IMPACT_PROFILES: Readonly<Record<MapSurface, { readonly color: number; readonly sparks: number; readonly dust: number }>> = {
+  mud: { color: 0x75624c, sparks: 0, dust: 6 },
+  gravel: { color: 0x9a9181, sparks: 2, dust: 5 },
+  wood: { color: 0x9b7048, sparks: 0, dust: 4 },
+  metal: { color: 0xffd08a, sparks: 6, dust: 1 },
+  concrete: { color: 0xb8b2a7, sparks: 2, dust: 6 },
+};
+
+export function nearMissDistance(origin: Vec3, direction: Vec3, length: number, listener: Vec3): number {
+  const magnitude = Math.hypot(direction.x, direction.y, direction.z);
+  if (!Number.isFinite(magnitude) || magnitude <= 0 || !Number.isFinite(length) || length <= 0) return Infinity;
+  const dx = direction.x / magnitude, dy = direction.y / magnitude, dz = direction.z / magnitude;
+  const along = Math.max(0, Math.min(length,
+    (listener.x - origin.x) * dx + (listener.y - origin.y) * dy + (listener.z - origin.z) * dz));
+  return Math.hypot(
+    listener.x - (origin.x + dx * along),
+    listener.y - (origin.y + dy * along),
+    listener.z - (origin.z + dz * along),
+  );
+}
+
+export type CombatCue =
+  | (Vec3 & { readonly kind: 'impact'; readonly shotId: string; readonly material: MapSurface; readonly born: number; readonly intensity: number })
+  | { readonly kind: 'near_miss'; readonly shotId: string; readonly distance: number; readonly born: number; readonly intensity: number };
+
+export class CombatCuePool {
+  private readonly impactCapacity: number;
+  private readonly nearMissCapacity: number;
+  private readonly dedupCapacity: number;
+  private reducedMotion: boolean;
+  private readonly impacts: CombatCue[] = [];
+  private readonly nearMisses: CombatCue[] = [];
+  private readonly ids = new Set<string>();
+  private readonly idOrder: string[] = [];
+
+  constructor(options: { readonly impactCapacity: number; readonly nearMissCapacity: number; readonly reducedMotion?: boolean; readonly dedupCapacity?: number }) {
+    if (!Number.isSafeInteger(options.impactCapacity) || options.impactCapacity < 1 ||
+        !Number.isSafeInteger(options.nearMissCapacity) || options.nearMissCapacity < 1 ||
+        (options.dedupCapacity !== undefined && (!Number.isSafeInteger(options.dedupCapacity) || options.dedupCapacity < 1))) {
+      throw new RangeError('combat cue capacities must be positive safe integers');
+    }
+    this.impactCapacity = options.impactCapacity;
+    this.nearMissCapacity = options.nearMissCapacity;
+    this.dedupCapacity = options.dedupCapacity ?? 256;
+    this.reducedMotion = options.reducedMotion ?? false;
+  }
+
+  impact(value: Vec3 & { readonly shotId: string; readonly material: MapSurface }, now: number): boolean {
+    if (!this.accept(`impact:${value.shotId}`)) return false;
+    this.push(this.impacts, this.impactCapacity, { ...value, kind: 'impact', born: now, intensity: this.reducedMotion ? .45 : 1 });
+    return true;
+  }
+
+  nearMiss(value: { readonly shotId: string; readonly distance: number }, now: number): boolean {
+    if (!this.accept(`near_miss:${value.shotId}`)) return false;
+    this.push(this.nearMisses, this.nearMissCapacity, { ...value, kind: 'near_miss', born: now, intensity: this.reducedMotion ? .35 : 1 });
+    return true;
+  }
+
+  active(now: number): readonly CombatCue[] {
+    return [...this.impacts.filter(cue => now - cue.born < 480), ...this.nearMisses.filter(cue => now - cue.born < 350)];
+  }
+
+  inspect(): { readonly impacts: number; readonly nearMisses: number } {
+    return { impacts: this.impacts.length, nearMisses: this.nearMisses.length };
+  }
+
+  setReducedMotion(value: boolean): void {
+    this.reducedMotion = value;
+  }
+
+  private accept(key: string): boolean {
+    if (key.endsWith(':') || this.ids.has(key)) return false;
+    this.ids.add(key);
+    this.idOrder.push(key);
+    if (this.idOrder.length > this.dedupCapacity) {
+      const evicted = this.idOrder.shift();
+      if (evicted !== undefined) this.ids.delete(evicted);
+    }
+    return true;
+  }
+
+  private push(target: CombatCue[], capacity: number, cue: CombatCue): void {
+    if (target.length === capacity) {
+      target.shift();
+    }
+    target.push(cue);
+  }
+}
 
 /** Fixed GPU resources for transient combat. Saturation replaces the oldest
  * cosmetic slot; it never drops a server event's damage or changes collision.
  * All meshes exist before SceneRig.prepare() uploads/warms them. */
 export class CombatFx {
+  private readonly scene: THREE.Scene;
   private readonly grenadeById = new Map<string, number>();
-  private readonly grenades;
+  private readonly grenades: GrenadeSlot[];
   private readonly blasts;
   private readonly traces;
   private grenadeCursor = 0;
@@ -20,10 +123,19 @@ export class CombatFx {
   private traceCursor = 0;
   private readonly matrix = new THREE.Matrix4();
   private lastTick = performance.now();
+  private grenadeLease: AssetLease<GLTF> | undefined;
+  private grenadeModel: 'procedural' | 'authored' = 'procedural';
+  private disposed = false;
+  private readonly assetReady: Promise<void>;
+  private grenadeGeometry: THREE.SphereGeometry | undefined;
+  private grenadeMaterial: THREE.MeshStandardMaterial | undefined;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, options: CombatFxOptions = {}) {
+    this.scene = scene;
     const grenadeGeometry = new THREE.SphereGeometry(.13, 10, 8);
     const grenadeMaterial = new THREE.MeshStandardMaterial({ color: P.grenadeMesh, roughness: .6, metalness: .3 });
+    this.grenadeGeometry = grenadeGeometry;
+    this.grenadeMaterial = grenadeMaterial;
     const ringGeometry = new THREE.RingGeometry(.4, .55, 40);
     const debrisGeometry = new THREE.BoxGeometry(.08, .08, .08);
     const traceGeometry = new THREE.BoxGeometry(.018, .018, 1);
@@ -46,6 +158,21 @@ export class CombatFx {
         transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }))),
       origin: new THREE.Vector3(), dir: new THREE.Vector3(), dist: 0, segLen: 0, speed: 1, born: -Infinity,
     }));
+    this.assetReady = this.installAuthoredGrenades(options);
+  }
+
+  ready(): Promise<void> { return this.assetReady; }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const slot of this.grenades) this.scene.remove(slot.mesh);
+    this.releaseGrenadeLease(this.grenadeLease);
+    this.grenadeGeometry?.dispose();
+    this.grenadeMaterial?.dispose();
+    this.grenadeGeometry = undefined;
+    this.grenadeMaterial = undefined;
+    this.grenadeById.clear();
   }
 
   spawnNade(e: Nade): void {
@@ -131,6 +258,95 @@ export class CombatFx {
 
   inspect() {
     return { explosions: this.blasts.filter(b => b.ring.visible).length,
-      tracers: this.traces.filter(t => t.mesh.visible).length, grenades: this.grenadeById.size };
+      tracers: this.traces.filter(t => t.mesh.visible).length, grenades: this.grenadeById.size,
+      grenadeModel: this.grenadeModel };
   }
+
+  private async installAuthoredGrenades(options: CombatFxOptions): Promise<void> {
+    const source = weaponSupportSource('grenade', { candidatePreview: options.candidatePreview });
+    if (!source?.nodeName) return;
+    const acquire = options.acquireWeaponModel ?? acquireWeaponModel;
+    const clone = options.cloneWeaponBundleNode ?? cloneWeaponBundleNode;
+    let lease: AssetLease<GLTF> | undefined;
+    try {
+      lease = acquire(source.url);
+      this.grenadeLease = lease;
+      const gltf = await lease.value;
+      if (!gltf || this.disposed || this.grenadeLease !== lease) {
+        this.releaseGrenadeLease(lease);
+        return;
+      }
+      const replacements: THREE.Object3D[] = [];
+      for (let i = 0; i < this.grenades.length; i++) {
+        const object = clone(gltf, source.nodeName);
+        const visual = object ? centerThrownGrenade(object, source.nodeName) : undefined;
+        if (!visual) {
+          this.releaseGrenadeLease(lease);
+          return;
+        }
+        replacements.push(visual);
+      }
+      if (this.disposed || this.grenadeLease !== lease) return;
+      for (let i = 0; i < this.grenades.length; i++) {
+        const slot = this.grenades[i]!;
+        const replacement = replacements[i]!;
+        replacement.position.copy(slot.mesh.position);
+        replacement.quaternion.copy(slot.mesh.quaternion);
+        replacement.scale.copy(slot.mesh.scale);
+        replacement.visible = slot.mesh.visible;
+        this.scene.remove(slot.mesh);
+        this.scene.add(replacement);
+        slot.mesh = replacement;
+      }
+      this.grenadeGeometry?.dispose();
+      this.grenadeMaterial?.dispose();
+      this.grenadeGeometry = undefined;
+      this.grenadeMaterial = undefined;
+      this.grenadeModel = 'authored';
+    } catch {
+      this.releaseGrenadeLease(lease);
+    }
+  }
+
+  private releaseGrenadeLease(lease: AssetLease<GLTF> | undefined): void {
+    if (!lease || this.grenadeLease !== lease) return;
+    this.grenadeLease = undefined;
+    lease.release();
+  }
+}
+
+function centerThrownGrenade(object: THREE.Object3D, name: string): THREE.Group | undefined {
+  const visual = new THREE.Group();
+  visual.name = name;
+  visual.add(object);
+  visual.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(object);
+  if (bounds.isEmpty()) return undefined;
+  object.position.sub(bounds.getCenter(new THREE.Vector3()));
+  visual.updateMatrixWorld(true);
+  const radius = maxVertexRadius(visual);
+  if (!Number.isFinite(radius) || radius <= 0) return undefined;
+  const allowedRadius = GRENADE.projRadius + GRENADE_VISUAL_TOLERANCE_M;
+  if (radius > allowedRadius) {
+    const fit = allowedRadius / radius;
+    object.position.multiplyScalar(fit);
+    object.scale.multiplyScalar(fit);
+    visual.updateMatrixWorld(true);
+  }
+  return visual;
+}
+
+function maxVertexRadius(object: THREE.Object3D): number {
+  const point = new THREE.Vector3();
+  let radius = 0;
+  object.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const position = node.geometry.getAttribute('position');
+    if (!position) return;
+    for (let i = 0; i < position.count; i++) {
+      point.fromBufferAttribute(position, i).applyMatrix4(node.matrixWorld);
+      radius = Math.max(radius, point.length());
+    }
+  });
+  return radius;
 }

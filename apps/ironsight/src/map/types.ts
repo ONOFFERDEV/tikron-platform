@@ -1,6 +1,51 @@
 import type { Box, Bounds, Vec3 } from "../physics.js";
+import type { SurfaceBinding } from "./materials.js";
 import type { CompiledStructure } from './structures.js';
 import type { Terrain } from './terrain.js';
+
+export type { SurfaceBinding } from "./materials.js";
+
+export const MAP_IDS = ["arena1", "arena2", "arena3"] as const;
+export type MapId = (typeof MAP_IDS)[number];
+
+export const MAP_LAYER_HEIGHTS = [-3, 0, 3] as const;
+export type MapLayerHeight = (typeof MAP_LAYER_HEIGHTS)[number];
+
+export const ROUTE_ANCHOR_ROLES = ["spawn", "capture", "route", "interior", "roof", "underpass"] as const;
+export type RouteAnchorRole = (typeof ROUTE_ANCHOR_ROLES)[number];
+
+export const ROUTE_TRAVERSALS = ["walk", "ramp", "drop"] as const;
+export type RouteTraversal = (typeof ROUTE_TRAVERSALS)[number];
+
+export const COVER_CLASSES = ["standing-block", "crouching-block", "body-exposed"] as const;
+export type CoverClass = (typeof COVER_CLASSES)[number];
+
+export interface MapRouteAnchor {
+  readonly id: string;
+  readonly point: Vec3;
+  readonly layer: MapLayerHeight;
+  readonly role: RouteAnchorRole;
+}
+
+export interface MapRouteLink {
+  readonly id: string;
+  readonly from: string;
+  readonly to: string;
+  readonly traversal: RouteTraversal;
+  readonly bidirectional: boolean;
+  readonly minWidth: number;
+}
+
+export interface MapNavigationDef {
+  readonly anchors: readonly MapRouteAnchor[];
+  readonly links: readonly MapRouteLink[];
+}
+
+export interface MapCoverDef {
+  readonly id: string;
+  readonly box: Box;
+  readonly coverClass: CoverClass;
+}
 
 /**
  * The shape every map module (arena1, arena2, …) exports as one value, so the
@@ -33,6 +78,13 @@ export interface RampDef {
 }
 
 export interface MapDef {
+  /** Stable authored route metadata. Runtime traversal still sweeps the exact
+   * boxes and ramps; this never grants movement through blocked geometry. */
+  readonly navigation?: MapNavigationDef;
+  /** Exact support-object material bindings for footsteps and impact FX. */
+  readonly surfaceBindings?: readonly SurfaceBinding[];
+  /** Gameplay cover classification; every box is also present in boxes. */
+  readonly cover?: readonly MapCoverDef[];
   readonly terrain?: Terrain;
   /** Authored buildings; each part references the SAME box in boxes below. */
   readonly structures?: readonly CompiledStructure[];

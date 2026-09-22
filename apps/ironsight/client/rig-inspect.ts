@@ -1,6 +1,7 @@
 import { SceneRig } from "./scene.js";
 import { mapForRoom } from "../src/modes.js";
 import type { RigInspectOptions } from "./rig-inspect-query.js";
+import { createBundledHitAuthorityContract } from "../src/hit-authority-contract.js";
 
 export function startRigInspector(options: RigInspectOptions): void {
   const host = document.getElementById("app") ?? document.body;
@@ -9,7 +10,10 @@ export function startRigInspector(options: RigInspectOptions): void {
   }
   host.replaceChildren();
   const map = mapForRoom("tdm", "");
-  const scene = new SceneRig(map, host);
+  const hitAuthority = createBundledHitAuthorityContract();
+  const scene = new SceneRig(map, host, hitAuthority === undefined
+    ? {}
+    : { hitAnimationAuthority: hitAuthority });
   // Relay's center is now solid machinery. Use the clear west service pocket
   // so orbit cameras and the operator never intersect the new architecture.
   const x = 10, z = map.bounds.depth / 2;
@@ -33,8 +37,19 @@ export function startRigInspector(options: RigInspectOptions): void {
       scene.camera.lookAt(focus);
     }
     scene.render();
-    if (ready && ++frames >= 2) { flags.__rigInspect = scene.inspectionGrip(); flags.__inspectReady = true; }
-    else requestAnimationFrame(frame);
+    const actor = scene.inspectionActorInfo("inspect");
+    if (!actor.supported) {
+      flags.__rigInspect = { actor };
+      flags.__inspectReady = true;
+      return;
+    }
+    if (ready && ++frames >= 2) {
+      const result: Record<string, unknown> = { actor };
+      const grip = scene.inspectionGrip();
+      if (typeof grip === "object" && grip !== null) Object.assign(result, grip);
+      flags.__rigInspect = result;
+      flags.__inspectReady = true;
+    } else requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }

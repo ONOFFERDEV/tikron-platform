@@ -11,7 +11,9 @@
  * match config.ts: `x,z` horizontal, `y` up.
  */
 
+import type { RampDef } from "./map/types.js";
 import type { Box, Bounds, Vec3 } from "./physics.js";
+import { sweepSphereRamp } from "./ray-occlusion.js";
 
 /** A grenade's live kinematic state (mutated in place by {@link stepGrenade}). */
 export interface GrenadeBody {
@@ -95,6 +97,7 @@ export function stepGrenade(
   r: number,
   boxes: readonly Box[],
   bounds: Bounds,
+  ramps: readonly RampDef[] = [],
 ): boolean {
   g.vel.y -= gravity * dt;
   // Sweep the sphere's conservative AABB BEFORE advancing. Endpoint-only tests
@@ -113,6 +116,13 @@ export function stepGrenade(
     }
     if(enter>=0 && enter<=leave && enter<=first) {
       first=enter;normal={x:0,y:0,z:0};normal[axis]=sign;
+    }
+  }
+  for (const ramp of ramps) {
+    const hit = sweepSphereRamp(g.pos, delta, r, ramp);
+    if (hit !== null && hit.time <= first) {
+      first = hit.time;
+      normal = hit.normal;
     }
   }
   const travel=normal ? Math.max(0,first-1e-5) : 1;

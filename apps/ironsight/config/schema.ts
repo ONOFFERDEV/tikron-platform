@@ -22,6 +22,14 @@
  */
 
 import type { WeaponSpec } from "../src/config.js";
+export type { WeaponSpec } from "../src/config.js";
+export type {
+  FireMode,
+  ReloadKind,
+  SightKind,
+  WeaponKey,
+  WeaponReload,
+} from "../src/weapon-contract.js";
 import type { MapDef } from "../src/map/types.js";
 import type { ModeId } from "../src/modes.js";
 

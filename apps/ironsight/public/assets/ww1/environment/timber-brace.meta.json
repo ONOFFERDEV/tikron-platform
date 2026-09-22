@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "key": "timber-brace",
+  "sha256": "4769dbc06552eadd83f0637bddce7501fba43cfd496138325cd4606f3001a754",
+  "dimensionsM": [
+    2.4,
+    2.5,
+    0.22
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    92,
+    60,
+    36
+  ],
+  "joints": {
+    "join_left": [
+      -1.2,
+      0,
+      0
+    ],
+    "join_right": [
+      1.2,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "wood"
+  ],
+  "collision": {
+    "kind": "compound",
+    "dimensionsM": [
+      2.4,
+      2.5,
+      0.22
+    ],
+    "parts": 5
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/timber-brace.json",
+    "outputSha256": "4769dbc06552eadd83f0637bddce7501fba43cfd496138325cd4606f3001a754"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

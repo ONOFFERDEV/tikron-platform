@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "assetKey": "bolt_service_rifle",
+  "status": "production_candidate_pending_review",
+  "runtimeAccepted": false,
+  "heroAccepted": false,
+  "source": {
+    "kind": "rejected-provider-dimensional-reference",
+    "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\artifacts\\ww1\\reviews\\bolt_service_rifle\\preview.glb",
+    "sha256": "52ab234466154aa23f23d8f2ff995c47b3b6fe2c17c87d94112c2ad21c416d7a",
+    "geometryRetainedInExport": false,
+    "referenceObjectsInBlend": 1
+  },
+  "correction": "direct-authored receiver/barrel/stock-controls/sights/mechanical rebuild",
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z",
+    "origin": "grip_r"
+  },
+  "output": {
+    "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\candidate.glb",
+    "sha256": "06fba41ab8e6e457ccf2496b936d587a0cdabaf53fe79e5295be05f0a05139e7",
+    "bytes": 453840,
+    "blendPath": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\source.blend",
+    "blendSha256": "5ec9ad1558add8f27ae8b1f38659e4782247e2df0cb0e5503166ce26b770e22e"
+  },
+  "triangles": {
+    "fp": 2676,
+    "LOD0": 1926,
+    "LOD1": 1016,
+    "LOD2": 428,
+    "bolt": 152,
+    "clip": 368
+  },
+  "drawGroups": {
+    "fpBody": 4,
+    "remoteBodyPerLod": 1,
+    "mechanisms": 2,
+    "remoteSteadyMaximum": 3
+  },
+  "movingParts": [
+    "bolt",
+    "clip"
+  ],
+  "sockets": {
+    "grip_r": [
+      0,
+      0.0,
+      0.0
+    ],
+    "grip_l": [
+      0,
+      0.015,
+      0.44
+    ],
+    "muzzle": [
+      0,
+      0.09000000000000001,
+      0.9199999999999999
+    ],
+    "eject": [
+      0.052,
+      0.085,
+      0.26999999999999996
+    ],
+    "sight_rear": [
+      0,
+      0.15,
+      0.23999999999999994
+    ],
+    "sight_front": [
+      0,
+      0.13999999999999999,
+      0.8099999999999998
+    ],
+    "chamber": [
+      0,
+      0.08,
+      0.3499999999999999
+    ],
+    "clip_mount": [
+      0,
+      0.155,
+      0.26999999999999996
+    ]
+  },
+  "bounds": {
+    "blenderMin": [
+      -0.05239174887537956,
+      -0.9199999570846558,
+      -0.05006256327033043
+    ],
+    "blenderMax": [
+      0.10999999940395355,
+      0.3492518365383148,
+      0.18400000035762787
+    ],
+    "metres": [
+      0.16239174827933311,
+      0.2340625636279583,
+      1.2692517936229706
+    ]
+  },
+  "mechanismMotions": {
+    "bolt": {
+      "pivotSocket": "chamber",
+      "translation": [
+        0.0,
+        0.0,
+        -0.085
+      ],
+      "rotationAxis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "rotationRadians": 1.0,
+      "visibility": "persistent"
+    },
+    "clip": {
+      "pivotSocket": "clip_mount",
+      "translation": [
+        0.0,
+        0.08,
+        0.0
+      ],
+      "rotationAxis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "rotationRadians": 0.0,
+      "visibility": "transient"
+    }
+  },
+  "renders": [
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\side-right.png",
+      "sha256": "d22acd7fc4c1262d07027ca35b8523ad08d6fd63711d2f7809272f18f7fb3efa"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\three-quarter-front.png",
+      "sha256": "ab456a5a09f6543a211f222dc441766f41e1c380b0f09aaa057ad3af41784bc6"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\muzzle-end.png",
+      "sha256": "5701c4ef076c2b50f14f0dbc7cc45c18bebc83768c09e0487e1dda5eada1a1cd"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\three-quarter-left.png",
+      "sha256": "844d2a5eda66cd75a2b75397da95a90e10ff3cb6263a0eac21858e64445ca433"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\side-left.png",
+      "sha256": "86d5ad8563e912ae432206b6129b945071ffa736d0b4e5a35e378aca788e6bfe"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\iron-sight.png",
+      "sha256": "1705e4cc37435d348451a739b1c40f49447b5d9dd6a082984408b91ba098bbb6"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\contact-grip-r.png",
+      "sha256": "28b69066a1e7a483549df24313fe1b7a21beb6c8d4178994166035c424caa335"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\contact-grip-l.png",
+      "sha256": "944599456391f317e74298c2b008f797814d25431d644737326ce32ee293f0a0"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-bolt-closed.png",
+      "sha256": "0d4c6230c65e379175477dbb5522943d02a1c27a5885d5e890657c58dcf14120"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-bolt-mid.png",
+      "sha256": "dd9269ce24614ea36cedac249605cb0df9148e6e89038d8f212855937d4b7b12"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-bolt-open.png",
+      "sha256": "f57092f16b6a684c225322ae5733b4f12652655e646dae0534feaa7a4d12529f"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-clip-closed.png",
+      "sha256": "c715c6a10153ed7912ab51c23790961f67ea43edb39814f3c99b12bf6e731eba"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-clip-mid.png",
+      "sha256": "7f3a3eada107a4d21ed11ca0260567dfdb3f64454059711288ce314195c4fc3d"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\bolt_service_rifle\\renders\\mechanism-clip-open.png",
+      "sha256": "0ae2becfa38cfab1a6e21d6ca99075fbe1a00cc251d7226d09b7db28bf145529"
+    }
+  ]
+}

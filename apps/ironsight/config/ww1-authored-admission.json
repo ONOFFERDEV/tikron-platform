@@ -1,0 +1,117 @@
+{
+    "schemaVersion":  2,
+    "kind":  "ww1-original-authored-admission",
+    "releaseStatus":  "source-model-candidate",
+    "runtimePlacement":  "source-adapter-approved-preview-only",
+    "runtimeVisual":  "unqualified-pending-browser",
+    "fallbackRequiredUntilRuntimeVisualReview":  true,
+    "review":  {
+                   "status":  "accepted",
+                   "scope":  "source-model-only",
+                   "evidence":  "D:/webgame-baas/.omo/evidence/ww1/task-10/post-deploy/independent-review.json",
+                   "sha256":  "3e388feb6f68e7b2856e680ab86c701f0d5248585fd5190a379c56b067aeccc5"
+               },
+    "placementReview":  {
+                            "status":  "accepted",
+                            "scope":  "source-transform-and-collision-adapter-only",
+                            "evidence":  "D:/webgame-baas/.omo/evidence/ww1/task-30/placement/independent-review.json",
+                            "sha256":  "346f5632c4499308eed4c38e6371721d807c2fe78be16d8929299dc58bb9932a"
+                        },
+    "builder":  {
+                    "path":  "tools/build-ww1-environment.mjs",
+                    "sha256":  "30e1b15c01d793c2dd343031a53ef3a2ed2ee73bfd475f92795ef22a014d6fcd"
+                },
+    "assets":  [
+                   {
+                       "key":  "ammo-crate",
+                       "glb":  "assets/ww1/environment/ammo-crate.glb",
+                       "glbSha256":  "6cc1ae75b8db44be87f65803ce55c67e2df05755d6df6a9a84bf4f6de024fbaa",
+                       "meta":  "assets/ww1/environment/ammo-crate.meta.json",
+                       "metaSha256":  "1650956263d76d42b609dcb8c8a422967d897504b2f93de3cb9023d5701a7269"
+                   },
+                   {
+                       "key":  "brick-rubble",
+                       "glb":  "assets/ww1/environment/brick-rubble.glb",
+                       "glbSha256":  "571c57984219ceb7c5e5bb595287c73078490054820f86ca6de9b03940771ef1",
+                       "meta":  "assets/ww1/environment/brick-rubble.meta.json",
+                       "metaSha256":  "9bd864a01337afdb8740ba1e820409a9f998ccc53a4e4f03408cfc9a89202142"
+                   },
+                   {
+                       "key":  "duckboard",
+                       "glb":  "assets/ww1/environment/duckboard.glb",
+                       "glbSha256":  "5312be9e3d81851cc1803d5a3ade9f1a81566227e52244f892013fd77d09ade3",
+                       "meta":  "assets/ww1/environment/duckboard.meta.json",
+                       "metaSha256":  "b0b82dd5ecf4e53a8187253b4edd2cf587c01b7e928d223b7a360e9a16b4e0e2"
+                   },
+                   {
+                       "key":  "field-telephone",
+                       "glb":  "assets/ww1/environment/field-telephone.glb",
+                       "glbSha256":  "73832c53ae4995225c928bf361faf295ff3539edf3093d6837cc865e55ff4abf",
+                       "meta":  "assets/ww1/environment/field-telephone.meta.json",
+                       "metaSha256":  "4c34b9df0e7f1b9290d4ffaafee40ca65bcfc3fcd6a8bacac897f71bea6588c5"
+                   },
+                   {
+                       "key":  "freight-wagon-wreck",
+                       "glb":  "assets/ww1/environment/freight-wagon-wreck.glb",
+                       "glbSha256":  "16611bc62d19fda361e53e8a5d8e05c11b6a7aecd49a81a79d221e73378b7c2a",
+                       "meta":  "assets/ww1/environment/freight-wagon-wreck.meta.json",
+                       "metaSha256":  "5544ef84c273b2d69cd423007f6af345f9e8377c0907268394c67150c0a330f0"
+                   },
+                   {
+                       "key":  "observation-post",
+                       "glb":  "assets/ww1/environment/observation-post.glb",
+                       "glbSha256":  "2802f13b9f05c0f090744a13e7f2a44328a7f979704dd3e1eedb2f417c1ea637",
+                       "meta":  "assets/ww1/environment/observation-post.meta.json",
+                       "metaSha256":  "19fc5c09ecf27c892cdf0db7c60239b6e0f84b9267605af4e2db735caeadf9c9"
+                   },
+                   {
+                       "key":  "rail-platform",
+                       "glb":  "assets/ww1/environment/rail-platform.glb",
+                       "glbSha256":  "8aefe162b704d11f43db62e4575bb996aa94d80d40df1c306c4f50736edbe50c",
+                       "meta":  "assets/ww1/environment/rail-platform.meta.json",
+                       "metaSha256":  "06a4f7cd84a99345881bc24abbd1ffeee924155e774fcca1b1edc47f25367e63"
+                   },
+                   {
+                       "key":  "sandbag",
+                       "glb":  "assets/ww1/environment/sandbag.glb",
+                       "glbSha256":  "c215dc14c506e406b6a1afc4c701c7e9659943e50896073fb409c9b09ba1e483",
+                       "meta":  "assets/ww1/environment/sandbag.meta.json",
+                       "metaSha256":  "4d040862c6163ef98c9d28c6d8a88919fdaa132e4c363d9542cdb16685770517"
+                   },
+                   {
+                       "key":  "supply-wagon",
+                       "glb":  "assets/ww1/environment/supply-wagon.glb",
+                       "glbSha256":  "dd7f1526ecd82a9279fb365a784f78f58c8d7ea802adba50e8c4cab5b0114827",
+                       "meta":  "assets/ww1/environment/supply-wagon.meta.json",
+                       "metaSha256":  "8645d2229f9e360b383778069d17effe6e34f9dd322c9aca95bc1497fc68a072"
+                   },
+                   {
+                       "key":  "timber-brace",
+                       "glb":  "assets/ww1/environment/timber-brace.glb",
+                       "glbSha256":  "4769dbc06552eadd83f0637bddce7501fba43cfd496138325cd4606f3001a754",
+                       "meta":  "assets/ww1/environment/timber-brace.meta.json",
+                       "metaSha256":  "59267038bebd209214ccb258204c4907157ba1e212778202bb533320afca42f9"
+                   },
+                   {
+                       "key":  "trench-wall",
+                       "glb":  "assets/ww1/environment/trench-wall.glb",
+                       "glbSha256":  "8c619a1ff90eadaf0ad4305c596eca4da5b0329a0e2fc61372803b995b0c16fc",
+                       "meta":  "assets/ww1/environment/trench-wall.meta.json",
+                       "metaSha256":  "cb6b7b4b2b7852ef23d78b086de89a74609b6e853423c5bfbe571906e7a6f133"
+                   },
+                   {
+                       "key":  "wire",
+                       "glb":  "assets/ww1/environment/wire.glb",
+                       "glbSha256":  "22d751202758aae7c7047569b2c97221cfd39f8b08cd1900c4ae22dc5609c4fb",
+                       "meta":  "assets/ww1/environment/wire.meta.json",
+                       "metaSha256":  "24137ff0d8f7168b676b5fe5327c5dbe149207add0d81ffcc6242fe415af343f"
+                   },
+                   {
+                       "key":  "biplane",
+                       "glb":  "assets/ww1/support/biplane.glb",
+                       "glbSha256":  "72ad5bd897d683c069e66bf8e19544f12a61e204562e6c03b4161357a655e3f1",
+                       "meta":  "assets/ww1/support/biplane.meta.json",
+                       "metaSha256":  "abd0fb517b91931a941a504b213d6c552abfb2baa05b8de6434b659b8dc4cb45"
+                   }
+               ]
+}

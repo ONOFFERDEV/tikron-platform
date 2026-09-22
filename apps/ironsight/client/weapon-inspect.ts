@@ -13,18 +13,21 @@ export function startWeaponInspector(): void {
   scene.setWeapon(weapon);
   const phases: Record<string, number> = { 'reload-out': 0.40, 'reload-in': 0.58, 'reload-bolt': 0.78, 'reload-return': 0.94 };
   const phase = Object.keys(phases).find(p => shot?.endsWith(p));
-  const progress = phases[phase ?? ''] ?? null;
+  const sampleValue = Number(query.get('sample'));
+  const hasSample = query.has('sample') && Number.isFinite(sampleValue);
+  const progress = hasSample ? Math.max(0, Math.min(1, sampleValue)) : phases[phase ?? ''] ?? null;
+  const intent = query.get('action') === 'cycle' ? 'cycle' : 'reload';
   const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
   flags.__inspectReady = false;
   let frames = 0;
-  const cycle = shot?.endsWith('-cycle') ?? false;
+  const cycle = !hasSample && (shot?.endsWith('-cycle') ?? false);
   let cycleFrames = 0;
   const observedPhases = new Set<string>();
   const framingSamples: { progress: number; framing: ReturnType<SceneRig['inspectViewmodelFraming']> }[] = [];
   const reviewFrames = new Set([0, 18, 32, 61, 86, 115, 133, 140, 155, 169, 180]);
   const tick = () => {
     const movingProgress = cycle && cycleFrames < 181 ? cycleFrames / 180 : progress;
-    const ready = scene.inspectViewmodel(movingProgress, shot?.includes('-ads') ?? false);
+    const ready = scene.inspectViewmodel(movingProgress, shot?.includes('-ads') ?? false, cycle ? 'cycle' : intent);
     if (ready && frames >= 19 && scene.readyForInspection(0) && shot?.endsWith('-flash')) scene.inspectMuzzle(12);
     scene.render();
     if (!ready || ++frames < 20 || !scene.readyForInspection(0)) { requestAnimationFrame(tick); return; }

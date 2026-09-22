@@ -8,9 +8,9 @@ export interface SwitchyardYardPart {
 const box = (x0: number, z0: number, x1: number, z1: number, top: number, bottom = 0): Box =>
   ({ min: { x: x0, y: bottom, z: z0 }, max: { x: x1, y: top, z: z1 } });
 
-/** Open transformer service courts carved from the two sealed north housings.
- * Offset four-metre entries connect North bus to the deck approach. The west
- * masonry and east ribbed enclosure share power, but have different finishes.
+/** Open rail-inspection courts carved from the two sealed north housings.
+ * Offset four-metre entries connect the embankment to the loading-deck approach. The west
+ * masonry store and east corrugated signal shed use different finishes.
  * Every solid is contained in an old block: existing saved positions stay valid.
  * Thin walls, stepped remnants and equipment all have exact visible shells. */
 const west: readonly Omit<SwitchyardYardPart, 'west'>[] = [
@@ -29,6 +29,9 @@ const west: readonly Omit<SwitchyardYardPart, 'west'>[] = [
   { box: box(40, 37, 41, 39, 5, 3), kind: 'wall' },
 ];
 export const SWITCHYARD_YARD_PARTS: readonly SwitchyardYardPart[] = [
+  ...[28, 82, 128].map(x => ({
+    box: box(x - 3, 26, x + 3, 32, 3), kind: 'wall' as const, west: x < 75,
+  })),
   ...west.map(p => ({ ...p, west: true })),
   ...west.map(p => ({ ...p, west: false, box: {
     min: { ...p.box.min, x: 150 - p.box.max.x }, max: { ...p.box.max, x: 150 - p.box.min.x },

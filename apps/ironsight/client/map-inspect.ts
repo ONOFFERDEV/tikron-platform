@@ -10,6 +10,9 @@ import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
 import { BOT_ROLES } from '../src/bot-roles.js';
 import { enemyHighlight } from './actor-appearance.js';
+import { coreInspectionShots } from './map-inspect-fixtures.js';
+import { renderStaticInspection, type MapInspectionProgress } from './map-inspect-readiness.js';
+import { createBundledHitAuthorityContract } from '../src/hit-authority-contract.js';
 
 /** Deterministic production-renderer review. No matchmaking, no gameplay sockets. */
 export function startMapInspector(): void {
@@ -29,6 +32,7 @@ export function startMapInspector(): void {
   const host = document.getElementById("app") ?? document.body;
   host.replaceChildren();
   const map = params.get("map") === "arena2" ? ARENA2 : params.get("map") === "arena3" ? ARENA3 : ARENA1;
+  const relayCoreShots = coreInspectionShots(ARENA1), undertowCoreShots = coreInspectionShots(ARENA2);
   const effects = params.get("shot")?.endsWith("effects-stress") ?? false;
   const reaction = params.get("shot")?.startsWith("reaction-") ?? false;
   const muzzleLineup = params.get('shot') === 'muzzle-lineup';
@@ -39,7 +43,11 @@ export function startMapInspector(): void {
   const blastReview = params.get('shot')?.startsWith('blast-') ?? false;
   const introReview = params.get('shot')?.includes('intro-') ?? false;
   const actorCount = params.get('shot') === 'contrast-empty-cover' ? 0 : params.get("shot")?.endsWith('stress') || introReview ? 11 : roleLineup || contrastReview ? 3 : muzzleLineup ? 5 : glintReview || reviewEnemy ? 1 : 0;
-  const scene = new SceneRig(map, host, { loadActors: actorCount > 0 || reaction, loadViewmodel: effects || blastReview || introReview });
+  const actorEnabled = actorCount > 0 || reaction;
+  const hitAuthority = actorEnabled ? createBundledHitAuthorityContract() : undefined;
+  const scene = new SceneRig(map, host, { loadActors: actorEnabled,
+    loadViewmodel: effects || blastReview || introReview,
+    ...(hitAuthority === undefined ? {} : { hitAnimationAuthority: hitAuthority }) });
   if (!effects && !blastReview) scene.hideViewmodel();
   let introFixture: IntroPose | undefined;
   let introChecks: Record<string, boolean> | undefined;
@@ -65,9 +73,9 @@ export function startMapInspector(): void {
   }
   const shots: Record<string, readonly [number, number, number, number, number, number]> = {
     overview: [124, 91, 126, 75, 0, 45],
-    'undertow-gallery-closed': [61,1.65,48,75,1.65,50],
-    'undertow-gallery-open': [61,1.65,48,75,1.65,50],
-    'undertow-gallery-inside': [73,1.65,50,89,1.65,50],
+    'undertow-gallery-closed': undertowCoreShots.closed,
+    'undertow-gallery-open': undertowCoreShots.open,
+    'undertow-gallery-inside': undertowCoreShots.inside,
     'undertow-flood-before': [75,1.65,19,75,13,-7],
     'undertow-flood-warning': [75,1.65,19,75,13,-7],
     'undertow-flood-active': [75,1.65,19,75,13,-7],
@@ -77,10 +85,10 @@ export function startMapInspector(): void {
     'signal-blackout': [61,1.65,22,75,28,-15],
     'signal-recovery': [61,1.65,22,75,28,-15],
     'signal-stress': [61,1.65,22,75,28,-15],
-    'core-closed': [63,1.65,48,75,1.65,50],
-    'core-open': [63,1.65,48,75,1.65,50],
-    'core-inside': [73,1.65,50,88,1.65,50],
-    'core-stress': [63,1.65,48,75,1.65,50],
+    'core-closed': relayCoreShots.closed,
+    'core-open': relayCoreShots.open,
+    'core-inside': relayCoreShots.inside,
+    'core-stress': relayCoreShots.closed,
     'recon-stress': [8,1.65,11,75,24,45],
     'recon-flyover': [30,1.65,24,75,32,34],
     'mortar-stress': [8,1.65,11,24,2,11],
@@ -139,6 +147,7 @@ export function startMapInspector(): void {
     'switchyard-cargo-recovery': [143,1.65,53,156,11,40],
   };
   const shotName = (params.get("shot") ?? "overview").replace("effects-stress", "stress");
+  const staticOverview = ['overview', 'undertow-overview', 'switchyard-overview'].includes(shotName);
   const shot = reaction ? [13, 1.6, 23, 10, 1, 20] as const : glintReview && !effects
     ? [40, 1.65, 26, 78, 1.5, 26] as const : blastReview ? [8,1.65,11,24,1.65,11] as const : shots[shotName] ?? shots.overview!;
   scene.camera.position.set(shot[0], shot[1], shot[2]);
@@ -147,8 +156,16 @@ export function startMapInspector(): void {
     scene.camera.position.set(reviewCamera[0]!, reviewCamera[1]!, reviewCamera[2]!);
     scene.camera.lookAt(reviewCamera[3]!, reviewCamera[4]!, reviewCamera[5]!);
   }
-  const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown };
+  const flags = window as unknown as { __inspectReady: boolean; __mapInspect: unknown;
+    __mapInspectProgress: MapInspectionProgress };
   flags.__inspectReady = false;
+  const progress: MapInspectionProgress = { phase: 'preparing', frameCount: 0,
+    readyForInspection: false, environmentLoading: true, performanceComplete: false };
+  const publishProgress = () => {
+    progress.preparation = scene.getPreparationInfo();
+    flags.__mapInspectProgress = { ...progress };
+  };
+  publishProgress();
   const gl = scene.canvas.getContext("webgl2");
   const debug = gl?.getExtension("WEBGL_debug_renderer_info");
   const gpu = gl && debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) as string : "unavailable";
@@ -158,7 +175,7 @@ export function startMapInspector(): void {
     yaw: -Math.PI / 2, pitch: 0, crouch: false, team: i % 2,
     alive: true, weapon: 0, reloadEnd: 0,
   }] satisfies [string, unknown]));
-  if (reviewEnemy) {
+  if (reviewEnemy && !contrastReview) {
     const actor = actors.get('inspect-0')!;
     Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
       yaw: Math.atan2(scene.camera.position.x - reviewEnemy[0]!, scene.camera.position.z - reviewEnemy[2]!) });
@@ -175,16 +192,23 @@ export function startMapInspector(): void {
     actors.delete(`inspect-${i}`); actors.set(`bot-${i*2+1}`,actor);
   }
   if (contrastReview) {
-    scene.camera.position.set(8, 1.65, 11); scene.camera.lookAt(14, 1.5, 11);
+    if (!reviewCamera) { scene.camera.position.set(8, 1.65, 11); scene.camera.lookAt(14, 1.5, 11); }
     scene.setActorAppearance(0, false, enemyHighlight(shotName.split('-')[1]));
     scene.reducedMotion = shotName.endsWith('-reduced');
     for (const [i, actor] of [...actors.values()].entries()) {
-      Object.assign(actor, { x: 14, z: 9 + i * 2, team: i === 0 ? 0 : 1,
-        weapon: i === 2 ? 3 : i });
+      Object.assign(actor, { team: i === 0 ? 0 : 1, weapon: i === 2 ? 3 : i });
+      if (!reviewEnemy) Object.assign(actor, { x: 14, z: 9 + i * 2 });
     }
     if (shotName.endsWith('-cover')) {
-      scene.camera.position.set(63, 1.65, 50); scene.camera.lookAt(75, 1.5, 50);
-      for (const actor of actors.values()) Object.assign(actor, { x: 75, z: 50 });
+      scene.camera.position.set(relayCoreShots.closed[0], relayCoreShots.closed[1], relayCoreShots.closed[2]);
+      scene.camera.lookAt(relayCoreShots.closed[3], 1.5, relayCoreShots.closed[5]);
+      for (const actor of actors.values()) Object.assign(actor, { x: relayCoreShots.closed[3], z: relayCoreShots.closed[5] });
+    }
+    if (reviewEnemy) {
+      const actor = actors.get('inspect-0')!;
+      Object.assign(actor, { x: reviewEnemy[0], y: reviewEnemy[1], z: reviewEnemy[2], team: 1,
+        yaw: Math.atan2(scene.camera.position.x - reviewEnemy[0]!, scene.camera.position.z - reviewEnemy[2]!) });
+      if (reviewEnemyYaw) actor.yaw = reviewEnemyYaw[0]!;
     }
   }
   if (glintReview) {
@@ -195,7 +219,11 @@ export function startMapInspector(): void {
       if (!effects) Object.assign(actor, { x: 78, z: 26 });
       if (shotName === 'glint-near') actor.x = 52;
       if (shotName === 'glint-far') actor.x = 138;
-      if (shotName === 'glint-cover') { actor.x = 75; actor.z = 50; scene.camera.position.set(63,1.65,50); scene.camera.lookAt(75,1.5,50); }
+      if (shotName === 'glint-cover') {
+        actor.x = relayCoreShots.closed[3]; actor.z = relayCoreShots.closed[5];
+        scene.camera.position.set(relayCoreShots.closed[0],relayCoreShots.closed[1],relayCoreShots.closed[2]);
+        scene.camera.lookAt(relayCoreShots.closed[3],1.5,relayCoreShots.closed[5]);
+      }
       actor.yaw = Math.atan2(scene.camera.position.x - actor.x, scene.camera.position.z - actor.z);
       if (shotName === 'glint-away') actor.yaw += Math.PI / 2;
       if (shotName === 'glint-before') actor.reloadEnd = Date.now() + 60000;
@@ -211,8 +239,20 @@ export function startMapInspector(): void {
   const calls: number[] = [], triangles: number[] = [];
   let peakTextureMiB = 0, peakTextures = 0;
   let peakBlastDegrees = 0;
+  const staticReport = () => ({
+    mapBounds: map.bounds,
+    structures: (map.structures ?? []).map(s => ({ id: s.id, footprint: s.footprint,
+      parts: s.parts.length, ramps: s.ramps })),
+    concreteDetail: scene.inspectConcreteDetail(), siteGround: scene.inspectSiteGround(),
+    preparation: scene.getPreparationInfo(), lighting: scene.inspectLighting(),
+    ...scene.getRenderInfo(), gpu, viewport: [innerWidth, innerHeight], actorCount: 0,
+    localViewmodel: false, effects: null, performanceComplete: false,
+  });
   const tick = (now: number) => {
     const ready = scene.readyForInspection(actorCount) && (!(effects || blastReview) || scene.inspectViewmodel(null, shotName === 'blast-ads'));
+    progress.phase = ready ? 'sampling' : 'waiting-assets'; progress.readyForInspection = ready;
+    progress.environmentLoading = actorCount === 0 ? !scene.readyForInspection(0) : null;
+    progress.frameCount = frameCount; progress.lastRafAt = now; publishProgress();
     if (ready && !started) { started = now; volleyAt = now; blastAt = now; }
     if (ready) firstFrames.push(now - last);
     if (effects && ready && now - started < 15000) {
@@ -240,7 +280,14 @@ export function startMapInspector(): void {
       }
     }
     if (frameCount > 30 && (!effects || now - started < 15000)) samples.push(now - last);
-    if (actorCount) scene.syncPlayers(actors, "local-inspector", Math.min(50, now - last));
+    if (actorCount && !scene.syncInspectionPlayers(actors, "local-inspector", Math.min(50, now - last))) {
+      progress.phase = "failed";
+      progress.error = scene.inspectionActorInfo().issue ?? "unsupported-authority-inspection";
+      flags.__mapInspect = { status: "UNQUALIFIED", actorSource: scene.inspectionActorInfo() };
+      flags.__inspectReady = true;
+      publishProgress();
+      return;
+    }
     last = now;
     // Paired server-event presentation sample: surface on the left, player on
     // the right. Stop rendering shortly after the burst to retain it for capture.
@@ -250,7 +297,19 @@ export function startMapInspector(): void {
     }
     if (reaction && !reactionSampled) {
       reactionSampled = scene.inspectReaction(shotName.split("-")[1]!, shotName.endsWith("death") ? 2500 : 120);
-      if (!reactionSampled) { requestAnimationFrame(tick); return; }
+      if (!reactionSampled) {
+        const actorSource = scene.inspectionActorInfo("reaction");
+        if (!actorSource.supported) {
+          progress.phase = "failed";
+          progress.error = actorSource.issue ?? "unsupported-authority-reaction";
+          flags.__mapInspect = { status: "UNQUALIFIED", actorSource };
+          flags.__inspectReady = true;
+          publishProgress();
+          return;
+        }
+        requestAnimationFrame(tick);
+        return;
+      }
     }
     if(map === ARENA1 && (effects || shotName.startsWith('signal-') || shotName.startsWith('core-'))) {
       // Explicit OFFLINE fixture: normal schedule sampled through warning, waves,
@@ -305,6 +364,7 @@ export function startMapInspector(): void {
     peakTextureMiB = Math.max(peakTextureMiB, scene.textureBytesEstimate() / (1024 * 1024));
     peakTextures = Math.max(peakTextures, info.textures);
     ++frameCount;
+    progress.frameCount = frameCount; publishProgress();
     if (effects && now - started >= 18000) drained = { ...scene.getEffectInfo(), ...scene.getRenderInfo() };
     if (effects ? now - started < 18000 : frameCount < 151) { requestAnimationFrame(tick); return; }
     const sorted = [...samples].sort((a, b) => a - b);
@@ -318,6 +378,7 @@ export function startMapInspector(): void {
       spawnReview: reviewCamera ? { camera: reviewCamera, enemy: reviewEnemy, enemyYaw: reviewEnemyYaw?.[0] } : null,
       reaction: reaction ? { kind: shotName.split("-")[1], ageMs: shotName.endsWith("death") ? 2500 : 120, ...scene.inspectionReactionInfo() } : null,
       actorAppearance: contrastReview || roleLineup ? scene.inspectActorAppearance() : undefined,
+      actorSource: actorEnabled ? scene.inspectionActorInfo() : undefined,
       operatorKits: actorCount ? scene.inspectOperatorKits() : undefined,
       uplinks: scene.inspectRelayUplinks(),
       fieldworks: scene.inspectRelayFieldworks(),
@@ -345,10 +406,42 @@ export function startMapInspector(): void {
       p99Ms: sorted[Math.floor(sorted.length * 0.99)],
       p95Ms: sorted[Math.floor(sorted.length * 0.95)],
       note: "Frame intervals on this GPU; not proof of the 60 fps laptop iGPU floor. Static shadows are cached after load.",
+      performanceComplete: true,
     };
+    progress.phase = 'complete'; progress.performanceComplete = true; publishProgress();
     flags.__inspectReady = true;
   };
   // Exercise the production preparation path, before ready-frame timing starts.
-  if (actorCount) scene.syncPlayers(actors, "local-inspector", 0);
-  void scene.prepare().then(() => { last = performance.now(); requestAnimationFrame(tick); });
+  if (actorCount && !scene.syncInspectionPlayers(actors, "local-inspector", 0)) {
+    progress.phase = "failed";
+    progress.error = scene.inspectionActorInfo().issue ?? "unsupported-authority-inspection";
+    flags.__mapInspect = { status: "UNQUALIFIED", actorSource: scene.inspectionActorInfo() };
+    flags.__inspectReady = true;
+    publishProgress();
+    return;
+  }
+  const begin = async () => {
+    if (staticOverview) {
+      const ready = await renderStaticInspection({ progress, prepare: () => scene.prepare(),
+        readyForInspection: () => scene.readyForInspection(0), render: () => scene.render(undefined, introFixture),
+        nextFrame: () => new Promise<number>(resolve => requestAnimationFrame(resolve)), publish: publishProgress });
+      if (!ready) return;
+      flags.__mapInspect = staticReport();
+      flags.__inspectReady = true;
+      last = performance.now();
+      requestAnimationFrame(tick);
+      return;
+    }
+    progress.phase = 'preparing'; publishProgress();
+    await scene.prepare();
+    progress.readyForInspection = scene.readyForInspection(actorCount);
+    progress.environmentLoading = actorCount === 0 ? !scene.readyForInspection(0) : null;
+    progress.phase = progress.readyForInspection ? 'assets-ready' : 'waiting-assets'; publishProgress();
+    if (!progress.readyForInspection) return;
+    last = performance.now(); requestAnimationFrame(tick);
+  };
+  void begin().catch(error => {
+    progress.phase = 'failed'; progress.error = error instanceof Error ? error.message : String(error);
+    publishProgress();
+  });
 }

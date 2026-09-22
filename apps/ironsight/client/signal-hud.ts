@@ -1,5 +1,6 @@
 import { signalFrame, type SignalFrame } from '../src/signal-event.js';
 import type { ArenaState } from '../src/schema.js';
+import { FIELD_UI_COPY } from './ui/copy.js';
 
 /** A quiet peripheral countdown; announcements only change at phase boundaries. */
 export class SignalHud {
@@ -13,11 +14,11 @@ export class SignalHud {
   constructor(private readonly cue:(phase:SignalFrame['phase'])=>void,
     private readonly site:'relay'|'undertow'|'switchyard'='relay') {
     this.root.id='signalEvent'; this.root.hidden=true;
-    this.root.style.cssText='position:fixed;top:28px;left:228px;width:350px;max-width:calc(100vw - 40px);padding:12px 16px;border-left:3px solid #edaa52;background:#10252def;color:#e9f0e9;pointer-events:none;font:11px Arial,sans-serif;letter-spacing:1.5px;box-sizing:border-box';
-    this.title.style.cssText='display:block;font-size:14px;margin-bottom:6px';
+    this.root.style.cssText='position:fixed;inset-block-start:var(--ui-safe-edge);inset-inline-start:14.25rem;inline-size:350px;max-inline-size:calc(100vw - 40px);padding:var(--ui-space-3) var(--ui-space-4);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-hud-backing);color:var(--ui-text-primary);pointer-events:none;font:500 var(--ui-type-hud)/1.4 var(--ui-font-body);box-sizing:border-box';
+    this.title.style.cssText='display:block;font-size:var(--ui-type-hud);margin-block-end:var(--ui-space-2)';
     this.title.setAttribute('role','status');
-    this.detail.style.cssText='display:block;letter-spacing:.4px;font-size:11px;color:#b9d1d0';
-    this.count.style.cssText='position:absolute;right:14px;top:12px;font-size:15px;color:#ffd899';
+    this.detail.style.cssText='display:block;font-size:var(--ui-type-hud);color:var(--ui-text-secondary);padding-inline-end:3rem';
+    this.count.style.cssText='position:absolute;inset-inline-end:var(--ui-space-4);inset-block-start:var(--ui-space-3);font-size:var(--ui-type-hud);color:var(--ui-warning)';
     const style=document.createElement('style');
     style.textContent='@media(max-width:800px){#signalEvent{top:176px!important;left:auto!important;right:16px;width:300px!important;padding:9px 12px!important}#signalEvent strong{font-size:12px!important}}@media(max-width:520px){#signalEvent{top:344px!important;left:16px!important;right:16px;width:auto!important}}';
     document.head.append(style);this.root.append(this.title,this.detail,this.count);document.body.append(this.root);
@@ -34,20 +35,20 @@ export class SignalHud {
       if(this.previousPhase && phaseKey!==this.previousPhase && online && frame.phase!=='idle' && frame.elapsedMs<750) this.cue(frame.phase);
       this.previousPhase=online ? phaseKey : '';
       this.previousKey=online ? key : '';this.lastSecond=-1;
-      this.title.textContent=held ? 'CORE / CLEAR TO SEAL' : frame.phase==='warning' ? 'CORE RELEASE INCOMING' : frame.phase==='blackout' ? (state.coreOpen ? 'CORE OPEN / SIGNAL LOST' : 'CORE RELEASING') : 'SIGNAL RESTORED';
-      this.detail.textContent=held ? 'Exit either end. Shutters wait until the passage is clear.' : frame.phase==='warning' ? 'Central transit opens as the minimap drops. Take the shortcut.' : frame.phase==='blackout' ? 'Through the core! Shutters seal after the blackout clears.' : 'Tactical map online. Core transit sealed.';
+      this.title.textContent=held ? FIELD_UI_COPY.signal.relayOpen : frame.phase==='warning' ? FIELD_UI_COPY.signal.relayWarning : frame.phase==='blackout' ? FIELD_UI_COPY.signal.relayBlackout : FIELD_UI_COPY.signal.restored;
+      this.detail.textContent=held ? '양쪽 출구로 빠져나가세요. 통로가 비워질 때까지 차단문이 대기합니다.' : frame.phase==='warning' ? '전술 지도가 끊기며 중앙 통로가 열립니다.' : frame.phase==='blackout' ? '통신 복구 전에 중앙 통로를 통과하세요.' : FIELD_UI_COPY.signal.mapOnline;
       if(this.site==='undertow') {
-        this.title.textContent=held ? 'MAINTENANCE / CLEAR TO SEAL' : frame.phase==='warning' ? 'PRESSURE DROP / STAND BY' : frame.phase==='blackout' ? (state.coreOpen ? 'MAINTENANCE / OPEN' : 'MAINTENANCE / RELEASING') : 'DISCHARGE COMPLETE';
-        this.detail.textContent=held ? 'Exit either end. Doors wait until the gallery is clear.' : frame.phase==='warning' ? 'North sluices releasing. Central maintenance shortcut opens.' : frame.phase==='blackout' ? 'Cross beneath the pressure stack. Radar stays online.' : 'Sluices lowering. Maintenance gallery sealed.';
+        this.title.textContent=held ? FIELD_UI_COPY.signal.undertowOpen : frame.phase==='warning' ? FIELD_UI_COPY.signal.undertowWarning : frame.phase==='blackout' ? FIELD_UI_COPY.signal.undertowOpen : '방류 완료';
+        this.detail.textContent=held ? '양쪽 출구로 빠져나가세요. 정비 통로가 비워질 때까지 문이 대기합니다.' : frame.phase==='warning' ? '북측 수문이 방류되며 중앙 정비 통로가 열립니다.' : frame.phase==='blackout' ? '압력 설비 아래를 통과하세요. 전술 지도는 유지됩니다.' : '수문이 내려가고 정비 통로가 닫혔습니다.';
       }
       if(this.site==='switchyard') {
-        this.title.textContent=held?'FREIGHT / CLEAR TO RAISE':frame.phase==='warning'?'CARGO SHIFT / COVER DROPS':frame.phase==='blackout'?(state.coreOpen?'FREIGHT / CROSSING OPEN':'FREIGHT / RELEASING'):'FREIGHT COVER RESTORED';
-        this.detail.textContent=held?'Leave the marked crossing. Counterweight waits until clear.':frame.phase==='warning'?'East service cover retracts. Cross fast or take the side route.':frame.phase==='blackout'?'Crane transferring. Freight crossing exposed; radar online.':'Counterweight raised. Use it as full cover again.';
+        this.title.textContent=held?FIELD_UI_COPY.signal.switchyardOpen:frame.phase==='warning'?FIELD_UI_COPY.signal.switchyardWarning:frame.phase==='blackout'?FIELD_UI_COPY.signal.switchyardOpen:'화물 엄폐 복구';
+        this.detail.textContent=held?'표시된 횡단로를 비우세요. 비워질 때까지 균형추가 대기합니다.':frame.phase==='warning'?'동측 엄폐가 내려갑니다. 빠르게 건너거나 측면로를 이용하세요.':frame.phase==='blackout'?'크레인 이동 중입니다. 횡단로가 노출되지만 전술 지도는 유지됩니다.':'균형추가 올라가 다시 완전 엄폐로 사용할 수 있습니다.';
       }
-      this.root.style.borderColor=frame.phase==='warning' ? '#edaa52' : '#80d5dc';
+      this.root.style.borderColor=frame.phase==='warning' ? 'var(--ui-warning)' : 'var(--ui-ally)';
     }
     const second=Math.ceil(frame.remainingMs/1000);
-    if(second!==this.lastSecond) {this.count.textContent=held ? 'HELD' : `${second}s`;this.lastSecond=second;}
+    if(second!==this.lastSecond) {this.count.textContent=held ? FIELD_UI_COPY.signal.held : `${second}초`;this.lastSecond=second;}
     return frame;
   }
 }

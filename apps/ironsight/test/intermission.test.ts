@@ -4,7 +4,7 @@ import { ArenaRoomImpl } from '../src/rooms/arena-room.js';
 import { ArenaSchema, type ArenaState } from '../src/schema.js';
 import { TICK_MS } from '../src/config.js';
 import type { RoundResult } from '../src/round-honors.js';
-import { intermissionLabel } from '../client/intermission.js';
+import { intermissionLabel, intermissionStatus } from '../client/intermission.js';
 
 class IntermissionRoom extends ArenaRoomImpl {
   protected override fillToPlayers = 0;
@@ -45,10 +45,13 @@ it('uses the published clock after a delayed tick and still permits an early maj
 });
 
 it('rounds up seconds, waits for server at zero and handles older servers without inventing a deadline', () => {
-  expect(intermissionLabel(20000, 7001)).toBe('IN 13s');
-  expect(intermissionLabel(20000, 19999)).toBe('IN 1s');
-  expect(intermissionLabel(20000, 20000)).toBe('AWAITING SERVER');
-  expect(intermissionLabel(20000, 25000)).toBe('AWAITING SERVER');
-  expect(intermissionLabel(undefined, 1000)).toBe('AUTOMATIC / STAND BY');
-  expect(intermissionLabel(NaN, 1000)).toBe('AUTOMATIC / STAND BY');
+  expect(intermissionLabel(20000, 7001)).toBe('13초 후');
+  expect(intermissionLabel(20000, 19999)).toBe('1초 후');
+  expect(intermissionLabel(20000, 20000)).toBe('서버 응답 대기');
+  expect(intermissionLabel(20000, 25000)).toBe('서버 응답 대기');
+  expect(intermissionLabel(undefined, 1000)).toBe('자동 진행 · 대기');
+  expect(intermissionLabel(NaN, 1000)).toBe('자동 진행 · 대기');
+  expect(intermissionStatus(20000, 7001)).toEqual({ kind: 'scheduled', seconds: 13 });
+  expect(intermissionStatus(20000, 20000)).toEqual({ kind: 'awaiting-server' });
+  expect(intermissionStatus(undefined, 1000)).toEqual({ kind: 'automatic' });
 });

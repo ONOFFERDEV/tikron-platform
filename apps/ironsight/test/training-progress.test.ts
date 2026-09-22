@@ -1,74 +1,148 @@
-import { describe, expect, it } from 'vitest';
-import { TrainingProgress } from '../client/training-progress.js';
-import { ARENA2 } from '../src/map/arena2.js';
-import { MODES } from '../src/config.js';
+import { describe, expect, it } from "vitest";
+import type { WeaponActionPayload } from "../client/net.js";
+import { createTrainingRouteSpec } from "../client/training-coach.js";
+import { TrainingProgress, type TrainingRouteSpec } from "../client/training-progress.js";
+import { ARENA1 } from "../src/map/arena1.js";
+import { ARENA2 } from "../src/map/arena2.js";
+import { ARENA3 } from "../src/map/arena3.js";
+import { MODES } from "../src/config.js";
 
-const goal = ARENA2.caps.a;
-function prerequisites(p: TrainingProgress) {
-  for (let i = 0; i <= 5; i++) p.sample(true, goal.x - 10 + i, goal.z, true, 100);
+const relay: TrainingRouteSpec = { route: "relay" };
+const undertow: TrainingRouteSpec = { route: "undertow", objective: ARENA2.caps.a };
+const switchyard: TrainingRouteSpec = { route: "switchyard", checkpoints: [
+  { id: "rail-embankment", x: 25, z: 13, radius: 5 },
+  { id: "loading-yard", x: 75, z: 51, radius: 5 },
+  { id: "rail-cut", x: 75, z: 93, radius: 5 },
+] };
+
+it("derives all three routes from accepted map contracts", () => {
+  expect(createTrainingRouteSpec(ARENA1)).toEqual({ route: "relay" });
+  expect(createTrainingRouteSpec(ARENA2)).toEqual({ route: "undertow", objective: ARENA2.caps.a });
+  const route = createTrainingRouteSpec(ARENA3);
+  expect(route?.route).toBe("switchyard");
+  if (route?.route !== "switchyard") return;
+  expect(route.checkpoints.map(checkpoint => checkpoint.id)).toEqual(["rail-embankment", "loading-yard", "rail-cut"]);
+});
+
+function moveAndAim(progress: TrainingProgress): void {
+  for (let x = 0; x <= 4; x += 1) progress.sample(true, x, 0, false, 100);
+  for (let i = 0; i < 5; i += 1) progress.sample(true, 4 + i * 0.1, 0, true, 100);
 }
-function hold(p: TrainingProgress, ms: number) {
-  for (let t = 0; t < ms; t += 50) p.sample(true, goal.x, goal.z, false, Math.min(50, ms - t));
+
+function reloadState(serial = 7): WeaponActionPayload {
+  return { id: "self", state: { weaponIndex: 0, kind: "magazine_reload", phase: "reload",
+    startedAt: 1_000, phaseStartedAt: 1_000, endsAt: 2_000, serial, committed: 0, fireBuffered: false } };
 }
 
-describe('training objective rehearsal', () => {
-  it('requires movement and aim before a continuous neutral-capture hold', () => {
-    const p = new TrainingProgress(false, goal);
-    hold(p, 5000);
-    expect(p.step).toBe(0);
-    expect(p.heldMs).toBe(0);
-    prerequisites(p);
-    expect(p.step).toBe(4);
-    p.sample(true, goal.x, goal.z, false, 50); // discontinuous arrival cannot count
-    expect(p.heldMs).toBe(0);
-    hold(p, 100000 / MODES.dom.capturePerSec - 50);
-    expect(p.step).toBe(4);
-    hold(p, 50);
-    expect(p.step).toBe(5);
-    p.confirmPing('self', 'self', true);
-    expect(p.step).toBe(3);
-    p.sample(false, 0, 0, false, 5000);
-    expect(p.step).toBe(3); // learned lessons survive pauses/deaths
+describe("Relay training progression", () => {
+  it("requires real movement, held aim, confirmed hit, committed reload, and own ping in order", () => {
+    const progress = new TrainingProgress(relay);
+    for (let i = 0; i < 20; i += 1) progress.sample(true, 0, 0, true, 100);
+    expect(progress.step).toBe("move");
+    moveAndAim(progress);
+    expect(progress.step).toBe("hit");
+    progress.confirmHit();
+    expect(progress.step).toBe("reload");
+    progress.observeAmmo({ weaponIndex: 0, mag: 20, reserve: 80 });
+    progress.observeWeaponAction("self", reloadState());
+    progress.observeAmmo({ weaponIndex: 0, mag: 30, reserve: 70 });
+    expect(progress.step).toBe("ping");
+    progress.confirmPing("ally", "self", true);
+    expect(progress.step).toBe("ping");
+    progress.confirmPing("self", "self", true);
+    expect(progress.step).toBe("complete");
   });
 
-  it('resets an unfinished hold outside the real capture radius and while inactive', () => {
-    const p = new TrainingProgress(false, goal);
-    prerequisites(p);
-    hold(p, 1000);
-    expect(p.heldMs).toBeGreaterThan(0);
-    p.sample(true, goal.x + MODES.dom.captureRadius + .01, goal.z, false, 50);
-    expect(p.heldMs).toBe(0);
-    hold(p, 1000);
-    p.sample(false, goal.x, goal.z, false, 1000);
-    expect(p.heldMs).toBe(0);
-    p.sample(true, goal.x, goal.z, false, 60000);
-    expect(p.heldMs).toBe(100); // a stalled frame never skips the lesson
-    expect(p.step).toBe(4);
+  it("does not count reload start, terminal action, remote action, or cancellation before an ammo commit", () => {
+    const progress = new TrainingProgress(relay);
+    moveAndAim(progress);
+    progress.confirmHit();
+    progress.observeAmmo({ weaponIndex: 0, mag: 20, reserve: 80 });
+    progress.observeWeaponAction("self", reloadState());
+    progress.observeWeaponAction("self", { id: "self", state: null, weaponIndex: 0, serial: 7 });
+    expect(progress.step).toBe("reload");
+    progress.observeWeaponAction("self", { ...reloadState(8), id: "ally" });
+    progress.observeAmmo({ weaponIndex: 0, mag: 30, reserve: 70 });
+    expect(progress.step).toBe("reload");
   });
 
-  it('retains Relay confirmed-hit and Switchyard exploration progression', () => {
-    const relay = new TrainingProgress(true), exploration = new TrainingProgress(false);
-    prerequisites(relay); prerequisites(exploration);
-    expect(relay.step).toBe(2);
-    expect(exploration.step).toBe(5);
-    relay.confirmHit();
-    expect(relay.step).toBe(5);
-    relay.confirmPing('self', 'self', true);
-    expect(relay.step).toBe(3);
+  it("accepts a server-committed pump shell even when the action later closes", () => {
+    const progress = new TrainingProgress(relay);
+    moveAndAim(progress);
+    progress.confirmHit();
+    progress.observeAmmo({ weaponIndex: 2, mag: 1, reserve: 5 });
+    const action = reloadState();
+    progress.observeWeaponAction("self", { ...action, state: action.state === null ? null : {
+      ...action.state, weaponIndex: 2, kind: "pump_reload", phase: "reload_insert" } });
+    progress.observeAmmo({ weaponIndex: 2, mag: 2, reserve: 4 });
+    progress.observeWeaponAction("self", { id: "self", state: null, weaponIndex: 2, serial: 7 });
+    expect(progress.step).toBe("ping");
   });
 
-  it('requires an active own server echo during the ping lesson, never an earlier or ally mark', () => {
-    const p = new TrainingProgress(false);
-    p.confirmPing('self', 'self', true);
-    prerequisites(p);
-    expect(p.step).toBe(5);
-    p.confirmPing('ally', 'self', true);
-    p.confirmPing('self', 'self', false);
-    expect(p.step).toBe(5);
-    p.confirmPing('self', 'self', true);
-    expect(p.step).toBe(3);
-    p.sample(false, 0, 0, false, 1000);
-    expect(p.step).toBe(3);
-    expect(new TrainingProgress(false).step).toBe(0);
+  it("derives visible reload progress from the authoritative server deadline", () => {
+    const progress = new TrainingProgress(relay);
+    moveAndAim(progress);
+    progress.confirmHit();
+    progress.observeAmmo({ weaponIndex: 0, mag: 20, reserve: 80 });
+    progress.observeWeaponAction("self", reloadState());
+    expect(progress.reloadProgress(1_250)).toBe(0.25);
+    progress.observeWeaponAction("self", { id: "self", state: null, weaponIndex: 0, serial: 7 });
+    expect(progress.reloadProgress(1_250)).toBeNull();
+  });
+});
+
+describe("Undertow objective rehearsal", () => {
+  it("requires real approach movement and a continuous server-rule-duration hold", () => {
+    const progress = new TrainingProgress(undertow);
+    const goal = ARENA2.caps.a;
+    progress.sample(true, goal.x, goal.z, false, 100);
+    expect(progress.step).toBe("reach-objective");
+    for (let x = goal.x - 10; x <= goal.x - 5; x += 1) progress.sample(true, x, goal.z, false, 100);
+    progress.sample(true, goal.x, goal.z, false, 100);
+    expect(progress.heldMs).toBe(0);
+    progress.sample(true, goal.x - 0.1, goal.z, false, 50);
+    expect(progress.step).toBe("hold-objective");
+    const required = 100_000 / MODES.dom.capturePerSec;
+    for (let elapsed = 0; elapsed < required; elapsed += 50) {
+      progress.sample(true, goal.x, goal.z, false, Math.min(50, required - elapsed));
+    }
+    expect(progress.step).toBe("complete");
+  });
+
+  it("resets an unfinished hold after leaving, losing control, or a stalled frame", () => {
+    const progress = new TrainingProgress(undertow);
+    const goal = ARENA2.caps.a;
+    for (let x = goal.x - 6; x <= goal.x - 1; x += 1) progress.sample(true, x, goal.z, false, 100);
+    progress.sample(true, goal.x, goal.z, false, 100);
+    const heldBeforeStall = progress.heldMs;
+    progress.sample(true, goal.x, goal.z, false, 1_000);
+    expect(progress.heldMs - heldBeforeStall).toBe(100);
+    progress.sample(true, goal.x + MODES.dom.captureRadius + 0.01, goal.z, false, 50);
+    expect(progress.heldMs).toBe(0);
+    progress.sample(true, goal.x, goal.z, false, 50);
+    progress.sample(false, goal.x, goal.z, false, 50);
+    expect(progress.heldMs).toBe(0);
+  });
+});
+
+describe("Switchyard route exploration", () => {
+  it("visits the three accepted route checkpoints in order through real displacement", () => {
+    const progress = new TrainingProgress(switchyard);
+    expect(progress.step).toBe("reach-rail-embankment");
+    progress.sample(true, 20, 13, false, 50);
+    for (let x = 21; x <= 25; x += 1) progress.sample(true, x, 13, false, 50);
+    expect(progress.step).toBe("reach-loading-yard");
+    for (let x = 26; x <= 75; x += 1) progress.sample(true, x, 51, false, 50);
+    expect(progress.step).toBe("reach-rail-cut");
+    for (let z = 52; z <= 93; z += 1) progress.sample(true, 75, z, false, 50);
+    expect(progress.step).toBe("complete");
+  });
+
+  it("rejects teleports and does not advance while control is inactive", () => {
+    const progress = new TrainingProgress(switchyard);
+    progress.sample(true, 0, 0, false, 50);
+    progress.sample(true, 25, 13, false, 50);
+    progress.sample(false, 24, 13, false, 50);
+    expect(progress.step).toBe("reach-rail-embankment");
   });
 });

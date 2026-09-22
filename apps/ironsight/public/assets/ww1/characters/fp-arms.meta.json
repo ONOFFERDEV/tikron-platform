@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "key": "fp-arms",
+  "sha256": "c195a276582c4b69a1320bb47aa47c2934fed817d65d39fc89ff1d8dc25de748",
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-fp-arms.mjs",
+    "recipeVersion": 5
+  },
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "skeleton": "ironsight-fp-arms",
+  "bones": 41,
+  "triangleCount": 2316,
+  "sleeveVariants": [
+    "khaki",
+    "fieldgrey"
+  ],
+  "actionClips": [
+    "equip",
+    "ready",
+    "ads_in",
+    "ads_out",
+    "fire",
+    "sprint_in",
+    "sprint_out",
+    "reload"
+  ],
+  "uv": true,
+  "normals": true,
+  "skinWeights": true,
+  "inverseBindMatrices": true,
+  "contactFit": "v3-surfaces",
+  "triggerDiscipline": true,
+  "reviewStatus": "runtime_contact_validation_pending"
+}

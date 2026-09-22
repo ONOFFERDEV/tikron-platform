@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SITES } from './map-presentation.js';
 import type { MapDef } from '../src/map/types.js';
 import type { DeploymentIntro, IntroPose } from './deployment-intro.js';
+import { FIELD_UI_COPY } from './ui/copy.js';
 
 /** Saved render pose. No new camera, light, pass or per-frame resource. */
 export class IntroCamera {
@@ -29,19 +30,19 @@ const css = `
 #deployment-intro[hidden]{display:none}
 body[data-intro=true] #tacticalMap{visibility:hidden}
 #deployment-intro .intro-copy{position:absolute;left:5vw;right:5vw;bottom:5vh;border-left:3px solid #edaa52;padding-left:24px}
-#deployment-intro .intro-eyebrow{color:#edaa52;letter-spacing:3px;font:12px ui-monospace,monospace}
+#deployment-intro .intro-eyebrow{color:#edaa52;letter-spacing:3px;font:var(--ui-type-hud) var(--ui-font-key)}
 #deployment-intro h1{font-size:clamp(32px,5vw,72px);line-height:1;margin:10px 0;letter-spacing:8px}
-#deployment-intro .intro-subtitle{font-size:12px;letter-spacing:3px;color:#c4d5d8}
-#deployment-intro .intro-routes{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0;font:12px ui-monospace,monospace}
+#deployment-intro .intro-subtitle{font-size:16px;letter-spacing:2px;color:#c4d5d8}
+#deployment-intro .intro-routes{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0;font:var(--ui-type-hud) var(--ui-font-key)}
 #deployment-intro .intro-routes span{border-top:1px solid #64c7cc99;padding:9px 14px 0 0}
-#deployment-intro .intro-skip{color:#e9d1a6;font:12px/1.6 ui-monospace,monospace}
+#deployment-intro .intro-skip{color:#e9d1a6;font:16px/1.6 var(--ui-font-body)}
 #hud[data-intro=true] > :not(#deployment-banner):not(#ping){visibility:hidden!important}
 #hud[data-intro=true] #ping{top:24px;left:32px}
 #hud[data-intro=true] #deployment-banner{top:72px;left:auto;right:32px;transform:none;width:530px}
 #hud[data-intro=true] #deployment-banner .deployment-count{font-size:48px;min-width:76px;letter-spacing:-3px}
 #hud[data-intro=true] #deployment-banner h2{font-size:20px}
 @media(max-height:700px){#deployment-intro .intro-copy{bottom:22px}#deployment-intro h1{font-size:40px}#deployment-intro .intro-routes{margin:12px 0}}
-@media(max-width:800px){#hud[data-intro=true] #deployment-banner{top:80px;left:16px;right:16px;width:auto}#deployment-intro .intro-copy{left:20px;right:20px;padding-left:14px}#deployment-intro h1{font-size:32px;letter-spacing:3px}#deployment-intro .intro-routes{gap:8px;font-size:10px}#deployment-intro .intro-eyebrow,#deployment-intro .intro-subtitle{font-size:10px;letter-spacing:1px}}
+@media(max-width:800px){#hud[data-intro=true] #deployment-banner{top:80px;left:16px;right:16px;width:auto}#deployment-intro .intro-copy{left:20px;right:20px;padding-left:14px}#deployment-intro h1{font-size:32px;letter-spacing:3px}#deployment-intro .intro-routes{gap:8px}#deployment-intro .intro-eyebrow,#deployment-intro .intro-subtitle{letter-spacing:1px}}
 `;
 
 export class DeploymentIntroView {
@@ -50,7 +51,7 @@ export class DeploymentIntroView {
   constructor(map: MapDef, intro: DeploymentIntro, canvas: HTMLCanvasElement) {
     const site = Object.values(SITES).find(s => s.map.presentation === map.presentation) ?? SITES.arena1;
     const style = document.createElement('style'); style.textContent = css; document.head.append(style);
-    this.root.id = 'deployment-intro'; this.root.hidden = true;
+    this.root.id = 'deployment-intro'; this.root.hidden = true; this.root.dataset.flow = 'warmup';
     this.root.setAttribute('role', 'status'); this.root.setAttribute('aria-live', 'polite');
     const copy = document.createElement('div'); copy.className = 'intro-copy';
     const text = (tag: string, cls: string, value: string) => {
@@ -63,7 +64,7 @@ export class DeploymentIntroView {
     site.routes.split(' / ').forEach((route, index) => {
       const el = document.createElement('span'); el.textContent = `0${index + 1}  ${route.toUpperCase()}`; routes.append(el);
     });
-    text('div', 'intro-skip', 'Click or press a key to enter / Esc: menu');
+    text('div', 'intro-skip', FIELD_UI_COPY.deploy.skipIntro);
     this.root.append(copy); document.body.append(this.root);
     // Capture BEFORE Input. A skip gesture cannot also fire, throw, jump, reload
     // or turn the operator. The ordinary pointer-lock/menu flow owns Escape.

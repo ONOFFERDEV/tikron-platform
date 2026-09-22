@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "key": "observation-post",
+  "sha256": "2802f13b9f05c0f090744a13e7f2a44328a7f979704dd3e1eedb2f417c1ea637",
+  "dimensionsM": [
+    2.4,
+    3.4,
+    2.4
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    948,
+    540,
+    348
+  ],
+  "joints": {
+    "entry": [
+      0,
+      0,
+      -1.2
+    ],
+    "view_slit": [
+      0,
+      2.18,
+      1.2
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "mud"
+  ],
+  "collision": {
+    "kind": "compound",
+    "dimensionsM": [
+      2.4,
+      3.4,
+      2.4
+    ],
+    "parts": 6
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/observation-post.json",
+    "outputSha256": "2802f13b9f05c0f090744a13e7f2a44328a7f979704dd3e1eedb2f417c1ea637"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

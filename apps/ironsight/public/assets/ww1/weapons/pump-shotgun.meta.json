@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "assetKey": "pump_shotgun",
+  "status": "production_candidate_pending_review",
+  "runtimeAccepted": false,
+  "heroAccepted": false,
+  "source": {
+    "kind": "rejected-provider-dimensional-reference",
+    "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\artifacts\\ww1\\reviews\\pump_shotgun\\preview.glb",
+    "sha256": "0651ed5b42ea6bf4b2da91353aa05e24d90505ddd2a0ae17f850da3e680a79d0",
+    "geometryRetainedInExport": false,
+    "referenceObjectsInBlend": 1
+  },
+  "correction": "direct-authored receiver/barrel/stock-controls/sights/mechanical rebuild",
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z",
+    "origin": "grip_r"
+  },
+  "output": {
+    "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\candidate.glb",
+    "sha256": "a85d9b42a39ed1e961f6db9f16165f9680c5b4829abd800123b350840a68833a",
+    "bytes": 474308,
+    "blendPath": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\source.blend",
+    "blendSha256": "3b28568339208f393901ae4b3052f37b29b70c6fe0b5eeb89358c4535e1c4afb"
+  },
+  "triangles": {
+    "fp": 2272,
+    "LOD0": 1634,
+    "LOD1": 862,
+    "LOD2": 362,
+    "pump": 2044,
+    "shell": 60
+  },
+  "drawGroups": {
+    "fpBody": 4,
+    "remoteBodyPerLod": 1,
+    "mechanisms": 2,
+    "remoteSteadyMaximum": 3
+  },
+  "movingParts": [
+    "pump",
+    "shell"
+  ],
+  "sockets": {
+    "grip_r": [
+      0,
+      0.0,
+      0.0
+    ],
+    "grip_l": [
+      0,
+      0.015,
+      0.3499999999999999
+    ],
+    "muzzle": [
+      0,
+      0.095,
+      0.73
+    ],
+    "eject": [
+      0.058,
+      0.07,
+      0.15999999999999998
+    ],
+    "sight_rear": [
+      0,
+      0.135,
+      0.12999999999999995
+    ],
+    "sight_front": [
+      0,
+      0.135,
+      0.6399999999999999
+    ],
+    "chamber": [
+      0,
+      0.065,
+      0.22999999999999993
+    ]
+  },
+  "bounds": {
+    "blenderMin": [
+      -0.052000001072883606,
+      -0.7299998998641968,
+      -0.04999999701976776
+    ],
+    "blenderMax": [
+      0.052000001072883606,
+      0.34892407059669495,
+      0.14350204169750214
+    ],
+    "metres": [
+      0.10400000214576721,
+      0.1935020387172699,
+      1.0789239704608917
+    ]
+  },
+  "mechanismMotions": {
+    "pump": {
+      "pivotSocket": "grip_l",
+      "translation": [
+        0.0,
+        0.0,
+        -0.12
+      ],
+      "rotationAxis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "rotationRadians": 0.0,
+      "visibility": "persistent"
+    },
+    "shell": {
+      "pivotSocket": "chamber",
+      "translation": [
+        0.0,
+        -0.08,
+        0.0
+      ],
+      "rotationAxis": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "rotationRadians": 0.0,
+      "visibility": "transient"
+    }
+  },
+  "renders": [
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\side-right.png",
+      "sha256": "cb82fc449c769b8380587687936e730e043b13e7bc184fe636fe01edd3e07371"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\three-quarter-front.png",
+      "sha256": "7c1bab5090ad8a9fa3da9ec53b94b1c727c5f8acb02f01231f8396f7439d0170"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\muzzle-end.png",
+      "sha256": "ad7c4e0f21d2e22ec24b6826f2158289a8d2c0c7d692b9c8e225d16417b63080"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\three-quarter-left.png",
+      "sha256": "b0968dee23ca89c822c65778f97f76f3a598f91c5c8c9704e695f4394a17886a"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\side-left.png",
+      "sha256": "ecd8d4eb6a1e7c96f33b16754e286f89bb28837130b2dc67f2a3afef0624fe56"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\iron-sight.png",
+      "sha256": "aabd15ca331c1f4c44eca0e98a3215754f8596ea568fca280aa019cf100d392a"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\contact-grip-r.png",
+      "sha256": "edd2f6f71c329861fb21d235c181a7d20fb261cf2e3afd390f0c58b8c5f3e4bc"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\contact-grip-l.png",
+      "sha256": "09677587432df75a277ead83b3be0be337407759b3cb3526e8018b35cc07f620"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-pump-closed.png",
+      "sha256": "763f43f1d70b061ad4cc574d2e1c0d95abce9bc38797fab1eb8db2cfd7d6466b"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-pump-mid.png",
+      "sha256": "a5350c28d3aa1cf7acbd6c464474c3135f39461a98327306202ec33402a36a32"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-pump-open.png",
+      "sha256": "359e6ac7171486bcd9bbf4704937d746a0e478518010a2c9ff4518f6feb32d7c"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-shell-closed.png",
+      "sha256": "5768168fff126d8597921310ea371c6c303d7ec3f2fe758179037d624f6e42fe"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-shell-mid.png",
+      "sha256": "304199a90e80affd617e136f20a8c205a38308b6564e453cd4f0cd9f6954d992"
+    },
+    {
+      "path": "D:\\wt-ironsight-ww1-recovery-20260912\\apps\\ironsight\\.inspect\\ww1-art\\production-candidates-v3\\pump_shotgun\\renders\\mechanism-shell-open.png",
+      "sha256": "7e560c3eb2669fe0110e2af83b8ab555bfb676a7bf16863f15f07dc1d2a86131"
+    }
+  ]
+}

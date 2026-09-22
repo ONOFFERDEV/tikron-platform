@@ -111,7 +111,8 @@ it('room transmits accepted reload barks only to living nearby allies and strips
   const near = await h.connect(), enemy = await h.connect(), far = await h.connect(), dead = await h.connect();
   const r = h.room as unknown as { state: ArenaState; botBrains: Map<string, BotBrain>; botContacts: BotRadio;
     tickBots: (ms: number) => void; botFire: (id: string) => void;
-    magByW: Map<string, number[]>; reloadUntil: Map<string, number> };
+    magByW: Map<string, number[]>; reloadUntil: Map<string, number>;
+    weaponActions: Map<string, { clear(): void }> };
   await h.advance(100);
   for (const p of Object.values(r.state.players)) p.alive = false;
   Object.assign(r.state.players[near.id]!, { alive: true, team: 0, x: 10, y: 0, z: 2 });
@@ -131,7 +132,7 @@ it('room transmits accepted reload barks only to living nearby allies and strips
   // Date.now equality after the handler used to lose this accepted discharge.
   Object.assign(r.state.players[id]!, { yaw: Math.PI / 2, pitch: 0 });
   Object.assign(r.state.players[enemy.id]!, { x: 28, z: 2 });
-  r.reloadUntil.delete(id); r.magByW.get(id)![0] = 30;
+  r.weaponActions.get(id)?.clear(); r.reloadUntil.delete(id); r.magByW.get(id)![0] = 30;
   brain.lockId = enemy.id; brain.lockMs = 1000; brain.recovery = undefined;
   const fire = r.botFire.bind(r);
   vi.spyOn(r, 'botFire').mockImplementation(bot => { fire(bot); vi.setSystemTime(Date.now() + 1); });

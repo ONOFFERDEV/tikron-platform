@@ -18,7 +18,9 @@ it('centres coincident sounds, rolls off distant cues and silences beyond range'
 
 import { coverMix, hostileFoley, footSurface, footGrounded } from '../client/spatial-audio.js';
 import { ARENA1 } from '../src/map/arena1.js';
+import { ARENA2 } from '../src/map/arena2.js';
 import { PLAYER } from '../src/config.js';
+import { surfaceForBox, surfaceForRamp, surfaceForTerrainFace } from '../src/map/materials.js';
 const wall = { min: { x: -2, y: 0, z: 4 }, max: { x: 2, y: 3, z: 5 } };
 it('prioritizes opposing teams and every other player in FFA without changing allies', () => {
   expect(hostileFoley(0, 0, false)).toBe(1);
@@ -50,21 +52,22 @@ it('uses actual deck tops and ramp slopes, not height alone, for metal steps', (
   expect(footGrounded({ x: 10, y: 0, z: 10 }, map)).toBe(true);
 });
 
-it('keeps excavated yard, trench and authored concrete floors out of the metal set', () => {
+it('uses the authoritative surface binding on terrain and authored structure floors', () => {
   const terrain = ARENA1.terrain!;
   for (const face of terrain.faces) {
     const p = { x: (face.minX + face.maxX) / 2, y: face.y, z: (face.minZ + face.maxZ) / 2 };
-    expect(footSurface(p, ARENA1)).toBe('concrete');
+    expect(footSurface(p, ARENA1)).toBe(surfaceForTerrainFace(ARENA1, face));
     expect(footGrounded(p, ARENA1)).toBe(true);
   }
   for (const structure of ARENA1.structures!) {
     for (const part of structure.parts.filter(p => p.kind === 'slab')) {
       const b = part.box;
-      expect(footSurface({ x: (b.min.x + b.max.x) / 2, y: b.max.y, z: (b.min.z + b.max.z) / 2 }, ARENA1)).toBe('concrete');
+      expect(footSurface({ x: (b.min.x + b.max.x) / 2, y: b.max.y, z: (b.min.z + b.max.z) / 2 }, ARENA1))
+        .toBe(surfaceForBox(ARENA1, b));
     }
     for (const r of structure.ramps) {
       expect(footSurface({ x: (r.minX + r.maxX) / 2, y: ((r.baseY ?? 0) + r.topY) / 2,
-        z: (r.minZ + r.maxZ) / 2 }, ARENA1)).toBe('concrete');
+        z: (r.minZ + r.maxZ) / 2 }, ARENA1)).toBe(surfaceForRamp(ARENA1, r));
     }
   }
 });
@@ -82,6 +85,36 @@ it('keeps steps at a supporting capsule edge and stops them when fully off the l
   const map = { ...ARENA1, boxes: [wall], ramps: [] };
   expect(footGrounded({ x: wall.max.x + PLAYER.radius - .01, y: wall.max.y, z: 4.5 }, map)).toBe(true);
   expect(footGrounded({ x: wall.max.x + PLAYER.radius + .01, y: wall.max.y, z: 4.5 }, map)).toBe(false);
+});
+
+it('does not treat the square outside a capsule corner as grounded support', () => {
+  const corner = { min: { x: 1, y: -1, z: 1 }, max: { x: 2, y: 0, z: 2 } };
+  const map = { ...ARENA1, bounds: { ...ARENA1.bounds, floor: -3 }, boxes: [corner], ramps: [] };
+  expect(footGrounded({ x: 2.35, y: 0, z: 2.35 }, map)).toBe(false);
+  expect(footGrounded({ x: 2.35, y: 0, z: 2 }, map)).toBe(true);
+});
+
+it('resolves authored mud, gravel, wood, metal and concrete support identities', () => {
+  const maps = [ARENA1, ARENA2];
+  const found = new Set<string>();
+  for (const map of maps) for (const binding of map.surfaceBindings ?? []) {
+    if (found.has(binding.surface)) continue;
+    if (binding.kind === 'box') {
+      const box = binding.box;
+      expect(footSurface({ x: (box.min.x + box.max.x) / 2, y: box.max.y,
+        z: (box.min.z + box.max.z) / 2 }, map)).toBe(binding.surface);
+    } else if (binding.kind === 'ramp') {
+      const ramp = binding.ramp;
+      expect(footSurface({ x: (ramp.minX + ramp.maxX) / 2,
+        y: ((ramp.baseY ?? 0) + ramp.topY) / 2, z: (ramp.minZ + ramp.maxZ) / 2 }, map)).toBe(binding.surface);
+    } else {
+      const face = binding.face;
+      expect(footSurface({ x: (face.minX + face.maxX) / 2, y: face.y,
+        z: (face.minZ + face.maxZ) / 2 }, map)).toBe(binding.surface);
+    }
+    found.add(binding.surface);
+  }
+  expect(found).toEqual(new Set(['mud', 'gravel', 'wood', 'metal', 'concrete']));
 });
 
 it('muffles a wall touching either sound endpoint but leaves an outward or tangent ray clear', () => {

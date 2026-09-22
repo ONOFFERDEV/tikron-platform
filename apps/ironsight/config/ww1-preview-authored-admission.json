@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "ww1-development-preview-original-authored-admission",
+  "releaseStatus": "development-preview",
+  "qualityStatus": "unfinished",
+  "sourceOfflineStatus": "accepted",
+  "runtimeStatus": "unqualified-pending-browser",
+  "heroAccepted": false,
+  "independentReview": {
+    "scope": "final-source-and-offline-only",
+    "evidence": "D:/webgame-baas/.omo/evidence/ww1/task-19/post-deploy/independent-full48-review.json",
+    "sha256": "247176f8fb1b23f493327bdb24359f911d6c3f25d9e58245076f78d85b94f50f"
+  },
+  "asset": {
+    "key": "fp-arms",
+    "role": "first-person-arms",
+    "glb": "assets/ww1/characters/fp-arms.glb",
+    "glbSha256": "c195a276582c4b69a1320bb47aa47c2934fed817d65d39fc89ff1d8dc25de748",
+    "meta": "assets/ww1/characters/fp-arms.meta.json",
+    "metaSha256": "fd3da35ae102ccdc7988ad9a4286acdd88eca985a33b032bcf2efe49d23e5fcd",
+    "builder": "tools/build-ww1-fp-arms.mjs",
+    "builderSha256": "8cd82167528a89dfb762c1801ab2be1b55ee09e7340b4091eaacdb10741c4a70",
+    "reviewStatus": "runtime_contact_validation_pending"
+  }
+}

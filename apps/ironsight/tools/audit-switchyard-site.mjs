@@ -21,7 +21,7 @@ const bounds=p=>({
   maxZ:p.z+(Math.abs(Math.sin(p.yaw))*p.w+Math.abs(Math.cos(p.yaw))*p.d)/2,
   minY:p.y-p.h/2,maxY:p.y+p.h/2,
 });
-const exterior=p=>{const b=bounds(p);return b.maxX<=1e-9||b.minX>=width-1e-9||b.maxZ<=1e-9||b.minZ>=depth-1e-9;};
+const exterior=p=>{const b=bounds(p);return b.maxX<=.02||b.minX>=width-.02||b.maxZ<=.02||b.minZ>=depth-.02;};
 const contains=(p,x,y,z)=>{
   const dx=x-p.x,dz=z-p.z,c=Math.cos(p.yaw),s=Math.sin(p.yaw);
   return Math.abs(dx*c-dz*s)<=p.w/2+1e-9&&Math.abs(dx*s+dz*c)<=p.d/2+1e-9&&Math.abs(y-p.y)<=p.h/2+1e-9;
@@ -36,8 +36,15 @@ for(const [i,p] of parts.entries()) {
   assert(!overlap(bounds(p),cargo),`part intersects hoist sweep ${i}`);
 }
 let edgeSamples=0;
-for(let x=0;x<=width;x+=.5)for(const [z,y] of [[-.5,.8],[depth+.5,1.65]]) {
-  assert(parts.some(p=>contains(p,x,y,z)),`north/south edge ${x},${z}`);edgeSamples++;
+let southOpeningSamples=0;
+for(let x=0;x<=width;x+=.5)for(const [z,y] of [[-.5,.8]]) {
+  assert(parts.some(p=>contains(p,x,y,z)),`north edge ${x},${z}`);edgeSamples++;
+}
+for(let x=0;x<=width;x+=.5) {
+  const covered=parts.some(p=>contains(p,x,1.65,depth+.5));
+  const opening=x<7.5||(x>64.5&&x<76.5)||x>133.5;
+  assert.equal(covered,!opening,`south edge opening ${x}`);
+  if(opening)southOpeningSamples++;else edgeSamples++;
 }
 for(let z=0;z<=depth;z+=.5)for(const x of [-.5,width+.5]) {
   assert(parts.some(p=>contains(p,x,1.65,z)),`west/east edge ${x},${z}`);edgeSamples++;
@@ -54,6 +61,8 @@ for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++) {
 const signs=switchyardSiteSigns(width,depth);let signSamples=0;
 for(const s of signs) {
   assert(exterior({...s,w:s.width,h:s.width/8,d:0}), 'exterior sign');
+  const backed=parts.some(p=>{const b=bounds(p),dx=Math.max(b.minX-s.x,0,s.x-b.maxX),dy=Math.max(b.minY-s.y,0,s.y-b.maxY),dz=Math.max(b.minZ-s.z,0,s.z-b.maxZ);return Math.hypot(dx,dy,dz)<=.02;});
+  assert(backed,`sign lacks solid backing ${s.label}`);
   for(const u of [-.49,-.25,0,.25,.49])for(const v of [-.49,0,.49])for(let distance=0;distance<=1;distance+=.1){
     const x=s.x+u*s.width*Math.cos(s.yaw)+distance*Math.sin(s.yaw),z=s.z-u*s.width*Math.sin(s.yaw)+distance*Math.cos(s.yaw),y=s.y+v*s.width/8;
     assert(!parts.some(p=>contains(p,x,y,z)),`sign clipped ${JSON.stringify({s,u,v,distance})}`);signSamples++;
@@ -68,6 +77,6 @@ const cameras={west:[6,1.65,49,-12,7,49],east:[144,1.65,49,166,8,49],south:[57,1
 for(const [name,p] of Object.entries(cameras))assert(canStand(p[0],p[1]-PLAYER.standEye,p[2],PLAYER.radius,PLAYER.standHeight,map.boxes,map.bounds),`standing ${name} camera`);
 const mapHash=createHash('sha256').update(JSON.stringify(map)).digest('hex');
 if(process.argv[3])assert.equal(mapHash,JSON.parse(await readFile(process.argv[3],'utf8')).hash,'identical collision, ramps, spawns and route metadata');
-const report={passed:true,parts:parts.length,triangles:parts.length*12,materials:[...new Set(parts.map(p=>p.material))],edgeSamples,topPairs,exposedTopConflicts:0,signSamples,supplies:supplies.length,supplySizeM:[w,h,d],cargoSweep:cargo,cameras,bounds:map.bounds,boxes:map.boxes.length,ramps:map.ramps.length,mapHash,
-  note:'All new geometry is outside the convex playable rectangle. No playable sightline, collider, route or saved-position migration is added. Movement and human visibility are separate checks.'};
+const report={passed:true,parts:parts.length,triangles:parts.length*12,materials:[...new Set(parts.map(p=>p.material))],edgeSamples,southOpeningSamples,topPairs,exposedTopConflicts:0,signSamples,supplies:supplies.length,supplySizeM:[w,h,d],cargoSweep:cargo,cameras,bounds:map.bounds,boxes:map.boxes.length,ramps:map.ramps.length,mapHash,
+  note:'Opaque exterior solids stay outside play; signs remain outside their backing face and every supply corner is supported.'};
 await writeFile(process.argv[2]??'.inspect/switchyard-site-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

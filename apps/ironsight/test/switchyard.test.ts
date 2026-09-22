@@ -5,10 +5,14 @@ import { PLAYER, MOVE } from '../src/config.js';
 import { walkSeconds } from '../src/map/nav.js';
 import { GroundNavigator } from '../src/map/navigation.js';
 import { spawnExposed, spawnFacingYaw } from '../src/map/spawn.js';
+import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
+
+const switchyardEnvironmentBoxes = new Set(blockingEnvironmentBoxes('switchyard'));
+const switchyardCoreBoxes = map.boxes.filter(box => !switchyardEnvironmentBoxes.has(box));
 
 describe('Switchyard encounter safety', () => {
   it('grounds cover rhythm along bus shoulders, deck approaches and service bays within twelve metres',()=>{
-    const cover=map.boxes.filter(b=>b.min.y===0 && b.max.y>=1);
+    const cover=switchyardCoreBoxes.filter(b=>b.min.y===0 && b.max.y>=1);
     const distance=(x:number,z:number)=>Math.min(...cover.map(b=>Math.hypot(
       Math.max(b.min.x-x,0,x-b.max.x),Math.max(b.min.z-z,0,z-b.max.z))));
     for(const z of [19,29,35,67,73,85])for(let x=20;x<=130;x+=2)
@@ -81,7 +85,9 @@ describe('Switchyard encounter safety', () => {
       const seconds = walkSeconds(map, caps[i]!, to, MOVE.sprint);
       expect(seconds).toBeGreaterThanOrEqual(10); expect(seconds).toBeLessThanOrEqual(15);
     }
-    for (const b of map.boxes.filter(b=>b.min.y===0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
+    expect(switchyardEnvironmentBoxes.size).toBe(2);
+    expect([...switchyardEnvironmentBoxes].every(box => map.boxes.includes(box))).toBe(true);
+    for (const b of switchyardCoreBoxes.filter(b=>b.min.y===0)) expect(b.max.y === 1.1 || b.max.y === 3 || b.max.y === 6).toBe(true);
     expect(map.spawns.red).toHaveLength(6); expect(map.spawns.blue).toHaveLength(6);
   });
   it('B has two four-metre north entrances visible together from the objective', () => {
@@ -94,16 +100,18 @@ describe('Switchyard encounter safety', () => {
     for (const [x, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const)
       expect(nearestBox(from, { x, y: 0, z }, map.boxes, 20)).toBeLessThan(20);
   });
-  it('north bus rifle corridor has a clear 40 metre line with strafe clearance', () => {
+  it('north rail corridor has a clear 40 metre line before wagon cover', () => {
     for (const z of [27.8, 29, 30.2])
-      expect(nearestBox({ x: 55, y: PLAYER.standEye, z }, { x: 1, y: 0, z: 0 }, map.boxes, 40)).toBe(Infinity);
+      expect(nearestBox({ x: 31.5, y: PLAYER.standEye, z }, { x: 1, y: 0, z: 0 }, map.boxes, 40)).toBe(Infinity);
+    for (const z of [27.8, 29, 30.2])
+      expect(nearestBox({ x: 31.5, y: PLAYER.standEye, z }, { x: 1, y: 0, z: 0 }, map.boxes, 55)).toBeCloseTo(47.5);
   });
   it('the four-ramp deck crosses both axes in either direction without jumping', () => {
     for (const axis of ['x', 'z'] as const) for (const direction of [-1, 1]) {
       let p = axis === 'x' ? { x: direction === 1 ? 59 : 91, y: 0, z: 49 }
         : { x: 75, y: 0, z: direction === 1 ? 35 : 65 };
       let vy = 0, peak = 0;
-      for (let t = 0; t < 110; t++) {
+      for (let t = 0; t < 155; t++) {
         vy -= MOVE.gravity * .05;
         const r = moveAndSlide(p, PLAYER.radius, PLAYER.standHeight,
           { x: axis === 'x' ? direction * MOVE.walk * .05 : 0, y: vy * .05,
@@ -112,7 +120,8 @@ describe('Switchyard encounter safety', () => {
         p = r.pos; vy = r.vy; peak = Math.max(peak, p.y);
         expect(r.grounded, `${axis}/${direction}/${t}: ${JSON.stringify(p)}`).toBe(true);
       }
-      expect(peak).toBeCloseTo(3, 5); expect(p.y).toBeCloseTo(0, 5);
+      expect(peak).toBeCloseTo(3, 5);
+      expect(p.y, `${axis}/${direction}: ${JSON.stringify(p)}`).toBeCloseTo(0, 5);
       expect(direction === 1 ? p[axis] > (axis === 'x' ? 90 : 64)
         : p[axis] < (axis === 'x' ? 60 : 36)).toBe(true);
     }

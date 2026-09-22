@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "key": "brick-rubble",
+  "sha256": "571c57984219ceb7c5e5bb595287c73078490054820f86ca6de9b03940771ef1",
+  "dimensionsM": [
+    2.4,
+    0.8,
+    0.65
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    984,
+    420,
+    72
+  ],
+  "joints": {
+    "join_left": [
+      -1.2,
+      0,
+      0
+    ],
+    "join_right": [
+      1.2,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "concrete",
+    "gravel"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      2.4,
+      0.78,
+      0.65
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/brick-rubble.json",
+    "outputSha256": "571c57984219ceb7c5e5bb595287c73078490054820f86ca6de9b03940771ef1"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

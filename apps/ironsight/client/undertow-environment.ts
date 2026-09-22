@@ -1,12 +1,14 @@
-﻿import * as T from 'three';
+import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
 import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
-import { UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from '../src/map/undertow-yard.js';
+import { UNDERTOW_SLUICE_PARTS, UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from '../src/map/undertow-yard.js';
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { undertowCanalSurface, undertowSiteBoundary, undertowSiteSigns, undertowSiteSupplies } from './undertow-site.js';
+import { undertowCanalSurface, undertowFieldKitPlacements, undertowSiteBoundary, undertowSiteSigns, undertowSiteSupplies } from './undertow-site.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
 /** Original reclamation kit. The complete box envelope remains visibly solid;
  * turbine faces/windows are flush cladding, never holes or new playable cover.
@@ -26,10 +28,12 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   };
   if (!bakeOnly) buildSiteGround(scene, map, true);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
-  const yardParts = new Map(UNDERTOW_YARD_PARTS.map(p => [p.box, p]));
+  const yardParts = new Map([...UNDERTOW_YARD_PARTS, ...UNDERTOW_SLUICE_PARTS].map(p => [p.box, p]));
+  const environmentBoxes = new Set(blockingEnvironmentBoxes('undertow'));
   for (const b of map.boxes) {
     if (map.terrain?.boxes.includes(b)) continue; // floor mesh owns earth faces
     if (map.signalCore?.doors.includes(b)) continue;
+    if (environmentBoxes.has(b)) continue;
     if (UNDERTOW_CRATES.includes(b) || UNDERTOW_YARD_CRATES.includes(b)) continue; // separate detail/fallback pair, never baked twice
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2;
     const w = b.max.x - b.min.x, h = b.max.y - b.min.y, d = b.max.z - b.min.z;
@@ -136,7 +140,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
         add(5, px, h * 0.7, z + sign * (d / 2 + 0.004), 0.18, 0.12, 0.008);
     } else if (screen) {
       // Break the 14m deployment walls into readable service bays.
-      for (let pz = b.min.z + 1; pz < b.max.z; pz += 2.2) for (const side of [-1, 1]) {
+      for (let pz = b.min.z + 1; pz <= b.max.z - .825; pz += 2.2) for (const side of [-1, 1]) {
         add(2, x + side * (w / 2 + 0.004), 1.65, pz, 0.008, 2.2, 1.65);
         add(accent, x + side * (w / 2 + 0.009), 1.65, pz, 0.006, 1.9, 1.36);
         add(6, x + side * (w / 2 + 0.013), 2.48, pz, 0.004, 0.035, 1);
@@ -154,17 +158,18 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
           add(2, x, 0.85, face + side * 0.01, 0.64, 1.30, 0.005);
         } else {
           // Flush turbine end plates: concentric rings with a six-spoke rotor.
+          const diameter = Math.min(1.7, h - 0.5, w - 0.04);
           const count = Math.max(1, Math.floor(w / 2.2));
           for (let i = 0; i < count; i++) {
-            const px = x + (i - (count - 1) / 2) * 2.35, diameter = Math.min(1.7, h - 0.5);
+            const px = count === 1 ? x : b.min.x + diameter / 2 + i * (w - diameter) / (count - 1);
             add(2, px, h * 0.49, face, diameter, 0.015, diameter, true, Math.PI / 2);
-            add(4, px, h * 0.49, face + side * 0.014, diameter * 0.80, 0.01, diameter * 0.80, true, Math.PI / 2);
+            add(4, px, h * 0.49, face + side * 0.009, diameter * 0.80, 0.01, diameter * 0.80, true, Math.PI / 2);
             for (let blade = 0; blade < 6; blade++) {
               const angle = blade * Math.PI / 3;
               add(2, px + Math.sin(angle) * diameter * 0.23, h * 0.49 + Math.cos(angle) * diameter * 0.23,
-                face + side * 0.023, 0.11, diameter * 0.42, 0.008, false, 0, -angle);
+                face + side * 0.010, 0.11, diameter * 0.42, 0.008, false, 0, -angle);
             }
-            add(3, px, h * 0.49, face + side * 0.031, 0.25, 0.012, 0.25, true, Math.PI / 2);
+            add(3, px, h * 0.49, face + side * 0.008, 0.25, 0.012, 0.25, true, Math.PI / 2);
           }
         }
         add(accent, x, h - 0.55, face, w - 0.25, 0.5, 0.01);
@@ -184,7 +189,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     if (s.id === 'pump-channel') continue;
     for (const offset of [7, 15]) {
       const x = s.footprint.minX + offset, z = s.footprint.maxZ + .004;
-      add(2, x, 2.54, z, 2.15, .27, .008);
+      add(2, x, 2.54, z, 2, .27, .008);
       add(6, x, 2.58, z + .007, 1.7, .028, .004);
     }
   }
@@ -304,8 +309,8 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['A / WEST CONTROL', 'B / PUMP HALL', 'C / EAST CONTROL', 'UNDERTOW / 02',
-    'WEST DECK', 'EAST DECK', 'CLARIFIER ROUTE', 'MAINTENANCE'];
+  const labels = ['A / WEST REDOUBT', 'B / SLUICE SQUARE', 'C / EAST REDOUBT', 'UNDERTOW / 1917',
+    'WEST EMBANKMENT', 'EAST EMBANKMENT', 'DRY DRAIN', 'FIELD OFFICE'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#303b39'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#a6b7a0' : '#d1b47d';
@@ -325,11 +330,12 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     sign(label, cap.x, 2.25, 10.016, 0);
     sign(label, cap.x, 2.25, 19.984, Math.PI);
   }
-  sign(1, map.caps.b.x, 2.25, 90.016, 0);
-  // Pump returns announce the destination before the covered bend. Reuse the
-  // existing atlas and opaque material; both signs sit on real solid faces.
-  sign(1, 61.984, 2.35, 86, -Math.PI / 2, 3.5);
-  sign(1, 88.016, 2.35, 86, Math.PI / 2, 3.5);
+  sign(1, 66.5, .8, 51.016, 0, 3.8);
+  sign(1, 83.5, .8, 51.016, 0, 3.8);
+  // Sluice traverses announce B before the covered bend. Both signs sit on
+  // authoritative stone faces and reuse the existing opaque atlas.
+  sign(1, 62.984, 2.35, 49, -Math.PI / 2, 3.5);
+  sign(1, 87.016, 2.35, 49, Math.PI / 2, 3.5);
   // Northern breakwater baffles: destination on the protected arrival face.
   // Same atlas, opaque shader and real full-cover envelope as the pump signs.
   sign(0, 17.984, 2.35, 28, -Math.PI / 2, 6);
@@ -382,10 +388,36 @@ export function buildUndertowCanalWater(scene: T.Scene, map: MapDef): void {
   scene.add(water);
 }
 
+export async function loadUndertowFieldKit(scene: T.Scene): Promise<void> {
+  const placements = undertowFieldKitPlacements();
+  const loader = new GLTFLoader();
+  const loaded = new Map<string, T.Object3D>();
+  await Promise.all([...new Set(placements.map(({ publicUrl }) => publicUrl))].map(async (publicUrl) => {
+    loaded.set(publicUrl, (await loader.loadAsync(publicUrl)).scene);
+  }));
+  const group = new T.Group();
+  group.name = 'undertow-ww1-field-kit';
+  for (const placement of placements) {
+    const source = loaded.get(placement.publicUrl);
+    if (source === undefined) throw new TypeError(`Missing loaded Undertow field kit: ${placement.key}`);
+    const root = source.clone(true);
+    root.position.set(placement.x, placement.y, placement.z);
+    root.rotation.y = placement.yaw;
+    root.traverse((node) => {
+      if (node instanceof T.Mesh) node.castShadow = node.receiveShadow = true;
+    });
+    group.add(root);
+  }
+  scene.add(group);
+}
+
 /** Lazy, map-owned issued supplies. Their exact box colliders are present even
  * while loading or on failure; the procedural fallback is replaced only after
  * the whole detailed hierarchy is ready, before scene preparation/warm-up. */
 export async function loadUndertowSupplies(scene: T.Scene, map: MapDef): Promise<void> {
+  await loadUndertowFieldKit(scene).catch((error: unknown) => {
+    console.warn('Undertow WW1 field kit unavailable; retaining collision-backed procedural forms.', error);
+  });
   const library = createPropLibrary();
   const size = PROP_LIBRARY['ammo-crate-stack'].sizeM;
   const placements = [

@@ -1,5 +1,6 @@
-import { schema, mapOf, quant, enumOf, type Codec } from "@tikron/schema";
+import { schema, mapOf, listOf, quant, enumOf, type Codec } from "@tikron/schema";
 import { WORLD_LIMITS as ARENA } from "./config.js";
+import type { HitFadeSource } from "./hit-animation-timeline.js";
 
 /**
  * Binary state codec for the arena room — the wire contract shared by the server
@@ -47,6 +48,14 @@ export interface ArenaPlayer {
   nades: number;
   /** Server deadline for cosmetic remote reloads; ammo remains owner-only. */
   reloadEnd: number;
+  hitClipIndex: number;
+  hitClipStartedAt: number;
+  hitBlendSources: HitFadeSource[];
+  hitReactionKind: number;
+  hitReactionStartedAt: number;
+  hitReactionSeq: number;
+  hitSegmentSeq: number;
+  hitSegmentStartedAt: number;
 }
 
 export type MatchPhase = "live" | "ended" | "warmup";
@@ -79,6 +88,12 @@ export interface ArenaState {
   capC: number;
 }
 
+const HitFadeSourceSchema: Codec<HitFadeSource> = schema({
+  clipIndex: "u8",
+  phaseStartedAt: "f64",
+  fadeOutStartedAt: "f64",
+});
+
 const PlayerSchema: Codec<ArenaPlayer> = schema({
   x: quant(0, ARENA.width, 0.02),
   z: quant(0, ARENA.depth, 0.02),
@@ -98,6 +113,14 @@ const PlayerSchema: Codec<ArenaPlayer> = schema({
   weapon: "u8",
   nades: "u8",
   reloadEnd: "f64",
+  hitClipIndex: "u8",
+  hitClipStartedAt: "f64",
+  hitBlendSources: listOf(HitFadeSourceSchema),
+  hitReactionKind: "u8",
+  hitReactionStartedAt: "f64",
+  hitReactionSeq: "u16",
+  hitSegmentSeq: "u16",
+  hitSegmentStartedAt: "f64",
 });
 
 export const ArenaSchema: Codec<ArenaState> = schema({

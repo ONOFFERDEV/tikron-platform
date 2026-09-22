@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "key": "trench-wall",
+  "sha256": "8c619a1ff90eadaf0ad4305c596eca4da5b0329a0e2fc61372803b995b0c16fc",
+  "dimensionsM": [
+    4,
+    2.4,
+    0.45
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    180,
+    132,
+    108
+  ],
+  "joints": {
+    "join_left": [
+      -2,
+      0,
+      0
+    ],
+    "join_right": [
+      2,
+      0,
+      0
+    ]
+  },
+  "surfaces": [
+    "mud",
+    "wood"
+  ],
+  "collision": {
+    "kind": "box",
+    "dimensionsM": [
+      4,
+      2.4,
+      0.45
+    ]
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 1
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/trench-wall.json",
+    "outputSha256": "8c619a1ff90eadaf0ad4305c596eca4da5b0329a0e2fc61372803b995b0c16fc"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

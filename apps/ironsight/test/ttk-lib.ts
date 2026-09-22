@@ -1,4 +1,5 @@
 import type { WeaponSpec } from "../src/config.js";
+import type { WeaponKey } from "../src/weapon-contract.js";
 import { resolveHitscan, type HitTarget } from "../src/hitscan.js";
 import { dirFromAngles, falloffMul, pelletPattern } from "../src/weapons.js";
 import type { Vec3 } from "../src/physics.js";
@@ -53,10 +54,10 @@ export function ttkMs(w: WeaponSpec, dist: number, part: Part, p: TtkPlayer): nu
 }
 
 /** The weapon with the lowest body TTK at `dist` (the range band's "best"). */
-export function bestBodyAt(weapons: readonly WeaponSpec[], dist: number, p: TtkPlayer): string {
+export function bestBodyAt(weapons: readonly WeaponSpec[], dist: number, p: TtkPlayer): WeaponKey {
   return weapons.reduce((best, w) =>
     ttkMs(w, dist, "body", p) < ttkMs(best, dist, "body", p) ? w : best,
-  ).name;
+  ).key;
 }
 
 /**
@@ -66,13 +67,13 @@ export function bestBodyAt(weapons: readonly WeaponSpec[], dist: number, p: TtkP
  * ironsight's own AR/SMG/Shotgun/Sniper/Pistol names.
  */
 export interface BalanceReport {
-  bestByRange: Record<number, string>;
+  bestByRange: Record<number, WeaponKey>;
   killersByRange: Record<number, number>;
   distinctBests: number;
 }
 
 export function balanceReport(weapons: readonly WeaponSpec[], ranges: readonly number[], p: TtkPlayer): BalanceReport {
-  const bestByRange: Record<number, string> = {};
+  const bestByRange: Record<number, WeaponKey> = {};
   const killersByRange: Record<number, number> = {};
   for (const r of ranges) {
     bestByRange[r] = bestBodyAt(weapons, r, p);

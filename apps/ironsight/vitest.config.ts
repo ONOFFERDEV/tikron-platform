@@ -1,4 +1,5 @@
-import { defineConfig, type Plugin } from "vitest/config";
+import { configDefaults, defineConfig, type Plugin } from "vitest/config";
+import { fileURLToPath } from "node:url";
 
 /**
  * `@tikron/server`'s package root re-exports `defineRoom`, which statically imports
@@ -23,9 +24,25 @@ function cloudflareWorkersStub(): Plugin {
   };
 }
 
+const NODE_TEST_FILES = [
+  "test/aside-report.test.mjs",
+  "test/aside-source.test.mjs",
+  "test/audio-capture.test.mjs",
+  "test/combat-telemetry-consumer.test.mjs",
+  "test/render-budget-policy.test.mjs",
+  "test/ui-showcase.test.mjs",
+] as const;
+
 export default defineConfig({
+  resolve: {
+    alias: [{
+      find: /^@tikron\/server\/testing$/,
+      replacement: fileURLToPath(new URL("./test/create-test-room.ts", import.meta.url)),
+    }],
+  },
   plugins: [cloudflareWorkersStub()],
   test: {
+    exclude: [...configDefaults.exclude, ...NODE_TEST_FILES],
     // Three development streams share this workstation. Keep CPU-heavy
     // audio/navigation suites from adding four workers per stream.
     // Keep every assertion and the default 5s per-test timeout unchanged.

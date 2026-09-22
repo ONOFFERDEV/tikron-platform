@@ -1,14 +1,13 @@
 // Exports ONLY original procedural geometry; no GLB loader or purchased input.
 import { build } from 'esbuild';
-import { writeFile, mkdir } from 'node:fs/promises';
-await mkdir('.inspect', { recursive: true });
-await build({ stdin: { contents: `
+import { writeFile } from 'node:fs/promises';
+const bundle = await build({ stdin: { contents: `
 import * as T from 'three';
 import { buildRelayEnvironment } from './client/relay-environment.js';
 import { buildUndertowEnvironment } from './client/undertow-environment.js';
 import { buildSwitchyardEnvironment } from './client/switchyard-environment.js';
 import { buildWedgeGeometry } from './client/site-wedge.js';
-import { architectureMeshes } from './client/site-architecture.js';
+import { architectureMeshes, assertVisualScene, assertVisualSolids, mapVisualResourceTable, visualSolidPlan } from './client/site-architecture.js';
 import { ARENA1 } from './src/map/arena1.js';
 import { ARENA2 } from './src/map/arena2.js';
 import { ARENA3 } from './src/map/arena3.js';
@@ -16,9 +15,12 @@ export function dump() {
  const result = {};
  for (const [name, map, build] of [['relay', ARENA1, buildRelayEnvironment], ['undertow', ARENA2, buildUndertowEnvironment], ['switchyard', ARENA3, buildSwitchyardEnvironment]]) {
   const scene = new T.Scene(); build(scene, map, true);
+  const visualSolids = visualSolidPlan(map);
+  assertVisualSolids(map, visualSolids);
   const rampMaterial = new T.MeshStandardMaterial({color:0x667a7b,roughness:0.84,side:T.DoubleSide});
   for (const ramp of map.ramps ?? []) scene.add(new T.Mesh(buildWedgeGeometry(ramp), rampMaterial));
   scene.updateMatrixWorld(true);
+  const sceneAudit = assertVisualScene(map, scene);
   const materials = [], ids = new Map(), meshes = [];
   for (const mesh of architectureMeshes(scene)) {
    const mat = mesh.material;
@@ -31,11 +33,19 @@ export function dump() {
     geo.dispose();
    }
   }
-  result[name]={materials,meshes,bounds:map.bounds};
+  result[name]={
+    materials,
+    meshes,
+    bounds:map.bounds,
+    resourceTable:mapVisualResourceTable(map),
+    sceneAudit,
+    visualSolids:visualSolids.map(({id,kind,surface,claddingOffsetM}) => ({id,kind,surface,claddingOffsetM})),
+    terrainFaces:(map.terrain?.faces ?? [{minX:0,maxX:map.bounds.width,minZ:0,maxZ:map.bounds.depth,y:0}]),
+  };
  }
  return result;
-}`, resolveDir: process.cwd() }, bundle: true, platform:'node', format:'esm', outfile:'.inspect/architecture-bundle.mjs' });
-const { dump } = await import('../.inspect/architecture-bundle.mjs');
+}`, resolveDir: process.cwd() }, bundle: true, platform:'node', format:'esm', write:false, logLevel:'silent' });
+const { dump } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const all = dump();
 const data = process.argv[3] ? { [process.argv[3]]: all[process.argv[3]] } : all;
 await writeFile(process.argv[2] ?? '.inspect/architecture.json', JSON.stringify(data));

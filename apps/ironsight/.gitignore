@@ -1,4 +1,6 @@
 .inspect/
+artifacts/
+__pycache__/
 # Purchased-source derivatives must stay private, including future bakes.
 public/assets/**/*.glb
 assets-src/**
@@ -13,6 +15,19 @@ assets-src/**
 !public/assets/props/relay-field-sandbags.glb
 !public/assets/props/field-radio-pack.glb
 !public/assets/weapons/field-carbine.glb
+!public/assets/ww1/environment/trench-wall.glb
+!public/assets/ww1/environment/duckboard.glb
+!public/assets/ww1/environment/sandbag.glb
+!public/assets/ww1/environment/timber-brace.glb
+!public/assets/ww1/environment/wire.glb
+!public/assets/ww1/environment/rail-platform.glb
+!public/assets/ww1/environment/brick-rubble.glb
+!public/assets/ww1/environment/field-telephone.glb
+!public/assets/ww1/environment/ammo-crate.glb
+!public/assets/ww1/environment/observation-post.glb
+!public/assets/ww1/environment/freight-wagon-wreck.glb
+!public/assets/ww1/support/biplane.glb
+!public/assets/ww1/characters/fp-arms.glb
 !public/assets/ui/damage-vignette.png
 !public/assets/undertow-dusk.hdr
 !public/assets/undertow-dusk-sky.png

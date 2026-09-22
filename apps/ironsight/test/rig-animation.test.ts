@@ -1,7 +1,7 @@
 import * as T from 'three';
-import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { describe, expect, it } from 'vitest';
-import { clonePlayerRig, deathPresentationMs } from '../client/rig-loader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { describe, expect, it, vi } from 'vitest';
+import { acquirePlayerModel, clonePlayerRig, deathPresentationMs } from '../client/rig-loader.js';
 
 function asset(rifle = true): GLTF {
   const scene = new T.Group(), arm = new T.Bone(); arm.name = 'UpperArm_R'; scene.add(arm);
@@ -9,7 +9,7 @@ function asset(rifle = true): GLTF {
     const q = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), angle).toArray();
     return new T.AnimationClip(name, 1, [new T.QuaternionKeyframeTrack('UpperArm_R.quaternion', [0, 1], [...q, ...q])]);
   };
-  return { scene, animations: [clip('idle', 0), clip('walk', 0.2), clip('death', -0.8),
+  return { scene, scenes: [scene], animations: [clip('idle', 0), clip('walk', 0.2), clip('death', -0.8),
     ...(rifle ? [clip('rifle_idle', 0.8), clip('rifle_walk', 1)] : [])] } as GLTF;
 }
 const rotation = (rig: ReturnType<typeof clonePlayerRig>) => rig.object.getObjectByName('UpperArm_R')!.rotation.z;
@@ -131,4 +131,50 @@ it('samples the lowest transformed death support joint without changing the pose
   expect(rig.getBodySupportWorldY()).toBeCloseTo(3.4);
   expect(rig.object.position.y).toBe(3);
   expect(rig.object.getObjectByName('Hand_R')!.position.y).toBe(0.4);
+});
+
+describe('faction-safe player model cache', () => {
+  it('coalesces one exact URL while keeping different faction sources isolated', async () => {
+    const khaki = asset(), fieldgrey = asset(false);
+    const load = vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockImplementation(async url => {
+      if (url === '/soldier-khaki.glb') return khaki;
+      if (url === '/soldier-fieldgrey.glb') return fieldgrey;
+      throw new Error(`unexpected ${url}`);
+    });
+    const khakiA = acquirePlayerModel('/soldier-khaki.glb');
+    const khakiB = acquirePlayerModel('/soldier-khaki.glb');
+    const fieldgreyLease = acquirePlayerModel('/soldier-fieldgrey.glb');
+    const [first, second, other] = await Promise.all([khakiA.value, khakiB.value, fieldgreyLease.value]);
+    expect(first).toBe(khaki); expect(second).toBe(khaki); expect(other).toBe(fieldgrey);
+    expect(load.mock.calls.map(call => call[0])).toEqual(['/soldier-khaki.glb', '/soldier-fieldgrey.glb']);
+    khakiA.release(); khakiB.release(); fieldgreyLease.release();
+    load.mockRestore();
+  });
+
+  it('evicts only a failed URL so an explicit same-URL retry can succeed', async () => {
+    const recovered = asset(); let attempts = 0;
+    const load = vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockImplementation(async url => {
+      if (url !== '/retry-soldier.glb') throw new Error(`unexpected ${url}`);
+      attempts += 1;
+      if (attempts === 1) throw new Error('transient');
+      return recovered;
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const failed = acquirePlayerModel('/retry-soldier.glb');
+    expect(await failed.value).toBeUndefined(); failed.release();
+    const retry = acquirePlayerModel('/retry-soldier.glb');
+    expect(await retry.value).toBe(recovered); retry.release();
+    expect(attempts).toBe(2); expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore(); load.mockRestore();
+  });
+});
+
+it('stops and uncaches one rig instance without changing its shared source', () => {
+  const source = asset(), rig = clonePlayerRig(source);
+  rig.setState('walk'); rig.update(0.1);
+  rig.dispose();
+  const stopped = rotation(rig);
+  rig.update(0.5);
+  expect(rotation(rig)).toBe(stopped);
+  expect(source.scene.getObjectByName('UpperArm_R')!.rotation.z).toBe(0);
 });

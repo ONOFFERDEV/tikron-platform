@@ -50,5 +50,5 @@ const report = { parts: parts.length, triangles: parts.length * 12, materials: [
   exterior: true, mapHash: createHash('sha256').update(JSON.stringify(map)).digest('hex'),
   bounds: map.bounds, boxes: map.boxes.length, ramps: map.ramps.length,
   note: 'Exterior vertex bounds and continuous edge mass. Map hash can be compared before/after; human visual acceptance is separate.' };
-await writeFile('.inspect/session92-site-boundary-audit.json', JSON.stringify(report, null, 2));
+await writeFile(process.argv[2] ?? '.inspect/session92-site-boundary-audit.json', JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

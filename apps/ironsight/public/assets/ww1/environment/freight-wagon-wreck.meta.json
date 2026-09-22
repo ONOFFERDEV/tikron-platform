@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "key": "freight-wagon-wreck",
+  "sha256": "16611bc62d19fda361e53e8a5d8e05c11b6a7aecd49a81a79d221e73378b7c2a",
+  "dimensionsM": [
+    7.4,
+    2.8,
+    2.7
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    900,
+    624,
+    412
+  ],
+  "joints": {
+    "coupler_front": [
+      0,
+      0.58,
+      1.35
+    ],
+    "coupler_rear": [
+      0,
+      0.58,
+      -1.35
+    ],
+    "bogie_front": [
+      2.35,
+      0.45,
+      0
+    ],
+    "bogie_rear": [
+      -2.35,
+      0.45,
+      0
+    ]
+  },
+  "surfaces": [
+    "metal",
+    "wood"
+  ],
+  "collision": {
+    "kind": "compound",
+    "dimensionsM": [
+      7.4,
+      2.8,
+      2.7
+    ],
+    "parts": 7
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/freight-wagon-wreck.json",
+    "outputSha256": "16611bc62d19fda361e53e8a5d8e05c11b6a7aecd49a81a79d221e73378b7c2a"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}

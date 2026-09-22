@@ -6,6 +6,7 @@ import type { IntroPose } from './deployment-intro.js';
 import { BlastTrauma } from './blast-trauma.js';
 import { ScopeGlints, scopeGlintStrength } from './scope-glint.js';
 import type { DroneFlight } from '../src/drone.js';
+import type { WeaponActionState } from '../src/weapon-action.js';
 import { easeAds } from "../src/handling.js";
 import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
@@ -38,22 +39,46 @@ import type { SignalFrame } from '../src/signal-event.js';
 import { rifleSight } from './rifle-sight.js';
 import { VIEWMODEL_FITS, VIEWMODEL_HIP_FOV, viewmodelProjectionScale } from './viewmodel-fit.js';
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { nearestBox, type Box } from "../src/physics.js";
+import { nearestBox, rayAabb, type Box } from "../src/physics.js";
 import type { MapDef, RampDef } from "../src/map/types.js";
+import type { MapSurface, SurfaceBinding } from "../src/map/materials.js";
+import { rampOccluderBoxes } from "../src/map/tilemap.js";
 import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
-import { ViewmodelHands } from "./viewmodel-hands.js";
-import { ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
+import { AuthoredViewmodelHands, ViewmodelHands, loadAuthoredViewmodelHands } from "./viewmodel-hands.js";
+import { WeaponPresentation, resolveWeaponContractRoot } from "./weapon-presentation.js";
+import { inspectionWeaponAction, ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
 import { Vfx } from "./vfx.js";
 import { CombatFx, BOOM_LIFE_MS } from './combat-fx.js';
 import { flashEnvelope, weaponFlash, weaponFlashTexture, weaponFlashTextures } from './weapon-flash.js';
 import { GAME } from "../src/game-config.js";
-import { loadPlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
-import { loadWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, weaponSource } from "./weapon-loader.js";
-import { loadMapDressing } from "./dressing-loader.js";
+import { WEAPON_KEYS } from "../src/weapon-contract.js";
+import { acquirePlayerModel, clonePlayerRig, deathPresentationMs, type PlayerRigModel, type LocomotionState } from "./rig-loader.js";
+import { HIT_ANIMATION_CLIPS } from "../src/hit-state-bucket.js";
+import {
+  sampleHitAnimationTimeline,
+  sampleHitReaction,
+  type HitAnimationActionSample,
+  type HitFadeSource,
+  type HitReactionSample,
+} from "../src/hit-animation-timeline.js";
+import { acquireWeaponModel, cloneWeaponMesh, cloneWeaponBundleNode, weaponMuzzle, weaponSource } from "./weapon-loader.js";
+import { acquireMapDressing, cloneMapDressing, type MapDressingInstance } from "./dressing-loader.js";
+import type { AssetLease } from "./shared-gltf-cache.js";
+import { ScenePreparationLifetime } from "./scene-preparation.js";
+import { createCalibratedPlayerFallback, type CalibratedPlayerFallback } from "./calibrated-player-fallback.js";
+import { CalibratedActorSlots } from "./calibrated-actor-slots.js";
+import { calibratedActorClaimTargets, calibratedModelHitPart, createCalibratedActorModel } from "./calibrated-actor-instance.js";
+import type { CalibratedActorTemplate } from "./calibrated-actor-loader.js";
+import type { HitRigPoseSample, HitRigPoseSampleInput } from "../src/hit-rig-pose.js";
+import type { Stage33Faction, Stage33HitIdentity } from "../src/stage33-hit-calibration.js";
+import { setObjectWorldPosition } from "./scene-space.js";
+import { loadMapEnvironmentProps, type MapEnvironmentPropSet } from "./map-environment-props.js";
+import { authoredEnvironmentEnabled } from "./environment-selection.js";
+import { describeInspectionActor, inspectionHitFields, type InspectionActorInfo } from "./hit-inspection-pose.js";
 import { buildRelayEnvironment } from "./relay-environment.js";
 import { buildUndertowEnvironment, buildUndertowCanalWater, loadUndertowSupplies } from "./undertow-environment.js";
 import { buildSwitchyardEnvironment, loadSwitchyardSupplies } from "./switchyard-environment.js";
@@ -88,6 +113,8 @@ const DRESSING_MANIFESTS: Record<string, DressingManifest> = {
 // falls short of pokes its wireframe out into open space — a one-screenshot
 // visual-vs-collision height check.
 const DEBUG_BOXES = new URLSearchParams(location.search).get("debugBoxes") === "1";
+const ENVIRONMENT_AUTHORED_PROPS = authoredEnvironmentEnabled(location.search);
+const WEAPON_CANDIDATE_PREVIEW = new URLSearchParams(location.search).get("weapon-candidates") === "1";
 // ?debugHitbox=1 — permanent gate tool. Originally visualized the server's
 // analytic hit volumes against the rendered model (the hitbox/visual audit);
 // since the hybrid-hit fix (raycastHitClaim below), the analytic capsule/
@@ -107,6 +134,18 @@ function buildHitboxOverlay(): { cylinder: THREE.Mesh; head: THREE.Mesh } {
   return { cylinder, head };
 }
 const TEAM_COLOR = GAME.teams.colors;
+
+export interface ClientHitAnimationAuthority {
+  readonly evaluator: (input: HitRigPoseSampleInput) => HitRigPoseSample | undefined;
+  readonly identities: Readonly<Record<Stage33Faction, Stage33HitIdentity>>;
+}
+
+interface CalibratedAuthorityPose {
+  readonly actions: readonly HitAnimationActionSample[];
+  readonly reaction: HitReactionSample;
+  readonly sample: HitRigPoseSample;
+}
+
 
 const EYE_UP = new THREE.Vector3(0, 1, 0);
 // Tracer = a short segment travelling from the muzzle to the impact point (not a
@@ -190,21 +229,30 @@ interface PlayerPose {
   alive: boolean;
   weapon: number;
   reloadEnd?: number;
+  hitClipIndex?: number;
+  hitClipStartedAt?: number;
+  hitBlendSources?: readonly HitFadeSource[];
+  hitReactionKind?: number;
+  hitReactionStartedAt?: number;
+  hitReactionSeq?: number;
+  hitSegmentSeq?: number;
+  hitSegmentStartedAt?: number;
 }
 
-/** A remote player's rig: either the original capsule+head primitives, or (once
- *  the player GLB is loaded) an animated model clone. `kind` discriminates which
- *  fields below are populated — see {@link SceneRig.makeRig}. */
 interface PlayerRig {
   appearance: ActorAppearance;
+  id: string;
   contact?: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   weapon?: RemoteWeapon;
   group: THREE.Group;
   team: number;
-  kind: "capsule" | "model";
+  kind: "capsule" | "model" | "calibratedFallback" | "calibratedModel";
   // --- kind === "capsule" ---
   body?: THREE.Mesh;
   head?: THREE.Mesh;
+  calibratedFallback?: CalibratedPlayerFallback;
+  calibratedTemplate?: CalibratedActorTemplate;
+  calibratedSample?: HitRigPoseSample;
   // --- kind === "model" ---
   modelRoot?: THREE.Object3D;
   model?: PlayerRigModel;
@@ -259,12 +307,23 @@ export class SceneRig {
   // Rigged remote-player model: kicked off once in the constructor (if configured),
   // resolved asynchronously — see makeRig()/upgradeCapsuleRigs(). "absent" covers
   // both "no models.player configured" (neonstrike) and "load failed" (rig-loader
-  // already console.warn'd once); either way every rig stays capsule permanently.
+  // already console.warn'd once); ordinary rigs then stay capsules permanently.
   // While "loading", new rigs are capsules too (players/bots already exist from the
   // room's first broadcast, so this is the COMMON case, not a rare race) — once the
   // load resolves, upgradeCapsuleRigs() swaps every existing capsule rig in place.
   private modelState: "loading" | "ready" | "absent" = "absent";
   private modelGltf: GLTF | undefined;
+  private modelLease?: AssetLease<GLTF>;
+  private dressingLease?: AssetLease<GLTF>;
+  private dressingInstance?: MapDressingInstance;
+  private mapEnvironmentProps?: MapEnvironmentPropSet;
+  private weaponLease?: AssetLease<GLTF>;
+  private disposed = false;
+  private readonly onResize = () => this.resize();
+  private readonly preparationLifetime = new ScenePreparationLifetime();
+  private readonly hitAnimationAuthority: ClientHitAnimationAuthority | undefined;
+  private readonly calibratedActors: CalibratedActorSlots | undefined;
+  private inspectionIssue: string | undefined;
 
   // Map dressing: every procedural box's mesh+edges, keyed by its index in
   // `this.boxes` — buildArena() populates this for every box unconditionally
@@ -283,6 +342,8 @@ export class SceneRig {
   private readonly viewmodelProjection = new THREE.Group();
   private readonly weaponHolder = new THREE.Group();
   private readonly hands = new ViewmodelHands();
+  private authoredHands: AuthoredViewmodelHands | null = null;
+  private weaponPresentation: WeaponPresentation | null = null;
   private issuedCarbine = false;
   private readonly reload = new ReloadPresentation();
   private magazine?: THREE.Group;
@@ -290,6 +351,7 @@ export class SceneRig {
   private readonly weaponGeometry: THREE.BufferGeometry[] = [];
   private reloadPhase = 'idle';
   private inspectionReload: number | null | undefined;
+  private inspectionIntent: "reload" | "cycle" = "reload";
   private reloadCue?: (phase: string) => void;
   // Whether weaponHolder's current child is a cloned GLB (shared/cached geometry
   // + material, never disposed) or a procedural buildWeaponMesh() (fresh
@@ -408,7 +470,14 @@ export class SceneRig {
   }
 
   constructor(private readonly map: MapDef, container: HTMLElement = document.body,
-    options: { loadActors?: boolean; loadViewmodel?: boolean } = {}) {
+    options: { loadActors?: boolean; loadViewmodel?: boolean;
+      hitAnimationAuthority?: ClientHitAnimationAuthority } = {}) {
+    this.hitAnimationAuthority = options.hitAnimationAuthority;
+    this.calibratedActors = options.loadActors !== false && options.hitAnimationAuthority !== undefined
+      ? new CalibratedActorSlots(options.hitAnimationAuthority.identities,
+        (team, template) => this.upgradeCalibratedRigs(team, template))
+      : undefined;
+    if (this.calibratedActors !== undefined) this.assetLoads.push(...this.calibratedActors.start());
     // Keep the light count stable: adding/removing a light recompiles every
     // lit material. Newest four blasts share a fixed budget, like muzzle flashes.
     for (let i = 0; i < 4; i++) {
@@ -478,8 +547,9 @@ export class SceneRig {
     this.vfx = new Vfx(this.scene, p => {
       const t = nearestBox(p, { x: 0, y: -1, z: 0 }, this.hitBoxes, p.y - (map.bounds.floor ?? 0) + .1);
       return Number.isFinite(t) ? p.y - t : (map.bounds.floor ?? 0);
-    });
-    this.combatFx = new CombatFx(this.scene);
+    }, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
+    this.combatFx = new CombatFx(this.scene, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
+    this.assetLoads.push(this.vfx.ready(), this.combatFx.ready());
     this.scopeGlints = new ScopeGlints(this.scene);
     this.buildArena(map);
     this.reconFlyover = new ReconFlyover(this.scene, map.bounds.width, map.bounds.depth);
@@ -521,14 +591,33 @@ export class SceneRig {
     // Keep the light outside the hideable viewmodel subtree so death and scoped ADS never change the scene's light count.
     this.camera.add(this.muzzleLight);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
-    if (options.loadViewmodel !== false) this.assetLoads.push(this.setWeaponVisual(0));
+    if (options.loadViewmodel !== false) {
+      this.assetLoads.push(this.setWeaponVisual(0));
+      this.assetLoads.push(loadAuthoredViewmodelHands().then(hands => {
+        if (hands === null) return;
+        this.authoredHands = hands;
+        hands.group.visible = false;
+        hands.group.position.z = (VIEWMODEL_FITS[this.weaponIndex] ?? VIEWMODEL_FITS[0]).advance;
+        this.viewmodel.add(hands.group);
+      }));
+    }
 
-    const modelUrl = options.loadActors !== false ? GAME.models?.player : undefined;
+    const modelUrl = options.loadActors !== false && this.hitAnimationAuthority === undefined
+      ? GAME.models?.player
+      : undefined;
     if (modelUrl) {
       this.modelState = "loading";
-      this.assetLoads.push(loadPlayerModel(modelUrl).then((gltf) => {
+      const lease = acquirePlayerModel(modelUrl);
+      this.modelLease = lease;
+      this.assetLoads.push(lease.value.then((gltf) => {
+        if (!gltf || this.disposed) {
+          lease.release();
+          if (this.modelLease === lease) this.modelLease = undefined;
+          this.modelState = "absent";
+          return;
+        }
         this.modelGltf = gltf;
-        this.modelState = gltf ? "ready" : "absent";
+        this.modelState = "ready";
         // Bots/players already exist server-side from the room's first broadcast,
         // so the client's very first syncPlayers() call (same frame the scene is
         // constructed) almost always creates their rigs BEFORE this async load can
@@ -548,10 +637,19 @@ export class SceneRig {
       : map.presentation ? undefined : mapId ? GAME.mapDressing?.[mapId] : undefined;
     if (dressingUrl) {
       this.environmentLoading = true;
-      this.assetLoads.push(loadMapDressing(dressingUrl).then((gltf) => {
+      const lease = acquireMapDressing(dressingUrl);
+      this.dressingLease = lease;
+      this.assetLoads.push(lease.value.then((gltf) => {
         this.environmentLoading = false;
-        if (!gltf) return; // load failed — stay on the procedural box/wall render permanently
-        gltf.scene.traverse(node => {
+        if (!gltf || this.disposed) {
+          lease.release();
+          if (this.dressingLease === lease) this.dressingLease = undefined;
+          return;
+        }
+        const instance = cloneMapDressing(gltf);
+        this.dressingInstance = instance;
+        const object = instance.object;
+        object.traverse(node => {
           if (!(node instanceof THREE.Mesh)) return;
           if (relay) { node.castShadow = true; node.receiveShadow = true; }
           for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
@@ -562,7 +660,7 @@ export class SceneRig {
             }
           }
         });
-        this.scene.add(gltf.scene);
+        this.scene.add(object);
         if (relay) {
           const fallback = this.scene.getObjectByName("relay-skyline-fallback");
           if (fallback) fallback.visible = false;
@@ -577,9 +675,20 @@ export class SceneRig {
         }
       }));
     }
+    if (map.presentation) {
+      this.assetLoads.push(loadMapEnvironmentProps(this.scene, map.presentation, {
+        candidatePreview: ENVIRONMENT_AUTHORED_PROPS,
+      }).then(set => {
+        if (this.disposed) {
+          set.dispose();
+          return;
+        }
+        this.mapEnvironmentProps = set;
+      }));
+    }
 
     this.resize();
-    window.addEventListener("resize", () => this.resize());
+    window.addEventListener("resize", this.onResize);
     this.constructionMs = performance.now() - this.creationStarted;
   }
 
@@ -726,8 +835,8 @@ export class SceneRig {
   }
 
   /** Kick the viewmodel on a confirmed local shot; strength scales by weapon. */
-  fireRecoil(weaponIndex = this.weaponIndex): void {
-    this.recoil = Math.min(1, this.recoil + (VM_RECOIL[weaponIndex] ?? 0.4));
+  fireRecoil(weaponIndex = this.weaponIndex, cosmeticScale = 1): void {
+    this.recoil = Math.min(1, this.recoil + (VM_RECOIL[weaponIndex] ?? 0.4) * cosmeticScale);
     this.muzzleFiredAt = performance.now();
     this.muzzleWeapon = weaponIndex;
     const spec = weaponFlash(weaponIndex);
@@ -760,6 +869,7 @@ export class SceneRig {
     if (index === this.weaponIndex && this.pendingWeapon < 0) return;
     if (index === this.pendingWeapon) return;
     this.pendingWeapon = index;
+    this.weaponPresentation?.reset();
     this.reload.sync(0, 1, performance.now());
     this.swapT = performance.now();
   }
@@ -777,6 +887,8 @@ export class SceneRig {
   private async setWeaponVisual(index: number): Promise<void> {
     const generation = ++this.weaponGeneration;
     this.disposeCurrentWeaponMesh();
+    this.weaponLease?.release();
+    this.weaponLease = undefined;
     const fallback = buildWeaponMesh(index);
     this.sightHeight = new THREE.Box3().setFromObject(fallback).max.y;
     this.weaponHolder.add(fallback);
@@ -784,6 +896,7 @@ export class SceneRig {
     // Mesh, sight, magazine, bolt, cuffs and sleeves share this exact translation.
     this.weaponHolder.position.z = fit.advance;
     this.hands.group.position.z = fit.advance;
+    if (this.authoredHands) this.authoredHands.group.position.z = fit.advance;
     this.weaponIsModel = false;
     this.muzzle.position.set(0, 0.02, MUZZLE_Z_DEFAULT + fit.advance);
     this.casingAnchor.position.set(.045, .01, -.28);
@@ -791,17 +904,30 @@ export class SceneRig {
 
     const transform = VM_WEAPON_TRANSFORMS[index];
     if (!transform) return;
-    const source = weaponSource(GAME.weaponVis, index);
+    const source = weaponSource(GAME.weaponVis, index, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
     if (!source) return;
     const { url, nodeName } = source;
 
     {
-      const gltf = await loadWeaponModel(url);
-      if (!gltf) return; // load failed — weapon-loader already warned once, stay procedural
-      if (this.weaponIndex !== index || generation !== this.weaponGeneration) return;
+      const lease = acquireWeaponModel(url);
+      this.weaponLease = lease;
+      const gltf = await lease.value;
+      const abandon = () => {
+        lease.release();
+        if (this.weaponLease === lease) this.weaponLease = undefined;
+      };
+      if (!gltf) { abandon(); return; }
+      if (this.weaponIndex !== index || generation !== this.weaponGeneration || this.disposed) { abandon(); return; }
 
       const obj = nodeName ? cloneWeaponBundleNode(gltf, nodeName) : cloneWeaponMesh(gltf);
-      if (!obj) return; // bundle loaded but this slot's node is missing — stay procedural
+      if (!obj) { abandon(); return; }
+
+      const key = WEAPON_KEYS[index];
+      if (key === undefined) { abandon(); return; }
+      const contractRoot = resolveWeaponContractRoot(obj, key);
+      if (contractRoot === null) { abandon(); return; }
+      const presentation = new WeaponPresentation(key, contractRoot);
+      if (presentation.sockets === null) { abandon(); return; }
 
       const bore = weaponMuzzle(obj);
       const sourceBounds = new THREE.Box3().setFromObject(obj);
@@ -825,11 +951,18 @@ export class SceneRig {
       }
       this.sightHeight = sightHeight;
       this.weaponHolder.add(obj);
+      this.weaponPresentation = presentation;
       // Source-space markers follow the real mesh transform (including any roll).
-      this.sourceMuzzle = new THREE.Object3D();
-      this.sourceMuzzle.position.copy(bore); obj.add(this.sourceMuzzle);
-      this.casingAnchor.position.set(sourceBounds.min.x, bore.y, .025);
-      obj.add(this.casingAnchor);
+      if (this.weaponPresentation?.sockets) {
+        this.sourceMuzzle = this.weaponPresentation.sockets.muzzle;
+        this.casingAnchor.position.set(0, 0, 0);
+        this.weaponPresentation.sockets.eject.add(this.casingAnchor);
+      } else {
+        this.sourceMuzzle = new THREE.Object3D();
+        this.sourceMuzzle.position.copy(bore); obj.add(this.sourceMuzzle);
+        this.casingAnchor.position.set(sourceBounds.min.x, bore.y, .025);
+        obj.add(this.casingAnchor);
+      }
       this.issuedCarbine = obj.userData.issuedCarbine === true;
       if (index === 0) {
         const sight = rifleSight(-bore.x * transform.scale,
@@ -840,8 +973,14 @@ export class SceneRig {
       }
       this.weaponIsModel = true;
       obj.updateMatrix();
-      this.muzzle.position.copy(bore).applyMatrix4(obj.matrix);
-      this.muzzle.position.z += fit.advance;
+      if (this.weaponPresentation?.sockets) {
+        obj.updateWorldMatrix(true, true);
+        this.weaponPresentation.sockets.muzzle.getWorldPosition(this.muzzle.position);
+        setObjectWorldPosition(this.muzzle, this.muzzle.position);
+      } else {
+        this.muzzle.position.copy(bore).applyMatrix4(obj.matrix);
+        this.muzzle.position.z += fit.advance;
+      }
     }
   }
 
@@ -851,6 +990,8 @@ export class SceneRig {
   private disposeCurrentWeaponMesh(): void {
     this.issuedCarbine = false;
     this.sourceMuzzle = undefined;
+    this.weaponPresentation?.reset(); this.weaponPresentation = null;
+    this.authoredHands?.reset();
     this.casingAnchor.removeFromParent();
     for (const geometry of this.weaponGeometry) geometry.dispose();
     this.weaponGeometry.length = 0; this.magazine = undefined; this.bolt = undefined; this.sightDot = undefined;
@@ -881,13 +1022,16 @@ export class SceneRig {
   onReloadCue(callback: (phase: string) => void): void { this.reloadCue = callback; }
 
   /** Deterministic inspector calls the same presentation path as gameplay. */
-  inspectViewmodel(progress: number | null, ads: boolean): boolean {
-    this.inspectionReload = progress; this.adsHeld = ads;
-    this.updateViewmodel(100, 0, 0, 0, true);
+  inspectViewmodel(progress: number | null, ads: boolean, intent: "reload" | "cycle" = "reload"): boolean {
+    this.inspectionReload = progress; this.inspectionIntent = intent; this.adsHeld = ads;
+    const inspection = inspectionWeaponAction(this.weaponIndex, progress, intent);
+    this.updateViewmodel(100, 0, 0, 0, true, inspection.state, inspection.serverNow);
     return this.weaponIsModel && this.pendingWeapon < 0;
   }
   viewmodelDiagnostics() {
     return { weapon: this.weaponIndex, phase: this.reloadPhase, muzzle: this.muzzle.position.toArray(),
+      inspection: { provenance: "synthetic-inspector" as const, requestedProgress: this.inspectionReload ?? null,
+        intent: this.inspectionIntent },
       magazineMeshes: this.magazine?.children.length ?? 0, ads: this.adsT, adsProgress: this.adsProgress, fov: this.fovCur,
       hands: this.hands.group.visible, weaponFov: this.weaponFov, lastSelfShot: this.lastSelfShot,
       flash: { name: weaponFlash(this.muzzleWeapon).name, lifeMs: weaponFlash(this.muzzleWeapon).lifeMs,
@@ -978,19 +1122,25 @@ export class SceneRig {
    * decaying recoil kick. `speed01` is 0..1 horizontal speed, `dLook` the yaw+pitch
    * delta this frame (for sway).
    */
-  updateViewmodel(dtMs: number, speed01: number, dYaw: number, dPitch: number, grounded: boolean): void {
+  updateViewmodel(dtMs: number, speed01: number, dYaw: number, dPitch: number, grounded: boolean,
+    action: WeaponActionState | null = null, serverNow = Date.now()): void {
     const dt = clamp(dtMs / 1000, 0, 0.1);
     const now = performance.now();
     const progress = this.inspectionReload !== undefined ? this.inspectionReload : this.reload.progress(now);
     const reload = reloadPose(progress);
-    if (reload.phase !== this.reloadPhase) {
-      this.reloadPhase = reload.phase;
-      if (this.inspectionReload === undefined) this.reloadCue?.(reload.phase);
+    const actionFrame = this.weaponPresentation?.update(action, serverNow);
+    const presentedPhase = actionFrame?.mode === 'contract' ? actionFrame.phase : reload.phase;
+    if (presentedPhase !== this.reloadPhase) {
+      this.reloadPhase = presentedPhase;
+      if (this.inspectionReload === undefined) this.reloadCue?.(presentedPhase);
     }
-    this.hands.update(this.weaponIndex, progress, this.issuedCarbine);
-    this.hands.group.visible = MOTION.hands;
-    if (this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
-    if (this.magazine) {
+    const authored = actionFrame !== undefined && this.weaponPresentation !== null
+      && this.authoredHands?.apply(actionFrame, this.weaponPresentation) === true;
+    this.hands.update(this.weaponIndex, authored ? null : progress, this.issuedCarbine);
+    this.hands.group.visible = MOTION.hands && !authored;
+    if (this.authoredHands) this.authoredHands.group.visible = MOTION.hands && authored;
+    if (!authored && this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
+    if (!authored && this.magazine) {
       this.magazine.position.y = -reload.magazine * (this.weaponIndex === 2 ? 0.04 : 0.34);
       this.magazine.position.x = -reload.magazine * (this.weaponIndex === 2 ? 0.32 : 0.08);
     }
@@ -1008,8 +1158,10 @@ export class SceneRig {
 
     // Weapon swap: dip the holder, replace the mesh at the bottom, raise back up.
     let swapDip = 0;
+    let equipProgress: number | null = null;
     if (this.pendingWeapon >= 0) {
       const t = now - this.swapT;
+      equipProgress = clamp(t / (SWAP_DOWN_MS + SWAP_UP_MS), 0, 1);
       if (t < SWAP_DOWN_MS) {
         swapDip = THREE.MathUtils.smoothstep(t / SWAP_DOWN_MS, 0, 1);
       } else {
@@ -1035,13 +1187,21 @@ export class SceneRig {
       this.camera.fov = this.fovCur;
       this.camera.updateProjectionMatrix();
     }
-    const scoped = this.weaponIndex === 3 && aiming && this.adsProgress >= 1;
+    const scoped = GAME.weapons[this.weaponIndex]?.sight === "scope" && aiming && this.adsProgress >= 1;
     if (this.sightDot) this.sightDot.visible = aiming && this.adsT > 0.95;
     this.viewmodel.visible = !scoped;
     this.toggleScope(scoped);
 
     this.recoil *= Math.exp(-dt * 1000 / MOTION.recoilSettleMs);
     const kick = this.recoil;
+    if (authored) this.authoredHands?.animateMotion({
+      actionActive: actionFrame?.active === true,
+      equipProgress,
+      adsProgress: this.adsProgress,
+      adsHeld: this.adsHeld,
+      recoil: kick,
+      sprintBlend: this.sprintBlend,
+    });
     const ads = this.adsT;
     const pose = MOTION.poses[this.weaponIndex] ?? MOTION.poses[0]!;
     const fit = VIEWMODEL_FITS[this.weaponIndex] ?? VIEWMODEL_FITS[0];
@@ -1137,7 +1297,8 @@ export class SceneRig {
   /** Sync the remote-player rigs to `poses` (keyed by id); `selfId` is never drawn.
    *  `dtMs` is the render frame delta (main.ts's own `dt`) — used to derive each
    *  model rig's locomotion state from consecutive poses and to step its mixer. */
-  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState, serverNow = Date.now(), now = performance.now()): void {
+  syncPlayers(poses: Map<string, PlayerPose>, selfId: string, dtMs: number, clip?: LocomotionState,
+    serverNow = Date.now(), now = performance.now(), actions?: ReadonlyMap<string, WeaponActionState>): void {
     const seen = this.seenPlayers;
     seen.clear();
     this.scopeGlints.begin();
@@ -1150,13 +1311,14 @@ export class SceneRig {
         rig = this.makeRig(id, pose.team);
         this.players.set(id, rig);
       }
-      rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot);
+      rig.weapon ??= new RemoteWeapon(rig.group, rig.modelRoot, WEAPON_CANDIDATE_PREVIEW);
       rig.appearance.setColor(actorColor(TEAM_COLOR[pose.team] ?? 0xaaaaaa, pose.team,
         this.viewerTeam, this.teamless, this.enemyHighlight));
       rig.weapon.setWeapon(pose.weapon);
       rig.weapon.beforeAnimation();
       rig.model?.setWeaponHold(pose.weapon);
-      if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, now, clip);
+      if (rig.kind === "model") this.syncModelRig(rig, pose, dtMs, serverNow, now, clip);
+      else if (rig.kind === "calibratedFallback" || rig.kind === "calibratedModel") this.syncCalibratedRig(rig, pose, serverNow);
       else this.syncCapsuleRig(rig, pose);
       if (rig.contact) {
         // A downward ray finds the same platform/ramp surfaces used by shots.
@@ -1169,8 +1331,9 @@ export class SceneRig {
         rig.contact.visible = pose.alive;
       }
       rig.weapon.update(rig.headY ?? 1.5, pose.pitch, pose.alive, undefined, true,
-        remoteReloadProgress(pose.alive, pose.reloadEnd ?? 0, GAME.weapons[pose.weapon]?.reloadMs ?? 1, serverNow));
-      if (pose.alive && pose.weapon === 3) {
+        remoteReloadProgress(pose.alive, pose.reloadEnd ?? 0, GAME.weapons[pose.weapon]?.reloadMs ?? 1, serverNow),
+        actions?.get(id)?.weaponIndex === pose.weapon ? actions.get(id)! : null, serverNow);
+      if (pose.alive && GAME.weapons[pose.weapon]?.sight === "scope") {
         rig.weapon.scopeLens.getWorldPosition(this.scopeLens);
         this.scopeEye.set(pose.x, pose.y + (pose.crouch ? PLAYER.crouchEye : PLAYER.standEye), pose.z);
         const strength = scopeGlintStrength(pose, this.scopeEye, this.scopeLens,
@@ -1191,9 +1354,45 @@ export class SceneRig {
 
   inspectGlints() { return this.scopeGlints.inspect(); }
 
-  /** Network-free preview: same factory, mixer and weapon update as syncPlayers. */
+  syncInspectionPlayers(
+    poses: Map<string, PlayerPose>,
+    selfId: string,
+    dtMs: number,
+    clip?: LocomotionState,
+    phaseSeconds = 0.75,
+  ): boolean {
+    if (this.hitAnimationAuthority === undefined) {
+      this.inspectionIssue = undefined;
+      this.syncPlayers(poses, selfId, dtMs, clip);
+      return true;
+    }
+    const serverNow = 100_000;
+    const stamped = new Map<string, PlayerPose>();
+    for (const [id, pose] of poses) {
+      const authorityClip = clip ?? "idle";
+      const fields = inspectionHitFields(pose.weapon, authorityClip, phaseSeconds, serverNow);
+      if (fields === undefined) {
+        this.inspectionIssue = `unsupported-authority-inspection:${pose.weapon}:${authorityClip}:${phaseSeconds}`;
+        return false;
+      }
+      stamped.set(id, { ...pose, ...fields });
+    }
+    this.inspectionIssue = undefined;
+    this.syncPlayers(stamped, selfId, dtMs, undefined, serverNow);
+    return true;
+  }
+
+  /** Network-free preview through the same admitted authority path as gameplay. */
   inspectRig(pose: PlayerPose, clip: LocomotionState, blend: number | undefined, arms: boolean, sample = 0.75, reload: number | null = null): boolean {
     this.viewmodel.visible = false;
+    if (this.hitAnimationAuthority !== undefined) {
+      if (blend !== undefined || !arms || reload !== null) {
+        this.inspectionIssue = "unsupported-authority-inspection:legacy-pose-override";
+        return false;
+      }
+      if (!this.syncInspectionPlayers(new Map([["inspect", pose]]), "", 0, clip, sample)) return false;
+      return this.readyForInspection(1);
+    }
     this.syncPlayers(new Map([["inspect", pose]]), "", 0, clip);
     const rig = this.players.get("inspect")!;
     if (!rig.model || !rig.weapon) return false;
@@ -1201,7 +1400,7 @@ export class SceneRig {
     rig.model.setWeaponHold(arms ? pose.weapon : undefined);
     rig.model.forceIdle();
     rig.model.setState(clip);
-    rig.model.update(sample); // repeatable clip sample for every camera angle
+    rig.model.update(sample);
     this.groundCrouch(rig, pose.crouch);
     rig.weapon.update(rig.headY ?? 1.5, pose.pitch, true, blend, arms, reload);
     return rig.weapon.loaded;
@@ -1211,6 +1410,25 @@ export class SceneRig {
   inspectReaction(kind: string, ageMs: number): boolean {
     const pose = { x: 10, y: 0, z: 20, yaw: 0, pitch: 0, crouch: kind === "crouch",
       alive: true, team: 0, weapon: 0 };
+    if (this.hitAnimationAuthority !== undefined) {
+      if (kind === "death" || (kind !== "head" && kind !== "chest" && kind !== "crouch")) {
+        this.inspectionIssue = `unsupported-authority-reaction:${kind}`;
+        return false;
+      }
+      const serverNow = 100_000;
+      const reaction = kind === "head" ? { kind: 2 as const, ageMs }
+        : kind === "chest" ? { kind: 1 as const, ageMs }
+          : { kind: 0 as const, ageMs: 0 };
+      const fields = inspectionHitFields(0, kind === "crouch" ? "crouch_idle" : "idle",
+        0.2, serverNow, reaction);
+      if (fields === undefined) {
+        this.inspectionIssue = `unsupported-authority-reaction:${kind}:${ageMs}`;
+        return false;
+      }
+      this.inspectionIssue = undefined;
+      this.syncPlayers(new Map([["reaction", { ...pose, ...fields }]]), "", 0, undefined, serverNow);
+      return this.readyForInspection(1);
+    }
     const poses = new Map([["reaction", pose]]);
     this.syncPlayers(poses, "", 0, undefined, 1000, 1000);
     const rig = this.players.get("reaction");
@@ -1254,8 +1472,30 @@ export class SceneRig {
     return { bones, muzzle: rig.weapon.muzzle.position.toArray() };
   }
 
+  inspectionActorInfo(id?: string): InspectionActorInfo {
+    const rig = id === undefined ? this.players.values().next().value : this.players.get(id);
+    const authority = this.hitAnimationAuthority;
+    const faction: Stage33Faction | undefined = rig?.team === 0 ? "khaki" : rig?.team === 1 ? "fieldgrey" : undefined;
+    const requestedIdentity = authority !== undefined && faction !== undefined
+      ? authority.identities[faction]
+      : undefined;
+    const source = rig?.calibratedTemplate?.source;
+    const resolvedSourceIdentity = source === undefined ? undefined : {
+      faction: source.faction,
+      glbSha256: source.expectedGlbSha256,
+      hitComponentSha256: source.hitComponentSha256,
+      normalizationTransformSha256: source.normalizationTransformSha256,
+    };
+    return describeInspectionActor({ calibrated: authority !== undefined,
+      ...(this.inspectionIssue === undefined ? {} : { issue: this.inspectionIssue }),
+      ...(rig === undefined ? {} : { rigKind: rig.kind }),
+      ...(requestedIdentity === undefined ? {} : { requestedIdentity }),
+      ...(resolvedSourceIdentity === undefined ? {} : { resolvedSourceIdentity }) });
+  }
+
   /** Server-confirmed upper-body impulse; feet, crouch and weapon holds continue. */
   playHitReaction(id: string, headshot: boolean): void {
+    if (this.hitAnimationAuthority !== undefined) return;
     const rig = this.players.get(id);
     if (!rig?.model || rig.aliveWas === false) return;
     rig.model.setState(headshot ? "hit_head" : "hit_chest");
@@ -1278,7 +1518,61 @@ export class SceneRig {
     this.updateHitboxOverlay(rig, rig.headY);
   }
 
-  private syncModelRig(rig: PlayerRig, pose: PlayerPose, dtMs: number, now: number, clip?: LocomotionState): void {
+  private authorityPose(pose: PlayerPose, serverNow: number): CalibratedAuthorityPose | undefined {
+    const actions = sampleHitAnimationTimeline({
+      currentIndex: pose.hitClipIndex ?? -1,
+      currentStartedAt: pose.hitClipStartedAt ?? Number.NaN,
+      sources: pose.hitBlendSources ?? [],
+    }, serverNow);
+    const reaction = sampleHitReaction({
+      kind: pose.hitReactionKind ?? -1,
+      startedAt: pose.hitReactionStartedAt ?? Number.NaN,
+      seq: pose.hitReactionSeq ?? -1,
+    }, serverNow);
+    const authority = this.hitAnimationAuthority;
+    const faction: Stage33Faction = pose.team === 0 ? "khaki" : "fieldgrey";
+    if (authority === undefined || actions === undefined || reaction === undefined) return undefined;
+    const sample = authority.evaluator({ identity: authority.identities[faction], actions, reaction });
+    return sample === undefined ? undefined : { actions, reaction, sample };
+  }
+
+  private syncCalibratedRig(rig: PlayerRig, pose: PlayerPose, serverNow: number): void {
+    rig.group.position.set(pose.x, pose.y, pose.z);
+    rig.group.rotation.y = pose.yaw;
+    const authorityPose = pose.alive ? this.authorityPose(pose, serverNow) : undefined;
+    if (authorityPose === undefined || rig.calibratedFallback?.update(authorityPose.sample) !== true) {
+      rig.group.visible = false;
+      return;
+    }
+    const { sample } = authorityPose;
+    if (rig.kind === "calibratedModel") {
+      const model = rig.model;
+      const object = rig.modelRoot;
+      const normalization = rig.calibratedTemplate?.normalization;
+      if (model === undefined || object === undefined || normalization === undefined
+        || !model.applyAuthoritativeAnimation(authorityPose.actions, authorityPose.reaction)) {
+        rig.group.visible = false;
+        return;
+      }
+      object.position.set(normalization.rootXZ[0], sample.groundOffsetY, normalization.rootXZ[1]);
+      object.visible = true;
+      rig.calibratedFallback.group.visible = false;
+      object.updateMatrixWorld(true);
+    }
+    rig.group.visible = true;
+    rig.calibratedSample = sample;
+    rig.headY = sample.hitVolume.headCenter.y;
+    this.updateCalibratedHitboxOverlay(rig, sample);
+  }
+
+  private syncModelRig(
+    rig: PlayerRig,
+    pose: PlayerPose,
+    dtMs: number,
+    serverNow: number,
+    now: number,
+    clip?: LocomotionState,
+  ): void {
     const model = rig.model!;
     const wasAlive = rig.aliveWas ?? true;
     rig.aliveWas = pose.alive;
@@ -1352,9 +1646,37 @@ export class SceneRig {
           : lateral > 0 ? 'strafe_left' : 'strafe_right';
       else if (forward < -Math.abs(lateral) && !pose.crouch) locomotion = 'backpedal';
     }
+    if (this.hitAnimationAuthority !== undefined && clip === undefined) {
+      const authoritySamples = sampleHitAnimationTimeline({
+        currentIndex: pose.hitClipIndex ?? -1,
+        currentStartedAt: pose.hitClipStartedAt ?? Number.NaN,
+        sources: pose.hitBlendSources ?? [],
+      }, serverNow);
+      const reactionSample = sampleHitReaction({
+        kind: pose.hitReactionKind ?? -1,
+        startedAt: pose.hitReactionStartedAt ?? Number.NaN,
+        seq: pose.hitReactionSeq ?? -1,
+      }, serverNow);
+      if (authoritySamples === undefined || reactionSample === undefined
+        || !model.applyAuthoritativeAnimation(authoritySamples, reactionSample)) {
+        rig.group.visible = false;
+        return;
+      }
+      this.groundAuthoritativeBlend(rig, authoritySamples);
+      return;
+    }
     model.setState(clip ?? locomotion);
     model.update(dtSec);
     this.groundCrouch(rig, pose.crouch);
+  }
+
+  private groundAuthoritativeBlend(rig: PlayerRig, samples: readonly HitAnimationActionSample[]): void {
+    const hasCrouchWeight = samples.some(sample => sample.weight > 0
+      && HIT_ANIMATION_CLIPS[sample.clipIndex]?.includes("_crouch_") === true);
+    if (!hasCrouchWeight || !rig.model || !rig.modelRoot) return;
+    rig.modelRoot.position.y = -rig.localMinY! * rig.baseScale!;
+    const footY = rig.model.getFootWorldY();
+    if (footY !== undefined) rig.modelRoot.position.y -= Math.max(0, footY - rig.group.position.y - 0.035);
   }
 
   /** The inherited crouch clip lifts both feet in its source root frame. Anchor
@@ -1368,8 +1690,62 @@ export class SceneRig {
   }
 
   private makeRig(id: string, team: number): PlayerRig {
+    if (this.hitAnimationAuthority !== undefined) return this.makeCalibratedFallbackRig(id, team);
     if (this.modelState === "ready" && this.modelGltf) return this.makeModelRig(id, team, this.modelGltf);
     return this.makeCapsuleRig(id, team);
+  }
+
+  private makeCalibratedFallbackRig(id: string, team: number): PlayerRig {
+    const faction: Stage33Faction = team === 0 ? "khaki" : "fieldgrey";
+    const fallback = createCalibratedPlayerFallback({ id, faction, bodyRadius: HIT.radius });
+    const group = new THREE.Group();
+    if (fallback !== undefined) group.add(fallback.group);
+    const originalMaterials = new Set<THREE.Material>();
+    fallback?.group.traverse(node => {
+      if (!(node instanceof THREE.Mesh)) return;
+      for (const material of Array.isArray(node.material) ? node.material : [node.material])
+        originalMaterials.add(material);
+    });
+    const appearance = new ActorAppearance(fallback?.group ?? group, TEAM_COLOR[team] ?? 0xaaaaaa);
+    for (const material of originalMaterials) material.dispose();
+    this.scene.add(group);
+    let hitboxOverlay: { cylinder: THREE.Mesh; head: THREE.Mesh } | undefined;
+    if (DEBUG_HITBOX) {
+      hitboxOverlay = buildHitboxOverlay();
+      group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
+    }
+    const rig: PlayerRig = { id, group, appearance, team, kind: "calibratedFallback",
+      calibratedFallback: fallback, body: fallback?.body, head: fallback?.head, hitboxOverlay,
+      contact: this.makeContactShadow(group) };
+    const template = this.calibratedActors?.template(team);
+    if (template !== undefined) this.upgradeCalibratedRig(rig, template);
+    return rig;
+  }
+
+  private upgradeCalibratedRigs(team: number, template: CalibratedActorTemplate): void {
+    if (this.disposed) return;
+    for (const rig of this.players.values()) {
+      if (rig.team === team && rig.kind === "calibratedFallback")
+        this.upgradeCalibratedRig(rig, template);
+    }
+  }
+
+  private upgradeCalibratedRig(rig: PlayerRig, template: CalibratedActorTemplate): void {
+    const fallback = rig.calibratedFallback;
+    if (fallback === undefined) return;
+    const model = createCalibratedActorModel(template);
+    const object = model.object;
+    object.visible = false;
+    fallback.group.visible = false;
+    rig.weapon?.dispose();
+    rig.weapon = undefined;
+    object.userData.victimId = rig.id;
+    rig.group.add(object);
+    rig.appearance = new ActorAppearance(object, TEAM_COLOR[rig.team] ?? 0xaaaaaa);
+    rig.kind = "calibratedModel";
+    rig.modelRoot = object;
+    rig.model = model;
+    rig.calibratedTemplate = template;
   }
 
   /** Runs once, right after the player model finishes loading: swaps every
@@ -1410,7 +1786,7 @@ export class SceneRig {
     // Both fallback meshes shared the source material; retain that sharing.
     head.material = body.material;
     mat.dispose();
-    return { group, appearance, team, kind: "capsule", body, head, hitboxOverlay, contact: this.makeContactShadow(group) };
+    return { id, group, appearance, team, kind: "capsule", body, head, hitboxOverlay, contact: this.makeContactShadow(group) };
   }
 
   private makeModelRig(id: string, team: number, gltf: GLTF): PlayerRig {
@@ -1451,6 +1827,7 @@ export class SceneRig {
       group.add(hitboxOverlay.cylinder, hitboxOverlay.head);
     }
     return {
+      id,
       group,
       appearance,
       contact: this.makeContactShadow(group),
@@ -1482,6 +1859,16 @@ export class SceneRig {
     head.position.y = headY - HIT.headRadius;
   }
 
+  private updateCalibratedHitboxOverlay(rig: PlayerRig, sample: HitRigPoseSample): void {
+    if (!rig.hitboxOverlay) return;
+    const { cylinder, head } = rig.hitboxOverlay;
+    cylinder.scale.set(HIT.radius, Math.max(0.001, sample.hitVolume.bodyTopY), HIT.radius);
+    cylinder.position.y = sample.hitVolume.bodyTopY / 2;
+    head.scale.setScalar(sample.headRadius);
+    head.position.set(sample.hitVolume.headCenter.x, sample.hitVolume.headCenter.y,
+      sample.hitVolume.headCenter.z);
+  }
+
   private disposeRig(rig: PlayerRig): void {
     if (rig.contact && !this.warmedMaterials.has(rig.contact.material)) rig.contact.material.dispose();
     rig.weapon?.dispose();
@@ -1491,12 +1878,17 @@ export class SceneRig {
       rig.hitboxOverlay.head.geometry.dispose();
       // HITBOX_MAT is shared across every rig's overlay — never disposed here.
     }
+    if (rig.kind === "calibratedFallback" || rig.kind === "calibratedModel") {
+      rig.calibratedFallback?.dispose();
+      if (rig.kind === "calibratedFallback") return;
+    }
     if (rig.kind === "capsule") {
       rig.body!.geometry.dispose();
       rig.head!.geometry.dispose();
       (rig.body!.material as THREE.Material).dispose();
       return;
     }
+    rig.model?.dispose();
     // Geometry is shared across every clone of the cached GLB (SkeletonUtils.clone
     // never deep-clones buffers) — only the per-instance tint materials this rig's
     // makeModelRig() created are ours to dispose.
@@ -1534,6 +1926,32 @@ export class SceneRig {
    *  self-authoritative tracer a plausible endpoint without server round-trip). */
   wallDistance(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, maxT: number): number {
     return Math.min(maxT, nearestBox(origin, dir, this.hitBoxes, maxT));
+  }
+
+  shotSurface(
+    origin: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+    maxT: number,
+  ): MapSurface {
+    let best = maxT + 0.05;
+    let surface: MapSurface = "concrete";
+    const supports = (binding: SurfaceBinding): readonly Box[] => {
+      if (binding.kind === "box") return this.hitBoxes.includes(binding.box) ? [binding.box] : [];
+      if (binding.kind === "ramp") return rampOccluderBoxes(binding.ramp);
+      const index = this.map.terrain?.faces.indexOf(binding.face) ?? -1;
+      const box = index >= 0 ? this.map.terrain?.boxes[index] : undefined;
+      return box ? [box] : [];
+    };
+    for (const binding of this.map.surfaceBindings ?? []) {
+      for (const box of supports(binding)) {
+        const distance = rayAabb(origin, dir, box, maxT + 0.05);
+        if (distance !== null && distance < best) {
+          best = distance;
+          surface = binding.surface;
+        }
+      }
+    }
+    return surface;
   }
 
   /** World-space position of the LOCAL player's own viewmodel muzzle right now —
@@ -1597,7 +2015,7 @@ export class SceneRig {
    *  checking the crouch stance's actual height against `crouchHeight`. */
   getHitboxDiagnostics(): Array<{
     id: string;
-    kind: "capsule" | "model";
+    kind: "capsule" | "model" | "calibratedFallback" | "calibratedModel";
     renderedX: number;
     renderedZ: number;
     feetWorldY: number;
@@ -1609,7 +2027,7 @@ export class SceneRig {
   }> {
     const out: Array<{
       id: string;
-      kind: "capsule" | "model";
+      kind: "capsule" | "model" | "calibratedFallback" | "calibratedModel";
       renderedX: number;
       renderedZ: number;
       feetWorldY: number;
@@ -1689,6 +2107,12 @@ export class SceneRig {
     for (const { mesh } of this.boxRenders.values()) this.claimTargets.push(mesh);
     for (const { mesh } of this.rampRenders.values()) this.claimTargets.push(mesh);
     for (const rig of this.players.values()) {
+      if (rig.kind === "calibratedFallback" || rig.kind === "calibratedModel") {
+        const fallback = rig.calibratedFallback;
+        if (fallback !== undefined) this.claimTargets.push(
+          ...calibratedActorClaimTargets(rig.group.visible, rig.model, fallback));
+        continue;
+      }
       if (rig.kind === "model" && rig.modelRoot) this.claimTargets.push(rig.modelRoot);
       else if (rig.body && rig.head) this.claimTargets.push(rig.body, rig.head);
     }
@@ -1708,6 +2132,13 @@ export class SceneRig {
 
     const rig = this.players.get(victimId);
     if (!rig) return undefined;
+    if (rig.kind === "calibratedModel") {
+      const sample = rig.calibratedSample;
+      if (sample === undefined) return undefined;
+      this.claimScratch.copy(nearest.point);
+      rig.group.worldToLocal(this.claimScratch);
+      return { id: victimId, part: calibratedModelHitPart(sample, this.claimScratch) };
+    }
     this.claimScratch.set(0, 0, 0);
     rig.model?.getHeadWorldPos(this.claimScratch);
     const headWorldY =
@@ -1760,72 +2191,86 @@ export class SceneRig {
 
   private async prepareScene(): Promise<void> {
     const start = performance.now();
-    await Promise.all(this.assetLoads);
+    const generation = this.preparationLifetime.begin();
+    const assets = await this.preparationLifetime.wait(generation, Promise.all(this.assetLoads));
+    if (!assets.active) return;
     const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-    await nextFrame(); // let the loading message paint before GPU work
+    if (!(await this.preparationLifetime.wait(generation, nextFrame())).active) return;
+
     const rigs = this.modelGltf ? ['bot-1','bot-3','bot-5'].map(id => this.makeModelRig(id, 0, this.modelGltf!)) : [];
     const weaponFixture = new THREE.Group();
-    if (this.weaponIsModel) await Promise.all(GAME.weapons.map(async (_, index) => {
-      const source = weaponSource(GAME.weaponVis, index);
-      if (!source) return;
-      const weapons = await loadWeaponModel(source.url);
-      if (!weapons) return;
-      const template = source.nodeName ? remoteWeaponTemplate(weapons, source.nodeName, index) : undefined;
-      weaponFixture.add(template ? template.object.clone() : weapons.scene.clone());
-    }));
-    this.scene.add(weaponFixture);
-    const oldVisibility = this.canvas.style.visibility;
-    this.canvas.style.visibility = 'hidden';
-    // Keep the default framebuffer's color-space and sample configuration: a
-    // tiny linear render target would warm different material variants.
+    const weaponFixtureLeases: AssetLease<GLTF>[] = [];
     const changed: { object: THREE.Object3D; visible: boolean; culled: boolean; count?: number }[] = [];
+    const oldVisibility = this.canvas.style.visibility;
     try {
+      if (this.weaponIsModel) {
+        const weapons = await this.preparationLifetime.wait(generation, Promise.all(GAME.weapons.map(async (_, index) => {
+          const source = weaponSource(GAME.weaponVis, index, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
+          if (!source) return;
+          const lease = acquireWeaponModel(source.url);
+          weaponFixtureLeases.push(lease);
+          const model = await lease.value;
+          if (!model || !this.preparationLifetime.active(generation)) return;
+          const template = source.nodeName ? remoteWeaponTemplate(model, source.nodeName, index) : undefined;
+          weaponFixture.add(template ? template.object.clone() : model.scene.clone());
+        })));
+        if (!weapons.active) return;
+      }
+
+      this.scene.add(weaponFixture);
+      this.canvas.style.visibility = 'hidden';
       this.boomNade({ id: '__prepare', x: 0, y: 0, z: 0, r: 5 });
       this.addTracer({ x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: 1 }, 10, false, 300);
       this.scene.traverse(object => {
         changed.push({ object, visible: object.visible, culled: object.frustumCulled,
           count: object instanceof THREE.InstancedMesh ? object.count : undefined });
-        object.visible = true; object.frustumCulled = false;
-        // A visible zero-count pool compiles but never submits a draw. Exercise
-        // every slot while the canvas is hidden so sentry/support first use also
-        // warms instance uploads and the driver's draw path, then restore it.
+        object.visible = true;
+        object.frustumCulled = false;
         if (object instanceof THREE.InstancedMesh) {
           object.count = object.instanceMatrix.count;
           this.preparedInstanceSlots += object.count;
         }
-        if (object instanceof THREE.Mesh || object instanceof THREE.Sprite)
-          for (const material of Array.isArray(object.material) ? object.material : [object.material])
+        if (object instanceof THREE.Mesh || object instanceof THREE.Sprite) {
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
             this.warmedMaterials.add(material);
+          }
+        }
       });
-      // Upload every immutable UV view before first play, including weapons not
-      // yet selected. All five share a Source and sampler (one GPU allocation).
       for (const texture of weaponFlashTextures()) this.renderer.initTexture(texture);
-      await this.renderer.compileAsync(this.scene, this.camera);
+      const compiled = await this.preparationLifetime.wait(generation, this.renderer.compileAsync(this.scene, this.camera));
+      if (!compiled.active) return;
       this.renderer.render(this.scene, this.camera);
-      await nextFrame();
+      if (!(await this.preparationLifetime.wait(generation, nextFrame())).active) return;
       this.renderer.render(this.scene, this.camera);
-      await nextFrame();
+      if (!(await this.preparationLifetime.wait(generation, nextFrame())).active) return;
     } finally {
       for (const { object, visible, culled, count } of changed) {
-        object.visible = visible; object.frustumCulled = culled;
+        object.visible = visible;
+        object.frustumCulled = culled;
         if (object instanceof THREE.InstancedMesh && count !== undefined) object.count = count;
       }
       for (const rig of rigs) this.disposeRig(rig);
-      weaponFixture?.removeFromParent();
-      const now = performance.now();
-      this.stepFx(now + 10000); this.updateTracers(now + 10000);
-      for (const light of this.blastLights) { light.born = -Infinity; light.light.intensity = 0; }
-      this.blastTrauma.clear();
-      // The warm pass temporarily made hidden diagnostic geometry visible.
-      // Bake the correct static shadow atlas before the first playable frame.
-      this.renderer.shadowMap.needsUpdate = true;
-      this.renderer.render(this.scene, this.camera);
-      await nextFrame();
-      this.canvas.style.visibility = oldVisibility;
-      this.preparationMs = performance.now() - start;
+      weaponFixture.removeFromParent();
+      for (const lease of weaponFixtureLeases) lease.release();
+      if (this.preparationLifetime.active(generation)) {
+        const now = performance.now();
+        this.stepFx(now + 10000);
+        this.updateTracers(now + 10000);
+        for (const light of this.blastLights) {
+          light.born = -Infinity;
+          light.light.intensity = 0;
+        }
+        this.blastTrauma.clear();
+        this.renderer.shadowMap.needsUpdate = true;
+        this.renderer.render(this.scene, this.camera);
+        const finished = await this.preparationLifetime.wait(generation, nextFrame());
+        if (finished.active) {
+          this.canvas.style.visibility = oldVisibility;
+          this.preparationMs = performance.now() - start;
+        }
+      }
     }
   }
-
   getPreparationInfo() { return { constructionMs: this.constructionMs, durationMs: this.preparationMs,
     instanceSlots: this.preparedInstanceSlots }; }
 
@@ -1954,8 +2399,14 @@ export class SceneRig {
   hideViewmodel(): void { this.viewmodel.visible = false; }
 
   readyForInspection(actorCount: number): boolean {
-    return !this.environmentLoading && (actorCount === 0 || (this.modelState === "ready"
-      && this.players.size === actorCount && [...this.players.values()].every(p => p.kind === "model" && p.weapon?.loaded)));
+    if (this.environmentLoading) return false;
+    if (actorCount === 0) return true;
+    if (this.hitAnimationAuthority !== undefined) return this.calibratedActors?.settled() === true
+      && this.players.size === actorCount
+      && [...this.players.values()].every(player =>
+        (player.kind === "calibratedFallback" || player.kind === "calibratedModel") && player.weapon?.loaded);
+    return this.modelState === "ready" && this.players.size === actorCount
+      && [...this.players.values()].every(player => player.kind === "model" && player.weapon?.loaded);
   }
 
   /** Estimate sampled texture residency (RGBA8/half/float + mip levels), including
@@ -2000,6 +2451,36 @@ export class SceneRig {
       bytes += (img?.width ?? 0) * (img?.height ?? 0) * channels * component * (texture.generateMipmaps ? 4 / 3 : 1);
     }
     return Math.ceil(bytes);
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    ++this.weaponGeneration;
+    this.preparationLifetime.cancel();
+    this.calibratedActors?.dispose();
+    window.removeEventListener("resize", this.onResize);
+    for (const rig of this.players.values()) this.disposeRig(rig);
+    this.players.clear();
+    this.disposeCurrentWeaponMesh();
+    this.weaponLease?.release();
+    this.weaponLease = undefined;
+    this.mapEnvironmentProps?.dispose();
+    this.mapEnvironmentProps = undefined;
+    this.dressingInstance?.dispose();
+    this.dressingInstance = undefined;
+    this.dressingLease?.release();
+    this.dressingLease = undefined;
+    this.modelGltf = undefined;
+    this.modelLease?.release();
+    this.modelLease = undefined;
+    this.contactTexture?.dispose();
+    this.contactTexture = undefined;
+    this.contactGeometry.dispose();
+    this.vfx.dispose();
+    this.combatFx.dispose();
+    this.renderer.dispose();
+    this.canvas.remove();
   }
 
   private resize(): void {
@@ -2063,7 +2544,7 @@ function buildWeaponMesh(index: number): THREE.Group {
     case 3: // Sniper — long barrel + big scope cylinder + bipod nub
       part(0.09, 0.12, 0.5, 0, 0, -0.1, VM_METAL);
       part(0.045, 0.045, 0.75, 0, 0.02, -0.68, VM_ACCENT); // long barrel
-      {
+      if (GAME.weapons[index]?.sight === "scope") {
         const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.26, 12), VM_DARK);
         scope.rotation.x = Math.PI / 2;
         scope.position.set(0, 0.1, -0.12);

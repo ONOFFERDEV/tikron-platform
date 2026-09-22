@@ -24,7 +24,7 @@ it.each(['x', 'z'] as const)('muffles the solid side of a %s ramp but not the ai
 it('uses distinct cached open/closed shutters and leaves an authored doorway audible', () => {
   const collision = new CoreCollision(ARENA1);
   const open = { ...ARENA1, boxes: collision.open };
-  const ear = { x: 68, y: 1.5, z: 50 }, sound = { x: 75, y: 1.5, z: 50 };
+  const ear = { x: 68, y: 1.5, z: 53 }, sound = { x: 75, y: 1.5, z: 53 };
   expect(coverMix(sound, ear, acousticOccluders(ARENA1)).blocked).toBe(true);
   expect(coverMix(sound, ear, acousticOccluders(open)).blocked).toBe(false);
   expect(coverMix(sound, ear, acousticOccluders(ARENA1)).blocked).toBe(true);

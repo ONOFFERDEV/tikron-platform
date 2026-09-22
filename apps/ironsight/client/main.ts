@@ -2,6 +2,10 @@ import { playDroneCue, playContactCue } from './audio.js';
 import { botLabel } from '../src/bot-roles.js';
 import { DeploymentIntro, type IntroPose } from './deployment-intro.js';
 import { DeploymentIntroView } from './deployment-intro-view.js';
+import { DeploymentFlowPanel } from './deployment-banner.js';
+import { warmupSeconds } from './deployment-presentation.js';
+import { blocksGameplayInput, overlayForFlowState, playerFlowReducer, type PlayerFlowEvent, type PlayerFlowState } from './ui/flow-state.js';
+import { objectiveHudStates } from './ui/combat-hud.js';
 import { SupportHud } from './support-hud.js';
 import { MORTAR } from '../src/mortar.js';
 import { playMortarWhistle } from './audio.js';
@@ -11,7 +15,6 @@ import { CoreCollision } from '../src/core-gate.js';
 import { playSignalCue, playFloodCue, playCargoCue } from './audio.js';
 import { RecoilPrediction, recoilSample } from "../src/recoil.js";
 import { footGrounded, hostileFoley } from "./spatial-audio.js";
-import { reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { WeaponHandling, isSprinting } from "../src/handling.js";
 import { setMasterVolume, isMuted, playSlide, playLanding, playTraversal, playLaunch } from "./audio.js";
 /**
@@ -29,49 +32,56 @@ import { setMasterVolume, isMuted, playSlide, playLanding, playTraversal, playLa
 import { parseRigInspect } from "./rig-inspect-query.js";
 import { startRigInspector } from "./rig-inspect.js";
 import { startMapInspector } from "./map-inspect.js";
+import { startEnvironmentInspector } from "./environment-inspect.js";
 import { startWeaponInspector } from "./weapon-inspect.js";
 import { PING } from "../src/ping.js";
 import { TacticalMap } from "./tactical-map.js";
-import { Net, type ShotEvent, type MatchEndEvent } from "./net.js";
+import { ContentRevisionMismatchError, Net, type ShotEvent, type MatchEndEvent } from "./net.js";
 import { Input } from "./input.js";
 import { Predictor } from "./predict.js";
 import { SceneRig } from "./scene.js";
+import { createBundledHitAuthorityContract } from "../src/hit-authority-contract.js";
 import { startMatchInspector } from "./match-inspect.js";
 import { startCompositorInspector } from './compositor-inspect.js';
 import { Hud } from "./hud.js";
+import { installUiTokens } from "./ui/tokens.js";
 import { prepareCompositor, peripheralCompositorFrames } from './compositor-preparation.js';
 import { settingsCompositorFrame } from './settings-ui.js';
 import { playDeploymentCue, playHonorsCue } from './audio.js';
-import { TrainingCoach } from './training-coach.js';
+import { createTrainingRouteSpec, TrainingCoach } from './training-coach.js';
 import { resolveMode } from "./mode-select.js";
 import { wireQuitConfirm, closeGameplayMenus, pauseCompositorFrame } from "./quit-confirm.js";
 import { SettingsStore } from "./settings.js";
-import { inspectThreatAudio, initAudio, setAudioMap, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playReloadCue } from "./audio.js";
+import { configureAudio, disposeAudio, inspectThreatAudio, initAudio, setAudioMap, setAudioListener, playBoom, playFire, playHit, playHurt, playKill, playSwap, playWeaponActionCues } from "./audio.js";
+import { consumeWeaponActionAudio, WeaponAudioEventGate } from './weapon-sound.js';
+import { ShotFeedback, type ShotFeedbackEvent } from './shot-feedback.js';
+import { installCombatTelemetryProbe } from './combat-telemetry-probe.js';
+import { CombatCuePool, nearMissDistance } from './combat-fx.js';
 import { HIP_FOV, INTERP_DELAY_MS } from "./config.js";
 import { PLAYER } from "../src/config.js";
 import { accuracySpread, dirFromAngles, jitter } from "../src/weapons.js";
 import type { FireClaim } from "../src/hitscan.js";
-import { MODE_ORDER, mapForRoom, practiceMapKeyFromRoomId, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
+import { MODE_ORDER, mapForRoom, isTeamless, PRACTICE_SHOWCASE_LABELS } from "../src/modes.js";
 import type { ArenaPlayer, ArenaState } from "../src/schema.js";
 import { GAME } from "../src/game-config.js";
+import { CONTENT_RELOAD_GUIDANCE } from "../config/ww1-content.js";
+import type { ServerHit, ServerKill, ServerShotResult, ShotAttempt } from "../src/combat-events.js";
+import type { WeaponActionState } from "../src/weapon-action.js";
+import { sampleRemoteSnapshot, type RemotePose, type RemoteSnapshot } from "./remote-snapshot.js";
 
 const WEAPONS = GAME.weapons;
 const WEAPON = { swapMs: GAME.weaponMeta.swapMs };
 const DEFAULT_WEAPON_SPEC = WEAPONS[GAME.weaponMeta.defaultIndex]!;
 
-interface Pose {
-  x: number; y: number; z: number; yaw: number; pitch: number;
-  crouch: boolean; team: number; alive: boolean; weapon: number; reloadEnd: number;
-}
-interface Snap {
-  time: number;
-  players: Map<string, Pose>;
-}
-
 const RESPAWN_MS = GAME.feel.respawnDisplayMs; // mirrors MATCH.respawnMs (client countdown only)
 const RESYNC_RELOAD_MS = 2000; // beat to show the failure message before reloading
 
 async function main(): Promise<void> {
+  installUiTokens();
+  if (new URLSearchParams(location.search).get('inspect') === 'environment-kit') {
+    await startEnvironmentInspector();
+    return;
+  }
   if (new URLSearchParams(location.search).get('inspect') === 'match'
     && new URLSearchParams(location.search).get('shot')?.startsWith('match-preparation')) {
     await startCompositorInspector(); return;
@@ -87,16 +97,54 @@ async function main(): Promise<void> {
   // Constructed before Hud since Hud's controls-hint reads live binds from it.
   const settings = new SettingsStore();
   const hud = new Hud(settings);
-  initAudio();
-  setMasterVolume(settings.get().volume);
+  configureAudio(settings.get());
+  initAudio(value => settings.setMuted(value));
 
   // Shows the fullscreen mode menu (and awaits a pick) only when the page has no
   // valid `?mode=` — a deep link resolves immediately with no menu. Either way,
   // `location.search` carries the chosen mode by the time Net.connect() reads it.
   await resolveMode(settings);
+  let flowState: PlayerFlowState = { kind: 'menu' };
+  let requestControl = () => location.reload();
+  const returnToDeployment = () => {
+    const url = new URL(location.href);
+    url.searchParams.delete('mode'); url.searchParams.delete('map');
+    location.replace(url.href);
+  };
+  const deploymentFlow = new DeploymentFlowPanel({
+    retry: () => flowState.kind === 'control-required' ? requestControl() : location.reload(),
+    returnToMenu: returnToDeployment,
+  });
+  const dispatchFlow = (event: PlayerFlowEvent) => {
+    const next = playerFlowReducer(flowState, event);
+    if (next === flowState) return;
+    flowState = next; deploymentFlow.render(flowState);
+  };
+  dispatchFlow({ type: 'connect-requested' });
   hud.showLockPrompt(true, GAME.text.hud.connecting);
 
-  const net = await Net.connect();
+  let net: Net;
+  try {
+    net = await Net.connect();
+  } catch (error) {
+    if (!(error instanceof ContentRevisionMismatchError)) throw error;
+    hud.showLockPrompt(true, CONTENT_RELOAD_GUIDANCE);
+    setTimeout(() => location.reload(), RESYNC_RELOAD_MS);
+    return;
+  }
+  const shotFeedback = new ShotFeedback({ connectionId: net.myId, reducedMotion: settings.get().reducedMotion });
+  const weaponActions = new Map<string, WeaponActionState>();
+  let revisionReloadScheduled = false;
+  net.onContentMismatch(() => {
+    if (revisionReloadScheduled) return;
+    revisionReloadScheduled = true;
+    shotFeedback.clear();
+    weaponActions.clear();
+    if (document.pointerLockElement) document.exitPointerLock();
+    hud.showLockPrompt(true, CONTENT_RELOAD_GUIDANCE);
+    setTimeout(() => location.reload(), RESYNC_RELOAD_MS);
+  });
+  dispatchFlow({ type: 'connected', preparationStage: 'authoritative-state' });
   let me0 = await waitForSelf(net);
   if (!me0) {
     // waitForSelf timed out: state (or our own player entry in it) never arrived,
@@ -116,9 +164,14 @@ async function main(): Promise<void> {
   const map = mapForRoom(MODE_ORDER[net.state?.mode ?? 0] ?? "tdm", net.roomId);
   hud.setDeploymentSite(map.presentation ?? 'Relay');
 
-  if (net.state?.mode === 3) hud.setTrainingSite(practiceMapKeyFromRoomId(net.roomId) === 'arena1', map.presentation === 'undertow');
-  const training = net.state?.mode === 3 ? new TrainingCoach(practiceMapKeyFromRoomId(net.roomId) === 'arena1', settings,
-    map.presentation === 'undertow' ? map.caps.a : undefined) : null;
+  const trainingSpec = net.state?.mode === 3 ? createTrainingRouteSpec(map) : null;
+  if (trainingSpec) hud.setTrainingSite(map.presentation ?? 'relay');
+  const training = trainingSpec ? new TrainingCoach({
+    spec: trainingSpec,
+    settings,
+    onFreeTraining: () => requestControl(),
+    onMenu: returnToDeployment,
+  }) : null;
 
   // Mount the canvas INSIDE #app — the shell's fixed full-screen #app div otherwise stacks
   // above a body-mounted canvas and swallows every click (pointer lock never requested;
@@ -127,13 +180,30 @@ async function main(): Promise<void> {
   const coreCollision = new CoreCollision(map);
   const openAudioMap = { ...map, boxes:coreCollision.open };
   let lastCoreOpen: boolean | undefined;
-  const remoteFoley = new Map<string, { phase: string; y: number }>();
-  const scene = new SceneRig(map, document.getElementById("app") ?? document.body);
+  const hitAuthority = createBundledHitAuthorityContract();
+  const scene = new SceneRig(map, document.getElementById("app") ?? document.body,
+    hitAuthority === undefined ? {} : { hitAnimationAuthority: hitAuthority });
+  const telemetryProbe = installCombatTelemetryProbe(scene.canvas,
+    ['localhost', '127.0.0.1', '::1'].includes(location.hostname));
+  const combatTelemetry = telemetryProbe.telemetry;
+  window.addEventListener('beforeunload', () => {
+    telemetryProbe.dispose();
+    scene.dispose();
+  }, { once: true });
+  const combatCues = new CombatCuePool({ impactCapacity: 48, nearMissCapacity: 16,
+    reducedMotion: settings.get().reducedMotion });
   scene.canvas.inert = true;
   hud.showLockPrompt(true, 'Preparing arena / Loading weapons and effects...');
-  await scene.prepare();
+  dispatchFlow({ type: 'preparation-stage', stage: 'weapons-and-effects' });
+  try {
+    await scene.prepare();
+  } catch (error) {
+    dispatchFlow({ type: 'preparation-failed', stage: 'weapons-and-effects',
+      reason: error instanceof Error ? error.message : 'asset preparation failed' });
+    scene.dispose();
+    return;
+  }
   me0 = net.state?.players[net.myId] ?? me0;
-  scene.onReloadCue(playReloadCue);
   const tacticalMap = new TacticalMap(map, training?.progress.objective, settings);
   const signalHud = new SignalHud(map.presentation === 'undertow' ? playFloodCue : map.presentation === 'switchyard' ? playCargoCue : playSignalCue,
     map.presentation ?? 'relay');
@@ -146,11 +216,15 @@ async function main(): Promise<void> {
   const whistled = new Set<string>();
 
   let lastPingAt = -Infinity;
+  const onLockChange = wireQuitConfirm(settings, () => input.lock(), () => net.state?.phase !== "ended" && net.online);
   const input = new Input(
     scene.canvas,
     me0?.yaw ?? 0,
     settings,
-    wireQuitConfirm(settings, () => input.lock(), () => net.state?.phase !== "ended" && net.online),
+    (locked) => {
+      onLockChange(locked);
+      dispatchFlow(locked ? { type: 'control-acquired' } : { type: 'gameplay-menu-opened' });
+    },
     (slot) => net.sendSwitch(slot),
     (dir) => {
       const cur = net.state?.players[net.myId]?.weapon ?? 0;
@@ -167,6 +241,7 @@ async function main(): Promise<void> {
     () => { if (net.online && net.state?.players[net.myId]?.alive && supportHud.mortarInfo().available)
       net.room.send('mortar', { yaw: input.yaw, pitch: input.pitch }); },
   );
+  requestControl = () => input.lock();
   net.room.onMessage('teamPing', payload => {
     const state = net.state;
     if (!net.online || state?.phase !== 'live' || !state.players[net.myId]?.alive ||
@@ -186,19 +261,18 @@ async function main(): Promise<void> {
     ...peripheralCompositorFrames(), pauseCompositorFrame(settings), settingsCompositorFrame(settings)]);
   scene.canvas.inert = false;
   performance.mark('ironsight-play-ready');
+  dispatchFlow({ type: 'preparation-complete' });
   me0 = net.state?.players[net.myId] ?? me0;
   input.yaw = me0.yaw; input.pitch = me0.pitch;
   const introPose: IntroPose = { eye: {x:0,y:0,z:0}, target: {x:0,y:0,z:0}, fov:68 };
   const predictor = new Predictor(map);
   if (me0) predictor.pos = { x: me0.x, y: me0.y, z: me0.z };
   // Compare shared geometry at matching commands in explicit training reviews.
-  // Keep ordinary play on the established path until combat fixes held ADS/
-  // sprint continuity when an acknowledged-command tick has no queued input.
-  const reviewMovement = net.state?.mode === 3 && new URLSearchParams(location.search).has('movement-review');
+  const reviewMovement = new URLSearchParams(location.search).has('movement-review');
   // `connect` gained an online gate in the combat stream's rollback repair: PartySocket
   // queues writes while the link is down, so retried commands must be dropped rather than
   // turned into an unbounded backlog. Net.online is the same gate Net.send already uses.
-  if (reviewMovement) predictor.connect(net.room, () => net.online);
+  predictor.connect(net.room, () => net.online);
 
   const name = (id: string): string => {
     if (id === net.myId) return GAME.text.selfName;
@@ -219,8 +293,7 @@ async function main(): Promise<void> {
   let resultsShownAt = Infinity;
   hud.setMatchActions(voteRestart, () => {
     net.room.leave();
-    const url = new URL(location.href); url.searchParams.delete('mode');
-    location.replace(url.href);
+    returnToDeployment();
   });
   window.addEventListener("keydown", (e) => {
     if (e.code !== "KeyR" || e.repeat || (e.target instanceof HTMLElement && e.target.closest('input,textarea,select,[contenteditable]'))) return;
@@ -236,12 +309,14 @@ async function main(): Promise<void> {
   // Opt-in bounded observation of combat's acknowledged-command error. Delayed
   // replicated feet are NOT a useful measure of prediction correctness.
   const movementReview: Parameters<NonNullable<typeof predictor.onCorrection>>[0][] = [];
+  const combatReview: ShotFeedbackEvent[] = [];
   if (reviewMovement) predictor.onCorrection = sample => {
     movementReview.push(sample);
     if (movementReview.length > 4096) movementReview.shift();
   };
   (window as unknown as { ironsight?: unknown }).ironsight = {
     movementReview: () => movementReview,
+    combatReview: () => [...combatReview],
     myId: net.myId,
     state: () => net.state,
     look: (yaw: number, pitch: number) => {
@@ -266,16 +341,27 @@ async function main(): Promise<void> {
     recoilInfo: () => ({ ...recoil.state, ...recoilSample(recoil.state, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, net.serverNow(), handling.adsProgress >= 1) }),
     camPos: () => ({ x: scene.camera.position.x, y: scene.camera.position.y, z: scene.camera.position.z }),
     hitboxDiag: () => scene.getHitboxDiagnostics(),
+    combatEventInfo: () => ({ attempt: lastShotAttempt, result: lastShotResult }),
+    shotFeedbackInfo: () => shotFeedback.inspect(),
+    combatCueInfo: () => ({ ...combatCues.inspect(), active: combatCues.active(performance.now()) }),
+    flowInfo: () => ({
+      state: flowState,
+      trainingStep: training?.progress.step ?? null,
+      resultReceived: matchEnd !== null,
+      voteSent,
+      phase: net.state?.phase ?? null,
+      alive: net.state?.players[net.myId]?.alive ?? null,
+    }),
   };
 
   // --- discrete event + state edge handling ---------------------------------
-  const buf: Snap[] = [];
+  const buf: RemoteSnapshot[] = [];
   // Reused across every render frame's sampleRemotes() call (up to 144/s) — the
   // interpolated result is consumed and discarded within the same frame, so
   // mutating pooled Pose objects in place avoids allocating a fresh Map + one
   // object literal per remote player every frame (see perf investigation notes
   // on sampleRemotes below).
-  const interpScratch = new Map<string, Pose>();
+  const interpScratch = new Map<string, RemotePose>();
   let prevHp = me0?.hp ?? 100;
   let wasAlive = me0?.alive ?? true;
   let deathAt = -1;
@@ -301,10 +387,97 @@ async function main(): Promise<void> {
   // never a lasting desync. `mag` starts null until the explicit syncView reply;
   // a fresh spawn has a full mag, while reconnect requests its actual remainder.
   let mag: number | null = null;
+  let lastShotAttempt: ShotAttempt | null = null;
+  let lastShotResult: ServerShotResult | null = null;
+  const weaponAudio = new WeaponAudioEventGate();
+  const actionAudio = new Map<string, { serial: number; cancel: (() => void)[] }>();
+  const cancelActionAudio = (id: string, serial?: number): void => {
+    const active = actionAudio.get(id);
+    if (!active || (serial !== undefined && active.serial !== serial)) return;
+    for (const cancel of active.cancel) cancel();
+    actionAudio.delete(id);
+  };
+  const clearWeaponAudio = (): void => {
+    for (const id of actionAudio.keys()) cancelActionAudio(id);
+    weaponAudio.clear();
+  };
+  window.addEventListener("pagehide", () => {
+    combatTelemetry.reset('dispose', performance.now());
+    hud.resetCombat();
+    shotFeedback.clear();
+    clearWeaponAudio();
+    void disposeAudio();
+    scene.dispose();
+  }, { once: true });
+  const applyShotFeedback = (events: readonly ShotFeedbackEvent[]): void => {
+    hud.receiveCombatEvents(events);
+    if (reviewMovement) {
+      combatReview.push(...events);
+      if (combatReview.length > 256) combatReview.splice(0, combatReview.length - 256);
+    }
+    for (const event of events) {
+      if (event.kind === "confirmed_hit") {
+        training?.progress.confirmHit();
+        hud.showHitmarker(event.part === "head");
+        if (weaponAudio.acceptConfirmation("hit", event.shotId)) playHit(event.part === "head");
+        combatTelemetry.confirmed(event.shotId, 'confirmed_paint', performance.now());
+      } else if (event.kind === "confirmed_kill") {
+        if (weaponAudio.acceptConfirmation("kill", event.shotId)) playKill();
+        combatTelemetry.confirmed(event.shotId, 'confirmed_paint', performance.now());
+      }
+    }
+  };
   let reloadUntil = -1; // performance.now()-based; -1 = not reloading
   let swapUntil = -1; // performance.now()-based; -1 = no pending swap cooldown
   net.onFireBlocked((authoritativeMag, slot) => { if (slot === curWeapon + 1) mag = authoritativeMag; });
+  net.onShotResult(result => {
+    lastShotResult = result;
+    combatTelemetry.shotResult(result, { receiptAt: performance.now(),
+      serverReceiveAt: result.serverReceiveAt, serverResolveAt: result.serverResolveAt });
+    const separator = result.shotId.lastIndexOf(":");
+    const seq = Number(result.shotId.slice(separator + 1));
+    if (Number.isSafeInteger(seq) && seq > 0) recoil.reconcile(seq, result.recoil);
+    if (result.recoil.slot === curWeapon) {
+      mag = result.ammo.mag;
+      hud.setAmmo(result.ammo.mag, result.ammo.reserve);
+    }
+    applyShotFeedback(shotFeedback.result(result));
+  });
+  net.onWeaponAction(event => {
+    training?.progress.observeWeaponAction(net.myId, event);
+    const player = net.state?.players[event.id];
+    const update = consumeWeaponActionAudio(weaponAudio, event, {
+      observedAt: net.serverNow(),
+      localId: net.myId,
+      remoteKnown: event.id === net.myId || player !== undefined,
+    });
+    if (!update.accepted) return;
+    if (event.id === net.myId) hud.receiveWeaponAction(event.state, net.serverNow());
+    if (update.cancelSerial !== null) cancelActionAudio(event.id, update.cancelSerial);
+    if (event.state && update.schedule) {
+      const me = net.state?.players[net.myId];
+      const remote = event.id !== net.myId && player
+        ? { x: player.x, y: player.y + 1, z: player.z }
+        : undefined;
+      const threatGain = player && me
+        ? hostileFoley(player.team, me.team, isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm'))
+        : 1;
+      const scheduled = actionAudio.get(event.id) ?? { serial: event.state.serial, cancel: [] };
+      scheduled.cancel.push(playWeaponActionCues(update.cues, remote, threatGain));
+      actionAudio.set(event.id, scheduled);
+    }
+    if (event.state === null) {
+      weaponActions.delete(event.id);
+      if (event.id === net.myId) reloadUntil = -1;
+      return;
+    }
+    weaponActions.set(event.id, event.state);
+    if (event.id === net.myId && event.state.kind !== "cycle") {
+      reloadUntil = performance.now() + Math.max(0, event.state.endsAt - net.serverNow());
+    }
+  });
   net.onAmmo((e) => {
+    training?.progress.observeAmmo({ weaponIndex: e.weapon - 1, mag: e.mag, reserve: e.reserve });
     scene.setReload(e.reloadMs ?? 0, WEAPONS[e.weapon - 1]?.reloadMs ?? e.reloadMs ?? 1);
     hud.setAmmo(e.mag, e.reserve, e.reloadMs);
     mag = e.mag;
@@ -313,6 +486,7 @@ async function main(): Promise<void> {
     const idx = e.weapon - 1;
     hud.setWeapon(idx);
     if (idx !== curWeapon && idx >= 0) {
+      cancelActionAudio(net.myId);
       recoil.reset(net.fireSeq);
       curWeapon = idx;
       scene.setWeapon(idx);
@@ -322,9 +496,11 @@ async function main(): Promise<void> {
     }
   });
   net.onHit((e) => {
-    training?.progress.confirmHit();
-    hud.showHitmarker(e.head);
-    playHit(e.head);
+    const damage = e.damage ?? e.dmg;
+    if (typeof e.shotId !== "string" || typeof e.victim !== "string" || e.victim.length === 0 ||
+        (e.part !== "body" && e.part !== "head") || !Number.isFinite(damage) || damage <= 0) return;
+    const hit: ServerHit = { shotId: e.shotId, victim: e.victim, damage, part: e.part };
+    applyShotFeedback(shotFeedback.hit(hit));
   });
   net.onKill((e) => {
     hud.addKill(name(e.killer), name(e.victim), e.part, e.killerTeam, e.assist ? name(e.assist) : undefined,
@@ -333,7 +509,10 @@ async function main(): Promise<void> {
       killerName = name(e.killer);
       killerId = e.killer;
     }
-    if (e.killer === net.myId && e.killer !== e.victim) playKill();
+    if (e.killer === net.myId && e.killer !== e.victim && typeof e.shotId === "string") {
+      const kill: ServerKill = { shotId: e.shotId, killer: e.killer, victim: e.victim, part: e.part };
+      applyShotFeedback(shotFeedback.kill(kill));
+    }
   });
   net.onStreak((e) => { if ((![3, 5, 7].includes(e.count) || net.state?.mode === 1) && !supportHud.announcing(net.serverNow())) hud.showStreak(name(e.id), e.count); });
   const remoteSlides = new Map<string, () => void>();
@@ -359,7 +538,10 @@ async function main(): Promise<void> {
     // Remote shots have no local equivalent, so anchor them to that player's
     // CURRENTLY RENDERED rig position instead of the (also stale, and further
     // delayed by our own render-interpolation) wire origin.
-    if (e.from !== net.myId) {
+    const remoteShot = e.from !== net.myId && e.shotId
+      ? shotFeedback.shotEcho({ shotId: e.shotId, from: e.from })
+      : null;
+    if (remoteShot) {
       const anchor = scene.getRemoteMuzzleAnchor(e.from) ?? { x: e.ox, y: e.oy, z: e.oz };
       // e.weapon is the SLOT (1-5, WeaponSpec.slot) — same conversion the
       // "ammo" handler above already uses for this shooter's OWN weapon.
@@ -367,16 +549,21 @@ async function main(): Promise<void> {
       scene.addTracer(anchor, dir, e.dist, e.hit, tracerSpeed);
       scene.spawnCasing(anchor, dir);
       scene.spawnMuzzleFlash(anchor, dir, e.weapon - 1);
-      playFire(e.weapon - 1, anchor);
+      if (weaponAudio.acceptRemoteShot(remoteShot.shotId, false)) playFire(e.weapon - 1, anchor);
     }
     // Impact FX stays wire-authoritative for everyone — it's the true world-space
     // hit/wall location the server computed, unaffected by muzzle-position lag.
     const impactDist = Math.max(0.5, e.dist);
-    scene.spawnImpact(
-      { x: e.ox + e.dx * impactDist, y: e.oy + e.dy * impactDist, z: e.oz + e.dz * impactDist },
-      dir,
-      e.hit,
-    );
+    const origin = { x: e.ox, y: e.oy, z: e.oz };
+    const endpoint = { x: e.ox + e.dx * impactDist, y: e.oy + e.dy * impactDist, z: e.oz + e.dz * impactDist };
+    const newEndpoint = e.shotId && !e.hit
+      ? combatCues.impact({ shotId: e.shotId, material: scene.shotSurface(origin, dir, impactDist), ...endpoint }, performance.now())
+      : true;
+    if (newEndpoint) scene.spawnImpact(endpoint, dir, e.hit);
+    if (remoteShot && !(e.hits ?? []).some(hit => hit.id === net.myId)) {
+      const distance = nearMissDistance(origin, dir, impactDist, predictor.eye());
+      if (distance <= 1.75) combatCues.nearMiss({ shotId: remoteShot.shotId, distance }, performance.now());
+    }
     // Remote hit-reaction: never the local player (no first-person body model) —
     // whoever fired, either shooter or victim can be self, so this checks the
     // VICTIM id specifically, not e.from. `?? []` guards the deploy-transition
@@ -386,8 +573,10 @@ async function main(): Promise<void> {
     }
   });
   net.onMatchEnd((e) => {
-    if (!matchEnd) mvpName = e.mvp ? name(e.mvp.id) : '';
+    if (matchEnd) return;
+    mvpName = e.mvp ? name(e.mvp.id) : '';
     matchEnd = e;
+    dispatchFlow({ type: 'results-received' });
   });
   net.onVote((e) => hud.setVoteStatus(e.count, e.need));
   net.onNadeSpawn((e) => scene.spawnNade(e));
@@ -413,6 +602,7 @@ async function main(): Promise<void> {
 
   const droneLocks = new Map<string,number>();
   let previousPhase = net.state?.phase;
+  let awaitingReconnectState = false;
   net.onHurt(bearing => hud.showDamageDirection(bearing));
   const ingest = (raw: unknown) => {
     const state = raw as ArenaState;
@@ -422,8 +612,26 @@ async function main(): Promise<void> {
       setAudioMap(state.coreOpen ? openAudioMap : map);
     }
     if (state.phase === "live" && previousPhase !== "live") {
-      reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
+      combatTelemetry.reset('round', performance.now());
+      hud.resetCombat();
+      clearWeaponAudio();
+      shotFeedback.clear();
+      weaponActions.clear(); reloadUntil = -1; swapUntil = -1; mag = null; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
       scene.setReload(0, 1); net.requestSync();
+    }
+    if (state.phase === "ended" && previousPhase !== "ended") {
+      dispatchFlow(matchEnd ? { type: 'results-received' } : { type: 'results-pending' });
+    } else if (state.phase !== "ended" && previousPhase === "ended") {
+      dispatchFlow({ type: 'round-reset', live: state.phase === 'live' });
+    }
+    if (awaitingReconnectState && net.online) {
+      awaitingReconnectState = false;
+      dispatchFlow({ type: 'reconnected', live: state.phase === 'live' });
+      if (state.phase === 'ended') {
+        dispatchFlow(matchEnd ? { type: 'results-received' } : { type: 'results-pending' });
+      } else if (state.players[net.myId]?.alive === false) {
+        dispatchFlow({ type: 'player-died', redeploySeconds: null });
+      }
     }
     previousPhase = state.phase;
     if (state.phase !== "ended") { matchEnd = null; honorsPlayed = false; }
@@ -442,9 +650,18 @@ async function main(): Promise<void> {
         playHurt();
       }
       if (wasAlive && !me.alive) {
+        input.clearFire("death");
+        closeGameplayMenus();
+        hud.receiveWeaponAction(null, net.serverNow());
+        hud.resetCombat();
+        if (document.pointerLockElement === scene.canvas) document.exitPointerLock();
+        shotFeedback.clear();
+        weaponActions.delete(net.myId);
+        cancelActionAudio(net.myId);
         handling = new WeaponHandling(); recoil.reset(net.fireSeq);
         deathAt = performance.now();
         respawnSent = false;
+        dispatchFlow({ type: 'player-died', redeploySeconds: RESPAWN_MS / 1000 });
         deathCam = buildDeathCam(predictor.eye(), input.yaw, input.pitch, killerId, net.myId, state);
       }
       if (!wasAlive && me.alive) {
@@ -458,19 +675,27 @@ async function main(): Promise<void> {
         // Mirrors server death cleanup; syncView supplies the fresh loadout.
         mag = null;
         reloadUntil = -1;
+        weaponActions.delete(net.myId);
         scene.setReload(0, 1);
         swapUntil = -1;
         net.requestSync();
+        dispatchFlow({ type: 'player-respawned' });
       }
       prevHp = me.hp;
       wasAlive = me.alive;
     }
     // Buffer every player's pose for interpolation (rendered ~INTERP_DELAY in the past).
-    const players = new Map<string, Pose>();
+    const players = new Map<string, RemotePose>();
     for (const [id, p] of Object.entries(state.players)) {
-      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team, alive: p.alive, weapon: p.weapon, reloadEnd: p.reloadEnd });
+      players.set(id, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch, crouch: p.crouch, team: p.team,
+        alive: p.alive, weapon: p.weapon, reloadEnd: p.reloadEnd,
+        hitClipIndex: p.hitClipIndex, hitClipStartedAt: p.hitClipStartedAt,
+        hitBlendSources: p.hitBlendSources.map(source => ({ ...source })),
+        hitReactionKind: p.hitReactionKind, hitReactionStartedAt: p.hitReactionStartedAt,
+        hitReactionSeq: p.hitReactionSeq, hitSegmentSeq: p.hitSegmentSeq,
+        hitSegmentStartedAt: p.hitSegmentStartedAt });
     }
-    buf.push({ time: performance.now(), players });
+    buf.push({ receiptTime: performance.now(), serverTime: net.stateServerTime, players });
     while (buf.length > 24) buf.shift();
   };
   net.room.onStateChange(ingest);
@@ -496,6 +721,8 @@ async function main(): Promise<void> {
     // Zoom slows the turn: scale look sensitivity by the live FOV ratio.
     input.sensScale = scene.currentFov / HIP_FOV;
   };
+  let telemetryAdsHeld = false;
+  let pendingTelemetryAds: { readonly held: boolean; readonly handlerAt: number } | null = null;
 
   function frame(now: number): void {
     const dt = Math.min(100, now - last);
@@ -504,13 +731,18 @@ async function main(): Promise<void> {
 
     // Intents (net enforces the send budget).
     if (net.online !== wasOnline) {
+      combatTelemetry.reset('reconnect', now);
+      hud.resetCombat();
       buf.length = 0; handling = new WeaponHandling(); recoil.reset(net.fireSeq);
-      if (!net.online && document.pointerLockElement) document.exitPointerLock();
+      if (!net.online) {
+        awaitingReconnectState = true;
+        input.clearFire("offline");
+        clearWeaponAudio();
+        shotFeedback.clear();
+        weaponActions.clear();
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
       if (net.online) {
-        // The review adapter handles its own welcome/epoch snapshot. The normal
-        // held-input path still needs its existing reconnect position seed.
-        const restored = net.state?.players[net.myId];
-        if (!reviewMovement && restored) predictor.pos = { x: restored.x, y: restored.y, z: restored.z };
         net.requestSync();
       }
       wasOnline = net.online;
@@ -518,12 +750,14 @@ async function main(): Promise<void> {
     const introducing = state ? intro.update(state, net.serverNow(), now,
       net.online && input.locked && !!state.players[net.myId]?.alive && !document.hidden, settings.get().reducedMotion) : false;
     introView.update(introducing);
-    const intent = net.online && state?.phase !== "ended" && !introducing ? input.intent() : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
-    const active = net.online && state?.phase !== "ended" && !!state?.players[net.myId]?.alive;
+    const gameplayInputAllowed = !blocksGameplayInput(flowState);
+    const intent = gameplayInputAllowed && net.online && state?.phase !== "ended" && !introducing
+      ? input.intent()
+      : { mx: 0, mz: 0, jump: false, crouch: false, sprint: false };
+    const active = gameplayInputAllowed && net.online && state?.phase !== "ended" && !!state?.players[net.myId]?.alive;
     intent.ads = active && !introducing && input.adsHeld;
     // Fire/aim cancel sprint before sending the intent; server enforces recovery.
-    if (input.isFiring || intent.ads) intent.sprint = false;
-    if (!reviewMovement) net.setMoveIntent(intent, now);
+    if (input.wantsFire || intent.ads) intent.sprint = false;
     net.setLook(input.yaw, input.pitch, now);
     predictor.frame(dt, intent, input.yaw);
     input.consumeJump();
@@ -534,7 +768,11 @@ async function main(): Promise<void> {
     const alive = me?.alive ?? false;
     handling.update(now, WEAPONS[curWeapon] ?? DEFAULT_WEAPON_SPEC, predictor.isTraversing || isSprinting(intent, predictor.isGrounded), intent.ads === true,
       !active || now < reloadUntil || now < swapUntil);
-    training?.update(now, active && document.pointerLockElement === scene.canvas, me?.x ?? 0, me?.z ?? 0,
+    if ((intent.ads === true) !== telemetryAdsHeld) {
+      telemetryAdsHeld = intent.ads === true;
+      pendingTelemetryAds = { held: telemetryAdsHeld, handlerAt: performance.now() };
+    }
+    training?.update(now, net.serverNow(), active && document.pointerLockElement === scene.canvas, me?.x ?? 0, me?.z ?? 0,
       handling.adsProgress >= 1, dt);
 
     // Camera from prediction (local, immediate) — needed here already: a confirmed
@@ -546,9 +784,13 @@ async function main(): Promise<void> {
     const kick = recoilSample(recoil.state, spec, shotNow, handling.adsProgress >= 1);
     const aimYaw = input.yaw + kick.yaw;
     const aimPitch = Math.max(-Math.PI / 2 + .01, Math.min(Math.PI / 2 - .01, input.pitch + kick.pitch));
+    const fireRequest = net.online && !introducing && alive && phase === "live"
+      ? input.takeFire(now, spec.fireMode, handling.canFire && net.canTryFire(now))
+      : null;
 
     // Firing (server fire interval is the truth; net gates, we kick locally).
-    if (net.online && !introducing && input.isFiring && alive && phase === "live" && handling.canFire) {
+    if (fireRequest) {
+      const fireHandlerAt = performance.now();
       // net.tryFire only mirrors the fire-rate cap — it still sends "fire" so the
       // server (the real authority) can act on it regardless of our own gate
       // below. canPredictFire mirrors the REST of the server's drop conditions
@@ -572,10 +814,18 @@ async function main(): Promise<void> {
         const claimDir = dirFromAngles(aimYaw + jitter(acc, Math.random), aimPitch + jitter(acc, Math.random));
         return scene.raycastHitClaim(eye, claimDir, spec.range) ?? null;
       };
-      if (net.tryFire(now, computeClaim, { yaw: input.yaw, pitch: input.pitch }) && canPredictFire(now, mag, reloadUntil, swapUntil)) {
+      const predicts = canPredictFire(now, mag, reloadUntil, swapUntil);
+      const shotAttempt = net.tryFire(now, computeClaim, { yaw: input.yaw, pitch: input.pitch },
+        (prepared, sendAt) => combatTelemetry.beginShot(prepared, { pressedAt: fireRequest.pressedAt }, { handlerAt: fireHandlerAt, sendAt }));
+      if (shotAttempt) lastShotAttempt = shotAttempt;
+      const predicted = shotAttempt ? shotFeedback.attempt(shotAttempt) : null;
+      if (predicted && predicts) {
         recoil.fire(net.fireSeq, spec, shotNow);
-        scene.fireRecoil(curWeapon);
-        playFire(curWeapon);
+        scene.fireRecoil(curWeapon, predicted.recoilScale);
+        combatTelemetry.predictedCommitted(predicted.shotId, performance.now());
+        if (weaponAudio.acceptLocalAttempt(predicted.shotId) && playFire(curWeapon)) {
+          combatTelemetry.audioScheduled(predicted.shotId, performance.now());
+        }
         if (mag !== null) mag -= 1; // predicted decrement; the next "ammo" resyncs it
         // Self-authoritative tracer/casing: waiting for the "shot" echo (see
         // onShot above) would draw them from this shooter's server-known position
@@ -600,6 +850,8 @@ async function main(): Promise<void> {
     }
 
     scene.reducedMotion = settings.get().reducedMotion;
+    shotFeedback.setReducedMotion(settings.get().reducedMotion);
+    combatCues.setReducedMotion(settings.get().reducedMotion);
     scene.setBlastFeedback(active && input.locked);
     const signal = state ? signalHud.update(state, net.serverNow(), net.online) : undefined;
     if (signal) scene.updateSignal(signal);
@@ -633,6 +885,10 @@ async function main(): Promise<void> {
     }
     setAudioListener(scene.camera.position, deathCam?.yaw ?? input.yaw);
     onAds(alive && !introducing && input.adsHeld);
+    if (pendingTelemetryAds !== null) {
+      combatTelemetry.adsApplied(pendingTelemetryAds.held, pendingTelemetryAds.handlerAt, performance.now());
+      pendingTelemetryAds = null;
+    }
     const dYaw = wrapPi(input.yaw - prevYaw);
     const dPitch = input.pitch - prevPitch;
     prevYaw = input.yaw;
@@ -644,27 +900,22 @@ async function main(): Promise<void> {
     motionX = eye.x; motionZ = eye.z;
     scene.reducedMotion = settings.get().reducedMotion;
     setMasterVolume(settings.get().volume);
-    scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded);
+    scene.updateViewmodel(dt, speed01, dYaw, dPitch, predictor.isGrounded,
+      weaponActions.get(net.myId) ?? null, net.serverNow());
     if (!alive) scene.hideViewmodel();
     scene.stepFootSelf(predictor.pos, dt, alive && predictor.isGrounded && !predictor.isSliding);
 
     // Remote players interpolated in the past.
-    const poses = sampleRemotes(buf, now - INTERP_DELAY_MS, interpScratch);
+    const remoteSample = sampleRemoteSnapshot(buf, now - INTERP_DELAY_MS, interpScratch);
+    const poses = remoteSample.poses;
     scene.setActorAppearance(me?.team, isTeamless(MODE_ORDER[state?.mode ?? 0] ?? 'tdm'), settings.get().enemyHighlight);
-    scene.syncPlayers(poses, net.myId, dt, undefined, net.serverNow());
+    scene.syncPlayers(poses, net.myId, dt, undefined, remoteSample.sampledServerTime ?? net.serverNow(), now, weaponActions);
     for (const [id, p] of poses) {
-      if (id === net.myId || !p.alive) { remoteFoley.delete(id); continue; }
-      const previous = remoteFoley.get(id);
+      if (id === net.myId || !p.alive) continue;
       const threatGain = hostileFoley(p.team, net.state?.players[net.myId]?.team ?? p.team,
         isTeamless(MODE_ORDER[net.state?.mode ?? 0] ?? 'tdm'));
       scene.stepFootRemote(id, p, dt, eye, threatGain, footGrounded(p, map) && !remoteSlides.has(id));
-      const phase = reloadPose(remoteReloadProgress(p.alive, p.reloadEnd,
-        WEAPONS[p.weapon]?.reloadMs ?? 1, net.serverNow())).phase;
-      // Seed on AOI entry; never replay an already-running phase.
-      if (previous && previous.phase !== phase) playReloadCue(phase, { x: p.x, y: p.y + 1, z: p.z }, threatGain);
-      remoteFoley.set(id, { phase, y: p.y });
     }
-    for (const id of remoteFoley.keys()) if (!poses.has(id)) remoteFoley.delete(id);
     scene.render(undefined, introducing ? intro.pose(map, introPose) : undefined);
 
     // HUD.
@@ -672,7 +923,15 @@ async function main(): Promise<void> {
       hud.setHp(me.hp);
       hud.setNades(me.nades);
     }
-    if (state) { hud.setScores(state.redScore, state.blueScore); hud.setMatchContext(state, net.serverNow(), net.myId); }
+    if (state) {
+      hud.setScores(state.redScore, state.blueScore);
+      hud.setMatchContext(state, net.serverNow(), net.myId);
+      hud.setCombatObjectives(objectiveHudStates(
+        state.mode,
+        [state.capA, state.capB, state.capC],
+        state.players[net.myId]?.team ?? -1,
+      ));
+    }
     input.updateCommunication(net.online && state?.phase === 'live' && !!state.players[net.myId]?.alive && state.mode !== 1);
     if (state) tacticalMap.update(state, net.myId, input.yaw, now, net.serverNow(), net.online && input.locked, support);
     const mode = state?.mode ?? 0;
@@ -698,6 +957,7 @@ async function main(): Promise<void> {
     fpsFrames++;
     if (now - fpsWindowStart >= 500) {
       hud.setFps((fpsFrames * 1000) / (now - fpsWindowStart));
+      hud.setCombatLatency(combatTelemetry.snapshot().hud);
       fpsFrames = 0;
       fpsWindowStart = now;
     }
@@ -705,15 +965,25 @@ async function main(): Promise<void> {
 
     hud.setMuted(isMuted() || settings.get().volume === 0);
     if (phase === 'ended' || !net.online) closeGameplayMenus();
-    // Overlay precedence: match end > death > pointer-lock prompt.
+    if (!net.online) dispatchFlow(net.connectionExpired ? { type: 'connection-expired' } : { type: 'reconnecting' });
+    else {
+      if (!input.locked) dispatchFlow({ type: 'control-lost', rejected: input.lockRetry });
+      else if (phase === 'warmup' && state) dispatchFlow({ type: 'warmup-updated', seconds: warmupSeconds(state, net.serverNow()) });
+      else if (phase === 'live') dispatchFlow({ type: 'match-live' });
+    }
     if (phase === "ended" && !wasEnded) {
+      input.clearFire("menu");
+      shotFeedback.clear();
+      clearWeaponAudio();
+      weaponActions.clear();
       resultsShownAt = now;
       if (document.pointerLockElement) document.exitPointerLock();
     }
     wasEnded = phase === "ended";
-    if (!net.online) {
+    const overlay = overlayForFlowState(flowState);
+    if (overlay === 'expired' || overlay === 'recovery') {
       hud.showConnection(net.connectionExpired);
-    } else if (phase === "ended" && matchEnd) {
+    } else if (overlay === 'results' && matchEnd) {
       if (matchEnd.mvp && !honorsPlayed) { honorsPlayed = true; playHonorsCue(); }
       // "draw" is a literal wire value (the no-score timeout), not a player id — name()
       // must not be applied to it or it renders as a garbled "draw WINS" in FFA.
@@ -727,16 +997,16 @@ async function main(): Promise<void> {
           name: name(id), k: p.k, d: p.d, team: p.team, isMe: id === net.myId,
         })),
       });
-    } else if (phase === "ended") {
+    } else if (overlay === 'results-wait') {
       hud.showLockPrompt(true, "ROUND COMPLETE · Receiving results…");
-    } else if (me && !me.alive) {
+    } else if (overlay === 'death' && me && !me.alive) {
       const left = Math.max(0, RESPAWN_MS - (now - deathAt)) / 1000;
       hud.showDeath(left, killerName);
       if (left <= 0 && !respawnSent) {
         net.respawn();
         respawnSent = true;
       }
-    } else if (!input.locked) {
+    } else if (overlay === 'control') {
       hud.showLockPrompt(true, input.lockRetry ? 'Click again to resume mouse control' : GAME.text.hud.clickToPlay);
     } else {
       hud.hideOverlay();
@@ -766,61 +1036,12 @@ async function waitForSelf(net: Net): Promise<ArenaPlayer | undefined> {
  *  render frame (up to 144/s) purely to be dropped a moment later. The two
  *  early-return cases below already alias an existing buffered snapshot's Map
  *  (no interpolation needed, so no new object to build either way). */
-function sampleRemotes(buf: Snap[], renderTime: number, scratch: Map<string, Pose>): Map<string, Pose> {
-  if (buf.length === 0) {
-    scratch.clear(); // only true at startup, before the first snapshot arrives
-    return scratch;
-  }
-  if (buf.length === 1 || renderTime <= buf[0]!.time) return buf[0]!.players;
-  const lastSnap = buf[buf.length - 1]!;
-  if (renderTime >= lastSnap.time) return lastSnap.players;
-  let a = buf[0]!;
-  let b = lastSnap;
-  for (let i = 0; i < buf.length - 1; i++) {
-    if (renderTime >= buf[i]!.time && renderTime <= buf[i + 1]!.time) {
-      a = buf[i]!;
-      b = buf[i + 1]!;
-      break;
-    }
-  }
-  const span = b.time - a.time;
-  const t = span <= 0 ? 1 : (renderTime - a.time) / span;
-  for (const id of scratch.keys()) {
-    if (!b.players.has(id)) scratch.delete(id);
-  }
-  for (const [id, pb] of b.players) {
-    const pa = a.players.get(id) ?? pb;
-    let pose = scratch.get(id);
-    if (!pose) {
-      pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, crouch: false, team: 0, alive: false, weapon: 0, reloadEnd: 0 };
-      scratch.set(id, pose);
-    }
-    pose.x = lerp(pa.x, pb.x, t);
-    pose.y = lerp(pa.y, pb.y, t);
-    pose.z = lerp(pa.z, pb.z, t);
-    pose.yaw = lerpAngle(pa.yaw, pb.yaw, t);
-    pose.pitch = lerp(pa.pitch, pb.pitch, t);
-    pose.crouch = pb.crouch;
-    pose.team = pb.team;
-    pose.alive = pb.alive;
-    pose.weapon = pb.weapon;
-    pose.reloadEnd = pb.reloadEnd;
-  }
-  return scratch;
-}
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 function wrapPi(a: number): number {
   const tau = Math.PI * 2;
   let d = a % tau;
   if (d > Math.PI) d -= tau;
   else if (d < -Math.PI) d += tau;
   return d;
-}
-function lerpAngle(a: number, b: number, t: number): number {
-  return a + wrapPi(b - a) * t;
 }
 
 /** Client-side mirror of arena-room.ts's `handleFire` drop conditions: mid

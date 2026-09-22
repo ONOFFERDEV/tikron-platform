@@ -11,13 +11,20 @@ import { RELAY_FINISH, relayBakedFinish } from './relay-palette.js';
 import { applyRelayWeathering, type RelayWeatherSource } from './relay-weathering.js';
 import { UNDERTOW_FINISH, undertowBakedFinish } from './undertow-palette.js';
 import { SWITCHYARD_FINISH, switchyardBakedFinish } from './switchyard-palette.js';
+import { applyArchitectureLoadResult } from './site-architecture.js';
 
 /** Decode AO to a single-channel data texture once: 1.33 MiB including mips,
  * rather than a 5.33 MiB RGBA allocation. No extra shader/pass is introduced. */
 export async function loadArchitecture(scene: T.Scene, name: string, fallback: T.Mesh[]): Promise<void> {
-  const [gltf] = await Promise.all([
-    new GLTFLoader().loadAsync(`/assets/maps/${name}-architecture.glb`), waitForSiteGround(scene),
+  const [result] = await Promise.all([
+    new GLTFLoader().loadAsync(`/assets/maps/${name}-architecture.glb`).then(
+      (value): PromiseSettledResult<typeof value> => ({ status: 'fulfilled', value }),
+      (reason): PromiseSettledResult<never> => ({ status: 'rejected', reason }),
+    ),
+    waitForSiteGround(scene),
   ]);
+  if (result.status === 'rejected') return;
+  const gltf = result.value;
   const weatherSources = new Map<T.Mesh, RelayWeatherSource>();
   if (name === 'relay' || name === 'undertow') {
     const pending: Promise<void>[] = [];
@@ -56,19 +63,7 @@ export async function loadArchitecture(scene: T.Scene, name: string, fallback: T
       material.aoMapIntensity = 0.75;
     }
   });
-  scene.add(gltf.scene);
-  // All geometry in this list is original. Shared emissive materials survive.
-  const geometries = new Set<T.BufferGeometry>(), materials = new Set<T.Material>();
-  for (const mesh of fallback) {
-    mesh.removeFromParent(); geometries.add(mesh.geometry);
-    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materials.add(mat);
-  }
-  scene.traverse(node => {
-    if (!(node instanceof T.Mesh)) return;
-    geometries.delete(node.geometry);
-    for (const mat of Array.isArray(node.material) ? node.material : [node.material]) materials.delete(mat);
-  });
-  geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
+  applyArchitectureLoadResult(scene, fallback, { status: 'fulfilled', value: gltf.scene });
   sourceTextures.forEach(t => { t.dispose(); (t.image as ImageBitmap).close?.(); });
   if (name === 'relay' || name === 'undertow' || name === 'switchyard') {
     const relay = name === 'relay', undertow = name === 'undertow', switchyard = name === 'switchyard';

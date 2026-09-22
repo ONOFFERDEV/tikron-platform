@@ -401,14 +401,13 @@ describe("compileTileMap - ramp entry lint (2026-07-17 through-wall incident)", 
     expect(ARENA1.presentation).toBe("relay"); // legacy index-based dressing must not load
     const structureParts = new Set(ARENA1.structures!.flatMap(s => s.parts.map(p => p.box)));
     const structureRamps = new Set(ARENA1.structures!.flatMap(s => s.ramps));
+    const core = ARENA1.signalCore!;
     expect(ARENA1.ramps!.filter(r => !structureRamps.has(r))).toHaveLength(4);
     expect(structureRamps.size).toBe(4);
     for (const b of ARENA1.boxes.filter(b => !structureParts.has(b) && !ARENA1.terrain?.boxes.includes(b))) {
-      // The authored moving shutters use half-metre thickness. Static kit and
-      // tile footprints retain the integer grid; gate geometry is tested apart.
-      if (ARENA1.signalCore?.doors.includes(b)) {
-        expect(b.max.x-b.min.x).toBe(.5);continue;
-      }
+      const insideAuthoredEventFrame = b.min.x >= core.chamber.min.x && b.max.x <= core.chamber.max.x
+        && b.min.z >= core.chamber.min.z - .4 && b.max.z <= core.chamber.max.z + .4;
+      if (insideAuthoredEventFrame) continue;
       expect(Number.isInteger(b.min.x) && Number.isInteger(b.max.x)).toBe(true);
       expect(Number.isInteger(b.min.z) && Number.isInteger(b.max.z)).toBe(true);
     }

@@ -7,10 +7,15 @@ import { paintUndertowWetness } from './undertow-wetness.js';
 import { finishUndertowSurface, undertowGroundTexture, updateUndertowGroundTexture } from './undertow-surfaces.js';
 import { finishSwitchyardSurface } from './switchyard-surfaces.js';
 import { paintSwitchyardServiceWear } from './switchyard-service-wear.js';
+import type { FloorFace } from '../src/map/terrain.js';
 
 const groundLoads = new WeakMap<T.Scene, Promise<void>>();
 export function waitForSiteGround(scene: T.Scene): Promise<void> {
   return groundLoads.get(scene) ?? Promise.resolve();
+}
+
+export function siteGroundFaces(map: MapDef): readonly FloorFace[] {
+  return map.terrain?.faces ?? [{ minX: 0, maxX: map.bounds.width, minZ: 0, maxZ: map.bounds.depth, y: 0 }];
 }
 
 /** Original baked contact/dirt atlas. Opaque ground: no AO pass, blended floor

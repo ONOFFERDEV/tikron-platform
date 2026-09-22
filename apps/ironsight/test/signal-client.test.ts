@@ -7,39 +7,26 @@ import { Predictor } from '../client/predict.js';
 import { ARENA2 } from '../src/map/arena2.js';
 import { ARENA1 } from '../src/map/arena1.js';
 import { ARENA3 } from '../src/map/arena3.js';
-import { CargoCounterweight } from '../client/cargo-counterweight.js';
 
-it('freight locks match prediction and retain all GPU resources through occupied holds and late joins',()=>{
-  vi.stubGlobal('document',{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})});
-  try {
-    const scene=new THREE.Scene(),weight=new CargoCounterweight(scene,ARENA3.signalCore!);
-    const objects:THREE.Object3D[]=[];scene.traverse(o=>objects.push(o));
-    const meshes=objects.filter((o):o is THREE.Mesh=>o instanceof THREE.Mesh);
-    const geometry=meshes.map(m=>m.geometry),materials=meshes.map(m=>m.material);
-    for(const open of [false,true,true,false,true]) {
-      weight.setOpen(open);scene.updateMatrixWorld(true);
-      expect(weight.inspect().weightY).toBe(open?-3:0);
-      const p=new Predictor(ARENA3);p.pos={x:121,y:0,z:50};p.setCoreOpen(open);
-      for(let i=0;i<32;i++)p.frame(50,{mx:0,mz:1,jump:false,crouch:false,sprint:false},Math.PI/2);
-      if(open)expect(p.pos.x).toBeGreaterThan(129.5);else expect(p.pos.x).toBeLessThan(124);
-      // The first child is the complete retracting weight, including the signs.
-      const envelope=new THREE.Box3().setFromObject(weight.root.children[0]!);
-      expect(envelope.max.y).toBeCloseTo(open?.006:3.006,3);
-      expect(envelope.min.x).toBeGreaterThan(123.97);expect(envelope.max.x).toBeLessThan(128.03);
-    }
-    const final:THREE.Object3D[]=[];scene.traverse(o=>final.push(o));expect(final).toEqual(objects);
-    expect(meshes.map(m=>m.geometry)).toEqual(geometry);expect(meshes.map(m=>m.material)).toEqual(materials);
-    expect(objects.some(o=>o instanceof THREE.Light)).toBe(false);expect(meshes.every(m=>!m.castShadow)).toBe(true);
-  } finally {vi.unstubAllGlobals();}
+it('keeps Switchyard freight cover fixed across replicated core states',()=>{
+  expect(ARENA3.signalCore).toBeUndefined();
+  for(const open of [false,true,true,false,true]) {
+    const p=new Predictor(ARENA3);p.pos={x:121,y:0,z:50};p.setCoreOpen(open);
+    for(let i=0;i<32;i++)p.frame(50,{mx:0,mz:1,jump:false,crouch:false,sprint:false},Math.PI/2);
+    expect(p.pos.x).toBeLessThan(124);
+  }
 });
 
-it.each([ARENA1,ARENA2])('$presentation matches replicated shutters in prediction and rendering with constant resources and Reduced motion',(map)=>{
+it.each([
+  { label: 'relay', map: ARENA1, doorZ: 53 },
+  { label: 'undertow', map: ARENA2, doorZ: 46 },
+] as const)('$label matches replicated shutters in prediction and rendering with constant resources and Reduced motion',({map,doorZ})=>{
   const scene=new THREE.Scene(),core=new SignalCore(scene,map.signalCore!);
   const objects:THREE.Object3D[]=[];scene.traverse(o=>objects.push(o));
   for(const open of [false,true,false,true]) {
     core.setOpen(open);core.update(signalFrame(1000,'live',10500),true);
     expect(core.inspect().shutterY).toBe(open?3:0);
-    const p=new Predictor(map);p.pos={x:map.signalCore!.chamber.min.x-3,y:0,z:50};p.setCoreOpen(open);
+    const p=new Predictor(map);p.pos={x:map.signalCore!.chamber.min.x-3,y:0,z:doorZ};p.setCoreOpen(open);
     for(let i=0;i<85;i++)p.frame(50,{mx:0,mz:1,jump:false,crouch:false,sprint:false},Math.PI/2);
     if(open)expect(p.pos.x).toBeGreaterThan(map.signalCore!.chamber.max.x+1);else expect(p.pos.x).toBeLessThan(map.signalCore!.chamber.min.x);
   }

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "key": "field-telephone",
+  "sha256": "73832c53ae4995225c928bf361faf295ff3539edf3093d6837cc865e55ff4abf",
+  "dimensionsM": [
+    0.28,
+    0.22,
+    0.22
+  ],
+  "coordinateSystem": {
+    "units": "metres",
+    "up": "+Y",
+    "forward": "+Z"
+  },
+  "origin": "bottom-center",
+  "lods": [
+    "LOD0",
+    "LOD1",
+    "LOD2"
+  ],
+  "lodTriangles": [
+    414,
+    354,
+    180
+  ],
+  "joints": {
+    "handset": [
+      0,
+      0.204,
+      -0.055
+    ],
+    "crank": [
+      0.143,
+      0.105,
+      0.092
+    ],
+    "cable": [
+      0,
+      0.025,
+      0.112
+    ]
+  },
+  "surfaces": [
+    "wood",
+    "metal"
+  ],
+  "collision": {
+    "kind": "none"
+  },
+  "maxCladdingOffsetM": 0.018,
+  "texture": {
+    "width": 512,
+    "height": 512,
+    "wrap": "repeat"
+  },
+  "source": {
+    "kind": "original-authored",
+    "generator": "tools/build-ww1-environment.mjs",
+    "recipeVersion": 2
+  },
+  "provenance": {
+    "status": "authored",
+    "sourceKind": "original-authored",
+    "receiptRole": "environment-prop",
+    "receiptPath": "artifacts/ww1/receipts/field-telephone.json",
+    "outputSha256": "73832c53ae4995225c928bf361faf295ff3539edf3093d6837cc865e55ff4abf"
+  },
+  "factionVariants": [],
+  "pilotable": null,
+  "presentation": []
+}
