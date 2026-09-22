@@ -236,3 +236,31 @@ diagnostic, not acceptance. `--gpu-diagnostics` only instruments the inspector;
 it is never bundled into the game. The trace summary reports wall time and
 thread CPU separately and refuses coverage when the game renderer's retained
 task range no longer spans the slow frame.
+
+## Look Session 1: Air above the front (2026-09-22)
+
+The sky-weather change runs in the existing sky material, using uniform-only
+motion and no additional lights, textures, geometry or render passes. Its
+acceptance artifacts are under `.inspect/look-session1/`; the exact-build
+`relay,practice-two` inspector is `.inspect/look-s1-final-report.json`.
+`visual-manifest.json` binds the captures and hitch cohort to the unchanged
+source and client-bundle SHA256s.
+
+All assertions and their limits above remain unchanged. The separate
+`bot-capture.json` and eleven `bot-capture-fight-*.png` images are visual evidence
+only: screenshots perturb presentation and are excluded from acceptance.
+`hitch-summary.json` retains every startup interval above 150ms, including those
+after first-ready, alongside measured spikes and first-use windows. Untraced
+startup gaps have no assigned cause. This session does not close the historical
+Switchyard FFA 2622.7ms issue or establish laptop iGPU performance; the measured
+host uses an RTX 5070.
+
+Acquisition failures are retained separately from gameplay results. The current
+supervisor-owned lease helper uses a 1,800,000ms acquisition limit (the older
+Session94 narrative above describes its earlier ten-minute limit). One FFA
+attempt reached that limit; its next attempt and the first pair-4 TDM attempt
+received empty JSON responses during handover. None launched a browser. The
+cohort resumed only at the unexecuted case after source-hash and completed-pass
+verification, retaining all preceding results. No foreign
+process was stopped, no lease was bypassed, and no gameplay failure was rerun
+to obtain a pass.
