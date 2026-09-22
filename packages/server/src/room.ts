@@ -1126,11 +1126,12 @@ export abstract class Room<TState = unknown> {
   }
 
   /** Recent tick/flush timing summary — the `tk:stats` reply payload. */
-  private perfSnapshot(): PerfSnapshot {
-    const now = performance.now();
+  private perfSnapshot(nowMs = performance.now(), measuredAtEpochMs = Date.now()): PerfSnapshot {
     return {
-      tick: this.tickDurations.stats(now, PERF_WINDOW_MS),
-      flush: this.flushDurations.stats(now, PERF_WINDOW_MS),
+      tick: this.tickDurations.stats(nowMs, PERF_WINDOW_MS),
+      flush: this.flushDurations.stats(nowMs, PERF_WINDOW_MS),
+      measuredAtMs: nowMs,
+      measuredAtEpochMs,
       windowMs: PERF_WINDOW_MS,
       // Copy so a poller can't mutate the live counters (F119/F120).
       drops: { ...this.#drops },

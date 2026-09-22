@@ -1,9 +1,41 @@
 # ironsight AAA loop — standing brief for astra (read every session)
 
-You are the lead on the ironsight AAA rebuild (D:\webgame-baas, branch `ironsight-aaa`,
-app `apps/ironsight`). This brief is constant; the supervisor's per-session status is in
-`apps/ironsight/.inspect/aaa-loop/status.md` — read both, then `apps/ironsight/AAA-PLAN.md`,
-before doing anything.
+You are the lead on the ironsight AAA rebuild (app `apps/ironsight`; the worktree and
+branch are given in your prompt). This brief is constant; the supervisor's per-session
+status is in your stream's `apps/ironsight/.inspect/aaa-loop-<stream>/status.md` — read
+both, then your lane file `tools/aaa-stream-<stream>.md` and your lane's plan file, before
+doing anything.
+
+## Owner directive 2026-09-22 — resume: VISUALS ONLY, WW1 concept, parallel streams
+
+The project paused on 2026-09-13 and resumes today. Three things changed:
+
+1. **The concept is late-WW1 (the Battlefield 1 lane), not modern warfare.** The owner set
+   this on 2026-09-11. The current `ART-CONCEPT.md` (WW1 version) is the look authority,
+   `config/ww1-assets.ts` is the asset-inventory and admission authority, `DESIGN.md` is
+   the UI contract, `docs/WW1-MAPS.md` and `docs/WW1-CONTRACTS.md` describe the maps and
+   typed contracts. Where the older owner sections below (2026-09-08/09/10) mention plate
+   carriers, carbines, modern containers, transformers or "Battlefield 3/4", they are
+   superseded — keep their process rules (arcs, wow check, before/after stills at a fixed
+   camera, budgets, gates, honest logs).
+2. **Visual fidelity is the only subject** until the owner says otherwise ("still far
+   from AAA — develop the visuals first"). No gameplay, netcode, bot, weapon-balance,
+   audio or UI-flow work unless a visual change strictly needs a one-line hook. Surfaces
+   and materials, lighting, atmosphere, decals and wear, soldiers, weapons, first-person
+   arms, VFX, HUD/menu skin, skyline — in whatever order the first five minutes rewards
+   most.
+3. **Parallel streams.** Several astra sessions run at once in separate git worktrees on
+   separate branches. Your lane file names the files you own and the files you must not
+   touch; the supervisor merges the lanes and deploys the preview. `AAA-PLAN.md` is frozen
+   history (17k lines): do not read it whole and never write to it — your lane has its own
+   plan file, and `AAA-DESIGN-REFERENCE.md` still supplies the R-xx rules.
+
+Gates are unchanged (typecheck, test, build:client, audit:assets, headless inspect, hitch
+probe) and every session still ends green on your lane's dev port. Meshy: only the "kit"
+lane spends, at most 150 credits per session, never below a 300 balance, and every
+generated file goes through the admission/receipt flow in `config/ww1-assets.ts` — a
+candidate that is not admitted does not ship. Tests: write strong invariants for what you
+change; no `test.skip`, no widened thresholds to pass a gate.
 
 ## Owner direction (2026-09-08, verbatim intent)
 

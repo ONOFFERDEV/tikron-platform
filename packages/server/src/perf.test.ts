@@ -4,19 +4,14 @@ import { DurationRing } from "./perf.js";
 describe("DurationRing", () => {
   it("reports zeros for an empty window", () => {
     const ring = new DurationRing(8);
-    expect(ring.stats(1000, 10_000)).toEqual({ p50: 0, p95: 0, max: 0, n: 0 });
+    expect(ring.stats(1000, 10_000)).toEqual({ p50: 0, p95: 0, p99: 0, max: 0, n: 0 });
   });
 
-  it("computes p50/p95/max/n over recorded samples", () => {
-    const ring = new DurationRing(64);
-    // 1..10 ms recorded at t=100..109; query at t=110 with a 1s window (all in).
-    for (let i = 1; i <= 10; i++) ring.record(100 + i, i);
-    const s = ring.stats(120, 1000);
-    expect(s.n).toBe(10);
-    expect(s.max).toBe(10);
-    // nearest-rank: p50 -> index floor(0.5*10)=5 -> sorted[5]=6; p95 -> index 9 -> 10.
-    expect(s.p50).toBe(6);
-    expect(s.p95).toBe(10);
+  it("computes distinct p50/p95/p99/max values over 100 samples", () => {
+    const ring = new DurationRing(128);
+    for (let i = 1; i <= 100; i++) ring.record(100 + i, i);
+    const s = ring.stats(220, 1000);
+    expect(s).toEqual({ p50: 51, p95: 96, p99: 100, max: 100, n: 100 });
   });
 
   it("excludes samples older than the window", () => {

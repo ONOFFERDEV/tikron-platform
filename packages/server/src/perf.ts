@@ -14,6 +14,7 @@
 export interface DurationStats {
   p50: number;
   p95: number;
+  p99: number;
   max: number;
   n: number;
 }
@@ -49,6 +50,10 @@ export interface DropCounts {
 export interface PerfSnapshot {
   tick: DurationStats;
   flush: DurationStats;
+  /** Server-monotonic end of the sampled duration window. */
+  measuredAtMs: number;
+  /** Unix-epoch anchor captured in the same synchronous snapshot. */
+  measuredAtEpochMs: number;
   windowMs: number;
   /** Cumulative dropped-input counts by reason (F119). */
   drops: DropCounts;
@@ -80,17 +85,23 @@ export class DurationRing {
     if (this.count < this.capacity) this.count++;
   }
 
-  /** p50/p95/max/n over the samples recorded within `[nowMs - windowMs, nowMs]`. */
+  /** p50/p95/p99/max/n over the samples recorded within `[nowMs - windowMs, nowMs]`. */
   stats(nowMs: number, windowMs: number): DurationStats {
     const cutoff = nowMs - windowMs;
     const recent: number[] = [];
     for (let i = 0; i < this.count; i++) {
       if (this.times[i]! >= cutoff) recent.push(this.durs[i]!);
     }
-    if (recent.length === 0) return { p50: 0, p95: 0, max: 0, n: 0 };
+    if (recent.length === 0) return { p50: 0, p95: 0, p99: 0, max: 0, n: 0 };
     recent.sort((a, b) => a - b);
     const at = (p: number): number =>
       recent[Math.min(recent.length - 1, Math.floor((p / 100) * recent.length))]!;
-    return { p50: at(50), p95: at(95), max: recent[recent.length - 1]!, n: recent.length };
+    return {
+      p50: at(50),
+      p95: at(95),
+      p99: at(99),
+      max: recent[recent.length - 1]!,
+      n: recent.length,
+    };
   }
 }

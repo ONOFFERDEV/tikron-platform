@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 // Import room.js directly — index.js pulls in partyserver (workerd-only).
 import { Room, aoiPhase, type RoomConnection, type RoomContext } from "./room.js";
 import { ClientMessageType, ServerMessageType, encode } from "@tikron/protocol";
@@ -166,7 +166,7 @@ describe("flushAOI per-viewer delta-or-null", () => {
 });
 
 describe("tk:stats timing report", () => {
-  it("answers a tk:stats poll with the p50/p95/max/n contract", async () => {
+  it("answers a tk:stats poll with the p50/p95/p99/max/n contract", async () => {
     const ctx = new FakeCtx();
     const room = new AoiRoom({ id: "r", ctx });
     await room._create();
@@ -175,10 +175,16 @@ describe("tk:stats timing report", () => {
     room.join("a", 0, 0);
     await flush(); // at least one flush recorded
 
+    const measuredAtMs = performance.now();
+    const measuredAtEpochMs = 1_800_000_000_000;
+    const now = vi.spyOn(performance, "now").mockReturnValue(measuredAtMs);
+    const epochNow = vi.spyOn(Date, "now").mockReturnValue(measuredAtEpochMs);
     await room._message(
       a,
       encode({ t: ClientMessageType.Message, type: "tk:stats", seq: 1, payload: undefined }),
     );
+    now.mockRestore();
+    epochNow.mockRestore();
 
     const reply = a.sent
       .filter((d): d is string => typeof d === "string")
@@ -187,16 +193,21 @@ describe("tk:stats timing report", () => {
     expect(reply).toBeDefined();
 
     const payload = reply!.payload as {
-      tick: { p50: number; p95: number; max: number; n: number };
-      flush: { p50: number; p95: number; max: number; n: number };
+      tick: { p50: number; p95: number; p99: number; max: number; n: number };
+      flush: { p50: number; p95: number; p99: number; max: number; n: number };
+      measuredAtMs: number;
+      measuredAtEpochMs: number;
       windowMs: number;
     };
+    expect(payload.measuredAtMs).toBe(measuredAtMs);
+    expect(payload.measuredAtEpochMs).toBe(measuredAtEpochMs);
     expect(payload.windowMs).toBe(10_000);
     for (const stage of [payload.tick, payload.flush]) {
-      for (const k of ["p50", "p95", "max", "n"] as const) {
+      for (const k of ["p50", "p95", "p99", "max", "n"] as const) {
         expect(typeof stage[k]).toBe("number");
       }
     }
+    expect(payload.tick.n).toBe(0);
     expect(payload.flush.n).toBeGreaterThanOrEqual(1); // a flush happened
   });
 
