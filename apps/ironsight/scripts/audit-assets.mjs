@@ -139,3 +139,14 @@ for (const [fontPath, digest] of approvedUiFonts) {
   const bytes = await readFile(join(root, fontPath));
   if (createHash('sha256').update(bytes).digest('hex') !== digest) throw Error('UI font provenance mismatch: ' + fontPath);
 }
+// # world
+const worldSkylineBytes = await readFile(join(root, 'assets/maps/relay-skyline.glb'));
+if (worldSkylineBytes.readUInt32LE(0) !== 0x46546c67 || worldSkylineBytes.readUInt32LE(4) !== 2
+    || worldSkylineBytes.readUInt32LE(8) !== worldSkylineBytes.length || worldSkylineBytes.readUInt32LE(16) !== 0x4e4f534a)
+  throw Error('Original Signal Station skyline must be a GLB 2.0 container');
+const worldSkyline = JSON.parse(worldSkylineBytes.subarray(20, 20 + worldSkylineBytes.readUInt32LE(12)).toString());
+if (!worldSkyline.nodes?.some(node => node.extras?.provenance === 'ironsight-original-signal-village-v1')
+    || worldSkyline.materials?.length !== 1 || (worldSkyline.images?.length ?? 0) !== 0 || (worldSkyline.textures?.length ?? 0) !== 0
+    || (worldSkyline.animations?.length ?? 0) !== 0 || worldSkylineBytes.length > 1168772)
+  throw Error('Original Signal Station skyline provenance or resident-resource contract failed');
+// /world

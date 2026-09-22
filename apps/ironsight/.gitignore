@@ -37,3 +37,6 @@ assets-src/**
 # ui
 !public/assets/ui/fonts/StardosStencil-Bold.ttf
 !public/assets/ui/fonts/StardosStencil-OFL.txt
+# world
+# Original village geometry replaces the former private skyline at this path.
+!public/assets/maps/relay-skyline.glb

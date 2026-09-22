@@ -1731,3 +1731,29 @@ curl -fL https://raw.githubusercontent.com/google/fonts/main/ofl/stardosstencil/
 
 The UI block in `scripts/audit-assets.mjs` pins SHA-256 values; updated upstream
 bytes require an explicit provenance update before admission.
+<!-- # world -->
+## World Session 2: original Signal Station village skyline
+
+`maps/relay-skyline.glb` is now original project-authored geometry, rebuilt solely
+from `client/relay-skyline.ts` by `node tools/dump-relay-skyline.mjs`. This current
+entry supersedes the historical Synty provenance above for that one filename.
+No purchased vertices, textures or source files enter the new build. The old
+`bake-relay-skyline.py --source ...` recipe is historical and must not overwrite
+this original asset. The existing lazy-load URL and asset-audit filename remain.
+
+The eight brick ruins have pitched/slated roof remnants, open windows, damaged
+gables, exposed timber rafters, domestic chimneys and rubble. Four exterior
+batches share one opaque vertex-colour material, 12,674 triangles, no texture or
+animation. All sector bounds are wholly outside the playable 150 x 100 m yard.
+The runtime fallback is built from the identical source. Export receipt and
+before/after visual evidence: `.inspect/aaa-loop-world/session2-*`.
+
+The resident Relay service atlas now paints timber stores panels, field-line
+telephones, patch boards and corded switchboards. Its 2048 x 1024 dimensions,
+mesh surfaces and draw count are retained. Zone signs reuse their 1024 x 512
+atlas; the former white decorative strips use the existing dark timber colour.
+No collider, doorway, floor, ramp or playable cover is changed. The matching
+`relay-vista.webp` is the original final production-renderer vista capture,
+encoded with Pillow WEBP quality 82/method 6 at the existing 1920 x 1080 size;
+153,486 bytes (was 164,588). Export receipt: `session2-vista-export.json`.
+<!-- /world -->

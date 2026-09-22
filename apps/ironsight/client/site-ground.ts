@@ -8,6 +8,7 @@ import { finishUndertowSurface, undertowGroundTexture, updateUndertowGroundTextu
 import { finishSwitchyardSurface } from './switchyard-surfaces.js';
 import { paintSwitchyardServiceWear } from './switchyard-service-wear.js';
 import type { FloorFace } from '../src/map/terrain.js';
+import { paintRelayEarth } from './relay-ground-wear.js';
 
 const groundLoads = new WeakMap<T.Scene, Promise<void>>();
 export function waitForSiteGround(scene: T.Scene): Promise<void> {
@@ -38,7 +39,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.fillRect(random() * 512, random() * 512, 1 + random() * 2, 1 + random() * 2);
   }
   const sx = 512 / map.bounds.width, sz = 512 / map.bounds.depth;
-  if (metric && !switchyard) {
+  if (metric && !switchyard && !relay) {
     // Broad pour-to-pour aging gives the existing atlas a second scale of wear.
     // Deterministic, restrained contrast keeps the lane paint readable.
     for (let z = 0; z < map.bounds.depth; z += 5) for (let x = 0; x < map.bounds.width; x += 6) {
@@ -53,46 +54,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     for (let z = 0; z <= map.bounds.depth; z += 5) { ctx.beginPath(); ctx.moveTo(0, z * sz); ctx.lineTo(512, z * sz); ctx.stroke(); }
   }
   if (map.presentation === 'relay') {
-    // Retired freight traffic: paired broad tire wear, patched concrete and
-    // maintenance clearances. Painted into this EXISTING opaque ground atlas.
-    ctx.save(); ctx.scale(sx, sz);
-    ctx.save(); ctx.scale(map.bounds.width / 60, map.bounds.depth / 40);
-    for (const z of [11.3, 28.4]) for (const offset of [-0.55, 0.55]) {
-      ctx.strokeStyle = 'rgba(43,55,49,0.15)'; ctx.lineWidth = 0.22;
-      ctx.beginPath(); ctx.moveTo(4, z + offset);
-      ctx.bezierCurveTo(19, z + offset, 20, z - 0.65 + offset, 30, z - 0.65 + offset);
-      ctx.bezierCurveTo(40, z - 0.65 + offset, 42, z + offset, 56, z + offset); ctx.stroke();
-    }
-    for (const [x, z, w, d] of [[10, 18, 2.4, 1.7], [45, 21, 3.2, 1.5], [32, 10, 1.6, 1.1]] as const) {
-      ctx.fillStyle = '#7d8981'; ctx.fillRect(x, z, w, d);
-      ctx.strokeStyle = '#6f7d74'; ctx.lineWidth = 0.055; ctx.strokeRect(x, z, w, d);
-    }
-    ctx.restore();
-    for (const b of map.boxes) {
-      const w = b.max.x - b.min.x, h = b.max.y - b.min.y;
-      if (h !== 6 || w < 18) continue;
-      for (const side of [-1, 1]) {
-        const faceZ = side < 0 ? b.min.z : b.max.z;
-        const edgeZ = faceZ + side * 1.15;
-        ctx.strokeStyle = '#999c81'; ctx.lineWidth = 0.11;
-        ctx.setLineDash([0.65, 0.25]);
-        ctx.beginPath(); ctx.moveTo(b.min.x + 0.3, faceZ);
-        ctx.lineTo(b.min.x + 0.3, edgeZ); ctx.lineTo(b.max.x - 0.3, edgeZ);
-        ctx.lineTo(b.max.x - 0.3, faceZ); ctx.stroke(); ctx.setLineDash([]);
-        // A flush drain below the louver explains the localized dark runoff.
-        const drainX = (b.min.x + b.max.x) / 2 + side * 1.6;
-        const drainZ = faceZ + side * 0.38;
-        ctx.fillStyle = '#596c68'; ctx.fillRect(drainX - 0.75, drainZ - 0.12, 1.5, 0.24);
-        ctx.strokeStyle = '#89978b'; ctx.lineWidth = 0.055;
-        for (let x = drainX - 0.65; x < drainX + 0.7; x += 0.2) {
-          ctx.beginPath(); ctx.moveTo(x, drainZ - 0.08); ctx.lineTo(x, drainZ + 0.08); ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(39,58,49,0.11)'; ctx.beginPath();
-        ctx.ellipse(drainX, drainZ, 1.1, 0.5, 0, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    // Aggregate is supplied by the metric tile, not stretched atlas noise.
-    ctx.restore();
+    paintRelayEarth(ctx, map);
   }
   if (switchyard) paintSwitchyardServiceWear(ctx, map);
   if (switchyard && map.terrain) {
@@ -160,7 +122,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(terrainGeometry(map),
     new T.MeshStandardMaterial({ map: texture, roughness: undertow ? 0.94 : wet ? 0.76 : 0.96 }));
   if (metric) {
-    const tint = new T.Color(undertow ? '#74766a' : relay ? '#817e70' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
+    const tint = new T.Color(undertow ? '#74766a' : relay ? '#81725f' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
     floor.material.color.copy(tint).multiplyScalar(1 / base);
     if (switchyard) finishSwitchyardSurface(floor.material, 'ground');
     else if (undertow) finishUndertowSurface(floor.material, 'ground');

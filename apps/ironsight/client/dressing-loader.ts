@@ -1,52 +1,36 @@
-/**
- * dressing-loader.ts — loads a map's baked visual-dressing bundle GLB (Synty
- * SciFi City meshes; is-armfix's manifest→bundle CLI has already baked every
- * placement's world-space transform into the GLB's own node hierarchy, so the
- * caller just adds `gltf.scene` directly at the scene origin — no per-instance
- * transform, unlike weapon-loader.ts's per-shot clones).
- *
- * Never rejects: resolves `undefined` (after one console.warn per URL) on any
- * fetch/parse failure, and the caller (scene.ts) is expected to stay on the
- * existing procedural box/wall render permanently in that case.
- */
+/** Cached map models retain world-space transforms. Signal Station can rebuild
+ * its original skyline on failure; other failures resolve to the caller's fallback. */
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Mesh, MeshStandardMaterial, Source, type Material, type Object3D, type Texture } from "three";
+import { Mesh, type Material, type Object3D } from "three";
 import { SharedAssetCache, disposeGltfTemplate, type AssetCacheSnapshot, type AssetLease } from './shared-gltf-cache.js';
+import { buildRelaySkyline } from './relay-skyline.js';
+import { ARENA1 } from '../src/map/arena1.js';
 
 const warnedUrls = new Set<string>();
-type ResizeCanvas = {
-  width: number;
-  height: number;
-  getContext(id: '2d'): { drawImage(image: object, x: number, y: number, width: number, height: number): void } | null;
-};
-
-function prepareDressing(url: string, gltf: GLTF): GLTF {
-  if (url !== '/assets/maps/relay-skyline.glb') return gltf;
-  const seen = new Set<Texture>();
-  gltf.scene.traverse(node => {
-    if (!(node instanceof Mesh)) return;
-    for (const mat of Array.isArray(node.material) ? node.material : [node.material]) {
-      if (!(mat instanceof MeshStandardMaterial) || !mat.map || seen.has(mat.map)) continue;
-      const map = mat.map; seen.add(map);
-      const image = map.image as object & { width: number; height: number };
-      const ratio = 512 / Math.max(image.width, image.height);
-      if (ratio >= 1) continue;
-      const documentApi = (globalThis as { document?: { createElement(tag: 'canvas'): ResizeCanvas } }).document;
-      if (documentApi === undefined) throw Error('Skyline atlas resize needs a document');
-      const canvas = documentApi.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.width * ratio));
-      canvas.height = Math.max(1, Math.round(image.height * ratio));
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw Error('Skyline atlas resize needs a 2D context');
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      map.source = new Source(canvas); map.needsUpdate = true;
+async function loadDressing(url: string): Promise<GLTF> {
+  const loader = new GLTFLoader();
+  try {
+    return await loader.loadAsync(url);
+  } catch (error) {
+    if (url !== '/assets/maps/relay-skyline.glb') throw error;
+    if (!warnedUrls.has(url)) {
+      warnedUrls.add(url);
+      console.warn('[dressing-loader] retaining original signal village after skyline load failure', error);
     }
-  });
-  return gltf;
+    // A real GLTF document preserves the existing lease API. The cache owns
+    // fallback geometry exactly like a decoded asset, including late cancellation.
+    const gltf = await loader.parseAsync(JSON.stringify({ asset: { version: '2.0' },
+      scene: 0, scenes: [{ nodes: [] }], nodes: [],
+    }), '');
+    gltf.scene = buildRelaySkyline(ARENA1.bounds);
+    gltf.scene.name = 'relay-signal-village';
+    gltf.scenes = [gltf.scene];
+    return gltf;
+  }
 }
 
 const sharedCache = new SharedAssetCache<GLTF>(
-  url => new GLTFLoader().loadAsync(url).then(gltf => prepareDressing(url, gltf)),
+  loadDressing,
   disposeGltfTemplate,
 );
 

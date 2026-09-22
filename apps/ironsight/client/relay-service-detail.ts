@@ -21,59 +21,63 @@ export function buildRelayServiceDetail(scene: T.Scene, map: MapDef): void {
       rect('#152b30', px - 2, py - 2, 5, 5); rect('#8d9995', px - 1, py - 1, 2, 2);
     }
   };
-  // Sealed equipment hatch, explicitly labelled as a panel (not a playable door).
-  rect('#293b40', 0, 0, 128, 256); rect('#89938a', 5, 5, 118, 246);
-  rect('#1e3035', 10, 10, 108, 236); rect('#4c6265', 14, 14, 100, 226);
-  rect('#738584', 15, 15, 97, 3); rect('#344a50', 18, 65, 92, 148);
-  rect('#8eaaa7', 22, 70, 84, 2); rect('#253c43', 62, 67, 3, 143);
-  rect('#c4b584', 20, 25, 88, 24); text('SERVICE', 25, 42, 16, '#273d41');
-  text('07 / SEALED', 25, 60, 10); text('ACCESS PANEL', 22, 231, 9);
-  for (const y of [84, 179]) { rect('#1c3138', 99, y, 9, 27); rect('#a4aea1', 99, y, 5, 20); }
-  for (const y of [78, 173]) rect('#86968f', 17, y, 7, 25);
-  bolts(5, 5, 118, 246);
-
-  // Breaker cabinet, conduits, analog gauge and caution plate painted into one tile.
-  rect('#657776', 128, 0, 128, 256);
-  for (const x of [153, 180, 211]) {
-    rect('#263f46', x, 0, 10, 256); rect('#a6afa2', x + 2, 0, 3, 256);
-    for (const y of [10, 238]) rect('#2d464b', x - 4, y, 18, 7);
+  rect('#393429', 0, 0, 128, 256);
+  for (let plank = 0; plank < 6; plank++) {
+    const x = 5 + plank * 20;
+    rect(plank % 2 ? '#806d50' : '#756044', x, 5, 19, 246);
+    rect('#a18b64', x + 1, 7, 1, 242);
+    for (let grain = 0; grain < 7; grain++) rect('#615139', x + 3 + random() * 13, 10 + random() * 180, 1, 20 + random() * 45);
   }
-  rect('#243940', 136, 37, 112, 183); rect('#b8b9a2', 139, 40, 106, 175);
-  rect('#d0ceaf', 142, 43, 100, 3); rect('#687d7b', 147, 53, 90, 40);
-  c.fillStyle = '#d5d6bd'; c.beginPath(); c.arc(169, 73, 13, 0, Math.PI * 2); c.fill();
-  c.strokeStyle = '#273e43'; c.lineWidth = 3; c.beginPath(); c.moveTo(169, 73); c.lineTo(175, 64); c.stroke();
-  for (let i = 0; i < 3; i++) rect(i === 0 ? '#568d87' : '#283e43', 193 + i * 12, 62, 7, 17);
-  rect('#263d42', 146, 105, 91, 6); text('ISOLATE', 151, 130, 15, '#33494b');
-  text('BEFORE SERVICE', 149, 144, 9, '#33494b');
-  rect('#8e7947', 148, 159, 68, 30); text('440 V', 156, 179, 16, '#202f32');
-  rect('#2d444a', 227, 162, 8, 27); bolts(139, 40, 106, 175);
+  for (const y of [68, 202]) { rect('#36392f', 7, y, 114, 12); bolts(7, y - 1, 114, 14); }
+  c.strokeStyle = '#49402e'; c.lineWidth = 12; c.beginPath(); c.moveTo(16, 193); c.lineTo(108, 92); c.stroke();
+  rect('#b2a17a', 15, 24, 98, 27); text('STORES', 24, 44, 19, '#3c3c2e');
+  text('SIGNAL / 07', 26, 233, 12, '#b7a780');
 
-  // Recessed louver, with baked lip highlights instead of additional geometry.
-  rect('#344b50', 256, 0, 256, 128); rect('#a2aca1', 260, 4, 248, 120);
-  rect('#253c42', 268, 12, 232, 104);
-  for (let y = 18; y < 110; y += 15) { rect('#596f70', 274, y, 220, 9); rect('#8b9d95', 274, y, 220, 2); }
-  bolts(260, 4, 248, 120);
-  // Human-scale warning placard and armoured-case latches.
-  rect('#273d43', 256, 128, 128, 128); rect('#b7ae82', 261, 133, 118, 118);
-  c.fillStyle = '#303e3e'; c.beginPath(); c.moveTo(320, 146); c.lineTo(287, 194); c.lineTo(353, 194); c.closePath(); c.fill();
-  text('!', 315, 186, 30, '#d8bd6e'); text('CAUTION', 277, 215, 18, '#2a3e40');
-  text('LIVE EQUIPMENT', 273, 236, 10, '#2a3e40'); bolts(261, 133, 118, 118);
-  rect('#30464d', 384, 128, 128, 128); rect('#5c7273', 390, 134, 116, 116);
-  for (const x of [400, 482]) { rect('#1f363d', x, 145, 16, 54); rect('#b0b7a8', x + 3, 149, 10, 35); }
-  rect('#b8b498', 424, 149, 50, 30); text('R / 07', 427, 169, 12, '#273b41');
-  for (let x = 423; x < 473; x += 4) rect('#bdc1ab', x, 207, 2, 18);
-  bolts(390, 134, 116, 116);
+  rect('#514936', 128, 0, 128, 256);
+  for (const x of [136, 173, 212]) rect('#796648', x, 0, 33, 256);
+  rect('#302f25', 139, 41, 106, 162); rect('#94805c', 142, 44, 100, 154);
+  rect('#b29b6e', 145, 47, 94, 3); rect('#4b4936', 149, 63, 86, 116);
+  text('FIELD LINE', 151, 32, 13, '#c3b48e');
+  c.strokeStyle = '#252a23'; c.lineWidth = 8; c.beginPath(); c.moveTo(157, 86); c.quadraticCurveTo(192, 64, 225, 86); c.stroke();
+  for (const x of [157, 225]) { c.fillStyle = '#33362a'; c.beginPath(); c.ellipse(x, 91, 10, 16, 0, 0, Math.PI * 2); c.fill(); }
+  for (const x of [169, 207]) { c.fillStyle = '#b19a65'; c.beginPath(); c.arc(x, 125, 5, 0, Math.PI * 2); c.fill(); }
+  c.strokeStyle = '#292e25'; c.lineWidth = 3; c.beginPath(); c.moveTo(169, 129); c.bezierCurveTo(137, 160, 232, 183, 224, 206); c.stroke();
+  rect('#ad9b70', 159, 153, 49, 12); text('LINE 07', 163, 163, 9, '#3b3c2c');
+  rect('#36392c', 235, 112, 8, 25); rect('#b39d69', 238, 130, 13, 5);
+  text('KEEP DRY', 157, 233, 12, '#c2b38b'); bolts(142, 44, 100, 154);
+
+  rect('#3c392c', 256, 0, 256, 128);
+  for (let y = 7; y < 120; y += 23) {
+    rect(y % 2 ? '#8a7756' : '#7a6749', 261, y, 246, 21);
+    rect('#b09a70', 263, y, 242, 2);
+    for (const x of [273, 492]) rect('#34362b', x, y + 8, 3, 3);
+    for (let grain = 0; grain < 12; grain++) rect('#655239', 270 + random() * 170, y + 5 + random() * 12, 10 + random() * 32, 1);
+  }
+  rect('#514a36', 256, 128, 128, 128); rect('#b9ac87', 266, 135, 108, 111);
+  text('SIGNALS', 273, 164, 19, '#4b4a37'); text('LINE / 07', 279, 191, 15, '#4b4a37');
+  for (let y = 202; y < 237; y += 8) rect('#827857', 279, y, y % 3 ? 79 : 60, 1);
+  rect('#39382c', 384, 128, 128, 128);
+  for (let y = 134; y < 252; y += 24) {
+    rect('#84704e', 390, y, 116, 22); rect('#a38b60', 392, y, 112, 2);
+  }
+  for (const x of [400, 483]) { rect('#353a2e', x, 134, 10, 116); bolts(x, 134, 10, 116); }
+  text('SIGNAL', 415, 190, 16, '#c3b384'); text('07', 435, 219, 22, '#c3b384');
   // Places B shares the existing atlas; no additional image or draw.
   rect('#d0c6a5', 512, 512, 512, 64); rect('#303a33', 520, 520, 496, 48);
   text('COMMS / WEST', 542, 557, 37, '#d5d1b9');
   rect('#d0c6a5', 512, 960, 512, 64); rect('#303a33', 520, 968, 496, 48);
-  text('CONTROL / EAST', 528, 1005, 37, '#d5d1b9');
+  text('LINES / EAST', 548, 1005, 37, '#d5d1b9');
   rect('#3a4238', 512, 576, 256, 128);
   text('ROOF ACCESS', 526, 623, 28); text('UP / 03 M', 542, 677, 28, '#c6b681');
-  rect('#38423b', 512, 704, 256, 256);
-  for (let y = 716; y < 920; y += 48) {
-    rect('#1d2725', 522, y, 138, 36); rect('#768777', 526, y + 4, 130, 2);
-    for (let k = 0; k < 4; k++) { rect('#acaf97', 674 + k * 19, y + 4, 11, 11); rect('#222d27', 674 + k * 19, y + 20, 11, 9); }
+  rect('#67583e', 512, 704, 256, 256);
+  rect('#373d30', 523, 715, 234, 210);
+  for (let y = 734; y < 901; y += 48) {
+    text(`LINE ${1 + (y - 734) / 48}`, 535, y + 6, 15);
+    for (const x of [640, 681, 723]) {
+      c.fillStyle = '#b2a071'; c.beginPath(); c.arc(x, y, 7, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#20291f'; c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill();
+    }
+    c.strokeStyle = '#938463'; c.lineWidth = 3; c.beginPath(); c.moveTo(640, y); c.bezierCurveTo(626, y + 35, 733, y + 40, 723, y); c.stroke();
   }
   text('FIELD RELAY // 07', 533, 945, 17);
   rect('#b6ab85', 768, 576, 256, 96); rect('#343b32', 775, 583, 242, 82);
