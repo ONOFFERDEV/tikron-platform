@@ -3,7 +3,7 @@ export interface CompositorFrame { name: string; node: HTMLElement }
 /** Clone mounted peripheral layouts without invoking their audio/state machines. */
 export function peripheralCompositorFrames(): CompositorFrame[] {
   const frames: CompositorFrame[] = [];
-  for (const id of ['deployment-banner', 'deployment-intro', 'signalEvent', 'teamPingNotice', 'pingWheel']) {
+  for (const id of ['deployment-banner', 'deployment-intro', 'signalEvent', 'teamPingNotice', 'teamPingHint', 'pingWheel']) {
     const source = document.getElementById(id);
     if (!source) continue;
     const copy = source.cloneNode(true) as HTMLElement; copy.hidden = false;

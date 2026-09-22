@@ -16,6 +16,7 @@ import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, type StableMapId } from './ui/c
 import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui/combat-hud.js';
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
+import { HUD_FIELD_CSS } from './ui/hud-field-style.js';
 import type { ShotFeedbackEvent } from './shot-feedback.js';
 import type { WeaponActionState } from '../src/weapon-action.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
@@ -354,7 +355,7 @@ export class Hud {
   constructor(settings: SettingsStore, container: HTMLElement = document.body, installStyles = true) {
     this.settings = settings;
     const style = el("style");
-    style.textContent = css + honorsCss + resultViewCss;
+    style.textContent = css + honorsCss + resultViewCss + HUD_FIELD_CSS;
     if (installStyles) document.head.appendChild(style);
 
     this.root = el("div", "hud");
@@ -512,6 +513,12 @@ export class Hud {
     sample.addKill('OPERATOR', 'SCOUT', 'head', 0, 'ANCHOR', { weapon: 1, localKill: true });
     sample.addKill('SCOUT', 'OPERATOR', 'body', 1, undefined, { weapon: 4, localVictim: true });
     sample.showStreak('OPERATOR', 3);
+    sample.setCombatObjectives([{ id: 'A', owner: 'friendly', status: 'capturing' },
+      { id: 'B', owner: 'enemy', status: 'stable' }, { id: 'C', owner: 'neutral', status: 'stable' }]);
+    sample.receiveCombatEvents([{ kind: 'accepted', shotId: 'preparation' },
+      { kind: 'confirmed_kill', shotId: 'preparation', victim: 'SCOUT', part: 'head' }]);
+    sample.receiveWeaponAction({ weaponIndex: 0, kind: 'magazine_reload', phase: 'reload',
+      startedAt: 0, phaseStartedAt: 0, endsAt: 1500, serial: 1, committed: 0, fireBuffered: false }, 0);
     sample.presentSquadRadio('bot-9', 'suppress', performance.now() + 3000);
     for (const [index, direction] of ['front', 'right', 'back', 'left'].entries()) {
       sample.showDamageDirection(index * Math.PI / 2);
