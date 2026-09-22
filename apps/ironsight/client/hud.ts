@@ -536,6 +536,9 @@ export class Hud {
     sample.showMatchEnd('red', 50, 42, 12, 4, false, roster); save('results-team');
     sample.hideOverlay();
     sample.showMatchEnd('OPERATOR', 12, 0, 12, 4, true, { ...roster, dom: false }); save('results-solo');
+    sample.markVoteSent(); sample.setVoteStatus(1, 2);
+    sample.showMatchEnd('blue', 42, 50, 12, 4, false, { ...roster, won: false }); save('results-voted');
+    sample.showMatchEnd('draw', 50, 50, 12, 4, false, roster); save('results-draw');
     sample.showConnection(true); save('connection');
     return frames;
   }

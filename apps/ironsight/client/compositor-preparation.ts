@@ -23,6 +23,17 @@ export function peripheralCompositorFrames(): CompositorFrame[] {
     if (id === 'pingWheel') copy.querySelector<HTMLElement>('.choice')!.dataset.selected = 'true';
     const node = document.createElement('div'); node.id = 'hud'; node.append(copy);
     frames.push({ name: id, node });
+    if (id === 'deployment-banner') {
+      const go = node.cloneNode(true);
+      if (go instanceof HTMLElement) {
+        const banner = go.querySelector<HTMLElement>('#deployment-banner');
+        const count = go.querySelector('.deployment-count');
+        if (banner && count) {
+          banner.dataset.kind = 'go'; count.textContent = '출격';
+          frames.push({ name: 'deployment-go', node: go });
+        }
+      }
+    }
   }
   return frames;
 }
