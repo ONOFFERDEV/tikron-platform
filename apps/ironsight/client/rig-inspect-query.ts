@@ -12,6 +12,7 @@ export function parseRigInspect(search: string) {
   return {
     reload: q.has("reload") ? num("reload", 0, 0, 1) : null,
     weapon: Math.floor(num("weapon", 0, 0, 4)),
+    team: Math.floor(num("team", 0, 0, 1)),
     pose: locomotion,
     yaw: num("yaw", 30, -360, 360), pitch: num("pitch", 10, -89, 89),
     dist: num("dist", 2.2, 0.2, 20),

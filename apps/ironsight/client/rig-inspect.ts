@@ -18,7 +18,7 @@ export function startRigInspector(options: RigInspectOptions): void {
   // so orbit cameras and the operator never intersect the new architecture.
   const x = 10, z = map.bounds.depth / 2;
   const pose = { x, y: 0, z, yaw: 0, pitch: options.aim * Math.PI / 180, crouch: options.pose.startsWith('crouch'),
-    alive: true, team: 0, weapon: options.weapon };
+    alive: true, team: options.team, weapon: options.weapon };
   const clip = options.pose === "crouch" ? "crouch_idle" : options.pose;
   const yaw = options.yaw * Math.PI / 180, pitch = options.pitch * Math.PI / 180;
   const chest = pose.crouch ? 0.8 : 1.3;
