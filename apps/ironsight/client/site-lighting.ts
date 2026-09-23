@@ -7,6 +7,7 @@ import { finishUndertowSurface } from './undertow-surfaces.js';
 import { applySwitchyardPanels, applySwitchyardWeathering, finishSwitchyardSurface, switchyardSurfaceKind } from './switchyard-surfaces.js';
 import { waitForSiteGround } from './site-ground.js';
 import { siteAtmosphere } from './site-atmosphere.js';
+import { gradeSiteEnvironment, siteLightProfile } from './scene-lighting.js';
 import { RELAY_FINISH, relayBakedFinish } from './relay-palette.js';
 import { applyRelayWeathering, type RelayWeatherSource } from './relay-weathering.js';
 import { UNDERTOW_FINISH, undertowBakedFinish } from './undertow-palette.js';
@@ -153,11 +154,14 @@ export async function loadSiteEnvironment(scene: T.Scene, renderer: T.WebGLRende
   }
   const source = radianceResult.value, skyTexture = skyResult.value;
   const loaded = performance.now();
+  gradeSiteEnvironment(source, site);
+  const graded = performance.now();
+  const lighting = siteLightProfile(site);
   const pmrem = new T.PMREMGenerator(renderer);
   const target = pmrem.fromEquirectangular(source);
   scene.environment = target.texture;
-  scene.environmentIntensity = atmosphere?.environmentIntensity ?? 0.85;
-  scene.traverse(node => { if (node instanceof T.HemisphereLight) node.intensity = atmosphere?.hemisphereIntensity ?? 0.65; });
+  scene.environmentIntensity = lighting?.environment ?? atmosphere?.environmentIntensity ?? 0.85;
+  scene.traverse(node => { if (node instanceof T.HemisphereLight) node.intensity = lighting?.hemisphere ?? atmosphere?.hemisphereIntensity ?? 0.65; });
   const sky = scene.getObjectByName('site-sky');
   if (skyTexture && sky instanceof T.Mesh && sky.material instanceof T.ShaderMaterial) {
     skyTexture.name = `${atmosphere!.name}-sky`;
@@ -170,6 +174,6 @@ export async function loadSiteEnvironment(scene: T.Scene, renderer: T.WebGLRende
   } else skyTexture?.dispose();
   source.dispose();
   pmrem.dispose();
-  scene.userData.siteEnvironment = { path, loadMs: loaded - started,
+  scene.userData.siteEnvironment = { path, loadMs: loaded - started, gradeMs: graded - loaded,
     preparationMs: performance.now() - loaded, pmremGenerations: 1 };
 }
