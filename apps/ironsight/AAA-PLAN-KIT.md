@@ -2,9 +2,9 @@
 
 ## AAA gap list
 
-1. Finish the soldier replacement arc (Session 4 completed candidate arc 2/3): fitted headgear, continuous torso/limbs, boots and all three LOD budgets pass bounded review. Next: face/neck, garment finish, hands and carried-kit fit, then full contact/hit calibration and admission. Active gameplay still uses the angular legacy soldier.
+1. Finish the soldier replacement arc (Session 5: face/neck and continuous fingers done on the candidate; arc 3/3 admission not reached). Next: garment finish, carried-kit fit, skin/face region colouring inside the 3-draw budget, then contact/hit calibration and admission, which needs cross-stream request 6. Active gameplay still uses the angular legacy soldier.
 2. Restore the normal first-person loaded-model route in supervisor/look-owned `scene.ts` (exact request below), then complete five-weapon FP contact review.
-3. Finish whole-hand fitting and fit the carried gear to the eventual soldier body: legacy carbine support index and pistol support thumb remain imperfect; firing-hand fit unchanged. Candidate pistol downward crouch contact saturates reach by 21 mm; the active rigid bedroll retains crouch/pelvis separation.
+3. Whole-hand fitting on the shipped legacy FP weapons (Session 6: wrists and reload contacts fitted, every slot touches with <= 2.2 mm overlap at hip/ADS/sprint except carbine support 3.4 mm and SMG support 5.3 mm). Remaining: the rigid procedural glove cannot wrap fingers around a grip; transitional reach sweeps still cut through the receiver (carbine 13.6 mm, shotgun 11 mm); remote (third-person) holds on the five weapons untouched.
 4. Complete candidate weapon mechanisms, geometry/material/draw-budget review and truthful admission. Current source-model approvals are not runtime or hero acceptance.
 
 ## Reference scorecard
@@ -94,6 +94,8 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 
 ## Cross-stream requests
 
+6. **Supervisor: soldier admission is blocked outside this lane.** `client/calibrated-actor-source.ts` admits a soldier only when its GLB SHA-256 equals `STAGE33_HIT_IDENTITIES[faction].glbSha256` in supervisor-owned `src/stage33-hit-calibration.ts` (currently `0f582be0...`/`0572984e...`, neither the public nor any kit candidate). Any rebuilt candidate changes that hash, so arc 3/3 cannot be completed honestly by kit alone. Needed, in order: (a) supervisor decides whether hit identity is re-measured for a new GLB (new hit-component/normalization hashes from the stage-33 sampler, hit volumes unchanged) or whether cosmetic mesh swaps may bind to the existing measured hit component; (b) kit then publishes the candidate, writes a truthful accepted admission record/receipt with real hashes and independent review, and flips `config/ww1-assets.ts` provenance. Kit did not edit `src/**`.
+
 5. **Supervisor: clean-checkout asset provisioning remains unresolved.** Session 3 repairs the newline false failures without changing historical raw hashes, GLB hashes, acceptance or quarantine. A no-copy HEAD archive plus exported text patch passes all seven normalization regressions, and candidate_builder_hash disappears. Full clean audit still exits 1 on unversioned world asset supply-wagon.glb; 15 required public files are absent, including licensed player/weapons-vm and the candidate GLBs. Do not copy arbitrary CRLF files to work around this: define lawful reproducible asset provisioning for clean workers. Exact list, canonical fingerprints, patch and commands: `.inspect/kit-session-3/provenance/report.md`. No commit was authorized, so this session does not claim the requested fixed-commit git-worktree proof.
 
 4. **Resolved by supervisor before resumed Session 4: lease owner EOF race.** Current `scripts/inspection-lease.mjs` handles `INSPECTION_OWNER_EMPTY_EOF` with the narrow retry. This lane did not edit it; fresh Session 4 map/hitch queues pass. Historical reproduction and patch evidence remain `.inspect/kit-session-2/lease/patch-request.md` (2/378 empty native releases; patched 100/100 acquisitions).
@@ -103,6 +105,160 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 3. **Supervisor/base:** the reported neutral foregrip test is already green in this branch. No change to `test/visuals.test.ts` was made.
 
 ## Session log
+
+### Session 7 - 2026-09-23: Enemy holds on the five shipped weapons
+
+- **Status:** all required gates PASS, including the advisory hitch run. No commit, push, deploy or Meshy spend. Public asset byte delta 0. `src/**`, hit volumes, clips and `player.glb` are unchanged. Remote weapon meshes keep `raycast = () => {}`, so weapons are still never hit targets.
+- **Scope:** this covers the soldier that ships now (`player.glb`, `authority=legacy`, `renderedSource=legacy-model`) with the legacy field-carbine / wep_* weapons. This path has no weapon contact frame: the weapon hangs off `Hand_R` by `MOUNT_OFFSETS`, and the support hand follows the baked `<slot>_<clip>` hold.
+- **What changed:** two files. `client/remote-weapon.ts`: refit `MOUNT_OFFSETS` for all five slots, and added `LEGACY_SUPPORT_OFFSETS`, a support-wrist correction in the pitched actor frame solved with the existing exact two-bone reach. It applies only when no contact frame is loaded, and only for the sniper and pistol. `test/remote-weapon-baked-support.test.mjs`: one new test, which fails without the change. It checks that the legacy pistol support wrist moves by exactly the fitted offset, that the firing wrist stays put, and that `beforeAnimation` restores the baked pose.
+- **Method:** `.inspect/kit-r3/measure.ts` runs the production `clonePlayerRig` + `RemoteWeapon` in Node on the shipped GLBs (textures stripped). It samples all 11 locomotion clips at phases 0.25 and 0.75 and measures the skinned hand skin (palm and finger vertices):
+  - gap to the weapon surface (for the pistol support hand: to the firing-hand skin)
+  - depth inside the weapon (2-of-3 axis ray parity)
+  - weapon depth inside a 120 mm torso capsule (Pelvis to neck_01)
+  - crossed-wrist distance
+
+  `fit.ts` searches the smallest translation to touching with a 2 mm overlap limit, on a 1 mm signed-distance grid.
+- **Per slot and clip** (max over both phases; "gap/inside" in mm, before -> after):
+
+| Slot | Clip | Firing gap / inside mm | Support gap / inside mm | Weapon in torso proxy mm | Crossed mm |
+| --- | --- | --- | --- | ---: | ---: |
+| carbine | idle | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | walk | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | run | 2.3/7.1 -> 0.3/2.9 | 0.3/4.9 -> 0.2/4.1 | 0 -> 0 | 5.8 -> 5.8 |
+| carbine | sprint | 2.3/7.1 -> 0.6/2.8 | 0.1/4.7 -> 0.1/4.3 | 0 -> 0 | 5.4 -> 5.4 |
+| carbine | crouch_idle | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_walk | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | strafe_left | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | strafe_right | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | backpedal | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_left | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_right | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | idle | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | walk | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | run | 0.5/18.5 -> 1.1/9.5 | 0.4/16.2 -> 0.3/15.2 | 0 -> 0.3 | 5.6 -> 5.6 |
+| smg | sprint | 0.3/19.3 -> 0.5/10.4 | 0/16.6 -> 0.3/15 | 0 -> 0 | 4.8 -> 4.8 |
+| smg | crouch_idle | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_walk | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | strafe_left | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | strafe_right | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | backpedal | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_left | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_right | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | idle | 0.1/7.8 -> 0.1/3.8 | 0.1/16.6 -> 0/15.4 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | walk | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | run | 0.2/8 -> 0.2/3.8 | 0.5/17.3 -> 0.2/15.8 | 0 -> 0 | 6.9 -> 6.9 |
+| shotgun | sprint | 0.1/8 -> 0.1/3.7 | 0/16.9 -> 0.1/16.2 | 0 -> 0 | 6.7 -> 6.7 |
+| shotgun | crouch_idle | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_walk | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | strafe_left | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | strafe_right | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | backpedal | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_left | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_right | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| sniper | idle | 0.3/4.9 -> 0.1/0.4 | 0.1/10.6 -> 0.1/1.9 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | walk | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | run | 0.2/5 -> 0/1.2 | 0.3/12.4 -> 0/6 | 0 -> 5.8 | 5.7 -> 3.7 |
+| sniper | sprint | 0.1/5.2 -> 0.1/1.5 | 0.1/12.1 -> 0.2/5.5 | 0 -> 0 | 5.5 -> 3.5 |
+| sniper | crouch_idle | 0.3/4.9 -> 0.1/0.4 | 0.1/10.6 -> 0.1/2.2 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_walk | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | strafe_left | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | strafe_right | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | backpedal | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_left | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_right | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| pistol | idle | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | walk | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | run | 0.6/14 -> 0.2/1.7 | 12.1/10 -> 2.7/8.6 | 0 -> 0 | 0 -> 0 |
+| pistol | sprint | 0.3/15 -> 0.2/2.6 | 12.2/9.6 -> 2.8/8.8 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_idle | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_walk | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | strafe_left | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | strafe_right | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | backpedal | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_left | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_right | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+
+- **Result:** no hand floats and no arms cross, before or after (gaps at most 2.8 mm; crossed at most 6.9 mm, which is lateral noise). Firing-hand sink-in drops on every slot: carbine 7.1->2.9, SMG 19.3->10.4, shotgun 8.0->3.8, sniper 5.2->1.5, pistol 15.0->2.6. The pistol support hand now cups the firing hand at 2.7-2.8 mm (was 12 mm apart). The sniper support hand is 12.4->6.0 mm inside.
+- **Tried and rejected:**
+  - A 36 mm shotgun support shift: its still showed the hand hidden behind the gun, worse than the baked wrap. The shotgun and carbine support hands stay baked.
+  - The full 32 mm SMG shift: it pushed the weapon toward the torso on the run clip. I halved it, so the SMG firing hand is still 10.4 mm inside.
+  - The sniper keeps its fitted offset, although the torso proxy reads 5.8 mm at run 0.75. The proxy is a coarse 120 mm cylinder; the stills show no visible intrusion.
+- **Evidence:**
+  - Rig inspector before/after, 5 slots x idle/sprint/crouch_walk x three-quarter/hands/hands-right: `.inspect/kit-r3/{before,after}/`, zero console errors. One after-shot timed out on readiness (w1 idle hands-right) and was recaptured green.
+  - Side-by-side pairs: `.inspect/kit-r3/closeups/w{0-4}-{idle,sprint,crouch_walk}-{hands,hands-right}.png`
+  - Raw data: `holds-{before,after}.json`, fitter `fit-3.json`
+- **Gates:**
+  - `pnpm typecheck` PASS
+  - `pnpm test` PASS: 1,670 Vitest, 9 skips carried over from before, 92/92 Node
+  - `pnpm build:client` PASS
+  - `pnpm audit:assets` PASS: publicBytes 47,365,098
+  - `inspect-map --prefix kit-r3` PASS, zero errors/forbidden
+  - `hitch-probe ... .inspect/kit-r3-hitch.json --assert`, advisory, single run: `{"hitchGate":"PASS","failures":[],...,"deaths":2,"recompiles":0,"framesOver150ms":0,"errors":0}`
+- **Cleanup:** Wrangler tree on 8802 killed, port clear.
+- **Open / not verified:**
+  - The two inside-weapon metrics disagree on some legacy shells, which are open meshes. The fitter predicted about 2 mm for the SMG and shotgun support hands; the exact measure still reads 15-16 mm. Treat support "inside" numbers above 5 mm as unresolved.
+  - Remaining work on the rig: finger wrap on legacy support hands (baked fingers), and a pitch sweep (only pitch 0 was measured).
+  - Remote reload arcs were not re-measured.
+  - Moving the arm skin changes the client-side skinned-mesh raycast surface slightly (at most 25 mm on the sniper/pistol support forearm). The server hit volumes are unchanged.
+  - The first-person reload travel item (carbine 13.6 mm, shotgun 11 mm) was not started.
+
+### Session 6 - 2026-09-23: First-person hands sit on the real weapons
+
+- **Status:** typecheck, tests, build, asset audit and map gate PASS. **Hitch gate FAIL** (`sustained frame pacing`, one frame over 150 ms, main thread idle during it) on both runs, and it **also fails on the merged baseline with the kit change reverted** (`.inspect/kit-r2/hitch-baseline.json`, 201.8 ms idle stall), so this lane's constant change is not the cause. Needs supervisor attention on the integration tree. No commit, push, deploy or Meshy spend. Public asset byte delta 0.
+- **Merge note:** `git merge --ff-only recovery/ironsight-ww1-20260912` refused (branch holds 3260a00, integration holds c969f60). To avoid committing, I ran `git merge --no-ff --no-commit`; it merged cleanly and is **staged, uncommitted (MERGE_HEAD present)** for the supervisor to commit or redo.
+- **What changed:** `client/procedural-viewmodel-hands.ts` only (the hands that actually draw with the legacy field-carbine / wep_* models; the authored fp-arms path is contract-only). Refit `WRISTS` (firing hand all slots; support hand SMG/shotgun/sniper/pistol), `RELOAD_CONTACTS`, named carbine magazine/charge contacts, and per-slot `BOLT_CONTACTS` replacing one shared bolt point. Hip, ADS and sprint move hands and weapon as one rigid assembly (both children of the same viewmodel group, equal advance), so one row covers all three.
+- **Method:** `.inspect/kit-r2/measure.ts` loads the shipped GLBs with the scene.ts transform, poses the real `ViewmodelHands` and `splitRifleMagazine` parts per reload phase, and measures glove vertices against weapon triangles (inside = 2-of-3 ray parity; depth to nearest surface; gap = nearest outside distance). `.inspect/kit-r2/fit.ts` searches the smallest translation to touching with <= 2 mm overlap on a 1 mm signed-distance grid; its before values agree with the exact measure within about 0.5 mm except the carbine and SMG support hands, where the exact measure disagreed and I kept or report the exact value (carbine support reverted to its original wrist).
+- **Per-slot contact (overlap = glove depth inside the weapon; gap is 0 mm in every row after, so no hand floats):**
+
+| Slot | Pose | Firing hand overlap mm (before -> after) | Support hand overlap mm (before -> after) |
+| --- | --- | ---: | ---: |
+| AR (field-carbine) | hip/ads/sprint | 5.2 -> 2 | 3.4 -> 3.4 (body) |
+| AR (field-carbine) | reach | 5.2 -> 2 | 21.5 -> 13.6 (body) |
+| AR (field-carbine) | mag-out | 5.2 -> 2 | 13.1 -> 2.2 (magazine) |
+| AR (field-carbine) | mag-in | 5.2 -> 2 | 13.1 -> 6.4 (body) |
+| AR (field-carbine) | bolt | 5.2 -> 2 | 17.3 -> 1.7 (body) |
+| AR (field-carbine) | return | 5.2 -> 2 | 3.4 -> 3.4 (body) |
+| SMG (wep_smg) | hip/ads/sprint | 12.5 -> 2 | 9 -> 5.3 (magazine) |
+| SMG (wep_smg) | reach | 12.5 -> 2 | 13.4 -> 8.8 (magazine) |
+| SMG (wep_smg) | mag-out | 12.5 -> 2 | 12.8 -> 1.9 (magazine) |
+| SMG (wep_smg) | mag-in | 12.5 -> 2 | 12.8 -> 1.9 (magazine) |
+| SMG (wep_smg) | bolt | 12.5 -> 2 | 8 -> 2.9 (bolt) |
+| SMG (wep_smg) | return | 12.5 -> 2 | 9 -> 5.3 (magazine) |
+| Shotgun (wep_shotgun) | hip/ads/sprint | 6.2 -> 1.6 | 10.5 -> 2.2 (body) |
+| Shotgun (wep_shotgun) | reach | 6.2 -> 1.6 | 9.8 -> 11 (body) |
+| Shotgun (wep_shotgun) | mag-out | 7.5 -> 1.6 | 18.7 -> 2.3 (magazine) |
+| Shotgun (wep_shotgun) | mag-in | 7.5 -> 6.9 | 18.7 -> 2.3 (magazine) |
+| Shotgun (wep_shotgun) | bolt | 6.2 -> 1.6 | 16.7 -> 2.1 (body) |
+| Shotgun (wep_shotgun) | return | 6.2 -> 1.6 | 10.5 -> 2.2 (body) |
+| Sniper (wep_sniper) | hip/ads/sprint | 6.6 -> 1.9 | 7.1 -> 1.9 (body) |
+| Sniper (wep_sniper) | reach | 6.6 -> 1.9 | 4.7 -> 4.8 (body) |
+| Sniper (wep_sniper) | mag-out | 6.6 -> 1.9 | 6.2 -> 1.9 (magazine) |
+| Sniper (wep_sniper) | mag-in | 6.6 -> 1.9 | 6.2 -> 1.9 (magazine) |
+| Sniper (wep_sniper) | bolt | 6.6 -> 1.9 | 6.1 -> 2.4 (body) |
+| Sniper (wep_sniper) | return | 6.6 -> 1.9 | 7.1 -> 1.9 (body) |
+| Pistol (wep_pistol) | hip/ads/sprint | 21.5 -> 1.9 | 14.3 -> 1.4 (body) |
+| Pistol (wep_pistol) | reach | 21.5 -> 1.9 | 11.5 -> 2.6 (magazine) |
+| Pistol (wep_pistol) | mag-out | 21.8 -> 1.6 | 11.8 -> 1.8 (magazine) |
+| Pistol (wep_pistol) | mag-in | 21.8 -> 1.6 | 11.8 -> 1.8 (magazine) |
+| Pistol (wep_pistol) | bolt | 21.5 -> 1.9 | 10.7 -> 1.8 (body) |
+| Pistol (wep_pistol) | return | 21.5 -> 1.9 | 14.3 -> 1.4 (body) |
+
+- **Evidence:** `.inspect/kit-r2/{before,after}/kit-r2-*-weapon-{ar,smg,shotgun,sniper,pistol}-{hip,ads,reload-out,reload-bolt}.png` (zero console errors), side-by-side hand close-ups `.inspect/kit-r2/closeups/*.png`, sheets `*-sheet.png`, raw `contact-{before,after}.json`, fitter output `fit-1.json`.
+- **Gates:** `pnpm typecheck` PASS; `pnpm test` PASS (1,669 Vitest / 9 inherited skips, 92/92 Node); `pnpm build:client` PASS; `pnpm audit:assets` PASS (publicBytes 47,363,299). `inspect-map --prefix kit-r2` PASS, zero errors/forbidden. `hitch-probe ... .inspect/kit-r2-hitch.json --assert`: `{"hitchGate":"FAIL","failures":["sustained frame pacing"],...,"deaths":2,"recompiles":0,"framesOver150ms":1,"errors":0}` (run 1: 845 ms idle stall; run 2: 185 ms; baseline without kit change: 201.8 ms).
+- **Cleanup:** round-1 cleanup was incomplete: my Round 1 Wrangler tree (cmd 20256 -> node 11232/54312 -> workerd) had survived TaskStop and respawned workerd. I killed it at the start of this session; this session's tree (cmd 51084) is killed and port 8802 is clear.
+- **Not done / open:** fingers do not wrap grips (rigid glove); transitional reach frames still cut through the receiver; the shotgun firing hand overlaps the moving shell part at mag-in by 6.9 mm; carbine support index and pistol support thumb are not separately articulated in this glove; remote third-person holds not started. Visual review is self-inspection only.
+
+### Session 5 - 2026-09-23: Faces, necks and whole fingers on the candidate soldier
+
+- **Status: all required gates PASS on port 8802; arc 3/3 (candidate live in play) NOT reached.** Admission needs a supervisor-owned hit-identity decision (request 6). No commit, push, deploy, Meshy spend (0 credits) or public asset change (public byte delta **0**; asset audit publicBytes 47,359,600, assetBytes 35,363,446).
+- **What changed (kit-owned source only):** `tools/ww1_soldier_headgear.py` head gains 12 rings (was 9) with authored jaw/chin, nose, brow overhang and eye sockets (`face_relief`); head apex, width and helmet clearance unchanged (existing compact-head and crown-clearance tests still pass; ears were not added because the unchanged 0.17 m head-width limit forbids them). `tools/ww1_soldier_body.py` adds `neck_surface` (tapered neck seated in collar and skull, weights blended spine_03 -> neck_01 -> head) and `finger_surface` (one continuous tapered 8-sided loft per digit, 50/50 knuckle blends, rounded tip). `tools/ww1_soldier_geometry.py` replaces the rigid neck cylinder and the per-phalanx cylinder+sphere "bead" fingers with those surfaces; head is smooth-shaded. Skeleton, clips, materials and draws untouched.
+- **Failing-first:** `.inspect/kit-r1/face-red.log` (2 new face tests fail), `neck-hands-red.log` (2 new Blender tests fail); green: `face-green.log` (9/9), `neck-hands-green.log` (10/10). LOD regression `lod-regression.json` PASS (true budgets, metadata, skin, bounds, 55 joints, 64 clips).
+- **Measured deltas (candidate vs Session 4 candidate):** khaki LOD0/1/2 **11,048/6,076/2,762 -> 8,924/4,908/2,230**; fieldgrey **11,424/6,282/2,856 -> 9,300/5,114/2,324**; bytes khaki 3,868,180 -> 3,091,460, fieldgrey 3,976,044 -> 3,190,640. Still 3 material primitives per LOD. Candidates stay quarantined in `.inspect/kit-r1/after/characters/`.
+- **Evidence:** 22 matched before/after Blender stills per state in `.inspect/kit-r1/{before,after-stills}/{khaki,fieldgrey}-{front,side,back,three-quarter,face-front,face-profile,hand-right,hand-left,hand-right-rest,run-mid,idle-lod2}.png` (renderer `render.py`, run under the GPU lease). Runtime rig inspector stills (legacy soldier, `authority=legacy`, `renderedSource=legacy-model`, zero errors): `.inspect/kit-r1/runtime-rig/kit-r1-rig-w{0,4}-arms1-{front,right,back,three-quarter,hands,hands-right}.png`. These show the unchanged active soldier, not the candidate.
+- **Player sentence (candidate):** "They have faces and real fingers now, not beads on a stick." Not yet visible in play.
+- **Gates:** `pnpm typecheck` PASS; `pnpm test` PASS (1,666 Vitest passed / 9 inherited skips, 92/92 Node); `pnpm build:client` PASS; `pnpm audit:assets` PASS. `inspect-map --prefix kit-r1` PASS, zero console errors/forbidden connections (relay 37 calls, 179,682 tris, median 6.9 ms, p99 7.1 ms; practice-two 61 calls). `hitch-probe ... .inspect/kit-r1-hitch.json --assert` **hitchGate PASS**: 109,082 ms / 15,645 frames, 2 deaths, 0 recompiles, 0 frames >150 ms, 0 errors, max frame 35.7 ms (at respawn), lease wait 22.8 s. RTX 5070, not the laptop iGPU target.
+- **Cleanup:** Wrangler task stopped; the orphaned workerd listener on 8802 (PID 47432) was killed; port clear.
+- **Open / not verified:** no independent visual review this session (self-inspected only). Face/hands carry the same material as before (wool face, field-kit hands), so skin tone needs a per-vertex region inside the runtime field-kit shader rather than a fourth draw. A faint cast-shadow crease crosses one cheek in workbench front stills. Mitten "finger" digit reads as a flat paddle at close range. Five-weapon third-person contact on the candidate hands is unmeasured. Carried-kit fit and garment finish untouched.
 
 ### Session 4 - 2026-09-23: Continuous infantry uniforms, soldier replacement arc 2
 

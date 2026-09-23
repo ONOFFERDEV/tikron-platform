@@ -6,7 +6,7 @@ export const UNDERTOW_FINISH = {
   concrete: { color: 0x939080, roughness: 0.96, metalness: 0 },
   housing: { color: 0x766d5f, roughness: 0.89, metalness: 0 },
   steel: { color: 0x414745, roughness: 0.78, metalness: 0.24 },
-  pale: { color: 0xa39f8c, roughness: 0.92, metalness: 0 },
+  pale: { color: 0x8d8269, roughness: 0.95, metalness: 0 }, // burlap sandbag and limestone trim
   olive: { color: 0x726b54, roughness: 0.9, metalness: 0 },
   ochre: { color: 0x8b7657, roughness: 0.9, metalness: 0 },
   ramp: { color: 0x6c7069, roughness: 0.93, metalness: 0 },

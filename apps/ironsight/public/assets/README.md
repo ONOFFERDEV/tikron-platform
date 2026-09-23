@@ -30,7 +30,7 @@ Original architecture / lighting pipeline (session 9):
 |---|---|---|
 | `maps/relay-architecture.glb` | Exact Relay surfaces and MapDef ramps, 1024px embedded AO atlas; Session 22 vertex weathering, 2,346,620 bytes | yes, explicit original-only exception |
 | `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
-| `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
+| `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 31,919 bytes (re-baked 2026-09-23 with the Relay noon sun at 30 degrees elevation) | yes |
 | `undertow-dusk.hdr` / `undertow-dusk-sky.png` | Original seeded dusk cloud/radiance field, Blender; 512x256 linear HDR 104,307 bytes and 1024x512 sRGB sky 122,555 bytes. Undertow only; see Session78 below | yes |
 | `switchyard-overcast.hdr` / `switchyard-overcast-sky.png` | Original seeded stratus/radiance field, Blender; 512x256 linear HDR 144,190 bytes and 1024x512 sRGB sky 135,785 bytes. Switchyard only; see Session79 below | yes |
 
@@ -1833,4 +1833,37 @@ geometry, unchanged seven material slots and 1024-square AO image. Rebuild with
 Blender 4.5 `--background --python tools/bake-architecture.py -- --input .inspect/architecture-undertow.json`.
 Current geometry audit: `.inspect/aaa-loop-world/session5-final-geometry-audit.json`;
 64,608 triangles, 4,881,612 bytes, no purchased inputs or new texture asset.
+<!-- /world -->
+
+<!-- # world -->
+World Session 6 (2026-09-23): Undertow trench use. Sandbag parapets and low cover,
+revetted deployment and drain walls, gas-curtained dugout mouths, a field office and
+drain/deployment duckboards replace service bays, lamp strips and control panels.
+Original procedural geometry; same seven material slots and 1024-square AO image.
+Rebuild: `node tools/dump-architecture.mjs .inspect/world-r1/undertow-architecture.json undertow`,
+then Blender 4.5 `--factory-startup --background --python tools/bake-architecture.py --
+--input .inspect/world-r1/undertow-architecture.json --size 1024 --samples 64`.
+Audit: `.inspect/world-r1/geometry-audit.json` (PASS); 84,916 triangles,
+6,214,520 bytes (+1,332,908), SHA256 21c95d71...cee70. No new texture file.
+<!-- /world -->
+
+<!-- # ui -->
+UI Session 11 (2026-09-23): `undertow-vista.webp` refreshed after World Session 5
+(timber revetments/duckboards) reached the integration branch; the Session 4 capture
+predated it. Same fixed vista camera, 1920 x 1080, WebP quality 88, production
+renderer. Reproduce with `node scripts/inspect-map.mjs --url http://localhost:8804
+--shots undertow-vista --prefix ui-r5-write --write-vista`. 164,580 bytes (-2,346),
+SHA256 a4b96ca4...87872. `relay-vista.webp` re-rendered for comparison matches the
+current Signal Station map and is unchanged.
+<!-- /ui -->
+
+<!-- # world -->
+Relay Session R-UI1 (2026-09-23, ui worktree on loan to world): Signal Station wear,
+repairs and use with **zero new asset bytes**. Brick cover gets world-seeded tone,
+soot, collapsed top courses, shell scars and timber/corrugated/sandbag repair patches
+in the existing shader (`client/relay-field-patterns.ts`). Footpaths and six shell
+craters are painted into the existing ground atlas (`client/relay-ground-wear.ts`).
+Ammunition boxes, spent sandbags, duckboard walks and a field telephone line are
+vertex-coloured boxes merged into the existing `relay-yard-issued-supplies` draw
+(`client/relay-yard.ts`). No collider, AO bake, texture, material or file changed.
 <!-- /world -->

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
-import { COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, type CopyBindings } from "../client/ui/copy.js";
+import { COPY, FIELD_UI_COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
+import { WEAPON_KEYS } from "../src/weapon-contract.js";
 import { mapCallout, SITES } from "../client/map-presentation.js";
 
 const bindings: CopyBindings = {
@@ -20,6 +21,17 @@ describe("Korean UI copy contract", () => {
     expect(COPY.training.arena1).toContain("재장전");
     expect(COPY.results).toMatchObject({ player: "전투원", kills: "처치", deaths: "사망", score: "점수" });
     expect(COPY.support).toMatchObject({ ping: "위치 표시", backup: "지원 요청", mortar: "박격포 지원" });
+  });
+
+  it("names the five stable weapon slots as WW1 service weapons in Korean", () => {
+    expect(WEAPON_KEYS.map(weaponLabel)).toEqual(["자동소총", "참호 기관단총", "펌프 산탄총", "볼트 소총", "제식 권총"]);
+    expect(weaponLabel(undefined)).toBe("무기");
+    expect([FIELD_UI_COPY.capture, FIELD_UI_COPY.damage, FIELD_UI_COPY.streakFmt]).toEqual([
+      { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
+      { front: "전방", right: "우측", back: "후방", left: "좌측" },
+      "{who} · {count}연속 처치",
+    ]);
+    expect(FIELD_UI_COPY.feed).toEqual({ biplane: "복엽기 소사", mortar: "박격포", grenade: "수류탄", you: "나", assist: "지원" });
   });
 
   it("formats the player's actual binding codes instead of fixed WASD copy", () => {

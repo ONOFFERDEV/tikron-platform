@@ -12,7 +12,7 @@ import { ConnectionQuality } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
 import { honorsCss, type PresentedMvp } from './round-honors.js';
 import { intermissionStatus } from './intermission.js';
-import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, type StableMapId } from './ui/copy.js';
+import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, weaponLabel, type StableMapId } from './ui/copy.js';
 import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui/combat-hud.js';
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
@@ -26,6 +26,8 @@ const TEAM_COLOR = GAME.teams.colors;
 const T = GAME.text;
 const [UI_RED, UI_BLUE] = GAME.teams.uiText;
 const WEAPONS = GAME.weapons;
+/** Kill-feed rows kept on screen (R-L20: four readable entries, separate from server messages). */
+export const KILL_FEED_ROWS = 4;
 
 export interface ResultRoster {
   rows: { name: string; k: number; d: number; team: number; isMe: boolean }[];
@@ -390,7 +392,7 @@ export class Hud {
 
     // Ammo.
     const ammo = el("div", "ammo"); ammo.className = "panel";
-    this.weaponName = el("div", "weaponName", "AR / AUTO"); ammo.appendChild(this.weaponName);
+    this.weaponName = el("div", "weaponName", weaponLabel(WEAPONS[0]?.key)); ammo.appendChild(this.weaponName);
     this.ammoMag = el("span", undefined, "30"); this.ammoMag.className = "mag";
     this.ammoRes = el("span", undefined, " / 90"); this.ammoRes.className = "res";
     const ammoLine = el("div"); ammoLine.append(this.ammoMag, this.ammoRes);
@@ -444,7 +446,7 @@ export class Hud {
     // Weapon bar (bottom-center): one slot per WEAPONS entry, plus a grenade badge.
     const wbar = el("div", "wbar"); wbar.className = "panel";
     this.wslots = WEAPONS.map((w, i) => {
-      const slot = el("div", undefined, `<span class="num">${i + 1}</span>${esc(w.name)}`);
+      const slot = el("div", undefined, `<span class="num">${i + 1}</span>${esc(weaponLabel(w.key))}`);
       slot.className = "slot";
       wbar.appendChild(slot);
       return slot;
@@ -577,7 +579,7 @@ export class Hud {
 
   /** Highlight the held weapon's slot (index into {@link WEAPONS}). */
   setWeapon(index: number): void {
-    this.weaponName.textContent = WEAPONS[index]?.name.toUpperCase() ?? "WEAPON";
+    this.weaponName.textContent = weaponLabel(WEAPONS[index]?.key);
     this.wslots.forEach((s, i) => s.classList.toggle("active", i === index));
   }
 
@@ -606,17 +608,18 @@ export class Hud {
     details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean; medal?: 'ambush' } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
-    const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
+    const F = FIELD_UI_COPY.feed;
+    const weapon = part === 'drone' ? F.biplane : part === 'mortar' ? F.mortar : part === 'blast' ? F.grenade : (details.weapon == null ? '무기' : weaponLabel(WEAPONS.find(w => w.slot === details.weapon)?.key));
     const cause = part === 'head' ? '헤드샷' : part === 'blast' ? '폭발' : '처치';
     const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
     node.style.setProperty('--team', color);
-    node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? '<span class="tag">YOU</span>' : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? '<span class="tag">YOU</span>' : ''}${esc(victim)}</span>${assistName ? `<span class="assist">ASSIST / ${esc(assistName)}</span>` : ''}`;
+    node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? `<span class="tag">${F.you}</span>` : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? `<span class="tag">${F.you}</span>` : ''}${esc(victim)}</span>${assistName ? `<span class="assist">${F.assist} / ${esc(assistName)}</span>` : ''}`;
     this.feed.prepend(node);
     this.kills.push({ node, born: performance.now() });
-    while (this.kills.length > 4) this.kills.shift()?.node.remove();
+    while (this.kills.length > KILL_FEED_ROWS) this.kills.shift()?.node.remove();
     if (details.localKill && !details.localVictim) {
       const ambush = details.medal === 'ambush';
-      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? '기습' : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
+      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? FIELD_UI_COPY.ambush : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
       this.eliminationAt = performance.now();
       this.elimination.style.opacity = '1';
     }
@@ -636,7 +639,7 @@ export class Hud {
 
   /** Transient center-top killstreak banner, decayed in update(). */
   showStreak(who: string, count: number): void {
-    this.streak.textContent = fmt(T.hud.streakFmt, { who: who.toUpperCase(), count });
+    this.streak.textContent = fmt(FIELD_UI_COPY.streakFmt, { who: who.toUpperCase(), count });
     this.streak.style.opacity = "1";
     this.streakAt = performance.now();
   }
@@ -665,7 +668,8 @@ export class Hud {
     [a, b, c].forEach((v, i) => {
       const fill = this.capFills[i]!;
       const label = fill.parentElement?.parentElement?.querySelector('.lbl');
-      const owner = v >= 200 ? 'RED' : v <= 0 ? 'BLUE' : v === 100 ? 'OPEN' : 'TAKING';
+      const C = FIELD_UI_COPY.capture;
+      const owner = v >= 200 ? C.red : v <= 0 ? C.blue : v === 100 ? C.open : C.taking;
       if (label) label.textContent = `${['A', 'B', 'C'][i]} / ${owner}`;
       this.renderCap(fill, v);
     });
@@ -764,7 +768,7 @@ export class Hud {
 
   setPing(ms: number, online = true, now = performance.now(), expired = false): void {
     const band = this.quality.update(ms, online, now);
-    const label = expired && !online ? '연결 종료' : band === 'offline' ? '연결 복구 중' : band === 'high' ? '응답 지연 큼' : band === 'delayed' ? '응답 지연' : '연결 안정';
+    const label = expired && !online ? FIELD_UI_COPY.hud.connectionLost : band === 'offline' ? FIELD_UI_COPY.hud.reconnecting : band === 'high' ? '응답 지연 큼' : band === 'delayed' ? '응답 지연' : '연결 안정';
     if (this.delayLabel.textContent !== label) {
       this.delayLabel.textContent = label;
       this.ping.dataset.quality = band;
@@ -882,7 +886,7 @@ export class Hud {
       const direction = damageDirection(this.damageBearing, yaw);
       if (this.damageIndicator.dataset.direction !== direction) {
         this.damageIndicator.dataset.direction = direction;
-        this.damageIndicator.firstElementChild!.textContent = direction.toUpperCase();
+        this.damageIndicator.firstElementChild!.textContent = FIELD_UI_COPY.damage[direction];
       }
     }
     if (now - this.vignetteAt > 60) this.damageFlash.style.opacity = '0';

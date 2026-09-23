@@ -21,13 +21,23 @@ class Surface:
     faces: tuple[Face, ...]
 
 
+def face_relief(height: float, forward: float) -> float:
+    """Forward offset for nose, brow and eye sockets; forward is sin(angle), 1 at the face centre."""
+    front = max(0.0, forward)
+    nose = {1.622: .007, 1.637: .021, 1.652: .010}.get(height, 0.0) * front ** 24
+    brow = .007 * front ** 4 if height == 1.667 else 0.0
+    socket = -.007 if height == 1.652 and .80 < front < .99 else 0.0
+    return nose + brow + socket
+
+
 def head_surface() -> Surface:
     rings = (
         (1.555, .031, .038, .038), (1.568, .045, .052, .053),
-        (1.592, .064, .065, .068), (1.624, .078, .081, .077),
-        (1.650, .083, .084, .083), (1.675, .083, .088, .084),
-        (1.696, .077, .079, .078), (1.714, .056, .058, .059),
-        (1.725, .028, .030, .031),
+        (1.585, .056, .072, .062), (1.603, .068, .079, .072),
+        (1.622, .077, .082, .077), (1.637, .081, .083, .080),
+        (1.652, .083, .084, .083), (1.667, .083, .086, .084),
+        (1.684, .080, .084, .082), (1.700, .072, .074, .074),
+        (1.714, .056, .058, .059), (1.725, .028, .030, .031),
     )
     vertices: list[Point] = []
     for height, width, front, back in rings:
@@ -35,8 +45,7 @@ def head_surface() -> Surface:
             angle = step * math.tau / SEGMENTS
             forward = math.sin(angle)
             depth = front if forward >= 0 else back
-            nose = .017 * max(0.0, forward) ** 24 if 1.623 < height < 1.651 else 0
-            vertices.append((width * math.cos(angle), height, depth * forward + nose))
+            vertices.append((width * math.cos(angle), height, depth * forward + face_relief(height, forward)))
     faces: list[Face] = []
     for ring in range(len(rings) - 1):
         for step in range(SEGMENTS):

@@ -82,5 +82,22 @@ def test_head_is_compact_and_helmet_triangle_count_stays_bounded() -> None:
                for faction in ('khaki','fieldgrey'))
 
 
+def test_face_has_a_nose_brow_and_eye_sockets() -> None:
+    head = head_surface().vertices
+    def front(x_min: float, x_max: float, y_min: float, y_max: float) -> float:
+        return max((z for x, y, z in head if x_min <= abs(x) <= x_max and y_min <= y <= y_max), default=0.0)
+    cheek = front(.035, .06, 1.63, 1.645)
+    assert front(0, .012, 1.63, 1.645) - cheek >= .015, 'A nose must project beyond the cheek plane'
+    assert front(.02, .05, 1.66, 1.675) - front(.02, .05, 1.645, 1.658) >= .006, 'The brow must overhang the eyes'
+
+
+def test_jaw_narrows_to_a_forward_chin() -> None:
+    head = head_surface().vertices
+    jaw = [p for p in head if 1.58 <= p[1] <= 1.61]
+    assert jaw
+    assert max(p[2] for p in jaw) >= .07, 'The chin must sit forward of the neck'
+    assert max(p[0] for p in jaw) <= .072, 'The jaw must be narrower than the cheekbones'
+
+
 if __name__ == '__main__':
     raise SystemExit(pytest.main([__file__, '-q']))

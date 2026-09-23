@@ -10,7 +10,7 @@ vi.mock("../client/weapon-loader.js", async importOriginal => ({
   acquireWeaponModel: vi.fn(),
 }));
 
-async function fixture(candidatePreview = false) {
+async function fixture(candidatePreview = false, index = 0) {
   const group = new THREE.Group(), root = new THREE.Group();
   group.add(root);
   root.userData.rifleHold = true;
@@ -40,7 +40,7 @@ async function fixture(candidatePreview = false) {
     }
   }
 
-  const source = weaponSource(GAME.weaponVis, 0, { candidatePreview });
+  const source = weaponSource(GAME.weaponVis, index, { candidatePreview });
   if (!source?.nodeName) throw new Error("Missing fixture weapon source");
   const scene = new THREE.Group();
   const geometry = new THREE.BoxGeometry(.1, .12, 2);
@@ -52,7 +52,7 @@ async function fixture(candidatePreview = false) {
     value: Promise.resolve({ scene }), release: vi.fn(),
   });
   const weapon = new RemoteWeapon(group, root, candidatePreview);
-  weapon.setWeapon(0);
+  weapon.setWeapon(index);
   await Promise.resolve(); await Promise.resolve();
   expect(weapon.loaded).toBe(true);
   for (const finger of fingers) {
@@ -123,4 +123,21 @@ describe("baked remote support-hand ownership", () => {
       } finally { f.dispose(); }
     },
   );
+
+  it("moves only the legacy pistol support wrist to cup the firing hand, then restores the baked pose", async () => {
+    const f = await fixture(false, 4);
+    try {
+      const support = f.root.getObjectByName("Hand_L"), firing = f.root.getObjectByName("Hand_R");
+      if (!support || !firing) throw new Error("Missing hands");
+      f.group.updateMatrixWorld(true);
+      const baked = support.getWorldPosition(new THREE.Vector3()), grip = firing.getWorldPosition(new THREE.Vector3());
+      f.weapon.update(1.65, 0, true);
+      f.group.updateMatrixWorld(true);
+      const moved = support.getWorldPosition(new THREE.Vector3()).sub(baked);
+      expect(moved.distanceTo(new THREE.Vector3(-.007, .005, .004))).toBeLessThan(1e-4);
+      expect(firing.getWorldPosition(new THREE.Vector3()).distanceTo(grip)).toBeLessThan(1e-9);
+      f.weapon.beforeAnimation(); f.group.updateMatrixWorld(true);
+      expect(support.getWorldPosition(new THREE.Vector3()).distanceTo(baked)).toBeLessThan(1e-9);
+    } finally { f.dispose(); }
+  });
 });

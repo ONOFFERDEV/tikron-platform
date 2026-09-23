@@ -55,5 +55,6 @@ export const DEPLOYMENT_FIELD_CSS = `
 #deployment-banner[data-kind="go"] .deployment-count{background:var(--ui-success)}
 #deployment-banner[data-kind="go"] .deployment-progress i{background:var(--ui-success)}
 @media(max-width:800px){#deployment-banner{--deployment-top:202px;--deployment-count-width:80px;padding:var(--ui-space-3)}#deployment-banner .deployment-body{gap:var(--ui-space-3)}#hud[data-deploying=true] #caps{top:330px}#hud[data-deploying=true] #lb{top:350px}}
+@media(min-width:801px){#hud[data-deploying=true] #combatObjectives{top:328px}#hud[data-deploying=true] #caps{top:386px}}
 @media(max-height:700px) and (min-width:801px){#deployment-banner{--deployment-top:120px;padding:var(--ui-space-3) var(--ui-space-4)}#deployment-banner .deployment-body{margin:var(--ui-space-2) 0}}
 `;

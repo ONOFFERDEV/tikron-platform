@@ -5,7 +5,7 @@ Scope: world-owned files in `tools/aaa-stream-world.md`. No commit, push, or dep
 
 ## AAA gap list
 
-1. **Underpass Trench conversion arc 3/3:** Session 5 replaces turbine faces and factory circulation stripes with timber redoubt cladding and supported duckboards. Finish field-office/control-panel details, oversized sluice frames and industrial low-cover caps, then irregular repairs and human-scale trench use. Keep the same collision authority; the complete period shell is still partial.
+1. **Underpass Trench conversion arc 3/3 (Session 6):** implemented. Remaining Underpass debt is small: the pilot lanterns keep their teal idle colour because it carries signal state, the pump-hall shells still use regular masonry openings, and the exterior east/west halls repeat. Needs owner review of the new stills.
 2. Front Supply Depot needs timber freight/platform finishes and period rail equipment.
 3. Signal Station's major period shell arc is implemented. Add less regular damage, repairs and human-scale use to reduce its repeated brick/box rhythm after the other maps establish their period silhouettes.
 4. Measure the finished three-map visual package on the actual laptop iGPU; desktop evidence is not that qualification.
@@ -60,6 +60,7 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Cross-stream requests
 
+- **Session 6 notes:** (a) The pump-hall/field-office door lamps are now single small MeshBasic lamps. If look wants them to glow with the dusk sodium grade, look owns that. (b) The `switchyard-transformer.glb` inspector check that look reported belongs to world, but Switchyard was not touched this session. It stays open for the Front Supply Depot arc (gap item 2).
 - **Session 4 runtime update:** both pre-change and final unchanged TDM hitch gates pass (two deaths; maxima 20.0 and 13.3 ms, zero shader recompiles/errors). The Session 3 preparation failure and Session 2 round-transition lifetime issue below remain historical owning-lane follow-ups; this one successful Session 4 run is not a root-cause fix or a five-run qualification. Shared gate code and thresholds are unchanged.
 
 - **Session 4 Aside coordination resolved:** native Profile 0 was disconnected, then temporarily ambiguous while the UI stream opened disposable profiles. World reopened only its installed profile and waited for the other owner to finish through the shared GPU lease. Four final native captures now pass at 1440 x 900 with exact baseline URLs and fresh build identity. Actual native tab list is empty, and all earlier attempt IDs are absent. No unrelated process/tab, account, installation or settings were changed. Details: `.inspect/aaa-loop-world/session4-aside-recovery-after/verification.json`; raw failures remain in the recovery evidence. No supervisor action remains for this capture attempt.
@@ -81,6 +82,143 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 - **Resolved runtime queue issue:** final Aside initially exhausted its 1,800,000 ms GPU lease timeout; the first hitch attempt failed on Windows `ENOBUFS` during acquisition. The long-running unrelated owner released the lease before final handoff. World resumed both jobs, acquired the same mandatory lease, and passed Aside and hitch checks without changing shared tooling or stopping another session. Initial blocker evidence is retained in `session1-runtime-blocker.json`; final results are `session1-aside-verification.json` and `session1-hitch-summary.json`.
 
 ## Session log
+
+### Session R-UI2 - 2026-09-23: Relay floor as the headline, wall damage one notch up
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804), after the coordinator reviewed R-UI1 (committed c3c7e71). Same limits as R-UI1: no collider, bake-tool, AO, `src/map/**` or other-map change. No commit.
+
+#### Delivered
+
+- **`client/relay-ground-wear.ts`, rewritten.** It still paints the same 1024-wide R8 atlas.
+  - Broad wet/dry fields and denser clods.
+  - Irregular dark mud lobes around every standing solid.
+  - Footpaths as 3.4/2.0 m compacted bands with two ruts at ±0.6 m and puddle stains (dark centre, pale silt rim).
+  - Up to 10 shell craters of 2.6–3.8 m radius, each with a dark bowl, scorched lobed rim, pale thrown-up lip, 34 ejecta rays and clods. They keep the 4.5 m clearance from solids and 10 m from spawns and caps.
+  - 55 small shell pocks at least 1 m clear of solids; brick-rubble specks at wall feet and around craters; 2,600 scuffs.
+- **`client/relay-surfaces.ts`: the ground shader now converts painted value into material.**
+  - Low painted value becomes cooler, darker mud.
+  - The lowest value (puddles, crater floors) gets a faint wet sheen: roughness 0.74, not a mirror.
+- **`client/relay-field-patterns.ts` (`RELAY_GROUND_DETAIL`):** world-metric detail on top of the atlas: a 13 m and 3 m tone field, clod relief, and scattered stones and brick fragments, all derivative-faded. Program key `relay-field-v2-ground-mud`; program count unchanged (28).
+- **Brick wear, one notch up:**
+  - stronger tone and soot contrast
+  - collapsed top courses start at a lower noise threshold, run deeper and are darker
+  - scars are larger (0.26–0.7 m) and more frequent, with a darker core and brighter rim
+  - repairs cover 24% of segments instead of 16%
+- **Rejected:** doubling the Relay ground atlas to 2048 px. The unchanged official `inspect-map` asserts a 1024-wide compact Relay atlas, so fine detail went into the shader instead.
+
+#### Evidence (`.inspect/relay-r7/`)
+
+- `before/` is the R-UI1 committed state; `after/` is this session. Fixed cameras: `relay` (gate), `cooling`, `freight`, `spawn`, plus the `overview` overhead.
+- `side-*.png`: before | after at 50% scale, side by side.
+- Draw calls are unchanged in every view (relay 37, overview 42). Triangles unchanged from R-UI1 (relay 184,842). Textures 17, programs 28. Median frame 6.9 ms. Relay scene preparation 342 ms (R-UI1: 328 ms). These are desktop RTX 5070 observations.
+- **Bytes: 0 new asset bytes** (assetBytes 36,696,059, unchanged). Client bundle +5,914 to 4,136,353; publicBytes 48,787,367.
+
+#### Gates (fresh)
+
+- typecheck exit 0.
+- test exit 0: 203 files / 1,673 Vitest pass, 9 skipped as before, Node 92/92. `test/relay-field-use.test.mjs` still enforces crater and prop clearance.
+- build:client exit 0; audit:assets exit 0; all four `tools/audit-relay-*.mjs` exit 0.
+- inspect-map relay,practice-two: exit 0, `errors: []`.
+- hitch-probe `--assert` (advisory): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits
+
+- The floor is now much darker in places. Soldier-against-ground contrast was not measured; the look lane or the owner should check enemy readability on the darkest mud and crater areas before acceptance.
+- The gate camera's foreground is dominated by one crater at (71, 38). It reads as churned mud rather than a crisp crater shape at that grazing angle.
+- Silhouettes are still rectangular; true chipped corners need a collider-aware bake.
+
+#### Wow check
+
+Player sentence: **"The ground here is churned-up mud and shell holes, and the walls are shot to pieces."**
+
+### Session R-UI1 - 2026-09-23: Signal Station wear, repairs and field use (ui worktree on loan)
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) at the coordinator's request, on world gap item 3. The lane was limited to `client/relay-*.ts`, the Relay branch of `client/site-ground.ts` (not needed in the end) and Relay README entries. No collider, `src/map/**`, bake tool, AO or Undertow/Switchyard file changed. No commit.
+
+#### Delivered
+
+- **`client/relay-field-patterns.ts` + `client/relay-surfaces.ts`: brick wear in the existing opaque shader, brick (`concrete`) finish only.** Everything is seeded from world position and face plane, so the 22 identical 4x3x2 m boxes and 24 identical 4x1.1x2 m boxes no longer match. Added layers:
+  - wall-to-wall firing tone, soot and faint limewash remnants
+  - collapsed top courses: a ragged, locally deeper broken edge
+  - shell and bullet scars: broken bowls with a spalled rim
+  - repairs over roughly 16% of 2.6 m wall segments: timber boards, rusted corrugated iron, or a sandbag plug with a pillowed bag pattern
+  - Relief goes through the existing `fieldRelief` normal perturbation, and fine seams are derivative-faded. The program cache key moves to `relay-field-v2-concrete-*`; the program count is unchanged (28).
+- **`client/relay-ground-wear.ts`:** painted into the existing ground atlas:
+  - trodden footpaths from both gates to A/C, the signal post and B, with a centre line
+  - six shell craters (scorched bowl, pale lip, radial ejecta, clods), placed deterministically at least 4.5 m from any standing solid and 10 m from spawns and caps, and clear of ramps and the cut
+- **`client/relay-yard.ts`: `relayFieldUsePieces`,** about 430 vertex-coloured boxes (+5,160 triangles) merged into the existing `relay-yard-issued-supplies` draw:
+  - ammunition-box stacks at the foot of the 4x3 m covers and spent sandbags slumped against the low covers
+  - duckboard walks where the routes leave both gates
+  - a field telephone line (three poles, crossarms, a sagging wire at 3.1-3.55 m) from the north wall to a telephone case flush on the signal-post wall
+- **No render-only cover:** every piece is at most 0.5 m tall, overhead, a pole or wire under 0.13 m, or wall-mounted and 0.2 m deep or less. `test/relay-field-use.test.mjs` asserts this, and that ground pieces and craters stay clear of solids.
+
+#### Evidence (`.inspect/relay-r6/`)
+
+- Fixed cameras from `inspect-map`, before and after: `relay` (the gate shot), `cooling`, `freight`, `spawn`, plus the `overview` overhead. Files are `before/*.png` and `after/*.png`; `compare-*.png` puts before on top and after below. Detail crop: `crop-after.png`.
+- RTX 5070 / ANGLE at 1920x1080:
+  - Draw calls are unchanged: overview 42, relay 37, cooling 30, freight 23, spawn 42.
+  - Triangles +5,160 in every view (for example relay 179,682 → 184,842). Textures stay at 17 (32.306 MiB); programs stay at 28.
+  - Median frame 6.9 → 6.9 ms; relay scene preparation 316.7 (Session 3) → 328.1 ms.
+  - These are desktop observations, not laptop-iGPU qualification.
+- **Bytes: 0 new asset bytes and no new file.** assetBytes +700 (README text only). The client bundle grew 15,175 bytes to 4,130,439; publicBytes is 48,769,542.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` exit 0.
+- `pnpm test` exit 0: 203 files / 1,673 Vitest pass, 7 files / 9 tests skipped as before, 92/92 Node.
+- `pnpm build:client` exit 0; `pnpm audit:assets` exit 0.
+- `tools/audit-relay-{interior,site,workshop,yard}.mjs` all exit 0.
+- Fresh state, port 8804: `inspect-map --shots relay,practice-two --prefix relay-r6-gate` exit 0, `errors: []`.
+- `hitch-probe ... --assert` (advisory, run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits and next
+
+- Box silhouettes are still rectangular: no geometry was cut, because collision is the authority and there was no re-bake this round. True chipped corners and rubble spills need a collider-aware bake pass in the world lane.
+- Wall repairs are painted, not modelled; they read at mid range but are flat at grazing angles.
+- No owner review of the stills yet. Laptop iGPU not measured.
+
+#### Wow check
+
+Player sentence: **"This yard has been shelled and patched up, and someone is still running a phone line through it."**
+
+### Session 6 - 2026-09-23: Underpass Trench arc 3/3, sandbags, revetments and dugouts
+
+Reference: R-M17, R-G09, R-L12/R-L13/R-L14. Target: the owner's practice-two capture ("수문 광장") should read as a wet dusk trench line, not a modern service wall. Collision is unchanged.
+
+#### Delivered
+
+- `client/undertow-environment.ts`: the four long deployment walls lose their 2.2 m framed service bays and lamp strips. They now carry irregular revetment boards (about 7% missing, showing wet masonry), stakes, walers, corrugated repair sheets, a sandbag parapet and one gas-curtained dugout mouth per face. The blanket is closed and flush on solid collision. The 68 low covers, the yard/sluice benches (former switch consoles) and the redoubt tops become staggered sandbag courses; the pale concrete caps are gone. Pump-hall consoles become plank map tables. The field office gets a string course, boarded windows, a notice board and a field telephone in place of lamp-lit panels. The chimney becomes brick with a corbel and soot. The drain walls are revetted, and a duckboard walk plus gutter lie on the real -3 m floor, clear of the pump baffles. Duckboard runs link both deployment trenches. Door-head strips are now single small lamps.
+- `client/undertow-palette.ts` / `client/undertow-surfaces.ts`: the `pale` finish is now burlap 0x8d8269, with a procedural bag pattern (0.62 x 0.30 m cells, pillowed edges, per-bag tint, fades below pixel size). No new texture, sampler or pass.
+- `client/flood-works.ts`: the oversized sluice frames become dark coursed masonry piers, plank gate leaves on iron straps, and a timber/iron head. The teal strip is now two small lanterns; their phase colours are unchanged because they carry signal state. Lift, stream and foam behaviour are unchanged.
+- `client/site-ground.ts` / `client/undertow-wetness.ts`: warmer mud tint, trodden tracks with ruts along all four B approaches and both deployment routes, and standing water in the ruts. This is atlas paint only.
+- Test `test/undertow-trench-use.test.mjs` covers two things: no lamp strips and more than 100 parapet bags on the deployment walls, and drain duckboards supported on the -3 m face and clear of the baffles. Docs: `docs/UNDERTOW-REVETMENTS.md` (Session 6 section) and the world block in `public/assets/README.md`.
+
+#### Collision and bake
+
+- No collider, ramp, spawn, cap or route changed. The ground AO bytes are unchanged because its input is the collision map. The architecture was re-dumped and re-baked (Blender 4.5, 1024 px, 64 samples). The exact geometry audit passes: `.inspect/world-r1/geometry-audit.json`. All four `tools/audit-undertow-{channel,site,structures,yard}.mjs` exit 0, and the existing `assertVisualScene` 0.02 m cladding check passes inside the dump and the tests.
+
+#### Gates (fresh, this session)
+
+- `pnpm typecheck` exit 0. `pnpm test` exit 0: 201 files / 1,668 Vitest tests pass, 7 existing skipped files / 9 existing skipped tests, 92/92 Node tests pass. `pnpm build:client` exit 0. `pnpm audit:assets` exit 0. Logs: `.inspect/world-r1/gate-*.log`.
+- Fresh server (state cleared) on 8801 → `inspect-map --shots relay,practice-two --prefix world-r1`: exit 0, 0 console errors (`.inspect/world-r1-report.json`).
+- `hitch-probe ... 150000 .inspect/world-r1-hitch.json --assert`: **PASS**, exit 0. Two deaths, 0 recompiles, 0 frames over 150 ms, 0 errors, lease wait 0 ms. Advisory under the coordinator's shared-host rule; the supervisor's quiet-window run is decisive.
+
+#### Evidence and measured deltas
+
+- Before/after pairs use the same fixed cameras. The folder is `.inspect/world-r1/`, and each `compare-*.png` puts before on top and after below. Pairs: overhead `undertow-overview`, `undertow-home`, `undertow-deck`, `undertow-site-west`, `undertow-channel`, the practice-two game view, and two review cameras: `spawnview` (3,1.65,45 → 20,1.8,45), which is the practice-two wall head-on, and `sluiceview` (75,1.65,22 → 75,9,-6). The before `undertow-stress` shot timed out, as it did in Session 5 (`rejected-before-stress-timeout.png`), so it was dropped from both sets.
+- RTX 5070/ANGLE at 1920x1080. Draw calls are unchanged: home 43→43, overview 57→57. Triangles: home 93,288→112,828, overview 122,098→141,638. Textures stay at 22 (33.862 MiB); programs stay at 32. Home median frame is 6.9→6.9 ms. In the after run, max frame rose 7.1→13.9 ms and home scene preparation rose 312→2,089 ms. A recheck with the same build measured max 7.1 ms and first-shot preparation 942 ms, compared with first-shot figures of 996–1,108 ms before. The host was loaded by other lanes (about 43% CPU at recheck), so these timings are noisy desktop observations. They do not qualify the laptop iGPU.
+- Bytes: the architecture GLB is 4,881,612→6,214,520 (+1,332,908). Public inventory after all gates is 48,711,561 bytes, which includes other lanes' merged assets. No new files. The largest change is geometry: 64,608→84,916 baked triangles. An earlier draft of 89,464 triangles (+2.06 MB) was trimmed before adoption.
+- Meshy spend: 0. No new light, pass, dependency or gameplay change.
+
+#### Rejected attempts and limits
+
+- The first bag courses used the timber finishes and read as planks at play distance. They were replaced by the burlap finish plus the procedural bag pattern. `inspect-map` rejects a prefix that contains `/`, so the stills are written with `world-r1-*` prefixes and moved into `.inspect/world-r1/`.
+- An orphaned `wrangler dev` on this lane's port 8801 (started 13:47 from the post-Session-5 gate run) held `.wrangler/state` open. It ran from this worktree on this lane's exclusive port, so it was stopped before this session's server started. All servers started this session are stopped, and 8801 has no listener.
+- Laptop-iGPU frame time is still unmeasured. Owner acceptance of the stills is pending.
+
+#### Wow check
+
+Player sentence: **"I'm in a sandbagged trench line by a flooded canal lock."**
 
 ### Session 5 - 2026-09-23: Underpass Trench arc 2/3, timber redoubts and duckboards
 

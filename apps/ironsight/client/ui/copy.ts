@@ -1,5 +1,6 @@
 import type { ModeId } from "../../src/modes.js";
 import { GAME } from "../../src/game-config.js";
+import type { WeaponKey } from "../../src/weapon-contract.js";
 
 export type StableMapId = "arena1" | "arena2" | "arena3";
 
@@ -48,8 +49,21 @@ export const FIELD_UI_COPY = {
     audioMuted: "음소거 · M / 설정",
     connected: "연결됨",
     waiting: "응답 대기",
+    reconnecting: "연결 복구 중",
+    connectionLost: "연결 종료",
     frames: "fps",
     player: "전투원",
+  },
+  ambush: "기습",
+  capture: { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
+  streakFmt: "{who} · {count}연속 처치",
+  damage: { front: "전방", right: "우측", back: "후방", left: "좌측" },
+  feed: {
+    biplane: "복엽기 소사",
+    mortar: "박격포",
+    grenade: "수류탄",
+    you: "나",
+    assist: "지원",
   },
   tactical: {
     label: "전술 지도와 현재 위치",
@@ -111,6 +125,19 @@ const PREPARATION_STAGE_LABELS: Readonly<Record<string, string>> = {
   "authoritative-state": "전장 상태 동기화",
   "weapons-and-effects": "무기와 전투 효과 준비",
 };
+
+// WW1 service-weapon names by stable weapon key (src/weapon-contract.ts); display only.
+const WEAPON_LABELS: Readonly<Record<WeaponKey, string>> = {
+  automatic_rifle: "자동소총",
+  trench_smg: "참호 기관단총",
+  pump_shotgun: "펌프 산탄총",
+  bolt_service_rifle: "볼트 소총",
+  service_pistol: "제식 권총",
+};
+
+export function weaponLabel(key: WeaponKey | undefined): string {
+  return key === undefined ? "무기" : WEAPON_LABELS[key];
+}
 
 export function preparationStageLabel(stage: string): string {
   return PREPARATION_STAGE_LABELS[stage] ?? "전장 요소 확인 중";
