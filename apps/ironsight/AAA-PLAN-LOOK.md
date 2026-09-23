@@ -454,3 +454,34 @@ Gates: typecheck exit 0; vitest 204 files / 1686 tests plus node 92/92 pass; bui
 Incident (resolved): a mistyped `git stash push` did nothing, and the following `git stash pop` tried to apply the coordinator's dust-motes stash. Git aborted on the tracked file but had already written the stash's two untracked files. I confirmed both were byte-identical to `stash@{0}^3` and deleted them. `stash@{0}` is intact and the tree matches the pre-mishap state. The gate runs happened before this.
 
 Open: no live gameplay capture of a real mortar blast; the harness exercises the same SceneRig path. The landing drop is tuned by eye.
+
+### Session 12 - 2026-09-23: Walnut and blued steel
+
+Finish-only pass under this round's grant: `client/equipment-finish.ts` (material assignment through the existing `finishLegacyWeapon` hook in `weapon-loader.ts`, which is unchanged). No geometry, sockets, transforms, sights or animation touched.
+- Each shipped weapon is a single mesh with one material: the field carbine has its own baked atlas plus a metallic-roughness map; the four `wep_*` nodes share the Synty palette atlas. So wood cannot come from material names. I drew side profiles of each mesh (`.inspect/look-r9/profiles.png`, via `profile.ts`) and wrote wood zones in mesh-local coordinates. That space survives the reload-part split, which keeps the same vertex positions.
+- Wood mapping (logged in code):
+
+| Weapon | Wood zone |
+|---|---|
+| field-carbine | buttstock z<−0.12, wrist/grip, handguard 0.14<z<0.56 under the barrel |
+| wep_smg | buttstock, rear grip, front grip |
+| wep_shotgun | buttstock, pistol grip, pump fore-end |
+| wep_sniper | stock including thumbhole, fore-end |
+| wep_pistol | grip panels |
+
+  Everything else, including magazines and sights on the mesh, is steel.
+- Finish: oiled walnut (dark brown, fine grain along the stock that fades at distance, roughness 0.52–0.64, non-metal) and blued steel (blue-black, worn brighter edges from a scuff field, roughness 0.34–0.5, metalness 0.62). Source panel shading is kept as relief only, so the grey-blue plastic colour is gone.
+- The field carbine now takes the finish too; before, it kept its raw grey-blue material.
+- One shader program for all five: the zone is a per-material uniform, so there is no program-count change; Relay stays at 29. Remote third-person weapons share the same finish through `remoteWeaponTemplate`. Bots at 29.8 m (TDM) and 32.7 m (DOM) stay readable (`bot30-zoom.png`); weapon detail is not resolvable at that range.
+- Test: `test/equipment-finish.test.ts` updated for the intended change. Weapons now have separate materials sharing one program key, and the carbine is finished with its own maps kept. Held views still share one material; the source is never mutated.
+
+Evidence (`.inspect/look-r9/`): `weapons-arena1.png` and `weapons-arena2.png` (all five weapons, hip and ADS, before/after, Relay and Undertow; harness `fp.ts`/`fp.mjs`). The production weapon inspector also passed five FP shots in the gate run.
+
+Deltas: Relay 37/29/17/16 (draws/programs/textures/lights), p99 7.1 ms. client.js +3,879 bytes. Art assets 0.
+
+Gates: typecheck exit 0. vitest 204 files / 1686 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (48,852,141). inspect-map relay,practice-two plus five weapon shots exit 0 with 0 console errors. hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open:
+- No brass: none of the meshes has a separable brass part in mesh-local space, and the shotgun shell is steel.
+- The boxy ghost-ring sight on the carbine is kit's `rifleSight` (`client/rifle-*.ts`) geometry and material, outside this grant. Request for kit: WW1 blade front sight and open-notch rear. Sight readability was checked by eye across 20 ADS stills; the dark steel posts silhouette against sky and walls.
+- The old `'weapon'` branch of `equipmentFinish` is now unused (left for a separate cleanup, not deleted in this pass).

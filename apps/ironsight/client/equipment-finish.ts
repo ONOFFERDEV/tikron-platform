@@ -93,13 +93,78 @@ export function equipmentFinish(source: T.MeshStandardMaterial, kind: Finish): T
   return material;
 }
 
-/** Finish only the legacy secondary bundle nodes, after cloning and before
- * separating reload parts. Generated PBR replacements keep their authored maps. */
+/** Late-WW1 service finish for the shipped first-person/remote weapons. Each
+ * model is one mesh, so wood is chosen by mesh-local zones read off side
+ * profiles (`.inspect/look-r9/profiles.png`); everything else is blued steel.
+ * Geometry, sockets, sights and transforms are untouched. */
+const SERVICE_WOOD: readonly (readonly [string, string])[] = [
+  // Field carbine (metres): buttstock, wrist/grip, lower handguard under the barrel.
+  ['field-carbine', 'p.z < -.12 || (p.z < .02 && p.y < -.07) || (p.z > .14 && p.z < .56 && p.y < -.015)'],
+  // SMG (unit mesh): buttstock, rear grip, front grip under the barrel.
+  ['wep_smg', 'p.z < -.55 || (p.z < -.2 && p.y < -.12 && p.z > -.55) || (p.z > .45 && p.y < .06)'],
+  // Shotgun: buttstock, pistol grip, pump fore-end below the tube.
+  ['wep_shotgun', 'p.z < -.62 || (p.z < -.28 && p.y < -.04) || (p.z > .04 && p.z < .64 && p.y < .02)'],
+  // Rifle: stock with thumbhole, fore-end under the barrel.
+  ['wep_sniper', 'p.z < -.42 || (p.z > -.12 && p.z < .56 && p.y < -.025)'],
+  // Pistol: grip panels.
+  ['wep_pistol', 'p.z < -.42 && p.y < -.04'],
+];
+const SERVICE_ZONE_GLSL = SERVICE_WOOD.map(([, test], i) => `serviceZone == ${i}.0 ? (${test})`).join(' : ') + ' : false';
+
+/** One program for every weapon: the zone is a per-material uniform. */
+function serviceFinish(source: T.MeshStandardMaterial, nodeName: string): T.MeshStandardMaterial {
+  const zone = SERVICE_WOOD.findIndex(([name]) => name === nodeName);
+  let entries = serviceFinishes.get(source);
+  if (!entries) { entries = new Map(); serviceFinishes.set(source, entries); }
+  const previous = entries.get(zone); if (previous) return previous;
+  const material = source.clone();
+  material.name = `issued-service-${nodeName}`;
+  material.onBeforeCompile = shader => {
+    shader.uniforms.serviceZone = { value: zone };
+    shader.vertexShader = shader.vertexShader.replace('#include <common>',
+      '#include <common>\nvarying vec3 vEquipmentPosition;\nvarying vec3 vEquipmentNormal;');
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\nvEquipmentPosition = position;\nvEquipmentNormal = normal;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nuniform float serviceZone;\n${common}`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      vec3 p = vEquipmentPosition;
+      float serviceWood = (${SERVICE_ZONE_GLSL}) ? 1.0 : 0.0;
+      // Keep the source panel shading as relief, not as colour.
+      float serviceValue = dot(diffuseColor.rgb, vec3(.2126,.7152,.0722));
+      float serviceRelief = .72 + .56 * smoothstep(.02, .6, serviceValue);
+      float serviceMottle = equipmentNoise(p * 24.0);
+      float serviceFade = equipmentDetailFade(p * 260.0);
+      // Oiled walnut: warm brown, long grain along the stock, darker figure.
+      float serviceGrain = (sin(p.z * 420.0 + equipmentNoise(p * vec3(8.0, 60.0, 60.0)) * 14.0) * .5 + .5)
+        * equipmentDetailFade(p * 420.0);
+      vec3 serviceWalnut = mix(vec3(.05,.024,.011), vec3(.105,.054,.026), serviceGrain * .45 + serviceMottle * .55);
+      // Blued steel: blue-black with worn, brighter edges from the scuff field.
+      float serviceWear = smoothstep(.7, .9, equipmentNoise(p * vec3(170.0, 70.0, 12.0))) * serviceFade;
+      vec3 serviceSteel = mix(vec3(.016,.018,.022), vec3(.11,.11,.105), serviceWear * .7);
+      diffuseColor.rgb = mix(serviceSteel, serviceWalnut, serviceWood) * serviceRelief * (.9 + .2 * serviceMottle);
+      float serviceRoughness = mix(mix(.5, .34, serviceWear), .52 + .12 * serviceMottle, serviceWood);
+      float serviceMetal = mix(.62, 0., serviceWood);
+    `);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>',
+      '#include <roughnessmap_fragment>\nroughnessFactor = serviceRoughness;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <metalnessmap_fragment>',
+      '#include <metalnessmap_fragment>\nmetalnessFactor = serviceMetal;');
+  };
+  material.customProgramCacheKey = () => 'ironsight-service-weapon-v1';
+  entries.set(zone, material);
+  return material;
+}
+const serviceFinishes = new WeakMap<T.MeshStandardMaterial, Map<number, T.MeshStandardMaterial>>();
+
+/** Finish the shipped weapon nodes after cloning and before separating reload
+ * parts, so every part keeps the same mesh-local zones. Generated PBR candidates
+ * keep their authored maps. */
 export function finishLegacyWeapon(object: T.Object3D, nodeName: string): void {
-  if (!['wep_smg', 'wep_shotgun', 'wep_sniper', 'wep_pistol'].includes(nodeName)) return;
+  if (!SERVICE_WOOD.some(([name]) => name === nodeName)) return;
   object.traverse(node => {
     if (!(node instanceof T.Mesh)) return;
-    const finish = (m: T.Material) => m instanceof T.MeshStandardMaterial ? equipmentFinish(m, 'weapon') : m;
+    const finish = (m: T.Material) => m instanceof T.MeshStandardMaterial ? serviceFinish(m, nodeName) : m;
     node.material = Array.isArray(node.material) ? node.material.map(finish) : finish(node.material);
   });
 }
