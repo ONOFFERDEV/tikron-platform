@@ -52,6 +52,13 @@ export const FIELD_UI_COPY = {
     frames: "fps",
     player: "전투원",
   },
+  feed: {
+    biplane: "복엽기 소사",
+    mortar: "박격포",
+    grenade: "수류탄",
+    you: "나",
+    assist: "지원",
+  },
   tactical: {
     label: "전술 지도와 현재 위치",
     canvas: "내 위치, 분대원과 임시 분대 신호. 적 자동 추적 없음",

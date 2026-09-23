@@ -606,11 +606,12 @@ export class Hud {
     details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean; medal?: 'ambush' } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
-    const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? '무기' : weaponLabel(WEAPONS.find(w => w.slot === details.weapon)?.key));
+    const F = FIELD_UI_COPY.feed;
+    const weapon = part === 'drone' ? F.biplane : part === 'mortar' ? F.mortar : part === 'blast' ? F.grenade : (details.weapon == null ? '무기' : weaponLabel(WEAPONS.find(w => w.slot === details.weapon)?.key));
     const cause = part === 'head' ? '헤드샷' : part === 'blast' ? '폭발' : '처치';
     const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
     node.style.setProperty('--team', color);
-    node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? '<span class="tag">YOU</span>' : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? '<span class="tag">YOU</span>' : ''}${esc(victim)}</span>${assistName ? `<span class="assist">ASSIST / ${esc(assistName)}</span>` : ''}`;
+    node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? `<span class="tag">${F.you}</span>` : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? `<span class="tag">${F.you}</span>` : ''}${esc(victim)}</span>${assistName ? `<span class="assist">${F.assist} / ${esc(assistName)}</span>` : ''}`;
     this.feed.prepend(node);
     this.kills.push({ node, born: performance.now() });
     while (this.kills.length > 4) this.kills.shift()?.node.remove();

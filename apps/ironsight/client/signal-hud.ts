@@ -14,7 +14,7 @@ export class SignalHud {
   constructor(private readonly cue:(phase:SignalFrame['phase'])=>void,
     private readonly site:'relay'|'undertow'|'switchyard'='relay') {
     this.root.id='signalEvent'; this.root.hidden=true;
-    this.root.style.cssText='position:fixed;inset-block-start:var(--ui-safe-edge);inset-inline-start:14.25rem;inline-size:350px;max-inline-size:calc(100vw - 40px);padding:var(--ui-space-3) var(--ui-space-4);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-hud-backing);color:var(--ui-text-primary);pointer-events:none;font:500 var(--ui-type-hud)/1.4 var(--ui-font-body);box-sizing:border-box';
+    this.root.style.cssText='position:fixed;inset-block-start:var(--ui-safe-edge);inset-inline-start:14.25rem;inline-size:min(350px,calc(50vw - 14.25rem - 96px));max-inline-size:calc(100vw - 40px);padding:var(--ui-space-3) var(--ui-space-4);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-hud-backing);color:var(--ui-text-primary);pointer-events:none;font:500 var(--ui-type-hud)/1.4 var(--ui-font-body);box-sizing:border-box';
     this.title.style.cssText='display:block;font-size:var(--ui-type-hud);margin-block-end:var(--ui-space-2)';
     this.title.setAttribute('role','status');
     this.detail.style.cssText='display:block;font-size:var(--ui-type-hud);color:var(--ui-text-secondary);padding-inline-end:3rem';

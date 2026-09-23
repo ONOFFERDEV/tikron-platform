@@ -29,6 +29,10 @@
 
 ## Cross-stream requests
 
+- **Session 9 / supervisor, flow request:** while the `#deployment-flow` recovery panel is shown (reconnecting), `Hud.showConnection` still renders the legacy `#overlay[data-kind="connection"]` card behind it, and its edges show (`.inspect/ui-r3/screens/1280-reconnecting.png`). A CSS hide is blocked by the service-skin invariant, so a flow owner should skip the legacy card while the recovery flow is active.
+- **Session 9 / Look (`client/vfx.ts`):** `TypeError: Cannot set properties of undefined (setting 'floor') at Vfx.spawnCasing` shows up in live TDM/DOM/FFA bot rooms while the local player fires. It appears on the unchanged baseline too (5 times before, 3 after).
+- **Session 9 / Supervisor (`client/match-inspect.ts`):** the `?inspect=match` results fixtures throw before rendering. Their checks still expect the English strings `AUTOMATIC / STAND BY`, `IN 13s`, `shared capture second` and `AMBUSH`, which are now Korean. Because of this I captured results live instead.
+
 - **Session 6 / supervisor: acceptance BLOCKED.** Current Aside automation fails readiness in both unchanged official map/hitch gates; native capture also times out across the required matrix. One fresh1280 mortar-ready fixture is readable, but root cause is unconfirmed. Restore a reliable Aside inspection path and rerun the complete14-state/two-size/zoom/font/motion/binding matrix plus unchanged gates on port8804. See `.inspect/ui-session-6/hardware-gates-acceptance.json`, `harness-triage.md` and `visual-verdict.md`. No owning-stream source, gate threshold, shared lease or other process was changed.
 
 
@@ -59,6 +63,76 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 - Completed: owned-process and lane cleanup, recorded in .inspect/ui-session-6/cleanup.json.
 
 ## Session log
+
+### Session 9 - 2026-09-23: Live team-mode overlap pass and current screen captures
+
+Scope: UI lane only; no commit, push or deploy. Base: 029f570. Layout only: position, width, padding, z-order. No text, panel, flow or state changed. No blur, shadow, filter or gradient is added, so `client/compositor-preparation.ts` needed no change.
+
+#### What changed
+
+- `client/signal-hud.ts`: the signal event card is capped at `min(350px, 50vw - 14.25rem - 96px)`, so at 1280 it ends left of the centred scores. It used to overlap them.
+- `client/ui/hud-field-style.ts`:
+  - The reload chip sits on the bottom row, left of the ammo panel. It used to overlap the support card at 1920 and 1280.
+  - Results and connection overlays raise `#hud` to `--ui-z-hud`. The body-level tactical map had painted over the live results title at 1280x720.
+  - The short-viewport block from Session 8 now covers team modes. Scores and mode share the top row, and the brief ends above the crosshair. Ping, telemetry and health are compact. DOM objectives and capture bars sit in the lower centre band, and the ping notice moves into the centre column.
+- `client/ui/match-field-style.ts`: from 801px up, while the deployment banner is showing, DOM objectives and capture bars start below it. They used to overlap the banner at 1920.
+
+#### Evidence (`.inspect/ui-r3/`)
+
+- Live bot rooms on the dev server (`live.mjs`, which uses the r2 probe plus `#hud` grid children): TDM, DOM and FFA at 1920x1080, 1280x720 and 640x360@2x, 50s each. The harness walks, fires and presses Q/B/V, and samples every ~1.5s. Real states seen: team scores, capture bars and objectives, a kill feed with 3-4 live entries, the combat event log, the FFA leaderboard, the streak banner, the support banner (friendly recon flight), signal events on all three maps, the ping notice and hint, the reload chip and the deployment banner.
+- Before (`live-before.json/.log`) had overlaps at desktop sizes: TDM 1920 reload/support; TDM 1280 scores/signal and reload/support; DOM 1920 objectives and capture bars under the deployment banner; DOM 1280 scores/signal and reload/support.
+- After (`live-after.json/.log`): **0 overlaps, 0 clipped panels, 0 clipped text at 1920 and 1280 in TDM, DOM and FFA.** Practice is re-checked at all three sizes with 0 overlaps (`practice-practice-after.json`). Captures: `{before,after}/{mode}-{size}-{n}.png`.
+- Current 1280 captures in `screens/`, all from real client states:
+  - Results and intermission: a real TDM round played to its 5-minute end. `1280-results.png`, `1280-intermission.png` (countdown and vote), `1280-next-round.png`. The pre-fix frames with the map over the title are in `screens/before-fix/`.
+  - Loading: `1280-loading-{connecting,preparing,control-required}.png`.
+  - Reconnect: the dev server was stopped mid-match. `1280-reconnecting.png`, `1280-expired.png`.
+
+A first-time player would say: "팀전에서도 점수, 통신 경보, 재장전 표시가 서로 겹치지 않는다."
+
+#### Gates and measured cost
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`.
+- hitch-probe `--assert` (advisory under the shared-host rule; run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 frames over 150ms, 0 errors, max frame 16ms.
+- Asset bytes unchanged (35,363,446). Client bundle 4,106,187 to 4,107,823 (+1,636); publicBytes 47,368,450.
+
+#### Open questions / limits
+
+- **640x360@2x: transient panels still overlap.** The permanent panels no longer overlap each other in any mode. At this size the kill feed, combat event log, signal event, support banner, ping notice and reload chip still land on permanent panels while they show. Measured TDM panel area is about 345k px² against 208k px² usable (608x344), so they cannot all fit without removing or shrinking information. Owner decision needed, choosing between: (a) accept transient overlays at 640x360; (b) allow a smaller type scale at 500px height or less; (c) queue transient notices through one slot, which is a flow change.
+- **640x360 FFA leaderboard** (`#lb`, 12 rows, about 294x267) sits below the viewport and was clipped in every sample. This predates this session. It cannot fit beside the other panels without scrolling or truncation, so it goes to the same owner decision.
+- **Reconnect screen:** the legacy HUD connection card peeks out behind the smaller recovery panel (`screens/1280-reconnecting.png`). This predates this session. Hiding it needs `visibility:hidden`, which the service-skin invariant test forbids. I tried it, the test failed, and I reverted it. Referred as a flow request: do not render the legacy connection card while the deployment-flow recovery panel is active.
+- **English still on the HUD:** capture labels `A / OPEN|RED|TAKING|BLUE`, the streak `N KILL STREAK`, and damage marks `FRONT/BACK`. These were not in this round's scope.
+- **Squad radio and the elimination banner** did not appear in the live runs, so they were not probed live.
+
+### Session 8 - 2026-09-23: Period kill feed and short-viewport HUD layout
+
+Scope: UI lane only; no commit, push or deploy. No flow, state, binding or gameplay change. Base: supervisor commit 223adb0.
+
+#### What changed
+
+- Kill feed Korean-first with period names. `client/ui/copy.ts` adds `FIELD_UI_COPY.feed`. `client/hud.ts` uses it for the non-gun causes and tags: `drone` 복엽기 소사 (was SENTRY; the fixed-path attack biplane, same wording as the existing support copy), `mortar` 박격포 (was MORTAR), `blast` 수류탄 (was GRENADE; `config/ww1-assets.ts` weaponSupport `grenade`), `YOU` becomes 나 (the tactical-map "me" word), and `ASSIST /` becomes `지원 /` (the round-honors assist column). Every English token found had a WW1 counterpart, so no label was kept as-is. Player names are data and are unchanged.
+- Short narrow HUD layout. `client/ui/hud-field-style.ts` adds one `@media(max-width:800px) and (max-height:500px)` block, which matches 1280x720 and 1366x768 at 200% zoom. Left column: map, connection, input latency, health. Centre: mode, brief, training coach. Right: support card, signal hint, ammo. A full-width weapon row sits along the bottom. Position, width and padding changes only. No font size, text or panel is removed; no blur, shadow, filter or gradient is added, so `client/compositor-preparation.ts` needed no change. 1280x720 and 1920x1080 match none of the new rules.
+- `test/ui-copy.test.ts`: one assertion pins the five feed labels.
+
+#### Evidence (`.inspect/ui-r2/`)
+
+- Layout probe (`layout.mjs` + `layout-probe.js`) on the live practice HUD. It lists every visible positioned panel, checks pairwise intersection, viewport clipping and clipped text. Before (`layout-before.json`): 1280 0 overlaps, 1920 0; 640x360@2x 7 overlaps (hp/coach, mode/map, wbar/coach, wbar/hint, brief/map, brief/hint, coach/hint), with `#ping` and `#combatTelemetry` clipped below the viewport. After (`layout-after.json`): 0 overlaps, 0 clipped panels and 0 clipped text at all three sizes. The same 11 panels are present before and after; at 1280/1920 no panel moved.
+- Captures: `{before,after}/{1920,1280,zoom200}-hud.png`, `{before,after}/{1920,1280,zoom200}-killfeed.png`. The kill-feed fixture (`feed-fixture.ts`, `feed.mjs`) drives the real `Hud.addKill` with drone/mortar/blast/head, local kill, local victim and assist; receipts are `feed-{before,after}.json`. Captures use headless Chrome in software mode (headless Aside still stalls, see Session 7).
+
+A first-time player would say: "200%로 키워도 패널이 겹치지 않고, 킬 로그가 전부 한국어다."
+
+#### Gates and measured cost
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`; relay median 6.9ms, p99 7.1ms.
+- hitch-probe `--assert`: `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 frames over 150ms, 0 errors, max frame 19.4ms.
+- Asset bytes unchanged (35,363,446). Client bundle 4,104,203 to 4,106,187 (+1,984); publicBytes 47,365,090.
+
+#### Open questions / limits
+
+- At 640x360 the centre column (mode, brief, coach) necessarily covers the crosshair while the practice coach is shown. The side columns and the weapon row are full, and no panel was removed. Hiding or shrinking the coach there would be a flow/information change, so it is left for the owner.
+- Transient and team-mode panels (scores, feed with kills, streak, capture bars, support banner, signal event, squad radio) were not probed at 640x360. Only the practice HUD was checked for overlap.
+- Viewports narrower than about 560px with a height of 500px or less would overflow the single-row weapon strip; the existing 520px rules cover the narrow side, but that combination was not captured.
 
 ### Session 7 - 2026-09-23: WW1 service-weapon names in the HUD
 
