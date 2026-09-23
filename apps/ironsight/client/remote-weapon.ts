@@ -17,7 +17,9 @@ import { WEAPONS } from "../src/config.js";
 // Measurement and per-clip table: .inspect/kit-r3/{fit,measure}.ts, AAA-PLAN-KIT Session 7.
 const MOUNT_OFFSETS = [[0.029, 0.138, 0.119], [0.045, 0.143, -0.002], [0.031, 0.14, 0.12],
   [0.033, 0.106, -0.026], [0.039, 0.139, 0.078]] as const;
-const LEGACY_SUPPORT_OFFSETS = [undefined, undefined, undefined,
+// SMG and shotgun: the baked palm faces up beside the fore-end without touching it; these
+// place the palm point on the fore-end underside below the bore (.inspect/kit-r4/socket.ts).
+const LEGACY_SUPPORT_OFFSETS = [undefined, [0.057, 0.004, 0.082], [0.037, -0.023, -0.006],
   [0.002, -0.001, -0.025], [-0.007, 0.005, 0.004]] as const;
 const CONFIG = (GAME.weaponVis.presentation ?? VISUALS).remote;
 const PALM_THICKNESS = .014;

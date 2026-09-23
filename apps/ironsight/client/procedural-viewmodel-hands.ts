@@ -19,6 +19,12 @@ const RELOAD_CONTACTS = [[-0.027, -0.072, -0.445], [0.033, -0.03, -0.27],
 /** Support hand on the bolt/slide at full bolt travel, slots 1-4. */
 const BOLT_CONTACTS = [[0.035, 0.044, -0.244], [0.059, 0.061, -0.242],
   [0.041, 0.052, -0.246], [-0.056, 0.050, -0.244]] as const;
+/** Mid-travel detour for the support hand, per slot: applied with 4t(1-t) of each travel
+ * (reach and bolt) so both ends of every reach are unchanged and the hand
+ * passes below/outside the receiver instead of through it (.inspect/kit-r4/detour.ts). */
+const TRAVEL_DETOURS = [[0, 0, 0], [-0.06, -0.09, 0], [0, -0.06, 0.04],
+  [-0.03, -0.03, 0], [-0.03, -0.09, 0]] as const;
+const bump = (t: number): number => 4 * t * (1 - t);
 const CARBINE_MAGAZINE: readonly [number, number, number] = [-0.014, -0.061, -0.319];
 const CARBINE_CHARGE: readonly [number, number, number] = [0.068, -0.012, -0.14];
 const gloveMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), "glove");
@@ -73,6 +79,13 @@ export class ViewmodelHands {
         this.wrist.y -= pose.magazine * (index === 2 ? .04 : .34) * scale;
         const bolt = BOLT_CONTACTS[index - 1]!;
         this.wrist.lerp(this.elbow.set(bolt[0], bolt[1], bolt[2] - (1 - pose.bolt) * .05), pose.bolt);
+      }
+      if (!right) {
+        const detour = TRAVEL_DETOURS[index] ?? TRAVEL_DETOURS[0]!;
+        // Carbine: no detour. Its charge-handle return runs a narrow corridor past the magazine;
+        // every detour that fits the frame-continuity bound made some sample worse (Session 8).
+        const travel = bump(pose.reach) + bump(pose.bolt);
+        this.wrist.x += detour[0] * travel; this.wrist.y += detour[1] * travel; this.wrist.z += detour[2] * travel;
       }
       palm.position.copy(this.wrist);
       palm.rotation.set(right ? -.18 : -.25, 0, right ? -.1 : .45);
