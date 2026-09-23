@@ -17,6 +17,7 @@ import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
 import { HUD_FIELD_CSS } from './ui/hud-field-style.js';
+import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
 import type { ShotFeedbackEvent } from './shot-feedback.js';
 import type { WeaponActionState } from '../src/weapon-action.js';
 import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
@@ -355,7 +356,7 @@ export class Hud {
   constructor(settings: SettingsStore, container: HTMLElement = document.body, installStyles = true) {
     this.settings = settings;
     const style = el("style");
-    style.textContent = css + honorsCss + resultViewCss + HUD_FIELD_CSS;
+    style.textContent = css + honorsCss + resultViewCss + HUD_FIELD_CSS + SERVICE_FIELD_CSS;
     if (installStyles) document.head.appendChild(style);
 
     this.root = el("div", "hud");
@@ -539,6 +540,7 @@ export class Hud {
     sample.markVoteSent(); sample.setVoteStatus(1, 2);
     sample.showMatchEnd('blue', 42, 50, 12, 4, false, { ...roster, won: false }); save('results-voted');
     sample.showMatchEnd('draw', 50, 50, 12, 4, false, roster); save('results-draw');
+    sample.showConnection(false); save('reconnecting');
     sample.showConnection(true); save('connection');
     return frames;
   }

@@ -1,3 +1,5 @@
+import { COMBAT_FIELD_CSS } from './combat-field-style.js';
+
 /** Field instruments use the same DOM/state and loading clones as the live HUD. */
 export const HUD_FIELD_CSS = `
 #hud{
@@ -91,4 +93,4 @@ export const HUD_FIELD_CSS = `
  #hud #combatTelemetry{top:calc(var(--ui-safe-edge) + 420px);max-width:46vw}
  #hud #lb{top:calc(var(--ui-safe-edge) + 480px);width:46vw}
 }
-`;
+${COMBAT_FIELD_CSS}`;

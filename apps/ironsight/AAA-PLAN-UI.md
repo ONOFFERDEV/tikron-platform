@@ -2,8 +2,8 @@
 
 ## AAA gap list
 
-1. Settings, loading and connection/reconnect/quit overlays: finish the shared field framing and dense-screen checks. Next UI arc; deployment flow panel remains in this scope.
-2. Remaining combat overlays and shorter/mobile combat layouts: extend the HUD skin beyond the desktop states proven in Session 2. Preserve gameplay information and compositor preparation.
+1. Finish Session 6 acceptance: support/streak/death field skin is implemented provisionally, but Aside capture/readiness failures block the complete fresh visual matrix and both hardware gates. Repair the inspection environment and rerun unchanged gates before accepting the arc.
+2. Shorter desktop and narrow combat layouts: extend the HUD skin beyond the desktop states proven in Session 2. Menu/settings/results mobile access is covered; mobile FPS gameplay is not qualified.
 3. Live deployment camera-intro framing awaits look-stream integration; UI countdown/results/roster/honors/intermission skin is accepted in Session 4.
 4. Deployment world vistas await world-stream WW1 artwork. Menu and live instruments already share the field palette.
 
@@ -11,8 +11,8 @@
 
 | Reference | Status | UI evidence / target |
 | --- | --- | --- |
-| R-L09 | partial | Menu objective/training/action readability and live training completion verified. Result and countdown presentation verified in Session 4; settings/recovery remain. |
-| R-L12, R-L13 | partial | Sessions 1–2 menu/HUD use existing field tokens and Korean fonts. Session 2 critical text ≥14px, sampled neutral contrast ≥6.3388:1; 14 unchanged-copy pairs. Session 4 adds paper/olive match reports with 20 unchanged-text pairs and 38 current captures; recovery/settings remain. |
+| R-L09 | partial | Menu/training, results/countdown and Session 5 settings/loading/recovery readability verified. Session 5 adds live menu/settings/practice/pause/resume checks; remaining combat notices are next. Existing settings focus containment is a separate flow referral. |
+| R-L12, R-L13 | partial | Sessions 1–4 field menu/HUD/reports are retained. Session 5 completes settings/service framing with 74 fresh images, 26 unchanged-text pairs, repaired narrow Korean clauses and two independent PASS reviews. Session 6 support/casualty skin is provisional: one fresh1280 state is readable, but complete visual/hardware acceptance is blocked. |
 | R-L14, R-L23 | partial | Menu/HUD preserve controls, information and enemy choices; no new combat effects. Final hardware acceptance is recorded below separately. |
 | R-L20 | partial | Four retained kill-feed entries and server messages stay separated in Session 2 captures; complete match presentation still pending. |
 | R-L05, R-L07, R-L17 | met (UI scope) | Session 4 countdown, outcomes, honors, rosters and next-round statuses preserve behavior and pass both independent reviews. No new claim about gameplay timing or MVP selection. |
@@ -29,6 +29,13 @@
 
 ## Cross-stream requests
 
+- **Session 6 / supervisor: acceptance BLOCKED.** Current Aside automation fails readiness in both unchanged official map/hitch gates; native capture also times out across the required matrix. One fresh1280 mortar-ready fixture is readable, but root cause is unconfirmed. Restore a reliable Aside inspection path and rerun the complete14-state/two-size/zoom/font/motion/binding matrix plus unchanged gates on port8804. See `.inspect/ui-session-6/hardware-gates-acceptance.json`, `harness-triage.md` and `visual-verdict.md`. No owning-stream source, gate threshold, shared lease or other process was changed.
+
+
+- **Session 5 / Look / supervisor:** final official map/hitch gates PASS. Preserve the post-ready/pre-measurement gaps of **180.2ms and 247.1ms** in `.inspect/ui-session-5/hitch-acceptance.json` and `summary.json`. First ready is 3,276.8ms; UI preparation 716.2ms. As in Sessions 2/4, the unchanged official gate excludes that startup window; no cause or hitch-free startup is claimed. No renderer/probe/threshold file was changed by UI.
+
+- **Session 5 / supervisor, preexisting flow request:** independent review confirms `client/settings-ui.ts` has no Tab focus-trap branch (keydown handler near line188). This file and behavior are unchanged by this skin pass. The UI contract asks for dialog focus containment; route a separate authorized flow fix to trap first/last active controls while retaining capture cancellation and prior-focus restoration. Do not fold it into the visuals-only session.
+
 - **Session 4 / Look / supervisor:** required map/hitch gates PASS. Preserve the separately observed post-ready/pre-measurement gaps of 234.7ms and 322.5ms (`.inspect/ui-session-4/hitch-summary.json`, original `hitch-acceptance.json`) alongside Session 2 startup diagnostics. No cause is established and no threshold/renderer/probe file was changed by UI. First-ready 3,598.7ms; UI preparation 596.7ms. This is a renderer/startup follow-up, not a waiver of a red gate.
 
 Session 1 failures below remain historical receipts. Session 2 closes the weapon audit and required hitch acceptance requests; the existing soldier quarantine and world-vista request remain separate.
@@ -42,7 +49,125 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 - **Look / supervisor, required hardware gate:** rerun `EDGE='C:/Program Files/Aside/Application/Aside.exe' node scripts/hitch-probe.mjs http://localhost:8804 150000 .inspect/ui-session-1/hitch.json --assert` with this worktree's server running and the shared GPU available. The original attempt waited from approximately 10:50:53Z to 11:20:53Z on 2026-09-22 and failed at `scripts/inspection-lease.mjs:75` with `GPU inspection lease timed out after 1800000ms`. Receipt: `.inspect/ui-session-1/hitch.log`; no `hitch.json` exists. Other streams' leases/processes were left alone, no thresholds changed, and no software-rendered frame timing substitutes for the gate.
 - **World:** Existing `relay-vista.webp`, `undertow-vista.webp` and `switchyard-vista.webp` show the earlier environment. Regenerate those existing menu vistas when the corresponding WW1 world is ready; keep their current URLs. This session changes menu framing only.
 
+## Session 6 plan — 2026-09-23: Field dispatch, support and casualty plates
+
+- Completed: preserved initial source/bundle and the28 historical baseline captures.
+- Completed: field support, dispatch, streak and casualty skin; detached ready-edge and mixed-pip preparation.
+- Blocked: complete fresh visual/stress acceptance. One current1280 mortar-ready state is verified; both independent reviewers reject overall completion for missing coverage.
+- Completed: final typecheck, full tests, client build and asset audit pass; byte/source receipts and session log recorded.
+- Blocked: unchanged official Aside map and hitch gates fail browser readiness. No threshold or owning-stream source was changed.
+- Completed: owned-process and lane cleanup, recorded in .inspect/ui-session-6/cleanup.json.
+
 ## Session log
+
+### Session 6 - 2026-09-23: Field dispatch, support and casualty plates (acceptance blocked)
+
+The skin is provisional. This session is **not globally green or fully accepted**. Continuing from the retained partial Session 6 work, final code checks pass; complete browser evidence and hardware readiness remain blocked. No commit, push or deploy.
+
+Reference: R-L12/R-L13 (value hierarchy and readability), R-L14/R-L23 (unchanged information and enemy choices), R-L01 presentation only (existing 3/5/7 tiers). The single inspected mortar-ready state meets its readability target; whole-arc acceptance stays partial.
+
+#### Delivered source
+
+- `client/ui/combat-field-style.ts` supplies paper/olive materials to the support meter, lower-center dispatch, streak stamp and casualty slip. Shared tokens and documented local geometry drive the skin. The seven-kill identity mark is a CSS biplane silhouette.
+- `client/support-hud.ts` installs the skin and prepares recon/mortar/drone clones, including the mortar-ready edge and all seven pips with filled/unfilled colors. Live state, eligibility, timing, strings and callbacks are unchanged. `client/ui/hud-field-style.ts` composes death/streak styles; existing Hud clones already prepare those states.
+- No new font, asset, texture, gradient, shadow, blur, animation, light, render pass, dependency or gameplay setting. `test/combat-field-skin.test.mjs` checks CSS token/effect/content-suppression policy; its regexes are not behavioral proof.
+- Native runtime `prepaint-check.json` verifies the three real clone variants after a three-pip live state: seven visible pips, three filled/four empty, mortar-only readiness, unchanged live DOM and zero surviving preparation nodes. This tests construction, not GPU painting.
+
+#### Wow check and evidence
+
+**“박격포 알림이 목표와 조준점을 가리지 않아 한눈에 읽힌다.”** This describes the one verified state, not an accepted whole arc.
+
+Fresh evidence: `.inspect/ui-session-6/current/1280-mortar-ready.png`, compared with the preserved `before/1280-mortar-ready.png`. Native Aside rendered production classes in an exact 1280×720 iframe. The 1440×900 host screenshot was cropped at 0,0 without rescaling. `current/1280-mortar-ready.json` records geometry and loaded Noto Sans KR. The fixture explicitly calls the existing announcement presentation helper. Pointer lock is false; no live gameplay acceptance is claimed.
+
+Both independent reviewers opened the valid image and found no blocking product issue in that state. Dispatch clears elimination by approximately 24px and loadout by 9px; support clears ammo by 15px. Korean has no tofu, clipped baseline or orphaned final character. `current/mortar-diff.json` confirms dimensions and alpha; its 0.5564 changed-pixel ratio describes a redesign across capture paths, not a fidelity or performance score.
+
+Overall reviews remain **REVISE** (design, `/root/ui6_design_review`) and **FAIL / HIGH** (visual, `/root/ui6_visual_review`) because coverage is missing and hardware gates are red. Reports: `review-design.md`, `review-visual.md`, `visual-verdict.md`. The complete 14-state × 2-size matrix, 200% zoom, font failure, reduced motion and long-binding cases are not accepted. Historical after PNGs predate the latest layout. Failed retries and viewport fallbacks are not substitutes.
+
+#### Gates and measured cost
+
+| Gate | Result | Receipt in .inspect/ui-session-6/ |
+|---|---|---|
+| Typecheck | PASS, exit 0 | typecheck-final.log, verification.json |
+| Full tests | PASS: 1,619 Vitest + 92 Node; nine preexisting skips unchanged | test-final.log |
+| Focused UI policy tests | PASS: 4 | focused-final.log |
+| Client build / asset audit | PASS, exit 0 | build-final.log, assets-final.log |
+| Official Aside map inspection, port 8804, relay/practice-two | FAIL: readiness timeout after shared-lease wait | inspect-map-acceptance.log |
+| Official 150000ms-max hitch --assert | FAIL: live-player readiness timeout; no timing result | hitch-acceptance.log |
+| Full visual/design acceptance | BLOCKED | visual-verdict.md |
+| Lane/diff and owned-process cleanup | PASS | cleanup.json, lane-check.json |
+
+Final shipping public bytes: **52,316,928**, under 60 MiB. New asset/texture bytes: **0**; Meshy spend: **0**. Client bundle: **4,097,961 bytes**, SHA-256 `2d59804151db5253d521a7ff8646eadbb1cd2317bd4660363f950b71599a5ff7`, identical to the captured build. The initial generated bundle was 4,017,088 bytes; the 80,873-byte increase includes preexisting source/bundle drift outside the UI delta and cannot be attributed wholly to this skin. Soldier quarantine and admission records are untouched. No fresh frame-time, texture-residency, first-ready or first-load performance result was obtained.
+
+#### Rejected attempts and handoff
+
+`harness-triage.md` records source, asset-transport and browser-lifecycle hypotheses and parallel read-only debugging advice. Isolated headless/normal Aside, software/leased hardware, preserved baseline fixtures, minimal button/font controls and native CLI were exercised. Some controls work; others time out on font readiness, CDP input or screenshots. Native iframe pointer lock rejects `WrongDocumentError`. Root cause is **unconfirmed**. No product workaround follows from these hypotheses. The lowercase-font 404 was an agent diagnostic, not a product URL.
+
+An initial check-runner command failed before typecheck because Windows cmd received the Git Bash PATH; `typecheck-runner-error.log` retains it. The corrected runner uses absolute Git Bash, and all four final code gates exit 0. A long shell write also hit the Windows command-size limit; the incomplete evidence script was repaired before execution. Neither harness defect changed product code.
+
+Supervisor action: restore a reliable Aside inspection path, then rerun the unchanged hardware gates and complete the fresh visual matrix before accepting Session 6. Defaults remain visual-only, skin-only, unchanged information/enemy choices, no browser/gate substitution and no changes to other streams. No owner answer is needed to preserve those defaults. Required work is explicitly blocked, not marked complete. Owned servers and browsers are stopped. Automatic approval review rejected removal of `aside-profile-luJcGr` and `aside-profile-se76My` with only “blocked by policy”; these two inert evidence profiles remain, as recorded in `cleanup.json`.
+
+
+
+### Session 5 - 2026-09-22: Field service, settings and recovery (all required gates green)
+
+Plan: all four steps completed: untouched baseline; field skin and preparation; fresh visual/interaction acceptance; required gates, measurements, log and cleanup. Initial product tree was clean. UI lane only; no commit, push or deploy.
+
+Reference: R-L09 (read status and act), R-L12/R-L13 (value hierarchy and Korean readability), R-L14/R-L23 (unchanged information and enemy choices). The scoped service-screen targets are met; remaining combat presentation and the preexisting settings focus-trap request remain separate.
+
+#### Delivered change
+
+- `client/ui/service-field-style.ts` supplies one paper/olive field-card treatment to loading, control acquisition, preparation failure, reconnect/expired, pause and legacy HUD connection screens. Existing DOM, copy, callbacks and state/action conditions remain intact. Narrow titles use the existing 24px panel scale below 420px to keep complete Korean clauses together.
+- `client/ui/settings-style.ts` retains the three tabs, native inputs, scrolling body and fixed actions. Paper headings/selected tabs, ruled rows, brass controls and framed tabular values align it with deployment and reports. Labels stack below 767px; long bindings wrap without losing their reset controls. No change to `client/settings-ui.ts` or the settings store.
+- `client/ui/service-compositor.ts` varies detached, inert presentation copies for binding/audio tabs, checked/capture states and normal/error/ready service cards. The existing preparation path paints them during loading; HUD preparation now includes both connection states. Browser evidence confirms unchanged live settings/flow and zero surviving preparation nodes.
+- Two new style-boundary invariants cover defined tokens, expensive effects and information suppression. No new asset, font, dependency, gradient, filter, shadow, animation, texture, light or render pass. Existing service gradients/shadows are removed; existing shared hover/focus behavior remains.
+
+#### Wow check and browser evidence
+
+**“설정부터 연결 복구까지 같은 야전 장비처럼 보여서, 어디를 눌러야 할지 바로 알겠다.”**
+
+Evidence root `.inspect/ui-session-5/`: **26 before and 26 after** captures cover 13 states at 1920×1080 and 1280×720: settings controls/bindings/audio, pause, connecting/preparing/recovery/control/retry/reconnecting/expired and both legacy HUD connection states. **44 additional current checks and four live captures give 74 current images.** All 13 states also have 375×812 and 768×1024 evidence. The before fixture is an immutable bundle of unmodified production classes; both versions use the same Relay vista as background only. UI elements are real DOM/native controls.
+
+`checks.json` exercises native invert/reduced-motion/enemy-color controls; F8 binding capture, Escape cancellation and default restoration; long binding strings; save failure/recovery; pause/settings/return/resume and recovery/menu callbacks; keyboard focus; failed font requests plus hover; reduced-motion 0s; and actual hover rest/paused 50ms/settled frames. All three dense settings tabs plus the wheel-scrolled lower bindings have equivalent 200% reflow evidence (960×540 CSS at DPR2), not native browser zoom.
+
+`live.json` drives the shipping menu, persists/restores invert-Y, checks focus restoration, deploys practice with real pointer lock, moves with W, switches to SMG and matches HUD health to room state. It releases lock through the real browser API, opens audio settings from pause, closes and resumes with real pointer lock. No forged lock/state. Four captures document this flow; runtime/console errors are zero.
+
+`evidence.json` and `capture-validation-final.json` bind all 74 PNG signatures/dimensions/freshness to ten exact source/bundle hashes. All **26 full-screen text pairs match** after whitespace normalization. All 26 image-diff receipts preserve dimensions/alpha; their ratios describe the redesign, not a clone-fidelity score. Sampled contrasts: ink/paper **11.416:1**, secondary/raised **8.229:1**, accent/raised **6.657:1**, primary hover **9.774:1**, control boundary **4.779:1**. Critical controls are at least 14px with 44px targets. The native-accent regression fails before (`auto`) and passes after (field brass); connection instructions increase from 14px to 16px.
+
+The first independent visual review rejected two narrow Korean title breaks. `narrow-before.json` reproduces two lines at 28px in 309px content; `narrow-after.json` confirms one complete line at the existing 24px panel scale. Normal and failed-font recovery captures pass. All 74 current captures were refreshed after this final edit. Original review/hardware evidence and rejected frames are preserved in `iteration-1/`.
+
+Both fresh final reviewers **PASS / HIGH**, no blockers: `review-design-final.md` (/root/ui5_design_final) and `review-visual-final.md` (/root/ui5_visual_final). Each directly opened all 74 current images and independently matched all ten hashes. Final bundle SHA-256: **65e28a334b90eda627b922185d3d86ab060a67cd6922aec3d390c088ff635e72**. `visual-verdict.md` reconciles the reviews.
+
+Other rejected evidence: the owned server stopped during an earlier shell timeout; HTTP 000 distinguished this from a product exception/stale menu. A hidden Windows-native restart restored HTTP 200 without a product workaround; exact termination causation is unproven. Baselines were reshot from the immutable fixture to preserve the real dark native-control color scheme. One harness expectation incorrectly assumed ArrowUp was a default forward binding; source/runtime both use KeyW only, so the expectation was corrected. No product binding, skip or threshold changed. See `harness-triage.md`.
+
+#### Gates and measured cost
+
+| Gate | Result | Receipt |
+| --- | --- | --- |
+| Typecheck | PASS | `typecheck-final.log` |
+| Full tests | PASS: 1,605 Vitest tests in 187 files + 92 Node tests; nine preexisting skipped cases in seven files unchanged | `test.log` |
+| Client build / asset audit | PASS | `build.log`, `assets.log` |
+| Official hardware Aside map inspection, port 8804, relay/practice-two | PASS; no console errors | `hardware-gates-acceptance.json`, `inspect-map-acceptance.log`, `../ui-session-5-acceptance-{relay,practice-two}.png` |
+| Official 150000ms-max hitch probe with `--assert` | PASS; two deaths, maximum frame 15.7ms, zero shader changes/errors | `hitch-acceptance.json` |
+| Independent design and visual/Korean review | PASS / HIGH, both | `review-*-final.md` |
+| Lane/diff check and cleanup | PASS; own server tree stopped, port 8804 closed, zero owned browsers/profiles | `lane-check.json`, `cleanup.json` |
+
+No new asset/texture bytes; **0 Meshy credits**. Asset audit counts **40,853,455 asset bytes unchanged** and **52,689,053 shipping public bytes**, up **12,734**. Bundle grows **5,362 bytes** to **4,017,088**; sourcemap grows **7,372**. Conservative disk total including quarantined soldiers is **61,091,095 bytes** across 94 files; largest file 8,025,108. Both current ceilings remain unchanged. `summary.json` records exact values.
+
+Final Relay inspection on RTX 5070 at 1920×1080: median **6.9ms**, p99/max **7.1ms**, 38 calls, 230,200 triangles, 18 textures, estimated **33.681 MiB** texture residency; construction **196.3ms**, scene preparation **1,144.8ms**. Practice-two reports one player at 100 HP, 63 calls and 26 textures. No paired gameplay frame/texture/load delta was collected; these desktop results do not qualify the laptop iGPU target.
+
+Final hitch lease acquired **14:25:10.951Z**, completed **14:27:07.025Z** after the shared GPU queue. Measurement covers **110,760ms / 15,946 frames**, stopping under the existing two-death rule before the 150000ms maximum. Maximum frame **15.7ms**, maximum animation callback **11.2ms**, p99 upper bound **8ms**. Two deaths; zero long tasks, frames above 24ms, shader recompiles and console errors. First-damage/death windows peak at **12.7ms / 8.3ms**, both PASS. The official scripts, lease and thresholds are unchanged.
+
+Fresh-profile loopback first-ready time is **3,276.8ms**; scene preparation **1,150.7ms**, UI preparation **716.2ms**. UI-only software preparation is **948.1ms**; the separate live software practice run records **1,526.1ms**. These observations are not production/device cold-load qualification or paired improvement claims. The original-build hardware pass is retained separately; final acceptance uses the reviewed final hash.
+
+Separate post-ready/pre-measurement gaps of **180.2ms and 247.1ms** remain recorded. The unchanged official gate excludes this startup window. This session does not establish hitch-free startup or its cause; the measurements are routed to Look/supervisor alongside Sessions 2/4.
+
+#### Handoff and limits
+
+Open owner questions: none. Defaults remain existing gameplay, text, controls, enemy choices and world vistas; remaining combat overlays are the next UI arc. Software screenshots prove appearance/interaction; equivalent reflow is not a native zoom observation and mobile screenshots do not qualify FPS gameplay. TypeScript LSP is unavailable (installation previously declined); both project `tsc` checks pass.
+
+Reviewers identified a preexisting missing Tab focus-trap branch in unchanged `client/settings-ui.ts`. It is referred under Cross-stream requests for a separately authorized flow fix; no full-dialog accessibility compliance is claimed. Soldier quarantine/provenance remain unchanged in their owning lane.
+
+Final cleanup stops owned Wrangler root **40324** and its six descendants; port 8804 is closed, with no owned browser/profile or gate runner remaining. No out-of-lane source was touched. `AAA-PLAN.md`, shared inspectors/probes, renderer/gameplay/settings-store files and other streams' assets remain unchanged. No commit, push or deploy occurred.
 
 ### Session 4 - 2026-09-22: Field reports (all required gates green)
 

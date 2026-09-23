@@ -6,20 +6,7 @@ import { modeCopy } from './ui/copy.js';
 
 import { DEPLOYMENT_FIELD_CSS } from './ui/match-field-style.js';
 
-const flowCss = `
-#deployment-flow{position:fixed;inset:0;z-index:190;display:grid;place-items:center;padding:var(--ui-safe-edge);box-sizing:border-box;background:linear-gradient(90deg,rgba(7,16,21,.96),rgba(7,16,21,.74));color:var(--ui-text-primary);pointer-events:auto}
-#deployment-flow[hidden]{display:none}
-#deployment-flow .deployment-flow__panel{width:min(520px,100%);box-sizing:border-box;border-top:2px solid var(--ui-accent);background:var(--ui-surface-1);padding:var(--ui-space-6);box-shadow:0 18px 50px #0008}
-#deployment-flow .deployment-flow__eyebrow{color:var(--ui-accent);font:700 var(--ui-type-hud)/1.4 var(--ui-font-key);letter-spacing:.15em}
-#deployment-flow h1{margin:12px 0 8px;font:700 clamp(30px,5vw,48px)/1.15 var(--ui-font-display);letter-spacing:.04em;word-break:keep-all;text-wrap:balance}
-#deployment-flow p{margin:0;color:var(--ui-text-secondary);font:16px/1.6 var(--ui-font-body);word-break:keep-all;text-wrap:pretty}
-#deployment-flow .deployment-flow__stage{margin-top:18px;padding:12px 14px;border-left:2px solid var(--ui-accent);background:var(--ui-surface-2);color:var(--ui-text-primary);font:700 var(--ui-type-hud)/1.5 var(--ui-font-key)}
-#deployment-flow .deployment-flow__actions{display:flex;gap:10px;margin-top:24px}
-#deployment-flow .deployment-flow__actions button{min-height:44px;padding:0 18px;border:1px solid var(--ui-border-strong);background:var(--ui-surface-0);color:var(--ui-text-primary);font:700 var(--ui-type-body) var(--ui-font-body);cursor:pointer}
-#deployment-flow .deployment-flow__actions button:first-child{border-color:var(--ui-accent);background:var(--ui-accent);color:var(--ui-ink)}
-#deployment-flow .deployment-flow__actions button:focus-visible{outline:2px solid var(--ui-focus);outline-offset:3px}
-@media(max-width:520px){#deployment-flow .deployment-flow__panel{padding:20px}#deployment-flow .deployment-flow__actions{flex-direction:column}#deployment-flow .deployment-flow__actions button{width:100%}}
-`;
+import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
 
 export interface DeploymentFlowActions {
   retry(): void;
@@ -38,7 +25,7 @@ export class DeploymentFlowPanel {
 
   constructor(private readonly callbacks: DeploymentFlowActions, container: HTMLElement = document.body) {
     if (!document.getElementById('deployment-flow-styles')) {
-      const style = document.createElement('style'); style.id = 'deployment-flow-styles'; style.textContent = flowCss; document.head.append(style);
+      const style = document.createElement('style'); style.id = 'deployment-flow-styles'; style.textContent = SERVICE_FIELD_CSS; document.head.append(style);
     }
     this.root.id = 'deployment-flow'; this.root.hidden = true; this.root.setAttribute('role', 'status'); this.root.setAttribute('aria-live', 'polite');
     const panel = document.createElement('div'); panel.className = 'deployment-flow__panel';

@@ -8,6 +8,7 @@ import { readMortar } from './mortar-view.js';
 import { formatBinding, type SettingsStore } from './settings.js';
 import type { CompositorFrame } from './compositor-preparation.js';
 import { FIELD_UI_COPY } from './ui/copy.js';
+import { SUPPORT_FIELD_CSS } from './ui/combat-field-style.js';
 
 export class SupportHud {
   private readonly root = document.createElement('aside');
@@ -37,6 +38,7 @@ export class SupportHud {
       @media(max-width:800px){#airSupport{bottom:200px;right:16px;width:200px}#supportBanner{top:344px}}
       @media(max-width:520px){#airSupport{top:218px;bottom:auto;width:144px;padding:10px}#supportBanner{top:406px;padding-top:9px;padding-bottom:9px}#supportBanner strong{font-size:17px}}
       @media(max-height:650px) and (min-width:801px){#airSupport{bottom:145px}#supportBanner{top:195px}}`;
+    style.textContent += SUPPORT_FIELD_CSS;
     document.head.append(style);
     this.root.id = 'airSupport'; this.root.hidden = true;
     this.banner.id = 'supportBanner'; this.banner.hidden = true; this.banner.setAttribute('role', 'status');
@@ -56,11 +58,15 @@ export class SupportHud {
     this.banner.dataset.kind='drone';
   }
   compositorFrames(): CompositorFrame[] {
-    return ['uav', 'mortar', 'drone'].map(kind => {
+    return ['recon', 'mortar', 'drone'].map(kind => {
       const node = document.createElement('div');
       const meter = this.root.cloneNode(true) as HTMLElement; meter.hidden = false;
       meter.querySelector('strong')!.textContent = FIELD_UI_COPY.support.ready;
       meter.querySelector('span')!.textContent = FIELD_UI_COPY.support.biplaneAvailable;
+      meter.dataset.mortarReady = String(kind === 'mortar');
+      for (const [index, pip] of meter.querySelectorAll('i').entries()) {
+        pip.hidden = false; pip.dataset.filled = String(index < 3);
+      }
       const banner = this.banner.cloneNode(true) as HTMLElement; banner.hidden = false;
       banner.dataset.kind = kind;
       banner.innerHTML = `항공 지원<strong>${FIELD_UI_COPY.support.ready}</strong><span>${FIELD_UI_COPY.support.biplaneAvailable}</span>`;

@@ -1,3 +1,5 @@
+import { serviceCompositorFrames } from './ui/service-compositor.js';
+
 export interface CompositorFrame { name: string; node: HTMLElement }
 
 /** Clone mounted peripheral layouts without invoking their audio/state machines. */
@@ -59,7 +61,7 @@ export async function prepareCompositor(frames: readonly CompositorFrame[]): Pro
     const border = new Image(); border.src = '/assets/ui/damage-vignette.png';
     await border.decode().catch(() => {});
     await document.fonts.ready;
-    for (const frame of frames) {
+    for (const frame of serviceCompositorFrames(frames)) {
       const start = performance.now();
       surface.dataset.effect = frame.name;
       surface.replaceChildren(frame.node);
