@@ -49,7 +49,7 @@ describe('front lighting', () => {
     const center = new T.Vector3(75, 0, 50);
     applySiteLightRig(scene, 'relay', center);
     const direction = key.position.clone().sub(center).normalize();
-    expect(direction.distanceTo(new T.Vector3(-0.46, 0.84, -0.29).normalize())).toBeLessThan(1e-10);
+    expect(direction.distanceTo(new T.Vector3(-0.733, 0.5, -0.462).normalize())).toBeLessThan(1e-10);
   });
 
   it('leaves unauthored maps untouched', () => {

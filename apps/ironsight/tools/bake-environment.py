@@ -9,7 +9,7 @@ w, h = 512, 256
 image = bpy.data.images.new('industrial-daylight', w, h, alpha=False, float_buffer=True)
 image.colorspace_settings.name = 'Non-Color'
 pixels = []
-sun = (-0.46, 0.84, -0.29)
+sun = (-0.733, 0.5, -0.462)  # 30 degrees: long noon-hard shadows (look Session 7)
 for row in range(h):
     latitude = (row / (h - 1) - 0.5) * math.pi
     y = math.sin(latitude)
