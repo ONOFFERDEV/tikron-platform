@@ -5,10 +5,16 @@ Scope: world-owned files in `tools/aaa-stream-world.md`. No commit, push, or dep
 
 ## AAA gap list
 
-1. **Underpass Trench conversion arc 2/3:** Session 4 replaces the exterior process skyline and establishes wet masonry/timber. Next convert playable turbine faces, field-office shells, oversized sluice frames and modern floor markings into period construction against the same collision authority; follow with human-scale trench use and damage in arc 3/3.
+1. **Underpass Trench conversion arc 3/3:** Session 5 replaces turbine faces and factory circulation stripes with timber redoubt cladding and supported duckboards. Finish field-office/control-panel details, oversized sluice frames and industrial low-cover caps, then irregular repairs and human-scale trench use. Keep the same collision authority; the complete period shell is still partial.
 2. Front Supply Depot needs timber freight/platform finishes and period rail equipment.
 3. Signal Station's major period shell arc is implemented. Add less regular damage, repairs and human-scale use to reduce its repeated brick/box rhythm after the other maps establish their period silhouettes.
 4. Measure the finished three-map visual package on the actual laptop iGPU; desktop evidence is not that qualification.
+
+## Session 5 work tracking
+
+- [completed] Preserved three native Aside fixed-camera baselines and two headless views; converted turbine cladding and factory stripes to backed timber. Optional baseline headless stress capture timed out; failure retained.
+- [completed] Re-baked architecture with stable material identities. Exact geometry audit, three regression tests, full tests, typecheck, build and asset gates pass.
+- [completed] Seven fresh final captures/five comparisons verified; both independent visual reviews approve. Corrected-build hitch and all standing gates pass. Evidence, deltas, rejected attempts and cleanup logged; owned port 8801 server stopped.
 
 ## Session 4 work tracking
 
@@ -47,7 +53,7 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 | IDs | Status | Evidence / target |
 | --- | --- | --- |
 | R-M01, R-M02, R-M03, R-M04, R-M05, R-M06, R-M07, R-M08, R-M09, R-M10, R-M11, R-M12, R-M13, R-M14, R-M15, R-M16, R-M18, R-M19, R-M20 | partial | Existing map layout retained; map invariants/timing and all three Relay audits pass. No new gameplay approval. |
-| R-M17 | partial | Session 3 finishes Relay's major period shell; Session 4 replaces Underpass exterior process vessels with distinct ruined houses, belfry and a timber hoist. Underpass playable plant facades and Supply Depot remain. |
+| R-M17 | partial | Session 3 finishes Relay's major period shell; Session 4 replaces Underpass exterior process vessels with distinct ruined houses, belfry and a timber hoist. Session 5 removes playable turbine faces and factory stripes; Underpass office/sluice detailing and Supply Depot remain. |
 | R-G09, R-L12, R-L13, R-L14 | partial | Session 4 fresh ground/interior/overhead captures preserve routes and value separation with wet masonry/timber and unchanged texture memory. No new lights/passes/texture assets. Static evidence does not certify live soldier recognition or laptop-iGPU performance. |
 | R-G01, R-G02, R-G03, R-G04, R-G05, R-G06, R-G07, R-G08, R-G10, R-G11, R-G12, R-G13, R-G14, R-G15, R-G16, R-G17, R-G18, R-G19, R-G20 | n.a. | Kit/combat/audio/UI work belongs to other streams or supervisor. |
 | R-L01, R-L02, R-L03, R-L04, R-L05, R-L06, R-L07, R-L08, R-L09, R-L10, R-L11, R-L15, R-L16, R-L17, R-L18, R-L19, R-L20, R-L21, R-L22, R-L23 | n.a. | Gameplay, audio and interface flow remain outside the world lane. |
@@ -75,6 +81,44 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 - **Resolved runtime queue issue:** final Aside initially exhausted its 1,800,000 ms GPU lease timeout; the first hitch attempt failed on Windows `ENOBUFS` during acquisition. The long-running unrelated owner released the lease before final handoff. World resumed both jobs, acquired the same mandatory lease, and passed Aside and hitch checks without changing shared tooling or stopping another session. Initial blocker evidence is retained in `session1-runtime-blocker.json`; final results are `session1-aside-verification.json` and `session1-hitch-summary.json`.
 
 ## Session log
+
+### Session 5 - 2026-09-23: Underpass Trench arc 2/3, timber redoubts and duckboards
+
+**Session 5 is green on all standing gates.** Both independent visual reviews approve the corrected final source/capture manifest; the native wrapper cleanup warning is explicitly retained below. Reference: R-M13, R-M17, R-G09, R-L12/R-L13/R-L14. Target: replace circular turbine faces and modern circulation stripes with collision-backed timber, without changing routes, material residency, lights or passes.
+
+#### Delivered increment
+
+- Replaced turbine end plates with vertical timber revetments and two horizontal walers. Side ventilation slits became timber bands. Six circulation-mark groups and four thresholds became flush duckboards clipped to actual y=0 supports; no timber floats across the drain or ramps. Objective outlines remain readable.
+- Rebuilt Undertow architecture using the standard 1024-square, 64-sample AO bake. Exact oriented-triangle audit passes: 64,608 triangles, zero degenerates, seven material primitives, one embedded AO image. The 219 collider boxes/eight ramps, floor planes, doors, windows, caps and ground AO are unchanged. All four site/yard/structure/channel audits pass.
+- Three regressions prove turbine removal plus positive backed timber, ground-board support, and stable exported material identities. Initial rotor test failed with 258 northern rotor instances; all three final tests pass.
+- No new texture asset, dependency, light, pass, gameplay change or Meshy spending (0 credits). No other-lane source edit. Contract: `docs/UNDERTOW-REVETMENTS.md`.
+
+#### Verification and measured deltas
+
+- `pnpm typecheck`, full `pnpm test`, `build:client` and `audit:assets` pass in `session5-{typecheck,test,build,assets}-current.{log,exit}`. Full tests: 184 files / 1,542 passing Vitest tests, seven existing skipped files / nine existing skipped tests, plus 83 passing Node tests. No threshold or test weakened. LSP remains unavailable as previously declined; no LSP-clean claim.
+- Required headless inspection passes on port 8801: overhead, home, relay and practice-two; zero console errors and zero forbidden offline requests (`world-s5-final-report.json`). Three native Aside captures have matching fixed cameras, 1440x900 dimensions, fresh document/build identity and valid PNGs. Seven final images and five matched comparisons are in `session5-visual-packet.json`.
+- RTX 5070/ANGLE, 1920x1080 home: median **6.9 -> 6.9 ms**, p95 **7.0 -> 7.1 ms**, max **7.1 -> 7.2 ms**, zero >16.7 ms frames. Textures remain **33.862 MiB**, 22 textures and 31 programs. Draw calls overhead **57 -> 57**, home **43 -> 43**. Submitted triangles overhead **156,490 -> 122,098**, home **127,680 -> 93,288**.
+- Local scene preparation: first overhead **1,023.3 -> 922.3 ms**, home **349.4 -> 304.0 ms**. These are local desktop observations, not internet first-load or laptop-iGPU qualification.
+- Architecture GLB **7,601,904 -> 4,881,612 bytes** (-2,720,292). Assets **38,044,621 -> 35,324,961 bytes** (-2,719,660 including provenance). Public inventory **49,936,056 -> 47,215,465 bytes** (-2,720,591 including bundle/maps); largest file **7,831,891 bytes**. Below unchanged 60 MiB/25 MiB caps; no reservation of integrated headroom for concurrent lanes.
+
+#### Rejected intermediates and limits
+
+- Initial .ts browser-geometry test pulled DOM code into the server TypeScript project. Moved this new test to the established .test.mjs lane without changing shared config. Initial failure preserved.
+- First bake changed material first-use order and visibly turned central masonry to timber. Rejected it. Stable original batch order and explicit wood slots 4/5 fix the source; failing-first material regression passes. Initial after images are rejected, only final-prefixed captures and `session5-final-source.json` identify delivery.
+- Optional pre-change headless undertow-stress timed out (`session5-before.exit=1`); ready overhead/home frames and all three matching native baselines remain. The mandatory final inspector passes. No gate script changed.
+- Native final capture wrapper exited 1 because one unrelated pre-existing tab disappeared from its before/after set. All image operations succeeded; the exact world-owned target is confirmed closed and the bundle stayed unchanged. No cause or ownership is invented for the unrelated tab. Raw status/report remain; `session5-aside-validation.json` separately verifies images. World issued no operation on the unrelated target.
+
+
+#### Final gate, independent review and cleanup
+
+- Corrected-build TDM hitch invocation on port 8801, 150000 ms, --assert: **PASS / exit 0**. Two bot deaths, **18,116 measured frames / 125.800 s**, p50/p95/p99 histogram upper bounds **7/8/9 ms**, maximum **15.0 ms**, zero >150 ms frames, zero shader recompiles and zero console errors. Shared GPU lease waited **110.351 s** behind another owner; queue delay is not rendering cost. No gate or threshold changed. This is one TDM run, not a five-run TDM/FFA or laptop qualification. Receipt: session5-hitch-current-summary.json.
+- Integrity reviewer /root/world_s5_integrity: PASS, no blockers. Fidelity reviewer /root/world_s5_fidelity: APPROVE/HIGH, all seven final images, five comparisons and 156 hotspots reviewed. Reports and synthesized verdict are session5-{integrity-review,fidelity-review,visual-qa}.md; durable pairing is session5-review-ledger.json. Dirty source manifest SHA256: 3e4e837591438afb169a520d3c616440222c0352a16109305724493e7c41b6dc. No commit SHA is invented.
+- session5-final-verification.json confirms every required exit 0, all eight source hashes unchanged, valid fresh captures and world-only tracked/untracked scope. session5-cleanup.json verifies the exact owned process tree before shutdown: no remaining owned processes and no listener on port 8801. Native owned tabs are closed; the pre-existing Aside app is left running.
+- Evidence-only reviewer output was relocated into the allowed .inspect lane; no production file outside world ownership changed. No commit, push or deploy.
+
+#### Wow check and next session
+
+Player sentence: **“The canal defenses have timber-faced redoubts and duckboards now.”** Period office details, oversized sluice frames, industrial low-cover caps and irregular damage remain ranked follow-ups. This is an increment, not whole-map AAA certification. No blocking owner question; default is finish the remaining shell against unchanged collision authority.
 
 ### Session 4 - 2026-09-23: Underpass Trench conversion arc 1/3, ruined canal skyline and wet field materials
 

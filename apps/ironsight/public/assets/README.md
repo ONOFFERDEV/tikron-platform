@@ -1803,3 +1803,13 @@ The report is `.inspect/world-s4-vista-report.json`; it uses the same current
 geometry/materials as the final fixed-camera evidence.
 
 <!-- /world -->
+
+<!-- # world -->
+World Session 5 (2026-09-23): Undertow collision-backed timber revetments and
+duckboards replace turbine faces and factory floor stripes. Original procedural
+geometry, unchanged seven material slots and 1024-square AO image. Rebuild with
+`node tools/dump-architecture.mjs .inspect/architecture-undertow.json undertow`, then
+Blender 4.5 `--background --python tools/bake-architecture.py -- --input .inspect/architecture-undertow.json`.
+Current geometry audit: `.inspect/aaa-loop-world/session5-final-geometry-audit.json`;
+64,608 triangles, 4,881,612 bytes, no purchased inputs or new texture asset.
+<!-- /world -->

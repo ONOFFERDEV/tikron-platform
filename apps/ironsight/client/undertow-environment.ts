@@ -11,9 +11,8 @@ import { undertowCanalSurface, undertowFieldKitPlacements, undertowSiteBoundary,
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
-/** Original reclamation kit. The complete box envelope remains visibly solid;
- * turbine faces/windows are flush cladding, never holes or new playable cover.
- * Pipes, basin and skyline equipment live outside the movement rectangle. */
+/** Original canal redoubt kit. Timber revetments preserve the solid collision
+ * envelope; thin boards never create openings or additional playable cover. */
 export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const { width, depth } = map.bounds;
   const mats: T.Material[] = ['concrete', 'housing', 'steel', 'pale', 'olive', 'ochre']
@@ -158,25 +157,20 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
           add(accent, x, 0.85, face + side * 0.003, 0.8, 1.45, 0.01);
           add(2, x, 0.85, face + side * 0.01, 0.64, 1.30, 0.005);
         } else {
-          // Flush turbine end plates: concentric rings with a six-spoke rotor.
-          const diameter = Math.min(1.7, h - 0.5, w - 0.04);
-          const count = Math.max(1, Math.floor(w / 2.2));
-          for (let i = 0; i < count; i++) {
-            const px = count === 1 ? x : b.min.x + diameter / 2 + i * (w - diameter) / (count - 1);
-            add(2, px, h * 0.49, face, diameter, 0.015, diameter, true, Math.PI / 2);
-            add(4, px, h * 0.49, face + side * 0.009, diameter * 0.80, 0.01, diameter * 0.80, true, Math.PI / 2);
-            for (let blade = 0; blade < 6; blade++) {
-              const angle = blade * Math.PI / 3;
-              add(2, px + Math.sin(angle) * diameter * 0.23, h * 0.49 + Math.cos(angle) * diameter * 0.23,
-                face + side * 0.010, 0.11, diameter * 0.42, 0.008, false, 0, -angle);
-            }
-            add(3, px, h * 0.49, face + side * 0.008, 0.25, 0.012, 0.25, true, Math.PI / 2);
+          // Timber revetment lies entirely against the solid redoubt envelope.
+          const boards = Math.max(1, Math.ceil(w / .36));
+          const boardWidth = w / boards;
+          for (let i = 0; i < boards; i++) {
+            const px = b.min.x + (i + .5) * boardWidth;
+            add(i % 4 === 0 ? 4 : 5, px, h / 2, face, boardWidth - .018, h - .24, .012);
           }
+          for (const height of [.27, .73])
+            add(4, x, h * height, face + side * .008, w - .04, .13, .008);
         }
         add(accent, x, h - 0.55, face, w - 0.25, 0.5, 0.01);
       }
-      for (const side of [-1, 1]) for (let k = 0; k < 6; k++)
-        add(2, x + side * (w / 2 + 0.007), 0.7 + k * 0.20, z, 0.012, 0.07, d * 0.65);
+      for (const side of [-1, 1]) for (const height of [.27, .73])
+        add(4, x + side * (w / 2 + .006), h * height, z, .012, .13, d - .04);
     }
   }
   // Stair nosings and door headers stay millimetres from authoritative faces.
@@ -200,18 +194,17 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, 0, p.yaw);
   for (const p of undertowSkylineParts(width, depth))
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, p.roll, p.yaw);
-  // Floor-only circulation marks; caps retain the authority's positions.
+  // Objective outlines remain as readable gameplay markers.
   for (const cap of Object.values(map.caps)) for (const side of [-1, 1]) {
     add(3, cap.x + side * 2.7, 0.004, cap.z, 0.08, 0.008, 5.4);
     add(3, cap.x, 0.004, cap.z + side * 2.7, 5.4, 0.008, 0.08);
   }
-  // Excavation removed the old yard under some circulation marks. Clip
-  // each rectangle to real horizontal surfaces at y=0, including bridges;
-  // neither the lower floor nor a descending ramp supports floating paint.
+  // Clip duckboards to real horizontal supports at y=0, including bridges;
+  // neither the lower floor nor a descending ramp supports floating timber.
   const paintSupports = map.terrain ? map.boxes.filter(b => b.max.y === 0) : [
     { min: { x: 0, z: 0 }, max: { x: width, z: depth } },
   ];
-  const groundPaint = (m: number, x: number, z: number, w: number, d: number) => {
+  const groundBoard = (m: number, x: number, z: number, w: number, d: number) => {
     for (const b of paintSupports) {
       const x0 = Math.max(x - w / 2, b.min.x), x1 = Math.min(x + w / 2, b.max.x);
       const z0 = Math.max(z - d / 2, b.min.z), z1 = Math.min(z + d / 2, b.max.z);
@@ -219,16 +212,18 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     }
   };
   for (const z of [depth * .27, depth * .70]) for (const x of [width * .25, width / 2, width * .75]) {
-    groundPaint(5, x, z, 7, .08);
-    for (let i = -2; i <= 2; i++) groundPaint(3, x + i * .5, z + .5, .2, .65);
+    for (let i = -9; i <= 9; i++) groundBoard(i % 4 === 0 ? 4 : 5, x + i * .36, z, .32, 1.15);
+    for (const side of [-1, 1]) groundBoard(4, x, z + side * .42, 7, .07);
   }
-  // Service-bay threshold strips on the intact yard plane.
+  // Timber thresholds reuse the same clipped, supported ground plane.
   for (const east of [false, true]) for (const [xx, zz] of [[34, 82.6], [35, 75.5]] as const) {
     const x = east ? width - xx : xx;
-    groundPaint(5, x, zz, 3.5, .12);
-    for (const dx of [-1.2, -.6, 0, .6, 1.2]) groundPaint(3, x + dx, zz + .35, .12, .4);
+    for (let i = -4; i <= 4; i++) groundBoard(i % 3 === 0 ? 4 : 5, x + i * .38, zz, .34, .95);
   }
-  for (const [key, transforms] of batches) {
+  // Keep the bake's material identities stable when a geometry batch disappears.
+  const bakeOrder = [0, 2, 3, 4, 5, 1, 6];
+  const orderedBatches = [...batches].sort(([a], [b]) => bakeOrder.indexOf(Number(a[0])) - bakeOrder.indexOf(Number(b[0])));
+  for (const [key, transforms] of orderedBatches) {
     const [material, shape] = key.split('-');
     const mesh = new T.InstancedMesh(shape === 'c' ? cylinder : unit, mats[Number(material)]!, transforms.length);
     transforms.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
