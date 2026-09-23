@@ -83,6 +83,56 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Session log
 
+### Session R-UI3 - 2026-09-23: Relay mud follows cause; enemy readability measured
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) after review of R-UI2 (committed 478f3a8). I merged `recovery/ironsight-ww1-20260912` first (it contains look's 1c3ec94 lighting: 30° sun and long hard shadows), so every number below is under the new light. Same limits as before: no collider, bake-tool, AO or other-map change. No commit.
+
+#### Delivered
+
+- **`client/relay-ground-wear.ts`: mud now follows cause.**
+  - Removed: the 90 evenly spread wet/dry blobs and 420 dark blots.
+  - Open ground between causes is now dry and lighter: pale drift, plus 160 faint small blots.
+  - Mud is concentrated in four places:
+    - cover bases: a band built from short strokes along each face, with scuffed edges and mid value only
+    - paths: a ragged trodden band from jittered short strokes, with lighter ruts (alpha 0.16/0.26, was 0.22/0.34) and puddle stains
+    - craters and their aprons: unchanged
+    - seven pooled low spots in the open yard, with a dried rim
+- **`client/relay-field-patterns.ts`:** the ground tonal field is weaker (0.93–1.06, was 0.84–1.10), with half of it at 3 m. The 13 m field had read as canopy shadow.
+- Wall damage from R-UI2 is unchanged.
+
+#### Readability measurement (`.inspect/relay-r8/`)
+
+- **Method.** Offline inspector frames with an enemy actor never become ready: `readyForInspection` waits for loaded soldier models. I recorded this rather than working around it. Instead:
+  1. `contrast.sh` renders fixed review cameras through the unchanged `inspect-map --review-camera` at four stand points, at 15 m and 30 m, for three builds: pre-mud (c3c7e71 floor), mud (478f3a8) and fixed. All three run on the same merged light.
+  2. `analyse.py` measures CIE L* of the ground beside the feet (0.35–1.2 m either side) and of what the legs and torso occlude.
+  3. `bot30.mjs` (a copy of look's probe, distance range made configurable) captures live enemy bots at 16–17 m and 32–38 m. `soldier.py` measures their L* from enemy-tinted pixels with the crosshair excluded: about 28 in shade, 41–44 in sun.
+- **Results** (L* of ground beside the feet / behind the legs; ΔL* against a sunlit soldier at 43, or a shaded one at 28):
+
+| Stand point | pre-mud | mud (R-UI2) | fixed | ΔL* pre → mud → fixed |
+| --- | --- | --- | --- | --- |
+| path, 15 m, sun | 67.4 / 67.7 | 59.9 / 55.8 | 71.1 / 68.4 | 24 → 17 → 28 (feet), 25 → 13 → 25 (legs) |
+| path, 30 m | 54.9 / 57.0 | 48.5 / 48.3 | 56.0 / 56.8 | 12 → 5 → 13 |
+| cover base, sunlit face, 15 m | 58.4 / 66.9 | 55.1 / 60.7 | 58.8 / 70.9 | 15 → 12 → 16 |
+| cover base, sunlit face, 30 m | 63.1 / 70.0 | 61.2 / 63.3 | 65.3 / 72.4 | 20 → 18 → 22 |
+| cover base, shaded face, 15 m | 16.8 / 33.0 | 18.6 / 34.8 | 18.4 / 35.5 | 11 → 9 → 10 (shaded soldier 28) |
+| crater, 15 m | 52.8 / 34.0 | 30.2 / 22.2 | 31.6 / 21.8 | 10 → 13 → 12 |
+
+- **Verdict:** the R-UI2 mud cut path and cover-base contrast by up to 12 L* (legs on a path, 15 m). The fix restores or exceeds the pre-mud contrast at every stand point except the shaded cover face (−1 L*, where the cast shadow dominates). Soldiers in craters keep about the same contrast as before, because the crater stays darker than a sunlit soldier. Full numbers: `ground-lightness.json`, `soldiers.json`. Crops: `live-crops.png` and `live-*-crop.png`.
+- Stills: `mud/` (R-UI2) and `fixed/`. `side-*.png` shows the two side by side at 50% (gate, cooling, freight, spawn, overview).
+
+#### Gates (fresh, merged tree)
+
+- typecheck exit 0.
+- test exit 0: 203 files / 1,676 Vitest pass, 9 skipped as before, Node 92/92.
+- build:client exit 0; audit:assets exit 0 (assetBytes 36,686,705, all from other lanes' merge; 0 bytes from this session); all four `tools/audit-relay-*.mjs` exit 0.
+- inspect-map relay,practice-two: exit 0, `errors: []`.
+- hitch-probe `--assert` (advisory, once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits
+
+- Live soldier samples are few: two 15 m captures (one landed on the results screen and was excluded) and two 30 m. The bots stood against walls, so soldier L* is paired with fixed-camera ground rather than measured on the same pixels.
+- At the gate camera, much of the remaining dark foreground mottling is the long lattice-mast shadow from look's new light, not paint.
+
 ### Session R-UI2 - 2026-09-23: Relay floor as the headline, wall damage one notch up
 
 Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804), after the coordinator reviewed R-UI1 (committed c3c7e71). Same limits as R-UI1: no collider, bake-tool, AO, `src/map/**` or other-map change. No commit.

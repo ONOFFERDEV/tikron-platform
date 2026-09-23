@@ -157,8 +157,8 @@ export const RELAY_BRICK_WEAR = `
  * projection, so it is continuous across the whole floor. Derivative-faded. */
 export const RELAY_GROUND_DETAIL = `
   float groundDetail = 1.0 - smoothstep(0.03, 0.12, max(footprint.x, footprint.y));
-  float tonal = relayNoise(metres / 13.0) * 0.8 + relayNoise(metres / 3.1 + 17.0) * 0.2;
-  diffuseColor.rgb *= mix(vec3(0.84, 0.81, 0.77), vec3(1.10, 1.06, 0.97), tonal);
+  float tonal = relayNoise(metres / 13.0) * 0.5 + relayNoise(metres / 3.1 + 17.0) * 0.5;
+  diffuseColor.rgb *= mix(vec3(0.93, 0.91, 0.88), vec3(1.06, 1.04, 0.98), tonal);
   float clods = relayNoise(metres * 1.3) * 0.6 + relayNoise(metres * 3.7) * 0.4;
   diffuseColor.rgb *= mix(1.0, mix(0.78, 1.10, clods), groundDetail);
   fieldRelief += (clods - 0.5) * 0.024 * groundDetail;
