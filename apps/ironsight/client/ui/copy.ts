@@ -1,5 +1,6 @@
 import type { ModeId } from "../../src/modes.js";
 import { GAME } from "../../src/game-config.js";
+import type { WeaponKey } from "../../src/weapon-contract.js";
 
 export type StableMapId = "arena1" | "arena2" | "arena3";
 
@@ -111,6 +112,19 @@ const PREPARATION_STAGE_LABELS: Readonly<Record<string, string>> = {
   "authoritative-state": "전장 상태 동기화",
   "weapons-and-effects": "무기와 전투 효과 준비",
 };
+
+// WW1 service-weapon names by stable weapon key (src/weapon-contract.ts); display only.
+const WEAPON_LABELS: Readonly<Record<WeaponKey, string>> = {
+  automatic_rifle: "자동소총",
+  trench_smg: "참호 기관단총",
+  pump_shotgun: "펌프 산탄총",
+  bolt_service_rifle: "볼트 소총",
+  service_pistol: "제식 권총",
+};
+
+export function weaponLabel(key: WeaponKey | undefined): string {
+  return key === undefined ? "무기" : WEAPON_LABELS[key];
+}
 
 export function preparationStageLabel(stage: string): string {
   return PREPARATION_STAGE_LABELS[stage] ?? "전장 요소 확인 중";
