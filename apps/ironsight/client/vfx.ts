@@ -18,6 +18,9 @@ import { flashEnvelope, weaponFlash, weaponFlashTexture } from './weapon-flash.j
 import { acquireWeaponModel, cloneWeaponBundleNode, weaponSupportSource } from './weapon-loader.js';
 import type { AssetLease } from './shared-gltf-cache.js';
 
+import { SceneImpact } from './scene-impact.js';
+import type { MapSurface } from '../src/map/materials.js';
+
 const PALETTE = GAME.palette;
 
 interface Vec3 {
@@ -61,22 +64,6 @@ export type VfxOptions = {
   readonly cloneWeaponBundleNode?: (gltf: GLTF, nodeName: string) => THREE.Object3D | undefined;
 };
 
-// --- impact bursts (blood / spark) ----------------------------------------------
-const PARTICLE_POOL = 48;
-
-interface ParticleSlot {
-  mesh: THREE.Mesh;
-  mat: THREE.MeshBasicMaterial;
-  vel: THREE.Vector3;
-  born: number;
-  life: number;
-  gravity: number;
-  active: boolean;
-  origin: THREE.Vector3;
-  size: THREE.Vector3;
-  kind: "spark" | "dust" | "core" | "blood";
-}
-
 // --- footsteps --------------------------------------------------------------
 const FOOT_STEP_DIST_M = 2.2; // stride length; cadence emerges from distance/speed
 const FOOT_SPEED_MIN = 1.2; // m/s — below this, no footstep (idle jitter)
@@ -93,8 +80,7 @@ export class Vfx {
   private muzzleCursor = 0;
   private readonly casings: CasingSlot[] = [];
   private casingCursor = 0;
-  private readonly particles: ParticleSlot[] = [];
-  private particleCursor = 0;
+  private readonly impacts: SceneImpact;
   private readonly feet = new Map<string, FootTrack>();
   private readonly seenFeet = new Set<string>(); // ids stepFoot() saw this frame; reused, cleared in update()
   private lastTick = performance.now();
@@ -107,7 +93,7 @@ export class Vfx {
     options: VfxOptions = {}) {
     for (let i = 0; i < MUZZLE_POOL; i++) this.muzzles.push(this.buildMuzzle());
     for (let i = 0; i < CASING_POOL; i++) this.casings.push(this.buildCasing());
-    for (let i = 0; i < PARTICLE_POOL; i++) this.particles.push(this.buildParticle());
+    this.impacts = new SceneImpact(scene);
     this.assetReady = this.installAuthoredCasings(options);
   }
 
@@ -116,6 +102,7 @@ export class Vfx {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.impacts.dispose();
     for (const slot of this.casings) {
       this.scene.remove(slot.mesh);
       for (const material of slot.materials) material.dispose();
@@ -162,20 +149,6 @@ export class Vfx {
     return { mesh, materials: [mat], vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9, floor: 0 };
   }
 
-  private buildParticle(): ParticleSlot {
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), mat);
-    mesh.visible = false;
-    this.scene.add(mesh);
-    return { mesh, mat, vel: new THREE.Vector3(), origin: new THREE.Vector3(),
-      size: new THREE.Vector3(), kind: "spark", born: -1e9, life: 300, gravity: 0, active: false };
-  }
-
   // --- spawn API (called from SceneRig) -----------------------------------------
 
   /** Brief flash + point light at a remote shooter's muzzle. */
@@ -217,41 +190,8 @@ export class Vfx {
     slot.groundedAt = -1e9;
   }
 
-  /** Impact burst at a shot's terminus: dark-red droplets on a player hit, a
-   *  bright spark/dust burst otherwise. */
-  spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean): void {
-    const d = normalize(dir);
-    const count = hitPlayer ? 5 : 7;
-    const born = performance.now();
-    for (let i = 0; i < count; i++) {
-      const slot = this.particles[this.particleCursor]!;
-      this.particleCursor = (this.particleCursor + 1) % this.particles.length;
-      // Three temporal layers in the same seven slots: a short contact core,
-      // three ballistic streaks, then three slower, expanding dust fragments.
-      slot.kind = hitPlayer ? "blood" : i === 0 ? "core" : i < 4 ? "spark" : "dust";
-      const dust = slot.kind === "dust", core = slot.kind === "core";
-      const speed = hitPlayer ? 1.4 : dust ? 0.75 : core ? 0 : 3.8;
-      // Bounce roughly away from the shot direction, spread into a hemisphere.
-      const away = new THREE.Vector3(-d.x, -d.y, -d.z);
-      const jitter = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
-      const v = away.addScaledVector(jitter, 0.9).normalize().multiplyScalar(speed * (0.5 + Math.random()));
-      slot.mesh.position.set(pos.x, pos.y, pos.z);
-      slot.origin.copy(slot.mesh.position);
-      slot.vel.copy(v);
-      slot.mat.color.setHex(hitPlayer ? PALETTE.impactBlood : dust ? 0x968c7b : core ? 0xfff0c0 : PALETTE.impactSpark);
-      slot.mat.blending = hitPlayer || dust ? THREE.NormalBlending : THREE.AdditiveBlending;
-      slot.size.set(hitPlayer ? 0.7 : dust ? 1.3 : core ? 2.4 : 0.22,
-        hitPlayer ? 0.7 : dust ? 1.0 : core ? 2.4 : 0.22,
-        hitPlayer ? 1.8 : dust ? 1.2 : core ? 0.6 : 4.8);
-      slot.mesh.scale.copy(slot.size);
-      slot.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v.clone().normalize());
-      slot.mat.opacity = 1;
-      slot.life = hitPlayer ? 340 : dust ? 480 : core ? 65 : 180 + i * 25;
-      slot.gravity = hitPlayer ? -7 : dust ? -0.6 : core ? 0 : -4;
-      slot.born = born;
-      slot.active = true;
-      slot.mesh.visible = true;
-    }
+  spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean, surface: MapSurface = 'concrete'): void {
+    this.impacts.spawn(pos, dir, hitPlayer ? 'player' : surface);
   }
 
   /** Advance a footstep-cadence tracker for `id` ("me" or a remote session id) by
@@ -341,25 +281,7 @@ export class Vfx {
       }
     }
 
-    for (const p of this.particles) {
-      if (!p.active) continue;
-      const age = now - p.born;
-      if (age >= p.life) {
-        p.active = false;
-        p.mesh.visible = false;
-        continue;
-      }
-      const t = Math.max(0, age) / 1000, progress = Math.max(0, age) / p.life;
-      p.mesh.position.copy(p.origin).addScaledVector(p.vel, t);
-      p.mesh.position.y += 0.5 * p.gravity * t * t;
-      if (p.kind === "dust") {
-        p.mesh.scale.copy(p.size).multiplyScalar(1 + progress * 3);
-        p.mat.opacity = 0.42 * (1 - progress) ** 2;
-      } else {
-        p.mesh.scale.copy(p.size).multiplyScalar(1 - progress * 0.55);
-        p.mat.opacity = (1 - progress) ** 1.5;
-      }
-    }
+    this.impacts.update(now);
 
     // Drop footstep trackers for ids stepFoot() didn't see this frame (disconnected
     // or despawned) so `feet` doesn't grow for the life of the session.

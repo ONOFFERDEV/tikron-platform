@@ -556,10 +556,11 @@ async function main(): Promise<void> {
     const impactDist = Math.max(0.5, e.dist);
     const origin = { x: e.ox, y: e.oy, z: e.oz };
     const endpoint = { x: e.ox + e.dx * impactDist, y: e.oy + e.dy * impactDist, z: e.oz + e.dz * impactDist };
+    const impactSurface = e.hit ? 'concrete' : scene.shotSurface(origin, dir, impactDist);
     const newEndpoint = e.shotId && !e.hit
-      ? combatCues.impact({ shotId: e.shotId, material: scene.shotSurface(origin, dir, impactDist), ...endpoint }, performance.now())
+      ? combatCues.impact({ shotId: e.shotId, material: impactSurface, ...endpoint }, performance.now())
       : true;
-    if (newEndpoint) scene.spawnImpact(endpoint, dir, e.hit);
+    if (newEndpoint) scene.spawnImpact(endpoint, dir, e.hit, impactSurface);
     if (remoteShot && !(e.hits ?? []).some(hit => hit.id === net.myId)) {
       const distance = nearMissDistance(origin, dir, impactDist, predictor.eye());
       if (distance <= 1.75) combatCues.nearMiss({ shotId: remoteShot.shotId, distance }, performance.now());

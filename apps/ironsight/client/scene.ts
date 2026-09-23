@@ -12,6 +12,7 @@ import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
 import { createSiteSkyMaterial, siteSunDirection, siteAtmosphere } from './site-atmosphere.js';
 import { createSkyWeather } from './scene-sky-weather.js';
+import { applySiteLightRig, gradeSiteSky, siteLightProfile } from './scene-lighting.js';
 import { buildWedgeGeometry } from "./site-wedge.js";
 /**
  * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
@@ -503,7 +504,7 @@ export class SceneRig {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = VIS.exposure;
     if (relay) {
-      this.renderer.toneMappingExposure = atmosphere?.exposure ?? 1.05;
+      this.renderer.toneMappingExposure = siteLightProfile(map.presentation)?.exposure ?? atmosphere?.exposure ?? 1.05;
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFShadowMap;
       // Architecture is static. No per-frame shadow pass on the balanced preset.
@@ -521,6 +522,7 @@ export class SceneRig {
     }));
     sky.name = 'site-sky';
     this.skyWeather = createSkyWeather(sky.material, map.presentation);
+    gradeSiteSky(sky.material, map.presentation);
     if (atmosphere || this.skyWeather) sky.frustumCulled = false;
     sky.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2);
     sky.raycast = () => {};
@@ -545,6 +547,7 @@ export class SceneRig {
     }
     this.scene.add(key);
     this.scene.add(new THREE.AmbientLight(PALETTE.lights.ambient, atmosphere?.ambientIntensity ?? (relay ? 0.12 : VIS.lighting.ambient)));
+    applySiteLightRig(this.scene, map.presentation, new THREE.Vector3(map.bounds.width / 2, 0, map.bounds.depth / 2));
 
     this.vfx = new Vfx(this.scene, p => {
       const t = nearestBox(p, { x: 0, y: -1, z: 0 }, this.hitBoxes, p.y - (map.bounds.floor ?? 0) + .1);
@@ -2157,8 +2160,8 @@ export class SceneRig {
     this.vfx.spawnCasing(origin, dir);
   }
 
-  spawnImpact(pos: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, hitPlayer: boolean): void {
-    this.vfx.spawnImpact(pos, dir, hitPlayer);
+  spawnImpact(pos: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, hitPlayer: boolean, surface: MapSurface = 'concrete'): void {
+    this.vfx.spawnImpact(pos, dir, hitPlayer, surface);
   }
 
   /** Self footstep cadence; `dtMs` is the render frame delta. */

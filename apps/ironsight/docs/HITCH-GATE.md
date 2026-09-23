@@ -264,3 +264,40 @@ cohort resumed only at the unexecuted case after source-hash and completed-pass
 verification, retaining all preceding results. No foreign
 process was stopped, no lease was bypassed, and no gameplay failure was rerun
 to obtain a pass.
+
+## Look Session 2: Light across the front (2026-09-22)
+
+The lighting change retunes existing lights and grades the opaque sky and loaded HDR. HDR grading runs once before the existing PMREM generation. It adds no render passes, textures, lights or per-frame CPU bake. All gate policy and inspector assertions remain unchanged.
+
+Five sequential TDM/FFA pairs pass both `--assert` and `--assert-first-use` on the unchanged final bundle `4f13aa076695a4cc4a32069b963b3b76ccb68efe13fb0baf90c88ebe2ac5db4a`. All ten retain the existing presentation/main-thread/p99/stall-share limits. Each run has two natural deaths (20 total), zero console errors, zero post-warm shader additions and 0 measured >150ms intervals. Maximum measured frame 23ms, maximum measured callback 18.2ms, p99 upper bounds 8–12ms; first-damage/death maxima 9.3/8.7ms.
+
+First-ready times are 2605.7–3952ms. The pre-profiler observer retains **44 startup intervals above 150ms (161.2–913.9ms)**, including **20 ending at or after first-ready (190.5–913.9ms)**. These untraced gaps have no assigned cause and are not erased by the green gameplay gate. This evidence does not close the historical Switchyard FFA 2622.7ms issue or qualify laptop iGPU performance; the measured host is RTX 5070.
+
+| Pair / mode | Max frame ms | p99 upper ms | Max callback ms | First damage / death ms | First ready ms | Startup gaps >150ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 / TDM | 10.6 | 8 | 5.6 | 7.6 / 8.5 | 3227.4 | 5 |
+| 1 / FFA | 23 | 12 | 18.2 | 7.7 / 8 | 3952 | 5 |
+| 2 / TDM | 10.9 | 8 | 5.8 | 7.9 / 7.9 | 2725 | 5 |
+| 2 / FFA | 9.3 | 8 | 4.4 | 8 / 8.7 | 2743.2 | 3 |
+| 3 / TDM | 12.6 | 8 | 7.2 | 9.1 / 8.3 | 2936.5 | 6 |
+| 3 / FFA | 10.8 | 8 | 5.7 | 8.1 / 8.4 | 2605.7 | 3 |
+| 4 / TDM | 12.3 | 8 | 5.2 | 9.3 / 8.4 | 2842.3 | 6 |
+| 4 / FFA | 17.9 | 8 | 13.3 | 8.2 / 8.2 | 2790.3 | 3 |
+| 5 / TDM | 10.1 | 8 | 4.4 | 7.9 / 8 | 3225.7 | 5 |
+| 5 / FFA | 12 | 8 | 5.6 | 7.7 / 8.2 | 3015.9 | 3 |
+
+Evidence: `.inspect/look-session2/{visual-manifest,hitch-summary,final-metrics,finish-evidence}.json` and all ten `hitch-{1..5}-{tdm,ffa}.json` reports. Source hashes were checked before each run and after the cohort. The separate eleven-frame bot sequence spans 27,637ms; its final four frames include the existing pause overlay and it is not asserted performance or uninterrupted-control evidence.
+
+Pair 4 TDM's largest startup interval is 913.9ms, spanning navigation time
+3279.2–4193.1ms. First-ready was 2842.3ms, UI preparation ended at 2828.7ms,
+and ordinary profiling began at 4325.7ms. It is a retained post-ready,
+pre-profiler interval, not a first-damage/death event. Startup tracing and GPU
+diagnostics were off, so this record cannot distinguish application CPU work,
+browser raster/driver waiting or host scheduling. No cause or fix is claimed;
+the green gameplay cohort does not establish smooth first entry.
+
+### Look Session 3, 2026-09-23: strict acceptance blocked
+
+Bundle `80cfe2422a745a080116c92e887b913630b34ca11de85df61acc4928d588f518`. Ten ordinary runs PASS, nine strict first-use runs PASS; pair 5 FFA first damage FAILS at 251.2ms /150ms. Unchanged cohort and all startup intervals: `.inspect/look-session3/hitch-summary.json`. Measured FFA gaps of 474.8 and 837.9ms remain unexplained despite ordinary gates passing.
+
+A separate covered startup diagnostic records a 1381.5ms after-ready interval with WebGL GetProgramiv/GetShaderiv waits and an ANGLE worker. Its 1000ms measured duration produces no natural first-use event and is diagnostic evidence only. It does not identify the original failed frame cause or close the historical Switchyard 2622.7ms issue. Full trace artifacts and ten-run table: `AAA-PLAN-LOOK.md`, Session 3 final acceptance. No acceptance retries, relaxed limits or speculative patch. Next: identify the material/call path in a covered natural fight, fix the confirmed cause and prove a fresh five-pair strict cohort.
