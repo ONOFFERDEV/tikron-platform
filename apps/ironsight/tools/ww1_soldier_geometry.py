@@ -6,7 +6,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 from ww1_soldier_headgear import Surface, head_surface, helmet_surface as fitted_helmet_surface
-from ww1_soldier_body import ClothSurface, boot_surface, limb_surface, tunic_surface
+from ww1_soldier_body import ClothSurface, boot_surface, finger_surface, limb_surface, neck_surface, tunic_surface
 
 
 def primitive(name: str, location: tuple[float, float, float], scale: tuple[float, float, float], mat,
@@ -102,21 +102,6 @@ def weighted(obj, joint: str):
     return obj
 
 
-def bone_segment(rig, joint: str, end_joint: str, radius: float, mat, shorten: float = 0.92):
-    bone = rig.data.bones[joint]
-    start = Vector(bone.head_local)
-    end = Vector(rig.data.bones[end_joint].head_local)
-    direction = end - start
-    bpy.ops.mesh.primitive_cylinder_add(vertices=10, radius=radius, depth=direction.length * shorten,
-                                        location=(start + end) * 0.5)
-    obj = bpy.context.object
-    obj.name = f"uniform-{joint}"
-    obj.rotation_mode = "QUATERNION"
-    obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
-    obj.data.materials.append(mat)
-    return weighted(obj, joint)
-
-
 def palm(rig, joint: str, mat):
     side = joint[-1].lower()
     wrist = rig.data.bones[joint].head_local
@@ -131,15 +116,6 @@ def palm(rig, joint: str, mat):
     obj.scale = (.03, .014, direction.length * .36)
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
-    obj.data.materials.append(mat)
-    return weighted(obj, joint)
-
-
-def fingertip(rig, joint: str, mat, radius: float = .022):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=10, ring_count=6, radius=radius,
-                                         location=rig.data.bones[joint].head_local)
-    obj = bpy.context.object
-    obj.name = f"uniform-tip-{joint}"
     obj.data.materials.append(mat)
     return weighted(obj, joint)
 
@@ -160,9 +136,11 @@ def uniform_body_geometry(rig, mats: dict[str, object]) -> list[object]:
                   ("Pelvis", "spine_01", "spine_02", "spine_03", "neck_01"))
     parts = [
         cloth("uniform-tunic", tunic_surface(spine)),
-        weighted(primitive("uniform-neck", (0, 1.55, 0), (.065, .055, .06), mats["collar"], "cylinder"), "neck_01"),
+        cloth("uniform-neck", neck_surface("spine_03", "neck_01", "head"), mats["collar"]),
         weighted(authored_surface("uniform-head", head_surface(), wool), "head"),
     ]
+    for face in parts[-1].data.polygons:
+        face.use_smooth = True
     for side in ("L", "R"):
         for kind, joints, radii in (("sleeve", (f"UpperArm_{side}", f"lowerarm_{side.lower()}", f"Hand_{side}"), (.105, .070, .036)),
                                    ("trouser", (f"Thigh_{side}", f"calf_{side.lower()}", f"Foot_{side}"), (.102, .074, .047))):
@@ -177,24 +155,20 @@ def uniform_body_geometry(rig, mats: dict[str, object]) -> list[object]:
         foot = rig.data.bones[f"Foot_{side}"].head_local
         parts.append(cloth(f"uniform-boot-{side}", boot_surface((foot.x, foot.z, -foot.y),
                            f"Foot_{side}"), mats["leather"]))
-    for joint, end_joint, radius in (("Hand_L", "thumb_01_l", .016),
-                                     ("Hand_L", "indexFinger_01_l", .018),
-                                     ("Hand_L", "finger_01_l", .025),
-                                     ("Hand_R", "thumb_01_r", .016),
-                                     ("Hand_R", "indexFinger_01_r", .018),
-                                     ("Hand_R", "finger_01_r", .025)):
-        parts.append(bone_segment(rig, joint, end_joint, radius, wool if "Hand" not in joint and "Foot" not in joint else mats["leather"]))
+    def point(joint: str) -> Vector:
+        head = rig.data.bones[joint].head_local
+        return Vector((head.x, head.z, -head.y))
+
     for side in ("l", "r"):
         hand = f"Hand_{side.upper()}"
         parts.append(palm(rig, hand, mats["leather"]))
-        for family, count in (("thumb", 3), ("indexFinger", 4), ("finger", 4)):
-            radius = .016 if family == "thumb" else .014 if family == "indexFinger" else .022
-            for number in range(1, count):
-                joint = f"{family}_{number:02d}_{side}"
-                end_joint = f"{family}_{number + 1:02d}_{side}"
-                parts.append(bone_segment(rig, joint, end_joint, radius, mats["leather"], 1.08))
-                parts.append(fingertip(rig, joint, mats["leather"], radius * 1.08))
-            parts.append(fingertip(rig, f"{family}_{count:02d}_{side}", mats["leather"], radius * 1.08))
+        spread = (point(f"indexFinger_01_{side}") - point(f"finger_01_{side}")).normalized()
+        for family, radii in (("thumb", (.012, .011)), ("indexFinger", (.0105, .0095)), ("finger", (.026, .011))):
+            joints = (hand, *(f"{family}_{number:02d}_{side}" for number in (1, 2, 3)))
+            points = [point(joint) for joint in joints]
+            points.append(point(f"{family}_04_{side}") if family != "thumb" else points[-1] + (points[-1] - points[-2]) * .75)
+            parts.append(cloth(f"uniform-{family}-{side}", finger_surface(
+                tuple(tuple(p) for p in points), joints, tuple(spread), radii), mats["leather"]))
     return parts
 
 
