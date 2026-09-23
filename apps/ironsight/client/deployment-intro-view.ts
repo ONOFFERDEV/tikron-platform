@@ -26,23 +26,23 @@ export class IntroCamera {
 }
 
 const css = `
-#deployment-intro{position:fixed;inset:0;z-index:5;pointer-events:none;color:#f4eee3;background:linear-gradient(0deg,#06141deb,transparent 37%);font-family:system-ui,sans-serif}
+#deployment-intro{position:fixed;inset:0;z-index:5;pointer-events:none;color:var(--ui-text-primary);background:linear-gradient(0deg,#06141deb,transparent 37%);font-family:var(--ui-font-body)}
 #deployment-intro[hidden]{display:none}
 body[data-intro=true] #tacticalMap{visibility:hidden}
-#deployment-intro .intro-copy{position:absolute;left:5vw;right:5vw;bottom:5vh;border-left:3px solid #edaa52;padding-left:24px}
-#deployment-intro .intro-eyebrow{color:#edaa52;letter-spacing:3px;font:var(--ui-type-hud) var(--ui-font-key)}
-#deployment-intro h1{font-size:clamp(32px,5vw,72px);line-height:1;margin:10px 0;letter-spacing:8px}
-#deployment-intro .intro-subtitle{font-size:16px;letter-spacing:2px;color:#c4d5d8}
-#deployment-intro .intro-routes{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0;font:var(--ui-type-hud) var(--ui-font-key)}
-#deployment-intro .intro-routes span{border-top:1px solid #64c7cc99;padding:9px 14px 0 0}
-#deployment-intro .intro-skip{color:#e9d1a6;font:16px/1.6 var(--ui-font-body)}
+#deployment-intro .intro-copy{position:absolute;left:5vw;right:5vw;bottom:5vh;border-left:var(--ui-border-emphasis) solid var(--ui-accent);padding-left:24px}
+#deployment-intro .intro-eyebrow{display:inline-block;padding:2px var(--ui-space-2);background:var(--ui-surface-paper);color:var(--ui-ink);letter-spacing:.08em;font:700 var(--ui-type-hud)/1.4 var(--ui-font-display)}
+#deployment-intro h1{font:700 clamp(32px,5vw,72px)/1.1 var(--ui-font-body);margin:12px 0 6px;letter-spacing:0;word-break:keep-all}
+#deployment-intro .intro-subtitle{font:500 var(--ui-type-body)/1.5 var(--ui-font-body);letter-spacing:0;color:var(--ui-text-secondary)}
+#deployment-intro .intro-routes{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0;font:600 var(--ui-type-hud)/1.4 var(--ui-font-body)}
+#deployment-intro .intro-routes span{border-top:var(--ui-border-width) solid var(--ui-border-strong);padding:9px 14px 0 0;color:var(--ui-text-primary)}
+#deployment-intro .intro-skip{color:var(--ui-text-secondary);font:500 var(--ui-type-body)/1.6 var(--ui-font-body)}
 #hud[data-intro=true] > :not(#deployment-banner):not(#ping){visibility:hidden!important}
 #hud[data-intro=true] #ping{top:24px;left:32px}
 #hud[data-intro=true] #deployment-banner{top:72px;left:auto;right:32px;transform:none;width:530px}
 #hud[data-intro=true] #deployment-banner .deployment-count{font-size:48px;min-width:76px;letter-spacing:-3px}
 #hud[data-intro=true] #deployment-banner h2{font-size:20px}
 @media(max-height:700px){#deployment-intro .intro-copy{bottom:22px}#deployment-intro h1{font-size:40px}#deployment-intro .intro-routes{margin:12px 0}}
-@media(max-width:800px){#hud[data-intro=true] #deployment-banner{top:80px;left:16px;right:16px;width:auto}#deployment-intro .intro-copy{left:20px;right:20px;padding-left:14px}#deployment-intro h1{font-size:32px;letter-spacing:3px}#deployment-intro .intro-routes{gap:8px}#deployment-intro .intro-eyebrow,#deployment-intro .intro-subtitle{letter-spacing:1px}}
+@media(max-width:800px){#hud[data-intro=true] #deployment-banner{top:80px;left:16px;right:16px;width:auto}#deployment-intro .intro-copy{left:20px;right:20px;padding-left:14px}#deployment-intro h1{font-size:32px;letter-spacing:0}#deployment-intro .intro-routes{gap:8px}#deployment-intro .intro-eyebrow,#deployment-intro .intro-subtitle{letter-spacing:1px}}
 `;
 
 export class DeploymentIntroView {
@@ -57,12 +57,12 @@ export class DeploymentIntroView {
     const text = (tag: string, cls: string, value: string) => {
       const el = document.createElement(tag); el.className = cls; el.textContent = value; copy.append(el); return el;
     };
-    text('div', 'intro-eyebrow', `${site.number} / AREA OF OPERATIONS`);
+    text('div', 'intro-eyebrow', `${FIELD_UI_COPY.deploy.operationSite} · ${site.number}`);
     text('h1', '', site.name);
     text('div', 'intro-subtitle', site.subtitle);
     const routes = text('div', 'intro-routes', '');
     site.routes.split(' / ').forEach((route, index) => {
-      const el = document.createElement('span'); el.textContent = `0${index + 1}  ${route.toUpperCase()}`; routes.append(el);
+      const el = document.createElement('span'); el.textContent = `${index + 1}. ${route}`; routes.append(el);
     });
     text('div', 'intro-skip', FIELD_UI_COPY.deploy.skipIntro);
     this.root.append(copy); document.body.append(this.root);

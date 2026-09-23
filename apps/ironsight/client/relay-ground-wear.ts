@@ -19,14 +19,14 @@ export function paintRelayEarth(ctx: CanvasRenderingContext2D, map: MapDef): voi
   ctx.scale(512 / width, 512 / depth);
   ctx.fillStyle = '#898989';
   ctx.fillRect(0, 0, width, depth);
-  // Two scales of value break the uniform sand: broad wet/dry fields, then clods.
-  for (let patch = 0; patch < 90; patch++) {
-    const x = random() * width, z = random() * depth, radius = 5 + random() * 12, dry = random() < 0.5;
-    blot(ctx, x, z, radius, dry ? 215 : 30, dry ? 0.12 + random() * 0.12 : 0.05 + random() * 0.11);
-  }
-  for (let patch = 0; patch < 420; patch++) {
+  // Open ground between causes stays dry: faint pale drift, no free-floating mud.
+  for (let patch = 0; patch < 70; patch++) {
     const x = random() * width, z = random() * depth;
-    blot(ctx, x, z, 0.7 + random() * 4.8, 35, 0.04 + random() * 0.12);
+    blot(ctx, x, z, 4 + random() * 10, 215, 0.08 + random() * 0.10);
+  }
+  for (let patch = 0; patch < 160; patch++) {
+    const x = random() * width, z = random() * depth;
+    blot(ctx, x, z, 0.5 + random() * 1.8, 40, 0.03 + random() * 0.06);
   }
   for (const z of [27.2, 70.7]) for (const side of [-0.72, 0.72]) {
     for (const [lineWidth, opacity] of [[0.85, 0.12], [0.28, 0.30], [0.09, 0.22]] as const) {
@@ -37,6 +37,7 @@ export function paintRelayEarth(ctx: CanvasRenderingContext2D, map: MapDef): voi
       ctx.stroke();
     }
   }
+  paintLowSpots(ctx, map, random);
   paintMudAprons(ctx, map, random);
   paintRelayFootpaths(ctx, map, random);
   for (const [x, z, r] of relayCraterSites(map)) paintCrater(ctx, x, z, r, random);
@@ -66,16 +67,43 @@ function blot(ctx: CanvasRenderingContext2D, x: number, z: number, radius: numbe
   ctx.fillRect(x - radius, z - radius, radius * 2, radius * 2);
 }
 
-/** Trampled, wet ground hugging every cover base: irregular lobes, not a halo. */
+/** Trampled ground hugging every cover base: a band along each face built from
+ * short strokes that run with the wall, so the outer edge is scuffed, not round. */
 function paintMudAprons(ctx: CanvasRenderingContext2D, map: MapDef, random: Random): void {
+  ctx.lineCap = 'round';
   for (const b of standingSolids(map)) {
-    const perimeter = 2 * ((b.max.x - b.min.x) + (b.max.z - b.min.z));
-    const lobes = Math.max(3, Math.round(perimeter / 1.6));
-    for (let i = 0; i < lobes; i++) {
-      const edge = random() * 4 | 0, t = random();
-      const x = edge === 0 ? b.min.x + t * (b.max.x - b.min.x) : edge === 1 ? b.max.x : edge === 2 ? b.max.x - t * (b.max.x - b.min.x) : b.min.x;
-      const z = edge === 0 ? b.min.z : edge === 1 ? b.min.z + t * (b.max.z - b.min.z) : edge === 2 ? b.max.z : b.max.z - t * (b.max.z - b.min.z);
-      blot(ctx, x, z, 1.0 + random() * 1.7, 22, 0.18 + random() * 0.18);
+    const faces = [[b.min.x, b.min.z, b.max.x, b.min.z, 0, -1], [b.max.x, b.min.z, b.max.x, b.max.z, 1, 0],
+      [b.max.x, b.max.z, b.min.x, b.max.z, 0, 1], [b.min.x, b.max.z, b.min.x, b.min.z, -1, 0]] as const;
+    for (const [x0, z0, x1, z1, nx, nz] of faces) {
+      const length = Math.hypot(x1 - x0, z1 - z0);
+      for (let at = 0; at < length; at += 0.45) {
+        const t = at / length, reach = 0.25 + random() * (0.7 + random() * 0.9);
+        const x = x0 + (x1 - x0) * t + nx * reach * 0.5, z = z0 + (z1 - z0) * t + nz * reach * 0.5;
+        ctx.strokeStyle = `rgba(40,40,40,${0.07 + random() * 0.08})`;
+        ctx.lineWidth = reach;
+        ctx.beginPath(); ctx.moveTo(x - (x1 - x0) / length * 0.5, z - (z1 - z0) / length * 0.5);
+        ctx.lineTo(x + (x1 - x0) / length * (0.4 + random() * 0.6), z + (z1 - z0) / length * (0.4 + random() * 0.6));
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+/** Water collects in a few low spots of the open yard: pooled mud with a dried rim. */
+function paintLowSpots(ctx: CanvasRenderingContext2D, map: MapDef, random: Random): void {
+  const standing = standingSolids(map);
+  for (let placed = 0, tries = 0; placed < 7 && tries < 400; tries++) {
+    const x = 10 + random() * (map.bounds.width - 20), z = 10 + random() * (map.bounds.depth - 20);
+    if (!standing.every(b => x < b.min.x - 3 || x > b.max.x + 3 || z < b.min.z - 3 || z > b.max.z + 3)) continue;
+    placed++;
+    const angle = random() * Math.PI, rx = 2 + random() * 2.5, rz = 1 + random() * 1.4;
+    for (let lobe = 0; lobe < 9; lobe++) {
+      const a = random() * Math.PI * 2, d = random() * 0.6;
+      const cx = x + Math.cos(a) * rx * d, cz = z + Math.sin(a) * rz * d;
+      ctx.fillStyle = 'rgba(200,200,200,0.06)';
+      ctx.beginPath(); ctx.ellipse(cx, cz, rx * 0.75, rz * 0.8, angle + (random() - 0.5) * 0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(30,30,30,0.13)';
+      ctx.beginPath(); ctx.ellipse(cx, cz, rx * 0.55, rz * 0.55, angle + (random() - 0.5) * 0.6, 0, Math.PI * 2); ctx.fill();
     }
   }
 }
@@ -108,11 +136,17 @@ function paintRelayFootpaths(ctx: CanvasRenderingContext2D, map: MapDef, random:
     const last = points[points.length - 1]!; ctx.lineTo(last[0], last[1]); ctx.stroke();
   };
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (const [lineWidth, alpha] of [[3.4, 0.10], [2.0, 0.14]] as const) {
-    ctx.strokeStyle = `rgba(32,32,32,${alpha})`; ctx.lineWidth = lineWidth;
-    for (const route of routes) trace(route, 0);
+  for (const route of routes) for (let i = 0; i + 1 < route.length; i++) {
+    const [ax, az] = route[i]!, [bx, bz] = route[i + 1]!;
+    const length = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / length, uz = (bz - az) / length;
+    for (let at = 0; at < length; at += 0.6) {
+      const side = (random() - 0.5) * 2.6, w = 0.5 + random() * 1.3;
+      const x = ax + ux * at - uz * side, z = az + uz * at + ux * side;
+      ctx.strokeStyle = `rgba(36,36,36,${0.05 + random() * 0.07})`; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(x, z); ctx.lineTo(x + ux * (0.6 + random()), z + uz * (0.6 + random())); ctx.stroke();
+    }
   }
-  for (const offset of [-0.6, 0.6]) for (const [lineWidth, alpha] of [[0.42, 0.22], [0.16, 0.34]] as const) {
+  for (const offset of [-0.6, 0.6]) for (const [lineWidth, alpha] of [[0.42, 0.16], [0.16, 0.26]] as const) {
     ctx.strokeStyle = `rgba(22,22,22,${alpha})`; ctx.lineWidth = lineWidth;
     for (const route of routes) trace(route, offset);
   }

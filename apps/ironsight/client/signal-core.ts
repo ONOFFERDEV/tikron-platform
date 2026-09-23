@@ -99,8 +99,8 @@ export function addCoreSigns(root: T.Object3D, core: Core, flood = false): void 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Core sign requires a 2D canvas');
   ctx.fillStyle = '#3c4132'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#d4ccb3'; ctx.textAlign = 'center'; ctx.font = 'bold 22px Arial';
-  ctx.fillText(flood ? 'SLUICE POST' : 'SIGNAL POST', 128, 24);
+  ctx.fillStyle = '#d4ccb3'; ctx.textAlign = 'center'; ctx.font = 'bold 22px Arial, "Noto Sans KR", "Malgun Gothic", sans-serif';
+  ctx.fillText(flood ? '수문 초소' : '신호소', 128, 24);
   const texture = new T.CanvasTexture(canvas);
   texture.colorSpace = T.SRGBColorSpace;
   const material = new T.MeshBasicMaterial({ map: texture });

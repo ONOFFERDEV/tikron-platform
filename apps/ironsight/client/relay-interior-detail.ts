@@ -10,7 +10,7 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
     c.fillStyle = color; c.fillRect(x, y, w, h);
   };
   const text = (s: string, x: number, y: number, size: number, color = '#b9b6a1') => {
-    c.fillStyle = color; c.font = `bold ${size}px Arial`; c.fillText(s, x, y);
+    c.fillStyle = color; c.font = `bold ${size}px Arial, "Noto Sans KR", "Malgun Gothic", sans-serif`; c.fillText(s, x, y);
   };
   const line = (points: number[][], color: string, width = 2) => {
     c.strokeStyle = color; c.lineWidth = width; c.beginPath();
@@ -50,12 +50,12 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
       }
       for (const x of [41, 209]) for (const yy of [y + 8, y + 58]) rect('#aaa48c', x, yy, 3, 3);
     }
-    rect('#9e9474', 43, 457, 168, 24); text(control ? 'CUT / TEST' : 'FIELD LINE / 07', 51, 474, 14, '#30372c');
+    rect('#9e9474', 43, 457, 168, 24); text(control ? '절단 / 시험' : '야전선 / 07', 51, 474, 14, '#30372c');
     c.restore();
   }
   // Printed schematic: a functional analogue mimic board, intentionally quiet.
   rect('#6a6d59', 1536, 0, 512, 256); rect('#b4b099', 1542, 6, 500, 244);
-  rect('#3b453a', 1552, 16, 480, 224); text('FIELD LINE DISTRIBUTION', 1570, 48, 23);
+  rect('#3b453a', 1552, 16, 480, 224); text('야전선 분배반', 1570, 48, 23);
   for (let row = 0; row < 3; row++) {
     const y = 88 + row * 58;
     line([[1574, y], [1660, y], [1660, y - 10], [1836, y - 10], [1836, y], [1995, y]], '#9c9e83', 3);
@@ -120,7 +120,7 @@ export function paintRelayInterior(c: CanvasRenderingContext2D): void {
     rect('#747967', 1554, y, 476, 12); rect('#a1a48d', 1554, y, 476, 2);
   }
   rect('#6b705c', 1024, 896, 512, 128); rect('#333f32', 1030, 902, 500, 116);
-  text('SERVICE / KEEP CLEAR', 1048, 956, 29, '#a7a082');
+  text('정비로 / 비워 둘 것', 1048, 956, 29, '#a7a082');
   text('AUTHORIZED PERSONNEL', 1077, 993, 22, '#8e957a');
 }
 
