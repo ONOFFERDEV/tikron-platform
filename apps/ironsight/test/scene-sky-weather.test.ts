@@ -46,4 +46,17 @@ describe('battlefield sky weather', () => {
     expect(material.fragmentShader).toBe(shader);
     expect(material.uniforms.frontTime?.value).toBeGreaterThan(16);
   });
+
+  it.each(['relay', 'undertow', 'switchyard'])('keeps the far front to one low horizon sector and switches it off in reduced motion on %s', site => {
+    const material = sky(), weather = createSkyWeather(material, site)!;
+    const u = material.uniforms;
+    expect(u.frontLineSpread!.value).toBeLessThan(1);
+    expect(u.frontFlashHeight!.value).toBeLessThan(.25);
+    // Peak flash stays dim next to the combat flash sprite (opacity 0.9, unlit white).
+    expect(Math.max(...(u.frontFlash!.value as T.Vector3).toArray())).toBeLessThan(1);
+    expect(material.fragmentShader).toContain('d.y > .6) return radiance');
+    weather.update(1000, false); expect(u.frontMotion!.value).toBe(1);
+    weather.update(1016, true); expect(u.frontMotion!.value).toBe(0);
+    expect(Object.values(u).some(uniform => uniform.value instanceof T.Texture)).toBe(false);
+  });
 });

@@ -400,3 +400,24 @@ Evidence (`.inspect/look-r6/`): `undertow-before-after.png` (four player-height 
 Gates: typecheck exit 0. vitest 203 files / 1679 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (48,805,493 public bytes, merge included). inspect-map relay,practice-two exit 0 with 0 console errors, so Undertow's pinned rig still matches its JSON. hitch-probe `--assert` FAILED on sustained frame pacing only, with 0 recompiles, 0 frames >150 ms, 2 deaths and 0 errors. Recorded as advisory per the shared-machine rule, not rerun.
 
 Open: a controlled enemy-contrast pair needs a fixed-position actor fixture. The inspector's review-enemy path does not reach readiness on this tree (see Session 6).
+
+### Session 10 - 2026-09-23: The war beyond the wall
+
+The far front lives in the sky shader: `client/scene-sky-weather.ts` gains a `frontLine()` pass inside the existing `frontWeather()`. It adds no lights (still 16), no geometry, textures or passes, and the only per-frame CPU work is two uniforms.
+- Each map gets one horizon sector (bearing ± ≤0.35 rad). Effects sit about 7–25° above the horizon, just over the far skyline; lower, the buildings hid them. They fade in and out at the band edges.
+- Four guns fire on staggered 2.3–6.4 s cycles. Each shot is a warm glow under the cloud base with a double flicker: 90 ms decay, second pulse at 140 ms. Flash colour peaks below 1.0 in linear radiance, dimmer than the combat muzzle sprite, which is untonemapped.
+- **Relay (day):** dark dust bursts rise and spread off the horizon; the day flash is faint.
+- **Undertow (dusk):** stronger amber flashes plus two slow star-shell arcs on 9 s and 12.7 s cycles, with a pale core and halo.
+- **Switchyard (overcast):** broad, muffled glows inside the cloud deck.
+- Reduced motion switches all of it off (`frontMotion` uniform). Static plumes and haze stay.
+- Bug caught while tuning: GLSL `pow()` is undefined for negative bases, which silently zeroed the flashes. I replaced it with explicit squares.
+
+Evidence (`.inspect/look-r7/`):
+- `stills-before-after.png`: fixed eye-level cameras toward each front, with a before frame, an after quiet frame and an after flash frame.
+- `flicker-arena{1,2,3}.gif`: 41 frames at 100 ms of simulated time, 20.0–24.0 s.
+- `seq/`: raw frames. Harness: `sky.ts`/`sky.mjs` renders in fixed 50 ms ticks so before and after share the clock.
+- One-sentence player read (Undertow): "There's a battle going on over there — you can see the guns and the flares."
+
+Gates: typecheck exit 0; vitest 203 files / 1682 tests plus node 92/92 pass (new far-front test); build:client pass; audit:assets exit 0 (48,814,925); inspect-map relay,practice-two exit 0 with 0 console errors, Relay 37/28/17/16, p99 7.1 ms; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms. client.js +4155 bytes; art assets 0.
+
+Open: Switchyard's flashes are deliberately muffled and read mostly in motion (GIF), not in a still. No rumble sync; audio is outside the lane. Each sector is one fixed bearing per map, so a player facing away never sees it.
