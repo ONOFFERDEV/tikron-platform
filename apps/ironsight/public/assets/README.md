@@ -1834,3 +1834,15 @@ Blender 4.5 `--background --python tools/bake-architecture.py -- --input .inspec
 Current geometry audit: `.inspect/aaa-loop-world/session5-final-geometry-audit.json`;
 64,608 triangles, 4,881,612 bytes, no purchased inputs or new texture asset.
 <!-- /world -->
+
+<!-- # world -->
+World Session 6 (2026-09-23): Undertow trench use. Sandbag parapets and low cover,
+revetted deployment and drain walls, gas-curtained dugout mouths, a field office and
+drain/deployment duckboards replace service bays, lamp strips and control panels.
+Original procedural geometry; same seven material slots and 1024-square AO image.
+Rebuild: `node tools/dump-architecture.mjs .inspect/world-r1/undertow-architecture.json undertow`,
+then Blender 4.5 `--factory-startup --background --python tools/bake-architecture.py --
+--input .inspect/world-r1/undertow-architecture.json --size 1024 --samples 64`.
+Audit: `.inspect/world-r1/geometry-audit.json` (PASS); 84,916 triangles,
+6,214,520 bytes (+1,332,908), SHA256 21c95d71...cee70. No new texture file.
+<!-- /world -->

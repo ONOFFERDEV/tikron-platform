@@ -3,7 +3,7 @@ import { terrainGeometry, exteriorApronGeometry } from './terrain-geometry.js';
 import type { MapDef } from '../src/map/types.js';
 import { buildRelayApronGeometry } from './relay-apron.js';
 import { finishRelaySurface, relayGroundTexture, updateRelayGroundTexture } from './relay-surfaces.js';
-import { paintUndertowWetness } from './undertow-wetness.js';
+import { paintUndertowTracks, paintUndertowWetness } from './undertow-wetness.js';
 import { finishUndertowSurface, undertowGroundTexture, updateUndertowGroundTexture } from './undertow-surfaces.js';
 import { finishSwitchyardSurface } from './switchyard-surfaces.js';
 import { paintSwitchyardServiceWear } from './switchyard-service-wear.js';
@@ -75,6 +75,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
     ctx.fillStyle = '#4d5346'; ctx.fillRect(c.minX, c.minZ, c.maxX-c.minX, c.maxZ-c.minZ);
     ctx.fillStyle = '#353d36';
     for (const z of [c.minZ+.55,c.maxZ-.7]) ctx.fillRect(c.minX+8,z,c.maxX-c.minX-16,.15);
+    paintUndertowTracks(ctx, map.bounds.width);
     ctx.restore();
   }
   for (const box of map.boxes) {
@@ -122,7 +123,7 @@ export function buildSiteGround(scene: T.Scene, map: MapDef, wet = false): void 
   const floor = new T.Mesh(terrainGeometry(map),
     new T.MeshStandardMaterial({ map: texture, roughness: undertow ? 0.94 : wet ? 0.76 : 0.96 }));
   if (metric) {
-    const tint = new T.Color(undertow ? '#74766a' : relay ? '#81725f' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
+    const tint = new T.Color(undertow ? '#7a705c' : relay ? '#81725f' : '#6e7168'), base = new T.Color(undertow ? '#606060' : '#898989').r;
     floor.material.color.copy(tint).multiplyScalar(1 / base);
     if (switchyard) finishSwitchyardSurface(floor.material, 'ground');
     else if (undertow) finishUndertowSurface(floor.material, 'ground');

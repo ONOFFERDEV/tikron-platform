@@ -28,24 +28,31 @@ export class FloodWorks {
     };
     const batch = () => {const g=mergeGeometries(parts);for(const p of parts)p.dispose();parts.length=0;return g;};
     const metal = new T.MeshStandardMaterial({vertexColors:true,roughness:.89,metalness:.15});
+    // Wet limestone piers with dark coursing, timber gate guides and a
+    // rusted iron head: period sluice masonry, not pale concrete gantries.
     for(const x of [-14,14]) {
-      box(x,1,-7,13,2,6,0x3c4441);
+      box(x,1,-7,13,2,6,0x3a3831);
       for(const side of [-1,1]) {
-        box(x+side*5.7,11.5,-7,1.4,23,3,0x939688);
-        box(x+side*5.7,11.5,-5.45,.36,21,.15,0x657166);
+        box(x+side*5.7,11.5,-7,1.4,23,3,0x57544a);
+        box(x+side*5.7,11.5,-5.45,.36,21,.15,0x4b3d2e);
+        for(let y=1.6;y<22.5;y+=1.5)box(x+side*5.7,y,-5.49,1.42,.06,.06,0x3f3b33);
+        box(x+side*5.7,3,-5.48,1.44,3,.05,0x4a4a3f);
       }
-      box(x,23,-7,13,1.5,4,0x4e5953);
-      box(x,23.85,-6.9,8,.2,3.4,0x99815c);
-      box(x,13,-8,10,.65,2,0x3c4441);
-      for(const side of [-1,1])box(x+side*3.3,24.5,-7,1.2,1.8,1.5,0x656c59);
+      box(x,23,-7,13,1.5,4,0x4a3a2c);
+      box(x,23.85,-6.9,8,.2,3.4,0x6b5237);
+      box(x,13,-8,10,.65,2,0x3a3831);
+      for(const side of [-1,1])box(x+side*3.3,24.5,-7,1.2,1.8,1.5,0x4d4035);
     }
     this.root.add(new T.Mesh(batch(),metal));
-    box(0,7,-7,9.8,10,1,0x657166);
-    for(const y of [2.5,4.5,6.5,8.5,10.5])box(0,y,-6.35,9.9,.38,.4,0x92998a);
-    box(0,11.5,-6.25,9.9,.7,.5,0x99815c);
-    for(const x of [-3.9,3.9])box(x,7,-6.1,.25,8.5,.2,0x3c4441);
+    // Plank gate leaves on iron straps.
+    box(0,7,-7,9.8,10,1,0x58483a);
+    for(let x=-4.4;x<4.5;x+=1.1)box(x,7,-6.47,.04,9.8,.06,0x3d3229);
+    for(const y of [2.5,4.5,6.5,8.5,10.5])box(0,y,-6.35,9.9,.38,.4,0x3f3b35);
+    box(0,11.5,-6.25,9.9,.7,.5,0x6b5237);
+    for(const x of [-3.9,3.9])box(x,7,-6.1,.25,8.5,.2,0x3a3831);
     this.gates=new T.InstancedMesh(batch(),metal,2);this.gates.frustumCulled=false;this.root.add(this.gates);
-    for(const x of [-14,14])box(x,23,-4.96,7,.23,.03,0xffffff);
+    // Pilot lamps shrink to two lanterns per head; phase colours unchanged.
+    for(const x of [-14,14])for(const dx of [-2.6,2.6])box(x+dx,22.6,-4.96,.5,.3,.03,0xffffff);
     this.pilots=new T.Mesh(batch(),new T.MeshBasicMaterial({color:0x80d5dc}));this.root.add(this.pilots);
     // Opaque, separated ribbons: no alpha overdraw/refraction, no hidden-player
     // silhouette or water inside the combat rectangle. Per-instance colour is

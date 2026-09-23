@@ -39,6 +39,21 @@ export function updateUndertowGroundTexture(texture: T.DataTexture, canvas: Grou
   texture.needsUpdate = true;
 }
 
+/** Burlap sandbags: staggered 0.62 x 0.30 m cells with pillowed edges and
+ * per-bag tint, procedural on the existing metre UVs. Fades below pixel size. */
+const UNDERTOW_SANDBAG = `
+    vec2 bagSize = vec2(0.62, 0.30);
+    float bagCourse = floor(metres.y / bagSize.y);
+    vec2 bagUv = metres + vec2(mod(bagCourse, 2.0) * bagSize.x * 0.5, 0.0);
+    vec2 bagCell = floor(bagUv / bagSize);
+    vec2 bagEdge = min(fract(bagUv / bagSize), 1.0 - fract(bagUv / bagSize));
+    float bagDetail = 1.0 - smoothstep(0.05, 0.2, max(footprint.x, footprint.y));
+    float pillow = smoothstep(0.0, 0.2, bagEdge.x) * smoothstep(0.0, 0.32, bagEdge.y);
+    float sack = fract(sin(dot(bagCell, vec2(12.9898, 78.233))) * 43758.5453);
+    diffuseColor.rgb *= mix(1.0, mix(0.62, 1.0, pillow) * mix(0.86, 1.1, sack), bagDetail);
+    fieldRelief = pillow * 0.012 * bagDetail;
+`;
+
 /** Fixed, opaque PBR finish: wet areas darken and catch the existing environment.
  * No planar reflections, extra pass/light, animation or runtime resource churn. */
 export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'ground' | 'concrete' | 'apron' | 'coated'): void {
@@ -47,7 +62,8 @@ export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'g
   const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel'
     : kind === 'concrete' || finish === 'pale' ? 'concrete' : timber ? 'wood' : 'metal';
   const pattern = kind === 'concrete' ? RELAY_FIELD_PATTERNS.brick.replaceAll('vRelayWall', 'vUndertowWall.y')
-    : timber ? RELAY_FIELD_PATTERNS.wood : kind === 'ground' || kind === 'apron' ? RELAY_FIELD_PATTERNS.earth : '';
+    : timber ? RELAY_FIELD_PATTERNS.wood : kind === 'coated' && finish === 'pale' ? UNDERTOW_SANDBAG
+      : kind === 'ground' || kind === 'apron' ? RELAY_FIELD_PATTERNS.earth : '';
   material.setValues(UNDERTOW_PHYSICAL_SURFACES[surface]);
   material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
