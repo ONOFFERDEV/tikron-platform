@@ -93,4 +93,21 @@ export const HUD_FIELD_CSS = `
  #hud #combatTelemetry{top:calc(var(--ui-safe-edge) + 420px);max-width:46vw}
  #hud #lb{top:calc(var(--ui-safe-edge) + 480px);width:46vw}
 }
-${COMBAT_FIELD_CSS}`;
+${COMBAT_FIELD_CSS}
+/* Short narrow viewports (640x360 CSS = 1280x720 at 200% zoom): three columns plus a full-width weapon row, so no panel stacks on another.
+   Every panel stays visible; the practice coach necessarily covers the screen centre at this size. */
+@media(max-width:800px) and (max-height:500px){
+ #hud #ping{top:143px!important;left:var(--ui-safe-edge)!important;padding:var(--ui-space-1) var(--ui-space-2)}
+ #hud #combatTelemetry{inset-block-start:199px!important;inset-inline-start:var(--ui-safe-edge)!important;max-width:176px}
+ #hud #hp{bottom:calc(var(--ui-safe-edge) + 41px);width:176px;padding:var(--ui-space-2) var(--ui-space-3)}
+ #hud #hp #hpbar{margin-top:var(--ui-space-2)}
+ #hud #ammo{bottom:calc(var(--ui-safe-edge) + 41px);width:196px;padding:var(--ui-space-2) var(--ui-space-3)}
+ #hud #weaponName{margin-bottom:var(--ui-space-1)}
+ #hud #wbar{bottom:var(--ui-safe-edge);width:max-content;flex-wrap:nowrap}
+ #hud #mode{top:var(--ui-safe-edge);left:calc(var(--ui-safe-edge) + 184px);right:auto;transform:none}
+ #hud #matchBrief{top:calc(var(--ui-safe-edge) + 33px);left:calc(var(--ui-safe-edge) + 184px);transform:none;width:calc(100vw - var(--ui-safe-edge)*2 - 392px)}
+ #airSupport{inset:var(--ui-safe-edge) var(--ui-safe-edge) auto auto!important;inline-size:196px!important}
+ #teamPingHint{inset-block:auto calc(var(--ui-safe-edge) + 130px)!important;inset-inline:auto var(--ui-safe-edge)!important;max-inline-size:196px!important;inline-size:196px!important}
+ .training-coach{inset-block-start:auto!important;inset-block-end:calc(var(--ui-safe-edge) + 41px)!important;inset-inline-start:calc(var(--ui-safe-edge) + 184px)!important;inline-size:calc(100vw - var(--ui-safe-edge)*2 - 392px)!important;padding:var(--ui-space-2) var(--ui-space-3)}
+}
+`;

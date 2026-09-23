@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
-import { COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
+import { COPY, FIELD_UI_COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
 import { WEAPON_KEYS } from "../src/weapon-contract.js";
 import { mapCallout, SITES } from "../client/map-presentation.js";
 
@@ -26,6 +26,7 @@ describe("Korean UI copy contract", () => {
   it("names the five stable weapon slots as WW1 service weapons in Korean", () => {
     expect(WEAPON_KEYS.map(weaponLabel)).toEqual(["자동소총", "참호 기관단총", "펌프 산탄총", "볼트 소총", "제식 권총"]);
     expect(weaponLabel(undefined)).toBe("무기");
+    expect(FIELD_UI_COPY.feed).toEqual({ biplane: "복엽기 소사", mortar: "박격포", grenade: "수류탄", you: "나", assist: "지원" });
   });
 
   it("formats the player's actual binding codes instead of fixed WASD copy", () => {

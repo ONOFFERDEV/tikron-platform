@@ -60,6 +60,36 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 8 - 2026-09-23: Period kill feed and short-viewport HUD layout
+
+Scope: UI lane only; no commit, push or deploy. No flow, state, binding or gameplay change. Base: supervisor commit 223adb0.
+
+#### What changed
+
+- Kill feed Korean-first with period names. `client/ui/copy.ts` adds `FIELD_UI_COPY.feed`. `client/hud.ts` uses it for the non-gun causes and tags: `drone` 복엽기 소사 (was SENTRY; the fixed-path attack biplane, same wording as the existing support copy), `mortar` 박격포 (was MORTAR), `blast` 수류탄 (was GRENADE; `config/ww1-assets.ts` weaponSupport `grenade`), `YOU` becomes 나 (the tactical-map "me" word), and `ASSIST /` becomes `지원 /` (the round-honors assist column). Every English token found had a WW1 counterpart, so no label was kept as-is. Player names are data and are unchanged.
+- Short narrow HUD layout. `client/ui/hud-field-style.ts` adds one `@media(max-width:800px) and (max-height:500px)` block, which matches 1280x720 and 1366x768 at 200% zoom. Left column: map, connection, input latency, health. Centre: mode, brief, training coach. Right: support card, signal hint, ammo. A full-width weapon row sits along the bottom. Position, width and padding changes only. No font size, text or panel is removed; no blur, shadow, filter or gradient is added, so `client/compositor-preparation.ts` needed no change. 1280x720 and 1920x1080 match none of the new rules.
+- `test/ui-copy.test.ts`: one assertion pins the five feed labels.
+
+#### Evidence (`.inspect/ui-r2/`)
+
+- Layout probe (`layout.mjs` + `layout-probe.js`) on the live practice HUD. It lists every visible positioned panel, checks pairwise intersection, viewport clipping and clipped text. Before (`layout-before.json`): 1280 0 overlaps, 1920 0; 640x360@2x 7 overlaps (hp/coach, mode/map, wbar/coach, wbar/hint, brief/map, brief/hint, coach/hint), with `#ping` and `#combatTelemetry` clipped below the viewport. After (`layout-after.json`): 0 overlaps, 0 clipped panels and 0 clipped text at all three sizes. The same 11 panels are present before and after; at 1280/1920 no panel moved.
+- Captures: `{before,after}/{1920,1280,zoom200}-hud.png`, `{before,after}/{1920,1280,zoom200}-killfeed.png`. The kill-feed fixture (`feed-fixture.ts`, `feed.mjs`) drives the real `Hud.addKill` with drone/mortar/blast/head, local kill, local victim and assist; receipts are `feed-{before,after}.json`. Captures use headless Chrome in software mode (headless Aside still stalls, see Session 7).
+
+A first-time player would say: "200%로 키워도 패널이 겹치지 않고, 킬 로그가 전부 한국어다."
+
+#### Gates and measured cost
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`; relay median 6.9ms, p99 7.1ms.
+- hitch-probe `--assert`: `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 frames over 150ms, 0 errors, max frame 19.4ms.
+- Asset bytes unchanged (35,363,446). Client bundle 4,104,203 to 4,106,187 (+1,984); publicBytes 47,365,090.
+
+#### Open questions / limits
+
+- At 640x360 the centre column (mode, brief, coach) necessarily covers the crosshair while the practice coach is shown. The side columns and the weapon row are full, and no panel was removed. Hiding or shrinking the coach there would be a flow/information change, so it is left for the owner.
+- Transient and team-mode panels (scores, feed with kills, streak, capture bars, support banner, signal event, squad radio) were not probed at 640x360. Only the practice HUD was checked for overlap.
+- Viewports narrower than about 560px with a height of 500px or less would overflow the single-row weapon strip; the existing 520px rules cover the narrow side, but that combination was not captured.
+
 ### Session 7 - 2026-09-23: WW1 service-weapon names in the HUD
 
 Scope: UI lane only; no commit, push or deploy. No flow, state, binding, wire-index or gameplay change.
