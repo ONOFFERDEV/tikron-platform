@@ -15,7 +15,7 @@
   "hemisphereIntensity": 0.85,
   "ambientIntensity": 0.18,
   "environmentIntensity": 0.9,
-  "fogColor": "#8b9ba8",
+  "fogColor": "#a08a78",
   "fogNear": 90,
   "fogFar": 320,
   "horizon": [0.258, 0.328, 0.392],
