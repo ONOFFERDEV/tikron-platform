@@ -83,6 +83,54 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Session log
 
+### Session R-UI2 - 2026-09-23: Relay floor as the headline, wall damage one notch up
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804), after the coordinator reviewed R-UI1 (committed c3c7e71). Same limits as R-UI1: no collider, bake-tool, AO, `src/map/**` or other-map change. No commit.
+
+#### Delivered
+
+- **`client/relay-ground-wear.ts`, rewritten.** It still paints the same 1024-wide R8 atlas.
+  - Broad wet/dry fields and denser clods.
+  - Irregular dark mud lobes around every standing solid.
+  - Footpaths as 3.4/2.0 m compacted bands with two ruts at ±0.6 m and puddle stains (dark centre, pale silt rim).
+  - Up to 10 shell craters of 2.6–3.8 m radius, each with a dark bowl, scorched lobed rim, pale thrown-up lip, 34 ejecta rays and clods. They keep the 4.5 m clearance from solids and 10 m from spawns and caps.
+  - 55 small shell pocks at least 1 m clear of solids; brick-rubble specks at wall feet and around craters; 2,600 scuffs.
+- **`client/relay-surfaces.ts`: the ground shader now converts painted value into material.**
+  - Low painted value becomes cooler, darker mud.
+  - The lowest value (puddles, crater floors) gets a faint wet sheen: roughness 0.74, not a mirror.
+- **`client/relay-field-patterns.ts` (`RELAY_GROUND_DETAIL`):** world-metric detail on top of the atlas: a 13 m and 3 m tone field, clod relief, and scattered stones and brick fragments, all derivative-faded. Program key `relay-field-v2-ground-mud`; program count unchanged (28).
+- **Brick wear, one notch up:**
+  - stronger tone and soot contrast
+  - collapsed top courses start at a lower noise threshold, run deeper and are darker
+  - scars are larger (0.26–0.7 m) and more frequent, with a darker core and brighter rim
+  - repairs cover 24% of segments instead of 16%
+- **Rejected:** doubling the Relay ground atlas to 2048 px. The unchanged official `inspect-map` asserts a 1024-wide compact Relay atlas, so fine detail went into the shader instead.
+
+#### Evidence (`.inspect/relay-r7/`)
+
+- `before/` is the R-UI1 committed state; `after/` is this session. Fixed cameras: `relay` (gate), `cooling`, `freight`, `spawn`, plus the `overview` overhead.
+- `side-*.png`: before | after at 50% scale, side by side.
+- Draw calls are unchanged in every view (relay 37, overview 42). Triangles unchanged from R-UI1 (relay 184,842). Textures 17, programs 28. Median frame 6.9 ms. Relay scene preparation 342 ms (R-UI1: 328 ms). These are desktop RTX 5070 observations.
+- **Bytes: 0 new asset bytes** (assetBytes 36,696,059, unchanged). Client bundle +5,914 to 4,136,353; publicBytes 48,787,367.
+
+#### Gates (fresh)
+
+- typecheck exit 0.
+- test exit 0: 203 files / 1,673 Vitest pass, 9 skipped as before, Node 92/92. `test/relay-field-use.test.mjs` still enforces crater and prop clearance.
+- build:client exit 0; audit:assets exit 0; all four `tools/audit-relay-*.mjs` exit 0.
+- inspect-map relay,practice-two: exit 0, `errors: []`.
+- hitch-probe `--assert` (advisory): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits
+
+- The floor is now much darker in places. Soldier-against-ground contrast was not measured; the look lane or the owner should check enemy readability on the darkest mud and crater areas before acceptance.
+- The gate camera's foreground is dominated by one crater at (71, 38). It reads as churned mud rather than a crisp crater shape at that grazing angle.
+- Silhouettes are still rectangular; true chipped corners need a collider-aware bake.
+
+#### Wow check
+
+Player sentence: **"The ground here is churned-up mud and shell holes, and the walls are shot to pieces."**
+
 ### Session R-UI1 - 2026-09-23: Signal Station wear, repairs and field use (ui worktree on loan)
 
 Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) at the coordinator's request, on world gap item 3. The lane was limited to `client/relay-*.ts`, the Relay branch of `client/site-ground.ts` (not needed in the end) and Relay README entries. No collider, `src/map/**`, bake tool, AO or Undertow/Switchyard file changed. No commit.

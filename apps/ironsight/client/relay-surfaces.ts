@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { relayBakedFinish } from './relay-palette.js';
-import { RELAY_BRICK_WEAR, RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF, RELAY_WEAR_FUNCTIONS } from './relay-field-patterns.js';
+import { RELAY_BRICK_WEAR, RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF, RELAY_GROUND_DETAIL, RELAY_WEAR_FUNCTIONS } from './relay-field-patterns.js';
 
 export const RELAY_PHYSICAL_SURFACES = {
   mud: { roughness: 0.97, metalness: 0 },
@@ -38,10 +38,16 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
         ${panel ? 'vRelayElevation = relayElevation;' : ''}
         ${brick ? 'vRelayWorld = (modelMatrix * vec4(position, 1.0)).xyz; vRelayFaceNormal = normalize(mat3(modelMatrix) * normal);' : ''}
       `);
-    shader.fragmentShader = `${panel ? 'varying vec2 vRelayElevation;' : ''}\n${wearVaryings}${brick ? RELAY_WEAR_FUNCTIONS : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.fragmentShader}`;
+    shader.fragmentShader = `${panel ? 'varying vec2 vRelayElevation;' : ''}\n${wearVaryings}${brick || kind === 'ground' ? RELAY_WEAR_FUNCTIONS : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.fragmentShader}`;
     if (kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      float relayGroundWet = 0.0;
       #ifdef USE_MAP
-        diffuseColor.rgb *= vec3(texture2D(map, vMapUv).r);
+        float relayGroundValue = texture2D(map, vMapUv).r;
+        diffuseColor.rgb *= vec3(relayGroundValue);
+        // Darker painted ground reads as trampled wet mud: cooler and less sandy.
+        float relayMud = 1.0 - smoothstep(0.06, 0.15, relayGroundValue);
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(0.82, 0.76, 0.70), relayMud);
+        relayGroundWet = 1.0 - smoothstep(0.03, 0.055, relayGroundValue);
       #endif
     `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
@@ -81,12 +87,13 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
       ` : ''}
       ${pattern}
       ${brick ? RELAY_BRICK_WEAR : ''}
+      ${kind === 'ground' ? RELAY_GROUND_DETAIL : ''}
       #endif
     `);
     if (pattern) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
       `#include <normal_fragment_maps>\n${RELAY_FIELD_RELIEF}`);
   };
-  material.customProgramCacheKey = () => `relay-field-v${kind === 'concrete' ? 2 : 1}-${kind}-${surface}`;
+  material.customProgramCacheKey = () => `relay-field-v${kind === 'concrete' || kind === 'ground' ? 2 : 1}-${kind}-${surface}`;
   material.needsUpdate = true;
 }
 
