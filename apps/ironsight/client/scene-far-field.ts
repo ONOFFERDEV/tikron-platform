@@ -11,7 +11,10 @@ const SITES = {
   // The Relay apron is flat paving to ~450 m; the far field starts past its fenced yard.
   relay: { inner: 28, soil: [0x5d5445, 0x4a4136, 0x6d6453], ruin: [0x8a7a64, 0x6f5a47, 0x9a8f7c], farm: 2.4 },
   // Undertow's apron ends 60 m out; start under it and surface past its edge.
-  undertow: { inner: 58, soil: [0x3f3d38, 0x2f2d2a, 0x4d4a42], ruin: [0x6c6258, 0x57493f, 0x7d746a], farm: -0.9 },
+  // Warmer, lighter earth so the fields keep texture under the amber dusk; the farm
+  // stands closer and larger on the north ridge, in view of the deployment glide.
+  undertow: { inner: 58, soil: [0x6b5b49, 0x4b3f34, 0x7e6c57], ruin: [0x9a8a78, 0x7d6a5a, 0xaa9d8c], farm: -0.9,
+    farmNorth: true, farmDistance: 60, farmScale: 1.8 },
 } as const;
 const FAR = 520; // metres beyond the boundary; the fog is opaque well before this
 
@@ -147,8 +150,10 @@ export function createFarField(map: MapDef): T.Group | undefined {
   stumps.forEach((m, i) => stumpMesh.setMatrixAt(i, m)); stumpMesh.name = 'far-field-stumps';
 
   // One ruined farm: roofless walls with broken tops, on the ridge line.
-  const farmAngle = site.farm, farmR = site.inner + 230;
-  const [fx, fz] = place(Math.round((farmAngle / (Math.PI * 2) + 1) % 1 * ring), farmR);
+  const farmAngle = site.farm, farmR = site.inner + ('farmDistance' in site ? site.farmDistance : 230);
+  const scale = 'farmScale' in site ? site.farmScale : 1;
+  const farmU = 'farmNorth' in site ? Math.round(along(w) / 2) : Math.round((farmAngle / (Math.PI * 2) + 1) % 1 * ring);
+  const [fx, fz] = place(farmU, farmR);
   const walls: [number, number, number, number, number, number][] = [ // dx, dz, length, height, thickness, yaw
     [0, 0, 16, 5.5, .6, 0], [0, 9, 16, 3.2, .6, 0], [-8, 4.5, 9, 6.5, .6, Math.PI / 2], [8, 4.5, 9, 2.4, .6, Math.PI / 2],
     [15, -6, 10, 4.2, .5, .3], [22, -3, 7, 2.8, .5, .3 + Math.PI / 2], [-18, 12, 8, 3.6, .5, -.2],
@@ -159,13 +164,13 @@ export function createFarField(map: MapDef): T.Group | undefined {
   const ruinColors = site.ruin.map(c => new T.Color(c));
   let n = 0;
   for (const [dx, dz, length, tall, thick, yaw] of walls) {
-    const x = fx + dx, z = fz + dz, base = height(x, z) - .4;
+    const x = fx + dx * scale, z = fz + dz * scale, base = height(x, z) - .4;
     q.setFromAxisAngle(new T.Vector3(0, 1, 0), yaw + farmAngle);
     // Each wall is two blocks of different heights: a broken, stepped top.
     const split = .35 + random() * .3;
     for (const [part, h] of [[split, tall], [1 - split, tall * (.45 + random() * .35)]] as const) {
-      const offset = (part === split ? -(1 - split) : split) * length / 2;
-      matrix.compose(p.set(x + Math.cos(yaw + farmAngle) * offset, base, z - Math.sin(yaw + farmAngle) * offset), q, s.set(length * part, h, thick));
+      const offset = (part === split ? -(1 - split) : split) * length * scale / 2;
+      matrix.compose(p.set(x + Math.cos(yaw + farmAngle) * offset, base, z - Math.sin(yaw + farmAngle) * offset), q, s.set(length * part * scale, h * scale, thick * scale));
       ruin.setMatrixAt(n, matrix); ruin.setColorAt(n, ruinColors[n % ruinColors.length]!); n++;
     }
   }

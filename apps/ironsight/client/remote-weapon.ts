@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { splitRifleMagazine } from "./rifle-magazine.js";
+import { issuedIronSights, stripIssuedSightHousing } from "./rifle-sight.js";
 import { reloadPose, weaponActionPose } from "./reload-presentation.js";
 import type { WeaponActionState } from "../src/weapon-action.js";
 import { GAME } from "../src/game-config.js";
@@ -79,6 +80,13 @@ export function remoteWeaponTemplate(gltf: Parameters<typeof cloneWeaponBundleNo
   for (const childName of ["fp", "LOD1", "LOD2"]) {
     const child = object.getObjectByName(childName);
     child?.removeFromParent();
+  }
+  // Issued carbine: the same period iron sights as first person, replacing the baked box
+  // aperture on this template copy (look round 12). The GLB and cached geometry stay intact.
+  if (object.userData.issuedCarbine === true) {
+    stripIssuedSightHousing(object);
+    const body = object.getObjectByName('field-body') as THREE.Mesh | undefined;
+    if (body) object.add(issuedIronSights(weaponMuzzle(object).x, body.material as THREE.Material).object);
   }
   object.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(object);

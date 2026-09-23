@@ -7,6 +7,7 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { weaponMuzzle } from '../client/weapon-loader.js';
 import { ISSUED_SIGHT_LINE_Y, issuedIronSights, stripIssuedSightHousing } from '../client/rifle-sight.js';
+import { remoteWeaponTemplate } from '../client/remote-weapon.js';
 
 /** Read actual geometry without browser image decoding or changing the asset. */
 async function carbine() {
@@ -55,5 +56,15 @@ describe('issued carbine iron sights', () => {
     const ray = new T.Raycaster(new T.Vector3(bore.x, ISSUED_SIGHT_LINE_Y, .24), new T.Vector3(0, 0, 1), 0, .455);
     expect(ray.intersectObject(root, true)).toHaveLength(0);
     sights.geometry.forEach(g => g.dispose());
+  });
+
+  it('gives the third-person carbine the same sights and no box aperture', async () => {
+    const gltf = await carbine(), source = (gltf.scene.getObjectByName('field-body') as T.Mesh).geometry;
+    const template = remoteWeaponTemplate(gltf, 'field-carbine', 0)!;
+    expect(template.object.getObjectByName('issued-iron-sights')).toBeDefined();
+    const body = template.object.getObjectByName('field-body') as T.Mesh;
+    expect(body.geometry).not.toBe(source);
+    expect(source.index!.count - body.geometry.index!.count).toBe(3 * 44 * 3);
+    expect(template.tip.z).toBeCloseTo(weaponMuzzle(gltf.scene.getObjectByName('field-carbine')!).z, 6);
   });
 });

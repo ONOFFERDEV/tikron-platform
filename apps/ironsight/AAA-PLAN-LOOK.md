@@ -549,3 +549,17 @@ client.js +10,337 bytes. Art assets 0.
 Gates: typecheck exit 0; vitest 206 files / 1691 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,892,242); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
 
 Open: Undertow's field is dark under dusk and reads mostly as a silhouette band; the ruined farm is small at 230 m. Both are tunable in `SITES`.
+
+### Session 15 - 2026-09-23: Sights on every carbine, a farm on the ridge
+
+**1. Third-person carbine.** `client/remote-weapon.ts` (sight grant extended to third person): `remoteWeaponTemplate` now applies `stripIssuedSightHousing` and adds `issuedIronSights` to the issued-carbine template. The GLB and cached geometry stay intact; the template tip and length are unchanged, so mounting and muzzle anchoring are unchanged. Hit safety is unchanged: `RemoteWeapon` already sets `raycast = () => {}` on every node of the cloned mesh (the existing traverse), which now includes the sights. Test: a third case in `test/issued-iron-sights.test.ts` checks the template has the sights, exactly 3 × 44 aperture triangles removed, and the same tip. Live TDM bots carrying the carbine at 12.0/33.0 m (before) and 17.4/30.6 m (after): `carbine-before-after.png`. The soldier reads as before; weapon detail is not resolvable at those ranges.
+
+**2. Undertow far field** (`client/scene-far-field.ts` `SITES.undertow` only; Relay unchanged):
+- Soil 0x3f3d38/0x2f2d2a/0x4d4a42 → 0x6b5b49/0x4b3f34/0x7e6c57, so the fields keep crater and trench texture under the amber dusk.
+- The ruin moves to the north ridge, in the deployment glide's view, at 60 m instead of 230 m beyond the far-field seam, scaled 1.8×, with lighter plaster/brick tones.
+- The play space is untouched: the far field starts 58 m outside the boundary, and the Session 6 grade and rig are unchanged.
+- Evidence: `undertow-before-after.png` (fly-through at 0.35, roof view).
+
+Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,894,353); inspect-map relay,practice-two exit 0 with 0 console errors (Relay 41 draws unchanged, practice-two 64→65); hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open: from the roof the farm is still a small silhouette between the towers; scale or distance are the next values to raise if wanted.
