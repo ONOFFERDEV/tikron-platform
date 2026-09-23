@@ -10,8 +10,15 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { WEAPON_CONTACT_FRAMES, type WeaponContactFrame } from "./weapon-contact-frames.js";
 import { WEAPONS } from "../src/config.js";
 
-const MOUNT_OFFSETS = [[0.025, 0.14, 0.12], [0.025, 0.14, 0], [0.025, 0.14, 0.12],
-  [0.025, 0.10, -0.02], [0.025, 0.12, 0.08]] as const;
+// Legacy (no contact frame) mount offsets from the firing wrist, and support-hand
+// corrections on top of the baked hold, both in the pitched actor frame. Fitted to the
+// shipped legacy weapons so the firing hand no longer sinks into the grip; the sniper
+// support hand leaves the stock and the pistol support hand cups the firing hand.
+// Measurement and per-clip table: .inspect/kit-r3/{fit,measure}.ts, AAA-PLAN-KIT Session 7.
+const MOUNT_OFFSETS = [[0.029, 0.138, 0.119], [0.045, 0.143, -0.002], [0.031, 0.14, 0.12],
+  [0.033, 0.106, -0.026], [0.039, 0.139, 0.078]] as const;
+const LEGACY_SUPPORT_OFFSETS = [undefined, undefined, undefined,
+  [0.002, -0.001, -0.025], [-0.007, 0.005, 0.004]] as const;
 const CONFIG = (GAME.weaponVis.presentation ?? VISUALS).remote;
 const PALM_THICKNESS = .014;
 const GRIP_CURL = { thumb: 1.2, indexFinger: -1.2, finger: 1.2 } as const;
@@ -314,6 +321,12 @@ export class RemoteWeapon {
           this.m.decompose(this.target, this.q, this.a);
           arm.handWorld.copy(this.q);
         }
+        const legacySupport = arm.side > 0 && !this.parts?.gripL && !this.parts?.gripR
+          ? LEGACY_SUPPORT_OFFSETS[this.index] : undefined;
+        if (legacySupport) {
+          this.group.getWorldQuaternion(this.q);
+          this.target.add(this.b.fromArray(legacySupport).applyQuaternion(this.q).applyQuaternion(this.aimRotation));
+        }
         if (arm.side > 0 && reload.reach > 0) {
           // Support hand leaves the fore-end for the magazine well. Keep the
           // firing wrist fixed; cosmetics never move the authoritative head.
@@ -330,7 +343,7 @@ export class RemoteWeapon {
         }
         // At zero pitch preserve the authored pose exactly, including elbow roll.
         if (Math.abs(aim) > 0.0001 || reload.reach > 0 || reload.chargeReach > 0
-          || (arm.side > 0 && this.parts?.gripL)) this.reach(arm, 1, true);
+          || (arm.side > 0 && this.parts?.gripL) || legacySupport) this.reach(arm, 1, true);
         if (arm.side > 0 && this.parts?.gripL) this.q.copy(arm.handWorld);
         else this.q.copy(this.aimRotation).multiply(arm.handWorld);
         arm.hand.parent!.getWorldQuaternion(this.parentQ).invert();
