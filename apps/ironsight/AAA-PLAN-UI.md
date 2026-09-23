@@ -60,6 +60,39 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 7 - 2026-09-23: WW1 service-weapon names in the HUD
+
+Scope: UI lane only; no commit, push or deploy. No flow, state, binding, wire-index or gameplay change.
+
+#### What changed
+
+- `client/ui/copy.ts`: new `weaponLabel(key)` maps the five stable `WeaponKey`s (`src/weapon-contract.ts`, read only) to Korean WW1 service names: 1 자동소총, 2 참호 기관단총, 3 펌프 산탄총, 4 볼트 소총 (was "Sniper"), 5 제식 권총; unknown key reads 무기.
+- `client/hud.ts`: weapon strip, ammo-panel weapon name (initial placeholder was "AR / AUTO") and kill-feed/elimination weapon cell now read `weaponLabel(WEAPONS[i].key)` instead of the modern `src/config.ts` `name` field. Slot order, key numbers and `setWeapon(index)` are unchanged.
+- `test/ui-copy.test.ts`: one focused test pins the five labels to `WEAPON_KEYS` order.
+- No CSS, blur, shadow, filter, gradient, font or asset added, so `client/compositor-preparation.ts` needed no change.
+
+#### Task 2 finding (gap list re-checked, no second pass made)
+
+Fresh before captures show menu/mode select, settings and pause already wear the Session 1/5 field skin; results/intermission (Session 4) and loading/reconnect (Session 5) are in the same system and were not re-captured. There is no Tab scoreboard: `#lb` is the FFA leaderboard only, and it already uses `hud-field-style.ts`. No remaining sci-fi screen was found in this pass, so no restyle was made.
+
+#### Evidence
+
+`.inspect/ui-r1/{before,after}/{1920,1280}-{menu,settings,hud,hud-slot4,pause}.png`, 200% zoom as 640x360 CSS at DPR2: `.inspect/ui-r1/{before-zoom,after}/zoom200-*.png`. Harness `capture.mjs`/`browser.mjs`, receipts `capture-*.json`. The strip fits in one row with no clipped slot at 1920, 1280 and 200% (`stripFits: true`). Captures use headless Chrome in software mode, because headless Aside stalls on `Runtime.evaluate` as in Session 6. Official gates use their own unmodified browser.
+
+A first-time player would say: "4번이 저격총이 아니라 볼트 소총이구나."
+
+#### Gates and measured cost
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips unchanged; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []` in `.inspect/ui-r1-report.json`; relay median 6.9ms, p99 7.1ms, 37 calls.
+- hitch-probe `--assert`: `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 frames over 24ms, 0 errors, max frame 17.6ms.
+- Asset bytes: 0 change (assetBytes 35,363,446; publicBytes 47,360,820). Client bundle +376 bytes (4,103,827 to 4,104,203).
+
+#### Open questions
+
+- The kill feed still mixes English cause tokens (`SENTRY`, `MORTAR`, `GRENADE`, `YOU`, `ASSIST /`) with the new Korean weapon names. The WW1 name for the "drone" cause (biplane, recon plane?) is a content decision, so this pass left them.
+- At 200% zoom the practice HUD overlaps (coach, brief, strip, minimap). The overlap is identical before and after this change; it is gap item 2 (narrow combat layout).
+
 ### Session 6 - 2026-09-23: Field dispatch, support and casualty plates (acceptance blocked)
 
 The skin is provisional. This session is **not globally green or fully accepted**. Continuing from the retained partial Session 6 work, final code checks pass; complete browser evidence and hardware readiness remain blocked. No commit, push or deploy.

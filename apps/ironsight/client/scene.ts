@@ -49,7 +49,8 @@ import type { FireClaim, HitPart } from "../src/hitscan.js";
 import { ARENA, PLAYER, HIT } from "../src/config.js";
 import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
 import { AuthoredViewmodelHands, ViewmodelHands, loadAuthoredViewmodelHands } from "./viewmodel-hands.js";
-import { WeaponPresentation, resolveWeaponContractRoot } from "./weapon-presentation.js";
+import type { WeaponPresentation } from "./weapon-presentation.js";
+import { viewmodelWeaponPresentation } from "./scene-weapon.js";
 import { inspectionWeaponAction, ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
@@ -929,10 +930,8 @@ export class SceneRig {
 
       const key = WEAPON_KEYS[index];
       if (key === undefined) { abandon(); return; }
-      const contractRoot = resolveWeaponContractRoot(obj, key);
-      if (contractRoot === null) { abandon(); return; }
-      const presentation = new WeaponPresentation(key, contractRoot);
-      if (presentation.sockets === null) { abandon(); return; }
+      const presentation = viewmodelWeaponPresentation(obj, key, WEAPON_CANDIDATE_PREVIEW);
+      if (presentation === undefined) { abandon(); return; }
 
       const bore = weaponMuzzle(obj);
       const sourceBounds = new THREE.Box3().setFromObject(obj);
