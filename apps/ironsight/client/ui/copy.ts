@@ -191,12 +191,26 @@ export function formatControlsHint(bindings: CopyBindings): string {
   ].join(" · ");
 }
 
+// Bot role labels arrive as "RUSH 1" / "ANCHOR 3" / "SCOUT 6" (server role ids are unchanged).
+const COMBATANT_ROLES: Readonly<Record<string, string>> = {
+  RUSH: "돌격", ANCHOR: "거점", SCOUT: "정찰", MARKSMAN: "사수", SUPPORT: "지원",
+};
+
+/** Korean display name for a combatant. Only the exact bot label shape and the
+ *  self label are translated; any other player name passes through untouched. */
+export function combatantLabel(value: string): string {
+  if (value === GAME.text.selfName) return FIELD_UI_COPY.feed.you;
+  const match = /^([A-Z]+) (\d+)$/.exec(value);
+  const role = match ? COMBATANT_ROLES[match[1]!] : undefined;
+  return role ? `${role} ${match![2]}` : value;
+}
+
 export interface PresentedPlayerName { readonly text: string; readonly html: string; readonly compact: string }
 
 const ESCAPES: Readonly<Record<string, string>> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 export function presentPlayerName(value: string): PresentedPlayerName {
-  const clean = value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "").trim() || COPY.results.unknownPlayer;
+  const clean = combatantLabel(value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, "").trim()) || COPY.results.unknownPlayer;
   const characters = [...clean];
   const compact = characters.length > 24 ? `${characters.slice(0, 24).join("")}…` : clean;
   return { text: clean, html: clean.replace(/[&<>"']/g, character => ESCAPES[character] ?? character), compact };

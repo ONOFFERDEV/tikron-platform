@@ -64,6 +64,41 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 12 - 2026-09-23: Last English core signs, Korean combatant names; surface kinds blocked
+
+Scope: UI lane plus the round-11 grants. No commit. `git merge recovery/ironsight-ww1-20260912` reported "Already up to date" (68a1b3b).
+
+#### Delivered
+
+- **`client/signal-core.ts`** (sign text only): `SIGNAL POST` becomes 신호소 and `SLUICE POST` becomes 수문 초소, with a Hangul font fallback. Same canvas, mesh and position. Stills: `.inspect/audit-r11/signs/side-{relay,undertow-gallery-closed}.png`.
+- **Korean combatant names, client presentation only.** Server role ids and labels are unchanged.
+  - `combatantLabel()` in `client/ui/copy.ts` translates only the exact bot label shape (`RUSH 1` → 돌격 1, `ANCHOR` → 거점, `SCOUT` → 정찰) and the self name (`You` → 나). Any other player name passes through untouched.
+  - Applied to the kill feed, kill confirm, streak, FFA leaderboard, death card, results roster and MVP.
+  - The combat event log now shows `명중 확인: 거점 4` instead of the raw `bot-7`.
+  - The 나 tag is no longer doubled when the killer is you.
+  - `test/ui-copy.test.ts` has one assertion for this.
+  - Live stills: `.inspect/audit-r11/labels.png` (first pass, which showed the doubled 나) and `labels-after.png`.
+
+#### Blocked: brick/sandbag surface kinds (item 1)
+
+- **Look's effects are not on the integration branch.** Look's per-surface impacts are commit 3de7053 on `ironsight-ww1-look`, which `recovery/ironsight-ww1-20260912` (68a1b3b) does not contain. On this tree there are no brick or sandbag impact effects to play.
+- **Adding the kinds would reach outside the grant.** Adding `brick` and `sandbag` to `MAP_SURFACES` makes three exhaustive `Record<MapSurface, …>` tables fail the typecheck:
+  - `client/combat-fx.ts` `IMPACT_PROFILES` (look)
+  - `client/scene-impact.ts` (look)
+  - `client/spatial-audio.ts` `FOOTSTEP_SURFACE_PROFILES` (supervisor)
+  None of them is granted. Changing them would break the type contract or cross lanes, so no change was made to `src/map/**`.
+- **Unblock by:**
+  1. Merge 3de7053 into recovery.
+  2. Grant the three tables, or let look add brick/sandbag entries to them (footsteps: brick ≈ concrete, sandbag ≈ mud).
+  3. Then apply the planned bindings: Relay and Undertow `concrete` masonry becomes `brick`, sandbag courses become `sandbag`, and corrugated sheds become `metal`.
+
+#### Gates
+
+- typecheck, build:client, audit:assets: exit 0.
+- test: Vitest 1,678 passed / 9 skipped, Node 92/92.
+- inspect-map relay,practice-two: exit 0, `errors []`.
+- hitch-probe (advisory, once): `hitchGate: PASS`, 0 recompiles, 0 errors.
+
 ### Session 11 - 2026-09-23: WW1 menu vista refresh and combat inspector feed cap
 
 Scope: UI lane plus the round-5 grants: `public/assets/{relay,undertow}-vista.webp`, their README provenance, and `client/match-inspect.ts`. First I merged `recovery/ironsight-ww1-20260912` (merge commit 327147e, no conflicts). No commit, push or deploy. `switchyard-vista.webp` was not touched.

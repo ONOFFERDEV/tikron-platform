@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
-import { COPY, FIELD_UI_COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
+import { COPY, FIELD_UI_COPY, combatantLabel, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
 import { WEAPON_KEYS } from "../src/weapon-contract.js";
 import { mapCallout, SITES } from "../client/map-presentation.js";
 
@@ -32,6 +32,11 @@ describe("Korean UI copy contract", () => {
       "{who} · {count}연속 처치",
     ]);
     expect(FIELD_UI_COPY.feed).toEqual({ biplane: "복엽기 소사", mortar: "박격포", grenade: "수류탄", you: "나", assist: "지원" });
+  });
+
+  it("shows bot role labels in Korean without touching other names", () => {
+    expect(["RUSH 1", "ANCHOR 3", "SCOUT 6", "You", "a1b2", "Rushmore 2"].map(combatantLabel))
+      .toEqual(["돌격 1", "거점 3", "정찰 6", "나", "a1b2", "Rushmore 2"]);
   });
 
   it("keeps the click-to-deploy note and death card Korean", () => {
