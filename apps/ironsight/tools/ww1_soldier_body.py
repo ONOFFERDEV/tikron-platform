@@ -133,3 +133,39 @@ def boot_surface(ankle: Point, joint: str) -> ClothSurface:
     return loft(tuple(Ring((ankle[0], ankle[1] + height, ankle[2] + (front - back) / 2),
                            (-width, 0, 0), (0, 0, (front + back) / 2), ((joint, 1.0),))
                       for height, width, front, back in profile), 20)
+
+
+def neck_surface(base: str, neck: str, head: str) -> ClothSurface:
+    """Tapered neck seated inside the collar and the skull, blending across both joints."""
+    profile = ((1.455, .066, .062, -.014), (1.49, .061, .058, -.011),
+               (1.52, .057, .055, -.008), (1.55, .055, .053, -.005),
+               (1.575, .052, .051, -.003), (1.60, .048, .047, 0.0))
+    rings: list[Ring] = []
+    for height, width, depth, forward in profile:
+        lower = min(1.0, max(0.0, (height - 1.455) / .06))
+        upper = min(1.0, max(0.0, (height - 1.54) / .05))
+        weights: Weights = tuple((joint, weight) for joint, weight in
+                                 ((base, 1 - lower), (neck, lower - upper), (head, upper)) if weight > 1e-9)
+        rings.append(Ring((0, height, forward), (-width, 0, 0), (0, 0, depth), weights))
+    return loft(tuple(rings), 16)
+
+
+def finger_surface(points: tuple[Point, ...], joints: tuple[str, ...], spread: Point,
+                   radii: tuple[float, float]) -> ClothSurface:
+    """One tapered finger from inside the palm to a rounded tip.
+
+    points = (hand root, knuckle 1, ..., fingertip); joints[k] drives the segment after points[k].
+    spread is the palm-plane direction; radii are (width, thickness) at the first knuckle.
+    """
+    end = unit(add(points[-1], scale(points[-2], -1)))
+    path = (mix(points[0], points[1], .45), *points[1:], add(points[-1], scale(end, radii[1] * .6)))
+    rings: list[Ring] = []
+    last = len(path) - 1
+    for index, center in enumerate(path):
+        tangent = unit(add(path[min(index + 1, last)], scale(path[max(index - 1, 0)], -1)))
+        depth_axis = unit(cross(tangent, spread))
+        across = cross(depth_axis, tangent)
+        taper = (1 - .25 * min(index, last - 1) / (last - 1)) * (.45 if index == last else 1)
+        weights: Weights = ((joints[0], 1.0),) if index == 0 else ((joints[-1], 1.0),) if index >= last - 1             else ((joints[index - 1], .5), (joints[index], .5))
+        rings.append(Ring(center, scale(across, radii[0] * taper), scale(depth_axis, radii[1] * taper), weights))
+    return loft(tuple(rings), 8)

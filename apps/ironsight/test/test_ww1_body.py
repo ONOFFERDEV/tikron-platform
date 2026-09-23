@@ -98,6 +98,31 @@ class UniformSurfaceTest(unittest.TestCase):
                                  for vertex in outer for group in vertex.groups),
                              "Clavicle influence beyond the upper-arm joint folds the sleeve back onto the chest")
 
+    def test_neck_is_one_surface_blended_from_collar_to_skull(self) -> None:
+        neck = next((obj for obj in self.parts if obj.name == "uniform-neck"), None)
+        self.assertIsNotNone(neck)
+        self.assertEqual({group.name for group in neck.vertex_groups}, {"spine_03", "neck_01", "head"},
+                         "A rigid neck cylinder shears at the collar and jaw")
+        self.assertGreater(sum(len(vertex.groups) == 2 for vertex in neck.data.vertices), 20)
+
+    def test_each_finger_is_one_continuous_tapered_surface(self) -> None:
+        self.assertFalse(any(obj.name.startswith("uniform-tip-") for obj in self.parts),
+                         "Sphere knuckles on cylinders read as beads, not fingers")
+        for side in ("l", "r"):
+            for family in ("thumb", "indexFinger", "finger"):
+                with self.subTest(side=side, family=family):
+                    finger = next((obj for obj in self.parts if obj.name == f"uniform-{family}-{side}"), None)
+                    self.assertIsNotNone(finger)
+                    self.assertEqual({group.name for group in finger.vertex_groups},
+                                     {f"Hand_{side.upper()}", *(f"{family}_{n:02d}_{side}" for n in (1, 2, 3))})
+                    self.assertGreater(sum(len(vertex.groups) == 2 for vertex in finger.data.vertices), 15)
+                    edges = Counter((a, b) for face in finger.data.polygons
+                                    for a, b in zip(face.vertices, (*face.vertices[1:], face.vertices[0])))
+                    self.assertTrue(all(count == 1 and edges[b, a] == 1 for (a, b), count in edges.items()))
+                    root = self.rig.data.bones[f"{family}_01_{side}"].head_local
+                    tip = max((vertex.co - root).length for vertex in finger.data.vertices)
+                    self.assertGreater(tip, .045, "The finger must reach past its last knuckle")
+
     def test_boots_have_level_soles_and_a_forward_toe(self) -> None:
         for side in ("L", "R"):
             boot = next((obj for obj in self.parts if obj.name == f"uniform-boot-{side}"), None)
