@@ -2,6 +2,7 @@ import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
+import { undertowSkylineParts } from './undertow-skyline.js';
 import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
 import { UNDERTOW_SLUICE_PARTS, UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from '../src/map/undertow-yard.js';
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
@@ -197,80 +198,8 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   // audited outside the shared movement rectangle, including yawed roofs.
   for (const p of undertowSiteBoundary(width, depth))
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, 0, p.yaw);
-  // Source-layout context anchors; outside offsets stay outside expanded bounds.
-  const context: typeof add = (m, x, y, z, w, h, d, round, rx, rz, ry) => {
-    const px = x < 0 ? x : x > 60 ? width + x - 60 : x / 60 * width;
-    const pz = z < 0 ? z : z > 40 ? depth + z - 40 : z / 40 * depth;
-    add(m, px, y, pz, w, h, d, round, rx, rz, ry);
-  };
-  // Basin and paired clarifiers: skyline hero stays completely beyond z=0.
-  context(2, 30, -0.01, -13, width * .9, 0.02, 20);
-  context(4, 30, 0.005, -13, width * .85, 0.01, 17);
-  for (let x = 7; x < 57; x += 2.4) {
-    context(1, x, 0.015, -5.6, 1.1, 0.005, 0.025);
-    context(1, x + 0.5, 0.015, -20, 0.7, 0.005, 0.018);
-  }
-  for (const x of [17, 43]) {
-    context(0, x, 4, -13, 11, 8, 11, true);
-    context(2, x, 7.55, -13, 11.15, 0.25, 11.15, true);
-    context(4, x, 8.1, -13, 10.4, 0.6, 10.4, true);
-    context(3, x, 8.48, -13, 8.8, 0.15, 8.8, true);
-    for (const level of [1.1, 5.8]) context(1, x, level, -13, 11.08, 0.16, 11.08, true);
-    for (let i = 0; i < 12; i++) {
-      const angle = i * Math.PI / 6;
-      context(1, x + Math.sin(angle) * 5.48, 4, -13 + Math.cos(angle) * 5.48, 0.13, 6.4, 0.12, false, 0, 0, angle);
-    }
-    context(5, x, 10.2, -13, 0.7, 3.4, 0.7);
-    context(2, x, 11.75, -13, 12, 0.35, 0.65);
-    for (const side of [-1, 1]) {
-      context(1, x + side * 4, 2.8, -4, 1, 5.6, 1, true);
-      context(1, x + side * 4, 5.55, -7, 1, 6, 1, true, Math.PI / 2);
-    }
-  }
-  // A landmark control stack and steel service bridge; no route-crossing pipes.
-  context(1, 30, 12, -18, 5, 24, 5);
-  context(2, 30, 23, -18, 8, 2, 7);
-  context(3, 30, 24.15, -18, 8.2, 0.3, 7.2);
-  context(6, 30, 23.2, -14.48, 6.7, 0.35, 0.03);
-  // Forked intake crown: one north-axis silhouette above the repeated low kit.
-  // Entirely beyond the boundary, including the widest crown; no new cover.
-  for (const dx of [-4.5, 4.5]) {
-    add(3, width / 2 + dx, 27, -18, 1.2, 14, 2.4);
-    add(4, width / 2 + dx, 32.8, -18, 1.24, 1.4, 2.44);
-  }
-  add(2, width / 2, 29, -18, 11, 0.7, 3);
-  for (const dx of [-2.4, -1.2, 0, 1.2, 2.4])
-    add(1, width / 2 + dx, 26.5, -18, 0.25, 4.4, 2);
-  for (const level of [4, 7.2, 10.4]) {
-    context(2, 30, level, -15.49, 3.8, 1.8, 0.025);
-    for (let i = -2; i <= 2; i++) context(1, 30 + i * 0.65, level, -15.47, 0.15, 1.5, 0.015);
-  }
-  context(5, 30, 6.4, -5, width * .65, 0.5, 1.2);
-  for (let x = 12; x < 50; x += 3) context(2, x, 5.95, -5, 0.12, 0.7, 1);
-  // West = upright pale filter vessels; east = low amber service gantry.
-  // Shape carries orientation even without colour. Share the baked kit's six
-  // existing materials and atlas, and keep all extents outside the play volume.
-  for (const [z, height] of [[depth * .37, 21], [depth * .49, 26], [depth * .61, 21]] as const) {
-    const x = -8;
-    add(3, x, height / 2, z, 6, height, 6, true);
-    for (const y of [2, height - 4, height - .4])
-      add(4, x, y, z, 6.12, .65, 6.12, true);
-    add(2, x, height + .2, z, 5.5, .5, 5.5, true);
-    add(1, x + 3.12, height / 2, z, .24, height, .8);
-  }
-  for (const z of [depth * .34, depth * .66]) {
-    add(5, width + 5, 6, z, 1.2, 12, 1.2);
-    add(2, width + 5, 1.5, z, 1.3, 3, 1.3);
-  }
-  add(5, width + 5, 12, depth / 2, 1.6, 2, depth * .34);
-  for (let z = depth * .35; z < depth * .66; z += 2)
-    add(2, width + 4.17, 12, z, .04, 1.6, .35, false, Math.PI / 5);
-  // Southern pump-service flues answer the north crown with unequal round stacks.
-  for (const [x, height] of [[width * .43, 18], [width * .49, 14]] as const) {
-    add(2, x, height / 2, depth + 6, 2.4, height, 2.4, true);
-    add(5, x, height - 2, depth + 6, 2.44, 3, 2.44, true);
-    add(3, x, height, depth + 6, 3, .4, 3, true);
-  }
+  for (const p of undertowSkylineParts(width, depth))
+    add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, p.roll, p.yaw);
   // Floor-only circulation marks; caps retain the authority's positions.
   for (const cap of Object.values(map.caps)) for (const side of [-1, 1]) {
     add(3, cap.x + side * 2.7, 0.004, cap.z, 0.08, 0.008, 5.4);

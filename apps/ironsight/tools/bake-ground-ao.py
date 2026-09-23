@@ -22,7 +22,10 @@ parser.add_argument("--size", type=int, default=1024)
 parser.add_argument("--samples", type=int, default=96)
 parser.add_argument("--distance", type=float, default=3.5, help="AO ray distance in metres")
 parser.add_argument("--architecture", help="Optional original-kit dump; include only exterior geometry as AO context")
+parser.add_argument("--output-dir", type=Path)
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
+output_dir = args.output_dir or app / "public/assets/maps"
+output_dir.mkdir(parents=True, exist_ok=True)
 maps = json.loads(Path(args.maps).read_text())
 architecture = json.loads(Path(args.architecture).read_text()) if args.architecture else {}
 
@@ -138,7 +141,7 @@ for key, m in maps.items():
     bpy.context.view_layer.objects.active = floor
     bpy.ops.object.bake(type="AO")
 
-    out = app / "public/assets/maps" / f"{key}-ground-ao.png"
+    out = output_dir / f"{key}-ground-ao.png"
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "BW"
     scene.render.image_settings.color_depth = "8"

@@ -11,8 +11,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--input', default='.inspect/architecture.json')
 parser.add_argument('--size', type=int, default=1024)
 parser.add_argument('--samples', type=int, default=64)
+parser.add_argument('--output-dir', type=Path)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
 app = Path(__file__).resolve().parents[1]
+output_dir = args.output_dir or app / 'public/assets/maps'
+output_dir.mkdir(parents=True, exist_ok=True)
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = args.samples
@@ -93,7 +96,7 @@ for name, kit in json.loads(Path(args.input).read_text()).items():
     kit_object.select_set(True)
     bpy.context.view_layer.objects.active = kit_object
     bpy.ops.object.bake(type='AO')
-    out = app / 'public/assets/maps' / (name + '-architecture.glb')
+    out = output_dir / (name + '-architecture.glb')
     bpy.ops.export_scene.gltf(filepath=str(out), export_format='GLB', use_selection=True,
         export_texcoords=True, export_normals=True, export_materials='EXPORT',
         export_yup=True, export_animations=False, export_cameras=False, export_lights=False)

@@ -23,11 +23,12 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     metal: new THREE.MeshStandardMaterial(RELAY_FINISH.metal),
     amber: new THREE.MeshStandardMaterial(RELAY_FINISH.amber),
     teal: new THREE.MeshStandardMaterial(RELAY_FINISH.teal),
-    light: new THREE.MeshBasicMaterial({ color: RELAY_FINISH.dark.color }),
     paint: new THREE.MeshStandardMaterial(RELAY_FINISH.paint),
   };
   type Mat = keyof typeof mats;
-  const batches = new Map<Mat, THREE.Matrix4[]>();
+  const batches = new Map<Mat, THREE.Matrix4[]>([
+    ['concrete', []], ['pale', []], ['dark', []], ['teal', []], ['metal', []], ['amber', []], ['paint', []],
+  ]);
   const matrix = new THREE.Matrix4();
   const quat = new THREE.Quaternion();
   const add = (m: Mat, x: number, y: number, z: number, w: number, h: number, d: number, yaw = 0) => {
@@ -52,96 +53,49 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
     const structure = structureParts.get(b);
     const yard = yardParts.get(b);
     if (yard) {
-      const cargo = yard.finish === 'cargo', bench = yard.finish === 'bench';
-      // Different working finishes, with the full opaque authority envelope.
-      add(cargo || (!yard.west && !bench) ? 'metal' : bench ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
-      if (cargo || (!yard.west && !bench)) {
-        for (const side of [-1, 1]) {
-          for (let px = b.min.x + .18; px < b.max.x - .1; px += .42)
-            add('dark', px, y + h / 2, z + side * (d / 2 + .003), .055, h - .16, .006);
-          add('amber', x, y + .3, z + side * (d / 2 + .006), w - .12, .10, .006);
-        }
-      } else if (bench) {
-        add('metal', x, b.max.y + .004, z, w, .008, d);
-        add('amber', x, y + .82, b.max.z + .004, w - .08, .12, .008);
+      const timber = yard.finish === 'cargo' || yard.finish === 'bench';
+      add(timber ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
+      if (timber) for (const side of [-1, 1]) {
+        for (const band of [.18, h - .18])
+          add('metal', x, y + band, z + side * (d / 2 + .005), w - .08, .055, .008);
+        for (let px = b.min.x + .22; px < b.max.x - .1; px += 1.8)
+          add('amber', px, y + h / 2, z + side * (d / 2 + .004), .12, h - .12, .008);
       }
       continue;
     }
     if (structure) {
-      // Thin walls, real lintels and pierced roof slabs must not use the old
-      // solid-house kit (its foundations/cassettes would close the openings).
-      // Every structural face is the exact authoritative box, including the
-      // underside. Decorative paint is at most 8mm beyond a solid surface.
-      const console = structure.kind === 'cover';
-      add(console ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
-      if (console) {
-        add('metal', x, b.max.y + .004, z, w, .008, d);
-      } else if (structure.kind === 'wall' && y === 0 && h >= 1.1) {
-        if (w > d) for (const side of [-1, 1]) {
-          add('teal', x, .46, z + side * (d / 2 + .004), w, .66, .008);
-          add('pale', x, .80, z + side * (d / 2 + .004), w, .04, .008);
-        }
-        else for (const side of [-1, 1]) {
-          add('teal', x + side * (w / 2 + .004), .46, z, .008, .66, d);
-          add('pale', x + side * (w / 2 + .004), .80, z, .008, .04, d);
-        }
+      const timber = structure.kind === 'cover'
+        || (structure.kind === 'slab' && structure.box.max.y <= 0);
+      add(timber ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
+      if (structure.kind === 'wall' && y === 0 && h >= 1.1) {
+        if (w > d) for (const side of [-1, 1])
+          add('dark', x, .19, z + side * (d / 2 + .004), w, .30, .008);
+        else for (const side of [-1, 1])
+          add('dark', x + side * (w / 2 + .004), .19, z, .008, .30, d);
       }
       continue;
     }
-    if (h <= .48) {
-      add('dark', x, y + h / 2, z, w, h, d);
-      continue;
-    }
-    const low = h < 1.5;
-    // End pillars fill the last 18 cm of each tall volume, rather than placing
-    // a second coplanar face on a complete box (which causes depth fighting).
-    const baseInset = y > 0 ? .32 : 0;
-    add(low ? "dark" : "concrete", x, y + baseInset + (h - 0.16 - baseInset) / 2, z, low ? w : w - 0.36, h - 0.16 - baseInset, d);
-    add(low ? "metal" : "pale", x, y + h - 0.08, z, w, 0.16, d);
-    // Flush foundations and cornices give buildings scale without enlarging collisions.
-    add("dark", x, y + 0.16, z, w + 0.006, 0.32, d + 0.006);
-    const accent: Mat = z < depth / 2 ? "teal" : "amber";
-    if (low) {
-      add(accent, x, y + h * 0.65, z, w + 0.01, 0.13, d + 0.01);
-      for (const sx of [-1, 1]) add("metal", x + sx * (w / 2 - 0.06), y + h / 2, z, 0.16, h, d + 0.024);
-    } else {
-      add(accent, x, y + h - 0.45, z, w + 0.006, 0.38, d + 0.006);
-      if (y >= 6) {
-        // Solid signal spine: stacked receiver cassettes identify the centre
-        // from each lane. Every panel remains within its authoritative volume.
-        for (const side of [-1, 1]) for (const level of [1.8, 3.8, 5.8]) {
-          add('teal', x + side * (w / 2 + 0.004), y + level, z, 0.008, 1.1, d - 0.5);
-          add('pale', x + side * (w / 2 + 0.009), y + level - 0.48, z, 0.006, 0.08, d - 0.8);
-        }
+    const chamber = map.signalCore?.chamber;
+    const hut = chamber !== undefined && b.min.x >= chamber.min.x && b.max.x <= chamber.max.x
+      && b.min.z >= chamber.min.z - .401 && b.max.z <= chamber.max.z + .401;
+    const timber = hut || h < 1.5;
+    add(timber ? 'dark' : 'concrete', x, y + h / 2, z, w, h, d);
+    if (h <= .48) continue;
+    if (hut && w < .5 && d < .5) continue;
+    add('pale', x, b.max.y - .06, z, w + .008, .12, d + .008);
+    add('dark', x, y + .13, z, w + .008, .26, d + .008);
+    for (const side of [-1, 1]) {
+      const face = z + side * (d / 2 + .004);
+      for (let px = b.min.x + .18; px < b.max.x - .1; px += 3.4)
+        add('dark', px, y + h / 2, face, .14, h - .2, .008);
+      if (w >= 3 && h >= 2) {
+        add('teal', x - w * .19, y + h * .54, face, Math.min(1.15, w * .24), Math.min(1.4, h * .55), .008);
+        for (const band of [-.4, .4])
+          add('metal', x - w * .19, y + h * .54 + band, face + side * .006, Math.min(1.15, w * .24), .045, .004);
       }
-      if (h === 6 && w === 10 && d === 12) {
-        // The shared 6.4m core is a signal coupler, distinct from service houses.
-        // Cassette depth is in the collider; only millimetre cladding crosses it.
-        for (const side of [-1, 1]) {
-          const face = x + side * (w / 2);
-          add('dark', face, 3.25, z, 0.010, 5.8, d - 0.30);
-          for (const level of [1.25, 2.6, 4.95]) {
-            add('pale', face + side * 0.008, level, z, 0.010, 0.95, d - 0.70);
-            add('metal', face + side * 0.015, level, z, 0.006, 0.65, d - 1.0);
-            for (let k = -2; k <= 2; k++)
-              add('dark', face + side * 0.0175, level, z + k * 0.40, 0.005, 0.44, 0.10);
-            add('light', face + side * 0.018, level - 0.28, z, 0.004, 0.035, d - 1.30);
-          }
-          for (const end of [-1, 1]) add('amber', face + side * 0.012, 3.2, z + end * (d / 2 - 0.12), 0.010, 5.65, 0.12);
-        }
-      }
-      for (const sx of [-1, 1]) {
-        add("dark", x + sx * (w / 2 - 0.09), y + h / 2, z, 0.18, h - 0.32, d + 0.008);
-        // End-face machinery panel. All thickness is inside the collider.
-        add("metal", x + sx * (w / 2 + 0.006), y + 1.35, z, 0.012, 1.75, Math.min(d - 0.4, 2.8));
-        for (let k = 0; k < 5; k++)
-          add("dark", x + sx * (w / 2 + 0.016), y + 0.8 + k * 0.24, z, 0.008, 0.075, Math.min(d - 0.6, 2.5));
-      }
-      for (const sz of [-1, 1]) {
-        for (let px = b.min.x + 0.55; px < b.max.x - 0.2; px += 1.45)
-          add("metal", px, y + h / 2, z + sz * (d / 2 - 0.017), 0.045, h - 0.9, 0.04);
-        add("light", x, y + h - 0.78, z + sz * (d / 2 + 0.003), Math.min(w - 0.5, 2.4), 0.045, 0.007);
-      }
+      const end = x + side * (w / 2 + .004);
+      for (const band of [.28, h - .28])
+        add('dark', end, y + band, z, .008, .12, d - .08);
     }
   }
   // Built mass replaces the thin perimeter. Shared with the offline bake;
@@ -179,11 +133,12 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   for (let x = mastX - 8; x < mastX + 9; x += 2) add("dark", x, 15.1, -3, 0.16, 1.5, 0.5, 0.35);
   if (bakeOnly) scene.add(buildRelaySkyline(map.bounds));
   for (const [name, transforms] of batches) {
+    if (transforms.length === 0) continue;
     const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mats[name], transforms.length);
     transforms.forEach((m, i) => mesh.setMatrixAt(i, m));
     mesh.instanceMatrix.needsUpdate = true;
-    mesh.castShadow = name !== "light" && name !== "paint";
-    mesh.receiveShadow = name !== "light";
+    mesh.castShadow = name !== "paint";
+    mesh.receiveShadow = true;
     mesh.name = `relay-${name}`;
     mesh.computeBoundingSphere(); scene.add(mesh);
   }
@@ -212,11 +167,7 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   sign(0, width / 2, 2.1, 0.015, 0, 6);
   sign(2, width / 2, 2.1, depth - .015, Math.PI, 6);
   sign(3, mastX, 25.7, -13.4, 0, 6.8);
-  for (const side of [-1, 1]) {
-    sign(1, width / 2 + side * 5.030, 3.7, 50, side * Math.PI / 2, 3.5);
-  }
-  // Same atlas/material and five unchanged faces: one static draw. Retain
-  // headroom when long frames temporarily overlap more pooled combat effects.
+  for (const x of [41, 109]) sign(1, x, 2.95, 44.014, 0, 2.4);
   const signs = new THREE.Mesh(mergeGeometries(signParts)!, signMat);
   signParts.forEach(g => g.dispose()); signs.name = 'relay-zone-signs'; scene.add(signs);
 }

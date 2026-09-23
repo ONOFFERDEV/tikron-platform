@@ -11,6 +11,8 @@ from pathlib import Path
 app = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', default=str(app / '.inspect/architecture.json'))
+parser.add_argument('--asset-dir', type=Path, default=app / 'public/assets/maps')
+parser.add_argument('--report', type=Path, default=app / '.inspect/session9-geometry-audit.json')
 args = parser.parse_args()
 source_path = Path(args.input)
 source = json.loads(source_path.read_text())
@@ -46,7 +48,7 @@ for name, kit in source.items():
         tris, degen = triangles(points,normals,part['indices'])
         source_degenerates += degen
         for key, values in tris.items(): expected.setdefault(key, []).extend(values)
-    path = app / 'public/assets/maps' / (name + '-architecture.glb')
+    path = args.asset_dir / (name + '-architecture.glb')
     raw = path.read_bytes()
     length = struct.unpack_from('<I',raw,12)[0]
     doc = json.loads(raw[20:20+length])
@@ -145,5 +147,5 @@ for name, kit in source.items():
         sha256=hashlib.sha256(raw).hexdigest(), positionToleranceMetres=0.0001, normalComponentTolerance=0.001,
         status='PASS: same oriented triangles and authored normals; UVs finite, one embedded AO image, no purchased inputs')
 report = dict(sourceSha256=hashlib.sha256(source_path.read_bytes()).hexdigest(),maps=reports)
-(app / '.inspect/session9-geometry-audit.json').write_text(json.dumps(report,indent=2))
+args.report.write_text(json.dumps(report,indent=2))
 print(json.dumps(report,indent=2))
