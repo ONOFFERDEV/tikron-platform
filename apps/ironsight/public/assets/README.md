@@ -6,8 +6,8 @@
 | `models/weapons-vm.glb` | Synty weapon viewmodels | **no** |
 | `maps/arena1-dressing.glb`, `maps/arena2-dressing.glb` | Synty dressing bundles baked per map | **no** |
 | `maps/relay-skyline.glb` | Synty Power 01/02/03 and Warehouse 01, transformed and merged with a 1024px atlas by `tools/bake-relay-skyline.py` | **no** |
-| `undertow-vista.webp` | Original procedural scene screenshot from `scripts/inspect-map.mjs --shots undertow-vista --write-vista` | yes; no purchased geometry in this map |
-| `relay-vista.webp` | Flattened screenshot of the game scene, captured by `scripts/inspect-map.mjs --write-vista` | yes; see `../../LICENSE.md` |
+| `undertow-vista.webp` | Original procedural scene screenshot from `scripts/inspect-map.mjs --shots undertow-vista --write-vista`, then capture exposure gamma 0.65 and WebP q88 via `.inspect/look-r13/finish-vista.py` (look Session 16, 2026-09-23; 146,288 bytes) | yes; no purchased geometry in this map |
+| `relay-vista.webp` | Flattened screenshot of the game scene, captured by `scripts/inspect-map.mjs --shots vista --write-vista`, then capture exposure gamma 0.85 and WebP q82 via `.inspect/look-r13/finish-vista.py` (look Session 16, 2026-09-23; 205,642 bytes) | yes; see `../../LICENSE.md` |
 | `maps/relay-ground-ao.png`, `maps/undertow-ground-ao.png` | Original ground ambient occlusion baked in Blender 4.5 (Cycles) from the server collision boxes/ramps only, by `tools/bake-ground-ao.py`; multiplied into the ground atlas by `client/site-ground.ts` | yes; no purchased geometry |
 
 Relay service detail (session 12): original code-authored sealed access hatches,

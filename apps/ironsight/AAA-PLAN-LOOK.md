@@ -563,3 +563,16 @@ Open: Undertow's field is dark under dusk and reads mostly as a silhouette band;
 Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,894,353); inspect-map relay,practice-two exit 0 with 0 console errors (Relay 41 draws unchanged, practice-two 64→65); hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
 
 Open: from the roof the farm is still a small silhouette between the towers; scale or distance are the next values to raise if wanted.
+
+### Session 16 - 2026-09-23: Menu cards from the current build
+
+Granted this round: `public/assets/relay-vista.webp`, `public/assets/undertow-vista.webp` and their `public/assets/README.md` rows. `switchyard-vista.webp` is untouched. The integration branch was already merged.
+- Re-rendered through the recorded path, `scripts/inspect-map.mjs --shots vista,undertow-vista --write-vista`, from the current build. Same fixed vista cameras, 1920×1080. The new captures show the per-map light, the Relay floor and the far fields.
+- Capture exposure only (the game's lighting is untouched): `.inspect/look-r13/finish-vista.py` applies a gamma lift and re-encodes WebP (method 6).
+  - Relay: gamma 0.85, q82 → 205,642 bytes (was 216,408), SHA256 0f70a006…1324.
+  - Undertow: gamma 0.65, q88 → 146,288 bytes (was 164,580), SHA256 aacc9ced…56ff.
+  - Raw captures are kept as `raw-*-vista.webp`.
+- Menu-size evidence: `menu-before-after.png` (real menu at 1920×1080, Relay and Undertow selected). Median luma on the right edge, where the vista is least covered by the menu's shade overlay: Relay 58 → 56, Undertow 48 → 55.
+- Finding: at menu size the darkness comes mostly from the ui lane's `.shade` overlay and dark panels over the vista (`client/ui/deployment-style.ts`), not from the images. The vistas themselves are now brighter and carry more detail. Request for ui: lighten the `.shade` gradient on the right third if the cards should read brighter.
+
+Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,865,573); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 0 recompiles, 0 frames >150 ms.
