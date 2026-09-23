@@ -83,6 +83,56 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Session log
 
+### Session R-UI1 - 2026-09-23: Signal Station wear, repairs and field use (ui worktree on loan)
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) at the coordinator's request, on world gap item 3. The lane was limited to `client/relay-*.ts`, the Relay branch of `client/site-ground.ts` (not needed in the end) and Relay README entries. No collider, `src/map/**`, bake tool, AO or Undertow/Switchyard file changed. No commit.
+
+#### Delivered
+
+- **`client/relay-field-patterns.ts` + `client/relay-surfaces.ts`: brick wear in the existing opaque shader, brick (`concrete`) finish only.** Everything is seeded from world position and face plane, so the 22 identical 4x3x2 m boxes and 24 identical 4x1.1x2 m boxes no longer match. Added layers:
+  - wall-to-wall firing tone, soot and faint limewash remnants
+  - collapsed top courses: a ragged, locally deeper broken edge
+  - shell and bullet scars: broken bowls with a spalled rim
+  - repairs over roughly 16% of 2.6 m wall segments: timber boards, rusted corrugated iron, or a sandbag plug with a pillowed bag pattern
+  - Relief goes through the existing `fieldRelief` normal perturbation, and fine seams are derivative-faded. The program cache key moves to `relay-field-v2-concrete-*`; the program count is unchanged (28).
+- **`client/relay-ground-wear.ts`:** painted into the existing ground atlas:
+  - trodden footpaths from both gates to A/C, the signal post and B, with a centre line
+  - six shell craters (scorched bowl, pale lip, radial ejecta, clods), placed deterministically at least 4.5 m from any standing solid and 10 m from spawns and caps, and clear of ramps and the cut
+- **`client/relay-yard.ts`: `relayFieldUsePieces`,** about 430 vertex-coloured boxes (+5,160 triangles) merged into the existing `relay-yard-issued-supplies` draw:
+  - ammunition-box stacks at the foot of the 4x3 m covers and spent sandbags slumped against the low covers
+  - duckboard walks where the routes leave both gates
+  - a field telephone line (three poles, crossarms, a sagging wire at 3.1-3.55 m) from the north wall to a telephone case flush on the signal-post wall
+- **No render-only cover:** every piece is at most 0.5 m tall, overhead, a pole or wire under 0.13 m, or wall-mounted and 0.2 m deep or less. `test/relay-field-use.test.mjs` asserts this, and that ground pieces and craters stay clear of solids.
+
+#### Evidence (`.inspect/relay-r6/`)
+
+- Fixed cameras from `inspect-map`, before and after: `relay` (the gate shot), `cooling`, `freight`, `spawn`, plus the `overview` overhead. Files are `before/*.png` and `after/*.png`; `compare-*.png` puts before on top and after below. Detail crop: `crop-after.png`.
+- RTX 5070 / ANGLE at 1920x1080:
+  - Draw calls are unchanged: overview 42, relay 37, cooling 30, freight 23, spawn 42.
+  - Triangles +5,160 in every view (for example relay 179,682 → 184,842). Textures stay at 17 (32.306 MiB); programs stay at 28.
+  - Median frame 6.9 → 6.9 ms; relay scene preparation 316.7 (Session 3) → 328.1 ms.
+  - These are desktop observations, not laptop-iGPU qualification.
+- **Bytes: 0 new asset bytes and no new file.** assetBytes +700 (README text only). The client bundle grew 15,175 bytes to 4,130,439; publicBytes is 48,769,542.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` exit 0.
+- `pnpm test` exit 0: 203 files / 1,673 Vitest pass, 7 files / 9 tests skipped as before, 92/92 Node.
+- `pnpm build:client` exit 0; `pnpm audit:assets` exit 0.
+- `tools/audit-relay-{interior,site,workshop,yard}.mjs` all exit 0.
+- Fresh state, port 8804: `inspect-map --shots relay,practice-two --prefix relay-r6-gate` exit 0, `errors: []`.
+- `hitch-probe ... --assert` (advisory, run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits and next
+
+- Box silhouettes are still rectangular: no geometry was cut, because collision is the authority and there was no re-bake this round. True chipped corners and rubble spills need a collider-aware bake pass in the world lane.
+- Wall repairs are painted, not modelled; they read at mid range but are flat at grazing angles.
+- No owner review of the stills yet. Laptop iGPU not measured.
+
+#### Wow check
+
+Player sentence: **"This yard has been shelled and patched up, and someone is still running a phone line through it."**
+
 ### Session 6 - 2026-09-23: Underpass Trench arc 3/3, sandbags, revetments and dugouts
 
 Reference: R-M17, R-G09, R-L12/R-L13/R-L14. Target: the owner's practice-two capture ("수문 광장") should read as a wet dusk trench line, not a modern service wall. Collision is unchanged.

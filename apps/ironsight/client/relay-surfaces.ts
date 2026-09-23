@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { relayBakedFinish } from './relay-palette.js';
-import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns.js';
+import { RELAY_BRICK_WEAR, RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF, RELAY_WEAR_FUNCTIONS } from './relay-field-patterns.js';
 
 export const RELAY_PHYSICAL_SURFACES = {
   mud: { roughness: 0.97, metalness: 0 },
@@ -29,13 +29,16 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
   material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
     const panel = kind === 'concrete' || kind === 'coated';
-    shader.vertexShader = `${panel ? 'attribute vec2 relayElevation; varying vec2 vRelayElevation;' : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.vertexShader}`
+    const brick = kind === 'concrete';
+    const wearVaryings = brick ? 'varying vec3 vRelayWorld;\nvarying vec3 vRelayFaceNormal;\n' : '';
+    shader.vertexShader = `${panel ? 'attribute vec2 relayElevation; varying vec2 vRelayElevation;' : ''}\n${wearVaryings}varying float vRelayHeight;\nvarying float vRelayWall;\n${shader.vertexShader}`
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vRelayHeight = (modelMatrix * vec4(position, 1.0)).y;
         vRelayWall = 1.0 - abs(normalize(mat3(modelMatrix) * normal).y);
         ${panel ? 'vRelayElevation = relayElevation;' : ''}
+        ${brick ? 'vRelayWorld = (modelMatrix * vec4(position, 1.0)).xyz; vRelayFaceNormal = normalize(mat3(modelMatrix) * normal);' : ''}
       `);
-    shader.fragmentShader = `${panel ? 'varying vec2 vRelayElevation;' : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.fragmentShader}`;
+    shader.fragmentShader = `${panel ? 'varying vec2 vRelayElevation;' : ''}\n${wearVaryings}${brick ? RELAY_WEAR_FUNCTIONS : ''}\nvarying float vRelayHeight;\nvarying float vRelayWall;\n${shader.fragmentShader}`;
     if (kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
       #ifdef USE_MAP
         diffuseColor.rgb *= vec3(texture2D(map, vMapUv).r);
@@ -77,12 +80,13 @@ export function finishRelaySurface(material: T.MeshStandardMaterial, kind: 'grou
       roughnessFactor = mix(roughnessFactor, 0.65, chip);
       ` : ''}
       ${pattern}
+      ${brick ? RELAY_BRICK_WEAR : ''}
       #endif
     `);
     if (pattern) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
       `#include <normal_fragment_maps>\n${RELAY_FIELD_RELIEF}`);
   };
-  material.customProgramCacheKey = () => `relay-field-v1-${kind}-${surface}`;
+  material.customProgramCacheKey = () => `relay-field-v${kind === 'concrete' ? 2 : 1}-${kind}-${surface}`;
   material.needsUpdate = true;
 }
 

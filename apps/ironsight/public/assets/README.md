@@ -1856,3 +1856,14 @@ renderer. Reproduce with `node scripts/inspect-map.mjs --url http://localhost:88
 SHA256 a4b96ca4...87872. `relay-vista.webp` re-rendered for comparison matches the
 current Signal Station map and is unchanged.
 <!-- /ui -->
+
+<!-- # world -->
+Relay Session R-UI1 (2026-09-23, ui worktree on loan to world): Signal Station wear,
+repairs and use with **zero new asset bytes**. Brick cover gets world-seeded tone,
+soot, collapsed top courses, shell scars and timber/corrugated/sandbag repair patches
+in the existing shader (`client/relay-field-patterns.ts`). Footpaths and six shell
+craters are painted into the existing ground atlas (`client/relay-ground-wear.ts`).
+Ammunition boxes, spent sandbags, duckboard walks and a field telephone line are
+vertex-coloured boxes merged into the existing `relay-yard-issued-supplies` draw
+(`client/relay-yard.ts`). No collider, AO bake, texture, material or file changed.
+<!-- /world -->
