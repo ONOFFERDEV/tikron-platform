@@ -4,7 +4,7 @@
 
 1. Finish the soldier replacement arc (Session 5: face/neck and continuous fingers done on the candidate; arc 3/3 admission not reached). Next: garment finish, carried-kit fit, skin/face region colouring inside the 3-draw budget, then contact/hit calibration and admission, which needs cross-stream request 6. Active gameplay still uses the angular legacy soldier.
 2. Restore the normal first-person loaded-model route in supervisor/look-owned `scene.ts` (exact request below), then complete five-weapon FP contact review.
-3. Finish whole-hand fitting and fit the carried gear to the eventual soldier body: legacy carbine support index and pistol support thumb remain imperfect; firing-hand fit unchanged. Candidate pistol downward crouch contact saturates reach by 21 mm; the active rigid bedroll retains crouch/pelvis separation.
+3. Whole-hand fitting on the shipped legacy FP weapons (Session 6: wrists and reload contacts fitted, every slot touches with <= 2.2 mm overlap at hip/ADS/sprint except carbine support 3.4 mm and SMG support 5.3 mm). Remaining: the rigid procedural glove cannot wrap fingers around a grip; transitional reach sweeps still cut through the receiver (carbine 13.6 mm, shotgun 11 mm); remote (third-person) holds on the five weapons untouched.
 4. Complete candidate weapon mechanisms, geometry/material/draw-budget review and truthful admission. Current source-model approvals are not runtime or hero acceptance.
 
 ## Reference scorecard
@@ -105,6 +105,52 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 3. **Supervisor/base:** the reported neutral foregrip test is already green in this branch. No change to `test/visuals.test.ts` was made.
 
 ## Session log
+
+### Session 6 - 2026-09-23: First-person hands sit on the real weapons
+
+- **Status:** typecheck, tests, build, asset audit and map gate PASS. **Hitch gate FAIL** (`sustained frame pacing`, one frame over 150 ms, main thread idle during it) on both runs, and it **also fails on the merged baseline with the kit change reverted** (`.inspect/kit-r2/hitch-baseline.json`, 201.8 ms idle stall), so this lane's constant change is not the cause. Needs supervisor attention on the integration tree. No commit, push, deploy or Meshy spend. Public asset byte delta 0.
+- **Merge note:** `git merge --ff-only recovery/ironsight-ww1-20260912` refused (branch holds 3260a00, integration holds c969f60). To avoid committing, I ran `git merge --no-ff --no-commit`; it merged cleanly and is **staged, uncommitted (MERGE_HEAD present)** for the supervisor to commit or redo.
+- **What changed:** `client/procedural-viewmodel-hands.ts` only (the hands that actually draw with the legacy field-carbine / wep_* models; the authored fp-arms path is contract-only). Refit `WRISTS` (firing hand all slots; support hand SMG/shotgun/sniper/pistol), `RELOAD_CONTACTS`, named carbine magazine/charge contacts, and per-slot `BOLT_CONTACTS` replacing one shared bolt point. Hip, ADS and sprint move hands and weapon as one rigid assembly (both children of the same viewmodel group, equal advance), so one row covers all three.
+- **Method:** `.inspect/kit-r2/measure.ts` loads the shipped GLBs with the scene.ts transform, poses the real `ViewmodelHands` and `splitRifleMagazine` parts per reload phase, and measures glove vertices against weapon triangles (inside = 2-of-3 ray parity; depth to nearest surface; gap = nearest outside distance). `.inspect/kit-r2/fit.ts` searches the smallest translation to touching with <= 2 mm overlap on a 1 mm signed-distance grid; its before values agree with the exact measure within about 0.5 mm except the carbine and SMG support hands, where the exact measure disagreed and I kept or report the exact value (carbine support reverted to its original wrist).
+- **Per-slot contact (overlap = glove depth inside the weapon; gap is 0 mm in every row after, so no hand floats):**
+
+| Slot | Pose | Firing hand overlap mm (before -> after) | Support hand overlap mm (before -> after) |
+| --- | --- | ---: | ---: |
+| AR (field-carbine) | hip/ads/sprint | 5.2 -> 2 | 3.4 -> 3.4 (body) |
+| AR (field-carbine) | reach | 5.2 -> 2 | 21.5 -> 13.6 (body) |
+| AR (field-carbine) | mag-out | 5.2 -> 2 | 13.1 -> 2.2 (magazine) |
+| AR (field-carbine) | mag-in | 5.2 -> 2 | 13.1 -> 6.4 (body) |
+| AR (field-carbine) | bolt | 5.2 -> 2 | 17.3 -> 1.7 (body) |
+| AR (field-carbine) | return | 5.2 -> 2 | 3.4 -> 3.4 (body) |
+| SMG (wep_smg) | hip/ads/sprint | 12.5 -> 2 | 9 -> 5.3 (magazine) |
+| SMG (wep_smg) | reach | 12.5 -> 2 | 13.4 -> 8.8 (magazine) |
+| SMG (wep_smg) | mag-out | 12.5 -> 2 | 12.8 -> 1.9 (magazine) |
+| SMG (wep_smg) | mag-in | 12.5 -> 2 | 12.8 -> 1.9 (magazine) |
+| SMG (wep_smg) | bolt | 12.5 -> 2 | 8 -> 2.9 (bolt) |
+| SMG (wep_smg) | return | 12.5 -> 2 | 9 -> 5.3 (magazine) |
+| Shotgun (wep_shotgun) | hip/ads/sprint | 6.2 -> 1.6 | 10.5 -> 2.2 (body) |
+| Shotgun (wep_shotgun) | reach | 6.2 -> 1.6 | 9.8 -> 11 (body) |
+| Shotgun (wep_shotgun) | mag-out | 7.5 -> 1.6 | 18.7 -> 2.3 (magazine) |
+| Shotgun (wep_shotgun) | mag-in | 7.5 -> 6.9 | 18.7 -> 2.3 (magazine) |
+| Shotgun (wep_shotgun) | bolt | 6.2 -> 1.6 | 16.7 -> 2.1 (body) |
+| Shotgun (wep_shotgun) | return | 6.2 -> 1.6 | 10.5 -> 2.2 (body) |
+| Sniper (wep_sniper) | hip/ads/sprint | 6.6 -> 1.9 | 7.1 -> 1.9 (body) |
+| Sniper (wep_sniper) | reach | 6.6 -> 1.9 | 4.7 -> 4.8 (body) |
+| Sniper (wep_sniper) | mag-out | 6.6 -> 1.9 | 6.2 -> 1.9 (magazine) |
+| Sniper (wep_sniper) | mag-in | 6.6 -> 1.9 | 6.2 -> 1.9 (magazine) |
+| Sniper (wep_sniper) | bolt | 6.6 -> 1.9 | 6.1 -> 2.4 (body) |
+| Sniper (wep_sniper) | return | 6.6 -> 1.9 | 7.1 -> 1.9 (body) |
+| Pistol (wep_pistol) | hip/ads/sprint | 21.5 -> 1.9 | 14.3 -> 1.4 (body) |
+| Pistol (wep_pistol) | reach | 21.5 -> 1.9 | 11.5 -> 2.6 (magazine) |
+| Pistol (wep_pistol) | mag-out | 21.8 -> 1.6 | 11.8 -> 1.8 (magazine) |
+| Pistol (wep_pistol) | mag-in | 21.8 -> 1.6 | 11.8 -> 1.8 (magazine) |
+| Pistol (wep_pistol) | bolt | 21.5 -> 1.9 | 10.7 -> 1.8 (body) |
+| Pistol (wep_pistol) | return | 21.5 -> 1.9 | 14.3 -> 1.4 (body) |
+
+- **Evidence:** `.inspect/kit-r2/{before,after}/kit-r2-*-weapon-{ar,smg,shotgun,sniper,pistol}-{hip,ads,reload-out,reload-bolt}.png` (zero console errors), side-by-side hand close-ups `.inspect/kit-r2/closeups/*.png`, sheets `*-sheet.png`, raw `contact-{before,after}.json`, fitter output `fit-1.json`.
+- **Gates:** `pnpm typecheck` PASS; `pnpm test` PASS (1,669 Vitest / 9 inherited skips, 92/92 Node); `pnpm build:client` PASS; `pnpm audit:assets` PASS (publicBytes 47,363,299). `inspect-map --prefix kit-r2` PASS, zero errors/forbidden. `hitch-probe ... .inspect/kit-r2-hitch.json --assert`: `{"hitchGate":"FAIL","failures":["sustained frame pacing"],...,"deaths":2,"recompiles":0,"framesOver150ms":1,"errors":0}` (run 1: 845 ms idle stall; run 2: 185 ms; baseline without kit change: 201.8 ms).
+- **Cleanup:** round-1 cleanup was incomplete: my Round 1 Wrangler tree (cmd 20256 -> node 11232/54312 -> workerd) had survived TaskStop and respawned workerd. I killed it at the start of this session; this session's tree (cmd 51084) is killed and port 8802 is clear.
+- **Not done / open:** fingers do not wrap grips (rigid glove); transitional reach frames still cut through the receiver; the shotgun firing hand overlaps the moving shell part at mag-in by 6.9 mm; carbine support index and pistol support thumb are not separately articulated in this glove; remote third-person holds not started. Visual review is self-inspection only.
 
 ### Session 5 - 2026-09-23: Faces, necks and whole fingers on the candidate soldier
 

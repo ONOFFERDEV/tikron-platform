@@ -3,16 +3,24 @@ import { equipmentFinish } from "./equipment-finish.js";
 import { cuffGeometry, gloveGeometry, sleeveGeometry } from "./hand-geometry.js";
 import { reloadPose } from "./reload-presentation.js";
 
+// Wrist and reload contacts are fitted to the shipped legacy meshes (field-carbine,
+// wep_*): each glove touches its grip, foregrip, magazine or bolt with <= 2 mm overlap.
+// Measurement and fitter: .inspect/kit-r2/{measure,fit}.ts (Session 6).
 const WRISTS = [
-  { right: [0.021, -0.057, -0.17], left: [-0.014, -0.043, -0.51] },
-  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.40] },
-  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.43] },
-  { right: [0.021, -0.057, -0.28], left: [-0.014, -0.043, -0.45] },
-  { right: [0.021, -0.057, -0.28], left: [-0.020, -0.058, -0.30] },
+  { right: [0.017, -0.065, -0.176], left: [-0.014, -0.043, -0.51] },
+  { right: [0.045, -0.060, -0.28], left: [-0.014, -0.052, -0.38] },
+  { right: [0.036, -0.058, -0.28], left: [-0.034, -0.059, -0.43] },
+  { right: [0.011, -0.058, -0.281], left: [-0.019, -0.047, -0.45] },
+  { right: [0.043, -0.057, -0.28], left: [-0.031, -0.064, -0.304] },
 ] as const;
 const WEAPON_SCALES = [0.65, 0.75, 0.5, 0.38, 0.85] as const;
-const RELOAD_CONTACTS = [[-0.014, -0.07, -0.435], [0.01, -0.02, -0.28],
-  [-0.014, -0.045, -0.377], [-0.014, -0.105, -0.26]] as const;
+const RELOAD_CONTACTS = [[-0.027, -0.072, -0.445], [0.033, -0.03, -0.27],
+  [-0.007, -0.045, -0.38], [-0.025, -0.105, -0.28]] as const;
+/** Support hand on the bolt/slide at full bolt travel, slots 1-4. */
+const BOLT_CONTACTS = [[0.035, 0.044, -0.244], [0.059, 0.061, -0.242],
+  [0.041, 0.052, -0.246], [-0.056, 0.050, -0.244]] as const;
+const CARBINE_MAGAZINE: readonly [number, number, number] = [-0.014, -0.061, -0.319];
+const CARBINE_CHARGE: readonly [number, number, number] = [0.068, -0.012, -0.14];
 const gloveMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), "glove");
 const sleeveMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), "fabric");
 const cuffMaterial = equipmentFinish(new T.MeshStandardMaterial({ vertexColors: true }), "fabric");
@@ -51,10 +59,10 @@ export class ViewmodelHands {
         this.wrist.y += pose.bolt * .13;
         if (issuedCarbine) {
           this.wrist.set(fit.left[0], fit.left[1], fit.left[2]);
-          this.wrist.lerp(this.elbow.set(-.014, -.085, -.355), pose.reach);
+          this.wrist.lerp(this.elbow.fromArray(CARBINE_MAGAZINE), pose.reach);
           this.wrist.x += pose.magazine * .052;
           this.wrist.y -= pose.magazine * .221;
-          this.wrist.lerp(this.elbow.set(.035, .012, -.14 + pose.bolt * .045), pose.chargeReach);
+          this.wrist.lerp(this.elbow.set(CARBINE_CHARGE[0], CARBINE_CHARGE[1], CARBINE_CHARGE[2] + pose.bolt * .045), pose.chargeReach);
         }
       }
       if (!right && index > 0) {
@@ -63,7 +71,8 @@ export class ViewmodelHands {
         const scale = WEAPON_SCALES[index]!;
         this.wrist.x += pose.magazine * (index === 2 ? .32 : .08) * scale;
         this.wrist.y -= pose.magazine * (index === 2 ? .04 : .34) * scale;
-        this.wrist.lerp(this.elbow.set(index === 4 ? -.025 : .035, .045, -.3 + pose.bolt * .05), pose.bolt);
+        const bolt = BOLT_CONTACTS[index - 1]!;
+        this.wrist.lerp(this.elbow.set(bolt[0], bolt[1], bolt[2] - (1 - pose.bolt) * .05), pose.bolt);
       }
       palm.position.copy(this.wrist);
       palm.rotation.set(right ? -.18 : -.25, 0, right ? -.1 : .45);
