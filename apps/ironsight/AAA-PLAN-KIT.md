@@ -106,6 +106,50 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 
 ## Session log
 
+### Session 8 - 2026-09-23: Reload travel detours and a defensible support-hand measure
+
+- **Status:** all gates PASS (hitch advisory, single run PASS). No commit, push, deploy or Meshy spend. `src/**` and hit volumes are unchanged. Two source files changed: `client/procedural-viewmodel-hands.ts` (first-person reload) and `client/remote-weapon.ts` (third-person SMG/shotgun support offsets).
+
+#### 1. First-person reload travel
+
+- **Change:** a per-slot `TRAVEL_DETOURS` vector is added to the support wrist with weight `4t(1-t)` of each reach and bolt travel. At both ends of every travel the offset is exactly zero, so every contact pose and the idle pose are unchanged; mid-travel the hand passes below or outside the receiver. The existing continuity test (at most 35 mm per frame over 240 frames) still passes unchanged. That bound capped the detour size for the carbine.
+- **Fitting:** `.inspect/kit-r4/detour.ts` does a grid search per slot. The dense sweep `travel.ts` then re-measures 49 reload samples per slot with the Session 6 exact measure (deepest glove vertex inside the weapon, 2-of-3 ray parity). For first person that measure is the one I trust: the round-2 fitter agreed with it within 0.5 mm on every slot except the carbine/SMG support hand, and the close-ups agree with it.
+- **Worst support-glove overlap, mm (before -> after):**
+
+| Slot | reach out (0.08-0.19) | reach back + bolt (0.64-0.87) | whole reload |
+| --- | --- | --- | --- |
+| smg | 11.5 -> 5 | 13.2 -> 13.4 | 13.2 -> 13.4 |
+| shotgun | 18.6 -> 6.4 | 18.5 -> 18.4 | 18.6 -> 18.4 |
+| sniper | 6.3 -> 2.5 | 7.9 -> 7.3 | 7.9 -> 7.3 |
+| pistol | 2.7 -> 2.7 | 8.8 -> 2.7 | 8.8 -> 2.7 |
+| carbine | 12.3 (unchanged) | 12.8 (unchanged) | 12.8 (unchanged) |
+
+- **Samples over 5 mm:** shotgun 17 -> 10, SMG 23 -> 12 (four of those are the SMG's resting hold at 5.3 mm, from Session 6), sniper 5 -> 3, pistol 3 -> 0. Mid-travel samples of the magazine reach are now 0-2.5 mm on SMG, shotgun, sniper and pistol.
+- **What remains:** a spike right after the hand leaves the bolt/slide contact (progress 0.77-0.83). For example, the shotgun is still 18.4 mm at 0.81, where the bump weight is small.
+- **Carbine not fixed:** it keeps no detour (worst stays 12.8 mm). Its charge-handle return runs a narrow corridor past the magazine. The three detours I tried that fit the continuity bound each made a sample worse (up to 22.4 mm at 0.917). One larger vector did fix it but broke the continuity bound (37.0 mm per frame), so I rejected it rather than widen the test.
+- **Shotgun firing hand not fixed:** the 6.9 mm overlap at mag-in comes from the moving magazine part, and the only hand-side fix breaks the existing test that the firing wrist stays fixed through reload. The part's motion lives in `scene.ts` (look lane), so it is not fixed. If wanted, the request would be to shorten the shotgun magazine x-travel in `updateViewmodel` (`-0.32`).
+- **Evidence:** reload stills at exact progress (0.13-0.92, all slots) through the production weapon inspector (`?inspect=weapon&sample=`, GPU lease, zero console errors): `.inspect/kit-r4/fp-{before,after}/`, side-by-side `.inspect/kit-r4/closeups/fp-*.png`. On the shotgun at 0.15 and 0.69 the glove now passes under the receiver instead of across it. Raw sweeps: `travel-{before,after}.json`.
+
+#### 2. Third-person SMG/shotgun support measure, resolved
+
+- **Why the Session 7 numbers disagreed:** the palm-facing ray (below) shows that on all four rifles the baked support palm faces up beside the fore-end and does not face the weapon at all (no surface within 500 mm in front of the palm in 22/22 clip samples). Contact was only finger and hand-edge skin grazing open shells, which is exactly where the two parity tests flip.
+- **The measure I trust:** `.inspect/kit-r4/socket.ts`. Take the palm point in RemoteWeapon's own palm frame, 14 mm into the palm; the palm-side sign is verified in `palmcheck.ts` (fingertips and bore on that side). Cast a single ray along the palm's facing direction from 50 mm behind it; the first hit is the fore-end socket. The measure is the signed palm-to-socket distance. A first hit from outside is well defined on open shells, needs no inside/outside test, and matches what the camera sees.
+- **Fit:** the fore-end underside socket below the bore line, searched forward from the palm's station past any hanging magazine. SMG `[0.057, 0.004, 0.082]` (socket 85 mm ahead of the palm, clear of the magazine), shotgun `[0.037, -0.023, -0.006]`.
+- **Result, all 11 clips x 2 phases:** SMG palm gap 0.2 to 2.7 mm, shotgun -2.7 to 8.3 mm (before: no surface in front of the palm). No-float skin gap stays at most 0.2 mm, crossed-arms 0, torso proxy at most 0.3 mm (the kit-r3 checks).
+- **Evidence:** close-ups `.inspect/kit-r4/tp-w{1,2}-idle-{hands,hands-right}.png` (Session 7 left, now right) show the support palm under the fore-end with the fingers wrapped. Idle is the pair; `tp-w{1,2}-run-*` are after-only stills. Raw data: `socket-{before,after}.json`, `holds-after.json`.
+- **Not changed:** the carbine and sniper support palms also face no surface. Their sockets are measured (carbine `[0.044, -0.03, 0.057]`, sniper `[0.045, 0, -0.002]`), but I did not change them because this round's scope was the SMG and shotgun.
+
+#### Gates
+
+- `pnpm typecheck` PASS
+- `pnpm test` PASS: 1,670 Vitest, 9 skips carried over, 92/92 Node
+- `pnpm build:client` PASS
+- `pnpm audit:assets` PASS: publicBytes 47,367,177
+- `inspect-map --prefix kit-r4` PASS, zero errors/forbidden
+- `hitch-probe ... .inspect/kit-r4-hitch.json --assert`: `{"hitchGate":"PASS","failures":[],...,"deaths":2,"recompiles":0,"framesOver150ms":0,"errors":0}`
+- Wrangler tree on 8802 killed, port clear.
+- **Next:** round 5, Cross-stream request 6 policy (a): hash evidence first.
+
 ### Session 7 - 2026-09-23: Enemy holds on the five shipped weapons
 
 - **Status:** all required gates PASS, including the advisory hitch run. No commit, push, deploy or Meshy spend. Public asset byte delta 0. `src/**`, hit volumes, clips and `player.glb` are unchanged. Remote weapon meshes keep `raycast = () => {}`, so weapons are still never hit targets.
