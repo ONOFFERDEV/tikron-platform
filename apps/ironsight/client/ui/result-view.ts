@@ -79,8 +79,10 @@ export class ResultView {
   private readonly nextRound: HTMLElement;
   private readonly voteStatus: HTMLElement;
   private readonly restart: HTMLButtonElement;
+  private readonly leave: HTMLButtonElement;
   private readonly body: HTMLElement;
   private visible = false;
+  private honorsKey = "";
 
   constructor(actions: ResultViewActions, target: Document = document) {
     this.root = target.createElement("section");
@@ -121,9 +123,9 @@ export class ResultView {
     status.append(this.nextRound, this.voteStatus);
     this.restart = createUiButton({ label: "다시 플레이", tone: "accent", onClick: actions.restart });
     this.restart.dataset.action = "restart";
-    const leave = createUiButton({ label: "출격 화면으로", onClick: actions.leave });
-    leave.dataset.action = "leave";
-    footer.append(status, this.restart, leave);
+    this.leave = createUiButton({ label: "출격 화면으로", onClick: actions.leave });
+    this.leave.dataset.action = "leave";
+    footer.append(status, this.restart, this.leave);
     this.root.append(header, this.body, footer);
   }
 
@@ -138,7 +140,12 @@ export class ResultView {
     this.outcome.textContent = presentation.outcome === "draw" ? COPY.results.draw
       : presentation.outcome === "victory" ? COPY.results.victory : COPY.results.defeat;
     this.score.textContent = model.mode === "ffa" ? presentation.winner?.compact ?? "" : `${model.red} / ${model.blue}`;
-    this.honors.replaceChildren(...(model.mvp === undefined ? [] : [createRoundHonors(model.mvp, model.mode === "dom", this.root.ownerDocument)]));
+    // Keep the honors card node while its content is unchanged (no re-raster on countdown/vote updates).
+    const honorsKey = model.mvp === undefined ? "" : JSON.stringify([model.mvp, model.mode === "dom"]);
+    if (honorsKey !== this.honorsKey) {
+      this.honorsKey = honorsKey;
+      this.honors.replaceChildren(...(model.mvp === undefined ? [] : [createRoundHonors(model.mvp, model.mode === "dom", this.root.ownerDocument)]));
+    }
     this.local.replaceChildren(
       statNode(COPY.results.kills, String(presentation.local.kills), this.root.ownerDocument),
       statNode(COPY.results.deaths, String(presentation.local.deaths), this.root.ownerDocument),
@@ -149,9 +156,12 @@ export class ResultView {
     this.nextRound.dataset.state = presentation.intermission.kind;
     this.voteStatus.textContent = presentation.vote === null ? "과반수 투표로 대기 시간을 줄일 수 있습니다."
       : `${presentation.vote.count} / ${presentation.vote.need}`;
+    const restartHadFocus = this.root.ownerDocument.activeElement === this.restart;
     this.restart.disabled = presentation.vote?.sent === true;
     this.restart.dataset.state = this.restart.disabled ? "disabled" : "default";
     this.restart.textContent = this.restart.disabled ? "투표 완료 · 서버 대기" : "다시 플레이";
+    // A disabled button drops keyboard focus; hand it to the remaining action.
+    if (restartHadFocus && this.restart.disabled) this.leave.focus({ preventScroll: true });
   }
 
   show(): void {

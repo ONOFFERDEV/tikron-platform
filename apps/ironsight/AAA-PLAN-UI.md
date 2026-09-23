@@ -64,6 +64,82 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 11 - 2026-09-23: WW1 menu vista refresh and combat inspector feed cap
+
+Scope: UI lane plus the round-5 grants: `public/assets/{relay,undertow}-vista.webp`, their README provenance, and `client/match-inspect.ts`. First I merged `recovery/ironsight-ww1-20260912` (merge commit 327147e, no conflicts). No commit, push or deploy. `switchyard-vista.webp` was not touched.
+
+#### What changed
+
+- **Vistas.** I re-rendered both from the merged tree through the existing path (`inspect-map.mjs` fixed vista camera, 1920x1080, WebP q88) and compared each with the shipped file.
+  - **Relay:** the fresh render matches the shipped image (Signal Station brick, lattice mast, ruined gables), so the file is unchanged.
+  - **Undertow:** the shipped image predated World Session 5: turbine and fan faces, stripes, pale concrete. It was refreshed with `--shots undertow-vista --write-vista`. The new file is 164,580 bytes (was 166,926; -2,346), same dimensions and framing.
+  - The provenance is appended to `public/assets/README.md` in a `# ui` block.
+- **Combat inspector.** `client/hud.ts` now exports `KILL_FEED_ROWS = 4` (the R-L20 cap) and uses it for the feed. `client/match-inspect.ts` `bounded` checks against that constant instead of the literal 5, with a comment explaining why. `match-combat` now reaches `__inspectReady`. The network page's `low`/`spikeIgnored` behaviour checks were left as they are.
+
+#### Evidence (`.inspect/ui-r5/`)
+
+- Source files: `before/*.webp` and `after/*.webp`.
+- Fresh comparison renders: `../ui-r5-probe-{vista,undertow-vista}.png`.
+- Menu cards (`cards.mjs`, real menu with the TDM/DOM card selected): `{before,after}/{1920,1280}-menu-{relay,undertow}.png`. The before set served the old Undertow file.
+- Inspector: `inspector-after.json` (combat ready; network still fails only `low`, `spikeIgnored`).
+
+#### Gates
+
+- typecheck PASS; tests PASS (Vitest 202 files / 1671 passed, 9 preexisting skips, on the merged tree; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`.
+- hitch-probe (advisory, once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+- Bytes: assetBytes 36,695,359 and publicBytes 48,725,929 after the merge. The UI share is the -2,346 on the Undertow vista plus a few hundred bytes of bundle.
+
+#### Open questions
+
+- The Undertow vista is dark at the vista camera because of its dusk grade (as it was before). Legibility on the card relies on the existing scrim; no change was made to it.
+
+### Session 10 - 2026-09-23: Last English HUD labels and a working results inspector
+
+Scope: UI lane plus `client/match-inspect.ts` (granted for this round only). No commit, push or deploy. Base: 98d8ac9.
+
+#### What changed
+
+- **HUD labels, Korean-first** (`client/ui/copy.ts` `FIELD_UI_COPY`, used by `client/hud.ts`):
+  - Capture bars: `A / RED|BLUE|OPEN|TAKING` became `A / 적색|청색|미점령|점령 중`. The words come from the existing affiliation copy (적색/청색 진영) and objective copy (미점령, 점령 중).
+  - Streak: `{who} · {count} KILL STREAK` became `{who} · {count}연속 처치`. The source `streakFmt` in `config/ironsight.config.ts` is not in this lane, so the HUD now reads the copy-module format; the config line still holds the old English string.
+  - Damage marks: `FRONT/RIGHT/BACK/LEFT` became `전방/우측/후방/좌측`. 후방 matches the existing ambush wording.
+  - The ping-panel states 연결 복구 중 / 연결 종료 and the ambush tag 기습 moved from hard-coded strings in `hud.ts` into the copy module (same text), so the inspector can reference them.
+  - No label was left without a counterpart.
+- **`client/match-inspect.ts`:** English expectations now come from the copy module (`intermissionStatusLabel`, `COPY.results`, `FIELD_UI_COPY`). Selectors follow the current result view (`.result-view`, `__outcome`, `__score`, `__local`, `__footer`, `.round-honors`, `tr[data-self]`) instead of the pre-Session-4 `.debrief`/`.roundHonors`/`h1` markup. No check was removed or loosened.
+- **`client/ui/result-view.ts`:** two checks were catching real regressions, so I fixed the code rather than the checks.
+  - The honors card is rebuilt only when the MVP changes; before, every countdown tick rebuilt it (`stableMvp`).
+  - When the vote disables "다시 플레이", focus moves to "출격 화면으로" instead of being dropped (`voteFocus`).
+  - No visible change.
+- **`test/ui-copy.test.ts`:** one assertion for the capture, damage and streak copy.
+
+#### Evidence (`.inspect/ui-r4/`)
+
+- Inspector (`inspector.mjs`):
+  - Before, at 1280 (`inspector-before.json`): every results shot threw (`TypeError ... reading 'textContent'`).
+  - After: victory, defeat, draw, dom, ffa, standby (intermission), legacy and reconnect are all `__inspectReady` at 1280 (`inspector-after.json`). Victory, dom, ffa, standby and reconnect are also ready at 1920 and 640x360@2x (`inspector-after-sizes.json`).
+  - Captures: `after/{1280,1920,zoom200}-match-*.png`.
+- Live DOM/FFA bot rooms (`live.mjs`, `live-after.json`) at all three sizes:
+  - Capture bars read `A / 미점령`, `A / 적색`, `B / 청색`, `C / 점령 중`. Streak reads `ANCHOR 9 · 3연속 처치`. Damage mark reads `후방`.
+  - 0 overlaps and 0 clipping at 1920 and 1280. At 640x360 only the accepted transient overlaps remain, plus the accepted FFA leaderboard clip.
+
+#### Gates
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`.
+- hitch-probe (advisory, run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+- Asset bytes unchanged (35,363,446). Client bundle 4,107,823 to 4,109,090 (+1,267).
+
+#### Open questions / limits
+
+- **`match-network` and `match-combat` still throw, on non-copy checks.**
+  - Network: `low`, `spikeIgnored`. The delay band does not settle to `low` in the fixture's timing.
+  - Combat: `bounded` expects 5 kill-feed rows, but the HUD keeps 4.
+  - These are behaviour expectations, not English text, so they are left for their owner rather than edited.
+- **`config/ironsight.config.ts` `hud.streakFmt`** still holds the English format and is now unused by the HUD. Its owner can update or drop it.
+- **Damage mark at 640x360 FFA:** a `후방` mark at the back position was clipped in 1 of 36 samples, as in Session 9.
+- **`Vfx.spawnCasing` TypeError** still appears in live rooms (look lane, already routed).
+
 ### Session 9 - 2026-09-23: Live team-mode overlap pass and current screen captures
 
 Scope: UI lane only; no commit, push or deploy. Base: 029f570. Layout only: position, width, padding, z-order. No text, panel, flow or state changed. No blur, shadow, filter or gradient is added, so `client/compositor-preparation.ts` needed no change.

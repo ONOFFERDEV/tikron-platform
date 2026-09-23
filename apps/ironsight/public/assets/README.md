@@ -1846,3 +1846,24 @@ then Blender 4.5 `--factory-startup --background --python tools/bake-architectur
 Audit: `.inspect/world-r1/geometry-audit.json` (PASS); 84,916 triangles,
 6,214,520 bytes (+1,332,908), SHA256 21c95d71...cee70. No new texture file.
 <!-- /world -->
+
+<!-- # ui -->
+UI Session 11 (2026-09-23): `undertow-vista.webp` refreshed after World Session 5
+(timber revetments/duckboards) reached the integration branch; the Session 4 capture
+predated it. Same fixed vista camera, 1920 x 1080, WebP quality 88, production
+renderer. Reproduce with `node scripts/inspect-map.mjs --url http://localhost:8804
+--shots undertow-vista --prefix ui-r5-write --write-vista`. 164,580 bytes (-2,346),
+SHA256 a4b96ca4...87872. `relay-vista.webp` re-rendered for comparison matches the
+current Signal Station map and is unchanged.
+<!-- /ui -->
+
+<!-- # world -->
+Relay Session R-UI1 (2026-09-23, ui worktree on loan to world): Signal Station wear,
+repairs and use with **zero new asset bytes**. Brick cover gets world-seeded tone,
+soot, collapsed top courses, shell scars and timber/corrugated/sandbag repair patches
+in the existing shader (`client/relay-field-patterns.ts`). Footpaths and six shell
+craters are painted into the existing ground atlas (`client/relay-ground-wear.ts`).
+Ammunition boxes, spent sandbags, duckboard walks and a field telephone line are
+vertex-coloured boxes merged into the existing `relay-yard-issued-supplies` draw
+(`client/relay-yard.ts`). No collider, AO bake, texture, material or file changed.
+<!-- /world -->

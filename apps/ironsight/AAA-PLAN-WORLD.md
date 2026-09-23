@@ -83,6 +83,104 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Session log
 
+### Session R-UI2 - 2026-09-23: Relay floor as the headline, wall damage one notch up
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804), after the coordinator reviewed R-UI1 (committed c3c7e71). Same limits as R-UI1: no collider, bake-tool, AO, `src/map/**` or other-map change. No commit.
+
+#### Delivered
+
+- **`client/relay-ground-wear.ts`, rewritten.** It still paints the same 1024-wide R8 atlas.
+  - Broad wet/dry fields and denser clods.
+  - Irregular dark mud lobes around every standing solid.
+  - Footpaths as 3.4/2.0 m compacted bands with two ruts at ±0.6 m and puddle stains (dark centre, pale silt rim).
+  - Up to 10 shell craters of 2.6–3.8 m radius, each with a dark bowl, scorched lobed rim, pale thrown-up lip, 34 ejecta rays and clods. They keep the 4.5 m clearance from solids and 10 m from spawns and caps.
+  - 55 small shell pocks at least 1 m clear of solids; brick-rubble specks at wall feet and around craters; 2,600 scuffs.
+- **`client/relay-surfaces.ts`: the ground shader now converts painted value into material.**
+  - Low painted value becomes cooler, darker mud.
+  - The lowest value (puddles, crater floors) gets a faint wet sheen: roughness 0.74, not a mirror.
+- **`client/relay-field-patterns.ts` (`RELAY_GROUND_DETAIL`):** world-metric detail on top of the atlas: a 13 m and 3 m tone field, clod relief, and scattered stones and brick fragments, all derivative-faded. Program key `relay-field-v2-ground-mud`; program count unchanged (28).
+- **Brick wear, one notch up:**
+  - stronger tone and soot contrast
+  - collapsed top courses start at a lower noise threshold, run deeper and are darker
+  - scars are larger (0.26–0.7 m) and more frequent, with a darker core and brighter rim
+  - repairs cover 24% of segments instead of 16%
+- **Rejected:** doubling the Relay ground atlas to 2048 px. The unchanged official `inspect-map` asserts a 1024-wide compact Relay atlas, so fine detail went into the shader instead.
+
+#### Evidence (`.inspect/relay-r7/`)
+
+- `before/` is the R-UI1 committed state; `after/` is this session. Fixed cameras: `relay` (gate), `cooling`, `freight`, `spawn`, plus the `overview` overhead.
+- `side-*.png`: before | after at 50% scale, side by side.
+- Draw calls are unchanged in every view (relay 37, overview 42). Triangles unchanged from R-UI1 (relay 184,842). Textures 17, programs 28. Median frame 6.9 ms. Relay scene preparation 342 ms (R-UI1: 328 ms). These are desktop RTX 5070 observations.
+- **Bytes: 0 new asset bytes** (assetBytes 36,696,059, unchanged). Client bundle +5,914 to 4,136,353; publicBytes 48,787,367.
+
+#### Gates (fresh)
+
+- typecheck exit 0.
+- test exit 0: 203 files / 1,673 Vitest pass, 9 skipped as before, Node 92/92. `test/relay-field-use.test.mjs` still enforces crater and prop clearance.
+- build:client exit 0; audit:assets exit 0; all four `tools/audit-relay-*.mjs` exit 0.
+- inspect-map relay,practice-two: exit 0, `errors: []`.
+- hitch-probe `--assert` (advisory): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits
+
+- The floor is now much darker in places. Soldier-against-ground contrast was not measured; the look lane or the owner should check enemy readability on the darkest mud and crater areas before acceptance.
+- The gate camera's foreground is dominated by one crater at (71, 38). It reads as churned mud rather than a crisp crater shape at that grazing angle.
+- Silhouettes are still rectangular; true chipped corners need a collider-aware bake.
+
+#### Wow check
+
+Player sentence: **"The ground here is churned-up mud and shell holes, and the walls are shot to pieces."**
+
+### Session R-UI1 - 2026-09-23: Signal Station wear, repairs and field use (ui worktree on loan)
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) at the coordinator's request, on world gap item 3. The lane was limited to `client/relay-*.ts`, the Relay branch of `client/site-ground.ts` (not needed in the end) and Relay README entries. No collider, `src/map/**`, bake tool, AO or Undertow/Switchyard file changed. No commit.
+
+#### Delivered
+
+- **`client/relay-field-patterns.ts` + `client/relay-surfaces.ts`: brick wear in the existing opaque shader, brick (`concrete`) finish only.** Everything is seeded from world position and face plane, so the 22 identical 4x3x2 m boxes and 24 identical 4x1.1x2 m boxes no longer match. Added layers:
+  - wall-to-wall firing tone, soot and faint limewash remnants
+  - collapsed top courses: a ragged, locally deeper broken edge
+  - shell and bullet scars: broken bowls with a spalled rim
+  - repairs over roughly 16% of 2.6 m wall segments: timber boards, rusted corrugated iron, or a sandbag plug with a pillowed bag pattern
+  - Relief goes through the existing `fieldRelief` normal perturbation, and fine seams are derivative-faded. The program cache key moves to `relay-field-v2-concrete-*`; the program count is unchanged (28).
+- **`client/relay-ground-wear.ts`:** painted into the existing ground atlas:
+  - trodden footpaths from both gates to A/C, the signal post and B, with a centre line
+  - six shell craters (scorched bowl, pale lip, radial ejecta, clods), placed deterministically at least 4.5 m from any standing solid and 10 m from spawns and caps, and clear of ramps and the cut
+- **`client/relay-yard.ts`: `relayFieldUsePieces`,** about 430 vertex-coloured boxes (+5,160 triangles) merged into the existing `relay-yard-issued-supplies` draw:
+  - ammunition-box stacks at the foot of the 4x3 m covers and spent sandbags slumped against the low covers
+  - duckboard walks where the routes leave both gates
+  - a field telephone line (three poles, crossarms, a sagging wire at 3.1-3.55 m) from the north wall to a telephone case flush on the signal-post wall
+- **No render-only cover:** every piece is at most 0.5 m tall, overhead, a pole or wire under 0.13 m, or wall-mounted and 0.2 m deep or less. `test/relay-field-use.test.mjs` asserts this, and that ground pieces and craters stay clear of solids.
+
+#### Evidence (`.inspect/relay-r6/`)
+
+- Fixed cameras from `inspect-map`, before and after: `relay` (the gate shot), `cooling`, `freight`, `spawn`, plus the `overview` overhead. Files are `before/*.png` and `after/*.png`; `compare-*.png` puts before on top and after below. Detail crop: `crop-after.png`.
+- RTX 5070 / ANGLE at 1920x1080:
+  - Draw calls are unchanged: overview 42, relay 37, cooling 30, freight 23, spawn 42.
+  - Triangles +5,160 in every view (for example relay 179,682 → 184,842). Textures stay at 17 (32.306 MiB); programs stay at 28.
+  - Median frame 6.9 → 6.9 ms; relay scene preparation 316.7 (Session 3) → 328.1 ms.
+  - These are desktop observations, not laptop-iGPU qualification.
+- **Bytes: 0 new asset bytes and no new file.** assetBytes +700 (README text only). The client bundle grew 15,175 bytes to 4,130,439; publicBytes is 48,769,542.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` exit 0.
+- `pnpm test` exit 0: 203 files / 1,673 Vitest pass, 7 files / 9 tests skipped as before, 92/92 Node.
+- `pnpm build:client` exit 0; `pnpm audit:assets` exit 0.
+- `tools/audit-relay-{interior,site,workshop,yard}.mjs` all exit 0.
+- Fresh state, port 8804: `inspect-map --shots relay,practice-two --prefix relay-r6-gate` exit 0, `errors: []`.
+- `hitch-probe ... --assert` (advisory, run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+
+#### Limits and next
+
+- Box silhouettes are still rectangular: no geometry was cut, because collision is the authority and there was no re-bake this round. True chipped corners and rubble spills need a collider-aware bake pass in the world lane.
+- Wall repairs are painted, not modelled; they read at mid range but are flat at grazing angles.
+- No owner review of the stills yet. Laptop iGPU not measured.
+
+#### Wow check
+
+Player sentence: **"This yard has been shelled and patched up, and someone is still running a phone line through it."**
+
 ### Session 6 - 2026-09-23: Underpass Trench arc 3/3, sandbags, revetments and dugouts
 
 Reference: R-M17, R-G09, R-L12/R-L13/R-L14. Target: the owner's practice-two capture ("수문 광장") should read as a wet dusk trench line, not a modern service wall. Collision is unchanged.
