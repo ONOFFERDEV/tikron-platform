@@ -4,7 +4,7 @@ import { UI_TOKENS } from "../client/ui/tokens.js";
 
 describe("live field instruments", () => {
   it("resolves every visual variable through the declared UI or local layout tokens", () => {
-    const defined = new Set([...Object.keys(UI_TOKENS), "--hud-log-width", "--hud-center-width"]);
+    const defined = new Set([...Object.keys(UI_TOKENS), "--hud-log-width", "--hud-center-width", "--casualty-width"]);
     const used = [...HUD_FIELD_CSS.matchAll(/var\((--[\w-]+)/g)].map(match => match[1]);
     expect(used.filter(token => token === undefined || !defined.has(token))).toEqual([]);
     expect(used).toContain("--ui-type-hud");

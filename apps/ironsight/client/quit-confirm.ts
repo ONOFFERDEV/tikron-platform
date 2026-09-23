@@ -34,20 +34,7 @@ import { createUiButton } from './ui/primitives.js';
 
 const T = GAME.text.quit as typeof GAME.text.quit & { readonly title: string };
 
-const css = `
-#quitConfirm { position: fixed; inset: 0; z-index: 150; display: flex; align-items: center;
-  justify-content: center; padding:var(--ui-safe-edge);box-sizing:border-box;background:var(--ui-scrim);font:400 var(--ui-type-body)/1.5 var(--ui-font-body);
-  color:var(--ui-text-primary); pointer-events: auto; }
-#quitConfirm .panel { display: flex; flex-direction: column; align-items: center; gap: 18px;
-  padding:var(--ui-space-8); border:1px solid var(--ui-border-strong); border-radius:var(--ui-radius-panel);
-  background:var(--ui-surface-1);box-shadow:var(--ui-shadow-modal) }
-#quitConfirm h2 { margin: 0; font:700 var(--ui-type-panel)/1.25 var(--ui-font-body);color:var(--ui-text-primary) }
-#quitConfirm .row { display: flex; gap: 12px; flex-wrap:wrap; justify-content:center; }
-#quitConfirm button:focus-visible{outline:var(--ui-focus-width) solid var(--ui-focus);outline-offset:3px}
-#quitConfirm .panel{max-width:calc(100vw - 32px);box-sizing:border-box}
-#quitConfirm p{margin:0;text-align:center;color:var(--ui-text-secondary);text-wrap:pretty;word-break:keep-all}
-#quitConfirm button.quit:hover { border-color:var(--ui-error); }
-`;
+import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
 
 let root: HTMLDivElement | null = null;
 let dismissCurrent: (() => void) | null = null;
@@ -75,7 +62,7 @@ function showQuitConfirm(settings: SettingsStore, relock: () => void, preparatio
   if (root) return; // already open
 
   const style = document.createElement("style");
-  style.textContent = css;
+  style.textContent = SERVICE_FIELD_CSS;
   const dlg = document.createElement("div");
   dlg.id = "quitConfirm";
   dlg.setAttribute('role', 'dialog');
