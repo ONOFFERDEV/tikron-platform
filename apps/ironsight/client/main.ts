@@ -186,7 +186,9 @@ async function main(): Promise<void> {
   const telemetryProbe = installCombatTelemetryProbe(scene.canvas,
     ['localhost', '127.0.0.1', '::1'].includes(location.hostname));
   const combatTelemetry = telemetryProbe.telemetry;
-  window.addEventListener('beforeunload', () => {
+  // pagehide, not beforeunload: beforeunload can be cancelled and the room socket
+  // keeps dispatching shots until the document is really gone.
+  window.addEventListener('pagehide', () => {
     telemetryProbe.dispose();
     scene.dispose();
   }, { once: true });

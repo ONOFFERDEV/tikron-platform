@@ -127,6 +127,8 @@ This stream evaluates rendering references only; gameplay/layout/UI references r
 
 - **Historical Session 1 GPU scheduling request, superseded:** five of ten local runs were recorded while waiting behind other streams. See `.inspect/look-session1/hitch-series-resume2.log` and `hitch-summary.json`. Session 2 establishes a separate complete cohort; no foreign process is interrupted and all limits remain unchanged.
 
+- **Session 7 / supervisor: Undertow and Switchyard fog and exposure.** `scripts/inspect-map.mjs:543-554` pins exposure, key, sun, fill, fog colour and fog near/far to `client/undertow-dusk.json` and `client/switchyard-overcast.json`, which are not in look's allowlist. Session 7 got its dusk and overcast looks from the grade, the sky shader and shadow strength instead. Please either assign look these two JSONs or apply: Switchyard `fogColor` `#9aa69c` (grey-green) and `fogFar` 340→230, keeping `fogNear` ≥90 for the combat-range rule, which gives haze in depth; Undertow `fogColor` `#a08a78` (warm dusk haze). `public/assets/README.md:33` also still lists `industrial-daylight.hdr` at 41,273 bytes. It is now 31,919 bytes after the Session 7 re-bake with the new sun (same tool). That line sits outside look's append-only block.
+
 ## Session log
 
 ### Session 1 - 2026-09-22: Air above the front
@@ -311,3 +313,42 @@ Cleanup: own wrangler/workerd/esbuild processes stopped; port 8803 has no listen
 **Gates.** typecheck pass. vitest 202 files / 1673 tests pass, plus node 92/92. build:client pass. audit:assets exit 0 (47,369,216 public bytes). inspect-map relay,practice-two exit 0 with 0 console errors. `hitch-probe --assert`: the first run **FAILED** on main-thread stall (410.7ms idle gap, `look-r2-hitch.json`). The rerun PASSED (`look-r2-hitch-rerun.json`). Before the interleaved series, 7 of the 8 strict first-action runs (`final*`, `ab-*`, `final2-*`, both builds, with and without dust) failed on sustained frame pacing or a main-thread stall. The later `series-*` passed 5 of 6. None of these failures was in a first-action window. These are recorded as failures, not green.
 
 **Open.** Repeat the dust A/B and the strict cohort when other lanes are not building, to settle the p99 question and close the environmental verdict. Switchyard stills need the inspector assertion fix (existing cross-stream request).
+
+### Session 6 - 2026-09-23: Three times of day
+
+**Per-map light and grade.**
+- `client/scene-lighting.ts`: new `installSiteGrade`. It swaps the renderer to `CustomToneMapping`, and the custom function runs a per-site grade (saturation, shadow/highlight split tone, contrast about 0.18 grey) and then the same ACES curve. This happens inside the existing tone-mapping step of every material, so there are no new passes, textures, uniforms or lights. Each page holds one site, so the grade is baked in as constants before the first compile. Sites without a profile keep plain ACES.
+- Relay (hard noon): key 3.1→4.2, warmer `#ffe4b8`, hemisphere 0.92→0.52, ambient 0.12→0.07, darker ground bounce, contrast 1.32, amber highlights and cool shade. The sun direction is unchanged because a test ties it to the reflection bake.
+- Undertow (low dusk): contrast 1.12, blue shade `[0.84, 0.92, 1.14]` against amber highlights `[1.14, 0.98, 0.8]`, bluer ambient.
+- Switchyard (flat overcast): contrast 0.88, saturation 0.72, faint cold cast.
+- The dusk/overcast rig fields the supervisor's inspector pins (exposure, key, sun, fill, fog) are untouched.
+- `client/scene.ts`: +1 line. `test/scene-lighting.test.ts`: +1 test (three distinct grades; an unauthored site restores ACES and the original chunk).
+
+**Evidence (`.inspect/look-r3/`).**
+- `maps-before-after.png`: Relay, Undertow and Switchyard from fixed inspector cameras. That sheet shows the first Relay pass; `relay-before-after2.png` shows the final Relay values.
+- The Switchyard still is `*-sy-failure.png`, captured at the known `switchyard-transformer.glb` inspector assertion after the frame was ready.
+- Enemy readability: the inspector's actor review paths (`review-enemy`, `glint-near`) never reach readiness on this tree (calibrated actors; kit/supervisor area, not investigated). Instead `bot30.mjs` joins a live TDM/DOM/FFA room, walks the nav route and aims at the first enemy bot 24–38 m away with a clear line. Crops are in `bot30-before-after-zoom.png` and `relay-before-after2.png`. The team colour and silhouette read at 25–38 m on all three maps after the change. The final Relay bot is seen through a window.
+
+**Deltas.** Relay inspector: 37/28/17/16 (draws/programs/textures/lights), median 6.9ms, p99 7.1ms, same as round 1. client.js +1,561 bytes; art assets +0.
+
+**Vfx teardown bug (ui-lane report).** Cause: `main.ts` disposed the scene on `beforeunload`, which can be cancelled, and the page and the room socket keep running until the document is really gone. A shot arriving in that window reached `Vfx.spawnCasing` with an empty pool. Harness navigations between runs trigger this. Fix: the early handler now uses `pagehide`, and `Vfx.spawnCasing`/`spawnMuzzleFlash`/`spawnImpact` return early after dispose, because a queued message can still land during real teardown. New test in `test/impact-vfx.test.ts` fails on the old `vfx.ts` (TypeError) and passes now. Not replayed in a live bot room.
+
+**Gates.** typecheck exit 0; vitest 201 files / 1670 tests pass (7/9 skipped, pre-existing) plus node 92/92; build:client pass; audit:assets exit 0 (47,365,336); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory under the new rule), 2 deaths, 0 recompiles, 0 frames >150ms.
+
+**Open.** "Wet response" on Switchyard needs world-material roughness/env work (world lane). The coordinator's dust-motes stash@{0} is untouched.
+
+### Session 7 - 2026-09-23: Noon, dusk and cloud
+
+Round 3's grade was too subtle, so this pass uses sky, sun, shadow strength and grade together. Light count is still 16, with no new pass, texture or per-frame work.
+- **Relay, hard noon:** sun lowered from about 57° to 30° elevation for long cast shadows. I re-baked `public/assets/industrial-daylight.hdr` with `tools/bake-environment.py` using the same direction. The old sun reproduces the committed HDR byte-for-byte (`368132bb…`), so the tool is trustworthy. Key 4.2→5.6, whiter `#fff0d8`. Clear sky (horizon `#d6d4c6`, zenith `#4e7496`) plus a sky-shader sun bloom, fog `#cdd0c8`, grade contrast 1.38. The fill stays at 0.52 because the existing lighting test sets a floor at 0.5.
+- **Undertow, dusk:** a bright amber band low on the horizon, strongest toward the sun and at 40% elsewhere, plus a sun glow in the sky shader. Sky saturation 0.60→0.85. Grade contrast 1.34 with deep blue shade and strong amber highlights, so lit faces rake warm and the trench floor and interiors go dark.
+- **Switchyard, overcast:** key shadow intensity 0.18 (`LightShadow.intensity`, a uniform), grade contrast 0.72, saturation 0.75, grey-green tint. I tried saturation 0.45 first and dropped it, because it washed the FFA bot's torso colour out.
+- The shared grade now splits shade and light at luma 0.01–0.22 instead of 0.02–0.6, so lit surfaces keep their warmth.
+
+Evidence (`.inspect/look-r4/`): `maps-before-after.png` compares round 3 with this round from the same fixed cameras, with Switchyard's final values in `sy-final.png`. `maps-r2-r3-r4.png` covers the first pass across rounds. `bot30-before-after-zoom.png` and `ffa-final-zoom.png` show enemy bots at 25–38 m: TDM red in a window, DOM blue in the dusk lane, FFA orange-tan at 32.8 m. All stay readable.
+
+Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7ms. HDR −9,354 bytes. client.js +1,898 bytes against round 3.
+
+Gates: typecheck exit 0; vitest 201 files / 1670 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (47,360,745 public bytes); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150ms.
+
+Open: haze in depth and dusk fog colour need the pinned JSONs (cross-stream request above). The Switchyard still is the inspector failure capture (known transformer assertion).

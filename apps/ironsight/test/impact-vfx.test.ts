@@ -153,3 +153,9 @@ it("cancels a pending casing lease without installing late clones", async () => 
   expect(release).toHaveBeenCalledOnce();
   expect(scene.children.filter(child => child.name === "casing")).toHaveLength(0);
 });
+
+it('ignores shots that arrive after teardown instead of throwing', () => {
+  const vfx = new Vfx(new THREE.Scene());
+  vfx.dispose();
+  expect(() => { vfx.spawnCasing(pos, dir); vfx.spawnMuzzleFlash(pos, dir); vfx.spawnImpact(pos, dir, false); }).not.toThrow();
+});

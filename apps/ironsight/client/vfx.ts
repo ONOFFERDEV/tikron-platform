@@ -153,6 +153,7 @@ export class Vfx {
 
   /** Brief flash + point light at a remote shooter's muzzle. */
   spawnMuzzleFlash(origin: Vec3, _dir: Vec3, weapon = 0): void {
+    if (this.disposed) return;
     const slot = this.muzzles[this.muzzleCursor]!;
     this.muzzleCursor = (this.muzzleCursor + 1) % this.muzzles.length;
     slot.sprite.position.set(origin.x, origin.y, origin.z);
@@ -170,6 +171,7 @@ export class Vfx {
 
   /** Eject a pooled casing from a hitscan shot's origin with a right+up impulse. */
   spawnCasing(origin: Vec3, dir: Vec3): void {
+    if (this.disposed) return; // a queued room message can still land during page teardown
     const slot = this.casings[this.casingCursor]!;
     slot.floor = this.floorAt(origin) + .02;
     this.casingCursor = (this.casingCursor + 1) % this.casings.length;
@@ -191,6 +193,7 @@ export class Vfx {
   }
 
   spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean, surface: MapSurface = 'concrete'): void {
+    if (this.disposed) return;
     this.impacts.spawn(pos, dir, hitPlayer ? 'player' : surface);
   }
 

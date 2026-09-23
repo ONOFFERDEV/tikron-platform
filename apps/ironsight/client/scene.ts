@@ -12,7 +12,7 @@ import { architectureMeshes } from "./site-architecture.js";
 import { loadArchitecture, loadSiteEnvironment } from "./site-lighting.js";
 import { createSiteSkyMaterial, siteSunDirection, siteAtmosphere } from './site-atmosphere.js';
 import { createSkyWeather } from './scene-sky-weather.js';
-import { applySiteLightRig, gradeSiteSky, siteLightProfile } from './scene-lighting.js';
+import { applySiteLightRig, gradeSiteSky, installSiteGrade, siteLightProfile } from './scene-lighting.js';
 import { buildWedgeGeometry } from "./site-wedge.js";
 /**
  * Three.js presentation: the FPS camera, the active map's geometry (passed in as a
@@ -504,6 +504,7 @@ export class SceneRig {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = VIS.exposure;
+    installSiteGrade(this.renderer, map.presentation);
     if (relay) {
       this.renderer.toneMappingExposure = siteLightProfile(map.presentation)?.exposure ?? atmosphere?.exposure ?? 1.05;
       this.renderer.shadowMap.enabled = true;
