@@ -106,6 +106,102 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 
 ## Session log
 
+### Session 7 - 2026-09-23: Enemy holds on the five shipped weapons
+
+- **Status:** all required gates PASS, including the advisory hitch run. No commit, push, deploy or Meshy spend. Public asset byte delta 0. `src/**`, hit volumes, clips and `player.glb` are unchanged. Remote weapon meshes keep `raycast = () => {}`, so weapons are still never hit targets.
+- **Scope:** this covers the soldier that ships now (`player.glb`, `authority=legacy`, `renderedSource=legacy-model`) with the legacy field-carbine / wep_* weapons. This path has no weapon contact frame: the weapon hangs off `Hand_R` by `MOUNT_OFFSETS`, and the support hand follows the baked `<slot>_<clip>` hold.
+- **What changed:** two files. `client/remote-weapon.ts`: refit `MOUNT_OFFSETS` for all five slots, and added `LEGACY_SUPPORT_OFFSETS`, a support-wrist correction in the pitched actor frame solved with the existing exact two-bone reach. It applies only when no contact frame is loaded, and only for the sniper and pistol. `test/remote-weapon-baked-support.test.mjs`: one new test, which fails without the change. It checks that the legacy pistol support wrist moves by exactly the fitted offset, that the firing wrist stays put, and that `beforeAnimation` restores the baked pose.
+- **Method:** `.inspect/kit-r3/measure.ts` runs the production `clonePlayerRig` + `RemoteWeapon` in Node on the shipped GLBs (textures stripped). It samples all 11 locomotion clips at phases 0.25 and 0.75 and measures the skinned hand skin (palm and finger vertices):
+  - gap to the weapon surface (for the pistol support hand: to the firing-hand skin)
+  - depth inside the weapon (2-of-3 axis ray parity)
+  - weapon depth inside a 120 mm torso capsule (Pelvis to neck_01)
+  - crossed-wrist distance
+
+  `fit.ts` searches the smallest translation to touching with a 2 mm overlap limit, on a 1 mm signed-distance grid.
+- **Per slot and clip** (max over both phases; "gap/inside" in mm, before -> after):
+
+| Slot | Clip | Firing gap / inside mm | Support gap / inside mm | Weapon in torso proxy mm | Crossed mm |
+| --- | --- | --- | --- | ---: | ---: |
+| carbine | idle | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | walk | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | run | 2.3/7.1 -> 0.3/2.9 | 0.3/4.9 -> 0.2/4.1 | 0 -> 0 | 5.8 -> 5.8 |
+| carbine | sprint | 2.3/7.1 -> 0.6/2.8 | 0.1/4.7 -> 0.1/4.3 | 0 -> 0 | 5.4 -> 5.4 |
+| carbine | crouch_idle | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_walk | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | strafe_left | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | strafe_right | 1.9/6.8 -> 0.1/2.5 | 0/4.4 -> 0.1/3.2 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | backpedal | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_left | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| carbine | crouch_right | 1.9/6.8 -> 0.1/2.5 | 0/4.3 -> 0.1/3.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | idle | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | walk | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | run | 0.5/18.5 -> 1.1/9.5 | 0.4/16.2 -> 0.3/15.2 | 0 -> 0.3 | 5.6 -> 5.6 |
+| smg | sprint | 0.3/19.3 -> 0.5/10.4 | 0/16.6 -> 0.3/15 | 0 -> 0 | 4.8 -> 4.8 |
+| smg | crouch_idle | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_walk | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | strafe_left | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | strafe_right | 0.2/18 -> 0.1/9.6 | 0.1/15.9 -> 0.1/14 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | backpedal | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_left | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| smg | crouch_right | 0.3/18 -> 0/9.6 | 0.2/16 -> 0/14.1 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | idle | 0.1/7.8 -> 0.1/3.8 | 0.1/16.6 -> 0/15.4 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | walk | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | run | 0.2/8 -> 0.2/3.8 | 0.5/17.3 -> 0.2/15.8 | 0 -> 0 | 6.9 -> 6.9 |
+| shotgun | sprint | 0.1/8 -> 0.1/3.7 | 0/16.9 -> 0.1/16.2 | 0 -> 0 | 6.7 -> 6.7 |
+| shotgun | crouch_idle | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_walk | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | strafe_left | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | strafe_right | 0.1/7.9 -> 0.1/3.8 | 0.1/16.6 -> 0.1/15.4 | 0 -> 0 | 5 -> 5 |
+| shotgun | backpedal | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_left | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| shotgun | crouch_right | 0.1/7.9 -> 0.1/3.8 | 0.2/16.6 -> 0.1/15.5 | 0 -> 0 | 4.9 -> 4.9 |
+| sniper | idle | 0.3/4.9 -> 0.1/0.4 | 0.1/10.6 -> 0.1/1.9 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | walk | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | run | 0.2/5 -> 0/1.2 | 0.3/12.4 -> 0/6 | 0 -> 5.8 | 5.7 -> 3.7 |
+| sniper | sprint | 0.1/5.2 -> 0.1/1.5 | 0.1/12.1 -> 0.2/5.5 | 0 -> 0 | 5.5 -> 3.5 |
+| sniper | crouch_idle | 0.3/4.9 -> 0.1/0.4 | 0.1/10.6 -> 0.1/2.2 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_walk | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | strafe_left | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | strafe_right | 0.3/4.9 -> 0.1/0.4 | 0.2/10.7 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | backpedal | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.3 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_left | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| sniper | crouch_right | 0.3/4.9 -> 0.1/0.3 | 0.1/10.6 -> 0.1/2.1 | 0 -> 0 | 4.9 -> 2.9 |
+| pistol | idle | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | walk | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | run | 0.6/14 -> 0.2/1.7 | 12.1/10 -> 2.7/8.6 | 0 -> 0 | 0 -> 0 |
+| pistol | sprint | 0.3/15 -> 0.2/2.6 | 12.2/9.6 -> 2.8/8.8 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_idle | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_walk | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | strafe_left | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | strafe_right | 0.5/13.5 -> 0.1/1.8 | 12.1/8.4 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | backpedal | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.7 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_left | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+| pistol | crouch_right | 0.6/13.5 -> 0.1/1.8 | 12.1/8.3 -> 2.7/7.6 | 0 -> 0 | 0 -> 0 |
+
+- **Result:** no hand floats and no arms cross, before or after (gaps at most 2.8 mm; crossed at most 6.9 mm, which is lateral noise). Firing-hand sink-in drops on every slot: carbine 7.1->2.9, SMG 19.3->10.4, shotgun 8.0->3.8, sniper 5.2->1.5, pistol 15.0->2.6. The pistol support hand now cups the firing hand at 2.7-2.8 mm (was 12 mm apart). The sniper support hand is 12.4->6.0 mm inside.
+- **Tried and rejected:**
+  - A 36 mm shotgun support shift: its still showed the hand hidden behind the gun, worse than the baked wrap. The shotgun and carbine support hands stay baked.
+  - The full 32 mm SMG shift: it pushed the weapon toward the torso on the run clip. I halved it, so the SMG firing hand is still 10.4 mm inside.
+  - The sniper keeps its fitted offset, although the torso proxy reads 5.8 mm at run 0.75. The proxy is a coarse 120 mm cylinder; the stills show no visible intrusion.
+- **Evidence:**
+  - Rig inspector before/after, 5 slots x idle/sprint/crouch_walk x three-quarter/hands/hands-right: `.inspect/kit-r3/{before,after}/`, zero console errors. One after-shot timed out on readiness (w1 idle hands-right) and was recaptured green.
+  - Side-by-side pairs: `.inspect/kit-r3/closeups/w{0-4}-{idle,sprint,crouch_walk}-{hands,hands-right}.png`
+  - Raw data: `holds-{before,after}.json`, fitter `fit-3.json`
+- **Gates:**
+  - `pnpm typecheck` PASS
+  - `pnpm test` PASS: 1,670 Vitest, 9 skips carried over from before, 92/92 Node
+  - `pnpm build:client` PASS
+  - `pnpm audit:assets` PASS: publicBytes 47,365,098
+  - `inspect-map --prefix kit-r3` PASS, zero errors/forbidden
+  - `hitch-probe ... .inspect/kit-r3-hitch.json --assert`, advisory, single run: `{"hitchGate":"PASS","failures":[],...,"deaths":2,"recompiles":0,"framesOver150ms":0,"errors":0}`
+- **Cleanup:** Wrangler tree on 8802 killed, port clear.
+- **Open / not verified:**
+  - The two inside-weapon metrics disagree on some legacy shells, which are open meshes. The fitter predicted about 2 mm for the SMG and shotgun support hands; the exact measure still reads 15-16 mm. Treat support "inside" numbers above 5 mm as unresolved.
+  - Remaining work on the rig: finger wrap on legacy support hands (baked fingers), and a pitch sweep (only pitch 0 was measured).
+  - Remote reload arcs were not re-measured.
+  - Moving the arm skin changes the client-side skinned-mesh raycast surface slightly (at most 25 mm on the sniper/pistol support forearm). The server hit volumes are unchanged.
+  - The first-person reload travel item (carbine 13.6 mm, shotgun 11 mm) was not started.
+
 ### Session 6 - 2026-09-23: First-person hands sit on the real weapons
 
 - **Status:** typecheck, tests, build, asset audit and map gate PASS. **Hitch gate FAIL** (`sustained frame pacing`, one frame over 150 ms, main thread idle during it) on both runs, and it **also fails on the merged baseline with the kit change reverted** (`.inspect/kit-r2/hitch-baseline.json`, 201.8 ms idle stall), so this lane's constant change is not the cause. Needs supervisor attention on the integration tree. No commit, push, deploy or Meshy spend. Public asset byte delta 0.
