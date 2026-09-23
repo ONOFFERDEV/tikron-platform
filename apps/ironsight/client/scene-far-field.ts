@@ -1,9 +1,10 @@
 import * as T from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MapDef } from '../src/map/types.js';
 
 /** The front beyond the wire: churned, cratered ground rising gently into low
  *  ridges, trench lines with picket rows, shattered tree stumps and one ruined
- *  farm, all fading into the site fog. Built once, four static draws, no lights,
+ *  farm, all fading into the site fog. Built once, three static draws, no lights,
  *  no shadows, no per-frame work. Everything starts well outside the playable
  *  rectangle and stays below eye height until it is far away, so it can neither
  *  act as cover nor rise over the boundary walls. */
@@ -144,10 +145,13 @@ export function createFarField(map: MapDef): T.Group | undefined {
     stumps.push(new T.Matrix4().compose(p.set(x, height(x, z) + tall / 2 - .2, z), q, s.set(1, tall, 1)));
   }
   const wood = new T.MeshStandardMaterial({ color: 0x3a2e24, roughness: 1 });
-  const picketMesh = new T.InstancedMesh(new T.BoxGeometry(.09, 1.3, .09), wood, pickets.length);
-  pickets.forEach((m, i) => picketMesh.setMatrixAt(i, m)); picketMesh.name = 'far-field-pickets';
-  const stumpMesh = new T.InstancedMesh(new T.CylinderGeometry(.16, .3, 1, 5, 1).translate(0, 0, 0), wood, stumps.length);
-  stumps.forEach((m, i) => stumpMesh.setMatrixAt(i, m)); stumpMesh.name = 'far-field-stumps';
+  // Pickets and stumps share one material and never move: bake them into one
+  // static geometry (one draw instead of two instanced draws).
+  const picket = new T.BoxGeometry(.09, 1.3, .09).toNonIndexed(), stump = new T.CylinderGeometry(.16, .3, 1, 5, 1).toNonIndexed();
+  const baked = [...pickets.map(m => picket.clone().applyMatrix4(m)), ...stumps.map(m => stump.clone().applyMatrix4(m))];
+  const woodMesh = new T.Mesh(mergeGeometries(baked)!, wood);
+  baked.forEach(g => g.dispose()); picket.dispose(); stump.dispose();
+  woodMesh.name = 'far-field-wood';
 
   // One ruined farm: roofless walls with broken tops, on the ridge line.
   const farmAngle = site.farm, farmR = site.inner + ('farmDistance' in site ? site.farmDistance : 230);
@@ -178,12 +182,12 @@ export function createFarField(map: MapDef): T.Group | undefined {
 
   const group = new T.Group();
   group.name = 'far-field';
-  for (const mesh of [ground, picketMesh, stumpMesh, ruin]) {
+  for (const mesh of [ground, woodMesh, ruin]) {
     mesh.castShadow = false; mesh.receiveShadow = false; mesh.raycast = () => {};
     mesh.matrixAutoUpdate = false; mesh.updateMatrix();
     group.add(mesh);
   }
-  for (const mesh of [picketMesh, stumpMesh, ruin]) mesh.computeBoundingSphere();
+  ruin.computeBoundingSphere();
   group.matrixAutoUpdate = false;
   return group;
 }

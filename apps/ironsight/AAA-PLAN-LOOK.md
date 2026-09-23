@@ -133,6 +133,11 @@ This stream evaluates rendering references only; gameplay/layout/UI references r
 
 - **Session 9 / world: Undertow wet patches.** Look's reflection change (reflection saturation 0.85→0.5, luminance ceiling 0.45 in the graded dusk HDR) makes the puddles pale and cool from the aerial instead of gold. If the owner still reads them as coins, the remaining lever is the puddle material (world-owned): raise its roughness from mirror-like to about 0.35–0.45 and lower its envMapIntensity toward 0.6, so it catches the sky as a sheen rather than a hard disc. Look did not edit world files.
 
+- **Session 17 / kit + supervisor: texture count in live rounds.** Live bot rounds hold 34–40 renderer textures against the 32 budget (TDM 35, DOM 40, FFA 34). The same maps offline without actors hold 20–26. The ~14 extra arrive with the soldiers: per-skeleton bone DataTextures plus soldier maps. Requests:
+  - (kit) share or pool bone textures across calibrated actors, or confirm they are released with each rig;
+  - (supervisor) decide whether the 32-texture budget counts tiny bone DataTextures; the byte budget is the meaningful one.
+  - Also (kit): the legacy Synty `PolygonScifi_01_A` weapon atlas is 2048² (21.3 MiB with mips), the largest single texture on every map. A 1024² downscale saves ~16 MiB if the finish still reads.
+
 ## Session log
 
 ### Session 1 - 2026-09-22: Air above the front
@@ -576,3 +581,28 @@ Granted this round: `public/assets/relay-vista.webp`, `public/assets/undertow-vi
 - Finding: at menu size the darkness comes mostly from the ui lane's `.shade` overlay and dark panels over the vista (`client/ui/deployment-style.ts`), not from the images. The vistas themselves are now brighter and carry more detail. Request for ui: lighten the `.shade` gradient on the right third if the cards should read brighter.
 
 Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,865,573); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 0 recompiles, 0 frames >150 ms.
+
+### Session 17 - 2026-09-23: The sum of today
+
+(Logged as Session 17; Session 16 was used by round 13.) The integrated build was measured on 8d37cd6 (integration branch already merged). The GPU lease was free and host CPU was around 52% at the start. Evidence: `.inspect/look-r14/`.
+- **Offline** (`budget.ts`/`budget.mjs`, production `SceneRig`, 1920×1080, no actors). Views: fly-through at 0.35 and 1.0, aerial overview, roof eye view, and a synthetic firefight (12 muzzles, casings and tracers, 7 impacts, grenade, mortar strike and lens dirt every 0.5 s). The harness records peaks, frame p99 and per-top-level-node draw/triangle contributions.
+- **Live** (`live.mjs`): 75 s bot rounds, TDM/Relay, DOM/Undertow and FFA/Switchyard, sampling `renderInfo` every 200 ms and rAF intervals.
+
+| Map | Worst draws (limit 240) | Worst tris (500k) | Textures (32) | Tex MiB (64) | p99 ms (25) |
+|---|---|---|---|---|---|
+| Relay | 212 offline firefight / 201 live | 277,574 live | **35 live** / 21 offline | 56.3 offline | 7.1 (fly-1.0 offline 14.0) |
+| Undertow | 220 / 191 | 208,078 | **40** / 26 | 57.9 | 7.1 |
+| Switchyard | 200 / 189 | 204,674 | **34** / 20 | 50.3 | 7.1 |
+
+Texture memory is offline without soldiers; live bytes were not measurable through `renderInfo`. The host is an RTX 5070, not the iGPU target. Inspector static cameras over today (look-r1 → now): Relay 37→40 draws, 179,682→199,362 tris; practice-two (Undertow) 60→64 draws, 109,958→144,210 tris.
+
+Top contributors on the worst views (offline, per-node hide/re-render):
+- Relay: `relay-service-detail` 100,714 tris / 1 draw; `relay-yard-issued-supplies` 39,240 / 1; unnamed map meshes 29,056 / 8; far field 14,520 / 4 (now 3); in a firefight, pooled effect meshes add up to ~158 draws but only 5.2k tris.
+- Undertow: the unnamed `Scene` dressing root 84,916 tris / 7; `undertow-issued-supplies` 34,080 / 12; `undertow-ww1-field-kit` 14,076 / 21 draws; far field 14,784 / 4 (now 3); effects as Relay.
+- Switchyard: `Scene` 101,142 / 7; `switchyard-issued-supplies` 45,440 / 16.
+
+Fix (own file): `scene-far-field.ts` now bakes pickets and stumps into one static geometry, 4 → 3 draws per map with identical triangles. Measured: every Relay and Undertow view −1 draw; inspector Relay 41→40, practice-two 65→64. The test asserts 3 draws and checks every baked vertex against the boundary.
+
+Not changed, reported: the impact particle pool draws each particle as its own mesh (up to ~60 draws in a firefight, still inside 240). Instancing it would save most of those draws but needs a pool rewrite and test rework; that is the next budget lever if draws climb. Over-budget texture counts and the 21 MiB weapon atlas are requests above.
+
+Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,865,708); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.

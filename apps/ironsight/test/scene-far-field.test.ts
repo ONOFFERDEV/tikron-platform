@@ -9,7 +9,7 @@ const outside = (map: typeof ARENA1, x: number, z: number) =>
   Math.hypot(Math.max(0, -x, x - map.bounds.width), Math.max(0, -z, z - map.bounds.depth));
 
 describe('far field beyond the boundary', () => {
-  it.each([ARENA1, ARENA2])('stays well outside the playable rectangle, low near it, in four static unlit-shadow draws', map => {
+  it.each([ARENA1, ARENA2])('stays well outside the playable rectangle, low near it, in three static unlit-shadow draws', map => {
     const group = createFarField(map)!;
     group.updateMatrixWorld(true);
     let draws = 0, triangles = 0, nearest = Infinity, tallestNear = -Infinity;
@@ -31,7 +31,7 @@ describe('far field beyond the boundary', () => {
           if (o < 40) tallestNear = Math.max(tallestNear, v.y);
           up += normals.getY(i);
         }
-        expect(up / positions.count).toBeGreaterThan(.9); // faces the sky
+        if (node.name === 'far-field-ground') expect(up / positions.count).toBeGreaterThan(.9); // ground faces the sky
         return;
       }
       for (let i = 0; i < count; i++) {
@@ -43,7 +43,7 @@ describe('far field beyond the boundary', () => {
         }
       }
     });
-    expect(draws).toBe(4);
+    expect(draws).toBe(3);
     expect(triangles).toBeLessThan(20000);
     expect(nearest).toBeGreaterThan(20);   // nothing on or near the boundary
     expect(tallestNear).toBeLessThan(1.5);  // below eye height where it is close
