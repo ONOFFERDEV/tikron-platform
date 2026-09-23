@@ -512,3 +512,40 @@ Deltas: Relay 37/29/17/16 (draws/programs/textures/lights), p99 7 ms. client.js 
 Gates: typecheck exit 0; vitest 205 files / 1688 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,861,846); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 1 frame >150 ms (within limits).
 
 Open: against dark mud the blued blade is a low-contrast silhouette, as real sights are. A lighter blade face or a white-line insert would help if the owner wants it.
+
+### Session 14 - 2026-09-23: The front beyond the wire
+
+New `client/scene-far-field.ts`, hooked from `scene.ts` right after the sky (+5 lines, including dispose). Relay and Undertow only; Switchyard and unauthored maps get nothing. No world files touched.
+- **Layout:** a ring walked along the playable rectangle's outline (straight edges plus rounded corners), so every point is exactly its offset outside the boundary.
+  - Starts 28 m out on Relay, past its fenced yard on the flat apron. Starts 58 m out on Undertow, under its 60 m apron.
+  - Runs to 520 m beyond, where the site fog is already opaque.
+  - Low swells rise to about 5 m far out: fields, not dunes.
+  - The ground sits 0.25 m above the apron once it surfaces.
+- **Ground shader** (`onBeforeCompile`, no texture), drawn per pixel so it stays crisp at any mesh resolution:
+  - churned-mud blotching;
+  - a shell crater in most 13 m cells (dark bowl, lighter rim);
+  - three zig-zag trench lines parallel to the front, with a dark wire belt 7 m in front of each (derivative-faded far off).
+- **Instanced detail:**
+  - ~720–744 leaning wire pickets along the belts;
+  - 140 shattered stumps;
+  - one ruined, roofless farm (10 broken walls, 20 blocks) about 230 m out on each map.
+- **Budget:**
+  - 4 draws: ground 2,816 tris; pickets 12 × 722/744; stumps 20 × 140; ruin 12 × 20. Total 14.5k / 14.8k tris.
+  - 1 static build; no lights, no shadows cast or received, no per-frame work, raycast off.
+  - Relay inspector 37→41 draws, 184,842→199,362 tris, 29→32 programs (compiled by `prepare()`), 16 lights, p99 7.1 ms. Practice-two (Undertow) 61→64 draws, +14.5k tris.
+- **Safety:** `test/scene-far-field.test.ts` checks every ground vertex and every instance corner.
+  - nearest element more than 20 m outside the boundary;
+  - nothing taller than 1.5 m within 40 m of it;
+  - ground faces up;
+  - exactly 4 draws, under 20k tris, no lights, no shadows;
+  - Switchyard untouched.
+
+Evidence (`.inspect/look-r11/`):
+- `fly-arena1.png` and `fly-arena2.png`: deployment fly-through at progress 0.35 and 1.0, before/after. The harness `fly.ts`/`fly.mjs` drives the production `introPose` + `SceneRig.render(intro)` path. The inspector's own `intro-*` shots still stall on actor readiness, before and after (Session 6 note).
+- `roof-before-after.png`: roof eye views. The far field shows as a crater and picket strip above the boundary walls, with nothing rising over them.
+
+client.js +10,337 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 206 files / 1691 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,892,242); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open: Undertow's field is dark under dusk and reads mostly as a silhouette band; the ruined farm is small at 230 m. Both are tunable in `SITES`.

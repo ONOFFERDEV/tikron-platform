@@ -52,6 +52,7 @@ import { AuthoredViewmodelHands, ViewmodelHands, loadAuthoredViewmodelHands } fr
 import type { WeaponPresentation } from "./weapon-presentation.js";
 import { viewmodelWeaponPresentation } from "./scene-weapon.js";
 import { createLensDirt } from "./scene-lens-dirt.js";
+import { createFarField, disposeFarField } from "./scene-far-field.js";
 import { inspectionWeaponAction, ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
@@ -394,6 +395,7 @@ export class SceneRig {
   private blastLightCursor = 0;
   private readonly blastTrauma = new BlastTrauma();
   private readonly lensDirt = createLensDirt();
+  private farField: THREE.Group | undefined;
   private blastFeedback = true;
   private motionReduced = false;
   get reducedMotion(): boolean { return this.motionReduced; }
@@ -537,6 +539,8 @@ export class SceneRig {
     sky.position.set(map.bounds.width / 2, 0, map.bounds.depth / 2);
     sky.raycast = () => {};
     this.scene.add(sky);
+    this.farField = createFarField(map);
+    if (this.farField) this.scene.add(this.farField);
     this.scene.fog = atmosphere ? new THREE.Fog(atmosphere.fogColor, atmosphere.fogNear, atmosphere.fogFar)
       : relay ? new THREE.Fog(fieldRelay ? 0xbdbcb0 : 0xc7d4cc, Math.max(48, map.bounds.width * .6), Math.max(145, map.bounds.width * 2.4))
       : new THREE.Fog(PALETTE.fog.color, PALETTE.fog.near, PALETTE.fog.far);
@@ -2509,6 +2513,7 @@ export class SceneRig {
     this.vfx.dispose();
     this.combatFx.dispose();
     this.lensDirt.dispose();
+    disposeFarField(this.farField);
     this.renderer.dispose();
     this.canvas.remove();
   }
