@@ -485,3 +485,30 @@ Open:
 - No brass: none of the meshes has a separable brass part in mesh-local space, and the shotgun shell is steel.
 - The boxy ghost-ring sight on the carbine is kit's `rifleSight` (`client/rifle-*.ts`) geometry and material, outside this grant. Request for kit: WW1 blade front sight and open-notch rear. Sight readability was checked by eye across 20 ADS stills; the dark steel posts silhouette against sky and walls.
 - The old `'weapon'` branch of `equipmentFinish` is now unused (left for a separate cleanup, not deleted in this pass).
+
+### Session 13 - 2026-09-23: Blade in the notch
+
+The carbine's box aperture is **baked into the GLB** (`field-body`), but it is three separate connected parts (two uprights and a top bar, 44 triangles each) sitting on a separate base plate (`.inspect/look-r9/components.ts`). It can therefore be removed at load without editing the asset, using the same per-view index-subset pattern `splitRifleMagazine` already uses. The GLB and the cached source geometry are untouched.
+- `client/rifle-sight.ts` (granted this round):
+  - `stripIssuedSightHousing` drops those three parts from a per-view copy of the body index.
+  - `issuedIronSights` builds period sights in the carbine's mesh space: a rear leaf on the kept base plate with a U-notch, and a front barrel band with a thin blade 5 mm ahead of the muzzle. It uses the body's own service-finish material.
+  - Sight line `ISSUED_SIGHT_LINE_Y` = 0.060 mesh-m through the bore's x, clear of the handguard (top 0.039). Centre hold: the blade tip sits flush with the tops of the notch shoulders.
+- `client/scene.ts`: the issued-carbine branch now strips, adds the sights to the model and sets `sightHeight` from the sight line. A diagnostic marker at the blade tip keeps `sightScreen` reporting. The non-issued branch and every other weapon are unchanged.
+- The remote (third-person) carbine keeps the baked aperture; that was out of scope.
+
+Alignment evidence:
+- At ADS on sky, brick and dark mud, the front blade tip is at (960, 540.07–540.11) and the rear shoulder line at (960, 540.10–540.16) px, against a crosshair at (960, 540) (`shots/new-*.json`).
+- The production weapon inspector reports ADS `sightScreen` (960, 539.82).
+- Live `viewmodel-play`, all five weapons, hip and ADS, real wall shots: source-muzzle error ≤ 7.1e−15 and tracer endpoint 0.000–0.093 px from the crosshair (`vm/`).
+- The live probe only reaches one range (7.8 m walls). The sight line and aim ray are both the camera axis, so the projection does not depend on range; the three sight-picture backgrounds sit at different distances.
+- Hip is unchanged: muzzle position and viewmodel root are identical before and after.
+
+Tests: `test/issued-iron-sights.test.ts` has two cases. It checks that only the 3 × 44 aperture triangles are removed with the source untouched, and that blade tip and shoulders lie on one line through the bore with nothing of the carbine crossing it. Both fail on HEAD, where the functions do not exist.
+
+Evidence (`.inspect/look-r10/`): `sight-before-after.png` (hip/ADS, sky/brick/mud) and `sight-ads-zoom.png` (4× crops at the crosshair).
+
+Deltas: Relay 37/29/17/16 (draws/programs/textures/lights), p99 7 ms. client.js +3,016 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 205 files / 1688 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,861,846); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 1 frame >150 ms (within limits).
+
+Open: against dark mud the blued blade is a low-contrast silhouette, as real sights are. A lighter blade face or a white-line insert would help if the owner wants it.

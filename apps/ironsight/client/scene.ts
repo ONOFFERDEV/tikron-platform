@@ -38,7 +38,7 @@ import { CargoCounterweight } from './cargo-counterweight.js';
 import { SignalCore, addCoreSigns } from './signal-core.js';
 import { CoreCollision } from '../src/core-gate.js';
 import type { SignalFrame } from '../src/signal-event.js';
-import { rifleSight } from './rifle-sight.js';
+import { ISSUED_SIGHT_LINE_Y, issuedIronSights, rifleSight, stripIssuedSightHousing } from './rifle-sight.js';
 import { VIEWMODEL_FITS, VIEWMODEL_HIP_FOV, viewmodelProjectionScale } from './viewmodel-fit.js';
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { nearestBox, rayAabb, type Box } from "../src/physics.js";
@@ -978,9 +978,16 @@ export class SceneRig {
         obj.add(this.casingAnchor);
       }
       this.issuedCarbine = obj.userData.issuedCarbine === true;
-      if (index === 0) {
-        const sight = rifleSight(-bore.x * transform.scale,
-          this.issuedCarbine ? Number(obj.userData.sightY) * transform.scale : sightHeight, this.issuedCarbine);
+      if (index === 0 && this.issuedCarbine) {
+        // Period iron sights replace the baked box aperture on this per-view copy.
+        this.weaponGeometry.push(...stripIssuedSightHousing(obj));
+        const body = obj.getObjectByName('field-body') as THREE.Mesh | undefined;
+        const sights = issuedIronSights(bore.x, (body?.material as THREE.Material | undefined) ?? VM_MODEL_MATERIAL);
+        obj.add(sights.object); this.weaponGeometry.push(...sights.geometry);
+        this.sightDot = sights.object.getObjectByName('reflex-dot');
+        this.sightHeight = ISSUED_SIGHT_LINE_Y * transform.scale;
+      } else if (index === 0) {
+        const sight = rifleSight(-bore.x * transform.scale, sightHeight, false);
         this.weaponHolder.add(sight.object); this.weaponGeometry.push(...sight.geometry);
         this.sightDot = sight.object.getObjectByName('reflex-dot');
         this.sightHeight = sight.centerY;
