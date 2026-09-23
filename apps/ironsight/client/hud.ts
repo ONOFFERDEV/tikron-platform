@@ -12,7 +12,7 @@ import { ConnectionQuality } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
 import { honorsCss, type PresentedMvp } from './round-honors.js';
 import { intermissionStatus } from './intermission.js';
-import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, type StableMapId } from './ui/copy.js';
+import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, weaponLabel, type StableMapId } from './ui/copy.js';
 import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui/combat-hud.js';
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
@@ -390,7 +390,7 @@ export class Hud {
 
     // Ammo.
     const ammo = el("div", "ammo"); ammo.className = "panel";
-    this.weaponName = el("div", "weaponName", "AR / AUTO"); ammo.appendChild(this.weaponName);
+    this.weaponName = el("div", "weaponName", weaponLabel(WEAPONS[0]?.key)); ammo.appendChild(this.weaponName);
     this.ammoMag = el("span", undefined, "30"); this.ammoMag.className = "mag";
     this.ammoRes = el("span", undefined, " / 90"); this.ammoRes.className = "res";
     const ammoLine = el("div"); ammoLine.append(this.ammoMag, this.ammoRes);
@@ -444,7 +444,7 @@ export class Hud {
     // Weapon bar (bottom-center): one slot per WEAPONS entry, plus a grenade badge.
     const wbar = el("div", "wbar"); wbar.className = "panel";
     this.wslots = WEAPONS.map((w, i) => {
-      const slot = el("div", undefined, `<span class="num">${i + 1}</span>${esc(w.name)}`);
+      const slot = el("div", undefined, `<span class="num">${i + 1}</span>${esc(weaponLabel(w.key))}`);
       slot.className = "slot";
       wbar.appendChild(slot);
       return slot;
@@ -577,7 +577,7 @@ export class Hud {
 
   /** Highlight the held weapon's slot (index into {@link WEAPONS}). */
   setWeapon(index: number): void {
-    this.weaponName.textContent = WEAPONS[index]?.name.toUpperCase() ?? "WEAPON";
+    this.weaponName.textContent = weaponLabel(WEAPONS[index]?.key);
     this.wslots.forEach((s, i) => s.classList.toggle("active", i === index));
   }
 
@@ -606,7 +606,7 @@ export class Hud {
     details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean; medal?: 'ambush' } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
-    const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? undefined : WEAPONS.find(w => w.slot === details.weapon)?.name.toUpperCase()) ?? 'WEAPON';
+    const weapon = part === 'drone' ? 'SENTRY' : part === 'mortar' ? 'MORTAR' : part === 'blast' ? 'GRENADE' : (details.weapon == null ? '무기' : weaponLabel(WEAPONS.find(w => w.slot === details.weapon)?.key));
     const cause = part === 'head' ? '헤드샷' : part === 'blast' ? '폭발' : '처치';
     const node = el('div'); node.className = `k${details.localKill ? ' local' : ''}${details.localVictim ? ' victim' : ''}`;
     node.style.setProperty('--team', color);
