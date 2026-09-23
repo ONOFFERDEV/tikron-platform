@@ -311,3 +311,26 @@ Cleanup: own wrangler/workerd/esbuild processes stopped; port 8803 has no listen
 **Gates.** typecheck pass. vitest 202 files / 1673 tests pass, plus node 92/92. build:client pass. audit:assets exit 0 (47,369,216 public bytes). inspect-map relay,practice-two exit 0 with 0 console errors. `hitch-probe --assert`: the first run **FAILED** on main-thread stall (410.7ms idle gap, `look-r2-hitch.json`). The rerun PASSED (`look-r2-hitch-rerun.json`). Before the interleaved series, 7 of the 8 strict first-action runs (`final*`, `ab-*`, `final2-*`, both builds, with and without dust) failed on sustained frame pacing or a main-thread stall. The later `series-*` passed 5 of 6. None of these failures was in a first-action window. These are recorded as failures, not green.
 
 **Open.** Repeat the dust A/B and the strict cohort when other lanes are not building, to settle the p99 question and close the environmental verdict. Switchyard stills need the inspector assertion fix (existing cross-stream request).
+
+### Session 6 - 2026-09-23: Three times of day
+
+**Per-map light and grade.**
+- `client/scene-lighting.ts`: new `installSiteGrade`. It swaps the renderer to `CustomToneMapping`, and the custom function runs a per-site grade (saturation, shadow/highlight split tone, contrast about 0.18 grey) and then the same ACES curve. This happens inside the existing tone-mapping step of every material, so there are no new passes, textures, uniforms or lights. Each page holds one site, so the grade is baked in as constants before the first compile. Sites without a profile keep plain ACES.
+- Relay (hard noon): key 3.1→4.2, warmer `#ffe4b8`, hemisphere 0.92→0.52, ambient 0.12→0.07, darker ground bounce, contrast 1.32, amber highlights and cool shade. The sun direction is unchanged because a test ties it to the reflection bake.
+- Undertow (low dusk): contrast 1.12, blue shade `[0.84, 0.92, 1.14]` against amber highlights `[1.14, 0.98, 0.8]`, bluer ambient.
+- Switchyard (flat overcast): contrast 0.88, saturation 0.72, faint cold cast.
+- The dusk/overcast rig fields the supervisor's inspector pins (exposure, key, sun, fill, fog) are untouched.
+- `client/scene.ts`: +1 line. `test/scene-lighting.test.ts`: +1 test (three distinct grades; an unauthored site restores ACES and the original chunk).
+
+**Evidence (`.inspect/look-r3/`).**
+- `maps-before-after.png`: Relay, Undertow and Switchyard from fixed inspector cameras. That sheet shows the first Relay pass; `relay-before-after2.png` shows the final Relay values.
+- The Switchyard still is `*-sy-failure.png`, captured at the known `switchyard-transformer.glb` inspector assertion after the frame was ready.
+- Enemy readability: the inspector's actor review paths (`review-enemy`, `glint-near`) never reach readiness on this tree (calibrated actors; kit/supervisor area, not investigated). Instead `bot30.mjs` joins a live TDM/DOM/FFA room, walks the nav route and aims at the first enemy bot 24–38 m away with a clear line. Crops are in `bot30-before-after-zoom.png` and `relay-before-after2.png`. The team colour and silhouette read at 25–38 m on all three maps after the change. The final Relay bot is seen through a window.
+
+**Deltas.** Relay inspector: 37/28/17/16 (draws/programs/textures/lights), median 6.9ms, p99 7.1ms, same as round 1. client.js +1,561 bytes; art assets +0.
+
+**Vfx teardown bug (ui-lane report).** Cause: `main.ts` disposed the scene on `beforeunload`, which can be cancelled, and the page and the room socket keep running until the document is really gone. A shot arriving in that window reached `Vfx.spawnCasing` with an empty pool. Harness navigations between runs trigger this. Fix: the early handler now uses `pagehide`, and `Vfx.spawnCasing`/`spawnMuzzleFlash`/`spawnImpact` return early after dispose, because a queued message can still land during real teardown. New test in `test/impact-vfx.test.ts` fails on the old `vfx.ts` (TypeError) and passes now. Not replayed in a live bot room.
+
+**Gates.** typecheck exit 0; vitest 201 files / 1670 tests pass (7/9 skipped, pre-existing) plus node 92/92; build:client pass; audit:assets exit 0 (47,365,336); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory under the new rule), 2 deaths, 0 recompiles, 0 frames >150ms.
+
+**Open.** "Wet response" on Switchyard needs world-material roughness/env work (world lane). The coordinator's dust-motes stash@{0} is untouched.

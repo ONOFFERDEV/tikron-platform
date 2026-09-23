@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as T from 'three';
 import dusk from '../client/undertow-dusk.json';
 import overcast from '../client/switchyard-overcast.json';
-import { applySiteLightRig, gradeSiteEnvironment, gradeSiteSky, siteLightProfile } from '../client/scene-lighting.js';
+import { applySiteLightRig, gradeSiteEnvironment, gradeSiteSky, installSiteGrade, siteLightProfile } from '../client/scene-lighting.js';
 
 describe('front lighting', () => {
   it('preserves the daylight exposure contract', () => {
@@ -91,5 +91,23 @@ describe('front lighting', () => {
     expect(sky.transparent).toBe(false);
     expect(Object.values(sky.uniforms).some(uniform => uniform.value instanceof T.Texture)).toBe(false);
     expect(sky.uniforms.frontSkySaturation?.value).toBeLessThan(0.5);
+  });
+
+  it('grades each site inside the existing tone-mapping step, one site per page', () => {
+    const original = T.ShaderChunk.tonemapping_pars_fragment;
+    const grades = ['relay', 'undertow', 'switchyard'].map(site => {
+      const renderer = { toneMapping: T.ACESFilmicToneMapping } as unknown as T.WebGLRenderer;
+      installSiteGrade(renderer, site);
+      expect(renderer.toneMapping).toBe(T.CustomToneMapping);
+      expect(T.ShaderChunk.tonemapping_pars_fragment).toContain('return ACESFilmicToneMapping(color);');
+      return T.ShaderChunk.tonemapping_pars_fragment;
+    });
+    expect(new Set(grades).size).toBe(3);
+    expect(siteLightProfile('relay')!.grade.contrast).toBeGreaterThan(1);
+    expect(siteLightProfile('switchyard')!.grade.contrast).toBeLessThan(1);
+    const plain = { toneMapping: T.ACESFilmicToneMapping } as unknown as T.WebGLRenderer;
+    installSiteGrade(plain, undefined);
+    expect(plain.toneMapping).toBe(T.ACESFilmicToneMapping);
+    expect(T.ShaderChunk.tonemapping_pars_fragment).toBe(original);
   });
 });
