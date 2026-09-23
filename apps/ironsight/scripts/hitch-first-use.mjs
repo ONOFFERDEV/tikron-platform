@@ -1,8 +1,8 @@
 /** Includes the frame crossing the event and the following second of presentation.
  * The preceding 250ms catches the render callback that exposed the effect before
  * the probe observed the state edge. This does not replace the whole-round gate. */
-export function firstUseWindows(samples, events) {
-  return ['damage', 'death'].map(kind => {
+export function firstUseWindows(samples, events, kinds = ['damage', 'death']) {
+  return kinds.map(kind => {
     const event = events.find(event => event.kind === kind);
     if (!event) return { kind, status: 'MISSING', limitMs: 150 };
     const start = event.t - 250, end = event.t + 1000;

@@ -56,6 +56,9 @@ const traced = new Promise(resolve => { traceComplete = resolve; });
 // voting. A supervisor can stop/restart workerd and run the normal probe against
 // the same durable state. No client writes to scores, deadlines or server state.
 const untilEnded = process.argv.includes('--until-ended');
+// --first-actions: after warm-up, swap once through slots 2-5 and back to 1, fire and
+// reload, each held to the same 150ms first-use window (reported, and asserted by --assert-first-use).
+const firstActions = process.argv.includes('--first-actions');
 const mode = (process.argv.find(a => a.startsWith('--mode=')) ?? '--mode=tdm').slice(7);
 const inspectionLease = await acquireInspectionLease(`hitch / ${mode} / ${out}`);
 // Compile the app's immutable collision map/navigation into the Node driver only.
@@ -209,6 +212,18 @@ try {
       requestAnimationFrame(loop); };
     requestAnimationFrame(loop); return true; })()`);
   const start = Date.now();
+  const ACTIONS = [['swap-2','2','Digit2',50],['swap-3','3','Digit3',51],['swap-4','4','Digit4',52],['swap-5','5','Digit5',53],
+    ['swap-1','1','Digit1',49],['fire'],['reload','r','KeyR',82]];
+  if (firstActions) {
+    // After the 3s warm-up allowance, so any compile here also counts as a post-warm recompile.
+    await delay(3500);
+    for (const [kind, value, code, keyCode] of ACTIONS) {
+      await evaluate(`window.__perf.events.push({ t: performance.now(), kind: '${kind}' })`);
+      if (value) { await key(value, code, keyCode, 'keyDown'); await key(value, code, keyCode, 'keyUp'); }
+      else await clickGameplay();
+      await delay(kind === 'reload' ? 3500 : 1500);
+    }
+  }
   // Wander in bursts, turn, and fire so the bots engage and kill the probe.
   // runMs is an upper bound: stop 6 s after the second death so the respawn path is covered too.
   let yaw = 0, doneAt = Infinity, routeIndex = 0;
@@ -312,13 +327,16 @@ try {
   // hide a first hit inside the probe's existing two-second startup delay.
   const firstUse = firstUseWindows([...preparation.startupFrames,...data.samples].map(([t,dt])=>[t-data.t0,dt]),
     [...preparation.startupEvents,...data.events].map(rel).sort((a,b)=>a.t-b.t));
+  const firstActionWindows = firstActions ? firstUseWindows(data.samples.map(([t,dt])=>[t-data.t0,dt]),
+    data.events.map(rel), ACTIONS.map(([kind]) => kind)).map(window => ({ ...window,
+      programsAdded: data.events.filter(e => e.kind === 'program-new' && e.t - data.t0 >= window.from && e.t - data.t0 <= window.to).map(e => e.name) })) : [];
   const readyFrames = preparation.startupFrames.filter(([t,dt]) => t >= preparation.firstReadyAt && t-dt <= preparation.firstReadyAt+1000);
   preparation.firstReady = { at:preparation.firstReadyAt, frames:readyFrames.length,
     maxMs:Math.max(0,...readyFrames.map(([,dt])=>dt)), spikes:readyFrames.filter(([,dt])=>dt>150) };
   const gate = assessHitch({ frames:data.frames.map(rel), frameHistogram:data.frameHistogram,
     frameCount:data.frameCount,maxFrameMs:data.maxFrameMs,maxCallbackMs:data.maxCallbackMs,measurementMs:data.measurementMs,
     longTasks:data.long,recompiles,deaths,errors,untilEnded,phase:finalState.phase });
-  const summary = { url: url.href, inspectionLease: inspectionLease.info, runMs, untilEnded, firstUse, preparation, captures, diagnostics: { profileCpu, trace, traceStartup, diagnosticTiming, gpuDiagnostics, stopOnSpike, captureFight }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
+  const summary = { url: url.href, inspectionLease: inspectionLease.info, runMs, untilEnded, firstUse, firstActionWindows, preparation, captures, diagnostics: { profileCpu, trace, traceStartup, diagnosticTiming, gpuDiagnostics, stopOnSpike, captureFight }, gpu: data.gpu, profilerSetupMs, traceEndElapsedMs,
     measurementMs:data.measurementMs,measuredFrames:data.frameCount,gate,finalState, room: data.room, navigationSamples, deaths, frames24ms: data.frames.length, longTasks: data.long.length, recompiles, spikes, errors,
     events: data.events.filter(e => e.kind !== 'program-new' && e.kind !== 'program-gone').map(rel), worst };
   await writeFile(out, JSON.stringify({ summary, frameHistogram:data.frameHistogram, frames: data.frames.map(rel), long: data.long, programEvents: data.events.filter(e => e.kind === 'program-new' || e.kind === 'program-gone').map(rel) }, null, 1));
@@ -329,7 +347,7 @@ try {
       deaths, recompiles: recompiles.length, framesOver150ms:spikes.length, errors: errors.length }));
     process.exitCode = failed ? 1 : 0;
   }
-  if (assertFirstUse && firstUse.some(window => window.status !== 'PASS')) process.exitCode = 1;
+  if (assertFirstUse && [...firstUse, ...firstActionWindows].some(window => window.status !== 'PASS')) process.exitCode = 1;
 } finally {
   try {
     // Close the browser through CDP before releasing the GPU lease. Killing
