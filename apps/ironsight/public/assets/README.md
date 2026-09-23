@@ -30,7 +30,7 @@ Original architecture / lighting pipeline (session 9):
 |---|---|---|
 | `maps/relay-architecture.glb` | Exact Relay surfaces and MapDef ramps, 1024px embedded AO atlas; Session 22 vertex weathering, 2,346,620 bytes | yes, explicit original-only exception |
 | `maps/undertow-architecture.glb` | Exact Undertow procedural kit, tanks/fans and MapDef ramps, 1024px embedded AO atlas; 1,553,824 bytes | yes, explicit original-only exception |
-| `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 41,273 bytes | yes |
+| `industrial-daylight.hdr` | Original mathematical sky radiance gradient and warm cloud halo, Blender 512x256 linear HDR; 31,919 bytes (re-baked 2026-09-23 with the Relay noon sun at 30 degrees elevation) | yes |
 | `undertow-dusk.hdr` / `undertow-dusk-sky.png` | Original seeded dusk cloud/radiance field, Blender; 512x256 linear HDR 104,307 bytes and 1024x512 sRGB sky 122,555 bytes. Undertow only; see Session78 below | yes |
 | `switchyard-overcast.hdr` / `switchyard-overcast-sky.png` | Original seeded stratus/radiance field, Blender; 512x256 linear HDR 144,190 bytes and 1024x512 sRGB sky 135,785 bytes. Switchyard only; see Session79 below | yes |
 
