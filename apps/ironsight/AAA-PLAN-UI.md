@@ -64,6 +64,52 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 10 - 2026-09-23: Last English HUD labels and a working results inspector
+
+Scope: UI lane plus `client/match-inspect.ts` (granted for this round only). No commit, push or deploy. Base: 98d8ac9.
+
+#### What changed
+
+- **HUD labels, Korean-first** (`client/ui/copy.ts` `FIELD_UI_COPY`, used by `client/hud.ts`):
+  - Capture bars: `A / RED|BLUE|OPEN|TAKING` became `A / 적색|청색|미점령|점령 중`. The words come from the existing affiliation copy (적색/청색 진영) and objective copy (미점령, 점령 중).
+  - Streak: `{who} · {count} KILL STREAK` became `{who} · {count}연속 처치`. The source `streakFmt` in `config/ironsight.config.ts` is not in this lane, so the HUD now reads the copy-module format; the config line still holds the old English string.
+  - Damage marks: `FRONT/RIGHT/BACK/LEFT` became `전방/우측/후방/좌측`. 후방 matches the existing ambush wording.
+  - The ping-panel states 연결 복구 중 / 연결 종료 and the ambush tag 기습 moved from hard-coded strings in `hud.ts` into the copy module (same text), so the inspector can reference them.
+  - No label was left without a counterpart.
+- **`client/match-inspect.ts`:** English expectations now come from the copy module (`intermissionStatusLabel`, `COPY.results`, `FIELD_UI_COPY`). Selectors follow the current result view (`.result-view`, `__outcome`, `__score`, `__local`, `__footer`, `.round-honors`, `tr[data-self]`) instead of the pre-Session-4 `.debrief`/`.roundHonors`/`h1` markup. No check was removed or loosened.
+- **`client/ui/result-view.ts`:** two checks were catching real regressions, so I fixed the code rather than the checks.
+  - The honors card is rebuilt only when the MVP changes; before, every countdown tick rebuilt it (`stableMvp`).
+  - When the vote disables "다시 플레이", focus moves to "출격 화면으로" instead of being dropped (`voteFocus`).
+  - No visible change.
+- **`test/ui-copy.test.ts`:** one assertion for the capture, damage and streak copy.
+
+#### Evidence (`.inspect/ui-r4/`)
+
+- Inspector (`inspector.mjs`):
+  - Before, at 1280 (`inspector-before.json`): every results shot threw (`TypeError ... reading 'textContent'`).
+  - After: victory, defeat, draw, dom, ffa, standby (intermission), legacy and reconnect are all `__inspectReady` at 1280 (`inspector-after.json`). Victory, dom, ffa, standby and reconnect are also ready at 1920 and 640x360@2x (`inspector-after-sizes.json`).
+  - Captures: `after/{1280,1920,zoom200}-match-*.png`.
+- Live DOM/FFA bot rooms (`live.mjs`, `live-after.json`) at all three sizes:
+  - Capture bars read `A / 미점령`, `A / 적색`, `B / 청색`, `C / 점령 중`. Streak reads `ANCHOR 9 · 3연속 처치`. Damage mark reads `후방`.
+  - 0 overlaps and 0 clipping at 1920 and 1280. At 640x360 only the accepted transient overlaps remain, plus the accepted FFA leaderboard clip.
+
+#### Gates
+
+- typecheck PASS; tests PASS (Vitest 200 files / 1667 passed, 9 preexisting skips; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`.
+- hitch-probe (advisory, run once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+- Asset bytes unchanged (35,363,446). Client bundle 4,107,823 to 4,109,090 (+1,267).
+
+#### Open questions / limits
+
+- **`match-network` and `match-combat` still throw, on non-copy checks.**
+  - Network: `low`, `spikeIgnored`. The delay band does not settle to `low` in the fixture's timing.
+  - Combat: `bounded` expects 5 kill-feed rows, but the HUD keeps 4.
+  - These are behaviour expectations, not English text, so they are left for their owner rather than edited.
+- **`config/ironsight.config.ts` `hud.streakFmt`** still holds the English format and is now unused by the HUD. Its owner can update or drop it.
+- **Damage mark at 640x360 FFA:** a `후방` mark at the back position was clipped in 1 of 36 samples, as in Session 9.
+- **`Vfx.spawnCasing` TypeError** still appears in live rooms (look lane, already routed).
+
 ### Session 9 - 2026-09-23: Live team-mode overlap pass and current screen captures
 
 Scope: UI lane only; no commit, push or deploy. Base: 029f570. Layout only: position, width, padding, z-order. No text, panel, flow or state changed. No blur, shadow, filter or gradient is added, so `client/compositor-preparation.ts` needed no change.

@@ -1,6 +1,8 @@
 import { Hud } from './hud.js';
 import { SettingsStore } from './settings.js';
 import type { ArenaState } from '../src/schema.js';
+import { intermissionStatusLabel } from './intermission.js';
+import { COPY, FIELD_UI_COPY } from './ui/copy.js';
 
 /** Offline UI fixtures. Never create a room or modify live authoritative state. */
 export function startMatchInspector(): void {
@@ -74,9 +76,9 @@ export function startMatchInspector(): void {
     hud.setPing(180, true, 4500);
     checks.high = panel.dataset.quality === 'high';
     hud.setPing(40, false, 4600);
-    checks.offline = panel.textContent!.includes('RECONNECTING') && panel.textContent!.includes('— ms');
+    checks.offline = panel.textContent!.includes(FIELD_UI_COPY.hud.reconnecting) && panel.textContent!.includes(FIELD_UI_COPY.hud.waiting);
     hud.setPing(40, false, 4700, true);
-    checks.expired = panel.textContent!.includes('CONNECTION LOST');
+    checks.expired = panel.textContent!.includes(FIELD_UI_COPY.hud.connectionLost);
     hud.setPing(0, true, 4800);
     hud.setPing(shot.includes('high') ? 180 : shot.includes('delayed') ? 100 : 35, !shot.includes('offline'), 5500);
     checks.separateAnnouncement = panel.querySelector('[role="status"]')?.textContent === panel.querySelector('strong')?.textContent
@@ -139,7 +141,7 @@ export function startMatchInspector(): void {
     hud.addKill('Self', 'Self', 'blast', null, undefined, { localKill: true, localVictim: true });
     checks.selfSilent = confirm.textContent === '';
     hud.addKill('Self', 'First', 'head', 0, undefined, { weapon: 4, localKill: true, medal:'ambush' });
-    checks.ambush = confirm.querySelector('.ambush')?.textContent === 'AMBUSH';
+    checks.ambush = confirm.querySelector('.ambush')?.textContent === FIELD_UI_COPY.ambush;
     hud.addKill('Self', 'Latest', 'body', 0, undefined, { weapon: 1, localKill: true });
     checks.latest = confirm.querySelector('.target')?.textContent === 'Latest';
     checks.medalCleared = !confirm.querySelector('.ambush');
@@ -178,34 +180,34 @@ export function startMatchInspector(): void {
       checks.escapedRoster = !overlay.querySelector('img') && overlay.textContent!.includes('<img');
       hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, dom: true,
         mvp: { ...mvp, name: '<img src=x onerror=alert(1)>', id: '\"><img src=x>' } });
-      checks.escapedMvp = !overlay.querySelector('img') && overlay.querySelector('.honorsBody h2')!.textContent!.includes('<img');
-      checks.mvpRule = overlay.querySelector('.honorsRule')!.textContent!.includes('shared capture second');
-      const card = overlay.querySelector('.roundHonors');
+      checks.escapedMvp = !overlay.querySelector('img') && overlay.querySelector('.round-honors h3')!.textContent!.includes('<img');
+      checks.mvpRule = overlay.querySelector('.round-honors')!.textContent!.includes('점령 기여');
+      const card = overlay.querySelector('.round-honors');
       hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, dom: true,
         mvp: { ...mvp, name: '<img src=x onerror=alert(1)>', id: '\"><img src=x>' } });
-      checks.stableMvp = card === overlay.querySelector('.roundHonors');
+      checks.stableMvp = card === overlay.querySelector('.round-honors');
       hud.showMatchEnd('red', 50, 42, 1, 0, false, sample);
-      checks.oldServer = !overlay.querySelector('.roundHonors');
-      checks.legacyCountdown = overlay.querySelector('[data-next-round]')?.textContent === 'AUTOMATIC / STAND BY';
+      checks.oldServer = !overlay.querySelector('.round-honors');
+      checks.legacyCountdown = overlay.querySelector('[data-next-round]')?.textContent === intermissionStatusLabel({ kind: 'automatic' });
       hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 7000 });
-      const countdownCard = overlay.querySelector('.debrief');
+      const countdownCard = overlay.querySelector('.result-view');
       const focusedButton = document.activeElement;
-      checks.deadlineCountdown = overlay.querySelector('[data-next-round]')?.textContent === 'IN 13s';
+      checks.deadlineCountdown = overlay.querySelector('[data-next-round]')?.textContent === intermissionStatusLabel({ kind: 'scheduled', seconds: 13 });
       hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 8000 });
-      checks.stableCountdown = countdownCard === overlay.querySelector('.debrief') && document.activeElement === focusedButton;
-      checks.countdownAdvances = overlay.querySelector('[data-next-round]')?.textContent === 'IN 12s';
+      checks.stableCountdown = countdownCard === overlay.querySelector('.result-view') && document.activeElement === focusedButton;
+      checks.countdownAdvances = overlay.querySelector('[data-next-round]')?.textContent === intermissionStatusLabel({ kind: 'scheduled', seconds: 12 });
       hud.showMatchEnd('red', 50, 42, 1, 0, false, { ...sample, intermissionEndMs: 20000, serverNow: 25000 });
-      checks.noLocalStart = overlay.querySelector('[data-next-round]')?.textContent === 'AWAITING SERVER';
-      checks.sorted = overlay.querySelector('tbody tr td:nth-child(2)')?.textContent === 'Tie fewer deaths';
-      checks.localRow = overlay.querySelectorAll('tr.me').length === 1;
-      checks.zeroDeaths = overlay.querySelector('.personalStats div:last-child strong')?.textContent === '—';
+      checks.noLocalStart = overlay.querySelector('[data-next-round]')?.textContent === intermissionStatusLabel({ kind: 'awaiting-server' });
+      checks.sorted = overlay.querySelector('tbody tr td:first-child')?.textContent === 'Tie fewer deaths';
+      checks.localRow = overlay.querySelectorAll('tr[data-self="true"]').length === 1;
+      checks.zeroDeaths = overlay.querySelector('.result-view__local div:last-child dd')?.textContent === '—';
       checks.initialFocus = document.activeElement?.getAttribute('data-action') === 'restart';
       hud.showMatchEnd('blue', 42, 50, 1, 0, false, { ...sample, won: false });
-      checks.defeat = overlay.querySelector('h1')?.textContent === 'DEFEAT';
+      checks.defeat = overlay.querySelector('.result-view__outcome')?.textContent === COPY.results.defeat;
       hud.showMatchEnd('draw', 0, 0, 0, 0, true, sample);
-      checks.soloDraw = overlay.querySelector('h1')?.textContent === 'DRAW' && !overlay.querySelector('.finalScore');
+      checks.soloDraw = overlay.querySelector('.result-view__outcome')?.textContent === COPY.results.draw && !overlay.querySelector('.result-view__score')?.textContent?.includes('/');
       hud.showMatchEnd('<img src=x>', 0, 0, 1, 0, true, sample);
-      checks.escapedWinner = !overlay.querySelector('img') && overlay.querySelector('.resultWinner')?.textContent?.includes('<img') === true;
+      checks.escapedWinner = !overlay.querySelector('img') && overlay.querySelector('.result-view__score')?.textContent?.includes('<img') === true;
       hud.markVoteSent(); hud.setVoteStatus(1, 2);
       hud.showMatchEnd('red', 50, 42, 1, 0, false, sample);
       checks.voteFocus = document.activeElement?.getAttribute('data-action') === 'leave';
@@ -218,22 +220,22 @@ export function startMatchInspector(): void {
     render();
     if (shot !== 'match-reconnect') {
       const overlay = document.querySelector<HTMLElement>('#overlay')!;
-      const panel = overlay.querySelector<HTMLElement>('.debrief')!;
+      const panel = overlay.querySelector<HTMLElement>('.result-view')!;
       const rect = panel.getBoundingClientRect();
       checks.horizontalFit = rect.left >= 0 && rect.right <= innerWidth && panel.scrollWidth <= panel.clientWidth;
       checks.rosterComplete = overlay.querySelectorAll('tbody tr').length === rows.length;
-      const honors = overlay.querySelector<HTMLElement>('.roundHonors');
+      const honors = overlay.querySelector<HTMLElement>('.round-honors');
       checks.mvpPresent = !!honors === !(shot.includes('draw') || shot.includes('legacy'));
       if (honors) {
         checks.mvpFits = honors.scrollWidth <= honors.clientWidth && honors.getBoundingClientRect().right <= innerWidth;
-        checks.mvpScore = honors.querySelector('.honorsScore strong')!.textContent === String(mvp.score);
+        checks.mvpScore = honors.querySelector('.round-honors__stats > div:last-child dd')!.textContent === String(mvp.score);
         checks.mvpMotion = !shot.includes('reduced') || getComputedStyle(honors).animationName === 'none';
       }
       overlay.scrollTop = overlay.scrollHeight;
-      const actions = overlay.querySelector('.resultActions')!.getBoundingClientRect();
+      const actions = overlay.querySelector('.result-view__footer')!.getBoundingClientRect();
       checks.actionsReachable = actions.top >= 0 && actions.bottom <= innerHeight;
       overlay.scrollTop = 0;
-      checks.headingReachable = overlay.querySelector('h1')!.getBoundingClientRect().top >= 0;
+      checks.headingReachable = overlay.querySelector('.result-view h2')!.getBoundingClientRect().top >= 0;
       if (Object.values(checks).some(ok => !ok)) throw Error(`Results layout failed: ${JSON.stringify(checks)}`);
     }
   }

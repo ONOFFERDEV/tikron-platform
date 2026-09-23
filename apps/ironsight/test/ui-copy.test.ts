@@ -26,6 +26,11 @@ describe("Korean UI copy contract", () => {
   it("names the five stable weapon slots as WW1 service weapons in Korean", () => {
     expect(WEAPON_KEYS.map(weaponLabel)).toEqual(["자동소총", "참호 기관단총", "펌프 산탄총", "볼트 소총", "제식 권총"]);
     expect(weaponLabel(undefined)).toBe("무기");
+    expect([FIELD_UI_COPY.capture, FIELD_UI_COPY.damage, FIELD_UI_COPY.streakFmt]).toEqual([
+      { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
+      { front: "전방", right: "우측", back: "후방", left: "좌측" },
+      "{who} · {count}연속 처치",
+    ]);
     expect(FIELD_UI_COPY.feed).toEqual({ biplane: "복엽기 소사", mortar: "박격포", grenade: "수류탄", you: "나", assist: "지원" });
   });
 

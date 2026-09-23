@@ -617,7 +617,7 @@ export class Hud {
     while (this.kills.length > 4) this.kills.shift()?.node.remove();
     if (details.localKill && !details.localVictim) {
       const ambush = details.medal === 'ambush';
-      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? '기습' : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
+      this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? FIELD_UI_COPY.ambush : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
       this.eliminationAt = performance.now();
       this.elimination.style.opacity = '1';
     }
@@ -637,7 +637,7 @@ export class Hud {
 
   /** Transient center-top killstreak banner, decayed in update(). */
   showStreak(who: string, count: number): void {
-    this.streak.textContent = fmt(T.hud.streakFmt, { who: who.toUpperCase(), count });
+    this.streak.textContent = fmt(FIELD_UI_COPY.streakFmt, { who: who.toUpperCase(), count });
     this.streak.style.opacity = "1";
     this.streakAt = performance.now();
   }
@@ -666,7 +666,8 @@ export class Hud {
     [a, b, c].forEach((v, i) => {
       const fill = this.capFills[i]!;
       const label = fill.parentElement?.parentElement?.querySelector('.lbl');
-      const owner = v >= 200 ? 'RED' : v <= 0 ? 'BLUE' : v === 100 ? 'OPEN' : 'TAKING';
+      const C = FIELD_UI_COPY.capture;
+      const owner = v >= 200 ? C.red : v <= 0 ? C.blue : v === 100 ? C.open : C.taking;
       if (label) label.textContent = `${['A', 'B', 'C'][i]} / ${owner}`;
       this.renderCap(fill, v);
     });
@@ -765,7 +766,7 @@ export class Hud {
 
   setPing(ms: number, online = true, now = performance.now(), expired = false): void {
     const band = this.quality.update(ms, online, now);
-    const label = expired && !online ? '연결 종료' : band === 'offline' ? '연결 복구 중' : band === 'high' ? '응답 지연 큼' : band === 'delayed' ? '응답 지연' : '연결 안정';
+    const label = expired && !online ? FIELD_UI_COPY.hud.connectionLost : band === 'offline' ? FIELD_UI_COPY.hud.reconnecting : band === 'high' ? '응답 지연 큼' : band === 'delayed' ? '응답 지연' : '연결 안정';
     if (this.delayLabel.textContent !== label) {
       this.delayLabel.textContent = label;
       this.ping.dataset.quality = band;
@@ -883,7 +884,7 @@ export class Hud {
       const direction = damageDirection(this.damageBearing, yaw);
       if (this.damageIndicator.dataset.direction !== direction) {
         this.damageIndicator.dataset.direction = direction;
-        this.damageIndicator.firstElementChild!.textContent = direction.toUpperCase();
+        this.damageIndicator.firstElementChild!.textContent = FIELD_UI_COPY.damage[direction];
       }
     }
     if (now - this.vignetteAt > 60) this.damageFlash.style.opacity = '0';
