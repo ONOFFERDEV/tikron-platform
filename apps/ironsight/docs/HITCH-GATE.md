@@ -100,6 +100,12 @@ the ordinary gameplay measurement origin. No initial two-second blind spot.
 node scripts/hitch-probe.mjs http://localhost:8796 150000 .inspect/first-fight.json --assert --assert-first-use --mode=ffa
 ```
 
+`--first-actions` (2026-09-23) adds seven more first-use windows after the 3s warm-up:
+the first swap to slots 2, 3, 4, 5 and back to 1 (1.5s apart), the first shot and the
+first reload, each with the same 150ms / 250ms-before / 1000ms-after window and the shader
+programs first seen inside it (`summary.firstActionWindows`). With `--assert-first-use`
+they are asserted too. They follow the warm-up, so a compile there also fails `--assert`.
+
 Each invocation creates a fresh browser profile. This does **not** flush the
 shared driver cache or prove performance on a laptop iGPU. The report includes
 loading/first-ready intervals, per-view UI preparation measures and scene
