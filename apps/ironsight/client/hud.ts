@@ -12,7 +12,7 @@ import { ConnectionQuality } from './connection-quality.js';
 import { DeploymentBanner } from './deployment-banner.js';
 import { honorsCss, type PresentedMvp } from './round-honors.js';
 import { intermissionStatus } from './intermission.js';
-import { COPY, FIELD_UI_COPY, mapCopy, modeCopy, weaponLabel, type StableMapId } from './ui/copy.js';
+import { COPY, FIELD_UI_COPY, combatantLabel, formatControlsHint, mapCopy, modeCopy, weaponLabel, type StableMapId } from './ui/copy.js';
 import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui/combat-hud.js';
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
@@ -20,7 +20,7 @@ import { HUD_FIELD_CSS } from './ui/hud-field-style.js';
 import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
 import type { ShotFeedbackEvent } from './shot-feedback.js';
 import type { WeaponActionState } from '../src/weapon-action.js';
-import { formatKeyLabel, formatBinding, type BindAction, type SettingsStore } from "./settings.js";
+import type { SettingsStore } from "./settings.js";
 
 const TEAM_COLOR = GAME.teams.colors;
 const T = GAME.text;
@@ -607,6 +607,10 @@ export class Hud {
   addKill(killer: string, victim: string, part: string, killerTeam: number | null, assistName?: string,
     details: { weapon?: number | null; localKill?: boolean; localVictim?: boolean; medal?: 'ambush' } = {}): void {
     this.root.dataset.reducedMotion = String(this.settings.get().reducedMotion);
+    // The 나 tag already names the local player; do not repeat it as the name.
+    killer = details.localKill && combatantLabel(killer) === FIELD_UI_COPY.feed.you ? '' : combatantLabel(killer);
+    victim = details.localVictim && combatantLabel(victim) === FIELD_UI_COPY.feed.you ? '' : combatantLabel(victim);
+    if (assistName) assistName = combatantLabel(assistName);
     const color = killerTeam === 0 || killerTeam === 1 ? (killerTeam === 0 ? UI_RED : UI_BLUE) : '#bbc9c8';
     const F = FIELD_UI_COPY.feed;
     const weapon = part === 'drone' ? F.biplane : part === 'mortar' ? F.mortar : part === 'blast' ? F.grenade : (details.weapon == null ? '무기' : weaponLabel(WEAPONS.find(w => w.slot === details.weapon)?.key));
@@ -639,7 +643,7 @@ export class Hud {
 
   /** Transient center-top killstreak banner, decayed in update(). */
   showStreak(who: string, count: number): void {
-    this.streak.textContent = fmt(FIELD_UI_COPY.streakFmt, { who: who.toUpperCase(), count });
+    this.streak.textContent = fmt(FIELD_UI_COPY.streakFmt, { who: combatantLabel(who).toUpperCase(), count });
     this.streak.style.opacity = "1";
     this.streakAt = performance.now();
   }
@@ -697,7 +701,7 @@ export class Hud {
   /** Compact top-center k/d table (mode===1 only, toggled by setMode). */
   setLeaderboard(rows: { name: string; k: number; d: number; isMe: boolean }[]): void {
     const markup = rows
-      .map((r, i) => `<tr class="${r.isMe ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.k}</td><td>${r.d}</td></tr>`)
+      .map((r, i) => `<tr class="${r.isMe ? "me" : ""}"><td>${i + 1}</td><td>${esc(combatantLabel(r.name))}</td><td>${r.k}</td><td>${r.d}</td></tr>`)
       .join("");
     if (markup === this.leaderboardMarkup) return;
     this.leaderboardMarkup = markup;
@@ -792,30 +796,13 @@ export class Hud {
     this.fps = Math.round(n);
   }
 
-  /** Fills `T.controlsHintFmt`'s `{move}/{sprint}/{crouch}/{jump}/{reload}`
-   *  placeholders from the player's current keybindings (client/settings.ts),
-   *  so a rebind in the settings panel shows up here immediately. Digit1-5,
-   *  mouse buttons, and the M mute toggle are fixed (never rebindable — see
-   *  client/settings.ts's `BindAction` doc comment), so "LMB fire" and
-   *  "M mute" stay literal in the template itself. */
-  private controlsHintText(): string {
-    const { binds } = this.settings.get();
-    const keyOf = (a: BindAction): string => (binds[a][0] ? formatKeyLabel(binds[a][0]!) : "—");
-    return fmt(T.controlsHintFmt, {
-      move: `${keyOf("forward")}${keyOf("left")}${keyOf("back")}${keyOf("right")}`,
-      sprint: formatBinding(binds.sprint),
-      crouch: formatBinding(binds.crouch),
-      jump: formatBinding(binds.jump),
-      reload: formatBinding(binds.reload),
-      grenade: formatBinding(binds.grenade),
-    });
-  }
-
   /** The click-to-play / ESC prompt. */
   showLockPrompt(show: boolean, text = T.hud.clickToPlay): void {
     if (show) this.clearSquadRadio();
     if (show) {
-      this.present('lock', `<h1>${T.hud.gameTitle}</h1><p>${esc(text)}</p><div class="briefing">${this.briefText}<br>${this.trainingHelp ? this.trainingHelp + "<br>" : ""}Move between cover. Right mouse: aim · Left mouse: fire.<br>Respawn is automatic. Esc opens settings and deployment.</div><p class="hint">${this.controlsHintText()}</p>`);
+      const L = FIELD_UI_COPY.lock, message = L.messages[text] ?? text;
+      const controls = `${formatControlsHint(this.settings.get().binds)} · ${L.extraControls}`;
+      this.present('lock', `<h1>${L.title}</h1><p>${esc(message)}</p><div class="briefing">${this.briefText}<br>${this.trainingHelp ? this.trainingHelp + "<br>" : ""}${L.briefing}</div><p class="hint">${esc(controls)}</p>`);
     } else {
       this.hideOverlay();
     }
@@ -824,11 +811,12 @@ export class Hud {
   /** Death overlay with a live respawn countdown (seconds). */
   showDeath(secondsLeft: number, killerName?: string): void {
     this.overlay.style.display = "flex";
-    const sub = killerName ? `<p>${fmt(T.hud.eliminatedByFmt, { killer: esc(killerName) })}</p>` : "";
+    const D = FIELD_UI_COPY.death;
+    const sub = killerName ? `<p>${fmt(D.killedByFmt, { killer: esc(combatantLabel(killerName)) })}</p>` : "";
     const line = secondsLeft > 0
-      ? `<p>${fmt(T.hud.respawnInFmt, { s: secondsLeft.toFixed(1) })}</p>`
-      : `<p>${T.hud.respawningNow}</p>`;
-    this.present("death", `<h1 style="color:#e05a4a">${T.hud.eliminated}</h1>${sub}${line}`);
+      ? `<p>${fmt(D.respawnInFmt, { s: secondsLeft.toFixed(1) })}</p>`
+      : `<p>${D.respawningNow}</p>`;
+    this.present("death", `<h1>${D.title}</h1>${sub}${line}`);
   }
 
   /**

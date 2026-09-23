@@ -1,3 +1,4 @@
+import { combatantLabel } from './ui/copy.js';
 import type { RoundMvp } from "../src/round-honors.js";
 
 export interface PresentedMvp extends RoundMvp { name: string; isMe: boolean }
@@ -12,7 +13,7 @@ export function createRoundHonors(mvp: PresentedMvp, dom: boolean, target: Docum
   title.className = "round-honors__title";
   title.textContent = "라운드 최우수 전투원";
   const name = target.createElement("h3");
-  name.textContent = mvp.isMe ? `나 · ${mvp.name}` : mvp.name;
+  name.textContent = mvp.isMe ? `나 · ${combatantLabel(mvp.name)}` : combatantLabel(mvp.name);
   const stats = target.createElement("dl");
   stats.className = "round-honors__stats";
   for (const [label, value] of [

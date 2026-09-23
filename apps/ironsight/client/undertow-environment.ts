@@ -302,13 +302,13 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['A / WEST REDOUBT', 'B / SLUICE SQUARE', 'C / EAST REDOUBT', 'UNDERTOW / 1917',
-    'WEST EMBANKMENT', 'EAST EMBANKMENT', 'DRY DRAIN', 'FIELD OFFICE'];
+  const labels = ['A / 서쪽 보루', 'B / 수문 광장', 'C / 동쪽 보루', '운하 교두보 / 1917',
+    '서쪽 제방', '동쪽 제방', '마른 배수로', '야전 사무소'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#303b39'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#a6b7a0' : '#d1b47d';
     ctx.fillRect(18, i * 128 + 22, 10, 84);
-    ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial'; ctx.fillText(label, 52, i * 128 + 83);
+    ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial, "Noto Sans KR", "Malgun Gothic", sans-serif'; ctx.fillText(label, 52, i * 128 + 83);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const material = new T.MeshBasicMaterial({ map: texture });

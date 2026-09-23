@@ -147,11 +147,11 @@ export function buildRelayEnvironment(scene: THREE.Scene, map: MapDef, bakeOnly 
   buildRelayServiceDetail(scene, map);
   const atlas = document.createElement("canvas"); atlas.width = 1024; atlas.height = 512;
   const ctx = atlas.getContext("2d")!;
-  const labels = ["01 / SIGNALS", "02 / WIRELESS", "03 / SUPPLIES", "FIELD POST / 07"];
+  const labels = ["01 / 통신반", "02 / 무선반", "03 / 보급소", "야전 초소 / 07"];
   labels.forEach((label, i) => {
     ctx.fillStyle = "#3c4132"; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = "#a28c61"; ctx.fillRect(0, i * 128, 14, 128);
-    ctx.fillStyle = "#d4ccb3"; ctx.font = "600 70px 'Arial', sans-serif";
+    ctx.fillStyle = "#d4ccb3"; ctx.font = "600 70px 'Arial', 'Noto Sans KR', 'Malgun Gothic', sans-serif";
     ctx.fillText(label, 42, i * 128 + 89);
   });
   const texture = new THREE.CanvasTexture(atlas); texture.colorSpace = THREE.SRGBColorSpace;
