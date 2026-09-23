@@ -22,14 +22,18 @@ const FRONT_LIGHT = {
     exposure: dusk.exposure, key: dusk.keyIntensity, keyColor: dusk.keyColor,
     sun: dusk.sunDirection,
     sky: dusk.hemisphereSky, ground: dusk.hemisphereGround, hemisphere: dusk.hemisphereIntensity,
-    ambient: dusk.ambientIntensity, ambientColor: 0x4e5f80, environment: dusk.environmentIntensity,
+    ambient: dusk.ambientIntensity, ambientColor: 0x8c9abb, environment: dusk.environmentIntensity,
     saturation: 0.85, tint: [1, 0.94, 0.85], fog: dusk.fogColor,
-    // Sky-only: bright amber band low on the horizon toward the setting sun.
-    horizonBand: { color: [1.5, 0.72, 0.26], height: 0.32, spread: 1.5, floor: 0.4 },
-    sunGlow: { color: [1.8, 0.9, 0.35], power: 24 },
+    // Reflections: less saturated than the visible sky and capped, so wet ground
+    // mirrors a dim dusk instead of glinting gold.
+    environmentSaturation: 0.5, environmentCeiling: 0.45,
+    // Sky-only: amber band low on the horizon toward the setting sun, held below the ground's brightness.
+    horizonBand: { color: [0.95, 0.46, 0.17], height: 0.3, spread: 1.5, floor: 0.35 },
+    sunGlow: { color: [1.1, 0.55, 0.22], power: 24 },
     shadow: 1,
-    // Low dusk: dark blue shade and interiors, amber where the raking key lands.
-    grade: { contrast: 1.34, saturation: 1.05, shadow: [0.7, 0.82, 1.12], highlight: [1.4, 1.02, 0.6] },
+    // Low dusk: blue shade and amber where the raking key lands, with the shade
+    // lifted into a readable mid-dark instead of crushed to black.
+    grade: { contrast: 1.06, saturation: 1, shadow: [0.9, 0.96, 1.12], highlight: [1.22, 1, 0.74], lift: 0.014 },
   },
   switchyard: {
     exposure: overcast.exposure, key: overcast.keyIntensity, keyColor: overcast.keyColor,
@@ -113,12 +117,15 @@ export function gradeSiteEnvironment(texture: T.DataTexture, site: string): void
   }
   const decode = data instanceof Uint16Array ? T.DataUtils.fromHalfFloat : (value: number) => value;
   const encode = data instanceof Uint16Array ? T.DataUtils.toHalfFloat : (value: number) => value;
+  const saturation = 'environmentSaturation' in profile ? profile.environmentSaturation : profile.saturation;
+  const ceiling = 'environmentCeiling' in profile ? profile.environmentCeiling : Infinity;
   for (let i = 0; i < data.length; i += 4) {
     const r = decode(data[i] ?? 0), g = decode(data[i + 1] ?? 0), b = decode(data[i + 2] ?? 0);
     const luma = r * .2126 + g * .7152 + b * .0722;
-    data[i] = encode((luma + (r - luma) * profile.saturation) * profile.tint[0]);
-    data[i + 1] = encode((luma + (g - luma) * profile.saturation) * profile.tint[1]);
-    data[i + 2] = encode((luma + (b - luma) * profile.saturation) * profile.tint[2]);
+    const cap = luma > ceiling ? ceiling / luma : 1;
+    data[i] = encode((luma + (r - luma) * saturation) * profile.tint[0] * cap);
+    data[i + 1] = encode((luma + (g - luma) * saturation) * profile.tint[1] * cap);
+    data[i + 2] = encode((luma + (b - luma) * saturation) * profile.tint[2] * cap);
   }
 }
 
@@ -138,7 +145,9 @@ export function installSiteGrade(renderer: T.WebGLRenderer, site: string | undef
     `vec3 CustomToneMapping( vec3 color ) {
       float luma = dot(color, vec3(.2126, .7152, .0722));
       color = max(mix(vec3(luma), color, ${grade.saturation.toFixed(4)}), 0.);
-      color *= mix(${glsl(grade.shadow)}, ${glsl(grade.highlight)}, smoothstep(.01, .22, luma));
+      color *= mix(${glsl(grade.shadow)}, ${glsl(grade.highlight)}, smoothstep(.01, .22, luma));${'lift' in grade
+        ? `
+      color += ${grade.lift.toFixed(4)} * ${glsl(grade.shadow)} * (1. - smoothstep(0., .2, luma));` : ''}
       color = .18 * pow(color / .18, vec3(${grade.contrast.toFixed(4)}));
       return ACESFilmicToneMapping(color);
     }`);

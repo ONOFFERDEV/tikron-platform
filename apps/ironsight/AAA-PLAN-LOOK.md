@@ -131,6 +131,8 @@ This stream evaluates rendering references only; gameplay/layout/UI references r
 
 - **Session 8 / world + supervisor: impact surface kinds.** Impacts are picked from `MapSurface` (`src/map/materials.ts`: mud, gravel, wood, metal, concrete). No WW1 surface reports `brick` or `sandbag`, and brick walls arrive as `concrete`. The sandbag parapets I could locate are either exterior dressing (Relay fieldworks, z < 0, never hit) or `fieldKitPlacement('sandbag')` on Undertow boxes, which `arena2.ts` classifies as wood or concrete by height. Look already renders `brick` and `sandbag` (`client/scene-impact.ts` `ImpactKind`) and maps `concrete` to brick on Relay and Undertow. Request: add `"brick"` and `"sandbag"` to `MAP_SURFACES` (supervisor-owned `src/map/materials.ts`), then classify in `src/map/arena{1,2,3}.ts` (world): masonry walls → `brick`, sandbag parapet and cover boxes → `sandbag`, corrugated sheds → `metal`. After that, look deletes the `concrete`→brick site mapping; no other change is needed.
 
+- **Session 9 / world: Undertow wet patches.** Look's reflection change (reflection saturation 0.85→0.5, luminance ceiling 0.45 in the graded dusk HDR) makes the puddles pale and cool from the aerial instead of gold. If the owner still reads them as coins, the remaining lever is the puddle material (world-owned): raise its roughness from mirror-like to about 0.35–0.45 and lower its envMapIntensity toward 0.6, so it catches the sky as a sheen rather than a hard disc. Look did not edit world files.
+
 ## Session log
 
 ### Session 1 - 2026-09-22: Air above the front
@@ -373,3 +375,28 @@ Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7 ms. 
 Gates: typecheck exit 0. vitest 201 files / 1673 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (47,375,351). inspect-map relay,practice-two exit 0 with 0 console errors. hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
 
 Open: impacts are small at combat range (unchanged particle scale); the bot-round stills catch few hits in flight at 2 s intervals. Metal's ring is thin at distance.
+
+### Session 9 - 2026-09-23: Dusk you can see in
+
+Merged `recovery/ironsight-ww1-20260912` (world trench conversion + supervisor fog `#a08a78`) first. Undertow's pinned fields (exposure, key, fill, ambient intensity, hemisphere colours, fog) are untouched; the existing contract test caught one attempt to lighten the hemisphere ground colour and I reverted it.
+- Cause of the murk was look's own round-4 grade: contrast 1.34 about 0.18 plus a 0.7 blue shade multiplier crushed everything below mid-grey. It is now contrast 1.06, shade tint `[0.9, 0.96, 1.12]`, highlights `[1.22, 1, 0.74]`, and a new shade lift of 0.014 (linear, blue-tinted, only below luma 0.2). Ambient colour `#4e5f80`→`#8c9abb`, same intensity.
+- Sky: the amber band and sun glow are kept but about 35–40% dimmer, so the horizon no longer out-shouts the ground.
+- Reflections: `gradeSiteEnvironment` takes an optional `environmentSaturation` 0.5 and `environmentCeiling` 0.45 (Undertow only), so wet ground mirrors a dim dusk.
+
+Luminance, Rec.709 luma 0–255, median/p10 of the player-height band (`luminance.json`, `measure.py`):
+
+| Camera | Before | After |
+|---|---|---|
+| undertow-home | 27.2 / 7.8 | 57.7 / 36.3 |
+| undertow-center | 12.5 / 0.1 | 42.1 / 21.6 |
+| undertow-channel-lower (trench) | 0.9 / 0.0 | 23.6 / 18.6 |
+| undertow-maintenance | 23.6 / 0.8 | 54.3 / 22.9 |
+| undertow-overview (aerial) | 24.7 / 4.1 | 52.1 / 30.0 |
+
+Enemy bots in live DOM rounds (Weber contrast of the chest core against a surrounding ring): before 12.1 m 0.02 (blue soldier on a black wall, effectively invisible), 31.3 m 0.52; after 16.9 m 1.02, 26.8 m 0.30 (partly behind cover). The bots stand in different places each run, so these are samples, not a controlled pair. No sampled bot stood in the trench; the trench readability evidence is the channel-lower still.
+
+Evidence (`.inspect/look-r6/`): `undertow-before-after.png` (four player-height cameras plus the aerial), `bots-before-after.png`, `before-*`/`after-*` stills and bot frames, and the harness files `capture.sh`, `bot.mjs`, `measure.py`.
+
+Gates: typecheck exit 0. vitest 203 files / 1679 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (48,805,493 public bytes, merge included). inspect-map relay,practice-two exit 0 with 0 console errors, so Undertow's pinned rig still matches its JSON. hitch-probe `--assert` FAILED on sustained frame pacing only, with 0 recompiles, 0 frames >150 ms, 2 deaths and 0 errors. Recorded as advisory per the shared-machine rule, not rerun.
+
+Open: a controlled enemy-contrast pair needs a fixed-position actor fixture. The inspector's review-enemy path does not reach readiness on this tree (see Session 6).
