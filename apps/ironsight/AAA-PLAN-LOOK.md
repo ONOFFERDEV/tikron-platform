@@ -278,3 +278,24 @@ Evidence: `qa.json`, `hitch-{1..5}-{tdm,ffa}.json`, `hitch-summary.json`, `first
 #### Session cleanup
 
 Identity-checked owned preview PID 40100 and its six descendants, plus fixture-server PID 44228, were stopped. Port 8803 has no listener; own Aside tabs/REPLs closed and the shared application remains available to other streams. Receipt: `.inspect/look-session3/cleanup.json`. Final bundle hash is unchanged; no commit, push or deployment. The session ends with strict acceptance blocked as explicitly recorded above.
+
+### Session 4 - 2026-09-23: The rifle comes back
+
+Task: the first-person weapon rendered as the procedural blue/purple box (owner playtest; kit request "Supervisor/look: normal FP loader").
+
+Root cause (verified): `SceneRig.setWeaponVisual` refused every loaded model unless `resolveWeaponContractRoot(obj, key)` found the WW1 contract root and `WeaponPresentation.sockets` resolved. The normal `weaponSource` selects legacy `field-carbine` / `wep_*` nodes that predate the contract, so all five slots stayed on `buildWeaponMesh` and `inspectViewmodel` never reported ready. Reproduced on the unchanged build: `.inspect/look-r1/before-wall-{1..5}-{hip,ads}-before.png` show the box for every slot.
+
+Change:
+- New `client/scene-weapon.ts` `viewmodelWeaponPresentation(obj, key, candidatePreview)`: returns the contract presentation when its sockets resolve; otherwise `undefined` (reject) for `?weapon-candidates=1` previews, `null` (load, no presentation) for legacy nodes. The existing source-muzzle / eject fallback branches in `setWeaponVisual` now run again for legacy nodes.
+- `client/scene.ts`: the single call site uses it (net -1 line). The one FP load path, so gameplay, the inspector and preparation all route through it.
+- `test/scene-weapon.test.ts`: legacy node accepted with `null`; candidate without the contract (absent or partial) refused; full contract kept in both modes. Fails on the old unconditional rejection (1 failed / 1 passed verified by temporarily restoring it).
+
+Evidence (`.inspect/look-r1/`): `before-*` vs `after-wall-{1..5}-{hip,ads}-{before,fired}.png` and `after-wall-*-reload.png` (viewmodel-play, real shots); `after-weapon-{ar,smg,shotgun,sniper,pistol}-{hip,ads}.png` (all ten inspector shots completed; they hung before); `contact-sheet.png`, `inspector-sheet.png`; `after-report.json`, zero console errors. viewmodel-play asserts source-muzzle error <=1e-6, tracer endpoint within 1px of the crosshair and casing separated from the muzzle for all ten hip/ADS shots: pass; flash and brass visibly leave the real muzzle/ejection side in the `-fired` stills.
+
+Deltas: client.js +234 bytes (4,103,792 -> 4,104,026); art assets 0 bytes; lights unchanged (no new lights, passes or textures). Relay inspector 37 calls / 17 textures. viewmodel-play scene: 43 -> 44 calls, 28 -> 29 textures, 32 -> 34 programs (real weapon materials replacing the box).
+
+Gates: typecheck pass; vitest 201 files / 1668 tests pass (7 files / 9 tests skipped, pre-existing), node --test 92/92; build:client pass; audit:assets exit 0 (publicBytes 47,360,772); inspect-map relay,practice-two exit 0, zero console errors (`.inspect/look-r1-report.json`); hitch-probe `--assert` PASS, 2 deaths, 0 recompiles, 0 frames >150ms (`.inspect/look-r1-hitch.json`), run on RTX 5070, not iGPU proof.
+
+Open: Task 2 (gap item 1, strict first-use shader wait) not started this session. The ADS legacy rifle still uses the look-era `rifleSight` reflex dot on `field-carbine`; whether WW1 wants iron sights only is a kit/owner call. The WW1 candidate path itself was only unit-tested here, not visually previewed.
+
+Cleanup: own wrangler/workerd/esbuild processes stopped; port 8803 has no listener. No commit, push or deploy.
