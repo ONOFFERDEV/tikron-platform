@@ -1,4 +1,6 @@
 import * as T from 'three';
+import { undertowBakedFinish } from './undertow-palette.js';
+import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns.js';
 
 export const UNDERTOW_PHYSICAL_SURFACES = {
   mud: { roughness: 0.95, metalness: 0 },
@@ -40,7 +42,12 @@ export function updateUndertowGroundTexture(texture: T.DataTexture, canvas: Grou
 /** Fixed, opaque PBR finish: wet areas darken and catch the existing environment.
  * No planar reflections, extra pass/light, animation or runtime resource churn. */
 export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'ground' | 'concrete' | 'apron' | 'coated'): void {
-  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel' : kind === 'concrete' ? 'concrete' : 'metal';
+  const finish = undertowBakedFinish(material.name);
+  const timber = kind === 'coated' && (finish === 'olive' || finish === 'ochre');
+  const surface = kind === 'ground' ? 'mud' : kind === 'apron' ? 'gravel'
+    : kind === 'concrete' || finish === 'pale' ? 'concrete' : timber ? 'wood' : 'metal';
+  const pattern = kind === 'concrete' ? RELAY_FIELD_PATTERNS.brick.replaceAll('vRelayWall', 'vUndertowWall.y')
+    : timber ? RELAY_FIELD_PATTERNS.wood : kind === 'ground' || kind === 'apron' ? RELAY_FIELD_PATTERNS.earth : '';
   material.setValues(UNDERTOW_PHYSICAL_SURFACES[surface]);
   material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
@@ -62,6 +69,7 @@ export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'g
     shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = roughness;
       float undertowWet = 0.0;
+      float fieldRelief = 0.0;
       #ifdef USE_ROUGHNESSMAP
       float grain = texture2D(roughnessMap, vRoughnessMapUv).r;
       float aggregate = clamp((grain - 0.64) / 0.36, 0.0, 1.0);
@@ -85,43 +93,25 @@ export function finishUndertowSurface(material: T.MeshStandardMaterial, kind: 'g
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.48, 0.54, 0.40), damp * 0.7);
       undertowWet = damp * 0.6;
       roughnessFactor = mix(roughnessFactor, 0.46, undertowWet);
-      ${kind === 'coated' ? `
+      ${surface === 'metal' ? `
       float chip = smoothstep(0.59, 0.74, aggregate) * smoothstep(0.49, 0.64, broad);
       chip *= 1.0 - smoothstep(0.02, 0.07, max(footprint.x, footprint.y));
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.15, 0.13, 0.095), chip * 0.48);
       roughnessFactor = mix(roughnessFactor, 0.70, chip);
       ` : ''}
       ` : ''}
-      ${kind === 'apron' || kind === 'coated' ? '' : `
-      vec2 spacing = vec2(${kind === 'ground' ? '6.0, 5.0' : '2.4, 1.2'});
-      vec2 cell = floor(metres / spacing), local = mod(metres, spacing);
-      vec2 seam = 1.0 - smoothstep(vec2(0.014), vec2(0.014) + footprint, min(local, spacing - local));
-      seam *= min(vec2(1.0), vec2(0.028) / footprint);
-      float joint = max(seam.x, seam.y);
-      float pour = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-      diffuseColor.rgb *= mix(0.93, 1.04, pour) * mix(1.0, 0.70, joint);
+      { ${pattern} }
       ${kind === 'ground' ? `
       undertowWet = smoothstep(0.24, 0.80, undertowGround.g + (aggregate - 0.5) * 0.10);
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.48, 0.53, 0.47), undertowWet);
       roughnessFactor = mix(roughnessFactor, 0.24, undertowWet);
-      ` : `
-      float tie = 1.0 - smoothstep(0.023, 0.023 + max(footprint.x, footprint.y), length(local - spacing * 0.5));
-      tie *= min(1.0, 0.046 / max(footprint.x, footprint.y));
-      diffuseColor.rgb *= 1.0 - 0.30 * tie * vertical;
-      float belowTie = spacing.y * 0.5 - local.y;
-      float rust = 1.0 - smoothstep(0.027, 0.027 + footprint.x, abs(local.x - spacing.x * 0.5));
-      rust *= smoothstep(0.0, 0.03, belowTie) * (1.0 - smoothstep(0.08 + pour * 0.1, 0.25 + pour * 0.3, belowTie));
-      rust *= min(1.0, 0.054 / footprint.x) * vertical;
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(0.56, 0.37, 0.23), rust * 0.55);
-      `}
-      roughnessFactor = mix(roughnessFactor, 0.97, joint);
-      `}
+      ` : ''}
       #endif
     `);
     // The existing normal sample stays; flooded aggregate is optically smoother.
     shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
-      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * mix(1.0, 0.35, undertowWet);'));
+      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * mix(1.0, 0.35, undertowWet);') + (pattern ? RELAY_FIELD_RELIEF : ''));
   };
-  material.customProgramCacheKey = () => `undertow-surface-v2-${kind}`;
+  material.customProgramCacheKey = () => `undertow-field-v1-${kind}-${surface}`;
   material.needsUpdate = true;
 }

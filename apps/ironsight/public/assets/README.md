@@ -1757,3 +1757,80 @@ No collider, doorway, floor, ramp or playable cover is changed. The matching
 encoded with Pillow WEBP quality 82/method 6 at the existing 1920 x 1080 size;
 153,486 bytes (was 164,588). Export receipt: `session2-vista-export.json`.
 <!-- /world -->
+
+<!-- # world -->
+### World Session 3: current collision shell and period works (2026-09-22)
+
+`maps/relay-architecture.glb`, `maps/undertow-architecture.glb` and their existing
+`*-ground-ao.png` files are original procedural geometry/AO rebuilt from the
+current world source. No purchased or generated candidate input is used. Both
+map collider lists remain unchanged. This corrects inherited stale bakes that
+still contained retired tower/office geometry; exact oriented-triangle and
+normal comparison is recorded in `.inspect/aaa-loop-world/session3-geometry-audit.json`.
+
+Relay adds brick works, boarded doors, chimney flues and timber repairs from
+`client/relay-site.ts` and `client/relay-environment.ts`. Its architecture is
+2,497,284 bytes; Undertow's corrected architecture is 7,805,544 bytes. Ground AO
+retains 2048 x 1365 pixels: Relay 1,132,699 bytes, Undertow 1,154,038 bytes. Each
+architecture GLB retains one 1024-square AO image and the existing material slots.
+The optional old vertex-subdivision pass was rejected at its unchanged 45,000
+triangle cap; current shader brick/timber relief, runoff and dust remain active.
+
+Rebuild each map from the app directory (Git Bash on Windows):
+
+```bash
+for map in relay undertow; do
+  node tools/dump-architecture.mjs ".inspect/session3-$map-architecture.json" "$map"
+  node tools/dump-maps.mjs ".inspect/session3-$map-map.json" "$map"
+  '/c/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-architecture.py -- --input ".inspect/session3-$map-architecture.json"
+  '/c/Program Files/Blender Foundation/Blender 4.5/blender.exe' --factory-startup --background --python tools/bake-ground-ao.py -- --maps ".inspect/session3-$map-map.json" --architecture ".inspect/session3-$map-architecture.json" --size 2048
+  uv run --no-project scripts/audit-architecture.py --input ".inspect/session3-$map-architecture.json" --report ".inspect/session3-$map-audit.json"
+done
+```
+
+Both bake tools also accept `--output-dir` for staging. The audit's `--asset-dir`
+selects that staged directory without replacing served assets. Menu vistas are
+captured from the production renderer by `scripts/inspect-map.mjs --url
+http://localhost:8801 --shots vista,undertow-vista --write-vista`; their source
+captures and byte receipts are retained with the Session 3 evidence. No paid
+asset generation or additional texture asset is involved.
+<!-- /world -->
+
+<!-- # world -->
+
+### Underpass Trench Session 4: canal settlement skyline
+
+The original `maps/undertow-architecture.glb` is rebuilt from the same
+`undertowSkylineParts` geometry used by the runtime fallback. Shelled canal houses,
+an open belfry, a timber hoist and unequal brick flues replace exterior process
+vessels. Existing wet masonry/timber shaders reuse resident detail maps. No
+purchased source, paid generation, additional texture file, light or render pass.
+The gameplay shell and existing 2048 x 1365 ground AO remain unchanged.
+
+Reproduce with the commands in `docs/UNDERTOW-WW1-SURFACES.md`. Architecture AO
+retains its 1024-pixel resolution and 64 samples. Shipped geometry hash:
+`6bfbf6063e90b6ed1e77a78921f9db47b881eafc5bcecc2f729d1a0c5869ac8b`.
+The fresh production-path exact geometry audit is
+`.inspect/aaa-loop-world/session4-resumed-geometry-audit.json`.
+
+<!-- /world -->
+
+<!-- # world -->
+
+Session 4 also refreshes `undertow-vista.webp` from the production renderer at
+1920 x 1080, WebP quality 88. Reproduce with `node scripts/inspect-map.mjs --url
+http://localhost:8801 --shots undertow-vista --prefix world-s4-vista --write-vista`.
+The report is `.inspect/world-s4-vista-report.json`; it uses the same current
+geometry/materials as the final fixed-camera evidence.
+
+<!-- /world -->
+
+<!-- # world -->
+World Session 5 (2026-09-23): Undertow collision-backed timber revetments and
+duckboards replace turbine faces and factory floor stripes. Original procedural
+geometry, unchanged seven material slots and 1024-square AO image. Rebuild with
+`node tools/dump-architecture.mjs .inspect/architecture-undertow.json undertow`, then
+Blender 4.5 `--background --python tools/bake-architecture.py -- --input .inspect/architecture-undertow.json`.
+Current geometry audit: `.inspect/aaa-loop-world/session5-final-geometry-audit.json`;
+64,608 triangles, 4,881,612 bytes, no purchased inputs or new texture asset.
+<!-- /world -->

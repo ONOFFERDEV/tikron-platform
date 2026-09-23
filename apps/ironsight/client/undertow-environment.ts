@@ -2,6 +2,7 @@ import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
+import { undertowSkylineParts } from './undertow-skyline.js';
 import { UNDERTOW_CRATES } from '../src/map/undertow-structures.js';
 import { UNDERTOW_SLUICE_PARTS, UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from '../src/map/undertow-yard.js';
 import { createPropLibrary, PROP_LIBRARY } from './prop-library.js';
@@ -10,9 +11,8 @@ import { undertowCanalSurface, undertowFieldKitPlacements, undertowSiteBoundary,
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
-/** Original reclamation kit. The complete box envelope remains visibly solid;
- * turbine faces/windows are flush cladding, never holes or new playable cover.
- * Pipes, basin and skyline equipment live outside the movement rectangle. */
+/** Original canal redoubt kit. Timber revetments preserve the solid collision
+ * envelope; thin boards never create openings or additional playable cover. */
 export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const { width, depth } = map.bounds;
   const mats: T.Material[] = ['concrete', 'housing', 'steel', 'pale', 'olive', 'ochre']
@@ -157,25 +157,20 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
           add(accent, x, 0.85, face + side * 0.003, 0.8, 1.45, 0.01);
           add(2, x, 0.85, face + side * 0.01, 0.64, 1.30, 0.005);
         } else {
-          // Flush turbine end plates: concentric rings with a six-spoke rotor.
-          const diameter = Math.min(1.7, h - 0.5, w - 0.04);
-          const count = Math.max(1, Math.floor(w / 2.2));
-          for (let i = 0; i < count; i++) {
-            const px = count === 1 ? x : b.min.x + diameter / 2 + i * (w - diameter) / (count - 1);
-            add(2, px, h * 0.49, face, diameter, 0.015, diameter, true, Math.PI / 2);
-            add(4, px, h * 0.49, face + side * 0.009, diameter * 0.80, 0.01, diameter * 0.80, true, Math.PI / 2);
-            for (let blade = 0; blade < 6; blade++) {
-              const angle = blade * Math.PI / 3;
-              add(2, px + Math.sin(angle) * diameter * 0.23, h * 0.49 + Math.cos(angle) * diameter * 0.23,
-                face + side * 0.010, 0.11, diameter * 0.42, 0.008, false, 0, -angle);
-            }
-            add(3, px, h * 0.49, face + side * 0.008, 0.25, 0.012, 0.25, true, Math.PI / 2);
+          // Timber revetment lies entirely against the solid redoubt envelope.
+          const boards = Math.max(1, Math.ceil(w / .36));
+          const boardWidth = w / boards;
+          for (let i = 0; i < boards; i++) {
+            const px = b.min.x + (i + .5) * boardWidth;
+            add(i % 4 === 0 ? 4 : 5, px, h / 2, face, boardWidth - .018, h - .24, .012);
           }
+          for (const height of [.27, .73])
+            add(4, x, h * height, face + side * .008, w - .04, .13, .008);
         }
         add(accent, x, h - 0.55, face, w - 0.25, 0.5, 0.01);
       }
-      for (const side of [-1, 1]) for (let k = 0; k < 6; k++)
-        add(2, x + side * (w / 2 + 0.007), 0.7 + k * 0.20, z, 0.012, 0.07, d * 0.65);
+      for (const side of [-1, 1]) for (const height of [.27, .73])
+        add(4, x + side * (w / 2 + .006), h * height, z, .012, .13, d - .04);
     }
   }
   // Stair nosings and door headers stay millimetres from authoritative faces.
@@ -197,92 +192,19 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   // audited outside the shared movement rectangle, including yawed roofs.
   for (const p of undertowSiteBoundary(width, depth))
     add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, 0, p.yaw);
-  // Source-layout context anchors; outside offsets stay outside expanded bounds.
-  const context: typeof add = (m, x, y, z, w, h, d, round, rx, rz, ry) => {
-    const px = x < 0 ? x : x > 60 ? width + x - 60 : x / 60 * width;
-    const pz = z < 0 ? z : z > 40 ? depth + z - 40 : z / 40 * depth;
-    add(m, px, y, pz, w, h, d, round, rx, rz, ry);
-  };
-  // Basin and paired clarifiers: skyline hero stays completely beyond z=0.
-  context(2, 30, -0.01, -13, width * .9, 0.02, 20);
-  context(4, 30, 0.005, -13, width * .85, 0.01, 17);
-  for (let x = 7; x < 57; x += 2.4) {
-    context(1, x, 0.015, -5.6, 1.1, 0.005, 0.025);
-    context(1, x + 0.5, 0.015, -20, 0.7, 0.005, 0.018);
-  }
-  for (const x of [17, 43]) {
-    context(0, x, 4, -13, 11, 8, 11, true);
-    context(2, x, 7.55, -13, 11.15, 0.25, 11.15, true);
-    context(4, x, 8.1, -13, 10.4, 0.6, 10.4, true);
-    context(3, x, 8.48, -13, 8.8, 0.15, 8.8, true);
-    for (const level of [1.1, 5.8]) context(1, x, level, -13, 11.08, 0.16, 11.08, true);
-    for (let i = 0; i < 12; i++) {
-      const angle = i * Math.PI / 6;
-      context(1, x + Math.sin(angle) * 5.48, 4, -13 + Math.cos(angle) * 5.48, 0.13, 6.4, 0.12, false, 0, 0, angle);
-    }
-    context(5, x, 10.2, -13, 0.7, 3.4, 0.7);
-    context(2, x, 11.75, -13, 12, 0.35, 0.65);
-    for (const side of [-1, 1]) {
-      context(1, x + side * 4, 2.8, -4, 1, 5.6, 1, true);
-      context(1, x + side * 4, 5.55, -7, 1, 6, 1, true, Math.PI / 2);
-    }
-  }
-  // A landmark control stack and steel service bridge; no route-crossing pipes.
-  context(1, 30, 12, -18, 5, 24, 5);
-  context(2, 30, 23, -18, 8, 2, 7);
-  context(3, 30, 24.15, -18, 8.2, 0.3, 7.2);
-  context(6, 30, 23.2, -14.48, 6.7, 0.35, 0.03);
-  // Forked intake crown: one north-axis silhouette above the repeated low kit.
-  // Entirely beyond the boundary, including the widest crown; no new cover.
-  for (const dx of [-4.5, 4.5]) {
-    add(3, width / 2 + dx, 27, -18, 1.2, 14, 2.4);
-    add(4, width / 2 + dx, 32.8, -18, 1.24, 1.4, 2.44);
-  }
-  add(2, width / 2, 29, -18, 11, 0.7, 3);
-  for (const dx of [-2.4, -1.2, 0, 1.2, 2.4])
-    add(1, width / 2 + dx, 26.5, -18, 0.25, 4.4, 2);
-  for (const level of [4, 7.2, 10.4]) {
-    context(2, 30, level, -15.49, 3.8, 1.8, 0.025);
-    for (let i = -2; i <= 2; i++) context(1, 30 + i * 0.65, level, -15.47, 0.15, 1.5, 0.015);
-  }
-  context(5, 30, 6.4, -5, width * .65, 0.5, 1.2);
-  for (let x = 12; x < 50; x += 3) context(2, x, 5.95, -5, 0.12, 0.7, 1);
-  // West = upright pale filter vessels; east = low amber service gantry.
-  // Shape carries orientation even without colour. Share the baked kit's six
-  // existing materials and atlas, and keep all extents outside the play volume.
-  for (const [z, height] of [[depth * .37, 21], [depth * .49, 26], [depth * .61, 21]] as const) {
-    const x = -8;
-    add(3, x, height / 2, z, 6, height, 6, true);
-    for (const y of [2, height - 4, height - .4])
-      add(4, x, y, z, 6.12, .65, 6.12, true);
-    add(2, x, height + .2, z, 5.5, .5, 5.5, true);
-    add(1, x + 3.12, height / 2, z, .24, height, .8);
-  }
-  for (const z of [depth * .34, depth * .66]) {
-    add(5, width + 5, 6, z, 1.2, 12, 1.2);
-    add(2, width + 5, 1.5, z, 1.3, 3, 1.3);
-  }
-  add(5, width + 5, 12, depth / 2, 1.6, 2, depth * .34);
-  for (let z = depth * .35; z < depth * .66; z += 2)
-    add(2, width + 4.17, 12, z, .04, 1.6, .35, false, Math.PI / 5);
-  // Southern pump-service flues answer the north crown with unequal round stacks.
-  for (const [x, height] of [[width * .43, 18], [width * .49, 14]] as const) {
-    add(2, x, height / 2, depth + 6, 2.4, height, 2.4, true);
-    add(5, x, height - 2, depth + 6, 2.44, 3, 2.44, true);
-    add(3, x, height, depth + 6, 3, .4, 3, true);
-  }
-  // Floor-only circulation marks; caps retain the authority's positions.
+  for (const p of undertowSkylineParts(width, depth))
+    add(p.material, p.x, p.y, p.z, p.w, p.h, p.d, false, 0, p.roll, p.yaw);
+  // Objective outlines remain as readable gameplay markers.
   for (const cap of Object.values(map.caps)) for (const side of [-1, 1]) {
     add(3, cap.x + side * 2.7, 0.004, cap.z, 0.08, 0.008, 5.4);
     add(3, cap.x, 0.004, cap.z + side * 2.7, 5.4, 0.008, 0.08);
   }
-  // Excavation removed the old yard under some circulation marks. Clip
-  // each rectangle to real horizontal surfaces at y=0, including bridges;
-  // neither the lower floor nor a descending ramp supports floating paint.
+  // Clip duckboards to real horizontal supports at y=0, including bridges;
+  // neither the lower floor nor a descending ramp supports floating timber.
   const paintSupports = map.terrain ? map.boxes.filter(b => b.max.y === 0) : [
     { min: { x: 0, z: 0 }, max: { x: width, z: depth } },
   ];
-  const groundPaint = (m: number, x: number, z: number, w: number, d: number) => {
+  const groundBoard = (m: number, x: number, z: number, w: number, d: number) => {
     for (const b of paintSupports) {
       const x0 = Math.max(x - w / 2, b.min.x), x1 = Math.min(x + w / 2, b.max.x);
       const z0 = Math.max(z - d / 2, b.min.z), z1 = Math.min(z + d / 2, b.max.z);
@@ -290,16 +212,18 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     }
   };
   for (const z of [depth * .27, depth * .70]) for (const x of [width * .25, width / 2, width * .75]) {
-    groundPaint(5, x, z, 7, .08);
-    for (let i = -2; i <= 2; i++) groundPaint(3, x + i * .5, z + .5, .2, .65);
+    for (let i = -9; i <= 9; i++) groundBoard(i % 4 === 0 ? 4 : 5, x + i * .36, z, .32, 1.15);
+    for (const side of [-1, 1]) groundBoard(4, x, z + side * .42, 7, .07);
   }
-  // Service-bay threshold strips on the intact yard plane.
+  // Timber thresholds reuse the same clipped, supported ground plane.
   for (const east of [false, true]) for (const [xx, zz] of [[34, 82.6], [35, 75.5]] as const) {
     const x = east ? width - xx : xx;
-    groundPaint(5, x, zz, 3.5, .12);
-    for (const dx of [-1.2, -.6, 0, .6, 1.2]) groundPaint(3, x + dx, zz + .35, .12, .4);
+    for (let i = -4; i <= 4; i++) groundBoard(i % 3 === 0 ? 4 : 5, x + i * .38, zz, .34, .95);
   }
-  for (const [key, transforms] of batches) {
+  // Keep the bake's material identities stable when a geometry batch disappears.
+  const bakeOrder = [0, 2, 3, 4, 5, 1, 6];
+  const orderedBatches = [...batches].sort(([a], [b]) => bakeOrder.indexOf(Number(a[0])) - bakeOrder.indexOf(Number(b[0])));
+  for (const [key, transforms] of orderedBatches) {
     const [material, shape] = key.split('-');
     const mesh = new T.InstancedMesh(shape === 'c' ? cylinder : unit, mats[Number(material)]!, transforms.length);
     transforms.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
