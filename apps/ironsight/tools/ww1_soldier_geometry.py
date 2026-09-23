@@ -5,6 +5,8 @@ import math
 import bmesh
 import bpy
 from mathutils import Vector
+from ww1_soldier_headgear import Surface, head_surface, helmet_surface as fitted_helmet_surface
+from ww1_soldier_body import ClothSurface, boot_surface, limb_surface, tunic_surface
 
 
 def primitive(name: str, location: tuple[float, float, float], scale: tuple[float, float, float], mat,
@@ -34,22 +36,9 @@ def primitive(name: str, location: tuple[float, float, float], scale: tuple[floa
     return obj
 
 
-def helmet_surface(name: str, height: float, depth_scale: float,
-                   profile: tuple[tuple[float, float], ...], mat):
-    segments = 32
-    vertices = [(0.0, 0.0, height + profile[0][1])]
-    for radius, vertical in profile[1:]:
-        vertices.extend((radius * math.cos(step * math.tau / segments),
-                         radius * math.sin(step * math.tau / segments) * depth_scale,
-                         height + vertical) for step in range(segments))
-    faces = [(0, 1 + step, 1 + (step + 1) % segments) for step in range(segments)]
-    for ring in range(len(profile) - 2):
-        start = 1 + ring * segments
-        next_start = start + segments
-        faces.extend((start + step, next_start + step, next_start + (step + 1) % segments,
-                      start + (step + 1) % segments) for step in range(segments))
+def authored_surface(name: str, surface: Surface, mat: bpy.types.Material) -> bpy.types.Object:
     mesh = bpy.data.meshes.new(f"{name}-mesh")
-    mesh.from_pydata(vertices, [], faces)
+    mesh.from_pydata([(x, -z, y) for x, y, z in surface.vertices], [], surface.faces)
     mesh.materials.append(mat)
     mesh.update()
     obj = bpy.data.objects.new(name, mesh)
@@ -76,9 +65,7 @@ def khaki_kit(mats: dict[str, object]) -> list[object]:
         primitive("pack-strap-r", (0.08, 1.14, -0.237), (0.01, 0.125, 0.007), mats["leather"]),
         primitive("blanket-roll", (0, 0.945, -0.18), (0.15, 0.045, 0.045), mats["blanket"], "cylinder", (0, math.pi / 2, 0)),
         primitive("canteen", (0.225, 0.94, -0.01), (0.065, 0.078, 0.03), mats["canvas"], "cylinder", (math.pi / 2, 0, 0)),
-        helmet_surface("khaki-brodie-helmet", 1.696, 0.80,
-                       ((0, 0.042), (0.04, 0.04), (0.08, 0.032), (0.108, 0.017),
-                        (0.12, 0.005), (0.154, 0), (0.154, -0.004), (0.108, -0.018)), mats["steel"]),
+        authored_surface("khaki-brodie-helmet", fitted_helmet_surface("khaki"), mats["steel"]),
     ]
     for index, x in enumerate((-0.155, -0.052, 0.052, 0.155)):
         gear.extend(pouch(f"khaki-ammo-{index}", x, 1.005, mats))
@@ -94,10 +81,7 @@ def fieldgrey_kit(mats: dict[str, object]) -> list[object]:
         primitive("field-pack-flap", (-0.045, 1.135, -0.235), (0.123, 0.045, 0.007), mats["blanket"]),
         primitive("shoulder-roll", (0.16, 1.15, -0.175), (0.045, 0.18, 0.045), mats["blanket"], "cylinder"),
         primitive("canteen", (-0.225, 0.94, -0.01), (0.065, 0.078, 0.03), mats["canvas"], "cylinder", (math.pi / 2, 0, 0)),
-        helmet_surface("fieldgrey-deep-helmet", 1.696, 0.88,
-                       ((0, 0.062), (0.035, 0.06), (0.075, 0.052), (0.105, 0.035),
-                        (0.119, 0.012), (0.127, 0), (0.133, -0.02), (0.12, -0.043),
-                        (0.09, -0.046)), mats["steel"]),
+        authored_surface("fieldgrey-deep-helmet", fitted_helmet_surface("fieldgrey"), mats["steel"]),
         primitive("coat-tail-l", (-0.11, 0.94, -0.005), (0.115, 0.22, 0.095), mats["wool"], rotation=(0, -0.05, 0)),
         primitive("coat-tail-r", (0.11, 0.94, -0.005), (0.115, 0.22, 0.095), mats["wool"], rotation=(0, 0.05, 0)),
         primitive("collar-l", (-0.055, 1.475, 0.125), (0.06, 0.025, 0.016), mats["collar"], rotation=(0, -0.42, 0)),
@@ -162,26 +146,43 @@ def fingertip(rig, joint: str, mat, radius: float = .022):
 
 def uniform_body_geometry(rig, mats: dict[str, object]) -> list[object]:
     wool = mats["wool"]
+    def cloth(name: str, surface: ClothSurface, mat=wool):
+        obj = authored_surface(name, surface.surface, mat)
+        for index, weights in enumerate(surface.weights):
+            for joint, weight in weights:
+                group = obj.vertex_groups.get(joint) or obj.vertex_groups.new(name=joint)
+                group.add([index], weight, "REPLACE")
+        for face in obj.data.polygons:
+            face.use_smooth = True
+        return obj
+
+    spine = tuple((joint, rig.data.bones[joint].head_local.z) for joint in
+                  ("Pelvis", "spine_01", "spine_02", "spine_03", "neck_01"))
     parts = [
-        weighted(primitive("tunic-skirt", (0, 1.02, 0), (.19, .20, .12), wool), "Pelvis"),
-        weighted(primitive("tunic-chest", (0, 1.30, 0), (.205, .16, .125), wool), "spine_02"),
-        weighted(primitive("tunic-shoulders", (0, 1.46, 0), (.23, .08, .12), wool), "spine_03"),
+        cloth("uniform-tunic", tunic_surface(spine)),
         weighted(primitive("uniform-neck", (0, 1.55, 0), (.065, .055, .06), mats["collar"], "cylinder"), "neck_01"),
-        weighted(primitive("uniform-head", (0, 1.66, 0), (.105, .13, .10), wool, "sphere"), "head"),
+        weighted(authored_surface("uniform-head", head_surface(), wool), "head"),
     ]
-    for joint, end_joint, radius in (("UpperArm_L", "lowerarm_l", .075),
-                                     ("lowerarm_l", "Hand_L", .065),
-                                     ("UpperArm_R", "lowerarm_r", .075),
-                                     ("lowerarm_r", "Hand_R", .065),
-                                     ("Thigh_L", "calf_l", .10), ("calf_l", "Foot_L", .082),
-                                     ("Thigh_R", "calf_r", .10), ("calf_r", "Foot_R", .082),
-                                     ("Hand_L", "thumb_01_l", .016),
+    for side in ("L", "R"):
+        for kind, joints, radii in (("sleeve", (f"UpperArm_{side}", f"lowerarm_{side.lower()}", f"Hand_{side}"), (.105, .070, .036)),
+                                   ("trouser", (f"Thigh_{side}", f"calf_{side.lower()}", f"Foot_{side}"), (.102, .074, .047))):
+            points = tuple((rig.data.bones[joint].head_local.x, rig.data.bones[joint].head_local.z,
+                            -rig.data.bones[joint].head_local.y) for joint in joints)
+            root = None
+            if kind == "sleeve":
+                clavicle_name = f"clavicle_{side.lower()}"
+                clavicle = rig.data.bones[clavicle_name].head_local
+                root = ((clavicle.x, clavicle.z, -clavicle.y), clavicle_name)
+            parts.append(cloth(f"uniform-{kind}-{side}", limb_surface(points, joints[:2], radii, root)))
+        foot = rig.data.bones[f"Foot_{side}"].head_local
+        parts.append(cloth(f"uniform-boot-{side}", boot_surface((foot.x, foot.z, -foot.y),
+                           f"Foot_{side}"), mats["leather"]))
+    for joint, end_joint, radius in (("Hand_L", "thumb_01_l", .016),
                                      ("Hand_L", "indexFinger_01_l", .018),
                                      ("Hand_L", "finger_01_l", .025),
                                      ("Hand_R", "thumb_01_r", .016),
                                      ("Hand_R", "indexFinger_01_r", .018),
-                                     ("Hand_R", "finger_01_r", .025),
-                                     ("Foot_L", "ball_l", .09), ("Foot_R", "ball_r", .09)):
+                                     ("Hand_R", "finger_01_r", .025)):
         parts.append(bone_segment(rig, joint, end_joint, radius, wool if "Hand" not in joint and "Foot" not in joint else mats["leather"]))
     for side in ("l", "r"):
         hand = f"Hand_{side.upper()}"

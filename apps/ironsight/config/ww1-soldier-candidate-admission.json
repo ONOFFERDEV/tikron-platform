@@ -20,7 +20,31 @@
     "sha256": "5dced0ed9b3ee898c9609bca372a60f869ca998ffec53f3ecae20b50699bec66"
   },
   "assets": [
-    { "key": "soldier-khaki", "glb": "assets/ww1/characters/soldier-khaki.glb", "glbSha256": "61255ca272403f54a4d81153c1ac5a4d0675c6df9f2e76aebfbd3dd58c71acd8", "meta": "assets/ww1/characters/soldier-khaki.meta.json", "metaSha256": "3e1908ee5bd7f3c2dfbf46ba4a2b4f0a3961ff070de3f594a8106c3a290237b4" },
-    { "key": "soldier-fieldgrey", "glb": "assets/ww1/characters/soldier-fieldgrey.glb", "glbSha256": "96c123b8d81da64dc2c43e41c28b86105d0f49494ba84146485d1ee8aaf11182", "meta": "assets/ww1/characters/soldier-fieldgrey.meta.json", "metaSha256": "da1128695875b140b43538a33c96dc817fc3c8b3a8d0ef1060fc1f68a749138d" }
-  ]
+    {
+      "key": "soldier-khaki",
+      "glb": "assets/ww1/characters/soldier-khaki.glb",
+      "glbSha256": "61255ca272403f54a4d81153c1ac5a4d0675c6df9f2e76aebfbd3dd58c71acd8",
+      "meta": "assets/ww1/characters/soldier-khaki.meta.json",
+      "metaSha256": "3e1908ee5bd7f3c2dfbf46ba4a2b4f0a3961ff070de3f594a8106c3a290237b4",
+      "metaCanonicalLfSha256": "91af1ad3852afae36c521597a7269fe8208c53986f2b8f6095975f143155ef27"
+    },
+    {
+      "key": "soldier-fieldgrey",
+      "glb": "assets/ww1/characters/soldier-fieldgrey.glb",
+      "glbSha256": "96c123b8d81da64dc2c43e41c28b86105d0f49494ba84146485d1ee8aaf11182",
+      "meta": "assets/ww1/characters/soldier-fieldgrey.meta.json",
+      "metaSha256": "da1128695875b140b43538a33c96dc817fc3c8b3a8d0ef1060fc1f68a749138d",
+      "metaCanonicalLfSha256": "3a5fdb3a28fc2f636adab1fc14fa23a00075b7eb3942d3133802305c84564394"
+    }
+  ],
+  "textHashPolicy": "sha256-crlf-to-lf-v1",
+  "textHashMigration": {
+    "scope": "checkout-line-ending-normalization-only",
+    "sourceCommit": "7ac12de5d6647f40ad53ea64900a5c7edae44984",
+    "historicalRawHashes": "builder.sha256 and assets[].metaSha256 retained unchanged",
+    "canonicalFields": "assets[].metaCanonicalLfSha256; historical builder has unverified source drift and is not migrated",
+    "operation": "remove only CR bytes immediately followed by LF; preserve every other byte",
+    "assetsRebuilt": false,
+    "reviewReceiptsChanged": false
+  }
 }

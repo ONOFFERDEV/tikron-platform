@@ -20,6 +20,18 @@
     "metaSha256": "fd3da35ae102ccdc7988ad9a4286acdd88eca985a33b032bcf2efe49d23e5fcd",
     "builder": "tools/build-ww1-fp-arms.mjs",
     "builderSha256": "8cd82167528a89dfb762c1801ab2be1b55ee09e7340b4091eaacdb10741c4a70",
-    "reviewStatus": "runtime_contact_validation_pending"
+    "reviewStatus": "runtime_contact_validation_pending",
+    "metaCanonicalLfSha256": "fd3da35ae102ccdc7988ad9a4286acdd88eca985a33b032bcf2efe49d23e5fcd",
+    "builderCanonicalLfSha256": "8cd82167528a89dfb762c1801ab2be1b55ee09e7340b4091eaacdb10741c4a70"
+  },
+  "textHashPolicy": "sha256-crlf-to-lf-v1",
+  "textHashMigration": {
+    "scope": "checkout-line-ending-normalization-only",
+    "sourceCommit": "7ac12de5d6647f40ad53ea64900a5c7edae44984",
+    "historicalRawHashes": "asset.builderSha256 and asset.metaSha256 retained unchanged",
+    "canonicalFields": "asset.builderCanonicalLfSha256 and asset.metaCanonicalLfSha256",
+    "operation": "remove only CR bytes immediately followed by LF; preserve every other byte",
+    "assetsRebuilt": false,
+    "reviewReceiptsChanged": false
   }
 }

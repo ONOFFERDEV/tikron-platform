@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { canonicalTextSha256, WW1_TEXT_HASH_POLICY } from './ww1-text-provenance.mjs';
 
 const DEFAULT_ADMISSION = new URL('../config/ww1-soldier-candidate-admission.json', import.meta.url);
 const REVIEW = { status: 'suspended-pending-true-three-box3', scope: 'source-and-offline-morphology-pose-only', evidence: 'D:/webgame-baas/.omo/evidence/ww1/task-09-20-post-deploy/independent-final-model-review-v3.json', sha256: 'b2e33e82c7d705c0e51ccd7a2b80271a9c948bd9bad4c211203a8ea71b08b94a' };
 const EXPECTED = [
-  { key: 'soldier-khaki', glb: 'assets/ww1/characters/soldier-khaki.glb', glbSha256: '61255ca272403f54a4d81153c1ac5a4d0675c6df9f2e76aebfbd3dd58c71acd8', meta: 'assets/ww1/characters/soldier-khaki.meta.json', metaSha256: '3e1908ee5bd7f3c2dfbf46ba4a2b4f0a3961ff070de3f594a8106c3a290237b4' },
-  { key: 'soldier-fieldgrey', glb: 'assets/ww1/characters/soldier-fieldgrey.glb', glbSha256: '96c123b8d81da64dc2c43e41c28b86105d0f49494ba84146485d1ee8aaf11182', meta: 'assets/ww1/characters/soldier-fieldgrey.meta.json', metaSha256: 'da1128695875b140b43538a33c96dc817fc3c8b3a8d0ef1060fc1f68a749138d' },
+  { key: 'soldier-khaki', glb: 'assets/ww1/characters/soldier-khaki.glb', glbSha256: '61255ca272403f54a4d81153c1ac5a4d0675c6df9f2e76aebfbd3dd58c71acd8', meta: 'assets/ww1/characters/soldier-khaki.meta.json', metaSha256: '3e1908ee5bd7f3c2dfbf46ba4a2b4f0a3961ff070de3f594a8106c3a290237b4', metaCanonicalLfSha256: '91af1ad3852afae36c521597a7269fe8208c53986f2b8f6095975f143155ef27' },
+  { key: 'soldier-fieldgrey', glb: 'assets/ww1/characters/soldier-fieldgrey.glb', glbSha256: '96c123b8d81da64dc2c43e41c28b86105d0f49494ba84146485d1ee8aaf11182', meta: 'assets/ww1/characters/soldier-fieldgrey.meta.json', metaSha256: 'da1128695875b140b43538a33c96dc817fc3c8b3a8d0ef1060fc1f68a749138d', metaCanonicalLfSha256: '3a5fdb3a28fc2f636adab1fc14fa23a00075b7eb3942d3133802305c84564394' },
 ];
 const COMMON = ['idle', 'walk', 'run', 'sprint', 'crouch_idle', 'crouch_walk', 'death', 'hit_chest', 'hit_head'];
 const HOLDS = ['idle', 'walk', 'run', 'sprint', 'crouch_idle', 'crouch_walk', 'strafe_left', 'strafe_right', 'backpedal', 'crouch_left', 'crouch_right'];
@@ -24,15 +25,17 @@ function documentFromGlb(bytes) {
 
 export async function auditWw1SoldierCandidates(publicRoot, builderPath, admissionPath = DEFAULT_ADMISSION) {
   const admission = JSON.parse(await readFile(admissionPath, 'utf8')), issues = [], files = [];
+  if (admission.textHashPolicy !== WW1_TEXT_HASH_POLICY) issues.push({ code: 'soldier_admission_contract', path: String(admissionPath) });
   if (admission.schemaVersion !== 1 || admission.kind !== 'ww1-licensed-derived-soldier-quarantine-record' || admission.candidateStatus !== 'quarantined-inconsistent-runtime-normalization-evidence' || admission.sourceOfflineAccepted !== false || admission.runtimeAccepted !== false || admission.thirdPersonWeaponContact !== 'pending-v3-five-weapon-review' || !same(admission.review, REVIEW) || !same(admission.builder, { path: 'tools/fit-ww1-soldiers.py', sha256: '7dcc94ded7c62488bb6d09f5ed9fa6a0f80fbd1f17ee9dbcb7bc92517e50c815' }) || !same(admission.source, { path: 'assets/models/player.glb', sha256: '5dced0ed9b3ee898c9609bca372a60f869ca998ffec53f3ecae20b50699bec66' }) || !same(admission.assets, EXPECTED)) issues.push({ code: 'soldier_admission_contract', path: String(admissionPath) });
   issues.push({ code: 'soldier_candidate_quarantined', path: 'assets/ww1/characters' });
-  if (sha256(await readFile(builderPath)) !== admission.builder?.sha256) issues.push({ code: 'soldier_builder_hash', path: String(builderPath) });
+  const builder = await readFile(builderPath);
+  if (sha256(builder) !== admission.builder?.sha256) issues.push({ code: 'soldier_builder_hash', path: String(builderPath), historicalGenerationSha256: admission.builder?.sha256, currentRawSha256: sha256(builder), currentCanonicalLfSha256: canonicalTextSha256(builder), status: 'generation-source-not-reverified' });
   if (sha256(await readFile(join(publicRoot, admission.source.path))) !== admission.source.sha256) issues.push({ code: 'soldier_source_hash', path: admission.source.path });
   for (const asset of EXPECTED) {
     try {
       const glb = await readFile(join(publicRoot, asset.glb)), metaBytes = await readFile(join(publicRoot, asset.meta));
       if (sha256(glb) !== asset.glbSha256) throw Error('soldier_glb_hash');
-      if (sha256(metaBytes) !== asset.metaSha256) throw Error('soldier_meta_hash');
+      if (canonicalTextSha256(metaBytes) !== asset.metaCanonicalLfSha256) throw Error('soldier_meta_hash');
       const meta = JSON.parse(metaBytes), document = documentFromGlb(glb), clips = (document.animations ?? []).map(animation => animation.name).sort(), nodes = new Set((document.nodes ?? []).map(node => node.name));
       if (meta.assetKey !== asset.key || meta.role !== 'hero-character' || meta.sourceKind !== 'licensed-derived' || meta.sourceSha256 !== admission.source.sha256 || meta.outputSha256 !== asset.glbSha256 || meta.scriptSha256 !== admission.builder.sha256 || meta.equipmentHitTarget !== false) throw Error('soldier_metadata_contract');
       if (!same(clips, CLIPS)) throw Error('soldier_clip_contract');

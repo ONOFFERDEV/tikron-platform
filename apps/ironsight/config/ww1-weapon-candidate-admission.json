@@ -23,19 +23,79 @@
   },
   "builder": {
     "path": "tools/build-ww1-production-weapons.py",
-    "sha256": "febab609d90699ab78c4e038bea9009b804eacfeafd24105833e1290fc097cde"
+    "sha256": "febab609d90699ab78c4e038bea9009b804eacfeafd24105833e1290fc097cde",
+    "canonicalLfSha256": "e39e4d3a29b170ad97f395d06ee4ed285d1804bd68f2c63a5ccbc6231b567268"
   },
   "recipe": {
     "evidence": "D:/webgame-baas/.omo/evidence/ww1/task-08/production-candidates-v3/weapon-recipes-v3.json",
     "sha256": "94f124f3f69fb102af7755930966632698ee1b2f58de9d6aa1e88041c9fb95ce"
   },
   "assets": [
-    { "key": "automatic_rifle", "glb": "assets/ww1/weapons/automatic-rifle.glb", "glbSha256": "37259feb884e69708483e65d86a42e1cbeeadefabb01dc92c25bf37537331eb9", "meta": "assets/ww1/weapons/automatic-rifle.meta.json", "metaSha256": "57794f81ab04a1860d3ad0cc2636795cfa6d9a111ffefd3a50ebab8cca724a40" },
-    { "key": "trench_smg", "glb": "assets/ww1/weapons/trench-smg.glb", "glbSha256": "780868bc7453150b2aa1156ecf11230536b54bc0390ae2e905df6330ae300197", "meta": "assets/ww1/weapons/trench-smg.meta.json", "metaSha256": "3a44abfa12e904e1049b221c4727fbf076fd98f7f5faa7b0d3fc009cba84b05d" },
-    { "key": "pump_shotgun", "glb": "assets/ww1/weapons/pump-shotgun.glb", "glbSha256": "a85d9b42a39ed1e961f6db9f16165f9680c5b4829abd800123b350840a68833a", "meta": "assets/ww1/weapons/pump-shotgun.meta.json", "metaSha256": "0002b5e9269a624f885e4ba256e00385cf7c6a251dc8a29cd9d76740ffd7b7c9" },
-    { "key": "bolt_service_rifle", "glb": "assets/ww1/weapons/bolt-rifle.glb", "glbSha256": "06fba41ab8e6e457ccf2496b936d587a0cdabaf53fe79e5295be05f0a05139e7", "meta": "assets/ww1/weapons/bolt-rifle.meta.json", "metaSha256": "88400625186691b84e735bb834ef68bf9f5f9f721de10cf86d75c8e3f7f10088" },
-    { "key": "service_pistol", "glb": "assets/ww1/weapons/service-pistol.glb", "glbSha256": "0a62fdfb5a429985c20950813359d170b8f3ba885dcad5186a35fb45427511f3", "meta": "assets/ww1/weapons/service-pistol.meta.json", "metaSha256": "4356d5795577799a19ddc12166de23c0a517c5fa534d9f6322a3a88057881230" },
-    { "key": "grenade", "glb": "assets/ww1/weapons/grenade.glb", "glbSha256": "2dc55c935ea9bc545043dbfc56562264c29ec8fb932455ca26e4d166144c37c5", "meta": "assets/ww1/weapons/grenade.meta.json", "metaSha256": "60082291f1630d5cda21db91de5dd6ae3d1068754ccba278eaa5e54d5ca61928" },
-    { "key": "clip-shell-casing", "glb": "assets/ww1/weapons/clip-shell-casing.glb", "glbSha256": "fcfcc277b25b36f19a989c954b762a016723ebd73d34e3bf6aa401d62bfe87ae", "meta": "assets/ww1/weapons/clip-shell-casing.meta.json", "metaSha256": "67b8f7a20536c35e02ebff3e1991b1495bf68ee87233b891528291de07aaad6c" }
-  ]
+    {
+      "key": "automatic_rifle",
+      "glb": "assets/ww1/weapons/automatic-rifle.glb",
+      "glbSha256": "37259feb884e69708483e65d86a42e1cbeeadefabb01dc92c25bf37537331eb9",
+      "meta": "assets/ww1/weapons/automatic-rifle.meta.json",
+      "metaSha256": "57794f81ab04a1860d3ad0cc2636795cfa6d9a111ffefd3a50ebab8cca724a40",
+      "metaCanonicalLfSha256": "9e8d5e891b46bdd915184aae77aed0edbbb0b913408f2ca4c24ac0c06792f958"
+    },
+    {
+      "key": "trench_smg",
+      "glb": "assets/ww1/weapons/trench-smg.glb",
+      "glbSha256": "780868bc7453150b2aa1156ecf11230536b54bc0390ae2e905df6330ae300197",
+      "meta": "assets/ww1/weapons/trench-smg.meta.json",
+      "metaSha256": "3a44abfa12e904e1049b221c4727fbf076fd98f7f5faa7b0d3fc009cba84b05d",
+      "metaCanonicalLfSha256": "b6e49442151f67ffa589fc7f5d36914fc0e167ef64adddcd8c5a36f4729dc138"
+    },
+    {
+      "key": "pump_shotgun",
+      "glb": "assets/ww1/weapons/pump-shotgun.glb",
+      "glbSha256": "a85d9b42a39ed1e961f6db9f16165f9680c5b4829abd800123b350840a68833a",
+      "meta": "assets/ww1/weapons/pump-shotgun.meta.json",
+      "metaSha256": "0002b5e9269a624f885e4ba256e00385cf7c6a251dc8a29cd9d76740ffd7b7c9",
+      "metaCanonicalLfSha256": "6a6ffb2470cd928f5dfbc1ffd58e3bec0b578edf295e8ee0f58fb7656c554727"
+    },
+    {
+      "key": "bolt_service_rifle",
+      "glb": "assets/ww1/weapons/bolt-rifle.glb",
+      "glbSha256": "06fba41ab8e6e457ccf2496b936d587a0cdabaf53fe79e5295be05f0a05139e7",
+      "meta": "assets/ww1/weapons/bolt-rifle.meta.json",
+      "metaSha256": "88400625186691b84e735bb834ef68bf9f5f9f721de10cf86d75c8e3f7f10088",
+      "metaCanonicalLfSha256": "88f964921c6aab237d0583b47fd78852703fab2c00c6a6630268750c2143842a"
+    },
+    {
+      "key": "service_pistol",
+      "glb": "assets/ww1/weapons/service-pistol.glb",
+      "glbSha256": "0a62fdfb5a429985c20950813359d170b8f3ba885dcad5186a35fb45427511f3",
+      "meta": "assets/ww1/weapons/service-pistol.meta.json",
+      "metaSha256": "4356d5795577799a19ddc12166de23c0a517c5fa534d9f6322a3a88057881230",
+      "metaCanonicalLfSha256": "c934437eafa21ef731150fb737391ed29db8f925837c4021b620a4edb97d09b5"
+    },
+    {
+      "key": "grenade",
+      "glb": "assets/ww1/weapons/grenade.glb",
+      "glbSha256": "2dc55c935ea9bc545043dbfc56562264c29ec8fb932455ca26e4d166144c37c5",
+      "meta": "assets/ww1/weapons/grenade.meta.json",
+      "metaSha256": "60082291f1630d5cda21db91de5dd6ae3d1068754ccba278eaa5e54d5ca61928",
+      "metaCanonicalLfSha256": "60082291f1630d5cda21db91de5dd6ae3d1068754ccba278eaa5e54d5ca61928"
+    },
+    {
+      "key": "clip-shell-casing",
+      "glb": "assets/ww1/weapons/clip-shell-casing.glb",
+      "glbSha256": "fcfcc277b25b36f19a989c954b762a016723ebd73d34e3bf6aa401d62bfe87ae",
+      "meta": "assets/ww1/weapons/clip-shell-casing.meta.json",
+      "metaSha256": "67b8f7a20536c35e02ebff3e1991b1495bf68ee87233b891528291de07aaad6c",
+      "metaCanonicalLfSha256": "67b8f7a20536c35e02ebff3e1991b1495bf68ee87233b891528291de07aaad6c"
+    }
+  ],
+  "textHashPolicy": "sha256-crlf-to-lf-v1",
+  "textHashMigration": {
+    "scope": "checkout-line-ending-normalization-only",
+    "sourceCommit": "7ac12de5d6647f40ad53ea64900a5c7edae44984",
+    "historicalRawHashes": "builder.sha256 and assets[].metaSha256 retained unchanged",
+    "canonicalFields": "builder.canonicalLfSha256 and assets[].metaCanonicalLfSha256",
+    "operation": "remove only CR bytes immediately followed by LF; preserve every other byte",
+    "assetsRebuilt": false,
+    "reviewReceiptsChanged": false
+  }
 }

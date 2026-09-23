@@ -103,16 +103,15 @@ def bone_parent(name: str) -> str | None:
     return None
 
 
-def join_and_skin(body, parts: list[object], rig, lod: str, ratio: float):
+def triangle_count(mesh: bpy.types.Object) -> int:
+    mesh.data.calc_loop_triangles()
+    return len(mesh.data.loop_triangles)
+
+
+def join_and_skin(body, parts: list[object], rig, lod: str, ratio: float, triangle_budget: int):
     for modifier in list(body.modifiers):
         if modifier.type == "ARMATURE":
             body.modifiers.remove(modifier)
-    if ratio < 0.999:
-        decimate = body.modifiers.new(f"{lod}-decimate", "DECIMATE")
-        decimate.ratio = ratio
-        bpy.context.view_layer.objects.active = body
-        body.select_set(True)
-        bpy.ops.object.modifier_apply(modifier=decimate.name)
     for part in parts:
         if part.vertex_groups:
             continue
@@ -133,11 +132,12 @@ def join_and_skin(body, parts: list[object], rig, lod: str, ratio: float):
     bpy.context.view_layer.objects.active = body
     bpy.ops.object.join()
     body.name = lod
-    if lod == "LOD2":
-        distance_decimate = body.modifiers.new("LOD2-distance-decimate", "DECIMATE")
-        distance_decimate.ratio = 0.60
-        bpy.context.view_layer.objects.active = body
-        bpy.ops.object.modifier_apply(modifier=distance_decimate.name)
+    reduction = min(ratio, triangle_budget / triangle_count(body))
+    if reduction < 1:
+        decimate = body.modifiers.new(f"{lod}-decimate", "DECIMATE")
+        decimate.ratio = reduction
+        decimate.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier=decimate.name)
     body.parent = rig
     modifier = body.modifiers.new("humanoid-skin", "ARMATURE")
     modifier.object = rig
@@ -160,10 +160,10 @@ def make_faction(source, rig_source: Path, faction: str, output: Path, source_ha
             bpy.data.objects.remove(obj, do_unlink=True)
     bpy.data.objects.remove(imported, do_unlink=True)
     meshes = []
-    for lod, ratio in (("LOD0", 1.0), ("LOD1", 0.55), ("LOD2", 0.25)):
+    for lod, ratio, budget in (("LOD0", 1.0, 18_000), ("LOD1", 0.55, 8_000), ("LOD2", 0.25, 3_000)):
         uniform = uniform_body_geometry(rig, mats)
         body, parts = uniform[0], [*uniform[1:], *kit_geometry(faction, mats)]
-        meshes.append(join_and_skin(body, parts, rig, lod, ratio))
+        meshes.append(join_and_skin(body, parts, rig, lod, ratio, budget))
     bpy.ops.object.select_all(action="DESELECT")
     rig.select_set(True)
     for mesh in meshes:
@@ -173,7 +173,7 @@ def make_faction(source, rig_source: Path, faction: str, output: Path, source_ha
                               export_animations=True, export_animation_mode="ACTIONS", export_yup=True)
     parents = {name: bone_parent(name) for name in JOINTS}
     return {"faction": faction, "sourceSha256": source_hash, "outputSha256": sha256(output),
-            "bytes": output.stat().st_size, "lodTriangles": {mesh.name: len(mesh.data.polygons) for mesh in meshes},
+            "bytes": output.stat().st_size, "lodTriangles": {mesh.name: triangle_count(mesh) for mesh in meshes},
             "jointParents": parents}
 
 
@@ -194,6 +194,8 @@ def main() -> None:
                     "sourceKind": "licensed-derived", "sourcePath": str(args.rig_source.resolve()),
                     "sourceSha256": source_hash, "outputSha256": report["outputSha256"], "scriptSha256": script_hash,
                     "geometryScriptSha256": geometry_script_hash,
+                    "bodyScriptSha256": sha256(Path(__file__).with_name("ww1_soldier_body.py")),
+                    "headgearScriptSha256": sha256(Path(__file__).with_name("ww1_soldier_headgear.py")),
                     "derivativeDescription": "Synty humanoid rig and 64 animations with original authored low-poly WW1 body, helmet, and field kit",
                     "visualReferencePath": str(source), "visualReferenceSha256": sha256(source),
                     "exporter": f"Blender {bpy.app.version_string}", "coordinateSystem": {"up": "+Y", "forward": "+Z", "units": "metres"},

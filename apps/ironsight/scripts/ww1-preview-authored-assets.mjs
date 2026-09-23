@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { auditGlb } from './ww1-glb-core.mjs';
+import { canonicalTextSha256, WW1_TEXT_HASH_POLICY } from './ww1-text-provenance.mjs';
 
 const DEFAULT_ADMISSION = new URL('../config/ww1-preview-authored-admission.json', import.meta.url);
 const ACTIONS = ['equip', 'ready', 'ads_in', 'ads_out', 'fire', 'sprint_in', 'sprint_out', 'reload'];
@@ -33,14 +34,16 @@ export async function auditPreviewAuthoredWw1Assets(publicRoot, builderPath, adm
     const admission = JSON.parse(admissionBytes.toString('utf8'));
     const asset = admission.asset;
     const review = admission.independentReview;
+    if (admission.textHashPolicy !== WW1_TEXT_HASH_POLICY) throw new Error('admission_contract');
+    if (asset?.builderSha256 !== '8cd82167528a89dfb762c1801ab2be1b55ee09e7340b4091eaacdb10741c4a70' || asset.metaSha256 !== 'fd3da35ae102ccdc7988ad9a4286acdd88eca985a33b032bcf2efe49d23e5fcd' || asset.builderCanonicalLfSha256 !== asset.builderSha256 || asset.metaCanonicalLfSha256 !== asset.metaSha256) throw new Error('admission_contract');
     if (admission.schemaVersion !== 1 || admission.kind !== 'ww1-development-preview-original-authored-admission' || admission.releaseStatus !== 'development-preview' || admission.qualityStatus !== 'unfinished' || admission.sourceOfflineStatus !== 'accepted' || admission.runtimeStatus !== 'unqualified-pending-browser' || admission.heroAccepted !== false || review?.scope !== 'final-source-and-offline-only' || review?.evidence !== 'D:/webgame-baas/.omo/evidence/ww1/task-19/post-deploy/independent-full48-review.json' || review?.sha256 !== '247176f8fb1b23f493327bdb24359f911d6c3f25d9e58245076f78d85b94f50f') throw new Error('admission_contract');
     if (asset?.key !== 'fp-arms' || asset.role !== 'first-person-arms' || asset.glb !== PREVIEW_AUTHORED_WW1_PATHS[0] || asset.meta !== PREVIEW_AUTHORED_WW1_PATHS[1] || asset.builder !== 'tools/build-ww1-fp-arms.mjs' || asset.reviewStatus !== 'runtime_contact_validation_pending') throw new Error('admission_contract');
     const builder = await readFile(builderPath);
-    if (sha256(builder) !== asset.builderSha256) throw new Error('builder_hash');
+    if (canonicalTextSha256(builder) !== asset.builderCanonicalLfSha256) throw new Error('builder_hash');
     const glbBytes = await readFile(join(publicRoot, asset.glb));
     const metaBytes = await readFile(join(publicRoot, asset.meta));
     if (sha256(glbBytes) !== asset.glbSha256) throw new Error('trusted_glb_hash');
-    if (sha256(metaBytes) !== asset.metaSha256) throw new Error('trusted_meta_hash');
+    if (canonicalTextSha256(metaBytes) !== asset.metaCanonicalLfSha256) throw new Error('trusted_meta_hash');
     const metadata = JSON.parse(metaBytes.toString('utf8'));
     if (metadata.schemaVersion !== 1 || metadata.key !== 'fp-arms' || metadata.sha256 !== asset.glbSha256 || !same(metadata.source, { kind: 'original-authored', generator: asset.builder, recipeVersion: 5 })) throw new Error('source_contract');
     if (metadata.reviewStatus !== asset.reviewStatus || !same(metadata.coordinateSystem, { units: 'metres', up: '+Y', forward: '+Z' }) || metadata.skeleton !== 'ironsight-fp-arms' || metadata.triangleCount !== 2316 || metadata.contactFit !== 'v3-surfaces' || metadata.triggerDiscipline !== true || !same(metadata.sleeveVariants, ['khaki', 'fieldgrey']) || !same(metadata.actionClips, ACTIONS) || metadata.uv !== true || metadata.normals !== true || metadata.skinWeights !== true || metadata.inverseBindMatrices !== true) throw new Error('metadata_contract');
