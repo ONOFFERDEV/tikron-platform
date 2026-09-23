@@ -1,4 +1,4 @@
-import { Hud } from './hud.js';
+import { Hud, KILL_FEED_ROWS } from './hud.js';
 import { SettingsStore } from './settings.js';
 import type { ArenaState } from '../src/schema.js';
 import { intermissionStatusLabel } from './intermission.js';
@@ -133,7 +133,8 @@ export function startMatchInspector(): void {
     const feed = document.querySelector('#feed')!;
     const confirm = document.querySelector<HTMLElement>('#elimination')!;
     for (let i = 0; i < 8; i++) hud.addKill('Other', '<img src=x onerror=alert(1)>', 'body', null);
-    checks.bounded = feed.children.length === 5;
+    // The HUD caps the feed at KILL_FEED_ROWS (4 since the R-L20 field skin); follow it, not a literal.
+    checks.bounded = feed.children.length === KILL_FEED_ROWS;
     checks.escaped = !feed.querySelector('img') && feed.textContent!.includes('<img');
     checks.remoteSilent = confirm.textContent === '';
     hud.addKill('Other','Victim','body',1,undefined,{medal:'ambush'});

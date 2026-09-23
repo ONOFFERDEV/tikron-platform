@@ -64,6 +64,36 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 11 - 2026-09-23: WW1 menu vista refresh and combat inspector feed cap
+
+Scope: UI lane plus the round-5 grants: `public/assets/{relay,undertow}-vista.webp`, their README provenance, and `client/match-inspect.ts`. First I merged `recovery/ironsight-ww1-20260912` (merge commit 327147e, no conflicts). No commit, push or deploy. `switchyard-vista.webp` was not touched.
+
+#### What changed
+
+- **Vistas.** I re-rendered both from the merged tree through the existing path (`inspect-map.mjs` fixed vista camera, 1920x1080, WebP q88) and compared each with the shipped file.
+  - **Relay:** the fresh render matches the shipped image (Signal Station brick, lattice mast, ruined gables), so the file is unchanged.
+  - **Undertow:** the shipped image predated World Session 5: turbine and fan faces, stripes, pale concrete. It was refreshed with `--shots undertow-vista --write-vista`. The new file is 164,580 bytes (was 166,926; -2,346), same dimensions and framing.
+  - The provenance is appended to `public/assets/README.md` in a `# ui` block.
+- **Combat inspector.** `client/hud.ts` now exports `KILL_FEED_ROWS = 4` (the R-L20 cap) and uses it for the feed. `client/match-inspect.ts` `bounded` checks against that constant instead of the literal 5, with a comment explaining why. `match-combat` now reaches `__inspectReady`. The network page's `low`/`spikeIgnored` behaviour checks were left as they are.
+
+#### Evidence (`.inspect/ui-r5/`)
+
+- Source files: `before/*.webp` and `after/*.webp`.
+- Fresh comparison renders: `../ui-r5-probe-{vista,undertow-vista}.png`.
+- Menu cards (`cards.mjs`, real menu with the TDM/DOM card selected): `{before,after}/{1920,1280}-menu-{relay,undertow}.png`. The before set served the old Undertow file.
+- Inspector: `inspector-after.json` (combat ready; network still fails only `low`, `spikeIgnored`).
+
+#### Gates
+
+- typecheck PASS; tests PASS (Vitest 202 files / 1671 passed, 9 preexisting skips, on the merged tree; Node 92/92); build:client PASS; audit:assets PASS.
+- inspect-map relay + practice-two PASS, `errors: []`.
+- hitch-probe (advisory, once): `hitchGate: PASS`, 2 deaths, 0 recompiles, 0 errors.
+- Bytes: assetBytes 36,695,359 and publicBytes 48,725,929 after the merge. The UI share is the -2,346 on the Undertow vista plus a few hundred bytes of bundle.
+
+#### Open questions
+
+- The Undertow vista is dark at the vista camera because of its dusk grade (as it was before). Legibility on the card relies on the existing scrim; no change was made to it.
+
 ### Session 10 - 2026-09-23: Last English HUD labels and a working results inspector
 
 Scope: UI lane plus `client/match-inspect.ts` (granted for this round only). No commit, push or deploy. Base: 98d8ac9.

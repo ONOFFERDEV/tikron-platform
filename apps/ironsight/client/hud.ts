@@ -26,6 +26,8 @@ const TEAM_COLOR = GAME.teams.colors;
 const T = GAME.text;
 const [UI_RED, UI_BLUE] = GAME.teams.uiText;
 const WEAPONS = GAME.weapons;
+/** Kill-feed rows kept on screen (R-L20: four readable entries, separate from server messages). */
+export const KILL_FEED_ROWS = 4;
 
 export interface ResultRoster {
   rows: { name: string; k: number; d: number; team: number; isMe: boolean }[];
@@ -614,7 +616,7 @@ export class Hud {
     node.innerHTML = `<span class="name" style="color:${color}">${details.localKill ? `<span class="tag">${F.you}</span>` : ''}${esc(killer)}</span><span class="cause"><strong>${esc(weapon)}</strong>${cause}</span><span class="name target">${details.localVictim ? `<span class="tag">${F.you}</span>` : ''}${esc(victim)}</span>${assistName ? `<span class="assist">${F.assist} / ${esc(assistName)}</span>` : ''}`;
     this.feed.prepend(node);
     this.kills.push({ node, born: performance.now() });
-    while (this.kills.length > 4) this.kills.shift()?.node.remove();
+    while (this.kills.length > KILL_FEED_ROWS) this.kills.shift()?.node.remove();
     if (details.localKill && !details.localVictim) {
       const ambush = details.medal === 'ambush';
       this.elimination.innerHTML = `<span class="confirm${ambush ? ' ambush' : ''}">${ambush ? FIELD_UI_COPY.ambush : '처치 확인'}</span><span class="target">${esc(victim)}</span><span class="detail">${ambush ? '후방 공격 / ' : ''}${esc(weapon)}${part === 'head' ? ' / 헤드샷' : ''}</span>`;
