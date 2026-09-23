@@ -73,3 +73,19 @@ it('clears immediately for Reduced motion or inactive play, without storing a bu
   scene.blastImpact(point, 1, 1020); scene.setBlastFeedback(false); expect(scene.inspectBlast().trauma).toBe(0);
   scene.blastImpact(point, 1, 1030); scene.setBlastFeedback(true); expect(scene.inspectBlast().trauma).toBe(0);
 });
+
+it('drops the weapon harder after longer falls and never under reduced motion', () => {
+  const kickAfter = (airMs: number, reduced = false) => {
+    const scene = Object.create(SceneRig.prototype) as SceneRig;
+    Object.assign(scene, { motionReduced: reduced, airborneMs: 0, landingDip: 0, landingKick: 0,
+      vaultBlend: 0, launchBlend: 0, slideBlend: 0, sprintBlend: 0 });
+    for (let t = 0; t < airMs; t += 16) scene.updateTraversal(16, false, false, false, true);
+    scene.updateTraversal(0, false, false, true, true);
+    return { kick: (scene as unknown as { landingKick: number }).landingKick, dip: (scene as unknown as { landingDip: number }).landingDip };
+  };
+  const hop = kickAfter(160), fall = kickAfter(800);
+  expect(fall.kick).toBeGreaterThan(hop.kick * 2);
+  expect(fall.kick).toBeLessThanOrEqual(.1);
+  expect(fall.dip).toBe(.055); // the eye dip does not grow with fall height
+  expect(kickAfter(800, true)).toEqual({ kick: 0, dip: 0 });
+});

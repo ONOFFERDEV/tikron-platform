@@ -421,3 +421,36 @@ Evidence (`.inspect/look-r7/`):
 Gates: typecheck exit 0; vitest 203 files / 1682 tests plus node 92/92 pass (new far-front test); build:client pass; audit:assets exit 0 (48,814,925); inspect-map relay,practice-two exit 0 with 0 console errors, Relay 37/28/17/16, p99 7.1 ms; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms. client.js +4155 bytes; art assets 0.
 
 Open: Switchyard's flashes are deliberately muffled and read mostly in motion (GIF), not in a still. No rumble sync; audio is outside the lane. Each sector is one fixed bearing per map, so a player facing away never sees it.
+
+### Session 11 - 2026-09-23: Weight in the camera, room for the hand
+
+Merged `recovery/ironsight-ww1-20260912` (140c116) first.
+
+**1. Shotgun firing hand (kit request).** I copied kit's tools into `.inspect/look-r8/` (`measure.ts` from kit-r2, `travel.ts` from kit-r4, with the shotgun travel parameterised; kit's tree untouched) and swept x and y travel (`grid.ts`, 49 reload samples each).
+- Shortening the −0.32 sideways travel does not help: x 0.24→0.36 leaves the mag-in overlap at 6.1–8.6 mm.
+- The cause is the 4 cm downward travel (y 0.04), which drops the shell part into the firing hand.
+- Fix in `client/scene.ts`: shotgun y travel 0.04 → 0, x unchanged. Firing-hand worst over the whole reload goes 6.4 mm @0.58 → 2.4 mm @0.21, within kit's own ~2.8 mm noise band. Other slots are unchanged (`travel-after-all.json`). The support hand stays 18.4 mm (kit's open item, not this part).
+- Close-ups through the production weapon inspector: `shotgun-closeups.png` (mag-in 0.58 and mag-out 0.40, before/after).
+
+**2. Camera weight.** Inventory of what already existed:
+- viewmodel walk bob, sway and breath (`config/visuals.ts` MOTION);
+- a camera landing dip of 5.5 cm, translation only;
+- blast trauma, a ≤2° camera roll about the view axis, so the aim ray and crosshair stay put.
+
+All three are disabled by reduced motion. Added only what was missing:
+- **Lens dirt** (`client/scene-lens-dirt.ts`): one clip-space quad, camera child, drawn in the normal pass. It has no texture, is visible only while blast trauma is above about 0.05 (so gone within 2 s), and uses fine grit plus a faint smear masked to the screen rim. The centre stays clear, so it cannot cover the crosshair or an enemy in front of it. It follows the existing trauma, which reduced motion and the blast-feedback setting already hold at zero, with an explicit reduced-motion guard as well. It is compiled by `prepare()` (+1 prepared program), so there is no first-use stall. No DOM overlay, so no compositor request.
+- **Heavier landing** on the viewmodel only: the weapon drops 2.5–10 cm, scaled by time in the air, and nods down 1.4 rad per metre of drop, decaying with a 170 ms time constant. The camera dip stays at 5.5 cm, so the aim ray gets no extra motion.
+- Tests: `test/scene-lens-dirt.test.ts`, plus a landing case in `test/blast-trauma.test.ts`, which is the existing DOM-typed SceneRig test file.
+
+Evidence (`.inspect/look-r8/`):
+- `blast-before-after.png` and `land-before-after.png`: before/after sequences at +0–2400 ms, fixed camera, fixed 16 ms ticks (`weight.ts`/`weight.mjs`).
+- `seq/`: raw frames.
+- The harness blast shows no explosion sprite; only trauma, roll and dirt are exercised.
+
+Deltas: Relay inspector 37 draws / 29 programs (+1 prepared lens-dirt program, not drawn in normal play) / 17 textures / 16 lights, p99 7.1 ms. client.js +2,446 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 204 files / 1686 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,842,624); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Incident (resolved): a mistyped `git stash push` did nothing, and the following `git stash pop` tried to apply the coordinator's dust-motes stash. Git aborted on the tracked file but had already written the stash's two untracked files. I confirmed both were byte-identical to `stash@{0}^3` and deleted them. `stash@{0}` is intact and the tree matches the pre-mishap state. The gate runs happened before this.
+
+Open: no live gameplay capture of a real mortar blast; the harness exercises the same SceneRig path. The landing drop is tuned by eye.

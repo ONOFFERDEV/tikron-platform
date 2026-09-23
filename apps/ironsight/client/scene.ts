@@ -51,6 +51,7 @@ import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
 import { AuthoredViewmodelHands, ViewmodelHands, loadAuthoredViewmodelHands } from "./viewmodel-hands.js";
 import type { WeaponPresentation } from "./weapon-presentation.js";
 import { viewmodelWeaponPresentation } from "./scene-weapon.js";
+import { createLensDirt } from "./scene-lens-dirt.js";
 import { inspectionWeaponAction, ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { VISUALS } from "../config/visuals.js";
@@ -392,6 +393,7 @@ export class SceneRig {
   private readonly blastLights: { light: THREE.PointLight; born: number }[] = [];
   private blastLightCursor = 0;
   private readonly blastTrauma = new BlastTrauma();
+  private readonly lensDirt = createLensDirt();
   private blastFeedback = true;
   private motionReduced = false;
   get reducedMotion(): boolean { return this.motionReduced; }
@@ -408,20 +410,26 @@ export class SceneRig {
   private slideBlend = 0;
   private sprintBlend = 0;
   private landingDip = 0;
+  private landingKick = 0;
   private airborneMs = 0;
 
   /** Render-only bank/drop; no aim rotation, lights, materials or render passes. */
   updateTraversal(dtMs: number, sliding: boolean, sprinting: boolean, grounded: boolean, active: boolean, traversing = false, launching = false): boolean {
-    const landed = active && grounded && this.airborneMs >= 100;
+    const landed = active && grounded && this.airborneMs >= 100, airMs = this.airborneMs;
     this.airborneMs = active && !grounded ? this.airborneMs + dtMs : 0;
-    if (landed) this.landingDip = .055;
+    if (landed) {
+      this.landingDip = .055; // camera translation only, capped: the aim ray is never rotated
+      // The weapon lands heavier than the eye, scaled by time in the air (viewmodel only).
+      this.landingKick = Math.min(.1, .025 + airMs * .0001);
+    }
     const k = 1 - Math.exp(-dtMs / 75);
     this.vaultBlend += ((traversing && active ? 1 : 0) - this.vaultBlend) * k;
     this.launchBlend += ((launching && active ? 1 : 0) - this.launchBlend) * k;
     this.slideBlend += ((sliding && active ? 1 : 0) - this.slideBlend) * k;
     this.sprintBlend += ((sprinting && active ? 1 : 0) - this.sprintBlend) * k;
     this.landingDip *= Math.exp(-dtMs / 110);
-    if (!active || this.reducedMotion) { this.launchBlend = 0; this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; }
+    this.landingKick *= Math.exp(-dtMs / 170);
+    if (!active || this.reducedMotion) { this.launchBlend = 0; this.vaultBlend = 0; this.slideBlend = 0; this.sprintBlend = 0; this.landingDip = 0; this.landingKick = 0; }
     return landed;
   }
   private readonly vfx: Vfx;
@@ -597,6 +605,7 @@ export class SceneRig {
     this.camera.add(this.viewmodelProjection);
     // Keep the light outside the hideable viewmodel subtree so death and scoped ADS never change the scene's light count.
     this.camera.add(this.muzzleLight);
+    this.camera.add(this.lensDirt.object);
     this.scene.add(this.camera); // camera must be in the graph for its viewmodel child to render
     if (options.loadViewmodel !== false) {
       this.assetLoads.push(this.setWeaponVisual(0));
@@ -1146,7 +1155,8 @@ export class SceneRig {
     if (this.authoredHands) this.authoredHands.group.visible = MOTION.hands && authored;
     if (!authored && this.bolt) this.bolt.position.z = -reload.bolt * 0.07;
     if (!authored && this.magazine) {
-      this.magazine.position.y = -reload.magazine * (this.weaponIndex === 2 ? 0.04 : 0.34);
+      // Shotgun shell slides straight out sideways; dropping it 4 cm pushed it into the firing hand (kit round 4).
+      this.magazine.position.y = -reload.magazine * (this.weaponIndex === 2 ? 0 : 0.34);
       this.magazine.position.x = -reload.magazine * (this.weaponIndex === 2 ? 0.32 : 0.08);
     }
     const response = 1 - Math.exp(-dt * MOTION.speedResponse);
@@ -1221,13 +1231,14 @@ export class SceneRig {
         (by + this.swayY + (this.reducedMotion ? 0 : Math.sin(now * 0.001 * MOTION.breathRate) * MOTION.breathAmplitude)) * steady - swapDip * MOTION.swapDrop - reload.tilt * 0.04,
       lerp(fit.z, fit.adsZ, ads) + kick * MOTION.recoilBack,
     );
-    this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08 + this.vaultBlend * .28) * (1 - ads);
+    this.viewmodel.position.y -= (this.slideBlend * .06 + this.sprintBlend * .08 + this.vaultBlend * .28 + this.landingKick) * (1 - ads);
     this.viewmodel.rotation.set(
       pose.pitch * (1 - ads) + kick * MOTION.recoilPitch + swapDip * MOTION.swapPitch + reload.tilt * 0.20,
       pose.yaw * (1 - ads) + this.swayX * steady,
       (this.reducedMotion ? 0 : Math.sin(this.bobPhase) * this.motionSpeed * MOTION.bobRoll * steady) - reload.tilt * 0.40,
     );
     this.viewmodel.rotation.x += this.vaultBlend * .3;
+    this.viewmodel.rotation.x -= this.landingKick * 1.4 * (1 - ads); // muzzle nods down with the drop
     this.viewmodel.rotation.z -= this.vaultBlend * .16;
     this.viewmodel.rotation.z -= this.slideBlend * .18 * (1 - ads);
 
@@ -2289,7 +2300,10 @@ export class SceneRig {
     this.vfx.update(now);
     if (intro) this.introCamera.draw(this.camera, this.viewmodel, intro,
       () => this.renderer.render(this.scene, this.camera));
-    else this.blastTrauma.render(this.camera, this.renderer, this.scene, now, this.adsProgress);
+    else {
+      this.lensDirt.update(this.reducedMotion ? 0 : this.blastTrauma.inspect().trauma);
+      this.blastTrauma.render(this.camera, this.renderer, this.scene, now, this.adsProgress);
+    }
   }
 
   /** Read-only renderer.info snapshot for perf diagnostics/E2E tooling — draw
@@ -2487,6 +2501,7 @@ export class SceneRig {
     this.contactGeometry.dispose();
     this.vfx.dispose();
     this.combatFx.dispose();
+    this.lensDirt.dispose();
     this.renderer.dispose();
     this.canvas.remove();
   }
