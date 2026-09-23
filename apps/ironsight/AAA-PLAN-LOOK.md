@@ -129,6 +129,8 @@ This stream evaluates rendering references only; gameplay/layout/UI references r
 
 - **Session 7 / supervisor: Undertow and Switchyard fog and exposure.** `scripts/inspect-map.mjs:543-554` pins exposure, key, sun, fill, fog colour and fog near/far to `client/undertow-dusk.json` and `client/switchyard-overcast.json`, which are not in look's allowlist. Session 7 got its dusk and overcast looks from the grade, the sky shader and shadow strength instead. Please either assign look these two JSONs or apply: Switchyard `fogColor` `#9aa69c` (grey-green) and `fogFar` 340→230, keeping `fogNear` ≥90 for the combat-range rule, which gives haze in depth; Undertow `fogColor` `#a08a78` (warm dusk haze). `public/assets/README.md:33` also still lists `industrial-daylight.hdr` at 41,273 bytes. It is now 31,919 bytes after the Session 7 re-bake with the new sun (same tool). That line sits outside look's append-only block.
 
+- **Session 8 / world + supervisor: impact surface kinds.** Impacts are picked from `MapSurface` (`src/map/materials.ts`: mud, gravel, wood, metal, concrete). No WW1 surface reports `brick` or `sandbag`, and brick walls arrive as `concrete`. The sandbag parapets I could locate are either exterior dressing (Relay fieldworks, z < 0, never hit) or `fieldKitPlacement('sandbag')` on Undertow boxes, which `arena2.ts` classifies as wood or concrete by height. Look already renders `brick` and `sandbag` (`client/scene-impact.ts` `ImpactKind`) and maps `concrete` to brick on Relay and Undertow. Request: add `"brick"` and `"sandbag"` to `MAP_SURFACES` (supervisor-owned `src/map/materials.ts`), then classify in `src/map/arena{1,2,3}.ts` (world): masonry walls → `brick`, sandbag parapet and cover boxes → `sandbag`, corrugated sheds → `metal`. After that, look deletes the `concrete`→brick site mapping; no other change is needed.
+
 ## Session log
 
 ### Session 1 - 2026-09-22: Air above the front
@@ -352,3 +354,22 @@ Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7ms. H
 Gates: typecheck exit 0; vitest 201 files / 1670 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (47,360,745 public bytes); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150ms.
 
 Open: haze in depth and dusk fog colour need the pinned JSONs (cross-stream request above). The Switchyard still is the inspector failure capture (known transformer assertion).
+
+### Session 8 - 2026-09-23: Every hit says what it hit
+
+Surface-specific impacts, still pooled: 48 impact slots (seven particles per hit on every surface) plus a new 12-slot muzzle-dust pool. No lights, passes or textures added; one shader program (`pooled-impact-soft-edge-v2`).
+- `client/scene-impact.ts` is now table-driven. Mud throws dark clods up and back plus a heavy brown cloud. Wood throws long pale splinters. Sandbag gives grit and a big pale burlap puff. Brick gives brown chips and an orange-brown cloud; I moved it off red after a first pass read like a blood hit. Metal (corrugated iron) gives a white-hot contact, long sparks and a hollow ring (negative softness in the same shader). Concrete and gravel are unchanged.
+- Muzzle-blast dust: a low, faint puff (≤0.45 m tall, opacity ≤0.24) on the ground 0.6 m ahead of every remote shooter, via `Vfx.spawnMuzzleFlash` → `floorAt`. It marks the shooter; it cannot hide a torso or act as cover.
+- Reduced motion: contact plus still dust only, no flying debris or ring, no foot dust. Synced from `SceneRig.render`.
+- Masonry reads as brick on Relay and Undertow and stays concrete on Switchyard (`Vfx` option `site`). Real `brick` and `sandbag` classification is a cross-stream request above.
+- Tests (`test/scene-impact.test.ts`): three new cases (brick masonry, seven particles plus reduced-motion stillness per surface, muzzle-dust height/opacity/pool bounds). Two existing cases were updated to the new design (metal additive 4→6, residual 3→1; pigment test now covers seven kinds and waits for the 700 ms sandbag tail). `impact-vfx.test.ts` is unchanged and passes, because the concrete profile reproduces the old behaviour exactly.
+
+Evidence (`.inspect/look-r5/`):
+- `surfaces-before-after.png` and `surfaces-45ms-zoom.png`: seven hits on one Relay wall at fixed ages of 45, 160 and 420 ms, with the old `SceneImpact` against the new one. Brick and sandbag show as concrete in "before" because that is what the game sends today. Harness: `lineup.ts` and `lineup.mjs`.
+- `bot-round-sheet.png` and `bot-round-fight-*.png`: 11 frames over 25 s of a TDM bot round with no errors.
+
+Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7 ms. client.js +4,713 bytes. Art assets 0.
+
+Gates: typecheck exit 0. vitest 201 files / 1673 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (47,375,351). inspect-map relay,practice-two exit 0 with 0 console errors. hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open: impacts are small at combat range (unchanged particle scale); the bot-round stills catch few hits in flight at 2 s intervals. Metal's ring is thin at distance.

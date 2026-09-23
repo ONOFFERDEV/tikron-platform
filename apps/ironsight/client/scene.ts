@@ -554,7 +554,7 @@ export class SceneRig {
     this.vfx = new Vfx(this.scene, p => {
       const t = nearestBox(p, { x: 0, y: -1, z: 0 }, this.hitBoxes, p.y - (map.bounds.floor ?? 0) + .1);
       return Number.isFinite(t) ? p.y - t : (map.bounds.floor ?? 0);
-    }, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
+    }, { candidatePreview: WEAPON_CANDIDATE_PREVIEW, site: map.presentation });
     this.combatFx = new CombatFx(this.scene, { candidatePreview: WEAPON_CANDIDATE_PREVIEW });
     this.assetLoads.push(this.vfx.ready(), this.combatFx.ready());
     this.scopeGlints = new ScopeGlints(this.scene);
@@ -2285,6 +2285,7 @@ export class SceneRig {
     this.skyWeather?.update(now, this.reducedMotion);
     this.updateTracers(now);
     this.stepFx(now);
+    this.vfx.reducedMotion = this.reducedMotion;
     this.vfx.update(now);
     if (intro) this.introCamera.draw(this.camera, this.viewmodel, intro,
       () => this.renderer.render(this.scene, this.camera));
