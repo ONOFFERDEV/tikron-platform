@@ -55,6 +55,20 @@ export const FIELD_UI_COPY = {
     player: "전투원",
   },
   ambush: "기습",
+  lock: {
+    title: "출격 대기",
+    briefing: "엄폐물 사이로 이동하십시오. 우클릭 조준 · 좌클릭 사격.<br>재출격은 자동입니다. Esc: 설정과 출격 메뉴.",
+    extraControls: "달리며 앉기: 슬라이드 · 허리 높이 엄폐물: 점프로 넘기 · 1‑5 무기 · M 음소거",
+    messages: {
+      "CLICK TO PLAY": "클릭하여 출격",
+      "CONNECTING…": "전장에 연결 중",
+      "LINK LOST — RECONNECTING…": "연결 끊김 · 다시 연결 중",
+      "Preparing arena / Loading weapons and effects...": "전장 준비 · 무기와 전투 효과 불러오는 중",
+      "ROUND COMPLETE · Receiving results…": "라운드 종료 · 결과 수신 중",
+      "GAME CONTENT UPDATED - RELOAD REQUIRED": "게임 내용이 갱신되었습니다 · 새로고침 필요",
+    } as Readonly<Record<string, string>>,
+  },
+  death: { title: "전사", killedByFmt: "처치자 · {killer}", respawnInFmt: "재출격까지 {s}초", respawningNow: "재출격 중" },
   capture: { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
   streakFmt: "{who} · {count}연속 처치",
   damage: { front: "전방", right: "우측", back: "후방", left: "좌측" },
@@ -161,7 +175,8 @@ function keyLabel(code: string): string {
 }
 
 function bindingLabel(codes: readonly string[]): string {
-  return codes.length === 0 ? "—" : codes.map(keyLabel).join("");
+  // Left/right twins (ShiftLeft + ShiftRight) collapse to one label; others read "Ctrl/C".
+  return codes.length === 0 ? "—" : [...new Set(codes.map(keyLabel))].join("/");
 }
 
 export function formatControlsHint(bindings: CopyBindings): string {

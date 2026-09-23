@@ -60,6 +60,21 @@ export const HUD_FIELD_CSS = `
 #hud #ping[data-quality="delayed"],#hud #ping[data-quality="high"],#hud #ping[data-quality="offline"]{border-left-color:var(--ui-warning)}
 #hud #ping[data-quality="delayed"] strong,#hud #ping[data-quality="high"] strong,#hud #ping[data-quality="offline"] strong{color:var(--ui-warning)}
 #hud #combatTelemetry{top:calc(var(--ui-safe-edge) + 252px);left:var(--ui-safe-edge);max-width:248px;box-sizing:border-box;overflow-wrap:anywhere}
+/* One quiet status line: connection, frame rate and input latency read as a single
+   field gauge under the map. Alerts keep the warning colour; nothing is removed. */
+#hud #ping{padding:var(--ui-space-1) var(--ui-space-2);border-left-width:var(--ui-border-width);background:rgba(18,23,20,.55)}
+#hud #ping strong,#hud #ping span{display:inline;font-size:var(--ui-type-meta);line-height:1.4;color:var(--ui-text-muted)}
+#hud #ping strong::after{content:" · "}
+#hud #combatTelemetry{top:calc(var(--ui-safe-edge) + 210px);padding:var(--ui-space-1) var(--ui-space-2);border-inline-start-width:var(--ui-border-width);background:rgba(18,23,20,.55);color:var(--ui-text-muted);font-size:var(--ui-type-meta);line-height:1.4}
+/* Shot-confirmed log and observation card as small grouped field instruments. */
+#hud #combatEventLog li{padding:2px var(--ui-space-2);font-size:var(--ui-type-meta);line-height:1.4;background:rgba(18,23,20,.62);border-inline-start-width:var(--ui-border-width)}
+#airSupport{--support-width:248px}
+#airSupport strong,#airSupport span{font-size:var(--ui-type-meta)}
+/* Click-to-deploy prompt: Korean field note under the service card, not a second screen. */
+#hud #overlay[data-kind="lock"] h1{font:700 var(--ui-type-panel)/1.3 var(--ui-font-body);letter-spacing:0;margin:0 0 var(--ui-space-1);color:var(--ui-text-primary)}
+#hud #overlay[data-kind="lock"] p{font:500 var(--ui-type-body)/1.5 var(--ui-font-body);letter-spacing:0;color:var(--ui-text-secondary);opacity:1}
+#hud #overlay[data-kind="lock"] .briefing{box-sizing:border-box;max-width:min(560px,calc(100vw - var(--ui-safe-edge)*2));margin:var(--ui-space-4) 0;padding:var(--ui-space-3) var(--ui-space-4);border-left:var(--ui-border-emphasis) solid var(--ui-accent);background:var(--ui-hud-backing);color:var(--ui-text-secondary);font:500 var(--ui-type-hud)/1.6 var(--ui-font-body);text-align:start;word-break:keep-all}
+#hud #overlay[data-kind="lock"] .hint{max-width:min(720px,calc(100vw - var(--ui-safe-edge)*2));font:500 var(--ui-type-meta)/1.6 var(--ui-font-body);letter-spacing:0;color:var(--ui-text-muted);opacity:1;word-break:keep-all}
 #hud #audioMuted{inset-block-start:var(--ui-safe-edge)!important;inset-inline-start:calc(var(--ui-safe-edge) + 196px)!important;max-width:152px}
 #hud #combatReload{bottom:var(--ui-safe-edge);right:calc(var(--ui-safe-edge) + 184px)}
 #hud #lb{top:calc(var(--ui-safe-edge) + 316px);left:var(--ui-safe-edge);width:248px;min-width:0;padding:var(--ui-space-2);box-sizing:border-box;background:var(--ui-hud-backing);border-top:var(--ui-border-emphasis) solid var(--ui-border-strong);font-size:var(--ui-type-hud)}
@@ -100,6 +115,7 @@ ${COMBAT_FIELD_CSS}
    Every panel stays visible; the practice coach necessarily covers the screen centre at this size. */
 @media(max-width:800px) and (max-height:500px){
  #hud #ping{top:143px!important;left:var(--ui-safe-edge)!important;padding:0 var(--ui-space-2)}
+ #hud #ping{max-width:135px;box-sizing:border-box}#hud #ping strong,#hud #ping span{display:block}#hud #ping strong::after{content:none}
  #hud #combatTelemetry{inset-block-start:195px!important;inset-inline-start:var(--ui-safe-edge)!important;max-width:176px;padding:var(--ui-space-1) var(--ui-space-2)}
  #hud #hp{bottom:calc(var(--ui-safe-edge) + 41px);width:176px;padding:var(--ui-space-1) var(--ui-space-3)}
  #hud #hp #hpbar{margin-top:var(--ui-space-1)}
