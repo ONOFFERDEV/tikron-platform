@@ -1,5 +1,10 @@
 import type { ShotFeedbackEvent } from "../shot-feedback.js";
 import type { WeaponActionState } from "../../src/weapon-action.js";
+import { botLabel } from "../../src/bot-roles.js";
+import { combatantLabel } from "./copy.js";
+
+/** Bot seats arrive as raw ids ("bot-7"); show the same Korean label as the kill feed. */
+const victimLabel = (id: string): string => combatantLabel(botLabel(id) ?? id);
 
 export const COMBAT_HUD_IMPORTANT_TEXT_PX = 14;
 const MAX_EVENTS = 4;
@@ -124,10 +129,10 @@ export class CombatHud {
         this.push({ kind: "shot-blocked", text: blockText[event.reason], shotId: event.shotId });
         return;
       case "confirmed_hit":
-        this.confirm(event, "confirmed-hit", `명중 확인: ${event.victim}`);
+        this.confirm(event, "confirmed-hit", `명중 확인: ${victimLabel(event.victim)}`);
         return;
       case "confirmed_kill":
-        this.confirm(event, "confirmed-kill", `처치 확인: ${event.victim}`);
+        this.confirm(event, "confirmed-kill", `처치 확인: ${victimLabel(event.victim)}`);
         return;
       case "predicted":
       case "remote_shot":

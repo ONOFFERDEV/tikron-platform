@@ -1,5 +1,6 @@
 import * as T from 'three';
 import type { MapDef } from '../src/map/types.js';
+import type { Box } from '../src/physics.js';
 import { buildSiteGround } from './site-ground.js';
 import { UNDERTOW_FINISH } from './undertow-palette.js';
 import { undertowSkylineParts } from './undertow-skyline.js';
@@ -26,6 +27,24 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     list.push(new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx, ry, rz)), new T.Vector3(w, h, d)));
     batches.set(key, list);
   };
+  // Deterministic irregularity: repairs and bag courses never repeat per bay.
+  const jitter = (a: number, b: number) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
+  // Thin tile on a solid face. 'z' faces span x, 'x' faces span z; off + t/2
+  // stays inside the 0.02 m cladding limit, so no tile reads as extra cover.
+  const tile = (m: number, b: Box, axis: 'x' | 'z', side: number, u: number, y: number, du: number, dy: number, off = .006, t = .01) =>
+    axis === 'z' ? add(m, u, y, (side < 0 ? b.min.z : b.max.z) + side * off, du, dy, t)
+      : add(m, (side < 0 ? b.min.x : b.max.x) + side * off, y, u, t, dy, du);
+  // Sandbag courses as irregular runs of a few bags; the dark body reads as seams.
+  const bagCourses = (b: Box, axis: 'x' | 'z', side: number, u0: number, u1: number, y0: number, courses: number, hc: number) => {
+    for (let c = 0; c < courses; c++) {
+      let u = u0 - (c % 2 ? .35 : 0);
+      while (u < u1 - .1) {
+        const r = jitter(u + u0 * 3.1, c + y0), e = Math.min(u + 1.4 + r * 1.6, u1), a = Math.max(u, u0);
+        if (e - a > .15) tile(3, b, axis, side, (a + e) / 2, y0 + c * hc + hc / 2, e - a - .05, hc - .045, .005 + r * .006);
+        u = e;
+      }
+    }
+  };
   if (!bakeOnly) buildSiteGround(scene, map, true);
   const structureParts = new Map((map.structures ?? []).flatMap(s => s.parts.map(p => [p.box, p] as const)));
   const yardParts = new Map([...UNDERTOW_YARD_PARTS, ...UNDERTOW_SLUICE_PARTS].map(p => [p.box, p]));
@@ -40,7 +59,7 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     const yard = yardParts.get(b);
     if (yard) {
       const bench = yard.kind === 'bench', steel = !yard.west && !bench;
-      add(bench ? 1 : steel ? 2 : 0, x, b.min.y + h / 2, z, w, h, d);
+      add(bench ? 2 : steel ? 2 : 0, x, b.min.y + h / 2, z, w, h, d);
       // Flush cladding only: no panel bridges an opening or hides false cover.
       for (const side of [-1, 1]) {
         const face = z + side * (d / 2 + .004);
@@ -52,17 +71,12 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
             add(2, x, py, face, w, .016, .008);
           add(4, x, b.min.y + Math.min(.3, h / 2), face + side * .005, w, Math.min(.55, h), .002);
         } else {
-          add(2, x, .65, face, w * .85, .6, .008);
-          if (yard.west) for (let px = b.min.x + .55; px < b.max.x - .3; px += .85) {
-            add(4, px, .66, face + side * .008, .48, .008, .48, true, Math.PI / 2);
-            add(3, px, .66, face + side * .014, .23, .004, .23, true, Math.PI / 2);
-          } else for (let px = b.min.x + .25; px < b.max.x; px += .4) {
-            add(4, px, .7, face + side * .008, .21, .38, .004);
-            add(3, px, .81, face + side * .012, .12, .045, .004);
-          }
+          // Former switch consoles become sandbagged fire-steps.
+          bagCourses(b, 'z', side, b.min.x, b.max.x, b.min.y, 3, h / 3);
         }
       }
-      if (bench) add(2, x, b.max.y + .004, z, w, .008, d);
+      if (bench) for (let px = b.min.x + .02; px < b.max.x - .1; px += .3)
+        add(jitter(px, z) < .5 ? 4 : 5, Math.min(px + .14, b.max.x - .14), b.max.y + .004, z, .26, .008, d - .03);
       continue;
     }
     const structure = structureParts.get(b);
@@ -73,14 +87,18 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
         // Below-grade concrete and pump cabinets keep their real elevations.
         add(structure.kind === 'cover' ? 1 : 0, x, b.min.y + h / 2, z, w, h, d);
         if (structure.kind === 'wall') {
-          // Recess/read of the damp base and regular formwork joints, flush
-          // to the retaining face. No pipe or light occupies the walking lane.
-          const face = z < 71 ? b.max.z + .004 : b.min.z - .004;
-          add(4, x, -2.65, face, w, .6, .008);
-          for (let px = b.min.x + 2; px < b.max.x; px += 4) {
-            add(2, px, -1.5, face, .045, 2.98, .008);
-            add(6, px, -.45, face + (z < 71 ? .006 : -.006), .5, .055, .004);
+          // Drain revetment: stakes, boards and gaps where the wet cut shows,
+          // flush to the retaining face. No pipe or light occupies the lane.
+          const side = z < 71 ? 1 : -1, face = z < 71 ? b.max.z + .004 : b.min.z - .004;
+          add(2, x, -2.75, face, w, .5, .008);
+          for (let px = b.min.x + .05; px < b.max.x - .2; px += .5) {
+            const r = jitter(px, z);
+            if (r < .08) continue; // missing board: the wet cut shows through
+            add(r < .55 ? 4 : 5, px + .24, -1.45 - r * .08, face + side * .004, .46, 2.7 - r * .16, .008);
           }
+          for (let px = b.min.x + 1; px < b.max.x; px += 2.2)
+            add(1, px, -1.5, face + side * .01, .14, 3, .008);
+          add(4, x, -.55, face + side * .012, w, .14, .006);
         } else if (structure.kind === 'slab') {
           // Flush steel wearing surface and painted edge strips; open sides
           // are real drops. No non-colliding rail suggests false protection.
@@ -94,22 +112,17 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
         continue;
       }
       const console = structure.kind === 'cover';
-      add(console ? 1 : 0, x, b.min.y + h / 2, z, w, h, d);
+      add(console ? 5 : 0, x, b.min.y + h / 2, z, w, h, d);
       if (console) {
-        add(2, x, b.max.y + .004, z, w, .008, d);
-        add(4, x, b.max.y + .009, z, w * .75, .002, d * .64);
-        for (let i = -.6; i <= .6; i += .3)
-          add(3, x + i, b.max.y + .011, z, .09, .002, .2);
+        // Former control desks: plank map tables with one pinned sheet.
+        for (let px = b.min.x + .02; px < b.max.x - .1; px += .32)
+          add(4, Math.min(px + .15, b.max.x - .15), b.max.y + .004, z, .28, .008, d - .02);
+        add(3, x + (jitter(x, z) - .5) * .6, b.max.y + .01, z, .42, .004, .3);
       } else if (structure.kind === 'wall' && b.min.y === 0 && h >= 1.1) {
-        const accent = x < width / 2 ? 4 : 5;
+        // Damp tide line on the masonry, no painted factory stripe.
         for (const side of [-1, 1]) {
-          if (w > d) {
-            add(accent, x, .43, z + side * (d / 2 + .004), w, .66, .008);
-            add(3, x, .78, z + side * (d / 2 + .004), w, .04, .008);
-          } else {
-            add(accent, x + side * (w / 2 + .004), .43, z, .008, .66, d);
-            add(3, x + side * (w / 2 + .004), .78, z, .008, .04, d);
-          }
+          if (w > d) add(1, x, .28, z + side * (d / 2 + .004), w, .56, .008);
+          else add(1, x + side * (w / 2 + .004), .28, z, .008, .56, d);
         }
       }
       continue;
@@ -118,44 +131,81 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
       if (b.min.y === 3) {
         // Gallery lintel: every cladding piece stays above standing clearance.
         add(1,x,b.min.y+h/2,z,w,h,d);
-        add(3,x,b.max.y-.09,z,w+.006,.18,d+.006);
+        add(4,x,b.max.y-.09,z,w+.006,.18,d+.006);
         continue;
       }
-      // Central pressure-stack cladding stays within the authoritative envelope.
-      add(1,x,b.min.y+h/2,z,w,h,d);
-      for (const y of [7,10,13]) add(3,x,y,z,w+.004,.28,d+.004);
-      for (const side of [-1,1]) {
-        add(2,x,b.min.y+h/2,z+side*(d/2+.006),w*.64,h*.78,.012);
-        for (const y of [8,9.2,10.4,11.6]) add(4,x,y,z+side*(d/2+.015),w*.55,.55,.008);
-      }
+      // Field-office chimney: brick stack, corbelled cap and soot, all inside
+      // the authoritative envelope.
+      add(0,x,b.min.y+h/2,z,w,h,d);
+      add(1,x,b.max.y-.35,z,w+.012,.3,d+.012);
+      add(2,x,b.max.y-.9,z,w+.006,.8,d+.006);
+      add(1,x,b.min.y+.2,z,w+.012,.4,d+.012);
       continue;
     }
     const low = h < 1.5, control = h > 4, screen = d > 8;
     const accent = x < width / 2 ? 4 : 5;
     add(low ? 2 : control ? 1 : 0, x, (h - .18) / 2, z, w, h - .18, d);
     add(2, x, 0.14, z, w + 0.004, 0.28, d + 0.004);
-    add(low ? 5 : 3, x, h - 0.09, z, w + 0.006, 0.18, d + 0.006);
+    add(low ? 2 : control ? 1 : 4, x, h - 0.09, z, w + 0.006, 0.18, d + 0.006);
     if (low) {
-      for (const sign of [-1, 1]) for (let px = b.min.x + 0.25; px < b.max.x; px += 0.45)
-        add(5, px, h * 0.7, z + sign * (d / 2 + 0.004), 0.18, 0.12, 0.008);
-    } else if (screen) {
-      // Break the 14m deployment walls into readable service bays.
-      for (let pz = b.min.z + 1; pz <= b.max.z - .825; pz += 2.2) for (const side of [-1, 1]) {
-        add(2, x + side * (w / 2 + 0.004), 1.65, pz, 0.008, 2.2, 1.65);
-        add(accent, x + side * (w / 2 + 0.009), 1.65, pz, 0.006, 1.9, 1.36);
-        add(6, x + side * (w / 2 + 0.013), 2.48, pz, 0.004, 0.035, 1);
+      // Sandbagged low cover: three staggered courses and a double top row.
+      // The dark core reads as seams; every bag stays on the solid envelope.
+      for (const side of [-1, 1]) {
+        bagCourses(b, 'z', side, b.min.x, b.max.x, 0, 3, h / 3);
+        bagCourses(b, 'x', side, b.min.z, b.max.z, 0, 3, h / 3);
       }
+      const long = w >= d;
+      for (const lane of [-1, 1]) {
+        if (long) add(3, x, h + .004, z + lane * d / 4, w - .06, .008, d / 2 - .05);
+        else add(3, x + lane * w / 4, h + .004, z, w / 2 - .05, .008, d - .06);
+      }
+    } else if (screen) {
+      // Fire-trench revetment: wet masonry footing, irregular boards held by
+      // stakes and walers, corrugated-iron repairs and a sandbag parapet.
+      for (const side of [-1, 1]) {
+        const mouth = b.min.z + d * (side < 0 ? .55 : .35), clear = (pz: number) => Math.abs(pz - mouth) > 1.2;
+        for (let pz = b.min.z + .05; pz < b.max.z - .3; pz += .42) {
+          const r = jitter(pz, x + side);
+          if (r < .07) continue;
+          const top = 2.18 - r * .14;
+          tile(r < .6 ? 4 : 5, b, 'x', side, Math.min(pz + .2, b.max.z - .2), (.3 + top) / 2, .39, top - .3);
+        }
+        for (let pz = b.min.z + 1.2; pz < b.max.z - .5; pz += 2.4) if (clear(pz))
+          tile(1, b, 'x', side, pz, 1.2, .15, 2.4, .014, .01);
+        for (const y of [.8, 1.7]) tile(4, b, 'x', side, (b.min.z + b.max.z) / 2, y, d - .1, .13, .012, .008);
+        for (let pz = b.min.z + 3; pz < b.max.z - 3; pz += 7 + jitter(pz, side) * 5) {
+          if (!clear(pz) || !clear(pz + 1) || !clear(pz - 1)) continue;
+          const r = jitter(side, pz);
+          tile(2, b, 'x', side, pz, .95 + r * .5, 1.2 + r * .6, 1 + r * .4, .016, .006);
+        }
+        bagCourses(b, 'x', side, b.min.z, b.max.z, 2.26, 2, .36);
+        // One gas-curtained dugout mouth per trench face: a closed blanket
+        // on the solid face, framed in timber, never a walkable opening.
+        for (const du of [-.72, .72]) tile(4, b, 'x', side, mouth + du, 1.05, .16, 2.1, .016, .006);
+        tile(4, b, 'x', side, mouth, 2.12, 1.66, .2, .016, .006);
+        tile(2, b, 'x', side, mouth, 1.02, 1.28, 2, .014, .008);
+        bagCourses(b, 'x', side, mouth - 1.9, mouth - .85, .28, 3, .3);
+        bagCourses(b, 'x', side, mouth + .85, mouth + 1.9, .28, 3, .3);
+      }
+      for (let pz = b.min.z; pz < b.max.z - .1; pz += .7)
+        add(3, x, h + .004, Math.min(pz + .33, b.max.z - .33), w - .08, .008, .64);
     } else {
       for (const side of [-1, 1]) {
         const face = z + side * (d / 2 + 0.006);
         if (control) {
-          add(2, x, 2.4, face, w - 0.5, 1.05, 0.012);
-          for (let px = b.min.x + 0.65; px < b.max.x - 0.4; px += 1.25) {
-            add(1, px, 2.4, face + side * 0.008, 1.0, 0.8, 0.005);
-            add(6, px, 2.7, face + side * 0.012, 0.84, 0.025, 0.004);
+          // Field office: masonry string course, boarded upper windows, a
+          // notice board and field telephone. No lamps or control panels.
+          add(4, x, 3.05, face, w - .2, .2, .012);
+          if (side < 0) for (const dx of [-2.6, 2.6]) {
+            add(4, x + dx, 4.3, face, 1.4, 1.2, .01);
+            for (const bx of [-.4, 0, .4]) add(5, x + dx + bx, 4.3 - jitter(dx, bx) * .06, face + side * .006, .36, 1.02, .006);
           }
-          add(accent, x, 0.85, face + side * 0.003, 0.8, 1.45, 0.01);
-          add(2, x, 0.85, face + side * 0.01, 0.64, 1.30, 0.005);
+          add(4, x - 1.2, 1.45, face, 1.3, .85, .01);
+          for (const [dx, dy] of [[-.35, .12], [.05, -.05], [.4, .1]] as const)
+            add(3, x - 1.2 + dx, 1.45 + dy, face + side * .007, .26, .34, .004);
+          add(2, x + .9, 1.35, face + side * .002, .32, .42, .014);
+          if (side < 0) bagCourses(b, 'z', side, b.min.x + .3, b.max.x - .3, 0, 3, .34);
+          continue;
         } else {
           // Timber revetment lies entirely against the solid redoubt envelope.
           const boards = Math.max(1, Math.ceil(w / .36));
@@ -167,8 +217,10 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
           for (const height of [.27, .73])
             add(4, x, h * height, face + side * .008, w - .04, .13, .008);
         }
-        add(accent, x, h - 0.55, face, w - 0.25, 0.5, 0.01);
+        // Sandbag parapet replaces the old painted top band.
+        bagCourses(b, 'z', side, b.min.x + .05, b.max.x - .05, h - .74, 2, .36);
       }
+      if (control) continue;
       for (const side of [-1, 1]) for (const height of [.27, .73])
         add(4, x + side * (w / 2 + .006), h * height, z, .012, .13, d - .04);
     }
@@ -184,8 +236,9 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     if (s.id === 'pump-channel') continue;
     for (const offset of [7, 15]) {
       const x = s.footprint.minX + offset, z = s.footprint.maxZ + .004;
-      add(2, x, 2.54, z, 2, .27, .008);
-      add(6, x, 2.58, z + .007, 1.7, .028, .004);
+      // Timber door head with one small sodium lamp, no fluorescent strip.
+      add(4, x, 2.54, z, 2, .27, .008);
+      add(6, x, 2.58, z + .007, .32, .06, .004);
     }
   }
   // Built plant mass replaces the thin enclosure. Exact full extents are
@@ -220,6 +273,22 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
     const x = east ? width - xx : xx;
     for (let i = -4; i <= 4; i++) groundBoard(i % 3 === 0 ? 4 : 5, x + i * .38, zz, .34, .95);
   }
+  // Duckboard runs from both deployment trenches to the forward traverses,
+  // with an occasional missing slat where the mud has taken it.
+  for (const x of [8.6, width - 8.6]) {
+    for (let z = 31; z < 69; z += .46) if (jitter(x, z) > .06) groundBoard(jitter(z, x) < .5 ? 4 : 5, x, z, 1.1, .38);
+    for (const side of [-1, 1]) groundBoard(1, x + side * .47, 50, .07, 38);
+  }
+  // Dry-drain floor: a duckboard walk and open drainage gutter on the real
+  // -3 m face, skipping the pump baffles that own the southern bypass.
+  const drain = map.terrain?.faces.find(f => f.y < 0), below = map.boxes.filter(b => b.min.y < 0 && !map.terrain?.boxes.includes(b));
+  const floorBoard = (m: number, x: number, z: number, w: number, d: number) => {
+    if (!drain || x - w / 2 < drain.minX || x + w / 2 > drain.maxX || z - d / 2 < drain.minZ || z + d / 2 > drain.maxZ) return;
+    if (below.some(b => b.min.y <= drain.y && x + w / 2 > b.min.x && x - w / 2 < b.max.x && z + d / 2 > b.min.z && z - d / 2 < b.max.z)) return;
+    add(m, x, drain.y + .005, z, w, .01, d);
+  };
+  for (let x = 42.4; x < 107.6; x += .4) if (jitter(x, 71) > .05) floorBoard(jitter(71, x) < .5 ? 4 : 5, x, 72.05, .34, .9);
+  for (let x = 42.4; x < 107.6; x += 4) floorBoard(2, x + 2, 70.1, 3.9, .3);
   // Keep the bake's material identities stable when a geometry batch disappears.
   const bakeOrder = [0, 2, 3, 4, 5, 1, 6];
   const orderedBatches = [...batches].sort(([a], [b]) => bakeOrder.indexOf(Number(a[0])) - bakeOrder.indexOf(Number(b[0])));
@@ -233,13 +302,13 @@ export function buildUndertowEnvironment(scene: T.Scene, map: MapDef, bakeOnly =
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['A / WEST REDOUBT', 'B / SLUICE SQUARE', 'C / EAST REDOUBT', 'UNDERTOW / 1917',
-    'WEST EMBANKMENT', 'EAST EMBANKMENT', 'DRY DRAIN', 'FIELD OFFICE'];
+  const labels = ['A / 서쪽 보루', 'B / 수문 광장', 'C / 동쪽 보루', '운하 교두보 / 1917',
+    '서쪽 제방', '동쪽 제방', '마른 배수로', '야전 사무소'];
   labels.forEach((label, i) => {
     ctx.fillStyle = '#303b39'; ctx.fillRect(0, i * 128, 1024, 128);
     ctx.fillStyle = i === 0 || i === 4 || i === 6 ? '#a6b7a0' : '#d1b47d';
     ctx.fillRect(18, i * 128 + 22, 10, 84);
-    ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial'; ctx.fillText(label, 52, i * 128 + 83);
+    ctx.fillStyle = '#dfe8dc'; ctx.font = '600 57px Arial, "Noto Sans KR", "Malgun Gothic", sans-serif'; ctx.fillText(label, 52, i * 128 + 83);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const material = new T.MeshBasicMaterial({ map: texture });

@@ -19,11 +19,16 @@ describe('issued equipment resource ownership', () => {
     const other = cloneWeaponBundleNode(gltf,'wep_pistol')!.children[0] as T.Mesh;
     const carbine = cloneWeaponBundleNode(gltf,'field-carbine')!.children[0] as T.Mesh;
     expect(first.material).toBe(remote.material);
-    expect(first.material).toBe(other.material);
+    // Per-weapon wood zones are a material uniform; every weapon shares one program.
+    expect(first.material).not.toBe(other.material);
+    expect((first.material as T.Material).customProgramCacheKey()).toBe((other.material as T.Material).customProgramCacheKey());
     expect(first.material).not.toBe(source);
     expect((first.material as T.MeshStandardMaterial).map).toBe(map);
     expect(first.geometry).toBe(geometry);
-    expect(carbine.material).toBe(source);
+    // The issued carbine now takes the same service finish, keeping its own maps.
+    expect(carbine.material).not.toBe(source);
+    expect((carbine.material as T.MeshStandardMaterial).map).toBe(map);
+    expect((carbine.material as T.Material).customProgramCacheKey()).toBe((first.material as T.Material).customProgramCacheKey());
     expect((scene.children[0]!.children[0] as T.Mesh).material).toBe(source);
     expect(source.roughness).toBe(.5);
     expect(source.color.getHex()).toBe(0xffffff);

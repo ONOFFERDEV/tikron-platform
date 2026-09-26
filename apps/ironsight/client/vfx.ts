@@ -62,6 +62,8 @@ export type VfxOptions = {
   readonly candidatePreview?: boolean;
   readonly acquireWeaponModel?: (url: string) => AssetLease<GLTF>;
   readonly cloneWeaponBundleNode?: (gltf: GLTF, nodeName: string) => THREE.Object3D | undefined;
+  /** Map presentation site; masonry reads as brick on the brick-built sites. */
+  readonly site?: string;
 };
 
 // --- footsteps --------------------------------------------------------------
@@ -93,11 +95,13 @@ export class Vfx {
     options: VfxOptions = {}) {
     for (let i = 0; i < MUZZLE_POOL; i++) this.muzzles.push(this.buildMuzzle());
     for (let i = 0; i < CASING_POOL; i++) this.casings.push(this.buildCasing());
-    this.impacts = new SceneImpact(scene);
+    this.impacts = new SceneImpact(scene, { brickMasonry: options.site === 'relay' || options.site === 'undertow' });
     this.assetReady = this.installAuthoredCasings(options);
   }
 
   ready(): Promise<void> { return this.assetReady; }
+
+  set reducedMotion(value: boolean) { this.impacts.reducedMotion = value; }
 
   dispose(): void {
     if (this.disposed) return;
@@ -153,6 +157,7 @@ export class Vfx {
 
   /** Brief flash + point light at a remote shooter's muzzle. */
   spawnMuzzleFlash(origin: Vec3, _dir: Vec3, weapon = 0): void {
+    if (this.disposed) return;
     const slot = this.muzzles[this.muzzleCursor]!;
     this.muzzleCursor = (this.muzzleCursor + 1) % this.muzzles.length;
     slot.sprite.position.set(origin.x, origin.y, origin.z);
@@ -166,10 +171,14 @@ export class Vfx {
     slot.light.position.copy(slot.sprite.position);
     slot.light.intensity = 4;
     slot.born = performance.now();
+    // Blast dust on the ground a little ahead of the shooter.
+    const d = normalize(_dir), ahead = { x: origin.x + d.x * .6, y: origin.y, z: origin.z + d.z * .6 };
+    this.impacts.muzzleDust({ x: ahead.x, y: this.floorAt(ahead), z: ahead.z });
   }
 
   /** Eject a pooled casing from a hitscan shot's origin with a right+up impulse. */
   spawnCasing(origin: Vec3, dir: Vec3): void {
+    if (this.disposed) return; // a queued room message can still land during page teardown
     const slot = this.casings[this.casingCursor]!;
     slot.floor = this.floorAt(origin) + .02;
     this.casingCursor = (this.casingCursor + 1) % this.casings.length;
@@ -191,6 +200,7 @@ export class Vfx {
   }
 
   spawnImpact(pos: Vec3, dir: Vec3, hitPlayer: boolean, surface: MapSurface = 'concrete'): void {
+    if (this.disposed) return;
     this.impacts.spawn(pos, dir, hitPlayer ? 'player' : surface);
   }
 

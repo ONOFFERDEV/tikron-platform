@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ARENA1 } from "../src/map/arena1.js";
 import { ARENA2 } from "../src/map/arena2.js";
 import { ARENA3 } from "../src/map/arena3.js";
-import { COPY, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
+import { COPY, FIELD_UI_COPY, combatantLabel, formatControlsHint, mapCopy, modeCopy, presentPlayerName, weaponLabel, type CopyBindings } from "../client/ui/copy.js";
 import { WEAPON_KEYS } from "../src/weapon-contract.js";
 import { mapCallout, SITES } from "../client/map-presentation.js";
 
@@ -26,6 +26,24 @@ describe("Korean UI copy contract", () => {
   it("names the five stable weapon slots as WW1 service weapons in Korean", () => {
     expect(WEAPON_KEYS.map(weaponLabel)).toEqual(["자동소총", "참호 기관단총", "펌프 산탄총", "볼트 소총", "제식 권총"]);
     expect(weaponLabel(undefined)).toBe("무기");
+    expect([FIELD_UI_COPY.capture, FIELD_UI_COPY.damage, FIELD_UI_COPY.streakFmt]).toEqual([
+      { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
+      { front: "전방", right: "우측", back: "후방", left: "좌측" },
+      "{who} · {count}연속 처치",
+    ]);
+    expect(FIELD_UI_COPY.feed).toEqual({ biplane: "복엽기 소사", mortar: "박격포", grenade: "수류탄", you: "나", assist: "지원" });
+  });
+
+  it("shows bot role labels in Korean without touching other names", () => {
+    expect(["RUSH 1", "ANCHOR 3", "SCOUT 6", "You", "a1b2", "Rushmore 2"].map(combatantLabel))
+      .toEqual(["돌격 1", "거점 3", "정찰 6", "나", "a1b2", "Rushmore 2"]);
+  });
+
+  it("keeps the click-to-deploy note and death card Korean", () => {
+    expect(FIELD_UI_COPY.death).toEqual({ title: "전사", killedByFmt: "처치자 · {killer}", respawnInFmt: "재출격까지 {s}초", respawningNow: "재출격 중" });
+    for (const text of [FIELD_UI_COPY.lock.title, FIELD_UI_COPY.lock.briefing, ...Object.values(FIELD_UI_COPY.lock.messages)])
+      expect(text.replace(/Esc|<br>/g, "")).not.toMatch(/[A-Za-z]{3,}/);
+    expect(formatControlsHint({ ...bindings, sprint: ["ShiftLeft", "ShiftRight"], crouch: ["ControlLeft", "KeyC"] })).toContain("Shift 달리기 · Ctrl/C 앉기");
   });
 
   it("formats the player's actual binding codes instead of fixed WASD copy", () => {

@@ -127,6 +127,12 @@ This stream evaluates rendering references only; gameplay/layout/UI references r
 
 - **Historical Session 1 GPU scheduling request, superseded:** five of ten local runs were recorded while waiting behind other streams. See `.inspect/look-session1/hitch-series-resume2.log` and `hitch-summary.json`. Session 2 establishes a separate complete cohort; no foreign process is interrupted and all limits remain unchanged.
 
+- **Session 7 / supervisor: Undertow and Switchyard fog and exposure.** `scripts/inspect-map.mjs:543-554` pins exposure, key, sun, fill, fog colour and fog near/far to `client/undertow-dusk.json` and `client/switchyard-overcast.json`, which are not in look's allowlist. Session 7 got its dusk and overcast looks from the grade, the sky shader and shadow strength instead. Please either assign look these two JSONs or apply: Switchyard `fogColor` `#9aa69c` (grey-green) and `fogFar` 340→230, keeping `fogNear` ≥90 for the combat-range rule, which gives haze in depth; Undertow `fogColor` `#a08a78` (warm dusk haze). `public/assets/README.md:33` also still lists `industrial-daylight.hdr` at 41,273 bytes. It is now 31,919 bytes after the Session 7 re-bake with the new sun (same tool). That line sits outside look's append-only block.
+
+- **Session 8 / world + supervisor: impact surface kinds.** Impacts are picked from `MapSurface` (`src/map/materials.ts`: mud, gravel, wood, metal, concrete). No WW1 surface reports `brick` or `sandbag`, and brick walls arrive as `concrete`. The sandbag parapets I could locate are either exterior dressing (Relay fieldworks, z < 0, never hit) or `fieldKitPlacement('sandbag')` on Undertow boxes, which `arena2.ts` classifies as wood or concrete by height. Look already renders `brick` and `sandbag` (`client/scene-impact.ts` `ImpactKind`) and maps `concrete` to brick on Relay and Undertow. Request: add `"brick"` and `"sandbag"` to `MAP_SURFACES` (supervisor-owned `src/map/materials.ts`), then classify in `src/map/arena{1,2,3}.ts` (world): masonry walls → `brick`, sandbag parapet and cover boxes → `sandbag`, corrugated sheds → `metal`. After that, look deletes the `concrete`→brick site mapping; no other change is needed.
+
+- **Session 9 / world: Undertow wet patches.** Look's reflection change (reflection saturation 0.85→0.5, luminance ceiling 0.45 in the graded dusk HDR) makes the puddles pale and cool from the aerial instead of gold. If the owner still reads them as coins, the remaining lever is the puddle material (world-owned): raise its roughness from mirror-like to about 0.35–0.45 and lower its envMapIntensity toward 0.6, so it catches the sky as a sheen rather than a hard disc. Look did not edit world files.
+
 ## Session log
 
 ### Session 1 - 2026-09-22: Air above the front
@@ -299,3 +305,247 @@ Gates: typecheck pass; vitest 201 files / 1668 tests pass (7 files / 9 tests ski
 Open: Task 2 (gap item 1, strict first-use shader wait) not started this session. The ADS legacy rifle still uses the look-era `rifleSight` reflex dot on `field-carbine`; whether WW1 wants iron sights only is a kit/owner call. The WW1 candidate path itself was only unit-tested here, not visually previewed.
 
 Cleanup: own wrangler/workerd/esbuild processes stopped; port 8803 has no listener. No commit, push or deploy.
+
+### Session 5 - 2026-09-23: First use after the real rifles, and dust in the air
+
+**1. Measured first use after round 1 (no stall to fix).** Added `--first-actions` to `scripts/hitch-probe.mjs`. After the 3s warm-up it swaps to slots 2, 3, 4 and 5, then back to 1, fires once and reloads. It checks each action with the existing 150ms first-use window, and `firstUseWindows` now takes a kinds list. Documented in `docs/HITCH-GATE.md`. Each run uses a fresh Edge profile.
+- Round 1 build (d5774b7), before any change this session: `baseline-{tdm,ffa}.json` both pass `--assert --assert-first-use`. First swaps are 8.7-50.4ms, first shot 9.3-16.6ms, first reload 12-19.7ms, first damage and death 8.7-10.6ms, **0 post-warm-up shader additions**. Preparation already compiles every weapon: the preparation fixture is gated on `weaponIsModel`, which round 1 made true, and it uses the same `finishLegacyWeapon` materials as first person. No fix was warranted, so no threshold changed.
+- The coordinator's c969f60 case (d5774b7 plus ui HUD strings): I built the exact c969f60 client (bundle `a7f7340e3f66`) and interleaved it with the current build (`2d6a64dbd8dc`), 3 TDM runs each with first actions. Every run has exactly one >150ms interval: c969 445/186/233ms, current 156/425/253ms. None falls near a first action or first-use event, all 42 first-action windows are ≤77ms, and every run has 0 recompiles. In 5 of 6 the CPU profile is idle during the gap. Host CPU (typeperf, `cpu-series.csv`) averaged 62-91% per run with 95-100% peaks from other lanes. Both builds show the same gap at the same rate. **Verdict: environmental contention on this shared host, not a first-use stall.** No quiet window was available to prove the gap disappears.
+
+**2. Next visual gap: airborne dust (ART-CONCEPT "dust motes").** Added `client/scene-dust-motes.ts`: one unlit `Points` draw per map with no texture, no light and no depthWrite, 800/520/600 motes (Relay/Undertow/Switchyard). They wrap around the eye in the vertex shader, and the only CPU work per frame is two uniform writes. The wind drift freezes under reduced motion, same as the sky weather. `scene.ts` changes by +6 lines. Added `test/scene-dust-motes.test.ts` (5 tests). Stills from the same fixed cameras: `.inspect/look-r2/{before,after3}-{relay,undertow-home}.png`, `pair-*.png`, `crop-relay.png`. The effect is deliberately subtle: 776 and 341 pixels change. `switchyard-center` could not be captured because of the known supervisor inspector assertion at inspect-map.mjs:609 (switchyard-transformer.glb). Relay inspector: 37→38 draw calls, 28→29 programs, 17→17 textures, 16→16 lights, median 6.9→7.0ms. p99 went 7.1→20.9ms on the loaded host; I did not verify whether that is contention or cost. client.js is +3,025 bytes against round 1 and art assets +0.
+
+**Gates.** typecheck pass. vitest 202 files / 1673 tests pass, plus node 92/92. build:client pass. audit:assets exit 0 (47,369,216 public bytes). inspect-map relay,practice-two exit 0 with 0 console errors. `hitch-probe --assert`: the first run **FAILED** on main-thread stall (410.7ms idle gap, `look-r2-hitch.json`). The rerun PASSED (`look-r2-hitch-rerun.json`). Before the interleaved series, 7 of the 8 strict first-action runs (`final*`, `ab-*`, `final2-*`, both builds, with and without dust) failed on sustained frame pacing or a main-thread stall. The later `series-*` passed 5 of 6. None of these failures was in a first-action window. These are recorded as failures, not green.
+
+**Open.** Repeat the dust A/B and the strict cohort when other lanes are not building, to settle the p99 question and close the environmental verdict. Switchyard stills need the inspector assertion fix (existing cross-stream request).
+
+### Session 6 - 2026-09-23: Three times of day
+
+**Per-map light and grade.**
+- `client/scene-lighting.ts`: new `installSiteGrade`. It swaps the renderer to `CustomToneMapping`, and the custom function runs a per-site grade (saturation, shadow/highlight split tone, contrast about 0.18 grey) and then the same ACES curve. This happens inside the existing tone-mapping step of every material, so there are no new passes, textures, uniforms or lights. Each page holds one site, so the grade is baked in as constants before the first compile. Sites without a profile keep plain ACES.
+- Relay (hard noon): key 3.1→4.2, warmer `#ffe4b8`, hemisphere 0.92→0.52, ambient 0.12→0.07, darker ground bounce, contrast 1.32, amber highlights and cool shade. The sun direction is unchanged because a test ties it to the reflection bake.
+- Undertow (low dusk): contrast 1.12, blue shade `[0.84, 0.92, 1.14]` against amber highlights `[1.14, 0.98, 0.8]`, bluer ambient.
+- Switchyard (flat overcast): contrast 0.88, saturation 0.72, faint cold cast.
+- The dusk/overcast rig fields the supervisor's inspector pins (exposure, key, sun, fill, fog) are untouched.
+- `client/scene.ts`: +1 line. `test/scene-lighting.test.ts`: +1 test (three distinct grades; an unauthored site restores ACES and the original chunk).
+
+**Evidence (`.inspect/look-r3/`).**
+- `maps-before-after.png`: Relay, Undertow and Switchyard from fixed inspector cameras. That sheet shows the first Relay pass; `relay-before-after2.png` shows the final Relay values.
+- The Switchyard still is `*-sy-failure.png`, captured at the known `switchyard-transformer.glb` inspector assertion after the frame was ready.
+- Enemy readability: the inspector's actor review paths (`review-enemy`, `glint-near`) never reach readiness on this tree (calibrated actors; kit/supervisor area, not investigated). Instead `bot30.mjs` joins a live TDM/DOM/FFA room, walks the nav route and aims at the first enemy bot 24–38 m away with a clear line. Crops are in `bot30-before-after-zoom.png` and `relay-before-after2.png`. The team colour and silhouette read at 25–38 m on all three maps after the change. The final Relay bot is seen through a window.
+
+**Deltas.** Relay inspector: 37/28/17/16 (draws/programs/textures/lights), median 6.9ms, p99 7.1ms, same as round 1. client.js +1,561 bytes; art assets +0.
+
+**Vfx teardown bug (ui-lane report).** Cause: `main.ts` disposed the scene on `beforeunload`, which can be cancelled, and the page and the room socket keep running until the document is really gone. A shot arriving in that window reached `Vfx.spawnCasing` with an empty pool. Harness navigations between runs trigger this. Fix: the early handler now uses `pagehide`, and `Vfx.spawnCasing`/`spawnMuzzleFlash`/`spawnImpact` return early after dispose, because a queued message can still land during real teardown. New test in `test/impact-vfx.test.ts` fails on the old `vfx.ts` (TypeError) and passes now. Not replayed in a live bot room.
+
+**Gates.** typecheck exit 0; vitest 201 files / 1670 tests pass (7/9 skipped, pre-existing) plus node 92/92; build:client pass; audit:assets exit 0 (47,365,336); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory under the new rule), 2 deaths, 0 recompiles, 0 frames >150ms.
+
+**Open.** "Wet response" on Switchyard needs world-material roughness/env work (world lane). The coordinator's dust-motes stash@{0} is untouched.
+
+### Session 7 - 2026-09-23: Noon, dusk and cloud
+
+Round 3's grade was too subtle, so this pass uses sky, sun, shadow strength and grade together. Light count is still 16, with no new pass, texture or per-frame work.
+- **Relay, hard noon:** sun lowered from about 57° to 30° elevation for long cast shadows. I re-baked `public/assets/industrial-daylight.hdr` with `tools/bake-environment.py` using the same direction. The old sun reproduces the committed HDR byte-for-byte (`368132bb…`), so the tool is trustworthy. Key 4.2→5.6, whiter `#fff0d8`. Clear sky (horizon `#d6d4c6`, zenith `#4e7496`) plus a sky-shader sun bloom, fog `#cdd0c8`, grade contrast 1.38. The fill stays at 0.52 because the existing lighting test sets a floor at 0.5.
+- **Undertow, dusk:** a bright amber band low on the horizon, strongest toward the sun and at 40% elsewhere, plus a sun glow in the sky shader. Sky saturation 0.60→0.85. Grade contrast 1.34 with deep blue shade and strong amber highlights, so lit faces rake warm and the trench floor and interiors go dark.
+- **Switchyard, overcast:** key shadow intensity 0.18 (`LightShadow.intensity`, a uniform), grade contrast 0.72, saturation 0.75, grey-green tint. I tried saturation 0.45 first and dropped it, because it washed the FFA bot's torso colour out.
+- The shared grade now splits shade and light at luma 0.01–0.22 instead of 0.02–0.6, so lit surfaces keep their warmth.
+
+Evidence (`.inspect/look-r4/`): `maps-before-after.png` compares round 3 with this round from the same fixed cameras, with Switchyard's final values in `sy-final.png`. `maps-r2-r3-r4.png` covers the first pass across rounds. `bot30-before-after-zoom.png` and `ffa-final-zoom.png` show enemy bots at 25–38 m: TDM red in a window, DOM blue in the dusk lane, FFA orange-tan at 32.8 m. All stay readable.
+
+Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7ms. HDR −9,354 bytes. client.js +1,898 bytes against round 3.
+
+Gates: typecheck exit 0; vitest 201 files / 1670 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (47,360,745 public bytes); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150ms.
+
+Open: haze in depth and dusk fog colour need the pinned JSONs (cross-stream request above). The Switchyard still is the inspector failure capture (known transformer assertion).
+
+### Session 8 - 2026-09-23: Every hit says what it hit
+
+Surface-specific impacts, still pooled: 48 impact slots (seven particles per hit on every surface) plus a new 12-slot muzzle-dust pool. No lights, passes or textures added; one shader program (`pooled-impact-soft-edge-v2`).
+- `client/scene-impact.ts` is now table-driven. Mud throws dark clods up and back plus a heavy brown cloud. Wood throws long pale splinters. Sandbag gives grit and a big pale burlap puff. Brick gives brown chips and an orange-brown cloud; I moved it off red after a first pass read like a blood hit. Metal (corrugated iron) gives a white-hot contact, long sparks and a hollow ring (negative softness in the same shader). Concrete and gravel are unchanged.
+- Muzzle-blast dust: a low, faint puff (≤0.45 m tall, opacity ≤0.24) on the ground 0.6 m ahead of every remote shooter, via `Vfx.spawnMuzzleFlash` → `floorAt`. It marks the shooter; it cannot hide a torso or act as cover.
+- Reduced motion: contact plus still dust only, no flying debris or ring, no foot dust. Synced from `SceneRig.render`.
+- Masonry reads as brick on Relay and Undertow and stays concrete on Switchyard (`Vfx` option `site`). Real `brick` and `sandbag` classification is a cross-stream request above.
+- Tests (`test/scene-impact.test.ts`): three new cases (brick masonry, seven particles plus reduced-motion stillness per surface, muzzle-dust height/opacity/pool bounds). Two existing cases were updated to the new design (metal additive 4→6, residual 3→1; pigment test now covers seven kinds and waits for the 700 ms sandbag tail). `impact-vfx.test.ts` is unchanged and passes, because the concrete profile reproduces the old behaviour exactly.
+
+Evidence (`.inspect/look-r5/`):
+- `surfaces-before-after.png` and `surfaces-45ms-zoom.png`: seven hits on one Relay wall at fixed ages of 45, 160 and 420 ms, with the old `SceneImpact` against the new one. Brick and sandbag show as concrete in "before" because that is what the game sends today. Harness: `lineup.ts` and `lineup.mjs`.
+- `bot-round-sheet.png` and `bot-round-fight-*.png`: 11 frames over 25 s of a TDM bot round with no errors.
+
+Deltas: Relay inspector 37/28/17/16 (draws/programs/textures/lights), p99 7 ms. client.js +4,713 bytes. Art assets 0.
+
+Gates: typecheck exit 0. vitest 201 files / 1673 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (47,375,351). inspect-map relay,practice-two exit 0 with 0 console errors. hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open: impacts are small at combat range (unchanged particle scale); the bot-round stills catch few hits in flight at 2 s intervals. Metal's ring is thin at distance.
+
+### Session 9 - 2026-09-23: Dusk you can see in
+
+Merged `recovery/ironsight-ww1-20260912` (world trench conversion + supervisor fog `#a08a78`) first. Undertow's pinned fields (exposure, key, fill, ambient intensity, hemisphere colours, fog) are untouched; the existing contract test caught one attempt to lighten the hemisphere ground colour and I reverted it.
+- Cause of the murk was look's own round-4 grade: contrast 1.34 about 0.18 plus a 0.7 blue shade multiplier crushed everything below mid-grey. It is now contrast 1.06, shade tint `[0.9, 0.96, 1.12]`, highlights `[1.22, 1, 0.74]`, and a new shade lift of 0.014 (linear, blue-tinted, only below luma 0.2). Ambient colour `#4e5f80`→`#8c9abb`, same intensity.
+- Sky: the amber band and sun glow are kept but about 35–40% dimmer, so the horizon no longer out-shouts the ground.
+- Reflections: `gradeSiteEnvironment` takes an optional `environmentSaturation` 0.5 and `environmentCeiling` 0.45 (Undertow only), so wet ground mirrors a dim dusk.
+
+Luminance, Rec.709 luma 0–255, median/p10 of the player-height band (`luminance.json`, `measure.py`):
+
+| Camera | Before | After |
+|---|---|---|
+| undertow-home | 27.2 / 7.8 | 57.7 / 36.3 |
+| undertow-center | 12.5 / 0.1 | 42.1 / 21.6 |
+| undertow-channel-lower (trench) | 0.9 / 0.0 | 23.6 / 18.6 |
+| undertow-maintenance | 23.6 / 0.8 | 54.3 / 22.9 |
+| undertow-overview (aerial) | 24.7 / 4.1 | 52.1 / 30.0 |
+
+Enemy bots in live DOM rounds (Weber contrast of the chest core against a surrounding ring): before 12.1 m 0.02 (blue soldier on a black wall, effectively invisible), 31.3 m 0.52; after 16.9 m 1.02, 26.8 m 0.30 (partly behind cover). The bots stand in different places each run, so these are samples, not a controlled pair. No sampled bot stood in the trench; the trench readability evidence is the channel-lower still.
+
+Evidence (`.inspect/look-r6/`): `undertow-before-after.png` (four player-height cameras plus the aerial), `bots-before-after.png`, `before-*`/`after-*` stills and bot frames, and the harness files `capture.sh`, `bot.mjs`, `measure.py`.
+
+Gates: typecheck exit 0. vitest 203 files / 1679 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (48,805,493 public bytes, merge included). inspect-map relay,practice-two exit 0 with 0 console errors, so Undertow's pinned rig still matches its JSON. hitch-probe `--assert` FAILED on sustained frame pacing only, with 0 recompiles, 0 frames >150 ms, 2 deaths and 0 errors. Recorded as advisory per the shared-machine rule, not rerun.
+
+Open: a controlled enemy-contrast pair needs a fixed-position actor fixture. The inspector's review-enemy path does not reach readiness on this tree (see Session 6).
+
+### Session 10 - 2026-09-23: The war beyond the wall
+
+The far front lives in the sky shader: `client/scene-sky-weather.ts` gains a `frontLine()` pass inside the existing `frontWeather()`. It adds no lights (still 16), no geometry, textures or passes, and the only per-frame CPU work is two uniforms.
+- Each map gets one horizon sector (bearing ± ≤0.35 rad). Effects sit about 7–25° above the horizon, just over the far skyline; lower, the buildings hid them. They fade in and out at the band edges.
+- Four guns fire on staggered 2.3–6.4 s cycles. Each shot is a warm glow under the cloud base with a double flicker: 90 ms decay, second pulse at 140 ms. Flash colour peaks below 1.0 in linear radiance, dimmer than the combat muzzle sprite, which is untonemapped.
+- **Relay (day):** dark dust bursts rise and spread off the horizon; the day flash is faint.
+- **Undertow (dusk):** stronger amber flashes plus two slow star-shell arcs on 9 s and 12.7 s cycles, with a pale core and halo.
+- **Switchyard (overcast):** broad, muffled glows inside the cloud deck.
+- Reduced motion switches all of it off (`frontMotion` uniform). Static plumes and haze stay.
+- Bug caught while tuning: GLSL `pow()` is undefined for negative bases, which silently zeroed the flashes. I replaced it with explicit squares.
+
+Evidence (`.inspect/look-r7/`):
+- `stills-before-after.png`: fixed eye-level cameras toward each front, with a before frame, an after quiet frame and an after flash frame.
+- `flicker-arena{1,2,3}.gif`: 41 frames at 100 ms of simulated time, 20.0–24.0 s.
+- `seq/`: raw frames. Harness: `sky.ts`/`sky.mjs` renders in fixed 50 ms ticks so before and after share the clock.
+- One-sentence player read (Undertow): "There's a battle going on over there — you can see the guns and the flares."
+
+Gates: typecheck exit 0; vitest 203 files / 1682 tests plus node 92/92 pass (new far-front test); build:client pass; audit:assets exit 0 (48,814,925); inspect-map relay,practice-two exit 0 with 0 console errors, Relay 37/28/17/16, p99 7.1 ms; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms. client.js +4155 bytes; art assets 0.
+
+Open: Switchyard's flashes are deliberately muffled and read mostly in motion (GIF), not in a still. No rumble sync; audio is outside the lane. Each sector is one fixed bearing per map, so a player facing away never sees it.
+
+### Session 11 - 2026-09-23: Weight in the camera, room for the hand
+
+Merged `recovery/ironsight-ww1-20260912` (140c116) first.
+
+**1. Shotgun firing hand (kit request).** I copied kit's tools into `.inspect/look-r8/` (`measure.ts` from kit-r2, `travel.ts` from kit-r4, with the shotgun travel parameterised; kit's tree untouched) and swept x and y travel (`grid.ts`, 49 reload samples each).
+- Shortening the −0.32 sideways travel does not help: x 0.24→0.36 leaves the mag-in overlap at 6.1–8.6 mm.
+- The cause is the 4 cm downward travel (y 0.04), which drops the shell part into the firing hand.
+- Fix in `client/scene.ts`: shotgun y travel 0.04 → 0, x unchanged. Firing-hand worst over the whole reload goes 6.4 mm @0.58 → 2.4 mm @0.21, within kit's own ~2.8 mm noise band. Other slots are unchanged (`travel-after-all.json`). The support hand stays 18.4 mm (kit's open item, not this part).
+- Close-ups through the production weapon inspector: `shotgun-closeups.png` (mag-in 0.58 and mag-out 0.40, before/after).
+
+**2. Camera weight.** Inventory of what already existed:
+- viewmodel walk bob, sway and breath (`config/visuals.ts` MOTION);
+- a camera landing dip of 5.5 cm, translation only;
+- blast trauma, a ≤2° camera roll about the view axis, so the aim ray and crosshair stay put.
+
+All three are disabled by reduced motion. Added only what was missing:
+- **Lens dirt** (`client/scene-lens-dirt.ts`): one clip-space quad, camera child, drawn in the normal pass. It has no texture, is visible only while blast trauma is above about 0.05 (so gone within 2 s), and uses fine grit plus a faint smear masked to the screen rim. The centre stays clear, so it cannot cover the crosshair or an enemy in front of it. It follows the existing trauma, which reduced motion and the blast-feedback setting already hold at zero, with an explicit reduced-motion guard as well. It is compiled by `prepare()` (+1 prepared program), so there is no first-use stall. No DOM overlay, so no compositor request.
+- **Heavier landing** on the viewmodel only: the weapon drops 2.5–10 cm, scaled by time in the air, and nods down 1.4 rad per metre of drop, decaying with a 170 ms time constant. The camera dip stays at 5.5 cm, so the aim ray gets no extra motion.
+- Tests: `test/scene-lens-dirt.test.ts`, plus a landing case in `test/blast-trauma.test.ts`, which is the existing DOM-typed SceneRig test file.
+
+Evidence (`.inspect/look-r8/`):
+- `blast-before-after.png` and `land-before-after.png`: before/after sequences at +0–2400 ms, fixed camera, fixed 16 ms ticks (`weight.ts`/`weight.mjs`).
+- `seq/`: raw frames.
+- The harness blast shows no explosion sprite; only trauma, roll and dirt are exercised.
+
+Deltas: Relay inspector 37 draws / 29 programs (+1 prepared lens-dirt program, not drawn in normal play) / 17 textures / 16 lights, p99 7.1 ms. client.js +2,446 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 204 files / 1686 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,842,624); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Incident (resolved): a mistyped `git stash push` did nothing, and the following `git stash pop` tried to apply the coordinator's dust-motes stash. Git aborted on the tracked file but had already written the stash's two untracked files. I confirmed both were byte-identical to `stash@{0}^3` and deleted them. `stash@{0}` is intact and the tree matches the pre-mishap state. The gate runs happened before this.
+
+Open: no live gameplay capture of a real mortar blast; the harness exercises the same SceneRig path. The landing drop is tuned by eye.
+
+### Session 12 - 2026-09-23: Walnut and blued steel
+
+Finish-only pass under this round's grant: `client/equipment-finish.ts` (material assignment through the existing `finishLegacyWeapon` hook in `weapon-loader.ts`, which is unchanged). No geometry, sockets, transforms, sights or animation touched.
+- Each shipped weapon is a single mesh with one material: the field carbine has its own baked atlas plus a metallic-roughness map; the four `wep_*` nodes share the Synty palette atlas. So wood cannot come from material names. I drew side profiles of each mesh (`.inspect/look-r9/profiles.png`, via `profile.ts`) and wrote wood zones in mesh-local coordinates. That space survives the reload-part split, which keeps the same vertex positions.
+- Wood mapping (logged in code):
+
+| Weapon | Wood zone |
+|---|---|
+| field-carbine | buttstock z<−0.12, wrist/grip, handguard 0.14<z<0.56 under the barrel |
+| wep_smg | buttstock, rear grip, front grip |
+| wep_shotgun | buttstock, pistol grip, pump fore-end |
+| wep_sniper | stock including thumbhole, fore-end |
+| wep_pistol | grip panels |
+
+  Everything else, including magazines and sights on the mesh, is steel.
+- Finish: oiled walnut (dark brown, fine grain along the stock that fades at distance, roughness 0.52–0.64, non-metal) and blued steel (blue-black, worn brighter edges from a scuff field, roughness 0.34–0.5, metalness 0.62). Source panel shading is kept as relief only, so the grey-blue plastic colour is gone.
+- The field carbine now takes the finish too; before, it kept its raw grey-blue material.
+- One shader program for all five: the zone is a per-material uniform, so there is no program-count change; Relay stays at 29. Remote third-person weapons share the same finish through `remoteWeaponTemplate`. Bots at 29.8 m (TDM) and 32.7 m (DOM) stay readable (`bot30-zoom.png`); weapon detail is not resolvable at that range.
+- Test: `test/equipment-finish.test.ts` updated for the intended change. Weapons now have separate materials sharing one program key, and the carbine is finished with its own maps kept. Held views still share one material; the source is never mutated.
+
+Evidence (`.inspect/look-r9/`): `weapons-arena1.png` and `weapons-arena2.png` (all five weapons, hip and ADS, before/after, Relay and Undertow; harness `fp.ts`/`fp.mjs`). The production weapon inspector also passed five FP shots in the gate run.
+
+Deltas: Relay 37/29/17/16 (draws/programs/textures/lights), p99 7.1 ms. client.js +3,879 bytes. Art assets 0.
+
+Gates: typecheck exit 0. vitest 204 files / 1686 tests plus node 92/92 pass. build:client pass. audit:assets exit 0 (48,852,141). inspect-map relay,practice-two plus five weapon shots exit 0 with 0 console errors. hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open:
+- No brass: none of the meshes has a separable brass part in mesh-local space, and the shotgun shell is steel.
+- The boxy ghost-ring sight on the carbine is kit's `rifleSight` (`client/rifle-*.ts`) geometry and material, outside this grant. Request for kit: WW1 blade front sight and open-notch rear. Sight readability was checked by eye across 20 ADS stills; the dark steel posts silhouette against sky and walls.
+- The old `'weapon'` branch of `equipmentFinish` is now unused (left for a separate cleanup, not deleted in this pass).
+
+### Session 13 - 2026-09-23: Blade in the notch
+
+The carbine's box aperture is **baked into the GLB** (`field-body`), but it is three separate connected parts (two uprights and a top bar, 44 triangles each) sitting on a separate base plate (`.inspect/look-r9/components.ts`). It can therefore be removed at load without editing the asset, using the same per-view index-subset pattern `splitRifleMagazine` already uses. The GLB and the cached source geometry are untouched.
+- `client/rifle-sight.ts` (granted this round):
+  - `stripIssuedSightHousing` drops those three parts from a per-view copy of the body index.
+  - `issuedIronSights` builds period sights in the carbine's mesh space: a rear leaf on the kept base plate with a U-notch, and a front barrel band with a thin blade 5 mm ahead of the muzzle. It uses the body's own service-finish material.
+  - Sight line `ISSUED_SIGHT_LINE_Y` = 0.060 mesh-m through the bore's x, clear of the handguard (top 0.039). Centre hold: the blade tip sits flush with the tops of the notch shoulders.
+- `client/scene.ts`: the issued-carbine branch now strips, adds the sights to the model and sets `sightHeight` from the sight line. A diagnostic marker at the blade tip keeps `sightScreen` reporting. The non-issued branch and every other weapon are unchanged.
+- The remote (third-person) carbine keeps the baked aperture; that was out of scope.
+
+Alignment evidence:
+- At ADS on sky, brick and dark mud, the front blade tip is at (960, 540.07–540.11) and the rear shoulder line at (960, 540.10–540.16) px, against a crosshair at (960, 540) (`shots/new-*.json`).
+- The production weapon inspector reports ADS `sightScreen` (960, 539.82).
+- Live `viewmodel-play`, all five weapons, hip and ADS, real wall shots: source-muzzle error ≤ 7.1e−15 and tracer endpoint 0.000–0.093 px from the crosshair (`vm/`).
+- The live probe only reaches one range (7.8 m walls). The sight line and aim ray are both the camera axis, so the projection does not depend on range; the three sight-picture backgrounds sit at different distances.
+- Hip is unchanged: muzzle position and viewmodel root are identical before and after.
+
+Tests: `test/issued-iron-sights.test.ts` has two cases. It checks that only the 3 × 44 aperture triangles are removed with the source untouched, and that blade tip and shoulders lie on one line through the bore with nothing of the carbine crossing it. Both fail on HEAD, where the functions do not exist.
+
+Evidence (`.inspect/look-r10/`): `sight-before-after.png` (hip/ADS, sky/brick/mud) and `sight-ads-zoom.png` (4× crops at the crosshair).
+
+Deltas: Relay 37/29/17/16 (draws/programs/textures/lights), p99 7 ms. client.js +3,016 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 205 files / 1688 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,861,846); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 1 frame >150 ms (within limits).
+
+Open: against dark mud the blued blade is a low-contrast silhouette, as real sights are. A lighter blade face or a white-line insert would help if the owner wants it.
+
+### Session 14 - 2026-09-23: The front beyond the wire
+
+New `client/scene-far-field.ts`, hooked from `scene.ts` right after the sky (+5 lines, including dispose). Relay and Undertow only; Switchyard and unauthored maps get nothing. No world files touched.
+- **Layout:** a ring walked along the playable rectangle's outline (straight edges plus rounded corners), so every point is exactly its offset outside the boundary.
+  - Starts 28 m out on Relay, past its fenced yard on the flat apron. Starts 58 m out on Undertow, under its 60 m apron.
+  - Runs to 520 m beyond, where the site fog is already opaque.
+  - Low swells rise to about 5 m far out: fields, not dunes.
+  - The ground sits 0.25 m above the apron once it surfaces.
+- **Ground shader** (`onBeforeCompile`, no texture), drawn per pixel so it stays crisp at any mesh resolution:
+  - churned-mud blotching;
+  - a shell crater in most 13 m cells (dark bowl, lighter rim);
+  - three zig-zag trench lines parallel to the front, with a dark wire belt 7 m in front of each (derivative-faded far off).
+- **Instanced detail:**
+  - ~720–744 leaning wire pickets along the belts;
+  - 140 shattered stumps;
+  - one ruined, roofless farm (10 broken walls, 20 blocks) about 230 m out on each map.
+- **Budget:**
+  - 4 draws: ground 2,816 tris; pickets 12 × 722/744; stumps 20 × 140; ruin 12 × 20. Total 14.5k / 14.8k tris.
+  - 1 static build; no lights, no shadows cast or received, no per-frame work, raycast off.
+  - Relay inspector 37→41 draws, 184,842→199,362 tris, 29→32 programs (compiled by `prepare()`), 16 lights, p99 7.1 ms. Practice-two (Undertow) 61→64 draws, +14.5k tris.
+- **Safety:** `test/scene-far-field.test.ts` checks every ground vertex and every instance corner.
+  - nearest element more than 20 m outside the boundary;
+  - nothing taller than 1.5 m within 40 m of it;
+  - ground faces up;
+  - exactly 4 draws, under 20k tris, no lights, no shadows;
+  - Switchyard untouched.
+
+Evidence (`.inspect/look-r11/`):
+- `fly-arena1.png` and `fly-arena2.png`: deployment fly-through at progress 0.35 and 1.0, before/after. The harness `fly.ts`/`fly.mjs` drives the production `introPose` + `SceneRig.render(intro)` path. The inspector's own `intro-*` shots still stall on actor readiness, before and after (Session 6 note).
+- `roof-before-after.png`: roof eye views. The far field shows as a crater and picket strip above the boundary walls, with nothing rising over them.
+
+client.js +10,337 bytes. Art assets 0.
+
+Gates: typecheck exit 0; vitest 206 files / 1691 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,892,242); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+Open: Undertow's field is dark under dusk and reads mostly as a silhouette band; the ruined farm is small at 230 m. Both are tunable in `SITES`.
