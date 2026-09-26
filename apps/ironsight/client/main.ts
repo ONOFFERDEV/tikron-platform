@@ -218,7 +218,10 @@ async function main(): Promise<void> {
   const whistled = new Set<string>();
 
   let lastPingAt = -Infinity;
-  const onLockChange = wireQuitConfirm(settings, () => input.lock(), () => net.state?.phase !== "ended" && net.online);
+  // Death releases pointer lock on purpose (see the wasAlive && !me.alive branch); that
+  // release must not open the match menu over the killer and respawn countdown.
+  const onLockChange = wireQuitConfirm(settings, () => input.lock(),
+    () => net.state?.phase !== "ended" && net.online && net.state?.players[net.myId]?.alive !== false);
   const input = new Input(
     scene.canvas,
     me0?.yaw ?? 0,
