@@ -606,3 +606,26 @@ Fix (own file): `scene-far-field.ts` now bakes pickets and stumps into one stati
 Not changed, reported: the impact particle pool draws each particle as its own mesh (up to ~60 draws in a firefight, still inside 240). Instancing it would save most of those draws but needs a pool rewrite and test rework; that is the next budget lever if draws climb. Over-budget texture counts and the 21 MiB weapon atlas are requests above.
 
 Gates: typecheck exit 0; vitest 206 files / 1692 tests plus node 92/92 pass; build:client pass; audit:assets exit 0 (48,865,708); inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS (advisory), 2 deaths, 0 recompiles, 0 frames >150 ms.
+
+### Session 18 - 2026-09-23: Sixty particles, two draws
+
+`client/scene-impact.ts`: the 60-slot pool (48 impact plus 12 foot-dust) is now drawn through two `InstancedMesh`es, one normal-blend and one additive, instead of one mesh per particle.
+- Every visual is unchanged: per-instance colour (`instanceColor`), alpha and softness (instanced attributes), the same soft-edge/hollow-ring shader using a per-instance normal matrix, and the same profiles, lifetimes, pool arithmetic and reduced-motion rules.
+- Upload happens once per `update()` while anything is live, and only then.
+- Draw order: soft puffs are written first and chips, contacts and rings after, so debris still draws over its own dust. The first instanced pass lost that ordering (mud clods and brick chips vanished behind the dust at 45 ms); caught in the lineup and fixed.
+- Program key is now `pooled-impact-instanced-v3`, compiled by `prepare()`; the hitch probe shows 0 recompiles.
+- `Vfx.impactParticles()` and `SceneImpact.particlesView()` expose live particles for tests. `test/scene-impact.test.ts` and `test/impact-vfx.test.ts` keep every original assertion through that view; the disposal case now checks the two instanced draws. One new case: the whole pool, all 7 surfaces plus 12 foot puffs, is exactly 2 instanced draws.
+
+Offline firefight fixture (`.inspect/look-r15/`, same `budget.ts` fixture, HEAD vs new):
+
+| Map | Draws | Triangles | Frame p99 / median (ms) |
+|---|---|---|---|
+| Relay | 211 → 153 | 213,612 → 216,492 | 7.1 → 7.1 / 6.9 → 6.9 |
+| Undertow | 219 → 161 | 144,038 → 146,918 | 7.1 → 7.1 / 6.9 → 6.9 |
+| Switchyard | 200 → 130 | 143,740 → 146,476 | 7.1 → 7.1 / 6.9 → 6.9 |
+
+Triangles rise about 2.9k because the instanced draws submit all 60 instances (idle ones at zero scale). Setting the instance count to the live high-water mark would remove that if it ever matters.
+
+Lineup (`lineup-before-after.png`, `lineup-45ms-zoom.png`): mud/wood/sandbag/brick/metal/concrete/gravel at 45/160/420 ms, old pool vs new. Debris directions are random per run; otherwise identical at a glance.
+
+Gates: typecheck exit 0; vitest 206 files / 1693 tests plus node 92/92 pass; build:client pass; audit:assets exit 0; inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS, 2 deaths, **0 recompiles**, 0 frames >150 ms.

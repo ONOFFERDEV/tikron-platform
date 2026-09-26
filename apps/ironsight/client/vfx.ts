@@ -102,6 +102,8 @@ export class Vfx {
   ready(): Promise<void> { return this.assetReady; }
 
   set reducedMotion(value: boolean) { this.impacts.reducedMotion = value; }
+  /** Live impact particles (tests and inspectors only). */
+  impactParticles() { return this.impacts.particlesView(); }
 
   dispose(): void {
     if (this.disposed) return;

@@ -40,10 +40,14 @@ const FORWARD = new THREE.Vector3(0, 0, 1);
 const FOOT_DUST = { color: 0xb8a784, size: [13, 3.5, 13] as const, opacity: .24, life: 420, lift: .12 };
 const IMPACT_POOL = 48, FOOT_POOL = 12;
 
-// Mutable slots are reused for the lifetime of the scene, including shader uniforms.
+// Logical slots are reused for the lifetime of the scene. Every slot is drawn through
+// two shared InstancedMeshes (normal and additive blending): at most two draws for all
+// impacts and foot dust, instead of one draw per particle.
 type Particle = {
-  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
-  softness: { value: number };
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  scale: THREE.Vector3;
+  color: THREE.Color;
   velocity: THREE.Vector3;
   origin: THREE.Vector3;
   size: THREE.Vector3;
@@ -51,48 +55,79 @@ type Particle = {
   life: number;
   gravity: number;
   opacity: number;
+  alpha: number;
+  softness: number;
   grow: number;
+  additive: boolean;
+  visible: boolean;
 };
 
 export type SceneImpactOptions = { readonly brickMasonry?: boolean };
+/** Read-only view of one live particle (tests and inspectors). */
+export type ImpactParticleView = { readonly position: THREE.Vector3; readonly scale: THREE.Vector3;
+  readonly quaternion: THREE.Quaternion; readonly color: THREE.Color; readonly opacity: number;
+  readonly additive: boolean; readonly softness: number };
+
+function particleMaterial(blending: THREE.Blending): THREE.MeshBasicMaterial {
+  const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending });
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = 'attribute float impactAlpha;\nattribute float impactSoftness;\nvarying float vImpactAlpha;\n'
+      + 'varying float vImpactSoftness;\nvarying vec3 impactNormal;\n' + shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\nvImpactAlpha = impactAlpha; vImpactSoftness = impactSoftness;\n'
+      // Per-instance normal matrix: the old per-mesh normalMatrix included the non-uniform size.
+      + 'impactNormal = normalMatrix * (transpose(inverse(mat3(instanceMatrix))) * normal);',
+    );
+    // softness > 0: soft-edged puff; < 0: hollow ring (bright rim, clear centre).
+    shader.fragmentShader = 'varying float vImpactAlpha;\nvarying float vImpactSoftness;\nvarying vec3 impactNormal;\n'
+      + shader.fragmentShader.replace('#include <color_fragment>',
+        '#include <color_fragment>\nfloat edge = smoothstep(0.08, 0.85, abs(normalize(impactNormal).z));\nfloat rim = 1.0 - edge;\n'
+        + 'diffuseColor.a *= vImpactAlpha * (vImpactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(1.0, edge * edge, vImpactSoftness));');
+  };
+  material.customProgramCacheKey = () => 'pooled-impact-instanced-v3';
+  return material;
+}
 
 export class SceneImpact {
   private readonly geometry = new THREE.SphereGeometry(.035, 6, 5);
   private readonly particles: Particle[];
   private readonly feet: Particle[];
+  private readonly slots: Particle[];
+  private readonly meshes: THREE.InstancedMesh[];
+  private readonly alpha: THREE.InstancedBufferAttribute[] = [];
+  private readonly softness: THREE.InstancedBufferAttribute[] = [];
+  private readonly matrix = new THREE.Matrix4();
+  private readonly zero = new THREE.Matrix4().makeScale(0, 0, 0);
   private cursor = 0;
   private footCursor = 0;
+  private dirty = false;
   /** Reduced motion: contact and a still dust mark only; no flying debris, no foot dust. */
   reducedMotion = false;
 
   constructor(private readonly scene: THREE.Scene, private readonly options: SceneImpactOptions = {}) {
-    this.particles = Array.from({ length: IMPACT_POOL }, () => this.slot());
-    this.feet = Array.from({ length: FOOT_POOL }, () => this.slot());
-  }
-
-  private slot(): Particle {
-    const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-    const softness = { value: 0 };
-    material.onBeforeCompile = shader => {
-      shader.uniforms.impactSoftness = softness;
-      shader.vertexShader = `varying vec3 impactNormal;\n${shader.vertexShader}`.replace(
-        '#include <begin_vertex>', '#include <begin_vertex>\nimpactNormal = normalMatrix * normal;',
-      );
-      // softness > 0: soft-edged puff; < 0: hollow ring (bright rim, clear centre).
-      shader.fragmentShader = `uniform float impactSoftness;\nvarying vec3 impactNormal;\n${shader.fragmentShader}`.replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-float edge = smoothstep(0.08, 0.85, abs(normalize(impactNormal).z));
-float rim = 1.0 - edge;
-diffuseColor.a *= impactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(1.0, edge * edge, impactSoftness);`,
-      );
-    };
-    material.customProgramCacheKey = () => 'pooled-impact-soft-edge-v2';
-    const mesh = new THREE.Mesh(this.geometry, material);
-    mesh.visible = false;
-    this.scene.add(mesh);
-    return { mesh, softness, velocity: new THREE.Vector3(), origin: new THREE.Vector3(),
-      size: new THREE.Vector3(), born: 0, life: 0, gravity: 0, opacity: 0, grow: 0 };
+    const slot = (): Particle => ({ position: new THREE.Vector3(), quaternion: new THREE.Quaternion(),
+      scale: new THREE.Vector3(), color: new THREE.Color(), velocity: new THREE.Vector3(), origin: new THREE.Vector3(),
+      size: new THREE.Vector3(), born: 0, life: 0, gravity: 0, opacity: 0, alpha: 0, softness: 0, grow: 0,
+      additive: false, visible: false });
+    this.particles = Array.from({ length: IMPACT_POOL }, slot);
+    this.feet = Array.from({ length: FOOT_POOL }, slot);
+    this.slots = [...this.particles, ...this.feet];
+    const capacity = this.slots.length;
+    this.meshes = [THREE.NormalBlending, THREE.AdditiveBlending].map((blending, family) => {
+      const geometry = this.geometry.clone();
+      const alpha = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1).setUsage(THREE.DynamicDrawUsage);
+      const soft = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1).setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute('impactAlpha', alpha); geometry.setAttribute('impactSoftness', soft);
+      this.alpha.push(alpha); this.softness.push(soft);
+      const mesh = new THREE.InstancedMesh(geometry, particleMaterial(blending), capacity);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      for (let i = 0; i < capacity; i++) { mesh.setMatrixAt(i, this.zero); mesh.setColorAt(i, new THREE.Color()); }
+      mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
+      mesh.name = family === 0 ? 'impact-particles' : 'impact-particles-hot';
+      mesh.frustumCulled = false; mesh.visible = false; mesh.raycast = () => {};
+      scene.add(mesh);
+      return mesh;
+    });
   }
 
   private next(): Particle {
@@ -104,18 +139,17 @@ diffuseColor.a *= impactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(
 
   private place(slot: Particle, position: Vec3, color: number, additive: boolean, size: readonly number[],
     life: number, gravity: number, opacity: number, softness: number, grow: number, born: number): void {
-    slot.mesh.position.set(position.x, position.y, position.z);
-    slot.origin.copy(slot.mesh.position);
-    slot.mesh.material.color.setHex(color);
-    slot.mesh.material.blending = additive ? THREE.AdditiveBlending : THREE.NormalBlending;
+    slot.position.set(position.x, position.y, position.z);
+    slot.origin.copy(slot.position);
+    slot.color.setHex(color);
+    slot.additive = additive;
     slot.size.set(size[0]!, size[1]!, size[2]!);
-    slot.mesh.scale.copy(slot.size);
-    if (slot.velocity.lengthSq() > 0) slot.mesh.quaternion.setFromUnitVectors(FORWARD, slot.velocity.clone().normalize());
-    slot.mesh.material.opacity = opacity;
-    slot.opacity = opacity;
-    slot.softness.value = softness;
+    slot.scale.copy(slot.size);
+    if (slot.velocity.lengthSq() > 0) slot.quaternion.setFromUnitVectors(FORWARD, slot.velocity.clone().normalize());
+    slot.alpha = opacity; slot.opacity = opacity; slot.softness = softness;
     slot.life = life; slot.gravity = gravity; slot.grow = grow; slot.born = born;
-    slot.mesh.visible = true;
+    slot.visible = true;
+    this.dirty = true; // uploaded by the next update(), once per frame
   }
 
   spawn(position: Vec3, direction: Vec3, target: ImpactTarget): void {
@@ -133,7 +167,7 @@ diffuseColor.a *= impactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(
     const kind = target === 'concrete' && this.options.brickMasonry ? 'brick' : target;
     const profile = PROFILES[kind];
     const contact = this.next();
-    contact.velocity.set(0, 0, 0); contact.mesh.quaternion.identity();
+    contact.velocity.set(0, 0, 0); contact.quaternion.identity();
     this.place(contact, position, profile.contact, profile.hot === true, [2.4, 2.4, .6], 65, 0, 1, 0, -.55, born);
     if (!this.reducedMotion) {
       for (let index = 1; index <= profile.chips.count; index++) {
@@ -146,7 +180,7 @@ diffuseColor.a *= impactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(
       if (profile.ring) {
         const ring = this.next();
         ring.velocity.set(0, 0, 0);
-        ring.mesh.quaternion.setFromUnitVectors(FORWARD, back);
+        ring.quaternion.setFromUnitVectors(FORWARD, back);
         this.place(ring, position, 0xfff2d0, true, [4, 4, .15], 140, 0, 1, -1, 4, born);
       }
     }
@@ -167,29 +201,67 @@ diffuseColor.a *= impactSoftness < 0.0 ? clamp(rim * rim * 4.0, 0.0, 1.0) : mix(
     if (this.reducedMotion) return;
     const slot = this.feet[this.footCursor]!;
     this.footCursor = (this.footCursor + 1) % this.feet.length;
-    slot.velocity.set(0, FOOT_DUST.lift, 0); slot.mesh.quaternion.identity();
+    slot.velocity.set(0, FOOT_DUST.lift, 0); slot.quaternion.identity();
     this.place(slot, { x: ground.x, y: ground.y + .06, z: ground.z }, FOOT_DUST.color, false, FOOT_DUST.size,
       FOOT_DUST.life, 0, FOOT_DUST.opacity, 1, .6, performance.now());
   }
 
   update(now: number): void {
-    for (const pool of [this.particles, this.feet]) for (const slot of pool) {
-      if (!slot.mesh.visible) continue;
+    if (!this.dirty) return;
+    let live = false;
+    for (const slot of this.slots) {
+      if (!slot.visible) continue;
       const age = Math.max(0, now - slot.born);
-      if (age >= slot.life) { slot.mesh.visible = false; continue; }
+      if (age >= slot.life) { slot.visible = false; continue; }
+      live = true;
       const seconds = age / 1000, progress = age / slot.life;
-      slot.mesh.position.copy(slot.origin).addScaledVector(slot.velocity, seconds);
-      slot.mesh.position.y += .5 * slot.gravity * seconds * seconds;
-      slot.mesh.scale.copy(slot.size).multiplyScalar(Math.max(.05, 1 + progress * slot.grow));
-      slot.mesh.material.opacity = slot.softness.value > 0 ? slot.opacity * (1 - progress) ** 2 : slot.opacity * (1 - progress) ** 1.5;
+      slot.position.copy(slot.origin).addScaledVector(slot.velocity, seconds);
+      slot.position.y += .5 * slot.gravity * seconds * seconds;
+      slot.scale.copy(slot.size).multiplyScalar(Math.max(.05, 1 + progress * slot.grow));
+      slot.alpha = slot.softness > 0 ? slot.opacity * (1 - progress) ** 2 : slot.opacity * (1 - progress) ** 1.5;
     }
+    this.write();
+    this.dirty = live;
   }
+
+  /** Upload live slots into their family's instance buffers. Soft puffs go first and
+   *  chips, contacts and rings after, so solid debris draws over its own dust as it
+   *  did when each particle was a separately sorted mesh. Unused instances collapse. */
+  private write(): void {
+    const next = [0, 0];
+    for (const pass of [0, 1]) for (const slot of this.slots) {
+      if (!slot.visible || (slot.softness > 0 ? 0 : 1) !== pass) continue;
+      const family = slot.additive ? 1 : 0, i = next[family]!++;
+      const mesh = this.meshes[family]!;
+      mesh.setMatrixAt(i, this.matrix.compose(slot.position, slot.quaternion, slot.scale));
+      mesh.setColorAt(i, slot.color);
+      this.alpha[family]!.setX(i, slot.alpha); this.softness[family]!.setX(i, slot.softness);
+    }
+    this.meshes.forEach((mesh, family) => {
+      for (let i = next[family]!; i < mesh.count; i++) mesh.setMatrixAt(i, this.zero);
+      mesh.visible = next[family]! > 0;
+      mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor!.needsUpdate = true;
+      this.alpha[family]!.needsUpdate = true; this.softness[family]!.needsUpdate = true;
+    });
+  }
+
+  /** Live particles, in slot order (tests and inspectors only). */
+  particlesView(): ImpactParticleView[] {
+    return this.slots.filter(slot => slot.visible).map(slot => ({ position: slot.position, scale: slot.scale,
+      quaternion: slot.quaternion, color: slot.color, opacity: slot.alpha, additive: slot.additive, softness: slot.softness }));
+  }
+
+  /** The two instanced draws (resource and program-stability checks). */
+  get drawMeshes(): readonly THREE.InstancedMesh[] { return this.meshes; }
 
   dispose(): void {
     if (this.particles.length === 0) return;
-    for (const slot of [...this.particles, ...this.feet]) { this.scene.remove(slot.mesh); slot.mesh.material.dispose(); }
+    for (const mesh of this.meshes) {
+      this.scene.remove(mesh); mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); mesh.dispose();
+    }
     this.particles.length = 0;
     this.feet.length = 0;
+    this.slots.length = 0;
     this.geometry.dispose();
   }
 }
