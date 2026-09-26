@@ -107,7 +107,23 @@ for (const faction of ["khaki", "fieldgrey"]) {
     positions = [],
     joints = [],
     weights = [];
-  for (let v = 0; v < limit; v++) {
+  // A GLB may carry a hit-only torso proxy (same skin, invisible in play) so a cosmetic body
+  // can change without moving the hit component; otherwise the body-weight rule below applies.
+  let proxy;
+  gltf.scene.traverse((n) => { if (n instanceof THREE.SkinnedMesh && n.name === "hit-torso-proxy") proxy = n; });
+  if (proxy) {
+    if (proxy.skeleton.bones.map((b) => b.name).join() !== bones.map((b) => b.name).join()) throw Error("proxy skin");
+    const pp = proxy.geometry.getAttribute("position"), pj = proxy.geometry.getAttribute("skinIndex"),
+      pw = proxy.geometry.getAttribute("skinWeight");
+    for (let v = 0; v < pp.count; v++) {
+      positions.push(pp.getX(v), pp.getY(v), pp.getZ(v));
+      for (let l = 0; l < 4; l++) {
+        joints.push(pj.getComponent(v, l));
+        weights.push(pw.getComponent(v, l));
+      }
+    }
+  }
+  for (let v = 0; v < (proxy ? 0 : limit); v++) {
     let selected = 0;
     for (let l = 0; l < 4; l++)
       if (torsoBones.has(bones[si.getComponent(v, l)]?.name)) selected += sw.getComponent(v, l);
