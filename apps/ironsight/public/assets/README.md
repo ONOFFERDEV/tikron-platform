@@ -1867,3 +1867,16 @@ Ammunition boxes, spent sandbags, duckboard walks and a field telephone line are
 vertex-coloured boxes merged into the existing `relay-yard-issued-supplies` draw
 (`client/relay-yard.ts`). No collider, AO bake, texture, material or file changed.
 <!-- /world -->
+
+<!-- # world -->
+Front Supply Depot Session 7 (2026-09-23): `maps/switchyard-architecture.glb` is re-dumped
+and re-baked from the converted depot kit (unchanged colliders, ground AO unchanged):
+`node tools/dump-architecture.mjs .inspect/world-r2/architecture.json switchyard`, then
+`blender --background --python-exit-code 1 --python tools/bake-architecture.py -- --input .inspect/world-r2/architecture.json --size 1024 --samples 64`,
+audited with `python scripts/audit-architecture.py --input .inspect/world-r2/architecture.json`.
+101,142 -> 16,482 triangles, 7,689,340 -> 1,614,908 bytes; brick, timber, burlap and
+ammunition-box stacks are shader patterns on the existing grain tile. Baked slot order
+changed and is re-derived in `client/switchyard-palette.ts`. `switchyard-vista.webp` is
+re-captured with `--shots switchyard-vista --write-vista` (1920x1080, same camera).
+`props/switchyard-transformer.glb` is no longer requested by the client.
+<!-- /world -->

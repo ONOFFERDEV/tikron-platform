@@ -6,7 +6,7 @@ Scope: world-owned files in `tools/aaa-stream-world.md`. No commit, push, or dep
 ## AAA gap list
 
 1. **Underpass Trench conversion arc 3/3 (Session 6):** implemented. Remaining Underpass debt is small: the pilot lanterns keep their teal idle colour because it carries signal state, the pump-hall shells still use regular masonry openings, and the exterior east/west halls repeat. Needs owner review of the new stills.
-2. Front Supply Depot needs timber freight/platform finishes and period rail equipment.
+2. Front Supply Depot conversion (Session 7): implemented. Remaining: more bomb damage (craters, broken roofs), timber deck ramps, and the three stale Switchyard collision audits (pre-existing).
 3. Signal Station's major period shell arc is implemented. Add less regular damage, repairs and human-scale use to reduce its repeated brick/box rhythm after the other maps establish their period silhouettes.
 4. Measure the finished three-map visual package on the actual laptop iGPU; desktop evidence is not that qualification.
 
@@ -132,6 +132,46 @@ Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) after review of R-UI2 
 
 - Live soldier samples are few: two 15 m captures (one landed on the results screen and was excluded) and two 30 m. The bots stood against walls, so soldier L* is paired with fixed-camera ground rather than measured on the same pixels.
 - At the gate camera, much of the remaining dark foreground mottling is the long lattice-mast shadow from look's new light, not paint.
+
+### Session 7 - 2026-09-23: Front Supply Depot conversion, ammunition stacks, sandbags and sidings
+
+Reference: ART-CONCEPT arena3 ("overcast rail unloading, timber platforms, ammunition stacks, wagons, bomb damage; modern transformer/container language removed"). Method repeats the Undertow Session 6 conversion. Taken over from a stalled predecessor; its partial `switchyard-surfaces.ts` shader edit (timber on olive/ochre, brick on concrete walls) was sound and kept. Collision is unchanged.
+
+#### Delivered
+
+- `client/switchyard-environment.ts`: cabinet bays, louvres, end plates, armoured-case strips, cast retaining-wall seams and loading stripes are gone. The 3 m screens, benches, cut covers and freight stack are ammunition-box stacks under tarpaulin boards with a sandbag row; the 1.1 m covers are sandbag walls; the central deck is a timber loading platform with trestle posts and iron edge beams; the two 6 m blocks are brick stores; the deck post is an iron water-crane column; the east court shed is a timber revetment on iron stakes; office floors are boarded. Exterior: the substation portals, insulator stacks, switching mast and capacitor towers are replaced by a north siding (rails, sleepers, four timber box vans and one shell-wrecked van), a west timber water tower and two tarpaulined ammunition dumps. Cable raceways become flush narrow-gauge trolley lines. Signs are creosoted boards with serif lettering ("SUPPLY DEPOT No. 3", "S.A.A. STORE", "GOODS DEPOT", ...).
+- `client/switchyard-surfaces.ts`: the housing slot draws stacked ammunition boxes (0.72 x 0.40 m faces, batten frames, painted/raw tint, stencil panels, fade below pixel size); pale is burlap sandbag (Undertow's pattern, now exported from `client/undertow-surfaces.ts`); olive/ochre are timber; concrete is brick on vertical faces with joints only on paving; the ground and apron are tinted toward cinder and mud. Slot-to-kind now reads the palette table.
+- `client/switchyard-palette.ts`: brick, iron, box-stack, timber and burlap finishes; baked slot order re-derived from the new dump by linear colour. `client/switchyard-site.ts`: east/south boundary sheds are brick goods sheds.
+- `client/switchyard-overcast.json`: look-lane request applied, fogColor `#9aa69c`, fogFar 230 (fogNear 100).
+
+#### Collision and bake
+
+- No collider, ramp, spawn or cap changed; ground AO bytes unchanged. Architecture re-dumped and re-baked (Blender 4.5, 1024 px, 64 samples). `scripts/audit-architecture.py`: PASS, 16,482 triangles, 7 material primitives, zero degenerates (`.inspect/world-r2/geometry-audit.json`). `test/switchyard-architecture.test.ts` (exact shells, cladding within 2 cm, exterior outside play) passes.
+- `tools/audit-switchyard-site.mjs` exit 0. `audit-switchyard-{rail,structures,yard}.mjs` exit 1 **on the unchanged baseline too**, with identical assertions (rail: "yard bridge" walk at x=75; structures: expects ids `west-maintenance`/`east-dispatch`, map now has `west-baggage-office`/`east-signal-office`; yard: a yard part is outside `SWITCHYARD_YARD_OLD_BLOCKS`). They went stale when the 2026-09-11 WW1 checkpoint changed `src/map` collision. Not edited here: fixing them means re-authoring gameplay expectations for a collider layout this session did not touch. Logs: `.inspect/world-r2/base-audit-*.log`, `gate-audit-*.log`.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` exit 0. `pnpm test` exit 0: 206 files / 1,691 Vitest pass, 7 existing skipped files / 9 existing skipped tests, 92/92 Node tests. `pnpm build:client` exit 0. `pnpm audit:assets` exit 0 (public 42,793,335 bytes).
+- `inspect-map --url http://localhost:8801 --shots relay,practice-two --prefix world-r2`: exit 0, `errors: []`, no forbidden network.
+- `hitch-probe http://localhost:8801 150000 .inspect/world-r2-hitch.json --assert`: PASS, 2 deaths, 0 recompiles, 0 frames over 150 ms, 0 errors. Advisory under the shared-host rule.
+
+#### Evidence and deltas
+
+- `.inspect/world-r2/compare-*.png` (before top, after bottom, fixed cameras): overview (overhead), center, service, north, rail-entry, vista, practice-three game view, and `compare-menucard.png`. Before shots are the predecessor's; after shots are `world-r2-after3-*`. Switchyard shots use the evidence-only `inspect-map-local.mjs` copy without the transformer assertion (see request below).
+- Bytes: architecture GLB 7,689,340 -> 1,614,908 (-6,074,432); menu card 172,218 -> 148,636 (-23,582). No new files, textures, lights or passes. Shader programs 27 -> 30 on the switchyard shots (timber, sandbag and box-stack variants of existing materials; prepared before play, hitch probe shows 0 recompiles).
+- RTX 5070/ANGLE 1920x1080 switchyard vista: calls 36 -> 36, triangles 148,614 -> 63,954, textures 16 -> 16 (26.26 MiB), median 6.9 -> 6.9 ms, max 7.1 -> 7.1 ms. Desktop only; laptop iGPU unmeasured.
+
+#### Cross-stream request (supervisor)
+
+- `scripts/inspect-map.mjs` line 608 still requires `/assets/props/switchyard-transformer.glb` for `switchyard-*` shots. The client has not requested it since before this session (`switchyard-props.ts` builds semaphores procedurally), so every `switchyard-*` inspector shot fails that check. Drop the entry; the 243,392-byte GLB and its `audit-assets` allowlist line can then be retired.
+
+#### Limits
+
+- Bomb damage is one wrecked van only; no craters or broken roofs yet. The deck ramps keep their iron tread. Owner review of the stills pending.
+
+#### Wow check
+
+Player sentence: **"It's a railway ammo dump: crates, sandbags and box vans on the siding."**
 
 ### Session R-UI2 - 2026-09-23: Relay floor as the headline, wall damage one notch up
 

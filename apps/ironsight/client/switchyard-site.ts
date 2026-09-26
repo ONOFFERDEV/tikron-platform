@@ -32,7 +32,7 @@ export function switchyardSiteBoundary(width: number, depth: number): Switchyard
 
   add(0, width + 1.52, 1.35, depth / 2, 3, 2.7, depth);
   for (const [z, length, height] of [[16, 25, 7], [48, 30, 9], [81, 21, 6]] as const) {
-    add(2, width + 20, height / 2, z, 20, height, length);
+    add(0, width + 20, height / 2, z, 20, height, length);
     add(1, width + 20, height + .15, z, 20.4, .3, length + .4);
   }
 
@@ -47,7 +47,7 @@ export function switchyardSiteBoundary(width: number, depth: number): Switchyard
   }
 
   for (const [x, span, height] of [[width * .24, 18, 7], [width * .70, 23, 10]] as const) {
-    add(2, x, height / 2, depth + span / 2, width * .38, height, span);
+    add(0, x, height / 2, depth + span / 2, width * .38, height, span);
     add(1, x, height + .15, depth + span / 2 + .21, width * .38 + .4, .3, span + .4);
   }
   return parts;

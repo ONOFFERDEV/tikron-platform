@@ -1,19 +1,21 @@
 import type { MeshStandardMaterialParameters } from 'three';
 
-/** Issued industrial paint under the overcast sky. The same values serve the
- * original AO bake and procedural fallback; signs keep the brighter accents. */
+/** Late-war supply depot under an overcast sky: sooty railway brick, dark
+ * iron, burlap sandbags, raw and painted timber, and stacked ammunition boxes.
+ * The same values serve the original AO bake and procedural fallback. */
 export const SWITCHYARD_FINISH = {
-  concrete: { color: 0x939388, roughness: 0.96, metalness: 0 },
-  steel: { color: 0x464a45, roughness: 0.78, metalness: 0.26 },
-  housing: { color: 0x777a68, roughness: 0.87, metalness: 0.12 },
-  ochre: { color: 0xa18a61, roughness: 0.91, metalness: 0.05 },
-  olive: { color: 0x777c66, roughness: 0.89, metalness: 0.06 },
-  pale: { color: 0xaba997, roughness: 0.93, metalness: 0.02 },
+  concrete: { color: 0x8a7566, roughness: 0.96, metalness: 0 }, // brick walls, paved setts
+  steel: { color: 0x3f403b, roughness: 0.8, metalness: 0.22 },
+  housing: { color: 0x7d6f53, roughness: 0.88, metalness: 0 }, // ammunition box stacks
+  ochre: { color: 0x8b7657, roughness: 0.9, metalness: 0 }, // raw timber
+  olive: { color: 0x6e6852, roughness: 0.9, metalness: 0 }, // weathered timber
+  pale: { color: 0x8d8269, roughness: 0.95, metalness: 0 }, // burlap sandbags
   deck: { color: 0x74766d, roughness: 0.78, metalness: 0.32 },
 } as const satisfies Record<string, MeshStandardMaterialParameters>;
 
 // Original baked slots follow first use, not the procedural palette order.
-const BAKE_SLOTS = ['concrete', 'steel', 'pale', 'olive', 'ochre', 'housing',
+// Re-derived from the depot-conversion dump (2026-09-23) by baked linear colour.
+const BAKE_SLOTS = ['concrete', 'housing', 'ochre', 'pale', 'steel', 'olive',
   'deck', 'deck', 'deck', 'deck'] as const;
 
 export function switchyardBakedFinish(name: string): keyof typeof SWITCHYARD_FINISH | undefined {

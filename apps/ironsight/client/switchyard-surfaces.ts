@@ -1,5 +1,37 @@
 import * as T from 'three';
 import { applyRelayWeathering } from './relay-weathering.js';
+import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns.js';
+import { switchyardBakedFinish } from './switchyard-palette.js';
+import { UNDERTOW_SANDBAG } from './undertow-surfaces.js';
+
+/** Stacked ammunition boxes: 0.72 x 0.40 m faces in columns that shift every
+ * third course, each with a batten frame, dark gaps, a painted/raw tint and a
+ * pale stencil panel on some boxes. Existing metre UVs only; the detail fades
+ * to a quiet brown below pixel size. */
+const SWITCHYARD_CRATES = `
+    vec2 crateSize = vec2(0.72, 0.40);
+    float crateRow = floor(metres.y / crateSize.y);
+    vec2 crateUv = metres + vec2(fract(floor(crateRow / 3.0) * 0.37) * crateSize.x, 0.0);
+    vec2 crateCell = floor(crateUv / crateSize);
+    vec2 crateLocal = mod(crateUv, crateSize);
+    vec2 crateEdge = min(crateLocal, crateSize - crateLocal);
+    float crateDetail = 1.0 - smoothstep(0.04, 0.18, max(footprint.x, footprint.y));
+    vec2 crateGap = 1.0 - smoothstep(vec2(0.014), vec2(0.022) + footprint, crateEdge);
+    float gap = max(crateGap.x, crateGap.y) * crateDetail;
+    vec2 crateFrame = 1.0 - smoothstep(vec2(0.055), vec2(0.06) + footprint, crateEdge);
+    float frame = max(crateFrame.x, crateFrame.y) * crateDetail;
+    float crateId = fract(sin(dot(crateCell, vec2(41.3, 289.1))) * 43758.5453);
+    vec3 crateTint = mix(vec3(0.62, 0.70, 0.50), vec3(1.14, 1.02, 0.84), step(0.6, crateId));
+    crateTint *= mix(0.78, 1.12, fract(crateId * 7.3));
+    vec2 stencilEdge = abs(crateLocal - crateSize * 0.5) - crateSize * vec2(0.2, 0.12);
+    float stencil = (1.0 - smoothstep(0.0, 0.004 + footprint.x, max(stencilEdge.x, stencilEdge.y)))
+      * step(0.55, fract(crateId * 3.1)) * crateDetail;
+    diffuseColor.rgb *= mix(vec3(1.0), crateTint * mix(1.0, 0.72, frame), crateDetail);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.58, 0.47), stencil * 0.28);
+    diffuseColor.rgb *= 1.0 - gap * 0.82;
+    fieldRelief = ((1.0 - gap) * 0.012 + frame * 0.004) * crateDetail;
+    roughnessFactor = max(roughnessFactor, 0.84);
+`;
 
 export const SWITCHYARD_PHYSICAL_SURFACES = {
   mud: { roughness: 0.96, metalness: 0 },
@@ -10,12 +42,13 @@ export const SWITCHYARD_PHYSICAL_SURFACES = {
 } as const;
 export type SwitchyardSurface = 'ground' | 'concrete' | 'apron' | 'coated' | 'steel' | 'deck';
 
-/** The original baked kit's material slots: concrete shell, dark steel, pale
- * enamel, teal/amber paint, switchgear steel, then the four ramp directions. */
+/** Baked material slot to surface family, through the palette's slot table:
+ * brick shell, deck ramps, iron and box stacks, then timber/burlap coats. */
 export function switchyardSurfaceKind(name: string): SwitchyardSurface {
-  if (name === 'switchyard-0') return 'concrete';
-  if (/^switchyard-[6-9]$/.test(name)) return 'deck';
-  return name === 'switchyard-1' || name === 'switchyard-5' ? 'steel' : 'coated';
+  const finish = switchyardBakedFinish(name);
+  if (finish === 'concrete') return 'concrete';
+  if (finish === 'deck') return 'deck';
+  return finish === 'steel' || finish === 'housing' ? 'steel' : 'coated';
 }
 
 /** Recover rectangle pairs from the original kit at load, including the ramps'
@@ -78,10 +111,21 @@ export function applySwitchyardWeathering(mesh: T.Mesh): void {
  * derivative-filtered joints, worn panel edges and shallow anti-slip tread.
  * Fixed shaders/textures are prepared before play; no lights or extra passes. */
 export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: SwitchyardSurface): void {
-  const panelled = kind === 'steel' || kind === 'coated' || kind === 'deck';
-  const weathered = panelled || kind === 'concrete';
+  // Depot conversion: olive/ochre are timber, pale is burlap sandbag, the
+  // housing slot is stacked ammunition boxes and the concrete shell is brick on
+  // its vertical faces. All patterns reuse the resident grain tile only.
+  const finish = switchyardBakedFinish(material.name);
+  const timber = kind === 'coated' && (finish === 'olive' || finish === 'ochre');
+  const sandbag = kind === 'coated' && finish === 'pale';
+  const crates = finish === 'housing';
+  const panelled = !crates && (kind === 'steel' || kind === 'deck' || (kind === 'coated' && !timber && !sandbag));
+  const weathered = panelled || timber || sandbag || crates || kind === 'concrete';
+  const pattern = timber ? RELAY_FIELD_PATTERNS.wood : sandbag ? UNDERTOW_SANDBAG : crates ? SWITCHYARD_CRATES
+    : kind === 'concrete' ? RELAY_FIELD_PATTERNS.brick.replaceAll('vRelayWall', 'vertical') : '';
+  const variant = timber ? 'timber' : sandbag ? 'sandbag' : crates ? 'crates' : 'plain';
   material.userData.switchyardSurface = kind;
-  const surface = kind === 'ground' ? 'gravel' : kind === 'apron' ? 'mud' : kind === 'concrete' ? 'concrete' : 'metal';
+  const surface = kind === 'ground' ? 'gravel' : kind === 'apron' ? 'mud' : kind === 'concrete' || sandbag ? 'concrete'
+    : timber || crates ? 'wood' : 'metal';
   material.setValues(SWITCHYARD_PHYSICAL_SURFACES[surface]);
   material.userData.physicalSurface = surface;
   material.onBeforeCompile = shader => {
@@ -107,6 +151,7 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       float roughnessFactor = roughness;
       float switchyardWear = 0.0;
       float switchyardWet = 0.0;
+      float fieldRelief = 0.0;
       vec2 switchyardTreadNormal = vec2(0.0);
       #ifdef USE_ROUGHNESSMAP
       float grain = texture2D(roughnessMap, vRoughnessMapUv).r;
@@ -134,22 +179,22 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       // supplies both scales; reflect only the resident sky, never hidden actors.
       float wetField = clamp((texture2D(roughnessMap, vNormalMapUv * 0.004 + vec2(0.67, 0.19)).r - 0.64) / 0.36, 0.0, 1.0);
       switchyardWet = smoothstep(0.58, 0.67, wetField + (broad - 0.5) * 0.16);
+      diffuseColor.rgb *= vec3(0.80, 0.76, 0.68); // trodden cinder and mud, not pale asphalt
       diffuseColor.rgb *= mix(vec3(1.0), vec3(0.52, 0.54, 0.50), switchyardWet);
       roughnessFactor = mix(roughnessFactor, 0.23, switchyardWet);
       ` : ''}
+      ${kind === 'apron' ? 'diffuseColor.rgb *= vec3(0.74, 0.70, 0.62); // churned mud beyond the yard' : ''}
       ${kind === 'concrete' ? `
       vec2 spacing = vec2(2.4, 1.2);
       vec2 local = mod(metres, spacing), cell = floor(metres / spacing);
       vec2 seam = 1.0 - smoothstep(vec2(0.012), vec2(0.012) + footprint, min(local, spacing - local));
       seam *= min(vec2(1.0), vec2(0.024) / footprint);
-      float joint = max(seam.x, seam.y);
+      float joint = max(seam.x, seam.y) * (1.0 - vertical);
       float pour = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
       diffuseColor.rgb *= mix(0.98, 1.02, pour) * mix(1.0, 0.70, joint);
       roughnessFactor = mix(roughnessFactor, 0.98, joint);
-      float tie = 1.0 - smoothstep(0.024, 0.024 + max(footprint.x, footprint.y), length(local - spacing * 0.5));
-      tie *= min(1.0, 0.048 / max(footprint.x, footprint.y)) * vertical;
-      diffuseColor.rgb *= 1.0 - 0.30 * tie;
       ` : ''}
+      ${pattern ? `{ ${pattern} }` : ''}
       ${panelled ? `
       vec2 edgeDistance = min(vSwitchyardPanel.xy, vSwitchyardPanel.zw - vSwitchyardPanel.xy);
       vec2 pixel = max(fwidth(vSwitchyardPanel.xy), vec2(0.001));
@@ -196,9 +241,11 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       #include <metalnessmap_fragment>
       metalnessFactor = mix(metalnessFactor, 0.62, switchyardWear);
     `);
+    if (pattern) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
+      T.ShaderChunk.normal_fragment_maps + RELAY_FIELD_RELIEF);
     if (kind === 'deck' || kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
       T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy = mapN.xy * normalScale * mix(1.0, 0.12, switchyardWet) + switchyardTreadNormal;'));
   };
-  material.customProgramCacheKey = () => `switchyard-surface-v2-${kind}`;
+  material.customProgramCacheKey = () => `switchyard-surface-v3-${kind}-${variant}`;
   material.needsUpdate = true;
 }
