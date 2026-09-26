@@ -41,7 +41,7 @@ export function updateUndertowGroundTexture(texture: T.DataTexture, canvas: Grou
 
 /** Burlap sandbags: staggered 0.62 x 0.30 m cells with pillowed edges and
  * per-bag tint, procedural on the existing metre UVs. Fades below pixel size. */
-const UNDERTOW_SANDBAG = `
+export const UNDERTOW_SANDBAG = `
     vec2 bagSize = vec2(0.62, 0.30);
     float bagCourse = floor(metres.y / bagSize.y);
     vec2 bagUv = metres + vec2(mod(bagCourse, 2.0) * bagSize.x * 0.5, 0.0);

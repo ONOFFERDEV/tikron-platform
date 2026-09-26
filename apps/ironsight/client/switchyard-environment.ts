@@ -9,9 +9,10 @@ import { switchyardSiteBoundary, switchyardSiteSigns, switchyardSiteSupplies } f
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { blockingEnvironmentBoxes } from '../src/map/environment-props.js';
 
-/** Power-distribution yard. Complete collider envelopes remain visibly solid;
- * millimetre face cladding cannot create a route, opening or extra cover.
- * Substation gantries and machinery stand entirely outside the playable bounds. */
+/** Late-war front supply depot. Complete collider envelopes remain visibly
+ * solid; millimetre face cladding cannot create a route, opening or extra cover.
+ * Palette slots: 0 brick, 1 iron, 2 ammunition-box stacks, 3/4 timber,
+ * 5 burlap sandbags. Wagons and sidings stand entirely outside the bounds. */
 export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly = false): void {
   const { width, depth } = map.bounds;
   const cx = width / 2, cz = depth / 2;
@@ -37,11 +38,13 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     if (SWITCHYARD_CRATES.includes(b) || SWITCHYARD_YARD_CRATES.includes(b)) continue; // removable supply fallback below
     const w = b.max.x - b.min.x, d = b.max.z - b.min.z, h = b.max.y - b.min.y;
     const x = (b.min.x + b.max.x) / 2, z = (b.min.z + b.max.z) / 2, base = b.min.y;
-    const low = h < 1.5, wall = w > 6;
+    const low = h < 1.5;
     const yard = yardParts.get(b);
     if (yard) {
+      // West store is brick, the east shed a timber revetment on iron stakes,
+      // and the benches are rows of stacked ammunition boxes.
       const bench = yard.kind === 'bench', steel = !yard.west && !bench;
-      add(bench ? 2 : steel ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
+      add(bench ? 2 : steel ? 3 : 0, x, base + h / 2, z, w, h, d, 'shell');
       const alongX = w >= d;
       for (const side of [-1, 1]) {
         const fx = alongX ? x : x + side * (w / 2 + .004);
@@ -51,75 +54,37 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
           add(mat, fx + (alongX ? offset : 0), y, fz + (alongX ? 0 : offset),
             alongX ? span : depth, height, alongX ? depth : span);
         if (steel) {
-          for (let p = -length / 2 + .15; p < length / 2; p += .38)
-            strip(2, p, base + h / 2, .045, h);
-        } else if (!bench) {
-          for (let y = base + .5; y < b.max.y; y += .5) strip(1, 0, y, length, .02);
-          // Faded maintenance dado is clipped to each surviving wall piece.
-          if (base === 0) strip(4, 0, .38, length, .55, .012);
-        } else {
-          strip(1, 0, .57, length * .86, .67);
-          for (let p = -length / 2 + .3; p < length / 2 - .2; p += .55) {
-            strip(yard.west ? 4 : 3, p, .68, .25, .36, .012);
-            strip(5, p, .8, .13, .05, .016);
-          }
+          for (const y of [base + h * .3, base + h * .78]) strip(4, 0, y, length, .16, .012);
+          for (let p = -length / 2 + .2; p < length / 2; p += 1.6) strip(1, p, base + h / 2, .1, h, .016);
+        } else if (!bench && base === 0) {
+          strip(1, 0, .12, length, .24, .006); // sooty plinth, clipped to the piece
         }
       }
-      if (bench) {
-        add(1, x, b.max.y + .004, z, w, .008, d);
-        add(4, x, b.max.y + .009, z, w * .78, .002, d * .7);
-      }
+      if (bench) add(3, x, b.max.y + .004, z, w * .9, .008, d * .8); // tarpaulin boards
       continue;
     }
     const part = structureParts.get(b);
     if (part) {
       if (base < 0) {
-        add(part.kind === 'cover' ? 2 : 0, x, base + h / 2, z, w, h, d, 'shell');
+        add(part.kind === 'cover' ? 2 : part.kind === 'slab' ? 3 : 0, x, base + h / 2, z, w, h, d, 'shell');
         if (part.kind === 'wall') {
           const face = z < 72 ? b.max.z + .004 : b.min.z - .004;
-          const inward = z < 72 ? 1 : -1;
-          // Grease-darkened retaining base, cast panel seams and dock edge.
+          // Brick unloading cut: sooty foot, timber fender and coping boards.
           add(1, x, -2.73, face, w, .5, .008);
-          add(1, x, -.09, z, w, .18, d + .008);
-          for (let px = b.min.x + 2; px < b.max.x; px += 4) {
-            add(1, px, -1.5, face, .045, 2.95, .008);
-            add(3, px, -.35, face + inward * .006, .42, .12, .004);
-            for (const py of [-.85, -2.1])
-              add(1, px + .45, py, face + inward * .006, .08, .08, .004);
-          }
+          add(4, x, -.09, z, w, .18, d + .008);
+          add(4, x, -1.2, face, w, .22, .012);
         } else if (part.kind === 'slab') {
-          add(1, x, .003, z, w - .02, .006, d);
-          // Open sides are real drops, indicated by faded loading stripes.
-          for (const side of [-1, 1]) {
-            add(3, x + side * (w / 2 - .13), .008, z, .16, .004, d);
-            for (let pz = b.min.z + .2; pz < b.max.z - .125; pz += .6)
-              add(1, x + side * (w / 2 - .13), .011, pz, .16, .002, .25);
-          }
-          for (let px = b.min.x + .5; px < b.max.x; px += .5)
-            add(5, px, .008, z, .025, .004, d - .12);
+          // Plank unloading platform; open sides are real drops with edge beams.
+          for (const side of [-1, 1]) add(1, x + side * (w / 2 - .13), .006, z, .16, .008, d);
         } else {
-          // Broad armoured cabinet / low banded pallet silhouettes, with no
-          // free-standing detail outside the exact collision envelope.
-          add(1, x, b.max.y + .004, z, w, .008, d);
-          for (const side of [-1, 1]) {
-            add(1, x + side * w * .3, base + h / 2, b.max.z + .004, .09, h - .1, .008);
-            add(5, x + side * w * .3, b.max.y + .009, z, .08, .002, d - .04);
-          }
-          add(3, x, base + h * .65, b.max.z + .009, w * .4, .16, .002);
+          add(3, x, b.max.y + .004, z, w * .9, .008, d * .8);
         }
         continue;
       }
       // Exact slab/lintel/sill envelopes. Cabinet panels used on the old sealed
       // blocks must never extend down across a doorway or below a roof slab.
-      add(part.kind === 'cover' ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
-      if (part.kind === 'cover') {
-        add(1, x, b.max.y + .004, z, w, .008, d);
-        add(2, x, b.max.y + .009, z, w * .8, .002, d * .66);
-        for (const side of [-1, 1]) {
-          add(5, x + side * w * .32, b.max.y + .011, z, .14, .002, d * .46);
-          add(3, x + side * w * .32, base + .82, b.max.z + .006, .18, .1, .008);
-        }
-      } else if (part.kind === 'wall') {
+      add(part.kind === 'cover' ? 2 : 0, x, base + h / 2, z, w, h, d, 'shell');
+      if (part.kind === 'wall') {
         const accent = x < cx ? 4 : 3;
         for (const side of [-1, 1]) {
           const alongX = w > d;
@@ -128,50 +93,40 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
           // Dado is bounded to the piece; windows, doors and roof escape stay open.
           if (base === 0 && h >= 1.1) {
             add(accent, faceX, .44, faceZ, alongX ? w : .008, .64, alongX ? .008 : d);
-            add(5, faceX, .8, faceZ, alongX ? w : .008, .04, alongX ? .008 : d);
+            add(1, faceX, .8, faceZ, alongX ? w : .008, .04, alongX ? .008 : d);
           }
           if (base === 3) add(1, faceX, 3.88, faceZ, alongX ? w : .008, .09, alongX ? .008 : d);
         }
       } else if (part.kind === 'slab') {
         // Thin opaque wearing surface, inset from all stairwell edges.
-        add(1, x, b.max.y + .003, z, Math.max(.01, w - .04), .006, Math.max(.01, d - .04));
+        add(4, x, b.max.y + .003, z, Math.max(.01, w - .04), .006, Math.max(.01, d - .04));
       }
       continue;
     }
     // Exact authority volume, including its top. No decorative gaps through cover.
-    add(low ? 1 : 0, x, base + h / 2, z, w, h, d, 'shell');
-    add(1, x, base + 0.12, z, w + 0.006, 0.24, d + 0.006);
-    add(low ? 3 : 5, x, base + h - 0.08, z, w + 0.008, 0.15, d + 0.008);
-    const accent = z < cz ? 4 : 3;
-    for (const side of [-1, 1]) {
-      const face = z + side * (d / 2);
-      if (low) {
-        // Armoured transport cases; the middle platform stays walkable on top.
-        for (let px = b.min.x + 0.2; px < b.max.x; px += 0.5)
-          add(3, px, base + h * 0.7, face + side * 0.005, 0.18, 0.13, 0.008);
-        add(2, x, base + h * 0.40, face + side * 0.008, w - 0.32, h * 0.28, 0.008);
-      } else {
-        // Repeated switchgear cabinet doors break long screens into human-scale bays.
-        const bays = Math.max(1, Math.floor(w / 1.6));
-        const bayWidth = (w - 0.30) / bays;
-        for (let i = 0; i < bays; i++) {
-          const px = x + (i - (bays - 1) / 2) * bayWidth;
-          add(1, px, base + h * 0.48, face + side * 0.005, bayWidth - 0.07, h - 0.62, 0.008);
-          add(wall ? 2 : accent, px, base + h * 0.48, face + side * 0.011, bayWidth - 0.16, h - 0.75, 0.006);
-          add(5, px + bayWidth * 0.30, base + h * 0.46, face + side * 0.016, 0.045, 0.28, 0.004);
-          for (let row = 0; row < 4; row++)
-            add(1, px, base + 0.5 + row * 0.12, face + side * 0.016, bayWidth * 0.62, 0.045, 0.004);
-          add(3, px - bayWidth * 0.23, base + h * 0.70, face + side * 0.016, 0.18, 0.22, 0.004);
-        }
-        add(accent, x, base + h - 0.31, face + side * 0.006, w - 0.1, 0.16, 0.01);
+    // Low covers are sandbag walls; screens and the freight stack are stacked
+    // ammunition boxes; the loading platform is timber; tall blocks are brick
+    // stores; the platform post is an iron water-crane column.
+    const platform = w >= 12 && d >= 12, column = h > 6, store = !column && h > 4;
+    add(low ? 5 : platform ? 4 : column ? 1 : store ? 0 : 2, x, base + h / 2, z, w, h, d, 'shell');
+    if (low) {
+      add(1, x, base + .06, z, w + .006, .12, d + .006); // mud at the bag foot
+    } else if (platform) {
+      for (const side of [-1, 1]) {
+        add(1, x, b.max.y - .12, z + side * (d / 2 + .004), w, .2, .008); // edge beams
+        add(1, x + side * (w / 2 + .004), b.max.y - .12, z, .008, .2, d);
+        for (let px = b.min.x + 1; px < b.max.x; px += 2.4)
+          add(3, px, base + h / 2 - .1, z + side * (d / 2 + .008), .22, h - .3, .006); // trestle posts
       }
-    }
-    // Visible end plates with inset louvers, useful from flanking routes.
-    if (!low) for (const side of [-1, 1]) {
-      const face = x + side * w / 2;
-      add(2, face + side * 0.005, base + h / 2, z, 0.008, h - 0.4, d - 0.28);
-      for (let row = 0; row < 7; row++)
-        add(1, face + side * 0.011, base + 0.55 + row * (h - 1.1) / 7, z, 0.004, 0.06, d - 0.5);
+    } else if (store) {
+      add(3, x, b.max.y + .004, z, w, .008, d); // timber roof boarding
+      for (const side of [-1, 1]) add(1, x, b.max.y - .3, z + side * (d / 2 + .004), w, .12, .008);
+    } else if (column) {
+      add(3, x, base + h - .5, z, w + .02, .3, d + .02);
+    } else {
+      // Tarpaulin boards weighted with a sandbag row along the stack top.
+      add(3, x, b.max.y + .004, z, w * .96, .008, d * .92);
+      add(5, x, b.max.y + .0125, z, w * .9, .009, Math.min(.6, d * .5));
     }
     // Arrival-side wayfinding: two amber chevrons point around each end of a
     // northern spawn screen. Baked strips reuse the kit material, no sign atlas.
@@ -192,7 +147,7 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       const t = step / 18;
       const x = r.dir === 1 ? r.minX + t * (r.maxX - r.minX) : r.maxX - t * (r.maxX - r.minX);
       const base = r.baseY ?? 0;
-      add(5, x, base + (r.topY - base) * t + .006, (r.minZ + r.maxZ) / 2, .035, .008, r.maxZ - r.minZ - .08, 'paint');
+      add(1, x, base + (r.topY - base) * t + .006, (r.minZ + r.maxZ) / 2, .035, .008, r.maxZ - r.minZ - .08, 'paint');
     }
   }
   if (map.terrain) {
@@ -215,10 +170,9 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     // real floor, so there is no decorative step or uncollidable cover.
     const c = map.terrain.cut, floor = map.bounds.floor ?? -3;
     for (let px = c.minX + 9; px < c.maxX - 8; px += .75)
-      add(2, px, floor + .002, 72, .2, .004, 2.6, 'paint');
+      add(4, px, floor + .002, 72, .2, .004, 2.6, 'paint');
     for (const z of [71.28, 72.72]) {
       add(1, 75, floor + .009, z, c.maxX - c.minX - 18, .012, .10, 'paint');
-      add(5, 75, floor + .016, z, c.maxX - c.minX - 18, .002, .045, 'paint');
     }
     for (const x of [c.minX - 1.5, c.maxX + 1.5]) for (const z of [69, 75])
       add(3, x, .007, z, 1.4, .008, .15, 'paint');
@@ -231,51 +185,39 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
     add(3, x, .005, pz, 2.4, .006, .16, 'paint');
     for (const dx of [-.85, 0, .85]) add(1, x + dx, .009, pz, .22, .002, .16, 'paint');
   }
-  // North substation: three portal frames and visible ceramic insulator stacks.
-  // The generated transformer sits between these bays; all geometry is beyond z=0.
-  for (const z of [-5, -13]) {
-    for (const x of [cx - 40, cx, cx + 40]) {
-      for (const dx of [-5, 5]) {
-        add(0, x + dx, 0.45, z, 1.5, 0.9, 1.6, 'exterior');
-        add(2, x + dx, 6, z, 0.38, 12, 0.5, 'exterior');
-        add(3, x + dx, 1.9, z, 0.39, 2.5, 0.51, 'exterior');
-      }
-      add(2, x, 11.3, z, 10.6, 0.35, 0.5, 'exterior');
-      add(2, x, 12, z, 10.6, 0.22, 0.5, 'exterior');
-      for (let dx = -4; dx <= 4; dx += 2) {
-        add(2, x + dx, 11.65, z, 0.12, 0.8, 0.25, 'exterior', false, new T.Euler(0, 0, Math.PI / 4));
-        add(1, x + dx, 10, z, 0.17, 2.3, 0.17, 'exterior', true);
-        for (let yy = 9.3; yy < 10.8; yy += 0.24)
-          add(5, x + dx, yy, z, 0.48, 0.10, 0.48, 'exterior', true);
-        if (z === -5) add(3, x + dx, 8.8, z - 4, 0.075, 0.075, 8, 'exterior');
-      }
+  // North sidings: a standard-gauge track on sleepers between the boundary
+  // wall and the goods sheds, with timber box vans and one shell-wrecked van.
+  // Every part is at z <= -5.6, entirely outside play.
+  const siding = -6.8;
+  for (const side of [-1, 1]) add(1, cx, .07, siding + side * .72, width + 60, .12, .08, 'exterior');
+  for (let px = -28; px <= width + 28; px += 1.4) add(4, px, .03, siding, .24, .06, 2.2, 'exterior');
+  for (const [vx, wrecked] of [[4, false], [57, false], [65, false], [91, true], [142, false]] as const) {
+    const tilt = wrecked ? new T.Euler(.16, .08, -.05) : new T.Euler();
+    add(1, vx, .75, siding, 7.2, .3, 2.2, 'exterior', false, tilt);
+    add(wrecked ? 1 : 4, vx, 2, siding, 7, wrecked ? 1.6 : 2.4, 2.5, 'exterior', false, tilt);
+    if (!wrecked) {
+      add(1, vx, 3.27, siding, 7.3, .14, 2.7, 'exterior');
+      for (const side of [-1, 1]) add(3, vx, 1.95, siding + side * 1.26, 1.7, 2.1, .02, 'exterior');
     }
+    for (const wx of [-2.3, 2.3]) for (const side of [-1, 1])
+      add(1, vx + wx, .46, siding + side * .72, .92, .1, .92, 'exterior', true, new T.Euler(Math.PI / 2, 0, 0));
   }
-  // One north-axis switching mast; entirely outside play, visible above the deck.
-  add(1, cx, 13, -5, 2, 26, 2, 'exterior');
-  for (const y of [17, 21, 25]) {
-    add(2, cx, y, -5, 14, 0.5, 0.8, 'exterior');
-    for (const dx of [-6, -3, 3, 6]) {
-      add(5, cx + dx, y - 1, -5, 0.65, 1.8, 0.65, 'exterior', true);
-      add(3, cx + dx, y - 2, -5, 0.8, 0.3, 0.8, 'exterior');
-    }
-  }
-  // West capacitor bank: three ribbed ceramic towers, the middle one taller.
-  // All extents remain x <= -4.8; silhouette identifies the half without colour.
-  for (const [z, height] of [[cz - 17, 22], [cz, 29], [cz + 17, 22]] as const) {
-    add(1, -8, 2, z, 6.4, 4, 6.4, 'exterior');
-    add(5, -8, (height + 4) / 2, z, 4.6, height - 4, 4.6, 'exterior', true);
-    for (let y = 5; y < height - 1; y += 1.6)
-      add(4, -8, y, z, 6.2, .42, 6.2, 'exterior', true);
-    add(1, -8, height, z, 5.2, .5, 5.2, 'exterior', true);
-    add(3, -8, height + 1.2, z, .6, 2, .6, 'exterior', true);
+  // West dump: a timber water tower above the goods sheds and two tarpaulined
+  // ammunition stacks in the shed gaps. All extents remain x <= -4.8.
+  for (const dx of [-1.8, 1.8]) for (const dz of [-1.8, 1.8]) add(1, -28 + dx, 4.5, 36 + dz, .3, 9, .3, 'exterior');
+  add(4, -28, 11, 36, 5.2, 4, 5.2, 'exterior', true);
+  add(1, -28, 13.2, 36, 5.6, .4, 5.6, 'exterior', true);
+  add(1, -28, 9, 36, 5, .25, 5, 'exterior');
+  for (const z of [35.5, 66.5]) {
+    add(2, -7.5, 1.4, z, 5.4, 2.8, 4.2, 'exterior');
+    add(3, -7.5, 2.84, z, 5.6, .08, 4.4, 'exterior');
   }
   // East maintenance crane: broad amber double beam versus the west uprights.
   // Its entire structure is x >= width + 3.9, never across a playable route.
   for (const z of [cz - 22, cz + 22]) {
     add(1, width + 6, 1.4, z, 3.2, 2.8, 3.2, 'exterior');
     add(3, width + 6, 10, z, 1.4, 20, 1.6, 'exterior');
-    add(5, width + 6, 16, z, 1.44, 1.5, 1.64, 'exterior');
+    add(1, width + 6, 16, z, 1.44, 1.5, 1.64, 'exterior');
   }
   for (const x of [width + 4.5, width + 7.5]) {
     add(3, x, 20, cz, 1.2, 2.2, 49, 'exterior');
@@ -283,7 +225,6 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   }
   // Trolley, hoist cables and cargo are the moving CargoCrane. They are excluded
   // from this permanent AO/shadow bake so a transfer leaves no frozen duplicate.
-  // In-ground cable raceways and crossings, not raised rail obstacles.
   // Flush induction plates: baked concentric bands and flight chevrons make the
   // route readable without a new material, light, pass or collision volume.
   for (const pad of map.launchPads ?? []) {
@@ -301,13 +242,13 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
       add(3,pad.to.x,3.009,pad.to.z+side*1.25,2.6,.008,.12,'paint');
     }
   }
+  // Flush narrow-gauge trolley lines across the courts: sleepers and two rails.
   for (const z of [29, 65]) for (const x of [cx - 40, cx, cx + 40]) {
-    add(1, x, 0.002, z, 13, 0.004, 0.30, 'paint');
-    for (const side of [-1, 1]) add(5, x, 0.004, z + side * 0.27, 13, 0.005, 0.055, 'paint');
-    for (let dx = -2; dx <= 2; dx++) add(3, x + dx * 0.5, 0.005, z + 0.85, 0.19, 0.006, 0.65, 'paint');
+    for (let dx = -6; dx <= 6; dx += .9) add(4, x + dx, .003, z, .16, .006, 1.3, 'paint');
+    for (const side of [-1, 1]) add(1, x, .006, z + side * .38, 13, .012, .06, 'paint');
   }
   for (const x of [3, width - 3]) for (let z = 4; z <= depth - 4; z += 4)
-    add(5, x, 0.004, z, 0.085, 0.006, 2, 'paint');
+    add(1, x, 0.004, z, 0.085, 0.006, 2, 'paint');
   // Dashed perimeter of the switching deck; the deck itself remains empty.
   for (const b of map.boxes.filter(b => b.min.x === 66 && b.max.x === 84 && b.max.y === 3)) {
     for (const side of [-1, 1])
@@ -347,14 +288,15 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
   if (bakeOnly) return;
   const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
-  const labels = ['SWITCHYARD / 03', '01 / NORTH BUS', 'JUMP > DECK', '03 / SOUTH SERVICE',
-    'MAINTENANCE / WEST', 'DISPATCH / EAST', 'STAIR > ROOF', 'SERVICE / 04', 'RAIL / LOADING',
-    'CAPACITOR / SERVICE', 'CRANE / ASSEMBLY', 'FREIGHT / DEPOT', 'DISPATCH / 03'];
+  const labels = ['SUPPLY DEPOT No. 3', 'No. 1 SIDING', 'RAMP > PLATFORM', 'SOUTH STORES',
+    'BAGGAGE OFFICE', 'SIGNAL OFFICE', 'STAIR > ROOF', 'STORES No. 4', 'UNLOADING',
+    'S.A.A. STORE', 'GANTRY', 'GOODS DEPOT', 'R.E. STORES'];
   const row = canvas.height / labels.length;
   labels.forEach((label, i) => {
-    ctx.fillStyle = '#353b36'; ctx.fillRect(0, i * row, 1024, row);
-    ctx.fillStyle = i === 1 ? '#a8b7a5' : '#c5b185'; ctx.fillRect(16, i * row + 12, 12, row - 24);
-    ctx.fillStyle = '#e1e0cf'; ctx.font = '600 58px Arial'; ctx.fillText(label, 46, i * row + row * .69);
+    // Hand-painted boards: dark creosoted plank, cream serif lettering.
+    ctx.fillStyle = '#3a342b'; ctx.fillRect(0, i * row, 1024, row);
+    ctx.fillStyle = '#2c2721'; ctx.fillRect(0, i * row + row * .48, 1024, 3);
+    ctx.fillStyle = '#d9d0b6'; ctx.font = '600 58px Georgia, serif'; ctx.fillText(label, 36, i * row + row * .69);
   });
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace; texture.anisotropy = 4;
   const mat = new T.MeshBasicMaterial({ map: texture });
