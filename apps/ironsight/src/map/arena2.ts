@@ -5,7 +5,7 @@ import { withStructures } from './structures.js';
 import { UNDERTOW_BUILDINGS, UNDERTOW_CRATES } from './undertow-structures.js';
 import { UNDERTOW_CHANNEL, UNDERTOW_CHANNEL_CUT } from './undertow-channel.js';
 import { excavate } from './terrain.js';
-import { withSurfaceBindings } from './materials.js';
+import { withSurfaceBindings, type MapSurface } from './materials.js';
 import { isReplacedUndertowSluiceBlock, isReplacedUndertowYardBlock, UNDERTOW_B_APPROACHES,
   UNDERTOW_SLUICE_PARTS, UNDERTOW_YARD_PARTS, UNDERTOW_YARD_CRATES } from './undertow-yard.js';
 import { blockingEnvironmentBoxes } from './environment-props.js';
@@ -136,15 +136,30 @@ const mapped: MapDef = { ...geometry, navigation: undertowNavigation(geometry) }
 const channelParts = new Map(mapped.structures?.find((structure) => structure.id === 'pump-channel')
   ?.parts.map((part) => [part.box, part.kind] as const));
 const terrainBoxes = new Set(mapped.terrain?.boxes);
-const sluiceBoxes = new Set(UNDERTOW_SLUICE_PARTS.map((part) => part.box));
 const environmentBoxes = new Set(blockingEnvironmentBoxes('undertow'));
+const yardParts = new Map([...UNDERTOW_YARD_PARTS, ...UNDERTOW_SLUICE_PARTS].map((part) => [part.box, part] as const));
+const structureParts = new Map((mapped.structures ?? []).flatMap((structure) => structure.parts.map((part) => [part.box, part.kind] as const)));
+const crateBoxes = new Set([...UNDERTOW_CRATES, ...UNDERTOW_YARD_CRATES]);
+/** Presentation surface per solid, following the visual finish in undertow-environment. */
+function undertowFinish(box: Box): MapSurface {
+  if (environmentBoxes.has(box) || crateBoxes.has(box)) return 'wood';
+  const yard = yardParts.get(box);
+  if (yard) return yard.kind === 'bench' ? 'sandbag' : yard.west ? 'brick' : 'metal'; // east yard walls: corrugated steel
+  const structure = structureParts.get(box);
+  if (structure) return structure === 'cover' ? 'wood' : 'brick';
+  const h = box.max.y - box.min.y;
+  if (box.min.y > 0) return 'brick'; // gallery lintel, office chimney
+  if (h < 1.5) return 'sandbag'; // sandbagged low cover
+  if (h > 4) return 'brick'; // field office masonry
+  return 'wood'; // timber-revetted redoubts and fire-trench screens
+}
 const surfaceBindings: SurfaceBinding[] = [
   ...mapped.boxes.map((box, index): SurfaceBinding => {
     const channelKind = channelParts.get(box);
     const surface = terrainBoxes.has(box) ? (box.max.y < 0 ? 'gravel' : 'mud')
       : channelKind === 'slab' ? 'wood'
         : channelKind === 'cover' || doors.includes(box) ? 'metal'
-          : sluiceBoxes.has(box) ? 'concrete' : environmentBoxes.has(box) || box.max.y <= 1.1 ? 'wood' : 'concrete';
+          : undertowFinish(box);
     return { id: `arena2.surface.box.${index}`, surface, kind: 'box', box };
   }),
   ...(mapped.ramps ?? []).map((ramp, index): SurfaceBinding => ({

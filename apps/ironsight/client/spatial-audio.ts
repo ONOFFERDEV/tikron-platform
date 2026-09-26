@@ -22,6 +22,8 @@ export const FOOTSTEP_SURFACE_PROFILES: Record<MapSurface, {
   wood: { playbackRate: .94, filter: 'bandpass', frequency: 720, q: 1.15, gain: 1.02 },
   metal: { playbackRate: 1.35, filter: 'bandpass', frequency: 1900, q: 2.2, gain: 1 },
   concrete: { playbackRate: .85, filter: 'lowpass', frequency: 350, q: .7, gain: 1 },
+  brick: { playbackRate: .9, filter: 'lowpass', frequency: 420, q: .9, gain: 1.04 },
+  sandbag: { playbackRate: .64, filter: 'lowpass', frequency: 190, q: .4, gain: .86 },
 };
 
 /** Three cached perspectives, all retaining the weapon's own crack/body/tail.

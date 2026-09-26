@@ -71,10 +71,10 @@ it('gives every weapon family a distinct deterministic close signature', () => {
 
 it('uses a distinct footstep filter profile for every authored surface', () => {
   expect(Object.keys(FOOTSTEP_SURFACE_PROFILES).sort())
-    .toEqual(['concrete', 'gravel', 'metal', 'mud', 'wood']);
+    .toEqual(['brick', 'concrete', 'gravel', 'metal', 'mud', 'sandbag', 'wood']);
   const signatures = Object.values(FOOTSTEP_SURFACE_PROFILES)
     .map(profile => `${profile.playbackRate}:${profile.filter}:${profile.frequency}:${profile.q}:${profile.gain}`);
-  expect(new Set(signatures).size).toBe(5);
+  expect(new Set(signatures).size).toBe(7);
 });
 
 it('plays local attempt one once, rejects its self echo, and deduplicates confirmations', () => {

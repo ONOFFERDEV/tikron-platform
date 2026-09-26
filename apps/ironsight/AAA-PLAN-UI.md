@@ -64,6 +64,29 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 13 - 2026-09-23: Brick and sandbag surfaces
+
+`MAP_SURFACES` gains `brick` and `sandbag`. This is client-only presentation: it is not sent over the wire and the server does not use it for hits. Relay (`arena1.ts`): masonry is tagged `brick`, and the signal-hut timber and low free-standing covers are tagged `wood`, as `relay-environment` renders them. Relay has no sandbag solid (its sandbags are perimeter-parapet art or lie flat) and no corrugated shed; its only `metal` is the two hut doors. Undertow (`arena2.ts`): west-yard walls, structures, the office, the lintel and the chimney are `brick`; the east-yard steel walls are `metal`; benches and low covers under 1.5 m are `sandbag`; revetted redoubts, crates and consoles are `wood`. No box, ramp or spawn changed. `combat-fx` IMPACT_PROFILES reuses look's brick and sandbag dust colours. Footsteps use the concrete values for brick and the mud values for sandbag. `scene-impact` already carried both kinds, so it is unchanged.
+
+From the predecessor I kept `materials.ts`, `combat-fx.ts` and the `arena2.ts` finish function, which matches `undertow-environment` branch for branch. I refined `arena1.ts`, set the footstep values to exact copies, and reverted four test edits because the tests were outside the grants. The patch is kept at the scratchpad path given in the handoff.
+
+| Gate | Result |
+| --- | --- |
+| `pnpm typecheck` (server + client) | PASS |
+| `pnpm test` | FAIL 4 / 1700: the tests that pin the five-surface vocabulary (`combat-audio` distinct footsteps, `combat-fx` canonical surfaces, `spatial-audio` support identities, `ww1-relay` vocabulary). They need a supervisor-granted update; they were not edited. |
+| `pnpm build:client`, `pnpm audit:assets`, 4 relay + 4 undertow audits | PASS |
+| `inspect-map relay,practice-two --prefix ui-r12` | PASS, errors [] |
+| `hitch-probe 150000 --assert` (once) | PASS, 0 recompiles, 0 frames > 150 ms |
+| Live fire (`.inspect/audit-r12/live-fire.mjs`) | Relay: mud, brick, wood and metal. Undertow: mud, wood, sandbag, brick and metal. Each shot was accepted by the server, and the client cue material matched. Stills are `.inspect/audit-r12/{relay,undertow}-impact-*.png`. |
+
+The Relay sandbag still cannot exist: no sandbag solid is authored there.
+
+Follow-up (coordinator grant): the four vocabulary tests now expect the new list. Both the impact and footstep tables must have all seven keys and seven distinct profiles. The Relay and Undertow authored sets drop `concrete` because no solid on either map uses it now. Footsteps are distinct again:
+- brick is concrete made harder, higher and grittier: `.9 / lowpass 420 Hz / q .9 / gain 1.04`
+- sandbag is mud made duller and more muffled: `.64 / lowpass 190 Hz / q .4 / gain .86`
+
+Rerun results: typecheck PASS, `pnpm test` 1691 passed, 0 failed, and the other gates are unchanged (see the reply).
+
 ### Session 12 - 2026-09-23: Last English core signs, Korean combatant names; surface kinds blocked
 
 Scope: UI lane plus the round-11 grants. No commit. `git merge recovery/ironsight-ww1-20260912` reported "Already up to date" (68a1b3b).

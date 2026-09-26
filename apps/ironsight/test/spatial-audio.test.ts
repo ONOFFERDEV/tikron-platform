@@ -94,7 +94,7 @@ it('does not treat the square outside a capsule corner as grounded support', () 
   expect(footGrounded({ x: 2.35, y: 0, z: 2 }, map)).toBe(true);
 });
 
-it('resolves authored mud, gravel, wood, metal and concrete support identities', () => {
+it('resolves every authored support identity on Relay and Undertow', () => {
   const maps = [ARENA1, ARENA2];
   const found = new Set<string>();
   for (const map of maps) for (const binding of map.surfaceBindings ?? []) {
@@ -114,7 +114,7 @@ it('resolves authored mud, gravel, wood, metal and concrete support identities',
     }
     found.add(binding.surface);
   }
-  expect(found).toEqual(new Set(['mud', 'gravel', 'wood', 'metal', 'concrete']));
+  expect(found).toEqual(new Set(['mud', 'gravel', 'wood', 'metal', 'brick', 'sandbag']));
 });
 
 it('muffles a wall touching either sound endpoint but leaves an outward or tangent ray clear', () => {

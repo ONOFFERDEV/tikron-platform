@@ -151,7 +151,7 @@ describe("WW1 Relay support materials", () => {
 
   it("uses the complete approved surface vocabulary", () => {
     expect(new Set(ARENA1.surfaceBindings?.map((binding) => binding.surface))).toEqual(
-      new Set(["mud", "gravel", "wood", "metal", "concrete"]),
+      new Set(["mud", "gravel", "wood", "metal", "brick"]),
     );
   });
 });

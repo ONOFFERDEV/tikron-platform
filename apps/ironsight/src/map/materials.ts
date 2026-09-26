@@ -2,7 +2,8 @@ import type { Box } from "../physics.js";
 import type { FloorFace } from "./terrain.js";
 import type { MapDef, RampDef } from "./types.js";
 
-export const MAP_SURFACES = ["mud", "gravel", "wood", "metal", "concrete"] as const;
+/** Client-only presentation (impact/footstep); never on the wire or in server hit logic. */
+export const MAP_SURFACES = ["mud", "gravel", "wood", "metal", "concrete", "brick", "sandbag"] as const;
 export type MapSurface = (typeof MAP_SURFACES)[number];
 const MAP_SURFACE_SET: ReadonlySet<string> = new Set(MAP_SURFACES);
 
