@@ -47,6 +47,10 @@ const CASING_POOL = 32;
 const CASING_MAX_FLIGHT_MS = 900;
 const CASING_FADE_MS = 1000;
 const CASING_GRAVITY = -9.8;
+// Aged brass, not the old palette yellow; real case sizes (x = radius scale, y = length scale
+// against the unit rifle case below): carbine, SMG (pistol calibre), shotgun hull, rifle, pistol.
+const CASING_COLOR = 0x8f7440;
+const CASING_SCALE: readonly (readonly [number, number])[] = [[1, 1], [.78, .3], [1.7, .9], [1, 1.05], [.72, .28]];
 
 interface CasingSlot {
   floor: number;
@@ -143,13 +147,15 @@ export class Vfx {
 
   private buildCasing(): CasingSlot {
     const mat = new THREE.MeshStandardMaterial({
-      color: PALETTE.casing,
-      roughness: 0.4,
-      metalness: 0.6,
+      color: CASING_COLOR,
+      roughness: 0.55,
+      metalness: 0.7,
       transparent: true,
       opacity: 0,
     });
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.07, 6), mat);
+    // Unit rifle case: 12 mm across, 72 mm long.
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.072, 6), mat);
+    mesh.name = 'casing';
     mesh.visible = false;
     this.scene.add(mesh);
     return { mesh, materials: [mat], vel: new THREE.Vector3(), born: -1e9, grounded: false, groundedAt: -1e9, floor: 0 };
@@ -179,7 +185,8 @@ export class Vfx {
   }
 
   /** Eject a pooled casing from a hitscan shot's origin with a right+up impulse. */
-  spawnCasing(origin: Vec3, dir: Vec3): void {
+  /** `self` casings leave the view fast and flat to the right, clear of the crosshair. */
+  spawnCasing(origin: Vec3, dir: Vec3, weapon = 0, self = false, viewScale = 1): void {
     if (this.disposed) return; // a queued room message can still land during page teardown
     const slot = this.casings[this.casingCursor]!;
     slot.floor = this.floorAt(origin) + .02;
@@ -189,11 +196,17 @@ export class Vfx {
     if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
     right.normalize();
     slot.mesh.position.set(origin.x, origin.y, origin.z);
+    const side = self ? 3.6 + Math.random() * .8 : 1 + Math.random(), back = self ? .8 : .4 * Math.random();
     slot.vel.set(
-      right.x * (1 + Math.random()) - d.x * 0.4 * Math.random(),
-      1.5 + Math.random() * 1.5,
-      right.z * (1 + Math.random()) - d.z * 0.4 * Math.random(),
+      right.x * side - d.x * back,
+      self ? .5 + Math.random() * .4 : 1.5 + Math.random() * 1.5,
+      right.z * side - d.z * back,
     );
+    if (this.casingModel === 'procedural') {
+      const [radius, length] = CASING_SCALE[weapon] ?? CASING_SCALE[0]!;
+      // Own casings share the held weapon's viewmodel scale, so they match the gun they leave.
+      slot.mesh.scale.set(radius * viewScale, length * viewScale, radius * viewScale);
+    }
     slot.mesh.visible = true;
     setOpacity(slot.materials, 1);
     slot.born = performance.now();

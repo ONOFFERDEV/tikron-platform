@@ -76,16 +76,28 @@ vec3 frontLine(vec3 radiance, vec3 d) {
       radiance = mix(radiance, frontBurst, blob * frontBurstStrength * (1. - phase) * smoothstep(0., .05, phase));
     }
   }
-  if (frontFlare > 0.) for (int i = 0; i < 2; i++) {
-    float fi = float(i), period = 9. + fi * 3.7, t = frontTime / period + fi * .5;
-    float cell = floor(t), s = fract(t) / .75;
-    if (s > 1.) continue;
-    float bearing = frontLineBearing + (frontHash(vec2(fi, cell + 7.)) - .5) * frontLineSpread + s * .05;
-    float height = .12 + .16 * sin(3.14159 * s);
-    float away = frontAngle(d, bearing), dy = d.y - height;
-    float light = smoothstep(0., .08, s) * (1. - smoothstep(.8, 1., s));
-    radiance += vec3(.95, 1., .82) * light * (exp(-(away * away + dy * dy) / .00002) * 1.6
-      + exp(-(away * away + dy * dy) / .0012) * .22);
+  // Star shells: one at a time per sector. A quick climb, then a slow parachute
+  // descent with a sideways drift and a faint smoke trail back up its path; the
+  // core is small and dimmer than the sun glow so it never reads as a second sun.
+  if (frontFlare > 0.) {
+    float period = 11., t = frontTime / period, cell = floor(t), s = fract(t) / .7;
+    if (s <= 1.) {
+      float drift = (frontHash(vec2(cell, 3.)) - .5) * .05;
+      float bearing = frontLineBearing + (frontHash(vec2(cell, 7.)) - .5) * frontLineSpread;
+      float climb = smoothstep(0., .1, s);
+      float height = .1 + .15 * climb - .11 * max(0., s - .1) / .9;
+      float x = bearing + drift * s;
+      float away = frontAngle(d, x), dy = d.y - height;
+      float light = climb * (1. - smoothstep(.75, 1., s)) * (.85 + .15 * sin(frontTime * 23.));
+      float r2 = away * away + dy * dy;
+      radiance += vec3(1., .93, .78) * light * (exp(-r2 / .000006) * .75 + exp(-r2 / .0006) * .07);
+      // Trail: a thin grey wisp from the shell up to its apex, fading with age.
+      float apex = .25;
+      float along = clamp((d.y - height) / max(apex - height, .001), 0., 1.);
+      float trailX = frontAngle(d, mix(x, bearing, along));
+      float trail = step(0., d.y - height) * step(d.y, apex) * exp(-trailX * trailX / .00003) * (1. - along) * climb * (1. - s * .6);
+      radiance = mix(radiance, vec3(.34, .33, .32), trail * .35);
+    }
   }
   // Fade out at the band edges instead of cutting a line into the clouds.
   return mix(sky, radiance, smoothstep(.02, .07, d.y) * (1. - smoothstep(.36, .58, d.y)));

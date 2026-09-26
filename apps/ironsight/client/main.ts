@@ -549,7 +549,7 @@ async function main(): Promise<void> {
       // "ammo" handler above already uses for this shooter's OWN weapon.
       const tracerSpeed = WEAPONS[e.weapon - 1]?.tracerSpeed ?? DEFAULT_WEAPON_SPEC.tracerSpeed;
       scene.addTracer(anchor, dir, e.dist, e.hit, tracerSpeed);
-      scene.spawnCasing(anchor, dir);
+      scene.spawnCasing(anchor, dir, e.weapon - 1);
       scene.spawnMuzzleFlash(anchor, dir, e.weapon - 1);
       if (weaponAudio.acceptRemoteShot(remoteShot.shotId, false)) playFire(e.weapon - 1, anchor);
     }
