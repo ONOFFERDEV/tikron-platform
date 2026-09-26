@@ -1,5 +1,5 @@
 import type { ModeId } from "../../src/modes.js";
-import { preparationStageLabel } from "./copy.js";
+import { FIELD_UI_COPY, preparationStageLabel } from "./copy.js";
 
 export type PlayerFlowState =
   | { readonly kind: "menu" }
@@ -159,16 +159,19 @@ export interface DeploymentFlowContent {
   readonly detail: string;
   readonly stage: string | null;
   readonly actions: "none" | "retry" | "retry-menu";
+  /** Label of the primary action button. */
+  readonly primary: string;
 }
 
 export function deploymentFlowContent(state: PlayerFlowState): DeploymentFlowContent | null {
+  const { deploy, retry } = FIELD_UI_COPY.flowAction;
   switch (state.kind) {
-    case "connecting": return { eyebrow: "연결", title: "전장에 연결 중", detail: "빈 자리를 확인하고 분대에 합류합니다.", stage: `연결 시도 ${state.attempt}`, actions: "none" };
-    case "preparing": return { eyebrow: "출격 준비", title: "전장을 준비 중", detail: "필요한 전장 요소를 확인하고 있습니다.", stage: preparationStageLabel(state.stage), actions: "none" };
-    case "recovery": return { eyebrow: "준비 실패", title: "전장을 준비하지 못했습니다", detail: "전장 요소를 불러오지 못했습니다. 다시 시도하거나 출격 메뉴로 돌아가세요.", stage: preparationStageLabel(state.stage), actions: "retry-menu" };
-    case "control-required": return { eyebrow: "마우스 제어", title: state.retry ? "다시 눌러 전장으로 복귀" : "클릭하여 출격", detail: state.retry ? "브라우저가 마우스 제어 요청을 거부했습니다." : "준비가 끝났습니다. 마우스 제어를 시작하세요.", stage: null, actions: "retry" };
-    case "reconnecting": return { eyebrow: "연결 복구", title: "전장에 다시 연결 중", detail: "자리를 유지한 채 서버 응답을 기다립니다.", stage: null, actions: "none" };
-    case "expired": return { eyebrow: "연결 종료", title: "전장 연결이 만료되었습니다", detail: "새 전장에 합류하려면 출격 메뉴로 돌아가세요.", stage: null, actions: "retry-menu" };
+    case "connecting": return { eyebrow: "연결", title: "전장에 연결 중", detail: "빈 자리를 확인하고 분대에 합류합니다.", stage: `연결 시도 ${state.attempt}`, actions: "none", primary: retry };
+    case "preparing": return { eyebrow: "출격 준비", title: "전장을 준비 중", detail: "필요한 전장 요소를 확인하고 있습니다.", stage: preparationStageLabel(state.stage), actions: "none", primary: retry };
+    case "recovery": return { eyebrow: "준비 실패", title: "전장을 준비하지 못했습니다", detail: "전장 요소를 불러오지 못했습니다. 다시 시도하거나 출격 메뉴로 돌아가세요.", stage: preparationStageLabel(state.stage), actions: "retry-menu", primary: retry };
+    case "control-required": return { eyebrow: "마우스 제어", title: state.retry ? "다시 눌러 전장으로 복귀" : "클릭하여 출격", detail: state.retry ? "브라우저가 마우스 제어 요청을 거부했습니다." : "준비가 끝났습니다. 마우스 제어를 시작하세요.", stage: null, actions: "retry", primary: state.retry ? retry : deploy };
+    case "reconnecting": return { eyebrow: "연결 복구", title: "전장에 다시 연결 중", detail: "자리를 유지한 채 서버 응답을 기다립니다.", stage: null, actions: "none", primary: retry };
+    case "expired": return { eyebrow: "연결 종료", title: "전장 연결이 만료되었습니다", detail: "새 전장에 합류하려면 출격 메뉴로 돌아가세요.", stage: null, actions: "retry-menu", primary: retry };
     default: return null;
   }
 }

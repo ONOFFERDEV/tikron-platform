@@ -69,6 +69,21 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 
 ## Session log
 
+### Session 15 - 2026-09-26: Redeploy button says 출격, not 다시 시도
+
+- `client/ui/copy.ts` adds `FIELD_UI_COPY.flowAction` (`deploy: "출격"`, `retry: "다시 시도"`).
+- `deploymentFlowContent` returns a `primary` label chosen from existing state only:
+  - `control-required` with `retry: false` (ready to deploy, including after death) shows 출격;
+  - a rejected lock (`retry: true`), recovery and expired keep 다시 시도.
+- `DeploymentFlowPanel` renders that label.
+- The flow cannot tell the first deploy from a redeploy without new state, so both read 출격. That wording fits both.
+- Test: `test/ui-flow.test.ts` covers the post-death redeploy label and the failure retry labels.
+- Gates:
+  - typecheck PASS; tests 1697 passed, 9 skipped; build:client, audit:assets and the 8 map audits PASS;
+  - inspect-map relay,practice-two exit 0, `errors: []`;
+  - hitch-probe (run once) **FAIL: `fewer than two deaths`**. There was 1 death at 74.8s and a respawn at 77.6s, with no second death before 150s. It had 0 recompiles, 0 frames over 150ms and 0 errors, and the death first-use window passed at 12ms max. This is not frame pacing, and it was not rerun, per the run-once rule.
+- Session 14 #4 was fixed on the integration branch. The headed recheck is in `.inspect/ui-r14/`: no menu at death, one-click redeploy works.
+
 ### Session 14 - 2026-09-26: Calm HUD, 1918 field cards, redeploy vista
 
 Scope: skin only. No new state, flow, binding or feature. Base: 74436d8 plus a merge of `recovery/ironsight-ww1-20260912`. No commit.
