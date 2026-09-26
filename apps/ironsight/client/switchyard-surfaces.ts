@@ -29,6 +29,16 @@ const SWITCHYARD_CRATES = `
     diffuseColor.rgb *= mix(vec3(1.0), crateTint * mix(1.0, 0.72, frame), crateDetail);
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.58, 0.47), stencil * 0.28);
     diffuseColor.rgb *= 1.0 - gap * 0.82;
+    // Shell-fire scorch: about one 2.9 x 1.6 m cell in eight carries a charred
+    // blotch with a ragged grain-broken edge. Metre UVs restart on every face,
+    // so the cell is keyed by world position. Pure colour; no new map or pass.
+    vec2 burnUv = vec2((vSwitchyardWorld.x + vSwitchyardWorld.y) / 2.9, metres.y / 1.6);
+    vec3 burnCell = vec3(floor(burnUv), floor(vSwitchyardWorld.x / 2.9) - floor(vSwitchyardWorld.y / 2.9));
+    float burnt = step(0.875, fract(sin(dot(burnCell, vec3(7.13, 13.71, 3.97))) * 43758.5453));
+    float burnEdge = length((fract(burnUv) - 0.5) * vec2(2.0, 2.4)) + (aggregate - 0.5) * 0.7;
+    float soot = burnt * (1.0 - smoothstep(0.55, 1.05, burnEdge));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.035, 0.03, 0.026), soot * 0.94);
+    roughnessFactor = mix(roughnessFactor, 1.0, soot);
     fieldRelief = ((1.0 - gap) * 0.012 + frame * 0.004) * crateDetail;
     roughnessFactor = max(roughnessFactor, 0.84);
 `;
@@ -108,17 +118,18 @@ export function applySwitchyardWeathering(mesh: T.Mesh): void {
 }
 
 /** Original metric finish in the existing opaque PBR pass. Mipmapped fine grain,
- * derivative-filtered joints, worn panel edges and shallow anti-slip tread.
+ * derivative-filtered joints, worn panel edges and plank ramps.
  * Fixed shaders/textures are prepared before play; no lights or extra passes. */
 export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: SwitchyardSurface): void {
   // Depot conversion: olive/ochre are timber, pale is burlap sandbag, the
   // housing slot is stacked ammunition boxes and the concrete shell is brick on
   // its vertical faces. All patterns reuse the resident grain tile only.
   const finish = switchyardBakedFinish(material.name);
-  const timber = kind === 'coated' && (finish === 'olive' || finish === 'ochre');
+  // Deck ramps are plank ramps: the wood pattern replaced their iron tread plate.
+  const timber = kind === 'deck' || (kind === 'coated' && (finish === 'olive' || finish === 'ochre'));
   const sandbag = kind === 'coated' && finish === 'pale';
   const crates = finish === 'housing';
-  const panelled = !crates && (kind === 'steel' || kind === 'deck' || (kind === 'coated' && !timber && !sandbag));
+  const panelled = !crates && (kind === 'steel' || (kind === 'coated' && !timber && !sandbag));
   const weathered = panelled || timber || sandbag || crates || kind === 'concrete';
   const pattern = timber ? RELAY_FIELD_PATTERNS.wood : sandbag ? UNDERTOW_SANDBAG : crates ? SWITCHYARD_CRATES
     : kind === 'concrete' ? RELAY_FIELD_PATTERNS.brick.replaceAll('vRelayWall', 'vertical') : '';
@@ -133,6 +144,11 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       shader.vertexShader = `attribute vec4 switchyardWeather; varying vec4 vSwitchyardWeather;\n${shader.vertexShader}`
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSwitchyardWeather = switchyardWeather;');
       shader.fragmentShader = `varying vec4 vSwitchyardWeather;\n${shader.fragmentShader}`;
+    }
+    if (crates) {
+      shader.vertexShader = `varying vec2 vSwitchyardWorld;\n${shader.vertexShader}`.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\nvSwitchyardWorld = (modelMatrix * vec4(position, 1.0)).xz;');
+      shader.fragmentShader = `varying vec2 vSwitchyardWorld;\n${shader.fragmentShader}`;
     }
     if (panelled) {
       shader.vertexShader = `attribute vec4 switchyardPanel;\nvarying vec4 vSwitchyardPanel;\nvarying float vSwitchyardUp;\n${shader.vertexShader}`
@@ -152,7 +168,6 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       float switchyardWear = 0.0;
       float switchyardWet = 0.0;
       float fieldRelief = 0.0;
-      vec2 switchyardTreadNormal = vec2(0.0);
       #ifdef USE_ROUGHNESSMAP
       float grain = texture2D(roughnessMap, vRoughnessMapUv).r;
       float aggregate = clamp((grain - 0.64) / 0.36, 0.0, 1.0);
@@ -219,22 +234,6 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
       float brushed = sin(metres.y * 310.0) * (1.0 - smoothstep(0.0025, 0.008, footprint.y));
       roughnessFactor += brushed * 0.025;
       ` : ''}
-      ${kind === 'deck' ? `
-      // Raised lozenges on upward ramp faces only; the sides remain flat steel.
-      vec2 treadCell = floor(metres / 0.18), q = mod(metres, 0.18) - 0.09;
-      float alternate = mod(treadCell.x + treadCell.y, 2.0) * 2.0 - 1.0;
-      vec2 axis = vec2(0.707107, 0.707107 * alternate);
-      vec2 crossAxis = vec2(-axis.y, axis.x);
-      float along = dot(q, axis), across = dot(q, crossAxis);
-      float ridgeDistance = abs(across) + max(abs(along) - 0.045, 0.0);
-      float filterWidth = max(footprint.x, footprint.y);
-      float top = smoothstep(0.6, 0.9, vSwitchyardUp);
-      float fade = (1.0 - smoothstep(0.025, 0.075, filterWidth)) * top;
-      float tread = (1.0 - smoothstep(0.007, 0.013 + filterWidth, ridgeDistance)) * fade;
-      diffuseColor.rgb *= 1.0 + 0.09 * tread;
-      roughnessFactor = mix(roughnessFactor, 0.46, tread);
-      switchyardTreadNormal = crossAxis * sign(across) * tread * 0.22;
-      ` : ''}
       #endif
     `);
     if (panelled) shader.fragmentShader = shader.fragmentShader.replace('#include <metalnessmap_fragment>', `
@@ -243,8 +242,8 @@ export function finishSwitchyardSurface(material: T.MeshStandardMaterial, kind: 
     `);
     if (pattern) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
       T.ShaderChunk.normal_fragment_maps + RELAY_FIELD_RELIEF);
-    if (kind === 'deck' || kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
-      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy = mapN.xy * normalScale * mix(1.0, 0.12, switchyardWet) + switchyardTreadNormal;'));
+    if (kind === 'ground') shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>',
+      T.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy = mapN.xy * normalScale * mix(1.0, 0.12, switchyardWet);'));
   };
   material.customProgramCacheKey = () => `switchyard-surface-v3-${kind}-${variant}`;
   material.needsUpdate = true;

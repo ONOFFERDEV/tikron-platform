@@ -46,9 +46,23 @@ export function switchyardSiteBoundary(width: number, depth: number): Switchyard
     add(1, x, 7.15, -14, 34.4, .3, 12.4);
   }
 
-  for (const [x, span, height] of [[width * .24, 18, 7], [width * .70, 23, 10]] as const) {
-    add(0, x, height / 2, depth + span / 2, width * .38, height, span);
-    add(1, x, height + .15, depth + span / 2 + .21, width * .38 + .4, .3, span + .4);
+  // East goods shed intact; the west one is shell-hit, its front wall blown open
+  // above a 2.4 m sill and the roof caved over the breach (x 16..28, clear of signs).
+  const [eastX, eastSpan, eastHeight] = [width * .70, 23, 10];
+  add(0, eastX, eastHeight / 2, depth + eastSpan / 2, width * .38, eastHeight, eastSpan);
+  add(1, eastX, eastHeight + .15, depth + eastSpan / 2 + .21, width * .38 + .4, .3, eastSpan + .4);
+  const west = width * .24, half = width * .19, span = 18, height = 7, zc = depth + span / 2;
+  add(0, west, 1.2, zc, half * 2, 2.4, span);
+  for (const [a, b] of [[west - half, 16], [28, west + half]] as const) {
+    add(0, (a + b) / 2, 4.7, zc, b - a, 4.6, span);
+    add(1, (a + b) / 2, height + .15, zc + .21, b - a + .4, .3, span + .4);
   }
+  add(0, 22, 4.2, depth + span - 1, 12, 3.6, 2); // surviving back wall
+  for (const [x, y, w] of [[16.6, 3.1, 1.2], [27.4, 3.4, 1.2], [17, 3.9, .8], [27.1, 4.4, .6]] as const)
+    add(0, x, y, depth + .75, w, .9, 1.5); // broken brick edges
+  for (let i = 0; i < 6; i++) // charred rafters, some fallen onto the rubble
+    add(1, 22, i % 2 ? 6.7 : 2.52 + i * .05, depth + 2.5 + i * 2.6, 12.6, .22, .22, i % 2 ? 0 : .3);
+  for (const [x, z, s] of [[19.5, 3.4, 1.3], [24.5, 6.2, 1.6], [21.8, 10.1, 1.1]] as const)
+    add(0, x, 2.4 + s * .25, depth + z, s * 2, s * .5, s * 1.4, s); // rubble heaps on the sill
   return parts;
 }

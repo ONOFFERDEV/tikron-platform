@@ -6,7 +6,7 @@ Scope: world-owned files in `tools/aaa-stream-world.md`. No commit, push, or dep
 ## AAA gap list
 
 1. **Underpass Trench conversion arc 3/3 (Session 6):** implemented. Remaining Underpass debt is small: the pilot lanterns keep their teal idle colour because it carries signal state, the pump-hall shells still use regular masonry openings, and the exterior east/west halls repeat. Needs owner review of the new stills.
-2. Front Supply Depot conversion (Session 7): implemented. Remaining: more bomb damage (craters, broken roofs), timber deck ramps, and the three stale Switchyard collision audits (pre-existing).
+2. Front Supply Depot conversion (Sessions 7-8): implemented, with bomb damage, plank ramps and all four Switchyard audits green. Next (round 4): crate variety/stencils/tarps, warmer timber.
 3. Signal Station's major period shell arc is implemented. Add less regular damage, repairs and human-scale use to reduce its repeated brick/box rhythm after the other maps establish their period silhouettes.
 4. Measure the finished three-map visual package on the actual laptop iGPU; desktop evidence is not that qualification.
 
@@ -132,6 +132,40 @@ Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) after review of R-UI2 
 
 - Live soldier samples are few: two 15 m captures (one landed on the results screen and was excluded) and two 30 m. The bots stood against walls, so soldier L* is paired with fixed-camera ground rather than measured on the same pixels.
 - At the gate camera, much of the remaining dark foreground mottling is the long lattice-mast shadow from look's new light, not paint.
+
+### Session 8 - 2026-09-26: Switchyard audits repaired, depot bomb damage and plank ramps
+
+Reference: coordinator round 3. Merged `recovery/ironsight-ww1-20260912` first. Colliders unchanged.
+
+#### Audits repaired (all four `tools/audit-switchyard-*.mjs` exit 0)
+
+Method: extracted `src/`/`client/` at 98d1469 (last green) into scratch, confirmed all three audits pass there, and diffed the ARENA3 maps (`.inspect/world-r3/mapdiff.mjs`). The 09-11 WW1 checkpoint deliberately: renamed the rooms (`west-baggage-office`, `east-signal-office`); lengthened the four deck ramps from 6 m to 10 m; added three 6 x 6 x 3 m inspection-court blocks at x=28/82/128, z=26..32, plus two authoritative environment props; moved caps; shifted a flank waypoint from (27,27) to (33,27); removed the counterweight door and launch pads. No layout defect was found.
+- `structures`: ids updated. Every route, ray, clearance and containment check unchanged.
+- `rail`: the south deck ramp now ends at z=68 on the centre bridge, so the x=75 bridge walk starts at the ramp foot (z=68) instead of on the ramp (z=66). This adds an assertion that the ramp lands flush on the bridge. The same both-direction, y=0, 1 cm checks apply.
+- `yard`: the carved-from-old-housing containment check still applies to every carved part. The three court blocks, which are new cover rather than carved parts, get their own checks: no overlap, 2 m spawn clearance, outside every 4 m capture radius, no flank waypoint enclosed. That last check would have caught the pre-shift (27,27) waypoint. The shell-count message now reports the real 29.
+
+#### Depot damage and ramps (presentation only)
+
+- Deck ramps and office stairs are plank ramps. The iron tread shader is removed, and the ramp surface bindings in `src/map/arena3.ts` change from `metal` to `wood`, so footsteps match. `test/ww1-visual-solids.test.ts` expected the old metal deck, so it was updated to the intended timber.
+- Scorched ammunition boxes: about one 2.9 x 1.6 m cell in eight carries a charred, ragged blotch keyed by world position.
+- Eight shell craters (scorch plus spoil ring) are painted into the existing ground atlas.
+- Two shell scars on the loading platform, each with splintered loose boards lying flat within 2 cm of the deck top.
+- The west south-boundary goods shed (outside play) is blown open. Its front wall is breached above a 2.4 m sill between x=16 and x=28. It shows a caved roof, charred and fallen rafters, broken brick edges, rubble and a surviving back wall. The south-edge boundary and the sign checks still pass.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` 0. `pnpm test` 0: 1,693 Vitest passed, 9 existing skips, 92/92 Node tests. `build:client` 0. `audit:assets` 0 (public 42,820,308 bytes). Four switchyard audits 0.
+- `audit-architecture.py` PASS, 16,830 triangles. Slot order unchanged.
+- `inspect-map --shots relay,practice-two --prefix world-r3`: 0, `errors: []`.
+- `hitch-probe --assert` once: PASS, 2 deaths, 0 recompiles, 1 frame over 150 ms (within limits), 0 errors.
+
+#### Evidence and deltas
+
+- `.inspect/world-r3/compare-*.png`: the top half is round 2 (`world-r2-after3`) and the bottom half is round 3, from the same cameras: overview/overhead, center, service, north, rail-entry, vista and the practice-three game view.
+- GLB 1,614,908 -> 1,647,436 (+32,528). Menu card 148,636 -> 146,820.
+- Vista: 36 calls, 63,954 -> 64,302 triangles, 30 programs, 16 textures, median 6.9 ms. Desktop RTX 5070 only.
+
+Player sentence: **"The ammo dump took a shelling: burnt crates, craters and a blown-out shed."**
 
 ### Session 7 - 2026-09-23: Front Supply Depot conversion, ammunition stacks, sandbags and sidings
 

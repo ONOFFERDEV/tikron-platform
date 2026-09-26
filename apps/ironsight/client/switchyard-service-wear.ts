@@ -48,5 +48,17 @@ export function paintSwitchyardServiceWear(ctx: CanvasRenderingContext2D, map: M
       ctx.fill();
     }
   }
+  // Shell craters: scorched centre, pale thrown-spoil ring. Paint only; the
+  // ground stays flat and collision is unchanged.
+  for (const [x, z, r] of [[36, 52, 2.4], [112, 31, 2.1], [62, 67, 1.8], [88, 88, 2.6],
+    [20, 46, 1.9], [131, 60, 2.2], [75, 21, 2.0], [100, 55, 1.6]] as const) {
+    const spoil = ctx.createRadialGradient(x, z, r * .7, x, z, r * 1.6);
+    spoil.addColorStop(0, 'rgba(150,142,128,0.30)'); spoil.addColorStop(1, 'rgba(150,142,128,0)');
+    ctx.fillStyle = spoil; ctx.fillRect(x - r * 1.6, z - r * 1.6, r * 3.2, r * 3.2);
+    const scorch = ctx.createRadialGradient(x, z, 0, x, z, r);
+    scorch.addColorStop(0, 'rgba(14,13,11,0.78)'); scorch.addColorStop(.7, 'rgba(24,22,19,0.55)');
+    scorch.addColorStop(1, 'rgba(24,22,19,0)');
+    ctx.fillStyle = scorch; ctx.beginPath(); ctx.arc(x, z, r, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }

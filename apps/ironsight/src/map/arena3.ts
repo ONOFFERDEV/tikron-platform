@@ -141,7 +141,7 @@ const surfaceBindings: SurfaceBinding[] = [
   })),
   ...(geometry.ramps ?? []).map((ramp, index): SurfaceBinding => ({
     id: `arena3.surface.ramp.${index}`, kind: 'ramp', ramp,
-    surface: (ramp.baseY ?? 0) < 0 ? 'gravel' : 'metal',
+    surface: (ramp.baseY ?? 0) < 0 ? 'gravel' : 'wood', // plank ramps and stairs
   })),
   ...(geometry.terrain?.faces ?? []).map((face, index): SurfaceBinding => ({
     id: `arena3.surface.terrain.${index}`, kind: 'terrain', face, surface: face.y < 0 ? 'gravel' : 'mud',

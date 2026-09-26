@@ -42,10 +42,16 @@ for (const east of [false,true]) for (const speed of [MOVE.walk, MOVE.sprint]) {
   }
   runs.push({east,speed,exit:p});
 }
+// Since the 09-11 WW1 checkpoint the south deck ramp runs to z=68 and lands
+// directly on the centre bridge, so that bridge's north yard end is the ramp foot.
+const southDeckRamp = map.ramps.find(r => r.axis === 'z' && r.dir === -1 && r.minX === 74 && (r.baseY ?? 0) === 0);
+const centreBridge = map.boxes.find(b => b.min.x === 73 && b.max.x === 77 && b.max.y === 0 && b.min.z === 68 && b.max.z === 76);
+assert.ok(southDeckRamp && centreBridge && southDeckRamp.maxZ === centreBridge.min.z, 'deck ramp lands flush on the centre bridge');
 for (const x of [46,75,104]) for (const reverse of [false,true]) {
-  let p = {x,y:0,z:reverse?77.5:66};
-  for (let i=0;i<60;i++) p=advance(p,{x:0,z:(reverse?-1:1)*11.5/60});
-  assert.ok(Math.abs(p.z-(reverse?66:77.5))<.01 && p.y===0,`yard bridge ${JSON.stringify(p)}`);
+  const north = x === 75 ? southDeckRamp.maxZ : 66;
+  let p = {x,y:0,z:reverse?77.5:north};
+  for (let i=0;i<60;i++) p=advance(p,{x:0,z:(reverse?-1:1)*(77.5-north)/60});
+  assert.ok(Math.abs(p.z-(reverse?north:77.5))<.01 && p.y===0,`yard bridge ${JSON.stringify(p)}`);
 }
 // Slide along each thin retaining face, below grade, including under a bridge.
 for (const z of [68.73,75.27]) {

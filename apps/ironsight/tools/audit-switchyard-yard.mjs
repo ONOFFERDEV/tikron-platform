@@ -19,8 +19,23 @@ const { map, parts, crates, oldBlocks, buildSwitchyardEnvironment, PROP_LIBRARY,
   await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const collision = new CoreCollision(map), nav = new GroundNavigator(map), checks = [];
 const contains = (a,b,e=0) => ['x','y','z'].every(k=>a.min[k]-e<=b.min[k]&&a.max[k]+e>=b.max[k]);
-const added = [...parts.map(p=>p.box), ...crates], key = b=>JSON.stringify(b);
-for (const b of added) {
+// The 09-11 WW1 checkpoint added three 6 x 6 x 3 m inspection-court blocks on
+// open yard ground (x=28/82/128, z=26..32). They are deliberate new cover, not
+// carved from the sealed housings, so they get their own invariants below.
+const isCourtBlock = b => b.min.z===26 && b.max.z===32 && b.min.y===0 && b.max.y===3 && b.max.x-b.min.x===6;
+const courtBlocks = parts.filter(p=>isCourtBlock(p.box)).map(p=>p.box);
+assert.deepEqual(courtBlocks.map(b=>(b.min.x+b.max.x)/2), [28,82,128], 'exactly three inspection-court blocks');
+const carved = [...parts.filter(p=>!isCourtBlock(p.box)).map(p=>p.box), ...crates], key = b=>JSON.stringify(b);
+const added = [...carved, ...courtBlocks];
+const overlaps = (a,b) => ['x','y','z'].every(k=>a.min[k]<b.max[k]-1e-9&&b.min[k]<a.max[k]-1e-9);
+for (const b of courtBlocks) {
+  assert.ok(collision.closed.includes(b) && collision.open.includes(b));
+  assert.ok(!map.boxes.some(o=>o!==b&&overlaps(o,b)), 'court block overlaps no other solid');
+  for (const s of [...map.spawns.red,...map.spawns.blue]) assert.ok(s.x<b.min.x-2||s.x>b.max.x+2||s.z<b.min.z-2||s.z>b.max.z+2, 'court block keeps 2 m from every spawn');
+  for (const c of Object.values(map.caps)) assert.ok(Math.hypot(Math.max(b.min.x-c.x,0,c.x-b.max.x),Math.max(b.min.z-c.z,0,c.z-b.max.z))>=4, 'court block outside every 4 m capture radius');
+  for (const r of map.flankRoutes) for (const q of r) assert.ok(q.x<b.min.x||q.x>b.max.x||q.z<b.min.z||q.z>b.max.z, 'flank route waypoint not enclosed');
+}
+for (const b of carved) {
   assert.ok(oldBlocks.some(old=>contains(old,b)), 'every new solid is contained in a former block');
   assert.ok(collision.closed.includes(b) && collision.open.includes(b));
 }
@@ -33,6 +48,7 @@ if (process.argv[3]) {
   for (const field of Object.keys(before).filter(k=>k!=='boxes')) assert.deepEqual(map[field],before[field],field);
   baseline = { removed: oldBlocks.length, added: added.length, otherMapFields: 'identical' };
 }
+checks.push('three checkpoint inspection-court blocks: no overlap, 2 m spawn clearance, outside capture radii, no flank waypoint enclosed');
 checks.push('replacement contained in old solids; rooms/roofs/rail, terrain, spawns, caps and Cargo Shift unchanged');
 const size = PROP_LIBRARY['ammo-crate-stack'].sizeM;
 for (const b of crates) {
@@ -48,7 +64,7 @@ scene.traverse(node=>{if(!node.isInstancedMesh || node.geometry.type!=='BoxGeome
   for(let i=0;i<node.count;i++) {const m=new Matrix4();node.getMatrixAt(i,m);node.geometry.computeBoundingBox();
     shells.push(node.geometry.boundingBox.clone().applyMatrix4(m));}});
 for(const p of parts) assert.ok(shells.some(b=>['x','y','z'].every(k=>Math.abs(b.min[k]-p.box.min[k])<1e-5&&Math.abs(b.max[k]-p.box.max[k])<1e-5)),'exact visible authority shell');
-checks.push('26 new walls/benches have exact visible authority shells');
+checks.push(`${parts.length} new walls/benches have exact visible authority shells`);
 const paint = shells.filter(b=>b.min.y>=-1e-5&&b.max.y<=.02&&b.min.x>=0&&b.max.x<=150&&b.min.z>=0&&b.max.z<=100);
 assert.ok(paint.length>20);
 // A stripe can cross two abutting terrain slabs. Partition at every support
