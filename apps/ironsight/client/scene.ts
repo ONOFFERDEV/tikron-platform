@@ -2001,7 +2001,7 @@ export class SceneRig {
     delta.divideScalar(distance);
     this.addTracer(muzzle, delta, distance, false, speed);
     const casing = this.casingAnchor.getWorldPosition(new THREE.Vector3());
-    this.spawnCasing(casing, delta);
+    this.vfx.spawnCasing(casing, delta, this.weaponIndex, true, VM_WEAPON_TRANSFORMS[this.weaponIndex]?.scale ?? 1);
     const pixel = (p: THREE.Vector3) => {
       p.project(this.camera);
       return [(p.x + 1) * this.canvas.clientWidth / 2, (1 - p.y) * this.canvas.clientHeight / 2];
@@ -2178,8 +2178,8 @@ export class SceneRig {
     this.vfx.spawnMuzzleFlash(origin, dir, weapon);
   }
 
-  spawnCasing(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }): void {
-    this.vfx.spawnCasing(origin, dir);
+  spawnCasing(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, weapon = 0): void {
+    this.vfx.spawnCasing(origin, dir, weapon);
   }
 
   spawnImpact(pos: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, hitPlayer: boolean, surface: MapSurface = 'concrete'): void {

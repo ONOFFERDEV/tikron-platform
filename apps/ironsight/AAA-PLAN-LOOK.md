@@ -629,3 +629,23 @@ Triangles rise about 2.9k because the instanced draws submit all 60 instances (i
 Lineup (`lineup-before-after.png`, `lineup-45ms-zoom.png`): mud/wood/sandbag/brick/metal/concrete/gravel at 45/160/420 ms, old pool vs new. Debris directions are random per run; otherwise identical at a glance.
 
 Gates: typecheck exit 0; vitest 206 files / 1693 tests plus node 92/92 pass; build:client pass; audit:assets exit 0; inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS, 2 deaths, **0 recompiles**, 0 frames >150 ms.
+
+### Session 19 - 2026-09-26: Brass the right size, star shells not suns
+
+Merged `recovery/ironsight-ww1-20260912` first (brick/sandbag surfaces).
+
+**Casings** (`client/vfx.ts`, `client/scene.ts`, `client/main.ts`):
+- The pooled case was 30 mm wide × 70 mm long. It is now a real 12 × 72 mm rifle case, scaled per weapon: SMG and pistol are short pistol cases, the shotgun a fat hull. Colour is aged brass `#8f7440` (was palette `#c9a227`), roughness 0.55, metalness 0.7.
+- Own casings also take the held weapon's viewmodel scale, so they match the gun they leave. They eject fast and flat to the right (3.6–4.4 m/s sideways, 0.5–0.9 up).
+- Remote casings pass the shooter's weapon.
+- Measured one frame after a shot (`.inspect/look-r17/cas/*.json`), all five weapons at hip and ADS: ADS on-screen length dropped from 130–141 px to 30–95 px. At ADS the nearest casing sits 102–222 px from the crosshair after 1 frame and 153–244 px after 2 (before: 60–195 px, drifting back toward it). Evidence: `casings-before-after.png`.
+
+**Undertow flares** (`client/scene-sky-weather.ts`):
+- One star shell per sector at a time (11 s cycle), replacing two overlapping ones.
+- It makes a quick climb, then a slow parachute descent with sideways drift and a slight flicker, and leaves a faint grey smoke trail back up to its apex.
+- The core is smaller and at 0.75 peak (was 1.6), below the sun glow.
+- Evidence: `flares-before-after.png` and `flare-new.gif`.
+
+Gates: typecheck exit 0; vitest 1693 plus node 92/92 pass; build:client pass; audit:assets exit 0; inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS, 0 recompiles, 0 frames >150 ms.
+
+Open: the smoke trail is subtle in stills and mostly visible in motion.
