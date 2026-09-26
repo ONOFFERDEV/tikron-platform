@@ -118,6 +118,14 @@ export function buildSwitchyardEnvironment(scene: T.Scene, map: MapDef, bakeOnly
         for (let px = b.min.x + 1; px < b.max.x; px += 2.4)
           add(3, px, base + h / 2 - .1, z + side * (d / 2 + .008), .22, h - .3, .006); // trestle posts
       }
+      // Shell strike on the platform: a charred scar with splintered loose
+      // boards lying flat on top, all inside the deck footprint and <= 2 cm high.
+      for (const [sx, sz, sw, sd, yaw] of [[70.5, 45.5, 3.1, 2.2, .35], [81.2, 55.4, 2.4, 1.7, -.5]] as const) {
+        add(1, sx, b.max.y + .003, sz, sw, .004, sd, 'cladding', false, new T.Euler(0, yaw, 0));
+        for (let i = 0; i < 5; i++)
+          add(3, sx + Math.cos(i * 2.4) * sw * .38, b.max.y + .011, sz + Math.sin(i * 2.4) * sd * .38,
+            .9 + (i % 3) * .35, .012, .2, 'cladding', false, new T.Euler(0, yaw + i * .9, 0));
+      }
     } else if (store) {
       add(3, x, b.max.y + .004, z, w, .008, d); // timber roof boarding
       for (const side of [-1, 1]) add(1, x, b.max.y - .3, z + side * (d / 2 + .004), w, .12, .008);

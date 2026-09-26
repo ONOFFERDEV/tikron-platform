@@ -10,7 +10,7 @@ export const SWITCHYARD_FINISH = {
   ochre: { color: 0x8b7657, roughness: 0.9, metalness: 0 }, // raw timber
   olive: { color: 0x6e6852, roughness: 0.9, metalness: 0 }, // weathered timber
   pale: { color: 0x8d8269, roughness: 0.95, metalness: 0 }, // burlap sandbags
-  deck: { color: 0x74766d, roughness: 0.78, metalness: 0.32 },
+  deck: { color: 0x6f6450, roughness: 0.88, metalness: 0 }, // plank ramps
 } as const satisfies Record<string, MeshStandardMaterialParameters>;
 
 // Original baked slots follow first use, not the procedural palette order.

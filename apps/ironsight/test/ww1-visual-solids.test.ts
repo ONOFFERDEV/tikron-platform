@@ -106,8 +106,8 @@ describe('WW1 visual solids', () => {
     finishUndertowSurface(undertow, 'concrete');
     finishSwitchyardSurface(switchyard, 'deck');
     expect([relay.userData.physicalSurface, undertow.userData.physicalSurface, switchyard.userData.physicalSurface])
-      .toEqual(['mud', 'concrete', 'metal']);
-    expect([relay.roughness, undertow.roughness, switchyard.roughness]).toEqual([0.97, 0.91, 0.78]);
+      .toEqual(['mud', 'concrete', 'wood']);
+    expect([relay.roughness, undertow.roughness, switchyard.roughness]).toEqual([0.97, 0.91, 0.84]);
     relay.dispose(); undertow.dispose(); switchyard.dispose();
   });
 
