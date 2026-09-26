@@ -60,6 +60,9 @@ export async function prepareCompositor(frames: readonly CompositorFrame[]): Pro
     // for it. Failure keeps the same optional-art fallback as the ordinary HUD.
     const border = new Image(); border.src = '/assets/ui/damage-vignette.png';
     await border.decode().catch(() => {});
+    // The redeploy screen paints this site's vista; decode it before play, not at first death.
+    const site = document.documentElement.dataset.site;
+    if (site) { const vista = new Image(); vista.src = `/assets/${site}-vista.webp`; await vista.decode().catch(() => {}); }
     await document.fonts.ready;
     for (const frame of serviceCompositorFrames(frames)) {
       const start = performance.now();

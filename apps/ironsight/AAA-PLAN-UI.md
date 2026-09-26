@@ -52,6 +52,11 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 - **Kit / supervisor, additional provenance check:** the existing soldier quarantine integrity check also reports `soldier_builder_hash` for `tools/fit-ww1-soldiers.py` and `soldier_meta_hash` for the khaki/fieldgrey metadata. Weapon validation stops the full audit before this check. See `.inspect/ui-session-1/budget.json`; neither builder nor metadata was edited here. Quarantine is retained; the budget measurement conservatively includes those excluded files and does not certify admission.
 - **Look / supervisor, required hardware gate:** rerun `EDGE='C:/Program Files/Aside/Application/Aside.exe' node scripts/hitch-probe.mjs http://localhost:8804 150000 .inspect/ui-session-1/hitch.json --assert` with this worktree's server running and the shared GPU available. The original attempt waited from approximately 10:50:53Z to 11:20:53Z on 2026-09-22 and failed at `scripts/inspection-lease.mjs:75` with `GPU inspection lease timed out after 1800000ms`. Receipt: `.inspect/ui-session-1/hitch.log`; no `hitch.json` exists. Other streams' leases/processes were left alone, no thresholds changed, and no software-rendered frame timing substitutes for the gate.
 - **World:** Existing `relay-vista.webp`, `undertow-vista.webp` and `switchyard-vista.webp` show the earlier environment. Regenerate those existing menu vistas when the corresponding WW1 world is ready; keep their current URLs. This session changes menu framing only.
+- **Supervisor (main.ts / flow), death opens the match menu (Session 14 #4):** `main.ts` calls `document.exitPointerLock()` when the local player dies. The unlock reaches `wireQuitConfirm`, which opens `#quitConfirm` over the casualty slip, and respawn then requires a click. This is confirmed in headed Edge (`.inspect/ui-r13/before/headed-tdm.json`). Request one of two fixes:
+  - (a) keep pointer lock through death, with input already cleared by `input.clearFire("death")`;
+  - (b) pass a "death" reason so `wireQuitConfirm` skips the menu and the respawn relocks without the control-required card.
+
+  UI has no skin change pending on this.
 
 ## Session 6 plan — 2026-09-23: Field dispatch, support and casualty plates
 
@@ -63,6 +68,45 @@ Session 1 failures below remain historical receipts. Session 2 closes the weapon
 - Completed: owned-process and lane cleanup, recorded in .inspect/ui-session-6/cleanup.json.
 
 ## Session log
+
+### Session 14 - 2026-09-26: Calm HUD, 1918 field cards, redeploy vista
+
+Scope: skin only. No new state, flow, binding or feature. Base: 74436d8 plus a merge of `recovery/ironsight-ww1-20260912`. No commit.
+
+#### What changed
+
+- **HUD weight (#5)**, `client/ui/hud-field-style.ts`:
+  - The kill feed, shot-confirmation log, weapon bar and mode label share one quiet backing per group (`--ui-hud-quiet`, .7). Rows lose their plates and frames.
+  - Local and victim feed rows keep their edge. Small text uses the secondary colour, so it holds 4.5:1 over bright sky.
+  - The support card (관측기 정찰) drops its paper header and becomes a quiet instrument with the same words and pips.
+  - `client/tactical-map.ts`: the Q/B key hints use the quiet backing and fade after 60s of each life. They restart on respawn because the hint is hidden while dead. Reduced motion makes the fade instant.
+  - Health, ammo, scores and the objective brief are unchanged, so they now carry the visual weight.
+- **Menu and results (#8)**, new `client/ui/field-paper-style.ts`, installed by the menu, the flow panel and the HUD:
+  - CSS paper with fibre and aged edge, ruled paper, olive canvas weave, and a rust stamp token (`--ui-stamp`, 5.4:1 on paper).
+  - A fictional regimental insignia (inline SVG mask) in the menu header, the hero and the results header.
+  - Menu: the shade is lighter so the vista reads; the intel card is ruled paper; "작전 선택" is a stamp; the selected mode card is paper.
+  - Results: the outcome is a stamp (rust on defeat) and the roster heads are paper.
+  - New tokens and rules are recorded in `DESIGN.md`.
+- **Redeploy screen (#3)**:
+  - `#deployment-flow` shows the current site's vista under a bottom-weighted shade instead of a near-black scrim. `hud.setDeploymentSite` sets `:root[data-site]`.
+  - `client/compositor-preparation.ts` decodes the vista at load, so first death adds no decode.
+  - The casualty slip (killer and countdown) takes the paper and stamp edge.
+- `test/field-paper-skin.test.mjs`: token-only colours, no motion/filter/shadow, never targets live instruments, and a vista rule with a shade layer per site.
+
+#### Evidence (`.inspect/ui-r13/`)
+
+- `before/`, `after/`: menus (3 sites at 1920 and 1280, plus relay at 200% zoom) and results (victory, DOM, FFA, defeat), from `screens.mjs`. Live TDM, DOM and FFA walks with firefights, death and respawn come from the audit-r16 walker (`walk-{mode}.png-*`).
+- Overlap probe (`live.mjs`, 40s per run): **0 overlaps, 0 clipped at 1920 and 1280 in TDM, DOM and FFA, both before and after.** At 640x360@2x the known transient overlaps remain, as recorded in Session 9 (owner decision still open).
+- A first-time player would say: "총, 체력, 목표가 먼저 보이고 메뉴는 야전 서류철 같다."
+
+#### #4 finding (investigate only, no change)
+
+A headed Edge run (`death-headed.mjs`, `before/headed-tdm.json`) shows that dying **does** release pointer lock and open the match menu in a real browser. The cause is code, not headless automation:
+- `client/main.ts` calls `document.exitPointerLock()` on the alive→dead edge; the recorded stack is `ingest ← Room.applyBinaryState`.
+- `pointerlockchange` then reaches `wireQuitConfirm`, which shows `#quitConfirm` because the phase is live and the client is online. The menu covers the casualty slip.
+- On respawn the flow becomes `control-required`, so the player must click to deploy.
+
+Suggested fix, as a flow request for supervisor routing (main.ts and the flow are outside this lane): keep lock through death, or suppress the quit menu when the unlock comes from death. See the cross-stream request below.
 
 ### Session 13 - 2026-09-23: Brick and sandbag surfaces
 

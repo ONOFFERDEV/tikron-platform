@@ -7,6 +7,7 @@ import { modeCopy } from './ui/copy.js';
 import { DEPLOYMENT_FIELD_CSS } from './ui/match-field-style.js';
 
 import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
+import { installFieldPaper } from './ui/field-paper-style.js';
 
 export interface DeploymentFlowActions {
   retry(): void;
@@ -27,6 +28,7 @@ export class DeploymentFlowPanel {
     if (!document.getElementById('deployment-flow-styles')) {
       const style = document.createElement('style'); style.id = 'deployment-flow-styles'; style.textContent = SERVICE_FIELD_CSS; document.head.append(style);
     }
+    installFieldPaper();
     this.root.id = 'deployment-flow'; this.root.hidden = true; this.root.setAttribute('role', 'status'); this.root.setAttribute('aria-live', 'polite');
     const panel = document.createElement('div'); panel.className = 'deployment-flow__panel';
     this.eyebrow.className = 'deployment-flow__eyebrow'; this.stage.className = 'deployment-flow__stage'; this.actions.className = 'deployment-flow__actions';

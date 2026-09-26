@@ -21,6 +21,8 @@ export const UI_TOKENS = {
   "--ui-warning": "#e9c36e",
   "--ui-error": "#f0a496",
   "--ui-hud-backing": "rgba(18,23,20,.92)",
+  "--ui-hud-quiet": "rgba(18,23,20,.7)",
+  "--ui-stamp": "#8f3f24",
   "--ui-scrim": "rgba(6,8,7,.78)",
   "--ui-space-1": "4px",
   "--ui-space-2": "8px",

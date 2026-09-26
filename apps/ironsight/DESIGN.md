@@ -193,6 +193,15 @@ Only the body row scrolls and it has `min-block-size:0; overflow:auto`. Header a
 - Death retains the exact eliminated/killer/automatic-respawn text and timing. The existing direct children form a 560px maximum casualty slip: paper heading, olive killer row and a ruled tabular countdown row, with an error edge. Long names wrap; unknown killer and respawning-now use the same slip. The overlay keeps its current bottom placement and compositing promotion. No new scrim, animation, gradient, filter or shadow is added.
 - Streak text keeps its existing location and fade, with a paper/ink field stamp and brass edge. Loading-time clones paint death/streak and each support icon with both empty and filled pips. All decoration is inert and never changes gameplay visibility.
 
+### Calm HUD and 1918 field cards (Session 14)
+
+- Live HUD weight goes to the reticle, health/ammunition and the objective brief. Secondary groups keep every word but use one quiet backing per group: `--ui-hud-quiet` (`rgba(18,23,20,.7)`). This covers the kill feed, shot-confirmation log, weapon bar, mode label and support card. Rows inside a group have no plate or frame. The local and victim feed rows keep their 3px accent/error edge. Small text on the quiet backing uses secondary text, never muted, so it holds 4.5:1 over bright sky.
+- The support card drops its paper header and becomes a quiet instrument with the same words, pips and mortar-ready edge.
+- Ping/backup key hints use the quiet backing and fade after the first 60s of each life. The hint is hidden while dead, so the timer restarts on respawn. Under reduced motion the fade is instant. This is the only HUD fade; nothing authoritative fades.
+- Menu, results, casualty slip and deployment screens use field-card materials, all CSS: paper (`--ui-surface-paper` with ink fibre gradients and an aged edge), ruled paper (a 28px rule), olive canvas weave, and the rust stamp ink `--ui-stamp` (`#8f3f24`, 5.4:1 on paper). Stamps are bordered labels rotated 1–2°, with Korean zero tracking. The fictional regimental insignia (roundel, dotted ring, chevron, crossed rifles) is an inline SVG mask that takes a token colour. None of this is used on the live instruments.
+- The menu shade is lighter so the vista reads: 88% at the text edge, 8% at the far edge. The intel card is ruled paper with ink text; the selected mode card is paper; the header mark is the insignia.
+- Deployment and redeploy screens show the current site's vista under a bottom-weighted shade. The site comes from `:root[data-site]`, set when the HUD learns the site. The vista is decoded in the loading-time preparation, so first death adds no decode.
+
 ## 6. Motion and interaction
 
 | Token | Value | Purpose |

@@ -17,6 +17,7 @@ import { CombatHud, type E32LatencyHudState, type ObjectiveHudState } from './ui
 import { CombatHudPresenter } from './ui/combat-hud-view.js';
 import { ResultView, resultViewCss } from './ui/result-view.js';
 import { HUD_FIELD_CSS } from './ui/hud-field-style.js';
+import { installFieldPaper } from './ui/field-paper-style.js';
 import { SERVICE_FIELD_CSS } from './ui/service-field-style.js';
 import type { ShotFeedbackEvent } from './shot-feedback.js';
 import type { WeaponActionState } from '../src/weapon-action.js';
@@ -277,7 +278,11 @@ export class Hud {
   private overlayVisible = false;
   private briefText = "";
   private deployment?: DeploymentBanner;
-  setDeploymentSite(site: string): void { this.deployment ??= new DeploymentBanner(this.root, site); }
+  setDeploymentSite(site: string): void {
+    // Lets the deployment/redeploy screens show this site's vista (presentation only).
+    document.documentElement.dataset.site = site.toLowerCase();
+    this.deployment ??= new DeploymentBanner(this.root, site);
+  }
   updateDeployment(state: ArenaState, now: number, myId: string, active: boolean) {
     return this.deployment?.update(state, now, myId, active);
   }
@@ -359,7 +364,7 @@ export class Hud {
     this.settings = settings;
     const style = el("style");
     style.textContent = css + honorsCss + resultViewCss + HUD_FIELD_CSS + SERVICE_FIELD_CSS;
-    if (installStyles) document.head.appendChild(style);
+    if (installStyles) { document.head.appendChild(style); installFieldPaper(); }
 
     this.root = el("div", "hud");
     this.combatPresenter = new CombatHudPresenter(this.root, installStyles);

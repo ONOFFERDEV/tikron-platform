@@ -55,14 +55,18 @@ export class TacticalMap {
         (ramp.maxX - ramp.minX) * this.scale, (ramp.maxZ - ramp.minZ) * this.scale);
     }
     const style = document.createElement('style');
-    style.textContent = '#teamPingHint .field-phrase{display:inline-block;white-space:nowrap}@media(max-width:800px){#teamPingNotice{bottom:200px!important}#teamPingHint{bottom:156px!important}}';
+    // Key hints fade after the first minute of each life; the hint is hidden while dead, so
+    // the animation restarts on every respawn. Reduced motion skips the transition, not the fade.
+    style.textContent = '#teamPingHint:not([hidden]){animation:team-hint-fade var(--ui-motion-panel) ease-out 60s forwards}@keyframes team-hint-fade{to{opacity:0}}'
+      + '@media(prefers-reduced-motion:reduce){#teamPingHint:not([hidden]){animation-duration:1ms}}body:has(#hud[data-reduced-motion="true"]) #teamPingHint:not([hidden]){animation-duration:1ms}'
+      + '#teamPingHint .field-phrase{display:inline-block;white-space:nowrap}@media(max-width:800px){#teamPingNotice{bottom:200px!important}#teamPingHint{bottom:156px!important}}';
     document.head.appendChild(style);
     this.hint.id = 'teamPingHint';
     this.notice.id = 'teamPingNotice'; this.notice.setAttribute('role', 'status');
     this.notice.style.cssText = 'position:fixed;pointer-events:none;color:var(--ui-text-primary);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:calc(var(--ui-safe-edge) + 160px);inline-size:220px;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);border-inline-start:var(--ui-border-emphasis) solid var(--ui-accent);overflow-wrap:anywhere';
     this.notice.hidden = true;
     this.notice.style.whiteSpace = 'pre-line';
-    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:calc(var(--ui-safe-edge) + 88px);inline-size:max-content;max-inline-size:min(360px,calc(100vw - 2 * var(--ui-safe-edge)));box-sizing:border-box;padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-backing);color:var(--ui-text-secondary);white-space:pre-line';
+    this.hint.style.cssText = 'position:fixed;pointer-events:none;font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);inset-inline-start:var(--ui-safe-edge);inset-block-end:calc(var(--ui-safe-edge) + 88px);inline-size:max-content;max-inline-size:min(360px,calc(100vw - 2 * var(--ui-safe-edge)));box-sizing:border-box;padding:var(--ui-space-1) var(--ui-space-3);background:var(--ui-hud-quiet);color:var(--ui-text-secondary);white-space:pre-line';
     root.append(this.canvas, this.label); document.body.append(root, this.hint, this.notice);
   }
 

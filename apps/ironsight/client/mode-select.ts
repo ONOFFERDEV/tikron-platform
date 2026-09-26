@@ -8,6 +8,7 @@ import { FIELD_UI_COPY, formatCopy, modeCopy } from "./ui/copy.js";
 import { readDeploymentSelection } from "./ui/flow-state.js";
 import { setFieldPhrases } from "./ui/field-copy.js";
 import { DEPLOYMENT_CSS } from "./ui/deployment-style.js";
+import { installFieldPaper } from "./ui/field-paper-style.js";
 
 const MODES: Record<ModeId, { label: string; ko: string; map: string; description: string; detail: string }> = {
   tdm: { label: "TEAM DEATHMATCH", ko: modeCopy("tdm").label, map: SITES.arena1.name, description: modeCopy("tdm").description, detail: formatCopy(modeCopy("tdm").detailFmt, { target: MODE_RULES.tdm.killTarget }) },
@@ -24,7 +25,7 @@ export async function resolveMode(settings: SettingsStore): Promise<ModeId> {
     let selected: ModeId = "tdm";
     let trainingSite: SiteId = "arena1";
     let deploying = false;
-    const style = document.createElement("style"); style.textContent = DEPLOYMENT_CSS; document.head.appendChild(style);
+    const style = document.createElement("style"); style.textContent = DEPLOYMENT_CSS; document.head.appendChild(style); installFieldPaper();
     const root = document.createElement("main"); root.id = "modeMenu"; root.dataset.flow = "menu";
     root.innerHTML = `
       <div class="vista" aria-hidden="true"></div><div class="shade" aria-hidden="true"></div>

@@ -86,6 +86,25 @@ export const HUD_FIELD_CSS = `
 /* Full-screen results and connection overlays sit above the body-level map, support and signal panels. */
 #hud:has(#overlay[data-kind="end"]),#hud:has(#overlay[data-kind="connection"]){z-index:var(--ui-z-hud)}
 #hud #squadRadio{left:var(--ui-safe-edge);bottom:calc(var(--ui-safe-edge) + 252px);max-width:248px;box-sizing:border-box;padding:var(--ui-space-2) var(--ui-space-3);border-left:var(--ui-border-emphasis) solid var(--ui-border-strong);font:500 var(--ui-type-hud)/1.5 var(--ui-font-body);background:var(--ui-hud-backing);color:var(--ui-text-secondary)}
+/* Session 14, calm HUD: crosshair, health/ammo and the objective carry the weight.
+   Secondary instruments keep every word but lose their per-row plates and frames;
+   one quiet backing per group, plain text inside. Nothing is hidden. */
+#hud #feed,#hud #combatEventLog{background:var(--ui-hud-quiet)}
+#hud #feed{gap:0}
+#hud #feed .k{padding:2px var(--ui-space-3);border-left:0;background:none}
+#hud #feed .k.local{border-left:var(--ui-border-emphasis) solid var(--ui-accent);background:none}
+#hud #feed .k.victim{border-left:var(--ui-border-emphasis) solid var(--ui-error)}
+#hud #feed .cause strong{display:inline;margin-inline-end:var(--ui-space-1)}
+#hud #feed .assist{border-top:0;padding-top:0}
+#hud #combatEventLog{gap:0}
+#hud #combatEventLog li{background:none;border-inline-start:0;color:var(--ui-text-secondary)}
+#hud #wbar{background:var(--ui-hud-quiet)!important}
+#hud #wbar .slot:not(.active){color:var(--ui-text-secondary)}
+#hud #mode{background:var(--ui-hud-quiet)}
+body #airSupport{padding:var(--ui-space-2) var(--ui-space-3);background:var(--ui-hud-quiet);border:0;border-inline-end:var(--ui-border-emphasis) solid var(--ui-border-strong)}
+body #airSupport strong{margin:0 0 var(--ui-space-1);padding:0;background:none;color:var(--ui-text-secondary);font-size:var(--ui-type-meta)}
+body #airSupport span{color:var(--ui-text-secondary)}
+body #airSupport .meter{margin-block-start:var(--ui-space-2)}
 @media(max-width:900px){
  #hud #wbar{bottom:calc(var(--ui-safe-edge) + 112px);width:max-content}
  #hud #hp{width:176px}#hud #ammo{width:160px}
