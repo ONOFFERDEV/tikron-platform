@@ -134,7 +134,9 @@ const surfaceFor = (box: Box): MapSurface => {
   const part = structureParts.get(box);
   if (part?.structure === RELAY_TRENCH.id) return part.kind === 'slab' || part.kind === 'cover' ? 'wood' : 'mud';
   if (part?.kind === 'cover') return 'wood';
-  return 'concrete';
+  // Follows relay-environment: the signal hut and low free-standing covers are timber, the rest masonry.
+  const hut = box.min.x >= 72 && box.max.x <= 78 && box.min.z >= 50.599 && box.max.z <= 55.401;
+  return part || !(hut || box.max.y - box.min.y < 1.5) ? 'brick' : 'wood';
 };
 const bindings: SurfaceBinding[] = [
   ...relayBase.boxes.map((box, index) => ({ id: `relay.box.${index}`, kind: 'box' as const, box, surface: surfaceFor(box) })),

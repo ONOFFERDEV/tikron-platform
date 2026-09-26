@@ -25,6 +25,8 @@ export const IMPACT_PROFILES: Readonly<Record<MapSurface, { readonly color: numb
   wood: { color: 0x9b7048, sparks: 0, dust: 4 },
   metal: { color: 0xffd08a, sparks: 6, dust: 1 },
   concrete: { color: 0xb8b2a7, sparks: 2, dust: 6 },
+  brick: { color: 0xa8704e, sparks: 1, dust: 6 },
+  sandbag: { color: 0xcdb78d, sparks: 0, dust: 7 },
 };
 
 export function nearMissDistance(origin: Vec3, direction: Vec3, length: number, listener: Vec3): number {

@@ -50,10 +50,10 @@ it("measures near misses against the finite authoritative shot segment", () => {
 });
 
 it("gives every canonical surface a distinct material response", () => {
-  expect(Object.keys(IMPACT_PROFILES).sort()).toEqual(["concrete", "gravel", "metal", "mud", "wood"]);
+  expect(Object.keys(IMPACT_PROFILES).sort()).toEqual(["brick", "concrete", "gravel", "metal", "mud", "sandbag", "wood"]);
   expect(IMPACT_PROFILES.metal.sparks).toBeGreaterThan(IMPACT_PROFILES.wood.sparks);
   expect(IMPACT_PROFILES.mud.dust).toBeGreaterThan(IMPACT_PROFILES.metal.dust);
-  expect(new Set(Object.values(IMPACT_PROFILES).map(profile => profile.color)).size).toBe(5);
+  expect(new Set(Object.values(IMPACT_PROFILES).map(profile => profile.color)).size).toBe(7);
 });
 
 it("keeps the pooled procedural grenade fallback while the authored asset is unaccepted", () => {
