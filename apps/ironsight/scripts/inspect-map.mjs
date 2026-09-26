@@ -605,7 +605,8 @@ try {
     if ((inspectedSite === 'undertow-ground' || inspectedSite === 'switchyard-ground' || name.startsWith('undertow-') || name.startsWith('switchyard-') || name === 'practice-two' || name === 'practice-three') && assetRequests.some(p => p.includes('relay-uplink')))
       throw Error('Relay uplinks loaded on another map');
     if (name.startsWith('switchyard-')) {
-      for (const required of ['/assets/maps/switchyard-architecture.glb', '/assets/maps/switchyard-ground-ao.png', '/assets/props/switchyard-transformer.glb'])
+      // The WW1 Front Supply Depot no longer uses the modern transformer prop (2026-09-26).
+      for (const required of ['/assets/maps/switchyard-architecture.glb', '/assets/maps/switchyard-ground-ao.png'])
         if (!assetRequests.includes(required)) throw Error(`Switchyard asset not requested: ${required}`);
       if (assetRequests.some(p => /relay|undertow|arena[12]-dressing/.test(p))) throw Error('Switchyard requested another map asset');
     }
