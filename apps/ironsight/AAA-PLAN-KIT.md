@@ -106,6 +106,48 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 
 ## Session log
 
+### Session 12 - 2026-09-23: Weapon atlas at 1024; live material textures already 20 of 32
+
+- **Status:** all gates PASS (hitch advisory, single run PASS). No commit.
+- **Merge note:** to measure the integrated build, I merged `recovery/ironsight-ww1-20260912` (look rounds 7-11, ui 10-11) with `--no-ff --no-commit`. It is staged, not committed, just as in Session 6. `client/weapon-loader.ts` was not touched by the merge, so the before build is the integrated state minus this change.
+- **1. Weapon atlas:** `client/weapon-loader.ts` resamples any colour map larger than 1024 once per loaded template, on a canvas, like the existing soldier-atlas path. The shared cache feeds first person and remote alike. The source GLB is unchanged (public byte delta 0). The only map affected is the `weapons-vm.glb` `PolygonScifi_01_A` 2048x2048 atlas, now 1024x1024: about 21.3 -> 5.3 MiB resident with mips, **about 16 MiB saved**. Field-carbine maps are 512 and stay as they are.
+- **Visual check:** 1080p weapon-inspector stills, hip and ADS for all five slots, before/after (`.inspect/kit-r8/{before,after}/`, side-by-side `crops/`). Mean absolute pixel difference over the weapon region is 0.00-0.25 /255. The walnut/steel finish carries the look and I see no lost detail in the crops, so this ships.
+- **2. Live-round texture census:** `.inspect/kit-r8/census.mjs` wraps WebGL2 texture allocation before load, independent of scene internals. It runs a live 12-player TDM bot round per map and reports the worst 5 s sample:
+
+| Map | Material before -> after | Bone data (separate) | Render targets | Renderer total |
+| --- | --- | --- | --- | --- |
+| arena1 | 20 -> 20 | 14 | 3 | 35 |
+| arena2 | 20 -> 20 | 13 | 3 | 34 |
+| arena3 | 20 -> 20 | 14 | 3 | 35 |
+
+  The 34-40 figure is the renderer total. With bone data counted separately, live rounds are already at **20 material textures**, under 32, so there was nothing to pool. Soldier materials share one prepared 512 atlas. Largest material texture after: 2048x1024 (not kit-owned).
+- **Gates:**
+  - `pnpm typecheck` PASS
+  - `pnpm test` PASS: 1,691 Vitest, 9 skips carried over, 92/92 Node
+  - `pnpm build:client` PASS
+  - `pnpm audit:assets` PASS: publicBytes 48,896,479
+  - `inspect-map --prefix kit-r8` PASS, zero errors/forbidden
+  - `hitch-probe --assert`: `{"hitchGate":"PASS",...,"recompiles":0,"framesOver150ms":0,"errors":0}`
+- Server stopped, port 8802 clear.
+
+### Session 11 - 2026-09-23: Fit diagnosis: proportions, not skinning. Stopped, not converging
+
+- **Status:** stopped inside the time box with the diagnosis. No product source change is left in the tree: the one experiment (below) was measured and then reverted. No allow-list, admission, server or commit.
+- **Diagnosis tooling:** `.inspect/kit-r6/fit.ts` now also reports, per sample, the worst vertex's dominant bone and rest position, the worst head-sphere direction, and two torso measures of the hit component (the proxy): the farthest point from anything visible (`proxyEmptyMm`), and the same for its top vertex. Output: `.inspect/kit-r7/fit-diag.json`, `.inspect/kit-r7/v1/fit.json`, `summary.txt`.
+- **Fieldgrey crouch +51 mm is equipment, not the chest.** The worst vertex is the top of the vertical `shoulder-roll` blanket (rest (0.16, 1.33, -0.22), weighted to spine_03), which rises above the hit top when the torso leans forward. Shortening it (top at 1.23) gave 37 mm, still over the bar; it would need to sit below about 1.09.
+- **Sprint torso-top 79-89 mm is mostly a metric artefact.** The "visible torso top" was a neck_01 ring that pitches forward with the neck, while the head and neck still fill the space below the hit top.
+  - I tested the suggested skinning fix: collar rings kept on spine_03 (neck key raised, neck blend starting at 1.50). It changed the sprint gap only 89 -> 73 mm, so skinning is not the cause.
+- **The real torso gap is shoulder height (proportions):**
+  - The recorded Stage33 torso component has square shoulders up to y 1.540 at x ±0.20-0.23 (mesh units). The candidate tunic's shoulders are at about 1.38-1.45.
+  - So the torso hit component's top lies **110-128 mm** from any visible vertex in every clip, including idle. That is hit volume above empty air just over each shoulder. For the recorded body it is 0 by construction.
+  - Closing it means raising the candidate shoulders about 10-12 cm above the shoulder joints: a hunched, box-shouldered silhouette.
+- **Head:** the sphere overshoot (43-47 mm vs 31 mm recorded) is lateral and back at centre height, and lower-side at the jaw.
+  - The sphere radius is 125 mm; the candidate head is 83 mm half-width.
+  - Getting within 30 mm needs a head of about 190 mm wide plus a wider jaw. That contradicts the existing compact-head (at most 170 mm wide) and jaw (at most 72 mm) tests from Sessions 3 and 5, which I did not widen.
+- **Conclusion:** the new body cannot pass the 30 mm bar against the recorded calibration without taking on the recorded body's proportions (high square shoulders, big head). Those proportions are what made the legacy soldier read as an angular placeholder. Honest options:
+  1. Re-measure the stage-33 calibration for the new body.
+  2. Accept a candidate that deliberately copies the recorded shoulder and head envelope. This is an art-direction call, not a kit fix.
+
 ### Session 10 - 2026-09-23: Hit-only torso proxy proves identity, but fit proof fails: stopped before admission
 
 - **Status: STOPPED at step 3 (fit proof), as instructed.** Steps 1 and 2(a)(b) pass. Step 2(c) (allow-list), step 4 (admission/in-play) and the granted `src/stage33-hit-calibration.ts` / `client/calibrated-actor-source.ts` were **not** touched. The only source change is `tools/extract-hit-rig-pose.mjs`. No commit, no server started, no public asset change.

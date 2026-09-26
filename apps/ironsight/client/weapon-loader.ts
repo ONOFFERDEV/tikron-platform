@@ -55,7 +55,41 @@ export function weaponSource(config: WeaponVisConfig, index: number, options: We
 }
 
 const warnedUrls = new Set<string>();
-const sharedCache = new SharedAssetCache<GLTF>(url => new GLTFLoader().loadAsync(url), disposeGltfTemplate);
+/** The legacy weapon bundle ships one 2048x2048 atlas (~21 MiB resident with mips). Held weapons
+ * read the same at 1024 (Session 12 hip/ADS crops), so resample colour maps once per template. */
+export const WEAPON_ATLAS_MAX = 1024;
+function limitWeaponMaps(scene: THREE.Object3D): void {
+  const dom = globalThis as unknown as { document?: { createElement(tag: 'canvas'): {
+    width: number; height: number;
+    getContext(type: '2d'): { drawImage(image: unknown, x: number, y: number, w: number, h: number): void } | null;
+  } } };
+  if (!dom.document) return;
+  const resized = new Map<THREE.Texture, THREE.Texture>();
+  scene.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
+      if (!(material instanceof THREE.MeshStandardMaterial) || !material.map) continue;
+      const source = material.map, image = source.image as { width?: number; height?: number };
+      const size = Math.max(image.width ?? 0, image.height ?? 0);
+      if (size <= WEAPON_ATLAS_MAX) continue;
+      let texture = resized.get(source);
+      if (!texture) {
+        const canvas = dom.document!.createElement('canvas'), scale = WEAPON_ATLAS_MAX / size;
+        canvas.width = Math.round((image.width ?? 0) * scale); canvas.height = Math.round((image.height ?? 0) * scale);
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+        context.drawImage(source.image, 0, 0, canvas.width, canvas.height);
+        texture = source.clone(); texture.image = canvas; texture.name = `${source.name || 'weapon-atlas'}-${WEAPON_ATLAS_MAX}`;
+        texture.needsUpdate = true;
+        resized.set(source, texture);
+        source.dispose();
+      }
+      material.map = texture;
+    }
+  });
+}
+const sharedCache = new SharedAssetCache<GLTF>(url => new GLTFLoader().loadAsync(url)
+  .then(gltf => { limitWeaponMaps(gltf.scene); return gltf; }), disposeGltfTemplate);
 
 export function acquireWeaponModel(url: string): AssetLease<GLTF> {
   const lease = sharedCache.acquire(url);
