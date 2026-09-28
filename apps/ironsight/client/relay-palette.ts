@@ -5,7 +5,7 @@ import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns
  * original AO bake's material slots, so a colour pass never requires changing
  * collision geometry or re-baking unchanged occlusion. Signs own their accents. */
 export const RELAY_FINISH = {
-  concrete: { color: 0x987e67, roughness: 0.96, metalness: 0 },
+  concrete: { color: 0x8e7b6a, roughness: 0.96, metalness: 0 }, // muted brick, less orange under sun
   pale: { color: 0xa59a80, roughness: 0.94, metalness: 0 },
   // Existing coping and foundation cladding share faces with the concrete bake.
   // Resolve depth ties consistently in both the fallback and baked materials.
