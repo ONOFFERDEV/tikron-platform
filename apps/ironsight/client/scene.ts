@@ -51,6 +51,7 @@ import { RemoteWeapon, remoteWeaponTemplate } from "./remote-weapon.js";
 import { AuthoredViewmodelHands, ViewmodelHands, loadAuthoredViewmodelHands } from "./viewmodel-hands.js";
 import type { WeaponPresentation } from "./weapon-presentation.js";
 import { viewmodelWeaponPresentation } from "./scene-weapon.js";
+import { periodServiceArm } from "./rifle-period.js";
 import { createLensDirt } from "./scene-lens-dirt.js";
 import { createFarField, disposeFarField } from "./scene-far-field.js";
 import { inspectionWeaponAction, ReloadPresentation, reloadPose, remoteReloadProgress } from "./reload-presentation.js";
@@ -951,6 +952,10 @@ export class SceneRig {
       const sourceBounds = new THREE.Box3().setFromObject(obj);
       const sightHeight = new THREE.Box3().setFromObject(obj).max.y * transform.scale;
       this.disposeCurrentWeaponMesh();
+      // Period silhouettes for the four legacy weapons, applied after the muzzle, bounds and
+      // sight height are read from the untouched copy and before the reload parts are split.
+      const period = nodeName ? periodServiceArm(obj, nodeName) : undefined;
+      if (period) this.weaponGeometry.push(...period.geometry);
       {
         const split = splitRifleMagazine(obj, index);
         this.magazine = split.magazine; this.bolt = split.bolt; this.weaponGeometry.push(...split.owned);
@@ -967,7 +972,7 @@ export class SceneRig {
           if (n instanceof THREE.Mesh) n.material = VM_MODEL_MATERIAL;
         });
       }
-      this.sightHeight = sightHeight;
+      this.sightHeight = period ? period.sightLine * transform.scale : sightHeight;
       this.weaponHolder.add(obj);
       this.weaponPresentation = presentation;
       // Source-space markers follow the real mesh transform (including any roll).

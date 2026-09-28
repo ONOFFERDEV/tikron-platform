@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { splitRifleMagazine } from "./rifle-magazine.js";
 import { issuedIronSights, stripIssuedSightHousing } from "./rifle-sight.js";
+import { periodServiceArm } from "./rifle-period.js";
 import { reloadPose, weaponActionPose } from "./reload-presentation.js";
 import type { WeaponActionState } from "../src/weapon-action.js";
 import { GAME } from "../src/game-config.js";
@@ -91,6 +92,7 @@ export function remoteWeaponTemplate(gltf: Parameters<typeof cloneWeaponBundleNo
   object.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(object);
   const template = { object, tip: weaponMuzzle(object), length: Math.max(0.001, bounds.max.z - bounds.min.z) };
+  periodServiceArm(object, name); // period silhouette after tip/length, so mounting is unchanged
   const authoredParts = object.getObjectByName("LOD0") && object.getObjectByName("grip_l")
     && object.getObjectByName("grip_r");
   if (!authoredParts) splitRifleMagazine(object, index);
