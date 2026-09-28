@@ -1,21 +1,51 @@
 /** Metric relief in the existing opaque material. Every pattern reuses the
  * resident grain tile; derivative filtering keeps distant mortar/planks quiet. */
 export const RELAY_FIELD_PATTERNS = {
+  // Muted, weathered brick. Every course drifts in tone, bricks vary between
+  // red-brown, grey-brown, clinker and overburnt, faces carry pitting and worn
+  // arrises, about one brick in six has lost mortar and some corners are
+  // chipped. The base is desaturated on walls at every distance.
   brick: `
     vec2 brickSize = vec2(0.38, 0.145);
     float course = floor(metres.y / brickSize.y);
+    float courseTone = fract(sin(course * 12.9898 + 4.1) * 43758.5453);
     vec2 brickUv = metres + vec2(mod(course, 2.0) * brickSize.x * 0.5, 0.0);
     vec2 brickCell = floor(brickUv / brickSize);
     vec2 brickLocal = mod(brickUv, brickSize);
     vec2 brickEdge = min(brickLocal, brickSize - brickLocal);
-    vec2 mortarEdge = 1.0 - smoothstep(vec2(0.006), vec2(0.009) + footprint, brickEdge);
-    float brickDetail = 1.0 - smoothstep(0.035, 0.16, max(footprint.x, footprint.y));
-    float mortar = max(mortarEdge.x, mortarEdge.y) * brickDetail;
     float fired = fract(sin(dot(brickCell, vec2(17.17, 91.71))) * 43758.5453);
-    vec3 brickTint = mix(vec3(0.67, 0.57, 0.48), vec3(1.15, 1.04, 0.88), fired);
-    diffuseColor.rgb *= mix(vec3(1.0), brickTint, vRelayWall * brickDetail);
-    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.32, 1.40, 1.42), mortar * vRelayWall);
-    fieldRelief = (1.0 - mortar) * 0.009 * vRelayWall * brickDetail;
+    float fired2 = fract(fired * 13.37 + 0.21);
+    float mortarLoss = step(0.83, fract(fired * 7.77));
+    float jointWidth = mix(0.006, 0.015, mortarLoss);
+    vec2 mortarEdge = 1.0 - smoothstep(vec2(jointWidth), vec2(jointWidth + 0.003) + footprint, brickEdge);
+    float brickDetail = 1.0 - smoothstep(0.035, 0.16, max(footprint.x, footprint.y));
+    float fineDetail = 1.0 - smoothstep(0.004, 0.014, max(footprint.x, footprint.y));
+    float mortar = max(mortarEdge.x, mortarEdge.y) * brickDetail;
+    float wallLum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(wallLum), 0.3 * vRelayWall);
+    vec3 brickTint = mix(vec3(0.72, 0.64, 0.57), vec3(1.07, 0.98, 0.88), fired);
+    brickTint = mix(brickTint, vec3(0.70, 0.68, 0.66), step(0.76, fired2) * 0.75);
+    brickTint = mix(brickTint, vec3(0.40, 0.35, 0.31), step(0.93, fired2));
+    brickTint *= mix(0.88, 1.07, courseTone);
+    float pit = step(0.72, fract(sin(dot(floor(metres * 42.0), vec2(3.13, 7.71))) * 43758.5453));
+    float arris = 1.0 - smoothstep(0.012, 0.035, min(brickEdge.x, brickEdge.y));
+    float chipped = step(0.84, fract(fired * 3.3));
+    vec2 chipCorner = step(0.5, vec2(fract(fired * 5.1), fract(fired * 9.3))) * brickSize;
+    float chip = chipped * (1.0 - smoothstep(0.03, 0.045 + footprint.x, length(brickLocal - chipCorner))) * brickDetail;
+    vec3 brickFace = brickTint * (1.0 - pit * 0.12 * fineDetail) * (1.0 - arris * 0.12 * brickDetail);
+    diffuseColor.rgb *= mix(vec3(1.0), brickFace, vRelayWall * brickDetail);
+    diffuseColor.rgb *= mix(1.0, 0.94 + 0.08 * courseTone, vRelayWall * (1.0 - brickDetail));
+    vec3 mortarColour = mix(diffuseColor.rgb * vec3(1.18, 1.22, 1.22), diffuseColor.rgb * vec3(0.55, 0.52, 0.5), mortarLoss);
+    diffuseColor.rgb = mix(diffuseColor.rgb, mortarColour, mortar * vRelayWall);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.62, 0.58, 0.54), chip * vRelayWall);
+    // Soot and grime runs: smooth value noise across 0.7 m columns, waving down the wall.
+    float grimeI = floor(metres.x / 0.7), grimeF = smoothstep(0.0, 1.0, fract(metres.x / 0.7));
+    float grimeCol = mix(fract(sin(grimeI * 7.31) * 43758.5453), fract(sin((grimeI + 1.0) * 7.31) * 43758.5453), grimeF);
+    float grime = smoothstep(0.55, 0.95, grimeCol) * (0.65 + 0.35 * sin(metres.y * 1.3 + grimeCol * 9.0));
+    diffuseColor.rgb *= 1.0 - grime * 0.28 * vRelayWall;
+    fieldRelief = ((1.0 - mortar) * mix(0.009, 0.014, mortarLoss) - chip * 0.006 - pit * 0.0015 * fineDetail)
+      * vRelayWall * brickDetail;
+    roughnessFactor = mix(roughnessFactor, mix(0.86, 0.98, fired2), vRelayWall * brickDetail);
     roughnessFactor = mix(roughnessFactor, 0.98, mortar);
   `,
   wood: `

@@ -193,6 +193,28 @@ Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) after review of R-UI2 
 - Live soldier samples are few: two 15 m captures (one landed on the results screen and was excluded) and two 30 m. The bots stood against walls, so soldier L* is paired with fixed-camera ground rather than measured on the same pixels.
 - At the gate camera, much of the remaining dark foreground mottling is the long lattice-mast shadow from look's new light, not paint.
 
+### Session 9 - 2026-09-28: Depot crates become timber supply lots; weathered brick on every map
+
+Reference: coordinator round 4, audit r16 items #6 and #7. Item #10 (floors) was reassigned to the ui lane; no floor file was touched (`site-ground.ts`, `relay-ground-wear.ts` and the Undertow ground branches are unchanged). Merged `recovery/ironsight-ww1-20260912` first. The change is shader and palette only: no geometry, collider, bake, texture, light or pass changed.
+
+#### Delivered
+
+- `client/switchyard-surfaces.ts` (#6): the box-stack shader is rewritten and keyed by world position, so no two stacks repeat. Each 1.44 m column is a delivery lot with its own box size (0.48/0.72/1.44 x 0.30/0.40/0.52 m), timber (raw pine, grey weathered, dark stained, faded olive paint) and course offset. There are odd replacement boxes from other lots. Boxes carry board seams, grain streaks, end battens, rope handles and pseudo-stencilled 3 x 5 glyph unit/lot marks: one or two lines of up to seven glyphs, dark on light timber and pale on dark. There are faded red and yellow contents bands. About 4% of boxes stand open on packed brass round ends. Rope lashings are on about 14% of lots and ragged olive tarpaulins hang over about 14%. The scorch from Session 8 is kept. The blank pale label plates are gone. `client/switchyard-palette.ts` warms the stack base colour to 0x8a7453.
+- `client/relay-field-patterns.ts` (#7, shared by Relay, Undertow and the depot): the brick base is desaturated 30% on walls at every distance. Course-to-course tone drift and per-brick red-brown, grey-brown, clinker and overburnt variation are added. Faces get pitting and darkened worn arrises. About one brick in six has lost mortar (wider, darker, deeper joints), about one in six has a chipped corner, and smooth soot and grime runs streak down the walls. Per-brick roughness replaces the uniform rubbery sheen. Relay's `RELAY_BRICK_WEAR` (soot, scars, repairs) still runs on top. `client/relay-palette.ts` changes the Relay brick base from 0x987e67 to 0x8e7b6a, which is less orange in sun.
+
+#### Gates (fresh)
+
+- `pnpm typecheck` 0. `pnpm test` 0: 1,696 Vitest passed (9 existing skips), 92/92 Node tests. `build:client` 0. `audit:assets` 0 (public 42,862,175 bytes; this round adds no files). All four `tools/audit-switchyard-*.mjs` pass.
+- `inspect-map --shots relay,practice-two --prefix world-r4`: exit 0, `errors: []`.
+- `hitch-probe --assert`, run once: **FAIL, "fewer than two deaths"** (1 death). 0 recompiles, 0 frames over 150 ms, 0 errors. The failure is bot combat coverage, not frame pacing. It is recorded and was not rerun, under the run-once rule.
+
+#### Evidence and deltas
+
+- `.inspect/world-r4/compare-*.png`: before on top, after below, same cameras, captured with `.inspect/world-r4/capture.sh`. Close range: `close-relay` (review camera 53,1.65,74.6 facing a Relay brick box), `close-switchyard-center` (a crate stack), `brick-switchyard-vista` (a depot brick store) and `game-practice-three` (the audit's crate view). Mid range: `mid-relay`, `mid-undertow-home`, `mid-switchyard-center` and `mid-switchyard-vista`. `close-undertow-home` faces a timber revetment, so it shows no brick.
+- Switchyard shots: calls 23/36 unchanged, programs 30 unchanged, textures 16 unchanged, median 6.9 ms. Desktop RTX 5070 only. Asset bytes: +0.
+
+Player sentence: **"Those are stacks of stencilled ammo crates under tarps, and the brick looks old and sooty."**
+
 ### Session 8 - 2026-09-26: Switchyard audits repaired, depot bomb damage and plank ramps
 
 Reference: coordinator round 3. Merged `recovery/ironsight-ww1-20260912` first. Colliders unchanged.

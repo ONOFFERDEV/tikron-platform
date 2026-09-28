@@ -6,7 +6,7 @@ import type { MeshStandardMaterialParameters } from 'three';
 export const SWITCHYARD_FINISH = {
   concrete: { color: 0x8a7566, roughness: 0.96, metalness: 0 }, // brick walls, paved setts
   steel: { color: 0x3f403b, roughness: 0.8, metalness: 0.22 },
-  housing: { color: 0x7d6f53, roughness: 0.88, metalness: 0 }, // ammunition box stacks
+  housing: { color: 0x8a7453, roughness: 0.88, metalness: 0 }, // supply box stacks, weathered timber
   ochre: { color: 0x8b7657, roughness: 0.9, metalness: 0 }, // raw timber
   olive: { color: 0x6e6852, roughness: 0.9, metalness: 0 }, // weathered timber
   pale: { color: 0x8d8269, roughness: 0.95, metalness: 0 }, // burlap sandbags

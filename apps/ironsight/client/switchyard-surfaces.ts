@@ -4,43 +4,106 @@ import { RELAY_FIELD_PATTERNS, RELAY_FIELD_RELIEF } from './relay-field-patterns
 import { switchyardBakedFinish } from './switchyard-palette.js';
 import { UNDERTOW_SANDBAG } from './undertow-surfaces.js';
 
-/** Stacked ammunition boxes: 0.72 x 0.40 m faces in columns that shift every
- * third course, each with a batten frame, dark gaps, a painted/raw tint and a
- * pale stencil panel on some boxes. Existing metre UVs only; the detail fades
- * to a quiet brown below pixel size. */
+/** Stacked supply boxes on the existing metre UVs, keyed by world position so
+ * no two stacks repeat. Each 1.44 m stack column is one delivery lot: its own
+ * box size (0.48/0.72/1.44 x 0.30/0.40/0.52 m), timber (raw pine, grey
+ * weathered, dark stained, faded olive paint) and course offset. Boxes carry
+ * board seams, end battens, rope handles and pseudo-stencilled unit/lot marks;
+ * some columns are lashed with rope or hidden under a ragged tarpaulin, some
+ * boxes stand open on their brass rounds and some are scorched. Detail fades
+ * to a quiet warm brown below pixel size. No new map, sampler or pass. */
 const SWITCHYARD_CRATES = `
-    vec2 crateSize = vec2(0.72, 0.40);
-    float crateRow = floor(metres.y / crateSize.y);
-    vec2 crateUv = metres + vec2(fract(floor(crateRow / 3.0) * 0.37) * crateSize.x, 0.0);
-    vec2 crateCell = floor(crateUv / crateSize);
-    vec2 crateLocal = mod(crateUv, crateSize);
+    float along = vSwitchyardWorld.x + vSwitchyardWorld.y;
+    float height = vSwitchyardWeather.x;
+    vec2 cratePx = max(fwidth(vec2(along, height)), vec2(0.001));
+    float crateDetail = 1.0 - smoothstep(0.04, 0.18, max(cratePx.x, cratePx.y));
+    float stackW = 1.44;
+    float col = floor(along / stackW);
+    float colKey = fract(sin(col * 91.7 + 3.1) * 43758.5453);
+    float colKey2 = fract(sin(col * 27.3 + 11.9) * 24634.6345);
+    float perRow = colKey < 0.4 ? 2.0 : colKey < 0.78 ? 3.0 : 1.0;
+    float rowH = colKey2 < 0.35 ? 0.30 : colKey2 < 0.75 ? 0.40 : 0.52;
+    vec2 crateSize = vec2(stackW / perRow, rowH);
+    vec2 cratePos = vec2(along - col * stackW, height + fract(colKey * 5.3) * rowH);
+    vec2 crateCell = floor(cratePos / crateSize);
+    vec2 crateLocal = cratePos - crateCell * crateSize;
     vec2 crateEdge = min(crateLocal, crateSize - crateLocal);
-    float crateDetail = 1.0 - smoothstep(0.04, 0.18, max(footprint.x, footprint.y));
-    vec2 crateGap = 1.0 - smoothstep(vec2(0.014), vec2(0.022) + footprint, crateEdge);
-    float gap = max(crateGap.x, crateGap.y) * crateDetail;
-    vec2 crateFrame = 1.0 - smoothstep(vec2(0.055), vec2(0.06) + footprint, crateEdge);
-    float frame = max(crateFrame.x, crateFrame.y) * crateDetail;
-    float crateId = fract(sin(dot(crateCell, vec2(41.3, 289.1))) * 43758.5453);
-    vec3 crateTint = mix(vec3(0.62, 0.70, 0.50), vec3(1.14, 1.02, 0.84), step(0.6, crateId));
-    crateTint *= mix(0.78, 1.12, fract(crateId * 7.3));
-    vec2 stencilEdge = abs(crateLocal - crateSize * 0.5) - crateSize * vec2(0.2, 0.12);
-    float stencil = (1.0 - smoothstep(0.0, 0.004 + footprint.x, max(stencilEdge.x, stencilEdge.y)))
-      * step(0.55, fract(crateId * 3.1)) * crateDetail;
-    diffuseColor.rgb *= mix(vec3(1.0), crateTint * mix(1.0, 0.72, frame), crateDetail);
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.58, 0.47), stencil * 0.28);
-    diffuseColor.rgb *= 1.0 - gap * 0.82;
+    float crateId = fract(sin(dot(crateCell + col * 7.1, vec2(41.3, 289.1))) * 43758.5453);
+    float colEdge = min(cratePos.x, stackW - cratePos.x);
+    vec2 crateGap = 1.0 - smoothstep(vec2(0.009), vec2(0.016) + cratePx, crateEdge);
+    float gap = max(max(crateGap.x, crateGap.y) * crateDetail, (1.0 - smoothstep(0.012, 0.02 + cratePx.x, colEdge)) * 0.8);
+
+    // Timber by lot, with the odd replacement box from another lot.
+    float species = fract(colKey * 3.7 + step(0.86, crateId) * 0.45);
+    vec3 woodTint = species < 0.34 ? vec3(1.10, 0.95, 0.74)
+      : species < 0.58 ? vec3(0.84, 0.82, 0.78)
+      : species < 0.80 ? vec3(0.66, 0.55, 0.43) : vec3(0.72, 0.74, 0.56);
+    woodTint *= mix(0.84, 1.1, fract(crateId * 7.3));
+    float boards = rowH > 0.45 ? 3.0 : 2.0;
+    float boardV = crateLocal.y / crateSize.y * boards;
+    float boardSeam = (1.0 - smoothstep(0.0, 0.05 + cratePx.y * boards / crateSize.y, min(fract(boardV), 1.0 - fract(boardV)))) * crateDetail;
+    float streak = fract(sin(floor(crateLocal.y * 90.0) * 12.9898 + crateId * 311.0) * 4375.85);
+    float fine = 1.0 - smoothstep(0.004, 0.012, cratePx.y);
+    float cleat = (1.0 - smoothstep(0.045, 0.05 + cratePx.x, crateEdge.x)) * step(0.45, crateSize.x) * crateDetail;
+    float rope = (1.0 - smoothstep(0.012, 0.02 + cratePx.x, abs(length(vec2(min(crateLocal.x, crateSize.x - crateLocal.x) - 0.1, (crateLocal.y - crateSize.y * 0.55) * 1.6)) - 0.035)))
+      * step(0.45, crateSize.x) * step(0.3, crateSize.y) * step(0.6, fract(crateId * 2.3)) * crateDetail;
+    vec3 crate = diffuseColor.rgb * woodTint * mix(1.0, mix(0.93, 1.05, streak), fine);
+    crate *= mix(1.0, 0.8, cleat) * (1.0 - boardSeam * 0.35);
+    crate = mix(crate, vec3(0.045, 0.036, 0.022), rope * 0.55);
+
+    // Pseudo-stencil: one or two lines of 3 x 5 glyphs (unit, lot, contents).
+    float glyphs = min(floor(crateSize.x * 0.64 / 0.06), 7.0);
+    float textW = glyphs * 0.06;
+    vec2 textUv = (crateLocal - vec2((crateSize.x - textW) * 0.5, crateSize.y * 0.34)) / vec2(textW, crateSize.y * 0.32);
+    float lines = crateSize.y > 0.35 ? 2.0 : 1.0;
+    vec2 textCell = vec2(textUv.x * glyphs, textUv.y * lines);
+    vec2 glyphCell = floor(textCell);
+    vec2 glyphLocal = fract(textCell) * vec2(4.0, 6.0);
+    float lineLength = glyphs * mix(0.45, 1.0, fract(crateId * 13.1 + glyphCell.y * 0.37));
+    float bit = step(0.42, fract(sin(dot(vec3(glyphCell, crateId * 97.0) + vec3(floor(glyphLocal), 0.0), vec3(12.99, 78.23, 37.71))) * 43758.5453));
+    float inside = step(0.0, textUv.x) * step(textUv.x, 1.0) * step(0.0, textUv.y) * step(textUv.y, 1.0)
+      * step(glyphLocal.x, 3.0) * step(glyphLocal.y, 5.0) * step(glyphCell.x, lineLength);
+    float stencil = bit * inside * step(0.3, fract(crateId * 3.1)) * (1.0 - smoothstep(0.006, 0.014, cratePx.x));
+    vec3 paint = species < 0.58 ? vec3(0.025, 0.022, 0.018) : vec3(0.21, 0.19, 0.15);
+    crate = mix(crate, paint, stencil * 0.8);
+    // A faded contents band near one end on some boxes.
+    float band = step(0.82, fract(crateId * 5.9)) * crateDetail
+      * (1.0 - smoothstep(0.03, 0.034 + cratePx.x, abs(crateLocal.x - crateSize.x * 0.22)));
+    crate = mix(crate, fract(crateId * 11.0) > 0.5 ? vec3(0.34, 0.08, 0.05) : vec3(0.42, 0.33, 0.08), band * 0.75);
+
+    // Opened boxes: dark interior packed with brass round ends.
+    float opened = step(0.955, fract(crateId * 17.3)) * step(0.3, height) * crateDetail;
+    vec2 interior = crateLocal - crateSize * 0.5;
+    float lid = step(abs(interior.x), crateSize.x * 0.5 - 0.04) * step(abs(interior.y), crateSize.y * 0.5 - 0.04);
+    vec2 roundLocal = fract(crateLocal / 0.045) - 0.5;
+    float brass = 1.0 - smoothstep(0.26, 0.34, length(roundLocal));
+    vec3 openFace = mix(vec3(0.03, 0.025, 0.02), vec3(0.34, 0.24, 0.08) * mix(0.7, 1.1, fract(dot(floor(crateLocal / 0.045), vec2(3.1, 7.7)))), brass * fine);
+    crate = mix(crate, openFace, opened * lid);
+
+    // Rope lashings and a ragged tarpaulin over some lots.
+    float lashed = step(0.86, colKey2) * crateDetail;
+    float lashing = lashed * (1.0 - smoothstep(0.012, 0.02 + cratePx.x, min(abs(cratePos.x - 0.3), abs(cratePos.x - stackW + 0.3))));
+    crate = mix(crate, vec3(0.10, 0.08, 0.045) * mix(0.8, 1.15, step(0.5, fract(height * 14.0 + cratePos.x * 3.0))), lashing);
+    float tarpOn = step(0.12, colKey) * step(colKey, 0.26);
+    float hem = vSwitchyardWeather.z - 0.7 - fract(colKey * 9.1) * 1.2 + (fract(sin(floor(along * 5.0) * 7.7) * 437.5) - 0.5) * 0.12;
+    float tarp = tarpOn * step(hem, height);
+    float fold = 0.5 + 0.5 * sin(along * 7.0 + sin(height * 2.3) * 1.4);
+    vec3 canvas = vec3(0.075, 0.07, 0.042) * mix(0.8, 1.08, fold) * mix(0.9, 1.0, fine * streak);
+    crate = mix(crate, canvas, tarp);
+    gap *= 1.0 - tarp;
+
+    diffuseColor.rgb = crate * (1.0 - gap * 0.85);
     // Shell-fire scorch: about one 2.9 x 1.6 m cell in eight carries a charred
-    // blotch with a ragged grain-broken edge. Metre UVs restart on every face,
-    // so the cell is keyed by world position. Pure colour; no new map or pass.
-    vec2 burnUv = vec2((vSwitchyardWorld.x + vSwitchyardWorld.y) / 2.9, metres.y / 1.6);
+    // blotch with a ragged grain-broken edge.
+    vec2 burnUv = vec2(along / 2.9, height / 1.6);
     vec3 burnCell = vec3(floor(burnUv), floor(vSwitchyardWorld.x / 2.9) - floor(vSwitchyardWorld.y / 2.9));
     float burnt = step(0.875, fract(sin(dot(burnCell, vec3(7.13, 13.71, 3.97))) * 43758.5453));
     float burnEdge = length((fract(burnUv) - 0.5) * vec2(2.0, 2.4)) + (aggregate - 0.5) * 0.7;
     float soot = burnt * (1.0 - smoothstep(0.55, 1.05, burnEdge));
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.035, 0.03, 0.026), soot * 0.94);
-    roughnessFactor = mix(roughnessFactor, 1.0, soot);
-    fieldRelief = ((1.0 - gap) * 0.012 + frame * 0.004) * crateDetail;
-    roughnessFactor = max(roughnessFactor, 0.84);
+    roughnessFactor = mix(max(roughnessFactor, 0.84), 1.0, soot);
+    fieldRelief = ((1.0 - gap) * 0.012 + cleat * 0.004 - boardSeam * 0.002 + rope * 0.003) * crateDetail * (1.0 - tarp)
+      + tarp * fold * 0.006 - opened * lid * 0.01;
 `;
 
 export const SWITCHYARD_PHYSICAL_SURFACES = {
