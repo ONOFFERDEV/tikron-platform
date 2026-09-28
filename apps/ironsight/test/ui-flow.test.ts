@@ -113,4 +113,13 @@ describe("deployment flow state", () => {
     const active: PlayerFlowState = { kind: "active" };
     expect(playerFlowReducer(active, { type: "player-respawned" })).toBe(active);
   });
+
+  it("labels the post-death redeploy as a deploy and keeps retry for failures", () => {
+    const redeploy = playerFlowReducer({ kind: "dead", redeploySeconds: 0 }, { type: "player-respawned" });
+    expect(deploymentFlowContent(redeploy)).toMatchObject({ actions: "retry", primary: "출격" });
+    expect(deploymentFlowContent(playerFlowReducer(redeploy, { type: "control-lost", rejected: true })))
+      .toMatchObject({ actions: "retry", primary: "다시 시도" });
+    expect(deploymentFlowContent({ kind: "recovery", stage: "weapons-and-effects", reason: "asset request failed" }))
+      .toMatchObject({ actions: "retry-menu", primary: "다시 시도" });
+  });
 });

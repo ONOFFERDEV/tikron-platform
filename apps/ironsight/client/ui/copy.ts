@@ -68,6 +68,8 @@ export const FIELD_UI_COPY = {
       "GAME CONTENT UPDATED - RELOAD REQUIRED": "게임 내용이 갱신되었습니다 · 새로고침 필요",
     } as Readonly<Record<string, string>>,
   },
+  // Primary flow action: plain deploy for a ready (or post-death) click, retry only after a failure.
+  flowAction: { deploy: "출격", retry: "다시 시도" },
   death: { title: "전사", killedByFmt: "처치자 · {killer}", respawnInFmt: "재출격까지 {s}초", respawningNow: "재출격 중" },
   capture: { red: "적색", blue: "청색", open: "미점령", taking: "점령 중" },
   streakFmt: "{who} · {count}연속 처치",

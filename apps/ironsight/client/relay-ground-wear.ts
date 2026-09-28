@@ -11,7 +11,9 @@ function standingSolids(map: MapDef): Box[] {
 /** Churned, trodden and shelled yard earth, painted once at load into the
  * existing luminance atlas in metre coordinates. Darker paint also reads as
  * wet mud in finishRelaySurface('ground'). No texture file, pass or per-frame work. */
-export function paintRelayEarth(ctx: CanvasRenderingContext2D, map: MapDef): void {
+export interface GroundPuddle { readonly x: number; readonly z: number; readonly rx: number; readonly rz: number; readonly angle: number }
+
+export function paintRelayEarth(ctx: CanvasRenderingContext2D, map: MapDef, puddles: GroundPuddle[] = []): void {
   let seed = 1917;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const { width, depth } = map.bounds;
@@ -37,9 +39,9 @@ export function paintRelayEarth(ctx: CanvasRenderingContext2D, map: MapDef): voi
       ctx.stroke();
     }
   }
-  paintLowSpots(ctx, map, random);
+  paintLowSpots(ctx, map, random, puddles);
   paintMudAprons(ctx, map, random);
-  paintRelayFootpaths(ctx, map, random);
+  paintRelayFootpaths(ctx, map, random, puddles);
   for (const [x, z, r] of relayCraterSites(map)) paintCrater(ctx, x, z, r, random);
   paintShellPocks(ctx, map, random);
   paintRubble(ctx, map, random);
@@ -90,13 +92,14 @@ function paintMudAprons(ctx: CanvasRenderingContext2D, map: MapDef, random: Rand
 }
 
 /** Water collects in a few low spots of the open yard: pooled mud with a dried rim. */
-function paintLowSpots(ctx: CanvasRenderingContext2D, map: MapDef, random: Random): void {
+function paintLowSpots(ctx: CanvasRenderingContext2D, map: MapDef, random: Random, puddles: GroundPuddle[]): void {
   const standing = standingSolids(map);
   for (let placed = 0, tries = 0; placed < 7 && tries < 400; tries++) {
     const x = 10 + random() * (map.bounds.width - 20), z = 10 + random() * (map.bounds.depth - 20);
     if (!standing.every(b => x < b.min.x - 3 || x > b.max.x + 3 || z < b.min.z - 3 || z > b.max.z + 3)) continue;
     placed++;
     const angle = random() * Math.PI, rx = 2 + random() * 2.5, rz = 1 + random() * 1.4;
+    puddles.push({ x, z, rx: rx * 0.55, rz: rz * 0.55, angle });
     for (let lobe = 0; lobe < 9; lobe++) {
       const a = random() * Math.PI * 2, d = random() * 0.6;
       const cx = x + Math.cos(a) * rx * d, cz = z + Math.sin(a) * rz * d;
@@ -110,7 +113,8 @@ function paintLowSpots(ctx: CanvasRenderingContext2D, map: MapDef, random: Rando
 
 /** Trodden routes between the deployment gates, the objectives and the signal
  * post: a compacted band, two cart/boot ruts and standing-water stains. */
-function paintRelayFootpaths(ctx: CanvasRenderingContext2D, map: MapDef, random: Random): void {
+/** Trodden routes between the deployment gates, the objectives and the signal post, in metres. */
+export function relayFootpathRoutes(map: MapDef): (readonly [number, number])[][] {
   const w = map.bounds.width;
   const routes: (readonly [number, number])[][] = [];
   for (const east of [false, true]) {
@@ -121,6 +125,11 @@ function paintRelayFootpaths(ctx: CanvasRenderingContext2D, map: MapDef, random:
     routes.push([[x(27), 17], [x(42), 26], [x(60), 27], [x(71), 38], [x(73), 50]]);
   }
   routes.push([[75, 84], [74, 70], [76, 60], [75, 56]]);
+  return routes;
+}
+
+function paintRelayFootpaths(ctx: CanvasRenderingContext2D, map: MapDef, random: Random, puddles: GroundPuddle[]): void {
+  const routes = relayFootpathRoutes(map);
   const trace = (route: readonly (readonly [number, number])[], offset: number) => {
     // Offset each vertex perpendicular to its local direction for parallel ruts.
     const points = route.map(([x, z], i) => {
@@ -160,6 +169,7 @@ function paintRelayFootpaths(ctx: CanvasRenderingContext2D, map: MapDef, random:
     ctx.beginPath(); ctx.ellipse(x, z, rx * 1.25, rz * 1.35, angle, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(14,14,14,0.42)';
     ctx.beginPath(); ctx.ellipse(x, z, rx, rz, angle, 0, Math.PI * 2); ctx.fill();
+    puddles.push({ x, z, rx, rz, angle });
   }
 }
 

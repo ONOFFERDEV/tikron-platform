@@ -41,7 +41,7 @@ export class DeploymentFlowPanel {
     const content = deploymentFlowContent(state);
     this.root.dataset.flow = state.kind; this.root.hidden = content === null;
     if (!content) return;
-    this.eyebrow.textContent = content.eyebrow; this.title.textContent = content.title; this.detail.textContent = content.detail;
+    this.retry.textContent = content.primary; this.eyebrow.textContent = content.eyebrow; this.title.textContent = content.title; this.detail.textContent = content.detail;
     this.stage.hidden = content.stage === null; this.stage.textContent = content.stage;
     this.actions.hidden = content.actions === 'none'; this.retry.hidden = content.actions === 'none'; this.menu.hidden = content.actions !== 'retry-menu';
   }
