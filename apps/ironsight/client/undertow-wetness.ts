@@ -1,5 +1,6 @@
 import type { MapDef } from '../src/map/types.js';
 import { UNDERTOW_B_APPROACHES } from '../src/map/undertow-yard.js';
+import type { GroundPuddle } from './relay-ground-wear.js';
 
 /** Trodden trench-floor routes in metres: the B approaches plus both
  * deployment trenches to A and C. Painted once into the existing atlas. */
@@ -23,7 +24,7 @@ export function paintUndertowTracks(ctx: CanvasRenderingContext2D, width: number
 
 /** Original water stains around stationary machinery. This mask is composed once
  * during map preparation; moving gallery doors never leave a baked wet footprint. */
-export function paintUndertowWetness(canvas: HTMLCanvasElement, map: MapDef): void {
+export function paintUndertowWetness(canvas: HTMLCanvasElement, map: MapDef, puddles: GroundPuddle[] = []): void {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.save(); ctx.scale(canvas.width / map.bounds.width, canvas.height / map.bounds.depth);
@@ -54,8 +55,12 @@ export function paintUndertowWetness(canvas: HTMLCanvasElement, map: MapDef): vo
   // Standing water in the trodden ruts, every few metres along each route.
   for (const route of undertowTracks(map.bounds.width)) for (let i = 1; i < route.length; i++) {
     const from = route[i - 1]!, to = route[i]!, length = Math.hypot(to.x - from.x, to.z - from.z);
-    for (let t = 2 + random() * 3; t < length; t += 5 + random() * 6)
-      patch(from.x + (to.x - from.x) * t / length, from.z + (to.z - from.z) * t / length, .9 + random() * .9, .5 + random() * .4);
+    for (let t = 2 + random() * 3; t < length; t += 5 + random() * 6) {
+      const x = from.x + (to.x - from.x) * t / length, z = from.z + (to.z - from.z) * t / length, rx = .9 + random() * .9, rz = .5 + random() * .4;
+      patch(x, z, rx, rz);
+      // The patch is axis-aligned; its centre holds standing water.
+      puddles.push({ x, z, rx: rx * 0.7, rz: rz * 0.7, angle: 0 });
+    }
   }
   // Leaking north basin and south maintenance service, in metres on this map.
   for (let x = 9; x < map.bounds.width - 5; x += 13) {

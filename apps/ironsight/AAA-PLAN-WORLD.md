@@ -83,6 +83,66 @@ World-owned conversion targets; unrelated reference rows are outside this sessio
 
 ## Session log
 
+### Session R-UI4 - 2026-09-26: Relay and Undertow underfoot — mud, duckboards, brass, straw, spill, puddles
+
+Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804). I merged `recovery/ironsight-ww1-20260912` first. Grants were `client/site-ground.ts`, `client/relay-ground-wear.ts` and the Undertow ground and walkway code. No wall, collider or Switchyard change. No commit.
+
+#### Delivered
+
+Everything is drawn in the existing ground pass. It is flat (shading and normal relief only), so nothing stands up or acts as cover. Download bytes: 0.
+
+- **`client/site-ground.ts`:**
+  - A per-map underfoot mask is painted once at load: one RGBA8 texture at atlas size, about 2.8 MB of GPU memory with mips.
+    - R: brick spill along the base of every wall 0.9 m or taller, plus around Relay's craters.
+    - G and B: duckboard runs and their heading.
+    - A: standing water.
+  - A shader layer is appended to the Relay and Undertow ground finish. All of it is world-anchored and fades by pixel footprint, so it does not shimmer at range:
+    - boot-tracked mud (sole and heel, densest where the paint is already trodden);
+    - brick chips and half-bricks, with a warm dust tone at range;
+    - straw tufts and a few dirty, torn paper scraps;
+    - brass cartridge cases (metallic, glossy);
+    - puddles with an irregular edge, a dark glossy centre and a damp rim;
+    - duckboards with slats, dark gaps and stringer edges, laid over the water.
+  - Duckboards are laid on about half of the long route segments and across every larger pool, only where a 0.5 m margin stays clear of solids.
+  - The layer survives `site-lighting` re-assigning the floor finish when detail maps arrive. The first build showed no change because of this; it is fixed with an accessor wrapper.
+- **`client/relay-ground-wear.ts`:** the route list is exported (`relayFootpathRoutes`), and the puddles already painted (low spots and rut stains) are recorded. The atlas paint and its random sequence are unchanged.
+- **`client/undertow-wetness.ts`:** the rut standing-water patches are recorded as puddles. Wetness paint is unchanged.
+
+#### Evidence (`.inspect/ui-r16/`)
+
+- `side/*.png`: before on the left, after on the right, at 50%. Eye height 1.65 m, from the unchanged inspector's review camera:
+  - `relay-spawn`, `relay-walkway`, `relay-feet`
+  - `undertow-spawn`, `undertow-walkway`, `undertow-feet`
+- Enemy-against-ground contrast uses the R-UI3 method (`analyse.py`). CIE L* of what the legs occlude and of the ground beside the feet, where an enemy stands 15 or 30 m away:
+
+| Stand | legs before → after | feet ring before → after |
+| --- | --- | --- |
+| relay path 15 m | 68.4 → 68.4 | 71.1 → 71.1 |
+| relay path 30 m | 56.8 → 56.8 | 56.0 → 56.0 |
+| relay cover south 15 m | 35.5 → 35.5 | 18.4 → 18.4 |
+| relay crater 15 m | 21.8 → 21.7 | 31.6 → 33.2 |
+| undertow B path 15 m | 18.4 → 18.5 | 24.5 → 24.5 |
+| undertow west trench 15 m | 8.6 → 8.6 | 16.6 → 16.5 |
+| undertow south lane 15 m | 22.6 → 22.6 | 27.1 → 27.1 |
+
+- **Verdict:** the detail is dense at the player's feet and fades before enemy distance. Contrast behind an enemy is unchanged within 0.1 L*. The exception is the crater feet ring, which gains 1.6 L* from brick spill and is slightly more separation from a shaded soldier (about 28). R-UI3's soldier values (sunlit about 43, shaded about 28) therefore still apply unchanged on Relay. Undertow soldier L* was not re-measured.
+
+#### Gates
+
+- typecheck exit 0.
+- `pnpm test`: 1697 passed, 9 skipped.
+- build:client and audit:assets exit 0; all four relay and four undertow audits exit 0.
+- inspect-map relay,practice-two: exit 0, `errors: []`.
+- hitch-probe `--assert`, run once: **FAIL, `fewer than two deaths`**. It recorded 1 death, 0 recompiles, 0 frames over 150 ms and 0 errors. This is the same bot-luck failure as round 15, not frame pacing, and it was not rerun. Logs: `.inspect/ui-r16/gates/`.
+
+#### Limits
+
+- Duckboards and puddles are shading only: no footstep change (surface bindings are not in this grant) and no splash.
+- Slat gaps read slightly see-through at the far end of a run.
+- Cartridge cases and straw are visible only within about 3–4 m.
+
+Player sentence: **"You can see where men have been walking: boot mud, straw, brass and duckboards over the puddles."**
+
 ### Session R-UI3 - 2026-09-23: Relay mud follows cause; enemy readability measured
 
 Worked by the ui lane in `D:/wt-ironsight-ui` (port 8804) after review of R-UI2 (committed 478f3a8). I merged `recovery/ironsight-ww1-20260912` first (it contains look's 1c3ec94 lighting: 30° sun and long hard shadows), so every number below is under the new light. Same limits as before: no collider, bake-tool, AO or other-map change. No commit.
