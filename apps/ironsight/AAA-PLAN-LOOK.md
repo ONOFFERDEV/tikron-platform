@@ -649,3 +649,33 @@ Merged `recovery/ironsight-ww1-20260912` first (brick/sandbag surfaces).
 Gates: typecheck exit 0; vitest 1693 plus node 92/92 pass; build:client pass; audit:assets exit 0; inspect-map relay,practice-two exit 0 with 0 console errors; hitch-probe `--assert` PASS, 0 recompiles, 0 frames >150 ms.
 
 Open: the smoke trail is subtle in stills and mostly visible in motion.
+
+### Session 20 - 2026-09-26: Cutting the sci-fi off, and where it stops
+
+Granted this round (kit's usual files): load-time geometry edits for the SMG, shotgun, bolt rifle and pistol in first and third person. New `client/rifle-period.ts` holds one spec per weapon, built from the connected-part inventory `.inspect/look-r18/components.mjs`: which whole parts to remove, which period parts to add, and the new sight line. It is hooked in two places:
+- `scene.ts`: runs after the muzzle, bounds and sight height are read and before the reload split. `sightHeight` comes from the spec's sight line.
+- `remote-weapon.ts`: runs after the template's tip and length are measured.
+
+The GLBs and cache are untouched, the carbine is untouched, and the added parts do not raycast.
+
+| Weapon | Removed | Added | Tris before→after | Draws |
+|---|---|---|---|---|
+| SMG | top rail, top housing, side rails, sight ears | barrel band, front blade, rear notch | 1,244→1,018 | 1→2 |
+| Shotgun | top rail, 7 barrel fins, 8 side studs | bead front sight | 1,384→1,132 | 1→2 |
+| Rifle | scope, rings, mount, rail | slim wood fore-end, muzzle end, rear base, irons | 2,876→2,264 | 1→3 |
+| Pistol | blocky rear housing, top rib, top sight block, under-rail | irons | 1,060→718 | 1→2 |
+
+Tried and dropped after the stills:
+- **SMG wooden stock:** the receiver ends at the grip, so a stock floated beside the forearm.
+- **Barrel jacket, shotgun tube and slide:** they sat inside the existing body, invisible.
+- **Pistol grip panels:** they sat off the grip; the grip is already walnut.
+
+Proof:
+- Live `viewmodel-play`, all five weapons, hip and ADS: muzzle-source error ≤7.1e−15, tracer 0.000–0.047 px from the crosshair.
+- Kit contact tool (copied to `.inspect/look-r18/travel.ts` with a `PERIOD=1` switch): worst support/firing overlap is identical before and after on all four (SMG 13.4/2.0, shotgun 18.4/2.4, rifle 7.3/1.9, pistol 2.7/2.7 mm).
+- `test/period-arms.test.ts`: muzzle unchanged on all four, cache geometry untouched, added parts never raycast, rifle optic gone.
+- Stills: `fp-before-after.png` (hip/ADS) and `tp-smg-before-after.png` (third person at 12–17 m, SMG only; no bot carried the other three at that range in the 4-minute windows).
+
+Honest limit: the Synty receivers, the shotgun's hex ring (its reload part) and the rifle's thumbhole stock remain. Rails, fins and optic are gone and the rifle now reads as a rifle, but the SMG, shotgun and pistol are still mostly the same blocky shapes. A real period silhouette needs new receiver geometry from kit (authored or Meshy), not load-time cuts.
+
+Gates: typecheck exit 0; vitest 1698 plus node 92/92 pass; build:client pass; audit:assets exit 0; inspect-map relay,practice-two,weapon-shotgun-ads exit 0 with 0 console errors; hitch-probe `--assert` PASS, 0 recompiles, 0 frames >150 ms.
