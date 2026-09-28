@@ -106,6 +106,92 @@ Status is scoped to this session; n.a. does not mark a project-wide rule complet
 
 ## Session log
 
+### Session 15 - 2026-09-28: WW1 soldier renders in play; hits stay on the HIT capsule
+
+- **Status:** done under the coordinator's approved design and grants. Merged `recovery/ironsight-ww1-20260912` up to `53b9a51` (the death-menu revert) before the live rounds and hitch. No `src/**` edit, no hit data or logic change. No commit.
+- **Change:**
+  - `config/ww1-soldier-cosmetic-admission.json` is a new, separate record: `hitAuthority: "static-capsule"`, no `runtimeAccepted`, the real GLB and meta hashes, and the builder and source hashes. The hit contract never reads it.
+  - `client/calibrated-actor-source.ts` gains `cosmeticActorUrl(team)`.
+  - `client/scene.ts`: the no-authority model path loads one model per team, `cosmeticActorUrl(team) ?? GAME.models.player`, and `makeRig` picks the team's model. That path is otherwise unchanged: capsule `HIT`, `raycastHitClaim` tagging, rendered-bounds feet, crouch grounding, `ActorAppearance`.
+  - `client/operator-kit.ts` skips roots that already carry an authored `*-field-kit` material.
+  - Assets: the Session 5 candidates are published as `public/assets/ww1/characters/soldier-{khaki,fieldgrey}-cosmetic.glb` (`6004205f...`, `8c709270...`, git-ignored as licensed derivatives) plus their meta files.
+  - `scripts/audit-assets.mjs`, `# kit` block: those paths are approved only while their bytes match the record and the record stays render-only.
+- **(a)** The hit suites (17 files, 102 tests) pass unchanged. New `test/cosmetic-soldier-hit-capsule.test.ts` checks three things: both factions resolve to the cosmetic model; the record is no hit identity and `createBundledHitAuthorityContract()` stays `undefined`; `targetHitVolume`/`resolveHitscan` use the `HIT` capsule, including a head hit at 1.78 m, above the WW1 head.
+- **(b) Feet** (`.inspect/kit-r10/feet.json`): rest-pose soles sit at 0 mm by construction (the 56 mm float was calibrated-path only).
+
+| Model | idle | walk (lowest of 4 samples) |
+| --- | --- | --- |
+| legacy | +34.7 mm | +5.5 mm |
+| khaki / fieldgrey | +35.1 / +34.9 mm | -9.1 mm |
+
+  The +35 mm is the clip's own root lift, the same for the legacy soldier.
+- **(c) Live 12-player TDM bot rounds**, 2 min per map, after the merge (`round-baseline.json`, `round-candidate.json`):
+
+| Map | hits/min base -> WW1 | kills/min base -> WW1 |
+| --- | --- | --- |
+| arena1 | 62.9 -> 58.9 | 19.0 -> 17.0 |
+| arena2 | 44.9 -> 66.4 | 15.0 -> 18.0 |
+| arena3 | 35.4 -> 37.4 | 12.5 -> 13.5 |
+| total | 47.8 -> 54.3 | 15.5 -> 16.2 |
+
+  Bots resolve server-side on the capsule, so this is run-to-run variance.
+  - The probe's local player never deployed (headless pointer-lock refusal), so respawn was not observed there. The hitch run, with a real deploy, recorded `deaths: 2`.
+- **(d) Stills:**
+  - Rig inspector front and side, both factions (`.inspect/kit-r10-rig-team{0,1}-*`): the WW1 silhouette (Brodie / Stahlhelm, pack, pouches) is filled with the team colour, with the rim edge intact.
+  - The live 30 m stills failed: the undeployed camera showed the map overview behind the pointer-lock dialog, so there are no live front/side/30 m frames on the three maps.
+  - Note: `ActorAppearance` tints the whole soldier to the team colour, so khaki versus field-grey cloth reads only through silhouette.
+- **(e) Gates:**
+  - `pnpm typecheck` PASS
+  - `pnpm test` PASS: 1,705 passed, 9 skipped
+  - `pnpm build:client` PASS
+  - `pnpm audit:assets` PASS: publicBytes 49,218,074
+  - `inspect-map --prefix kit-r9` PASS: errors [], forbidden []
+  - `hitch-probe --assert` FAIL (advisory, not rerun): `{"failures":["presentation gap"],"deaths":2,"recompiles":0,"framesOver150ms":1,"errors":0}`. It was one 1,595 ms presentation stall with a 20 ms max callback and p99 9 ms. The profile top is `applyBoneTransform`: CPU skinning during raycasts, likely claim raycasts over the three LOD meshes (hidden LOD1/2 are still raycast). Worth a follow-up.
+- Server stopped, port 8802 clear. The baseline was taken by temporarily setting the record's review to `baseline-off`; the record is restored byte-identical (`cmp` OK).
+
+### Session 14 - 2026-09-28: Visual-only soldier swap needs one scene.ts hook: stopped to ask
+
+- **Status: STOPPED before any product edit.** The owner decided on a visual-only swap. Decoupling render admission from hit authority cannot be done inside this round's grants. The Session 13 extractor change is reverted (not needed for rendering). No commit, no server started.
+- **Why the grants are not enough:** `client/scene.ts` (look-owned) chooses the actor path. The calibrated path (`CalibratedActorSlots`, `calibrated-actor-source.ts`) is built only when `options.hitAnimationAuthority !== undefined` (lines 489, 1720). That option comes from `createBundledHitAuthorityContract()` (`src/`), via `client/main.ts`. Anything that feeds the calibrated renderer therefore also switches on the rig-measured hit authority, on both server and client, because they read the same admission. Without authority, `scene.ts` loads the single legacy model `GAME.models.player` (`config/ironsight.config.ts`), and the same model serves both teams.
+- **Smallest honest change found** (needs one routed edit in `client/scene.ts`, none in `src/**`):
+  1. Kit adds `cosmeticActorUrl(team)` in `client/calibrated-actor-source.ts`, plus a cosmetic-only admission record in `config/ww1-*.json`: candidate GLB hashes, `hitAuthority: "static-capsule"`, `runtimeAccepted` not set, so `hit-authority-contract.ts` stays refused. The existing refusal tests are unchanged, and a new test asserts that the contract ignores the cosmetic record.
+  2. `scene.ts`, when `hitAnimationAuthority === undefined`: load `cosmeticActorUrl(team)` per team, else `GAME.models.player`. Then `makeRig` picks that team's GLTF.
+     - Everything else is the existing legacy model path, unchanged: capsule `HIT` volumes, `raycastHitClaim` mesh tagging, feet grounded by the rendered bounding box (so there is no 56 mm float), crouch grounding, and `ActorAppearance` (hides LOD1/2, rim and torso colour).
+     - Kit-side follow-up: `fitOperatorKit` must skip meshes that already carry `fieldKit`, so the legacy gear is not doubled.
+- Evidence of the coupling: `client/scene.ts:489,625,1720`, `client/main.ts:183`, `src/hit-authority-contract.ts:94`.
+
+### Session 13 - 2026-09-26: Hit data re-measured for the WW1 soldier
+
+- **What is live today (established before any change):** no Stage33 data is live. `config/ww1-soldier-candidate-admission.json` is a quarantine record, so `createBundledHitAuthorityContract()` returns `undefined` (test "keeps the current quarantine inactive"). Server (`arena-room.ts`): no `HitVolumeHistory`; every shot and claim resolves against the static `HIT` capsule in `src/config.ts` - head sphere r 0.22 m centred 0.22 m under the crown (stand 1.8 m, crouch 1.54 m), body cylinder r 0.4 m from the feet to crown - 0.44 m. Client: no `hitAnimationAuthority`, so it renders the legacy `player.glb` and claims `{id, part}` by raycasting those meshes; the server validates the claim against that same static capsule.
+- `src/generated/hit-rig-pose-data.json` (+ `HIT_RIG_*` constants) is the data that becomes live the moment a soldier is admitted: it is the server evaluator and the client authority pose. `STAGE33_HIT_IDENTITIES` gates both actor admission (`calibrated-actor-source.ts`) and that activation (`hit-authority-contract.ts`). `src/data/stage33-hit-calibration.json` (830-knot adaptive table, `activation: false`) is consumed only by tests; it never reached play.
+- Consequence: admitting the candidate is the first activation of rig-measured hit volumes. "Before" is therefore reported twice below: vs the recorded Stage33 body (never live) and vs the static capsule (live).
+- **Status: STOPPED at proof (a).** The khaki head fails the 30 mm bar by 2-3 mm; everything else in (a) passes. Per the brief, no admission, identity, certificate or live round. Product data (`src/generated/hit-rig-pose-data.json`, `src/hit-rig-pose-data.ts`) was regenerated, measured and then **reverted to HEAD**. Remaining change: `tools/extract-hit-rig-pose.mjs`. No commit.
+- **Re-measure (extractor, real bodies, no proxy):** source `.inspect/kit-r1/after/characters` (khaki `6004205f...`, fieldgrey `8c709270...`).
+  - Torso: the wool body-weight rule (>= 0.45) now counts `clavicle_l/r` and `neck_01` as torso, so the collar and shoulder rings belong to the torso component (khaki 380, fieldgrey 1,148 vertices). The two clavicles join the compact evaluator rig (18 bones).
+  - Head: the sphere is no longer a hard-coded constant. It is measured in head-bone space from every LOD0 vertex the head bone dominates (skin, helmet, strap), minimising the worse of "visible head outside" and "sphere surface away from any visible surface" (triangles sampled on a 4x barycentric grid). Khaki r 112.8 mm, fieldgrey 107.1 mm.
+  - Normalization: re-measured feet (`localMinY` -0.0193, was a hard-coded -0.0775 from the recorded body, which would float the candidate 56 mm). Rig scale kept at 0.96385 (same skeleton and clips), so `standHeightM` = 1.684 (body height without helmet, shared by both factions).
+  - Identity hashes are now computed: sha256 of the compact JSON of the evaluator's inputs. Candidate values: normalization `f4f379ed...`, hit component khaki `a362c533...`, fieldgrey `7a69295f...` (`.inspect/kit-r9/extract-candidate.log`). Never bound.
+- **Proof (a), production evaluator** (`sampleStage33HitRigPose` bundled with the new data; `.inspect/kit-r9/fit.ts`), 10 rifle hit clips x 4 samples, per faction, worst mm:
+
+| Body / data | torso out | top gap | head out | head sphere empty | kit out (not a hit target) |
+| --- | --- | --- | --- | --- | --- |
+| candidate khaki / new | 0 | 0 | **32.3** | **32.9** | 19.5 |
+| candidate fieldgrey / new | 0 | 0 | 27.2 | 29.8 | 73.4 |
+| recorded khaki / recorded | 90.5 | 0 | 27.1 | 31.5 | 12.4 |
+| recorded fieldgrey / recorded | 90.5 | 0 | 3.8 | 30.1 | 51.4 |
+
+  - Why khaki fails: the Brodie brim reaches 143 mm sideways from the head centre, while the dome top is only about 80 mm above it. One sphere balances at about 32 mm: brim edge outside the sphere versus empty air over the crown. The minimax is already optimal, so no data choice closes it.
+  - To pass, the brim would need to be about 5 mm narrower on each side (world). That is an art change, not made. Fieldgrey passes.
+  - The recorded calibration also fails this bar on its own body: sprint and crouch shoulders 51-90 mm outside.
+- **Impact (b), measured but not shipped** (mean of 4 samples; full table `.inspect/kit-r9/impact.txt`):
+  - Head radius vs recorded Stage33: 125.3 -> 112.8 mm khaki (-10.0%), 107.1 mm fieldgrey (-14.5%).
+  - Head radius vs the **live** static capsule (220 mm): cross-section area -74% khaki, -76% fieldgrey. This is a large headshot change and needs the owner's call before any activation.
+  - Torso top (cylinder r 0.4 m fixed, so volume scales with the top) vs recorded: stand 1,568-1,578 -> 1,462-1,465 mm (-6.8 to -7.2%), sprint -9.6%, crouch -2.3 to -2.6%.
+  - Torso top vs live static: stand +7.5-7.7%, sprint +2.6%, crouch -11.0 to -14.8%.
+- Not run, because of the stop: (c) was run on the reverted tree only (below), (d) live bot round, (e) refusal test, admission and stills.
+- Gates on the final (reverted-data) tree: `pnpm typecheck` PASS (both tsconfigs), `pnpm test` PASS: 207 files / 1,696 Vitest passed, 9 skips carried over, Node suite exit 0. No server was started, so none needs stopping.
+- Evidence: `.inspect/kit-r9/` (`fit.ts`, `fit-recorded.json`, `fit-candidate.json`, `fit-summary.txt`, `impact.txt`, `hit-rig-pose-data.candidate.json`, `remeasure.sh`).
+
 ### Session 12 - 2026-09-23: Weapon atlas at 1024; live material textures already 20 of 32
 
 - **Status:** all gates PASS (hitch advisory, single run PASS). No commit.

@@ -16,6 +16,13 @@ export function fitOperatorKit(root: THREE.Object3D, kit: OperatorKit): void {
   root.updateMatrixWorld(true);
   const mesh = root.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh | undefined;
   if (!mesh || !mesh.skeleton.bones.some(bone => bone.name === 'spine_03')) return;
+  // WW1 soldiers carry their own authored field kit; a second procedural set would double it.
+  let authoredKit = false;
+  root.traverse(node => {
+    if (node instanceof THREE.Mesh && [node.material].flat().some(material => material.name.endsWith('-field-kit')))
+      authoredKit = true;
+  });
+  if (authoredKit) return;
   const source = mesh.geometry;
   let variants = cache.get(source);
   if (!variants) { variants = new Map(); cache.set(source, variants); }

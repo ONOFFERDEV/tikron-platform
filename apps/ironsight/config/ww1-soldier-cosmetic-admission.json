@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "ww1-licensed-derived-soldier-cosmetic-admission",
+  "hitAuthority": "static-capsule",
+  "scope": "render-only: remote soldier model in play; hits, claims and hit data stay on the HIT capsule in src/config.ts",
+  "decision": "owner visual-only swap, routed by the coordinator 2026-09-28 (AAA-PLAN-KIT Session 14/15)",
+  "review": {
+    "status": "accepted",
+    "scope": "cosmetic render only; not a hit identity, not runtime (hit authority) acceptance",
+    "evidence": ".inspect/kit-r10/report.json"
+  },
+  "builder": {
+    "path": "tools/fit-ww1-soldiers.py",
+    "sha256": "88d2ae0dbdcd9a5624c0b086f896f745980a63618dfca04c7d731f55cdaf6375"
+  },
+  "source": {
+    "path": "assets/models/player.glb",
+    "sha256": "5dced0ed9b3ee898c9609bca372a60f869ca998ffec53f3ecae20b50699bec66"
+  },
+  "assets": [
+    {
+      "key": "soldier-khaki",
+      "glb": "assets/ww1/characters/soldier-khaki-cosmetic.glb",
+      "glbSha256": "6004205f0fad73b6bf47867413ceb08c51bf621e28a8391a83ce280d5d3711b6",
+      "meta": "assets/ww1/characters/soldier-khaki-cosmetic.meta.json",
+      "metaSha256": "a61c17782821a46f5badd384f87050c4a81e0e23d4350b4943eff0b5657333af"
+    },
+    {
+      "key": "soldier-fieldgrey",
+      "glb": "assets/ww1/characters/soldier-fieldgrey-cosmetic.glb",
+      "glbSha256": "8c7092709c47cd2d6ac46e28c2601626d00548cc50ac8ddded48531c46980ca8",
+      "meta": "assets/ww1/characters/soldier-fieldgrey-cosmetic.meta.json",
+      "metaSha256": "e0ef08e41474fa4ae30ecb2af0b1a0ff92d836b32eaf6f531db8dff25e0712a8"
+    }
+  ]
+}

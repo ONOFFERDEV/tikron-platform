@@ -1,4 +1,5 @@
 import rawAdmission from "../config/ww1-soldier-candidate-admission.json";
+import rawCosmeticAdmission from "../config/ww1-soldier-cosmetic-admission.json";
 import {
   SOLDIER_JOINTS,
   WW1_ASSET_MANIFEST,
@@ -195,4 +196,18 @@ export function calibratedActorSource(
     normalization,
     rig,
   };
+}
+
+/** Render-only soldier model for a team (owner visual-only swap). The record is separate from the
+ *  hit-authority admission and declares `hitAuthority: "static-capsule"`; nothing in the hit path
+ *  reads it, so the rendered soldier never changes what or where a shot hits. */
+export function cosmeticActorUrl(team: number): string | undefined {
+  const faction = factionForTeam(team);
+  const admission = record(rawCosmeticAdmission);
+  if (faction === undefined || admission?.["hitAuthority"] !== "static-capsule" ||
+    "runtimeAccepted" in admission || record(admission["review"])?.["status"] !== "accepted" ||
+    !Array.isArray(admission["assets"])) return undefined;
+  const asset = admission["assets"].map(record).find(candidate => candidate?.["key"] === `soldier-${faction}`);
+  const glb = asset?.["glb"];
+  return typeof glb === "string" && sha256(asset?.["glbSha256"]) ? `/${glb}` : undefined;
 }

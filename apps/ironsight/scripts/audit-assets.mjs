@@ -82,6 +82,15 @@ const approvedOriginal = [...libraryAdditions.map(name => `assets/props/${name}.
   'assets/weapons/field-carbine.glb',
   'assets/ui/damage-vignette.png', 'assets/undertow-dusk.hdr', 'assets/undertow-dusk-sky.png',
   'assets/switchyard-overcast.hdr', 'assets/switchyard-overcast-sky.png'];
+// kit: render-only WW1 soldiers, approved only while their bytes match the cosmetic admission record.
+const cosmeticSoldiers = JSON.parse(await readFile(fileURLToPath(new URL('../config/ww1-soldier-cosmetic-admission.json', import.meta.url)), 'utf8'));
+if (cosmeticSoldiers.hitAuthority !== 'static-capsule' || 'runtimeAccepted' in cosmeticSoldiers) throw Error('Cosmetic soldier record must stay render-only');
+for (const asset of cosmeticSoldiers.assets) {
+  for (const [path, sha] of [[asset.glb, asset.glbSha256], [asset.meta, asset.metaSha256]])
+    if (createHash('sha256').update(await readFile(join(root, path))).digest('hex') !== sha) throw Error(`Cosmetic soldier bytes do not match admission: ${path}`);
+  approvedDerived.push(asset.glb);
+}
+// end kit
 const files = [];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {

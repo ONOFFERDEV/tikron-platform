@@ -79,6 +79,7 @@ import { createCalibratedPlayerFallback, type CalibratedPlayerFallback } from ".
 import { CalibratedActorSlots } from "./calibrated-actor-slots.js";
 import { calibratedActorClaimTargets, calibratedModelHitPart, createCalibratedActorModel } from "./calibrated-actor-instance.js";
 import type { CalibratedActorTemplate } from "./calibrated-actor-loader.js";
+import { cosmeticActorUrl } from "./calibrated-actor-source.js";
 import type { HitRigPoseSample, HitRigPoseSampleInput } from "../src/hit-rig-pose.js";
 import type { Stage33Faction, Stage33HitIdentity } from "../src/stage33-hit-calibration.js";
 import { setObjectWorldPosition } from "./scene-space.js";
@@ -318,8 +319,10 @@ export class SceneRig {
   // room's first broadcast, so this is the COMMON case, not a rare race) — once the
   // load resolves, upgradeCapsuleRigs() swaps every existing capsule rig in place.
   private modelState: "loading" | "ready" | "absent" = "absent";
-  private modelGltf: GLTF | undefined;
-  private modelLease?: AssetLease<GLTF>;
+  // Indexed by team (0 khaki, 1 fieldgrey); both hold the legacy model unless a
+  // cosmetic WW1 soldier is admitted for that team (render only, hits stay on HIT).
+  private modelGltfs: GLTF[] = [];
+  private modelLeases: AssetLease<GLTF>[] = [];
   private dressingLease?: AssetLease<GLTF>;
   private dressingInstance?: MapDressingInstance;
   private mapEnvironmentProps?: MapEnvironmentPropSet;
@@ -628,16 +631,17 @@ export class SceneRig {
       : undefined;
     if (modelUrl) {
       this.modelState = "loading";
-      const lease = acquirePlayerModel(modelUrl);
-      this.modelLease = lease;
-      this.assetLoads.push(lease.value.then((gltf) => {
+      const leases = [0, 1].map(team => acquirePlayerModel(cosmeticActorUrl(team) ?? modelUrl));
+      this.modelLeases = leases;
+      this.assetLoads.push(Promise.all(leases.map(lease => lease.value)).then((gltfs) => {
+        const gltf = gltfs.every(value => value !== undefined) ? gltfs : undefined;
         if (!gltf || this.disposed) {
-          lease.release();
-          if (this.modelLease === lease) this.modelLease = undefined;
+          for (const lease of leases) lease.release();
+          if (this.modelLeases === leases) this.modelLeases = [];
           this.modelState = "absent";
           return;
         }
-        this.modelGltf = gltf;
+        this.modelGltfs = gltf;
         this.modelState = "ready";
         // Bots/players already exist server-side from the room's first broadcast,
         // so the client's very first syncPlayers() call (same frame the scene is
@@ -1723,7 +1727,7 @@ export class SceneRig {
 
   private makeRig(id: string, team: number): PlayerRig {
     if (this.hitAnimationAuthority !== undefined) return this.makeCalibratedFallbackRig(id, team);
-    if (this.modelState === "ready" && this.modelGltf) return this.makeModelRig(id, team, this.modelGltf);
+    if (this.modelState === "ready" && this.modelGltfs.length > 0) return this.makeModelRig(id, team, this.modelFor(team));
     return this.makeCapsuleRig(id, team);
   }
 
@@ -1788,8 +1792,12 @@ export class SceneRig {
     for (const [id, rig] of this.players) {
       if (rig.kind !== "capsule") continue;
       this.disposeRig(rig);
-      this.players.set(id, this.makeModelRig(id, rig.team, this.modelGltf!));
+      this.players.set(id, this.makeModelRig(id, rig.team, this.modelFor(rig.team)));
     }
+  }
+
+  private modelFor(team: number): GLTF {
+    return this.modelGltfs[team === 1 ? 1 : 0]!;
   }
 
   private makeCapsuleRig(id: string, team: number): PlayerRig {
@@ -2229,7 +2237,7 @@ export class SceneRig {
     const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     if (!(await this.preparationLifetime.wait(generation, nextFrame())).active) return;
 
-    const rigs = this.modelGltf ? ['bot-1','bot-3','bot-5'].map(id => this.makeModelRig(id, 0, this.modelGltf!)) : [];
+    const rigs = this.modelGltfs.length > 0 ? ['bot-1','bot-3','bot-5'].map((id, index) => this.makeModelRig(id, index % 2, this.modelFor(index % 2))) : [];
     const weaponFixture = new THREE.Group();
     const weaponFixtureLeases: AssetLease<GLTF>[] = [];
     const changed: { object: THREE.Object3D; visible: boolean; culled: boolean; count?: number }[] = [];
@@ -2509,9 +2517,9 @@ export class SceneRig {
     this.dressingInstance = undefined;
     this.dressingLease?.release();
     this.dressingLease = undefined;
-    this.modelGltf = undefined;
-    this.modelLease?.release();
-    this.modelLease = undefined;
+    this.modelGltfs = [];
+    for (const lease of this.modelLeases) lease.release();
+    this.modelLeases = [];
     this.contactTexture?.dispose();
     this.contactTexture = undefined;
     this.contactGeometry.dispose();
